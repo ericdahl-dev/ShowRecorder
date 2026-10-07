@@ -2,7 +2,7 @@ import Recording
 import SwiftUI
 
 /// One line of chips on the record screen: Device and Drive time left, and the Mixer Link. Ok states
-/// are quiet; a problem fills its chip. Every chip has an icon and words, so none relies on colour.
+/// are quiet; a problem fills its chip. Every chip has an icon and words, so none relies on color.
 struct StatusStrip: View {
     let chips: [StatusChip]
     let tap: (StatusChip.Kind) -> Void
