@@ -35,6 +35,8 @@ public final class Recorder {
     @ObservationIgnored private let driveFolder: () -> DestinationAccess?
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let freeSpace: (URL) -> Int64
+    /// How much audio before the record press an Armed recorder keeps, in seconds; 0 keeps none.
+    @ObservationIgnored private let preRollSeconds: Double
     @ObservationIgnored private let makeStem: (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink
     @ObservationIgnored private var device: (any AudioIODevice)?
     @ObservationIgnored private var capture: Capture?
@@ -52,9 +54,11 @@ public final class Recorder {
         driveFolder: @escaping () -> DestinationAccess? = { nil },
         now: @escaping () -> Date = Date.init,
         freeSpace: @escaping (URL) -> Int64 = { DriveFolderStore.availableBytes(at: $0) },
+        preRollSeconds: Double = 10,
         makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink = { try StemWriter.open(url: $0, info: $1, resumingAt: $2) }
     ) {
         self.freeSpace = freeSpace
+        self.preRollSeconds = preRollSeconds
         repairQueue = RepairQueue(freeSpace: freeSpace)
         self.makeStem = makeStem
         self.deviceFolder = deviceFolder
@@ -70,7 +74,7 @@ public final class Recorder {
     /// Starts receiving audio from `device`. Any previously Armed device is stopped first.
     public func arm(_ device: any AudioIODevice) throws {
         disarm()
-        let capture = Capture(channelCount: device.inputChannelCount, sampleRate: device.sampleRate)
+        let capture = Capture(channelCount: device.inputChannelCount, sampleRate: device.sampleRate, preRollSeconds: preRollSeconds)
         try device.start(input: { block in capture.receive(block) })
         self.device = device
         self.capture = capture
@@ -118,6 +122,10 @@ public final class Recorder {
         usbChannelCount = 0
         isArmed = false
     }
+
+    /// The Pre-roll buffer of the Armed device: the last seconds of audio since Arming. Nil when not
+    /// Armed or when Pre-roll is off.
+    var armedPreRoll: PreRollBuffer? { capture?.preRoll }
 
     /// Frames lost since Arming because the writer couldn't keep up. (Dropouts proper come in #15.)
     public var droppedFrameCount: Int {
@@ -275,6 +283,8 @@ public struct DestinationAccess {
 /// Everything the real-time callback touches, allocated when the recorder is Armed.
 final class Capture: Sendable {
     let meters: PeakMeters
+    /// The last seconds of every channel while Armed, for Pre-roll. Nil when Pre-roll is off.
+    let preRoll: PreRollBuffer?
     /// One ring per Copy: the Device, then the Drive.
     let rings: [SampleRing]
     /// Which Copies are being captured, one bit per ring (bit 0 the Device, bit 1 the Drive); 0 when not recording.
@@ -286,8 +296,13 @@ final class Capture: Sendable {
 
     var channelCount: Int { rings[0].channelCount }
 
-    init(channelCount: Int, sampleRate: Double) {
+    /// - Parameter preRollSeconds: how much audio to keep before a Take starts; the buffer holds a second
+    ///   more, so a snapshot of that length isn't cut short by the writer overwriting its oldest frames.
+    init(channelCount: Int, sampleRate: Double, preRollSeconds: Double = 0) {
         meters = PeakMeters(channelCount: channelCount)
+        preRoll = preRollSeconds > 0
+            ? PreRollBuffer(channelCount: channelCount, capacity: Int((preRollSeconds + 1) * max(sampleRate, 1)))
+            : nil
         // Four seconds of headroom for each writer thread.
         rings = (0..<2).map { _ in SampleRing(channelCount: channelCount, capacity: Int(max(sampleRate, 1) * 4)) }
     }
@@ -318,6 +333,7 @@ final class Capture: Sendable {
     /// Real-time: meter every block, and queue it for each Copy's writer while a Take is running.
     func receive(_ block: AudioBlock) {
         meters.record(block)
+        preRoll?.write(block)
         let requested = joinRequests.load(ordering: .acquiring)
         if requested != 0 {
             let frame = takeFrames.load(ordering: .relaxed)
