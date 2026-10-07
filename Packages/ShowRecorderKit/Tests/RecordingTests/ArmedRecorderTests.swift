@@ -16,22 +16,14 @@ struct ArmedRecorderTests {
         #expect(recorder.usbChannelCount == 18)
     }
 
-    @Test("Fewer than 18 USB Channels raises a warning", arguments: [2, 8, 17])
-    func fewerThan18ChannelsWarns(channels: Int) throws {
+    @Test("Any channel count is Armed as-is", arguments: [2, 8, 16, 18, 32])
+    func anyChannelCountIsArmed(channels: Int) throws {
         let recorder = Recorder()
 
         try recorder.arm(FakeAudioDevice(inputChannelCount: channels))
 
-        #expect(recorder.hasTooFewUSBChannels)
-    }
-
-    @Test("18 or more USB Channels raises no warning", arguments: [18, 32])
-    func eighteenOrMoreChannelsDoesNotWarn(channels: Int) throws {
-        let recorder = Recorder()
-
-        try recorder.arm(FakeAudioDevice(inputChannelCount: channels))
-
-        #expect(!recorder.hasTooFewUSBChannels)
+        #expect(recorder.isArmed)
+        #expect(recorder.usbChannelCount == channels)
     }
 
     @Test("Meters show each USB Channel's peak level while Armed")
@@ -74,7 +66,7 @@ struct ArmedRecorderTests {
         #expect(!recorder.isArmed)
         #expect(!device.isRunning)
         #expect(recorder.takeMeterLevels().isEmpty)
-        #expect(!recorder.hasTooFewUSBChannels)
+        #expect(recorder.usbChannelCount == 0)
     }
 
     @Test("Arming a different device stops the previous one")

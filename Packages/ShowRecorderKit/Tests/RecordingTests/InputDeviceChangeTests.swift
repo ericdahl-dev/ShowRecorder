@@ -40,7 +40,7 @@ struct InputDeviceChangeTests {
         #expect(change.message == "XR18 was disconnected during the Take. Recording stopped and the Stems recorded so far were saved.")
     }
 
-    @Test("An 18-channel device that appears while nothing is Armed is selected and Armed")
+    @Test("A multichannel device that appears while nothing is Armed is selected and Armed")
     func fullDeviceAppearingWhileNothingArmedIsArmed() {
         let change = InputDeviceChange.decide(
             old: [mic], new: [xr18, mic],
@@ -49,13 +49,53 @@ struct InputDeviceChangeTests {
         #expect(change == InputDeviceChange(selectedID: "xr18", action: .arm, stopsTake: false, message: nil))
     }
 
-    @Test("An 18-channel device that appears while a smaller device is Armed takes over")
+    @Test("A multichannel device that appears while a built-in mic is Armed takes over")
     func fullDeviceReplacesSmallArmedDevice() {
         let change = InputDeviceChange.decide(
             old: [mic], new: [xr18, mic],
             selectedID: "mic", armed: mic, isRecording: false)
 
         #expect(change == InputDeviceChange(selectedID: "xr18", action: .arm, stopsTake: false, message: nil))
+    }
+
+    @Test("A multichannel device of any size takes over from a built-in mic", arguments: [8, 16, 18, 32])
+    func anyMultichannelDeviceTakesOver(channels: Int) {
+        let device = InputDeviceInfo(id: "multi", name: "Interface", inputChannelCount: channels, sampleRate: 48_000)
+        let change = InputDeviceChange.decide(
+            old: [mic], new: [device, mic],
+            selectedID: "mic", armed: mic, isRecording: false)
+
+        #expect(change == InputDeviceChange(selectedID: "multi", action: .arm, stopsTake: false, message: nil))
+    }
+
+    @Test("A stereo interface that appears doesn't take over from a built-in mic")
+    func stereoDoesNotTakeOver() {
+        let change = InputDeviceChange.decide(
+            old: [mic], new: [mic, interface],
+            selectedID: "mic", armed: mic, isRecording: false)
+
+        #expect(change == InputDeviceChange(selectedID: "mic", action: .none, stopsTake: false, message: nil))
+    }
+
+    @Test("A bigger device that appears doesn't move an Armed multichannel device")
+    func biggerDeviceDoesNotReplaceMultichannel() {
+        let x32 = InputDeviceInfo(id: "x32", name: "X-USB", inputChannelCount: 32, sampleRate: 48_000)
+        let change = InputDeviceChange.decide(
+            old: [xr18, mic], new: [x32, xr18, mic],
+            selectedID: "xr18", armed: xr18, isRecording: false)
+
+        #expect(change == InputDeviceChange(selectedID: "xr18", action: .none, stopsTake: false, message: nil))
+    }
+
+    @Test("When several multichannel devices appear at once, the one with the most channels is Armed")
+    func mostChannelsWinsAmongArrivals() {
+        let eight = InputDeviceInfo(id: "eight", name: "8-in", inputChannelCount: 8, sampleRate: 48_000)
+        let x32 = InputDeviceInfo(id: "x32", name: "X-USB", inputChannelCount: 32, sampleRate: 48_000)
+        let change = InputDeviceChange.decide(
+            old: [mic], new: [eight, mic, x32],
+            selectedID: "mic", armed: mic, isRecording: false)
+
+        #expect(change == InputDeviceChange(selectedID: "x32", action: .arm, stopsTake: false, message: nil))
     }
 
     @Test("A running Take is never moved to a device that appears")
@@ -67,7 +107,7 @@ struct InputDeviceChangeTests {
         #expect(change == InputDeviceChange(selectedID: "mic", action: .none, stopsTake: false, message: nil))
     }
 
-    @Test("A smaller device the operator chose is kept when the 18-channel device was already there")
+    @Test("A smaller device the operator chose is kept when the multichannel device was already there")
     func operatorChoiceKeptWhenFullDeviceWasPresent() {
         let change = InputDeviceChange.decide(
             old: [xr18, mic], new: [xr18, mic, interface],
@@ -76,7 +116,7 @@ struct InputDeviceChangeTests {
         #expect(change == InputDeviceChange(selectedID: "mic", action: .none, stopsTake: false, message: nil))
     }
 
-    @Test("If the Armed device goes and an 18-channel device arrives at once, the new one is Armed and the loss is still reported")
+    @Test("If the Armed device goes and a multichannel device arrives at once, the new one is Armed and the loss is still reported")
     func swapInOneChange() {
         let mr18 = InputDeviceInfo(id: "mr18", name: "MR18", inputChannelCount: 18, sampleRate: 48_000)
         let change = InputDeviceChange.decide(

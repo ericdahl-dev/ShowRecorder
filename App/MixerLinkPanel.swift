@@ -26,8 +26,10 @@ struct MixerLinkPanel: View {
         }
         .task {
             // Reconnect to the remembered Mixer when the record screen opens.
-            if !address.isEmpty, link.status == .idle { await link.connect(to: address, usbChannelCount: max(usbChannelCount, 18)) }
+            if !address.isEmpty, link.status == .idle { await link.connect(to: address, usbChannelCount: usbChannelCount) }
         }
+        // Read Sources for the USB Channels the newly Armed device actually sends.
+        .task(id: usbChannelCount) { await link.refreshSources(usbChannelCount: usbChannelCount) }
     }
 
     private var isConnecting: Bool {
@@ -53,6 +55,7 @@ struct MixerLinkPanel: View {
 
     private func connect() {
         let address = address
-        Task { await link.connect(to: address, usbChannelCount: max(usbChannelCount, 18)) }
+        let count = usbChannelCount
+        Task { await link.connect(to: address, usbChannelCount: count) }
     }
 }

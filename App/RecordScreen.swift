@@ -24,11 +24,8 @@ struct RecordScreen: View {
             if let notice = model.interruptions.notice {
                 Banner(text: notice, systemImage: "phone.badge.waveform.fill", tint: .orange)
             }
-            if model.recorder.hasTooFewUSBChannels {
-                Banner(
-                    text: "This device sends \(model.usbChannelSummary). The XR18 and MR18 send 18, so some of the Mixer won't be recorded.",
-                    systemImage: "exclamationmark.triangle.fill",
-                    tint: .orange)
+            if let shortfall = model.usbChannelShortfall {
+                Banner(text: shortfall.message, systemImage: "exclamationmark.triangle.fill", tint: .orange)
             }
             MixerLinkPanel(link: model.mixerLink, usbChannelCount: model.recorder.usbChannelCount)
             MeterGrid(levels: model.levels, sources: model.mixerLink.sources)
@@ -175,6 +172,26 @@ final class RecordScreenModel {
         return count == 1 ? "1 USB Channel" : "\(count) USB Channels"
     }
 
+    /// Most input channels the Armed route offers, where the system reports it (iOS).
+    private(set) var offeredChannelCount: Int?
+
+    /// A real reason some USB Channels won't be recorded, or nil to just show the count.
+    var usbChannelShortfall: USBChannelShortfall? {
+        USBChannelShortfall.check(
+            usbChannelCount: recorder.isArmed ? recorder.usbChannelCount : 0,
+            offeredChannelCount: offeredChannelCount,
+            mixer: mixerLink.identity, capabilities: mixerLink.capabilities)
+    }
+
+    /// Notes what the system offered for `device`, after it was Armed or took over input.
+    func noteOfferedChannels(of device: any AudioIODevice) {
+        #if os(iOS)
+        offeredChannelCount = (device as? SessionAudioDevice)?.maximumInputChannelCount
+        #else
+        offeredChannelCount = nil
+        #endif
+    }
+
     /// Arms the selected device, polls meters at about 30 Hz, and disarms when the screen goes away.
     func runWhileVisible() async {
         guard await hasMicrophonePermission() else {
@@ -217,7 +234,9 @@ final class RecordScreenModel {
         }
         do {
             armedDevice = nil
-            try recorder.arm(choice.make())
+            let device = try choice.make()
+            try recorder.arm(device)
+            noteOfferedChannels(of: device)
             armedDevice = choice.info
             armError = nil
             #if os(iOS)
@@ -260,7 +279,9 @@ final class RecordScreenModel {
     /// Moves a running Take onto the new route, keeping it if the format still matches (#10).
     private func moveTakeToCurrentRoute() {
         do {
-            let continued = try recorder.restartInput(on: SessionAudioDevice.current())
+            let device = try SessionAudioDevice.current()
+            let continued = try recorder.restartInput(on: device)
+            noteOfferedChannels(of: device)
             armedDevice = devices.first { $0.id == Self.routeDeviceID }?.info
             levels = Array(repeating: 0, count: recorder.usbChannelCount)
             Self.sessionLog.notice("Input route changed during a Take; \(continued ? "the Take continues" : "the format changed, so the Take was stopped and saved", privacy: .public)")
@@ -326,21 +347,22 @@ final class RecordScreenModel {
     private static func availableDevices() -> [DeviceChoice] {
         var choices: [DeviceChoice] = []
         #if os(macOS)
-        // A device that can carry a whole XR18 comes first, then the system default input.
+        // Multichannel devices first (most channels first), then the system default input.
         let defaultID = CoreAudioDevice.defaultInputDeviceID()
-        let devices = CoreAudioDevice.inputDevices().sorted { a, b in
-            let aFull = a.inputChannelCount >= Recorder.expectedUSBChannelCount
-            let bFull = b.inputChannelCount >= Recorder.expectedUSBChannelCount
-            if aFull != bFull { return aFull }
-            return a.id == defaultID && b.id != defaultID
-        }
-        for device in devices {
-            choices.append(DeviceChoice(
+        var defaultChoiceID: String?
+        var macChoices: [DeviceChoice] = []
+        for device in CoreAudioDevice.inputDevices() {
+            let id = "coreaudio-\(device.uid)"
+            if device.id == defaultID { defaultChoiceID = id }
+            macChoices.append(DeviceChoice(
                 info: InputDeviceInfo(
-                    id: "coreaudio-\(device.uid)", name: device.name,
+                    id: id, name: device.name,
                     inputChannelCount: device.inputChannelCount, sampleRate: device.sampleRate),
                 name: "\(device.name) (\(device.inputChannelCount) in)",
                 make: { device }))
+        }
+        for info in InputDeviceInfo.preferredOrder(macChoices.map(\.info), defaultID: defaultChoiceID) {
+            if let choice = macChoices.first(where: { $0.id == info.id }) { choices.append(choice) }
         }
         #endif
         #if os(iOS)
@@ -355,8 +377,8 @@ final class RecordScreenModel {
         #endif
         #if DEBUG
         choices.append(DeviceChoice(
-            info: InputDeviceInfo(id: "demo", name: "Demo signal", inputChannelCount: 18, sampleRate: 48_000),
-            name: "Demo signal (18 channels)",
+            info: InputDeviceInfo(id: "demo", name: "Demo signal", inputChannelCount: DemoAudioDevice.channelCount, sampleRate: 48_000),
+            name: "Demo signal (\(DemoAudioDevice.channelCount) channels)",
             make: { DemoAudioDevice() }))
         #endif
         return choices
