@@ -6,6 +6,8 @@ public struct ScreenAlert: Equatable, Identifiable, Sendable {
         case cannotRecord
         /// A Copy stopped, or there is no Destination, during a Take.
         case destination
+        /// Low battery or heat that could stop the recording.
+        case power
         /// A channel shortfall or an audio interruption.
         case input
         /// How the last Take's Copies ended up.

@@ -44,6 +44,12 @@ public struct PowerStatus: Equatable, Sendable {
     /// The chips to add to the status strip: battery, then heat, those that exist.
     public var chips: [Chip] { [battery, thermal].compactMap { $0 } }
 
+    /// The warnings as record-screen alerts, most urgent first. They have no button: they stay while the
+    /// condition holds.
+    public var alerts: [ScreenAlert] {
+        warnings.map { ScreenAlert(id: $0.id, priority: .power, tone: $0.tone, text: $0.text) }
+    }
+
     /// Percent at or below which an unplugged device warns, and the lower one at which it is urgent.
     public static let warnPercent = 20
     public static let urgentPercent = 10
