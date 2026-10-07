@@ -3,6 +3,7 @@ import BroadcastWave
 import Foundation
 import MixerLink
 import Observation
+import ShowReport
 import Synchronization
 
 /// The recorder. While Armed it receives audio from a device and keeps meters for every USB Channel.
@@ -121,6 +122,7 @@ public final class Recorder {
         self.writer = nil
         isRecording = false
         try writer.stop()
+        if let currentShow { try? ShowReport.write(showFolder: currentShow.folder) }
     }
 }
 
