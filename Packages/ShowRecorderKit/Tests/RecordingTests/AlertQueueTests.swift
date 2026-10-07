@@ -21,6 +21,17 @@ struct AlertQueueTests {
         #expect(queue.moreCount == 3)
     }
 
+    @Test("A battery or heat warning ranks below a Take stopped or a Copy lost, and above input notices")
+    func powerRanksBetweenDestinationAndInput() {
+        let queue = AlertQueue([
+            alert("shortfall", .input),
+            alert("battery", .power),
+            alert("copy lost", .destination),
+            alert("cannot record", .cannotRecord, tone: .critical),
+        ])
+        #expect(queue.ordered.map(\.id) == ["cannot record", "copy lost", "battery", "shortfall"])
+    }
+
     @Test("Alerts of equal priority keep the order they were given")
     func equalPriorityKeepsOrder() {
         let queue = AlertQueue([alert("b", .input), alert("a", .input)])

@@ -136,4 +136,17 @@ struct PowerStatusTests {
         #expect(status(nil, .unknown, thermal: .fair).chips.map(\.text) == ["Warm"])
         #expect(status(nil, .unknown).chips.isEmpty)
     }
+
+    @Test("Warnings become record-screen alerts: power priority, same tone and text, most urgent first, nothing when fine")
+    func alertsForTheBanner() {
+        #expect(status(0.8).alerts.isEmpty)
+        let alerts = status(0.05, thermal: .serious).alerts
+        #expect(alerts.map(\.priority) == [.power, .power])
+        #expect(alerts.map(\.tone) == [.critical, .warning])
+        #expect(alerts.map(\.id) == ["battery", "thermal"])
+        #expect(alerts.map(\.text) == status(0.05, thermal: .serious).warnings.map(\.text))
+        #expect(alerts.allSatisfy { $0.action == nil }, "can't be dismissed while the condition holds")
+        // Through the queue, the most urgent is on top.
+        #expect(AlertQueue(alerts).top?.id == "battery")
+    }
 }

@@ -436,6 +436,7 @@ final class RecordScreenModel {
         if let notice = interruptions.notice {
             list.append(ScreenAlert(id: "interruption", priority: .input, tone: .warning, text: notice))
         }
+        list += power.status.alerts
         if let summary = copySummary, !recorder.isRecording {
             list.append(ScreenAlert(id: "copies", priority: .copyResult, tone: summary.isProblem ? .warning : .ok, text: summary.text))
         }
