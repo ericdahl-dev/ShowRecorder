@@ -19,6 +19,10 @@ public final class Recorder {
     public private(set) var currentShow: Show?
     /// Markers placed in the current (or last) Take.
     public private(set) var takeMarkers: [TakeMetadata.Marker] = []
+    /// How many stretches of audio the running (or last) Take lost because a writer couldn't keep up. Each is
+    /// silence of the right length in the Stems, a Marker and an entry in `Take.json`. Updated when the
+    /// recorder checks Destinations (about once a second) and when the Take ends.
+    public private(set) var dropoutCount = 0
     /// Whether the last Take was ended by the recorder because the last healthy Destination was about to fill.
     public private(set) var endedForLackOfSpace = false
     /// How each Copy of the last Take ended up: complete, has Gaps, Repaired or Repair failed.
@@ -202,6 +206,7 @@ public final class Recorder {
         self.session = session
         finishedCopies = [:]
         takeMarkers = []
+        dropoutCount = 0
         endedForLackOfSpace = false
         currentShow = show
         isRecording = true
@@ -212,7 +217,7 @@ public final class Recorder {
     public func addMarker(named name: String? = nil) {
         guard isRecording, let session else { return }
         session.addMarker(named: name)
-        takeMarkers = session.metadata.markers
+        takeMarkers = session.metadata.markers.filter { $0.origin == .operator }
     }
 
     /// How `kind`'s Copy of the current (or last) Take is doing. A Copy that never started is missing.
@@ -229,6 +234,7 @@ public final class Recorder {
         switch session.checkDestinations(drive: driveFolder) {
         case .carryOn:
             currentShow = session.show
+            dropoutCount = session.dropoutCount
         case .outOfSpace:
             endedForLackOfSpace = true
             try? stopTake()
@@ -250,6 +256,7 @@ public final class Recorder {
         self.session = nil
         let finished = session.finish()
         finishedCopies = finished.statuses
+        dropoutCount = finished.metadata.markers.filter { $0.origin == .dropout }.count
         currentShow = session.show
         // The Takes are safe either way; the report and project are regenerated next time.
         regenerateReports()

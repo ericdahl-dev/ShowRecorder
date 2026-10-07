@@ -113,6 +113,9 @@ final class TakeSession {
         return copy.writer.hasFailed ? .interrupted : .recording
     }
 
+    /// How many places in the Take lost audio (one Dropout Marker each).
+    var dropoutCount: Int { metadata.markers.filter { $0.origin == .dropout }.count }
+
     /// Whether every Copy's writer has failed, so there is nowhere left to record.
     var allFailed: Bool { !copies.isEmpty && copies.allSatisfy { $0.writer.hasFailed } }
 

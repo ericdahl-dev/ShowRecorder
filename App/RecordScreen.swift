@@ -97,7 +97,7 @@ struct RecordScreen: View {
     private var portrait: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
-            StatusStrip(chips: model.chips, power: model.power.status.chips, tap: chipTapped)
+            StatusStrip(chips: model.chips, extras: model.extraChips, tap: chipTapped)
             AlertSlot(queue: model.alerts, perform: model.perform)
             MeterGrid(levels: model.levels, sources: model.mixerLink.sources)
             transport
@@ -112,7 +112,7 @@ struct RecordScreen: View {
             HStack(spacing: 10) {
                 headerSummary(compact: true)
                     .frame(maxWidth: 190, alignment: .leading)
-                StatusStrip(chips: model.chips, power: model.power.status.chips, compact: true, tap: chipTapped)
+                StatusStrip(chips: model.chips, extras: model.extraChips, compact: true, tap: chipTapped)
                 gearButton
             }
             HStack(alignment: .top, spacing: 12) {
@@ -570,6 +570,15 @@ final class RecordScreenModel {
         recorder.disarm()
         armedDevice = nil
         disarmedForIdle = true
+    }
+
+    /// Chips after the Destination and Mixer ones: a Dropout count when the Take has lost audio, then battery and heat.
+    var extraChips: [PowerStatus.Chip] {
+        let dropouts = recorder.dropoutCount
+        let chip = dropouts > 0
+            ? [PowerStatus.Chip(text: dropouts == 1 ? "1 dropout" : "\(dropouts) dropouts", shortText: "\(dropouts)", symbol: "waveform.badge.exclamationmark", state: .attention)]
+            : []
+        return chip + power.status.chips
     }
 
     /// The Pre-roll length changed in Settings: keep it, give it to the recorder, and, if Armed, Arm again so

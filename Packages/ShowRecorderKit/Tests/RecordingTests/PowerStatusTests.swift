@@ -149,4 +149,12 @@ struct PowerStatusTests {
         // Through the queue, the most urgent is on top.
         #expect(AlertQueue(alerts).top?.id == "battery")
     }
+
+    @Test("Every chip has a short form for a crowded strip: battery drops the words the symbol already says")
+    func shortForms() {
+        #expect(status(0.84, .charging).battery?.shortText == "84%")
+        #expect(status(1, .full).battery?.shortText == "100%")
+        #expect(status(0.5).battery?.shortText == "50%")
+        #expect(status(0.5, thermal: .serious).thermal?.shortText == "Hot")
+    }
 }
