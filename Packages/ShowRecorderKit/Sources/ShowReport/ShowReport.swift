@@ -19,6 +19,16 @@ public struct ShowReport: Equatable, Sendable {
             public var name: String
         }
 
+        /// Stretches of the Take missing from one Copy, held there as silence.
+        public var gaps: [Gap] = []
+
+        public struct Gap: Equatable, Sendable {
+            /// "Device" or "Drive".
+            public var copy: String
+            public var startSeconds: Double
+            public var endSeconds: Double
+        }
+
         /// The longest Stem's duration in seconds, or nil when no Stem could be read.
         public var duration: Double? {
             usbChannels.compactMap(\.duration).max()
@@ -80,6 +90,10 @@ public struct ShowReport: Equatable, Sendable {
                 },
                 markers: (file.markers ?? []).map { marker in
                     Take.Marker(seconds: file.sampleRate > 0 ? Double(marker.position) / Double(file.sampleRate) : 0, name: marker.name)
+                },
+                gaps: (file.gaps ?? []).map { gap in
+                    let rate = Double(max(file.sampleRate, 1))
+                    return Take.Gap(copy: gap.copy.capitalized, startSeconds: Double(gap.start) / rate, endSeconds: Double(gap.end) / rate)
                 }))
         }
         self.showName = showFolder.lastPathComponent
@@ -189,6 +203,13 @@ public struct ShowReport: Equatable, Sendable {
             }
             out += "</tbody>\n</table></div>\n"
         }
+        if !take.gaps.isEmpty {
+            out += "<h3>Gaps</h3>\n<p class=\"note\">Missing from that Copy and held as silence.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>Copy</th><th>From</th><th>To</th></tr></thead>\n<tbody>\n"
+            for gap in take.gaps {
+                out += "<tr><td>\(Self.escape(gap.copy))</td><td class=\"num\">\(Self.markerClock(gap.startSeconds))</td><td class=\"num\">\(Self.markerClock(gap.endSeconds))</td></tr>\n"
+            }
+            out += "</tbody>\n</table></div>\n"
+        }
         out += "</section>\n"
         return out
     }
@@ -287,6 +308,13 @@ struct TakeFile: Decodable {
     var sampleRate: Int
     var usbChannels: [USBChannel]
     var markers: [Marker]?
+    var gaps: [Gap]?
+
+    struct Gap: Decodable {
+        var copy: String
+        var start: Int
+        var end: Int
+    }
 
     struct Marker: Decodable {
         var position: Int

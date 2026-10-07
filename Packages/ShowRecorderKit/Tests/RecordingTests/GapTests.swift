@@ -174,6 +174,10 @@ struct GapTests {
         #expect(driveStem.samples[..<4800].allSatisfy { $0 == 0 })
         #expect(Array(driveStem.samples[4800...]) == Array(deviceStem.samples[4800...]))
 
+        let report = try String(contentsOf: device.appending(path: "2026-10-06 Show/Report.html"), encoding: .utf8)
+        #expect(report.contains("<h3>Gaps</h3>"))
+        #expect(report.contains("<td>Drive</td><td class=\"num\">0:00.0</td><td class=\"num\">0:00.1</td>"))
+
         let expected = [TakeMetadata.Gap(copy: "drive", start: 0, end: 4800)]
         for folder in [device, drive] {
             let json = try Data(contentsOf: folder.appending(path: "\(take)/Take.json"))
