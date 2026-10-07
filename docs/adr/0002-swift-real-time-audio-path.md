@@ -1,0 +1,3 @@
+# Real-time audio path in Swift
+
+The audio callback and ring buffer are written in Swift 6, using the Synchronization module's `Atomic` type and preallocated buffers, not in C or C++ as most pro audio code is. One language keeps the codebase small and makes strict concurrency checks apply everywhere. The callback follows strict rules: no allocations, locks, logging, async code or Objective-C messaging. If profiling shows Swift breaking those rules (runtime allocations or retain and release on the audio thread), the callback alone moves to C behind the same interface. The minimum OS is iOS, iPadOS and macOS 26, which every USB-C iPhone can run.
