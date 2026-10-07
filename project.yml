@@ -1,0 +1,53 @@
+name: ShowRecorder
+options:
+  bundleIdPrefix: dev.ericdahl
+  deploymentTarget:
+    iOS: "26.0"
+    macOS: "26.0"
+  createIntermediateGroups: true
+
+packages:
+  ShowRecorderKit:
+    path: Packages/ShowRecorderKit
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  ShowRecorder:
+    type: application
+    supportedDestinations: [iOS, macOS]
+    sources:
+      - path: App
+    dependencies:
+      - package: ShowRecorderKit
+        product: AudioIO
+      - package: ShowRecorderKit
+        product: Recording
+      - package: ShowRecorderKit
+        product: CoreAudioIO
+    entitlements:
+      path: App/ShowRecorder.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.device.audio-input: true
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: ShowRecorder
+        NSMicrophoneUsageDescription: ShowRecorder records every channel from your mixer.
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.ericdahl.ShowRecorder
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: false
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_HARDENED_RUNTIME: true
