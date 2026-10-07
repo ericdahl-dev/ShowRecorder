@@ -47,6 +47,7 @@ public final class MixerLinkController {
     public func connect(to address: String, usbChannelCount: Int) async {
         driver = nil
         capabilities = nil
+        pendingUSBChannelCount = nil
         guard let endpoint = MixerEndpoint(parsing: address) else {
             sources = []
             status = .down(.invalidAddress(address))
@@ -59,7 +60,12 @@ public final class MixerLinkController {
             let identity = try await driver.identify()
             let capabilities = driver.capabilities(for: identity)
             let count = usbChannelCount > 0 ? usbChannelCount : capabilities.usbChannelCount ?? 0
-            sources = try await driver.sources(usbChannelCount: count)
+            sources = try await Self.sources(from: driver, capabilities: capabilities, usbChannelCount: count)
+            // A device Armed while connecting asked for its own count; read that instead.
+            if let pending = pendingUSBChannelCount, pending != sources.count {
+                sources = try await Self.sources(from: driver, capabilities: capabilities, usbChannelCount: pending)
+            }
+            pendingUSBChannelCount = nil
             self.driver = driver
             self.capabilities = capabilities
             status = .up(identity, path: .wifi)
@@ -69,17 +75,39 @@ public final class MixerLinkController {
     }
 
     /// Re-reads the Sources for a new USB Channel count, such as after a different device is
-    /// Armed. Does nothing unless the Link is up.
+    /// Armed. While connecting, the count is remembered for when the Mixer answers; while the Link
+    /// is down or idle this does nothing.
     public func refreshSources(usbChannelCount: Int) async {
-        guard let driver, identity != nil, usbChannelCount > 0, usbChannelCount != sources.count else { return }
+        guard usbChannelCount > 0 else { return }
+        if case .connecting = status {
+            pendingUSBChannelCount = usbChannelCount
+            return
+        }
+        guard let driver, let capabilities, identity != nil, usbChannelCount != sources.count else { return }
         do {
-            sources = try await driver.sources(usbChannelCount: usbChannelCount)
+            sources = try await Self.sources(from: driver, capabilities: capabilities, usbChannelCount: usbChannelCount)
         } catch {
             fail(error)
         }
     }
 
+    @ObservationIgnored private var pendingUSBChannelCount: Int?
+
+    /// One Source per USB Channel: named by the driver as far as the Mixer's capabilities allow,
+    /// "USB NN" after that.
+    private static func sources(
+        from driver: any MixerDriver, capabilities: MixerCapabilities, usbChannelCount: Int
+    ) async throws(MixerLinkProblem) -> [Source] {
+        let named = min(usbChannelCount, capabilities.nameableUSBChannelCount)
+        var sources = try await driver.sources(usbChannelCount: named)
+        if sources.count < usbChannelCount {
+            sources += (sources.count + 1...usbChannelCount).map { Source.fallback(usbChannel: $0) }
+        }
+        return sources
+    }
+
     private func fail(_ problem: MixerLinkProblem) {
+        pendingUSBChannelCount = nil
         driver = nil
         capabilities = nil
         sources = []

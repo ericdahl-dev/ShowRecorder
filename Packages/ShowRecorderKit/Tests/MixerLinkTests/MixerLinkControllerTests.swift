@@ -55,6 +55,33 @@ struct MixerLinkControllerTests {
         #expect(link.sources[0].name == "Kick")
     }
 
+    @Test("A device Armed while the Link is still connecting gets Sources for its own count")
+    func refreshDuringConnect() async throws {
+        let mixer = try await FakeXAirMixer()
+        let link = MixerLinkController()
+
+        let connecting = Task { await link.connect(to: "127.0.0.1:\(mixer.port)", usbChannelCount: 0) }
+        while link.status == .idle { await Task.yield() }
+        await link.refreshSources(usbChannelCount: 8)
+        await connecting.value
+
+        #expect(link.sources.count == 8)
+    }
+
+    @Test("A Mixer with no multichannel USB names none of the device's USB Channels")
+    func mixerWithoutUSBNamesNothing() async throws {
+        var state = FakeXAirMixer.State()
+        state.model = "XR16"
+        state.channels[0] = .init(name: "Kick", color: 1)
+        let mixer = try await FakeXAirMixer(state)
+        let link = MixerLinkController()
+
+        await link.connect(to: "127.0.0.1:\(mixer.port)", usbChannelCount: 8)
+
+        #expect(link.sources == (1...8).map { Source.fallback(usbChannel: $0) })
+        #expect(!mixer.queries.contains { $0.hasPrefix("/ch/") })
+    }
+
     @Test("Re-reading Sources does nothing while the Link isn't up")
     func refreshWhileIdle() async {
         let link = MixerLinkController()
