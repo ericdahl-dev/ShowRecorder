@@ -22,6 +22,9 @@ struct RecordScreen: View {
             if let error = model.recordError {
                 Banner(text: error, systemImage: "exclamationmark.octagon.fill", tint: .red)
             }
+            if let warning = model.destinationWarning {
+                Banner(text: warning, systemImage: "externaldrive.badge.exclamationmark", tint: .orange)
+            }
             if let notice = model.interruptions.notice {
                 Banner(text: notice, systemImage: "phone.badge.waveform.fill", tint: .orange)
             }
@@ -156,6 +159,37 @@ final class RecordScreenModel {
     private(set) var recordError: String?
     /// The device as it was when last Armed, to tell a format change from a new device.
     @ObservationIgnored private var armedDevice: InputDeviceInfo?
+    /// How each Copy of the running Take is doing, refreshed about once a second.
+    private(set) var deviceCopy: CopyStatus = .missing
+    private(set) var driveCopy: CopyStatus = .missing
+    @ObservationIgnored private var wasRecording = false
+
+    /// A persistent warning while a Take is missing a Copy.
+    var destinationWarning: String? {
+        guard recorder.isRecording else { return nil }
+        switch (deviceCopy, driveCopy) {
+        case (.interrupted, .interrupted): return "Both Copies stopped writing."
+        case (.interrupted, _): return "This device stopped writing. Recording continues on the Drive."
+        case (_, .interrupted): return "The Drive stopped. Recording continues on this device, and the Drive rejoins when it comes back."
+        case (_, .missing): return "No Drive. Recording to this device only."
+        default: return nil
+        }
+    }
+
+    /// Looks for a Drive that has appeared or come back, and refreshes the Copy statuses. Also notices a
+    /// Take the recorder ended on its own.
+    private func refreshDestinations() {
+        if recorder.isRecording { recorder.checkDestinations() }
+        deviceCopy = recorder.copyStatus(.device)
+        driveCopy = recorder.copyStatus(.drive)
+        if wasRecording, !recorder.isRecording, recordError == nil {
+            recordError = recorder.endedForLackOfSpace
+                ? "Recording stopped because the last Destination was about to fill. Everything recorded was saved."
+                : "Recording stopped because no Destination could be written. Everything recorded so far was saved."
+        }
+        wasRecording = recorder.isRecording
+    }
+
     /// What to do about audio interruptions, and the banner they leave (see AudioSessionEvents.swift).
     var interruptions = InterruptionPolicy()
 
@@ -186,6 +220,7 @@ final class RecordScreenModel {
     }
 
     func stop() {
+        wasRecording = false  // the operator ended it
         do {
             try recorder.stopTake()
         } catch {
@@ -236,7 +271,10 @@ final class RecordScreenModel {
         let deviceWatcher = Task { await watchDeviceChanges() }
         defer { deviceWatcher.cancel() }
         #endif
+        var tick = 0
         while !Task.isCancelled {
+            tick += 1
+            if tick % 30 == 0 { refreshDestinations() }
             let fresh = recorder.takeMeterLevels()
             levels = fresh.enumerated().map { index, level in
                 // Fall back gently so short peaks stay visible.
