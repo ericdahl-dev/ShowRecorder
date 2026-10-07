@@ -205,6 +205,7 @@ struct RecordScreen: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             Spacer(minLength: 8)

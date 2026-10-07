@@ -14,22 +14,30 @@ struct StatusStrip: View {
         HStack(spacing: 8) {
             ForEach(chips) { chip in
                 Button { tap(chip.kind) } label: {
-                    // At the largest text sizes the chip keeps its icon and drops the words (VoiceOver still has them).
-                    Label(compact ? chip.shortText : chip.text, systemImage: icon(for: chip))
-                        .labelStyle(StripLabelStyle(iconOnly: typeSize.isAccessibilitySize))
-                        .font(.footnote.weight(.semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        .padding(.horizontal, 10)
-                        .frame(minHeight: 44)
-                        .frame(maxWidth: .infinity)
-                        .foregroundStyle(foreground(chip.state))
-                        .background(background(chip.state), in: RoundedRectangle(cornerRadius: 10))
+                    // The full text if it fits, else the short one, else the short one scaled down.
+                    ViewThatFits(in: .horizontal) {
+                        if !compact { chipLabel(chip, text: chip.text).fixedSize(horizontal: true, vertical: false) }
+                        chipLabel(chip, text: chip.shortText).fixedSize(horizontal: true, vertical: false)
+                        chipLabel(chip, text: chip.shortText).minimumScaleFactor(0.6)
+                    }
+                    .padding(.horizontal, 10)
+                    .frame(minHeight: 44)
+                    .frame(maxWidth: .infinity)
+                    .foregroundStyle(foreground(chip.state))
+                    .background(background(chip.state), in: RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(chip.text)
             }
         }
+    }
+
+    /// At the largest text sizes the chip keeps its icon and drops the words (VoiceOver still has them).
+    private func chipLabel(_ chip: StatusChip, text: String) -> some View {
+        Label(text, systemImage: icon(for: chip))
+            .labelStyle(StripLabelStyle(iconOnly: typeSize.isAccessibilitySize))
+            .font(.footnote.weight(.semibold))
+            .lineLimit(1)
     }
 
     private func icon(for chip: StatusChip) -> String {
