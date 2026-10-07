@@ -10,10 +10,14 @@ final class TakeWriter: @unchecked Sendable {
     private let finished = DispatchSemaphore(value: 0)
     private let failure = Mutex<(any Error)?>(nil)
     private var thread: Thread?
+    /// Frames between header commits, so a crash loses at most this much (#6).
+    private let commitInterval: Int
+    private var framesSinceCommit = 0
 
-    init(ring: SampleRing, stems: [StemWriter]) {
+    init(ring: SampleRing, stems: [StemWriter], commitInterval: Int) {
         self.ring = ring
         self.stems = stems
+        self.commitInterval = commitInterval
     }
 
     func start() {
@@ -33,9 +37,16 @@ final class TakeWriter: @unchecked Sendable {
 
     private func run() {
         do {
+            // Commit once up front so even a Take that dies early leaves files that open.
+            for stem in stems { try stem.commitHeader() }
             while true {
                 let stillRunning = running.load(ordering: .acquiring)
                 let drained = try drainOnce()
+                framesSinceCommit += drained
+                if framesSinceCommit >= commitInterval {
+                    for stem in stems { try stem.commitHeader() }
+                    framesSinceCommit = 0
+                }
                 if drained == 0 {
                     if !stillRunning { break }
                     Thread.sleep(forTimeInterval: 0.005)

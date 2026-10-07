@@ -20,5 +20,6 @@ let package = Package(
         // Core Audio devices on macOS. Empty on other platforms.
         .target(name: "CoreAudioIO", dependencies: ["AudioIO"]),
         .testTarget(name: "RecordingTests", dependencies: ["Recording", "AudioIO"]),
+        .testTarget(name: "BroadcastWaveTests", dependencies: ["BroadcastWave"]),
     ]
 )

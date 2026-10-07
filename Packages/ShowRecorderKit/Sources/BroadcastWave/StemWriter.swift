@@ -55,16 +55,29 @@ public final class StemWriter {
         frameCount += UInt64(samples.count)
     }
 
+    /// Rewrites the chunk sizes to cover every sample appended so far and flushes to disk.
+    /// If the app dies later, the file still plays up to this point.
+    public func commitHeader() throws {
+        let end = try handle.offset()
+        try writeSizes(dataBytes: frameCount * 3, riffEnd: end)
+        try handle.synchronize()
+        try handle.seek(toOffset: end)
+    }
+
     /// Writes the final chunk sizes and closes the file.
     public func finalize() throws {
         let dataBytes = frameCount * 3
         if dataBytes % 2 == 1 { try handle.write(contentsOf: [0]) }
-        let fileSize = try handle.offset()
+        try writeSizes(dataBytes: dataBytes, riffEnd: try handle.offset())
+        try handle.close()
+    }
+
+    /// RIFF size counts everything after its own field up to `riffEnd`; data size is the sample bytes.
+    private func writeSizes(dataBytes: UInt64, riffEnd: UInt64) throws {
         try handle.seek(toOffset: 4)
-        try handle.write(contentsOf: UInt32(truncatingIfNeeded: fileSize - 8).littleEndianBytes)
+        try handle.write(contentsOf: UInt32(truncatingIfNeeded: riffEnd - 8).littleEndianBytes)
         try handle.seek(toOffset: dataSizeOffset)
         try handle.write(contentsOf: UInt32(truncatingIfNeeded: dataBytes).littleEndianBytes)
-        try handle.close()
     }
 
     // MARK: - Header
