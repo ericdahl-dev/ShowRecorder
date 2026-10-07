@@ -11,6 +11,7 @@
 		27511B0372DDD64DA03A84AC /* AudioSessionEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A28ABB2DC3361762848F2190 /* AudioSessionEvents.swift */; };
 		32D2E536D45006ECF7CCDB6E /* Recording in Frameworks */ = {isa = PBXBuildFile; productRef = E4B425D454C0ADEC5187ABCF /* Recording */; };
 		47525D0C9DECC739535A5E15 /* DemoAudioDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */; };
+		4B277180EC441F56D74ED665 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8F032F2B06E5F2F3AA51A95B /* Assets.xcassets */; };
 		7978ADCB74542A7F2803E11F /* MeterGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB46E32691A6C070E799F33D /* MeterGrid.swift */; };
 		992430B53737588E241A07B2 /* RecordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */; };
 		A9A8E28730C7E54C34DF1CAE /* CoreAudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = F366717F80C358C5B3DD7D70 /* CoreAudioIO */; };
@@ -24,6 +25,7 @@
 		3ED85A0ECD05797420331099 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowRecorderApp.swift; sourceTree = "<group>"; };
 		84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordScreen.swift; sourceTree = "<group>"; };
+		8F032F2B06E5F2F3AA51A95B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A28ABB2DC3361762848F2190 /* AudioSessionEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSessionEvents.swift; sourceTree = "<group>"; };
 		A48D43A0417E4FE9049EE0AC /* ShowRecorderKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ShowRecorderKit; path = Packages/ShowRecorderKit; sourceTree = SOURCE_ROOT; };
 		A570C7ADCE1D60BED124A213 /* ShowRecorder.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShowRecorder.entitlements; sourceTree = "<group>"; };
@@ -59,6 +61,7 @@
 		7D29790BDD8606B15D2933AF /* App */ = {
 			isa = PBXGroup;
 			children = (
+				8F032F2B06E5F2F3AA51A95B /* Assets.xcassets */,
 				A28ABB2DC3361762848F2190 /* AudioSessionEvents.swift */,
 				2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */,
 				3ED85A0ECD05797420331099 /* Info.plist */,
@@ -95,6 +98,7 @@
 			buildConfigurationList = 4A355E5B0F9576171FA15E66 /* Build configuration list for PBXNativeTarget "ShowRecorder" */;
 			buildPhases = (
 				30EA3D562AC6351BF6B1A34D /* Sources */,
+				685D725EB2A16C093B884370 /* Resources */,
 				D09CE2D46E8690B6900553EC /* Frameworks */,
 			);
 			buildRules = (
@@ -147,6 +151,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		685D725EB2A16C093B884370 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4B277180EC441F56D74ED665 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		30EA3D562AC6351BF6B1A34D /* Sources */ = {
