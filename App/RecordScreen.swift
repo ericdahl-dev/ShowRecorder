@@ -317,6 +317,8 @@ final class RecordScreenModel {
     /// Landscape: the transport column on the leading edge instead of the trailing one (left-handed).
     var transportLeading: Bool = UserDefaults.standard.bool(forKey: RecordScreenModel.transportLeadingKey)
     private static let transportLeadingKey = "transportLeading"
+    /// The Pre-roll length in seconds (0 is Off), read when record is pressed. See `PreRollSetting`.
+    var preRollSeconds: Double = PreRollSetting.load()
     private(set) var setupHintDismissed = UserDefaults.standard.bool(forKey: RecordScreenModel.hintKey)
     private static let hintKey = "setupHintDismissed"
     private static let mixerAddressKey = "mixerAddress"
@@ -481,10 +483,9 @@ final class RecordScreenModel {
         let drive = DriveFolderModel()
         let store = drive.store
         self.drive = drive
-        // Pre-roll is 10 s for now; #110 makes it a setting.
         recorder = Recorder(driveFolder: {
             store.beginAccess().map { access in DestinationAccess(folder: access.folder, release: { access.end() }) }
-        }, preRollSeconds: 10)
+        }, preRollSeconds: PreRollSetting.load())
         mixerAddress = UserDefaults.standard.string(forKey: Self.mixerAddressKey) ?? ""
         devices = Self.availableDevices()
         selectedDeviceID = devices.first?.id
@@ -528,6 +529,26 @@ final class RecordScreenModel {
         } catch {
             recordError = "The Take didn't finish cleanly: \(error.localizedDescription)"
         }
+    }
+
+    /// The Pre-roll length changed in Settings: keep it, give it to the recorder, and, if Armed, Arm again so
+    /// the buffer is sized for it. That only happens between Takes (Settings is locked during one).
+    func preRollChanged() {
+        PreRollSetting.save(preRollSeconds)
+        recorder.preRollSeconds = preRollSeconds
+        if recorder.isArmed { armSelectedDevice() }
+    }
+
+    /// What the chosen Pre-roll length costs in memory for the Armed input (or an 18-channel one before
+    /// anything is Armed), in words for Settings.
+    var preRollNote: String {
+        guard preRollSeconds > 0 else { return "Off. A Take starts when you press record." }
+        let bytes = PreRollSetting.memoryBytes(
+            seconds: preRollSeconds,
+            channelCount: recorder.isArmed ? recorder.usbChannelCount : 18,
+            sampleRate: armedDevice?.sampleRate ?? 48_000)
+        let size = ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .memory)
+        return "A Take starts with the last \(Int(preRollSeconds)) s before you press record. Uses about \(size) of memory while Armed."
     }
 
     var usbChannelSummary: String {

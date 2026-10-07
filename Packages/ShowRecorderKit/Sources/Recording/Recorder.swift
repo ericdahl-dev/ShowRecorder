@@ -35,8 +35,10 @@ public final class Recorder {
     @ObservationIgnored private let driveFolder: () -> DestinationAccess?
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let freeSpace: (URL) -> Int64
-    /// How much audio before the record press an Armed recorder keeps, in seconds; 0 keeps none.
-    @ObservationIgnored private let preRollSeconds: Double
+    /// How much audio before the record press a Take starts with, in seconds; 0 starts at the press. Read
+    /// when record is pressed. The Armed buffer is sized from it when Arming, so a longer value than that
+    /// gets what the buffer holds until the recorder is Armed again.
+    @ObservationIgnored public var preRollSeconds: Double
     @ObservationIgnored private let makeStem: (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink
     @ObservationIgnored private var device: (any AudioIODevice)?
     @ObservationIgnored private var capture: Capture?
@@ -123,6 +125,9 @@ public final class Recorder {
         isArmed = false
     }
 
+    /// Whether the Armed recorder is keeping Pre-roll audio.
+    public var isKeepingPreRoll: Bool { capture?.preRoll != nil }
+
     /// The Pre-roll buffer of the Armed device: the last seconds of audio since Arming. Nil when not
     /// Armed or when Pre-roll is off.
     var armedPreRoll: PreRollBuffer? { capture?.preRoll }
@@ -169,7 +174,11 @@ public final class Recorder {
         let sampleRate = Int(device.sampleRate.rounded())
         // The Take starts with up to `preRollSeconds` of what the Armed recorder has heard, so its
         // timeline, and every Stem's time reference, begin that long before the press.
-        let preRollFrames = min(Int((preRollSeconds * device.sampleRate).rounded()), capture.preRoll?.totalWrittenFrames ?? 0)
+        let preRollFrames = max(0, min(
+            Int((preRollSeconds * device.sampleRate).rounded()),
+            capture.preRoll?.totalWrittenFrames ?? 0,
+            // Leave the buffer's second of margin, so the writer can't overwrite what's being read.
+            (capture.preRoll?.capacity ?? 0) - Int(device.sampleRate.rounded())))
         let pressReference = UInt64(date.timeIntervalSince(Calendar.current.startOfDay(for: date)) * Double(sampleRate))
         let timeReference = pressReference >= UInt64(preRollFrames) ? pressReference - UInt64(preRollFrames) : 0
         let resolved = (0..<capture.channelCount).map { channel in
