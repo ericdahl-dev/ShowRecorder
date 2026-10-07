@@ -237,7 +237,7 @@ final class RecordScreenModel {
     #endif
 
     #if os(macOS)
-    /// Refreshes the device list whenever Core Audio reports a change, until cancelled.
+    /// Refreshes the device list whenever Core Audio reports a change, until canceled.
     private func watchDeviceChanges() async {
         for await _ in CoreAudioDevice.changes() {
             // One plug or unplug arrives as a burst of notifications; let it settle first.

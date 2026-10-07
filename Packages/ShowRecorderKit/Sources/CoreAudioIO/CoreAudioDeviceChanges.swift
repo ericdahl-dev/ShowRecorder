@@ -8,7 +8,7 @@ extension CoreAudioDevice {
     ///
     /// Core Audio sends several notifications for one plug or unplug; only the newest is buffered,
     /// so a slow reader sees one event per burst. Listeners are removed when the stream ends
-    /// (the iterating task is cancelled or the stream is dropped).
+    /// (the iterating task is canceled or the stream is dropped).
     public static func changes() -> AsyncStream<Void> {
         AsyncStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
             let watcher = DeviceChangeWatcher(continuation: continuation)
