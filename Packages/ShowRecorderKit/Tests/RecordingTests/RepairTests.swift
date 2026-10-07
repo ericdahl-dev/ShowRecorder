@@ -119,4 +119,48 @@ extension GapTests {
         #expect(recorder.lastTakeOutcomes == [.device: .complete, .drive: .complete])
         #expect(try decodedTake(device).repairs.isEmpty)
     }
+
+    @Test("Repair doesn't fill a Destination that was stopped for being nearly full")
+    func repairKeepsTheSpaceReserve() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let drive = drive
+        let free = FreeSpace(device: 100_000_000, drive: 100_000_000)
+        let recorder = Recorder(
+            deviceFolder: device,
+            driveFolder: { DestinationAccess(folder: drive) },
+            now: { RecordingTakeTests.showDay },
+            freeSpace: { free.bytes(at: $0) })
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(4, to: audio, recorder)
+        free.device = 5_000_000  // under the 60 s reserve: the Device Copy stops here
+        recorder.checkDestinations()
+        try await deliverBlocks(2, to: audio, recorder)
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+
+        let take = "2026-10-06 Show/Take 01"
+        #expect(try StemFile(contentsOf: device.appending(path: "\(take)/01 USB 01.wav")).samples.count == 4 * 480)
+        #expect(recorder.lastTakeOutcomes[.device] == .hasGaps)
+    }
+
+    @Test("The last Take's outcome isn't overwritten by an earlier Take's Repair finishing late")
+    func laterTakeOutcomeWins() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(failing: [.drive])
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder)
+        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        try recorder.stopTake()  // Take 1 has a Gap: Repair starts
+        try recorder.startTake()
+        audio.deliver([[0]])
+        try recorder.stopTake()  // Take 2 is complete, before Take 1's Repair gets to run
+        await recorder.waitForRepair()
+
+        #expect(recorder.lastTakeOutcomes == [.device: .complete, .drive: .complete])
+        #expect(!recorder.isRepairing)
+    }
 }
