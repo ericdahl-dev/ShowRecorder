@@ -22,8 +22,13 @@ final class DemoAudioDevice: AudioIODevice, @unchecked Sendable {
         task = Task.detached(priority: .userInitiated) {
             let count = DemoAudioDevice.channelCount
             var phase = 0.0
+            // `-demoDropout`: every 15 s deliver one block bigger than a ring, so the recorder has to drop it.
+            let overflows = CommandLine.arguments.contains("-demoDropout")
+            var blocks = 0
             while !Task.isCancelled {
                 phase += 0.05
+                blocks += 1
+                if overflows, blocks % 1_500 == 0 { fake.deliver(Array(repeating: Array(repeating: 0, count: 250_000), count: count)) }
                 let channels = (0..<count).map { channel -> [Float] in
                     // The last channel stays silent, so the meters show an unused USB Channel.
                     let level = Float(0.02 + 0.3 * (1 + sin(phase + Double(channel) * 0.6))) * (channel == count - 1 ? 0 : 1)

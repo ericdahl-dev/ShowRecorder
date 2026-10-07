@@ -5,8 +5,8 @@ import SwiftUI
 /// are quiet; a problem fills its chip. Every chip has an icon and words, so none relies on color.
 struct StatusStrip: View {
     let chips: [StatusChip]
-    /// Battery and heat, after the Destination and Mixer chips. Display only.
-    var power: [PowerStatus.Chip] = []
+    /// Battery, heat and Dropouts, after the Destination and Mixer chips. Display only.
+    var extras: [PowerStatus.Chip] = []
     /// Landscape iPhone: shorter text, so three chips fit beside the header.
     var compact = false
     let tap: (StatusChip.Kind) -> Void
@@ -31,8 +31,8 @@ struct StatusStrip: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(chip.text)
             }
-            ForEach(power, id: \.symbol) { chip in
-                Label(chip.text, systemImage: chip.symbol)
+            ForEach(extras, id: \.symbol) { chip in
+                Label(chip.shortText, systemImage: chip.symbol)
                     .labelStyle(StripLabelStyle(iconOnly: typeSize.isAccessibilitySize))
                     .font(.footnote.weight(.semibold))
                     .lineLimit(1)

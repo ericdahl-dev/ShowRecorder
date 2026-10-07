@@ -22,9 +22,18 @@ public struct PowerStatus: Equatable, Sendable {
     /// One chip's content. `state` is how loudly it draws the eye, as for the Destination chips.
     public struct Chip: Equatable, Sendable {
         public var text: String
+        /// A shorter text for a crowded strip: the symbol already says what the dropped words did.
+        public var shortText: String
         /// An SF Symbol name.
         public var symbol: String
         public var state: StatusChip.State
+
+        public init(text: String, shortText: String? = nil, symbol: String, state: StatusChip.State) {
+            self.text = text
+            self.shortText = shortText ?? text
+            self.symbol = symbol
+            self.state = state
+        }
     }
 
     public struct Warning: Equatable, Identifiable, Sendable {
@@ -71,6 +80,7 @@ public struct PowerStatus: Equatable, Sendable {
             }
             battery = Chip(
                 text: text,
+                shortText: "\(percent)%",
                 symbol: Self.batterySymbol(percent: percent, charging: charging == .charging),
                 state: urgent ? .failed : low ? .attention : .ok)
             if urgent {
