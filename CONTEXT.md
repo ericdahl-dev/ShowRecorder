@@ -89,3 +89,21 @@ _Avoid_: Scene, preset
 **Mixer Trigger**:
 A mixer control the operator has set aside to drive the recorder: one press is one action, such as start, stop or drop a Marker.
 _Avoid_: Remote button, hotkey, GPI
+
+### Licensing
+
+**Pro**:
+The one-time unlock that records every USB Channel and adds the Show report, Reaper export, Templates and Mixer Triggers.
+_Avoid_: Premium, full version, paid tier
+
+**Trial**:
+A 14-day period after first launch in which everything Pro does is available.
+_Avoid_: Demo, free trial (in UI copy say "14-day Trial")
+
+**Free**:
+What the app does without Pro or a Trial: records 2 USB Channels of the operator's choice.
+_Avoid_: Lite, basic
+
+**Show-Safe Promise**:
+The rule that a Take never stops, and audio is never withheld, because of a Trial, limit or license; limits are checked only when record is pressed.
+_Avoid_: Recording guarantee
