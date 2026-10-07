@@ -42,6 +42,60 @@ struct GapTests {
         for _ in 0..<500 where !condition() { try await Task.sleep(for: .milliseconds(5)) }
     }
 
+    /// A recorder whose Copy on each named Destination fails after `healthyFrames`.
+    func recorder(failing failing: Set<DestinationKind>, healthyFrames: Int = 480) -> Recorder {
+        let drive = drive
+        return Recorder(
+            deviceFolder: device,
+            driveFolder: { DestinationAccess(folder: drive) },
+            now: { RecordingTakeTests.showDay },
+            makeStem: { url, info in
+                let real = try StemWriter(url: url, info: info)
+                let kind: DestinationKind = url.path.contains("/Drive/") ? .drive : .device
+                return failing.contains(kind) ? FailingStem(real, healthyFrames: healthyFrames) : real
+            })
+    }
+
+    func deliverBlocks(_ count: Int, to audio: FakeAudioDevice, _ recorder: Recorder) async throws {
+        for block in 0..<count {
+            audio.deliver([(0..<480).map { RecordingTakeTests.sample(Int32(block * 480 + $0)) }])
+            try await waitUntil { recorder.bufferedFrameCount == 0 }
+        }
+    }
+
+    @Test("A Device that fails mid-Take is marked interrupted and the Drive Copy carries on")
+    func deviceFailsMidTake() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(failing: [.device])
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder)
+        try await waitUntil { recorder.copyStatus(.device) == .interrupted }
+
+        #expect(recorder.copyStatus(.device) == .interrupted)
+        #expect(recorder.copyStatus(.drive) == .recording)
+        try recorder.stopTake()
+
+        let driveStem = try StemFile(contentsOf: drive.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
+        #expect(driveStem.samples.count == 4800)
+    }
+
+    @Test("When every Copy has failed the Take ends on its own")
+    func takeEndsWhenEveryCopyFailed() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(failing: [.device, .drive])
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(3, to: audio, recorder)
+        try await waitUntil { !recorder.isRecording }
+
+        #expect(!recorder.isRecording)
+        #expect(recorder.copyStatus(.device) == .interrupted)
+        #expect(recorder.copyStatus(.drive) == .interrupted)
+    }
+
     @Test("A Drive that fails mid-Take is marked interrupted and the Device Copy carries on")
     func driveFailsMidTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
@@ -70,5 +124,20 @@ struct GapTests {
 
         let deviceStem = try StemFile(contentsOf: device.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
         #expect(deviceStem.samples.count == 4800)
+    }
+
+    @Test("With no Drive at record the Take starts on the Device and the Drive Copy is missing")
+    func noDriveAtStartIsMissing() throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay })
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+
+        #expect(recorder.isRecording)
+        #expect(recorder.copyStatus(.device) == .recording)
+        #expect(recorder.copyStatus(.drive) == .missing)
+        try recorder.stopTake()
+        #expect(recorder.copyStatus(.drive) == .missing)
     }
 }

@@ -164,7 +164,10 @@ public final class Recorder {
                     .init(sampleRate: sampleRate, description: source.name, originator: "ShowRecorder", timeReference: timeReference, originationDate: date))
             }
             try metadata.write(to: takeFolder)
-            writers.append(TakeWriter(ring: capture.rings[copy], stems: stems, commitInterval: sampleRate * 2, onFailure: { capture.disable(copy: copy) }))
+            writers.append(TakeWriter(ring: capture.rings[copy], stems: stems, commitInterval: sampleRate * 2, onFailure: { [weak self] in
+                capture.disable(copy: copy)
+                Task { @MainActor in self?.copyFailed() }
+            }))
         }
 
         for (copy, writer) in writers.enumerated() {
@@ -205,6 +208,12 @@ public final class Recorder {
         let index = kind == .device ? 0 : 1
         guard writers.indices.contains(index) else { return .missing }
         return writers[index].hasFailed ? .interrupted : .recording
+    }
+
+    /// A Copy's writer failed. Once every Copy has, there's nowhere left to record: end the Take.
+    private func copyFailed() {
+        guard isRecording, !writers.isEmpty, writers.allSatisfy(\.hasFailed) else { return }
+        try? stopTake()
     }
 
     /// Stops the Take and waits until every Stem is written and finalized.
