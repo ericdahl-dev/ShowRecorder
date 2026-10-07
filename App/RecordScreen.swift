@@ -1,8 +1,9 @@
 import AudioIO
 import Recording
-import SwiftUI
-#if os(macOS)
 import CoreAudioIO
+import SwiftUI
+#if os(iOS)
+import AVFAudio
 #endif
 
 /// The record screen. While it is showing, the recorder is Armed on the chosen device.
@@ -58,7 +59,7 @@ struct RecordScreen: View {
 struct DeviceChoice: Identifiable {
     let id: String
     let name: String
-    let make: () -> any AudioIODevice
+    let make: () throws -> any AudioIODevice
 }
 
 @MainActor
@@ -82,8 +83,16 @@ final class RecordScreenModel {
 
     /// Arms the selected device, polls meters at about 30 Hz, and disarms when the screen goes away.
     func runWhileVisible() async {
+        guard await hasMicrophonePermission() else {
+            armError = "ShowRecorder needs microphone access to record your mixer. Turn it on in Settings › Privacy & Security › Microphone."
+            return
+        }
         armSelectedDevice()
         defer { recorder.disarm() }
+        #if os(iOS)
+        let routeWatcher = Task { await watchRouteChanges() }
+        defer { routeWatcher.cancel() }
+        #endif
         while !Task.isCancelled {
             let fresh = recorder.takeMeterLevels()
             levels = fresh.enumerated().map { index, level in
@@ -102,11 +111,44 @@ final class RecordScreenModel {
         do {
             try recorder.arm(choice.make())
             armError = nil
+            #if os(iOS)
+            // The route's name and channels are only known once the session is active.
+            devices = Self.availableDevices()
+            #endif
         } catch {
             armError = "Couldn't start \(choice.name): \(error)"
         }
         levels = Array(repeating: 0, count: recorder.usbChannelCount)
     }
+
+    private func hasMicrophonePermission() async -> Bool {
+        #if os(iOS)
+        await AVAudioApplication.requestRecordPermission()
+        #else
+        true  // macOS asks on first input; the sandbox entitlement allows it.
+        #endif
+    }
+
+    #if os(iOS)
+    /// Re-arms when the input route really changes (a mixer plugged in or out). Comparing the route
+    /// avoids re-arming on the notifications our own session changes cause.
+    private func watchRouteChanges() async {
+        var armedRoute = Self.currentRouteSignature()
+        for await _ in NotificationCenter.default.notifications(named: AVAudioSession.routeChangeNotification).map({ _ in () }) {
+            let route = Self.currentRouteSignature()
+            guard route != armedRoute else { continue }
+            armedRoute = route
+            devices = Self.availableDevices()
+            if selectedDeviceID == Self.routeDeviceID { armSelectedDevice() }
+        }
+    }
+
+    private static let routeDeviceID = "ios-route"
+
+    private static func currentRouteSignature() -> String {
+        AVAudioSession.sharedInstance().currentRoute.inputs.map { "\($0.uid):\($0.channels?.count ?? 0)" }.joined(separator: "|")
+    }
+    #endif
 
     private static func availableDevices() -> [DeviceChoice] {
         var choices: [DeviceChoice] = []
@@ -125,6 +167,14 @@ final class RecordScreenModel {
                 name: "\(device.name) (\(device.inputChannelCount) in)",
                 make: { device }))
         }
+        #endif
+        #if os(iOS)
+        let input = AVAudioSession.sharedInstance().currentRoute.inputs.first
+        let channels = input?.channels?.count
+        choices.append(DeviceChoice(
+            id: routeDeviceID,
+            name: "\(input?.portName ?? "Audio input")" + (channels.map { " (\($0) in)" } ?? ""),
+            make: { try SessionAudioDevice.current() }))
         #endif
         #if DEBUG
         choices.append(DeviceChoice(id: "demo", name: "Demo signal (18 channels)", make: { DemoAudioDevice() }))
