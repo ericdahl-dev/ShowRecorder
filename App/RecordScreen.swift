@@ -477,6 +477,7 @@ final class RecordScreenModel {
             #if os(iOS)
             // The route's name and channels are only known once the session is active.
             devices = Self.availableDevices()
+            if !devices.contains(where: { $0.id == selectedDeviceID }) { selectCurrentRouteInput() }
             #endif
         } catch {
             armError = "Couldn't start \(choice.name): \(error)"
@@ -503,6 +504,8 @@ final class RecordScreenModel {
             armedRoute = route
             devices = Self.availableDevices()
             guard Self.isRouteInput(selectedDeviceID) else { continue }
+            // Whatever iOS just routed to is now the selection; re-arming must not pull it back.
+            selectCurrentRouteInput()
             switch interruptions.routeChanged(isRecording: recorder.isRecording) {
             case .none: break
             case .rearm: armSelectedDevice()
@@ -527,6 +530,14 @@ final class RecordScreenModel {
             Self.sessionLog.error("Moving the Take to the new route failed: \(String(describing: error), privacy: .public)")
             recordError = "Couldn't move the Take to the new audio input: \(error)"
         }
+    }
+
+    /// Selects the input iOS is routing to now, if it's in the list.
+    private func selectCurrentRouteInput() {
+        guard let uid = AVAudioSession.sharedInstance().currentRoute.inputs.first?.uid,
+              let choice = devices.first(where: { $0.id == Self.routeInputPrefix + uid }) else { return }
+        selectedDeviceID = choice.id
+        if recorder.isArmed { armedDevice = choice.info }
     }
 
     private static let routeInputPrefix = "ios-input-"
@@ -609,7 +620,7 @@ final class RecordScreenModel {
         // Every input iOS can see, USB interfaces first, so one that isn't the current route can be chosen.
         let session = AVAudioSession.sharedInstance()
         // Inputs are only listed for a recording category; this doesn't activate the session.
-        try? session.setCategory(.record, mode: .measurement, options: [])
+        if session.category != .record { try? session.setCategory(.record, mode: .measurement, options: []) }
         let current = session.currentRoute.inputs.first
         var ports = session.availableInputs ?? []
         if let current, !ports.contains(where: { $0.uid == current.uid }) { ports.append(current) }

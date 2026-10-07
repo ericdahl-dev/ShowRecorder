@@ -77,6 +77,7 @@ struct AlertSlot: View {
             VStack(spacing: 8) {
                 ForEach(queue.ordered) { alert in
                     AlertBanner(alert: alert, moreCount: 0, perform: perform) {}
+                        .frame(height: Self.height)
                 }
             }
             .padding()
