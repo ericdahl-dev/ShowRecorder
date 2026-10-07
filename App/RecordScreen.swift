@@ -262,10 +262,11 @@ struct RecordScreen: View {
     private func headerSummary(compact: Bool) -> some View {
         HStack(alignment: .center, spacing: compact ? 8 : 12) {
             Circle()
-                .fill(model.recorder.isArmed ? Color.green : Color.secondary)
+                .fill(model.recorder.isRecording ? Color.red : model.recorder.isArmed ? Color.green : Color.secondary)
                 .frame(width: 12, height: 12)
             VStack(alignment: .leading, spacing: 2) {
-                Text(model.recorder.isArmed ? "Armed" : "Not armed")
+                // The word carries the state; the dot's colour is only a second cue.
+                Text(model.recorder.isRecording ? "Recording" : model.recorder.isArmed ? "Armed" : "Not armed")
                     .font(compact ? .subheadline.weight(.semibold) : .headline)
                 Text(compact ? model.compactInputSummary : model.inputSummary)
                     .font(compact ? .caption : .subheadline)
