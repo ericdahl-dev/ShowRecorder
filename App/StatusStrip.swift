@@ -5,13 +5,18 @@ import SwiftUI
 /// are quiet; a problem fills its chip. Every chip has an icon and words, so none relies on color.
 struct StatusStrip: View {
     let chips: [StatusChip]
+    /// Landscape iPhone: shorter text, so three chips fit beside the header.
+    var compact = false
     let tap: (StatusChip.Kind) -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         HStack(spacing: 8) {
             ForEach(chips) { chip in
                 Button { tap(chip.kind) } label: {
-                    Label(chip.text, systemImage: icon(for: chip))
+                    // At the largest text sizes the chip keeps its icon and drops the words (VoiceOver still has them).
+                    Label(compact ? chip.shortText : chip.text, systemImage: icon(for: chip))
+                        .labelStyle(StripLabelStyle(iconOnly: typeSize.isAccessibilitySize))
                         .font(.footnote.weight(.semibold))
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
@@ -63,6 +68,8 @@ struct AlertSlot: View {
     @State private var listing = false
 
     static let height: CGFloat = 56
+    /// Portrait keeps `height`; landscape overlays a shorter slot.
+    var slotHeight: CGFloat = AlertSlot.height
 
     var body: some View {
         Group {
@@ -72,7 +79,7 @@ struct AlertSlot: View {
                 Color.clear
             }
         }
-        .frame(height: Self.height)
+        .frame(height: slotHeight)
         .popover(isPresented: $listing) {
             VStack(spacing: 8) {
                 ForEach(queue.ordered) { alert in
@@ -146,6 +153,22 @@ struct AlertBanner: View {
         case .warning: Color(red: 1.0, green: 0.69, blue: 0.13)
         case .ok: Color(red: 0.12, green: 0.42, blue: 0.23)
         case .info: Color(red: 0.20, green: 0.30, blue: 0.55)
+        }
+    }
+}
+
+/// Icon and text side by side, or the icon alone at accessibility text sizes.
+private struct StripLabelStyle: LabelStyle {
+    let iconOnly: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        if iconOnly {
+            configuration.icon
+        } else {
+            HStack(spacing: 6) {
+                configuration.icon
+                configuration.title
+            }
         }
     }
 }

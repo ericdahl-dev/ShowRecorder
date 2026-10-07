@@ -77,4 +77,17 @@ struct StatusChipsTests {
         #expect(down?.text == "Mixer down")
         #expect(down?.state == .attention)
     }
+
+    @Test("Short text drops the word the icon already says, but keeps problems in full")
+    func shortText() {
+        let ok = chips(drive: drive(bytes: StatusChipsTests.anHour * 2))
+        #expect(ok[.device]?.shortText == "1 h 00 min")
+        #expect(ok[.drive]?.shortText == "2 h 00 min")
+        #expect(ok[.mixer]?.shortText == "Mixer not linked")
+
+        #expect(chips(drive: .notChosen)[.drive]?.shortText == "Drive not set")
+        #expect(chips(drive: .unavailable(.notConnected(name: "SSD")))[.drive]?.shortText == "Drive missing")
+        let stopped = chips(drive: drive(bytes: StatusChipsTests.anHour), copies: [.drive: .interrupted])
+        #expect(stopped[.drive]?.shortText == "Drive stopped")
+    }
 }

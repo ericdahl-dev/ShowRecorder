@@ -5,13 +5,20 @@ import SwiftUI
 struct MeterGrid: View {
     let levels: [Float]
     var sources: [Source] = []
+    /// Short screens (landscape iPhone): every channel gets its number and a Mixer-color swatch, and the
+    /// Source's name only when there are few enough channels to have room for it.
+    var compact = false
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 4) {
             ForEach(levels.indices, id: \.self) { index in
                 VStack(spacing: 4) {
                     MeterBar(fraction: Self.fraction(forLinearPeak: levels[index]))
-                    SourceLabel(number: index + 1, source: sources.indices.contains(index) ? sources[index] : nil)
+                        .frame(maxHeight: .infinity)
+                    SourceLabel(
+                        number: index + 1,
+                        source: sources.indices.contains(index) ? sources[index] : nil,
+                        compact: compact, showsName: !compact || levels.count <= 8)
                 }
             }
         }
@@ -32,6 +39,7 @@ struct MeterBar: View {
         GeometryReader { geometry in
             ZStack(alignment: .bottom) {
                 RoundedRectangle(cornerRadius: 3).fill(.quaternary)
+                    .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(.secondary.opacity(0.5), lineWidth: 1))
                 RoundedRectangle(cornerRadius: 3)
                     .fill(color)
                     .frame(height: geometry.size.height * fraction)
@@ -52,6 +60,8 @@ struct MeterBar: View {
 struct SourceLabel: View {
     let number: Int
     let source: Source?
+    var compact = false
+    var showsName = true
 
     var body: some View {
         VStack(spacing: 2) {
@@ -60,19 +70,27 @@ struct SourceLabel: View {
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
             if let source {
-                Text(source.hasMixerName ? source.name : "–")
-                    .font(.caption2.weight(.semibold))
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.6)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 2)
-                    .frame(maxWidth: 44, minHeight: 28)
-                    .foregroundStyle(source.color.inverted ? Color.black : source.color.swiftUIColor)
-                    .background(source.color.inverted ? source.color.swiftUIColor : Color.clear, in: RoundedRectangle(cornerRadius: 3))
-                    .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(source.color.swiftUIColor.opacity(0.6)))
-                    .accessibilityLabel("USB Channel \(number), \(source.name)")
+                if showsName {
+                    Text(source.hasMixerName ? source.name : "–")
+                        .font(.caption2.weight(.semibold))
+                        .lineLimit(compact ? 1 : 2)
+                        .minimumScaleFactor(0.6)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 2)
+                        .frame(maxWidth: 44, minHeight: compact ? 16 : 28)
+                        .foregroundStyle(source.color.inverted ? Color.black : source.color.swiftUIColor)
+                        .background(source.color.inverted ? source.color.swiftUIColor : Color.clear, in: RoundedRectangle(cornerRadius: 3))
+                        .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(source.color.swiftUIColor.opacity(0.6)))
+                } else {
+                    // No room for the name: the Mixer's color for this channel, as a bar under the number.
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(source.color.swiftUIColor)
+                        .frame(maxWidth: 44, minHeight: 4, maxHeight: 4)
+                }
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(source.map { "USB Channel \(number), \($0.name)" } ?? "USB Channel \(number)")
     }
 }
 

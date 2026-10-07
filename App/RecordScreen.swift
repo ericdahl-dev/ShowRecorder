@@ -22,15 +22,16 @@ struct RecordScreen: View {
     @State private var settingsSection: SettingsSection?
     @State private var confirmingStop = false
 
+    /// Landscape iPhone is short, not narrow: a Pro Max in landscape is wide but still short.
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    private var isLandscape: Bool { verticalSizeClass == .compact }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            header
-            StatusStrip(chips: model.chips, tap: chipTapped)
-            AlertSlot(queue: model.alerts, perform: model.perform)
-            MeterGrid(levels: model.levels, sources: model.mixerLink.sources)
-            transport
+        // One root for both layouts. The task, idle timer, sheet and dialog below hang on it, so rotating
+        // swaps the arrangement but never cancels `runWhileVisible` (which would disarm the recorder).
+        ZStack {
+            if isLandscape { landscape } else { portrait }
         }
-        .padding()
         .task { await model.runWhileVisible() }
         // Read Sources for the USB Channels the newly Armed device actually sends.
         .task(id: model.recorder.usbChannelCount) {
@@ -90,75 +91,182 @@ struct RecordScreen: View {
         #endif
     }
 
+    private var portrait: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            header
+            StatusStrip(chips: model.chips, tap: chipTapped)
+            AlertSlot(queue: model.alerts, perform: model.perform)
+            MeterGrid(levels: model.levels, sources: model.mixerLink.sources)
+            transport
+        }
+        .padding()
+    }
+
+    /// Header and status strip share one 44 pt row, the meters take the full height below it, and the
+    /// transport is a column at the trailing edge (or the leading edge, for left-handed use).
+    private var landscape: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                headerSummary(compact: true)
+                    .frame(maxWidth: 190, alignment: .leading)
+                StatusStrip(chips: model.chips, compact: true, tap: chipTapped)
+                gearButton
+            }
+            HStack(alignment: .top, spacing: 12) {
+                if model.transportLeading { transportColumn }
+                MeterGrid(levels: model.levels, sources: model.mixerLink.sources, compact: true)
+                if !model.transportLeading { transportColumn }
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        // Urgent alerts cover the top row (its chips repeat the same state); the rest go in the column.
+        .overlay(alignment: .top) {
+            let urgent = AlertQueue(model.alerts.ordered.filter { $0.tone == .critical || $0.tone == .warning })
+            AlertSlot(queue: urgent, perform: model.perform, slotHeight: 44)
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .allowsHitTesting(urgent.top != nil)
+        }
+    }
+
+    private func recordButton(size: CGFloat) -> some View {
+        Button {
+            if model.recorder.isRecording {
+                confirmingStop = true
+            } else {
+                model.record()
+            }
+        } label: {
+            RecordButtonLabel(isRecording: model.recorder.isRecording, size: size)
+        }
+        .buttonStyle(.plain)
+        .disabled(!model.recorder.isArmed)
+        .accessibilityLabel(model.recorder.isRecording ? "Stop recording" : "Record")
+        .keyboardShortcut("r", modifiers: .command)
+    }
+
+    /// Always in place, dimmed when no Take is running, so Record never shifts under the thumb.
+    private func markerButton(size: CGFloat) -> some View {
+        Button {
+            model.recorder.addMarker()
+        } label: {
+            MarkerButtonLabel(count: model.recorder.takeMarkers.count, size: size)
+        }
+        .buttonStyle(.plain)
+        .disabled(!model.recorder.isRecording)
+        .opacity(model.recorder.isRecording ? 1 : 0.3)
+        .accessibilityLabel("Add Marker")
+        .keyboardShortcut("m", modifiers: .command)
+        .sensoryFeedback(.success, trigger: model.recorder.takeMarkers.count)
+    }
+
     private var transport: some View {
         VStack(spacing: 12) {
             Text(model.showSummary)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             HStack(spacing: 28) {
-                Button {
-                    if model.recorder.isRecording {
-                        confirmingStop = true
-                    } else {
-                        model.record()
-                    }
-                } label: {
-                    RecordButtonLabel(isRecording: model.recorder.isRecording)
-                }
-                .buttonStyle(.plain)
-                .disabled(!model.recorder.isArmed)
-                .accessibilityLabel(model.recorder.isRecording ? "Stop recording" : "Record")
-                .keyboardShortcut("r", modifiers: .command)
-
-                if model.recorder.isRecording {
-                    Button {
-                        model.recorder.addMarker()
-                    } label: {
-                        MarkerButtonLabel(count: model.recorder.takeMarkers.count)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Add Marker")
-                    .keyboardShortcut("m", modifiers: .command)
-                    .sensoryFeedback(.success, trigger: model.recorder.takeMarkers.count)
-                }
+                recordButton(size: 88)
+                markerButton(size: 88)
             }
-            if let last = model.recorder.takeMarkers.last, model.recorder.isRecording {
-                Text("\(last.name) placed")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .id(model.recorder.takeMarkers.count)
-                    .transition(.opacity)
-            }
+            // The line is always there, so a placed Marker doesn't push anything.
+            Text(markerPlacedText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .id(model.recorder.takeMarkers.count)
         }
         .frame(maxWidth: .infinity)
         .animation(.easeInOut(duration: 0.15), value: model.recorder.takeMarkers.count)
     }
 
+    private var markerPlacedText: String {
+        if let last = model.recorder.takeMarkers.last, model.recorder.isRecording { return "\(last.name) placed" }
+        return " "
+    }
+
+    /// Landscape transport: the Show and Take (with how long the Take has run) over Marker, then Record.
+    /// Marker and Stop are kept well apart, since Marker is pressed often and Stop ends the Take.
+    private var transportColumn: some View {
+        VStack(spacing: 8) {
+            VStack(spacing: 2) {
+                Text(model.recorder.currentShow?.name ?? "No Show yet")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(model.takeTitle)
+                    .font(.title3.weight(.bold))
+                    .monospacedDigit()
+                elapsed
+                if let note = nonUrgentNote {
+                    Text(note)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                }
+            }
+            Spacer(minLength: 8)
+            markerButton(size: 64)
+            Spacer(minLength: 24)
+            recordButton(size: 64)
+        }
+        .frame(width: 128)
+    }
+
+    @ViewBuilder private var elapsed: some View {
+        if let started = model.takeStartedAt, model.recorder.isRecording {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Text(ElapsedTime.format(seconds: Int(context.date.timeIntervalSince(started))))
+                    .font(.title3.monospacedDigit())
+            }
+        } else {
+            Text(" ").font(.title3)
+        }
+    }
+
+    /// The most urgent alert that isn't a warning or failure (a Copy result, the first-run hint), for the column.
+    private var nonUrgentNote: String? {
+        model.alerts.ordered.first { $0.tone == .ok || $0.tone == .info }?.text
+    }
+
+    private var gearButton: some View {
+        Button { showSettings(nil) } label: {
+            Image(systemName: "gearshape")
+                .font(.title3)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Settings")
+        #if os(macOS)
+        .help("Settings (⌘,)")
+        #endif
+    }
+
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
+            headerSummary(compact: false)
+            Spacer(minLength: 8)
+            gearButton
+        }
+    }
+
+    private func headerSummary(compact: Bool) -> some View {
+        HStack(alignment: .center, spacing: compact ? 8 : 12) {
             Circle()
                 .fill(model.recorder.isArmed ? Color.green : Color.secondary)
                 .frame(width: 12, height: 12)
             VStack(alignment: .leading, spacing: 2) {
                 Text(model.recorder.isArmed ? "Armed" : "Not armed")
-                    .font(.headline)
-                Text(model.inputSummary)
-                    .font(.subheadline)
+                    .font(compact ? .subheadline.weight(.semibold) : .headline)
+                Text(compact ? model.compactInputSummary : model.inputSummary)
+                    .font(compact ? .caption : .subheadline)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .lineLimit(1)
             }
-            Spacer(minLength: 8)
-            Button { showSettings(nil) } label: {
-                Image(systemName: "gearshape")
-                    .font(.title3)
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Settings")
-            #if os(macOS)
-            .help("Settings (⌘,)")
-            #endif
         }
     }
 }
@@ -197,6 +305,11 @@ final class RecordScreenModel {
     var mixerAddress: String
     /// Whether the system denied microphone access (shows a button that opens the system settings).
     private(set) var micDenied = false
+    /// When the running Take started, for the elapsed time in landscape.
+    private(set) var takeStartedAt: Date?
+    /// Landscape: the transport column on the leading edge instead of the trailing one (left-handed).
+    var transportLeading: Bool = UserDefaults.standard.bool(forKey: RecordScreenModel.transportLeadingKey)
+    private static let transportLeadingKey = "transportLeading"
     private(set) var setupHintDismissed = UserDefaults.standard.bool(forKey: RecordScreenModel.hintKey)
     private static let hintKey = "setupHintDismissed"
     private static let mixerAddressKey = "mixerAddress"
@@ -256,7 +369,13 @@ final class RecordScreenModel {
                 ? "Recording stopped because the last Destination was about to fill. Everything recorded was saved."
                 : "Recording stopped because no Destination could be written. Everything recorded so far was saved."
         }
+        if !recorder.isRecording { takeStartedAt = nil }
         wasRecording = recorder.isRecording
+    }
+
+    /// Just the Armed device's name, for the one-line landscape header.
+    var compactInputSummary: String {
+        recorder.isArmed ? (armedDevice?.name ?? "Input") : "No input"
     }
 
     /// The Armed device's name and channel count, for the header.
@@ -361,6 +480,10 @@ final class RecordScreenModel {
         mixerAddress = UserDefaults.standard.string(forKey: Self.mixerAddressKey) ?? ""
         devices = Self.availableDevices()
         selectedDeviceID = devices.first?.id
+        #if DEBUG
+        // `-demoSignal` starts on the 18-channel demo signal, for screenshots and layout checks.
+        if CommandLine.arguments.contains("-demoSignal"), devices.contains(where: { $0.id == "demo" }) { selectedDeviceID = "demo" }
+        #endif
     }
 
     /// "2026-10-06 Show · Take 02", or a hint before the first Take.
@@ -377,6 +500,7 @@ final class RecordScreenModel {
         do {
             // Freeze whatever the Mixer Link knows right now into the Take's Stems.
             try recorder.startTake(sources: mixerLink.sources)
+            takeStartedAt = Date()
             recordError = nil
             handle(.takeStarted)
         } catch {
@@ -384,7 +508,12 @@ final class RecordScreenModel {
         }
     }
 
+    func saveTransportSide() {
+        UserDefaults.standard.set(transportLeading, forKey: Self.transportLeadingKey)
+    }
+
     func stop() {
+        takeStartedAt = nil
         wasRecording = false  // the operator ended it
         do {
             try recorder.stopTake()
@@ -654,18 +783,19 @@ final class RecordScreenModel {
     }
 }
 
-/// A large Marker button shown while recording, with the Take's Marker count.
+/// A large Marker button with the Take's Marker count; dimmed when no Take is running.
 struct MarkerButtonLabel: View {
     let count: Int
+    var size: CGFloat = 88
 
     var body: some View {
         VStack(spacing: 4) {
             ZStack {
                 Circle()
                     .fill(.yellow.opacity(0.2))
-                    .frame(width: 88, height: 88)
+                    .frame(width: size, height: size)
                 Image(systemName: "flag.fill")
-                    .font(.system(size: 28, weight: .semibold))
+                    .font(.system(size: size * 0.32, weight: .semibold))
                     .foregroundStyle(.yellow)
             }
             Text(count == 1 ? "1 Marker" : "\(count) Markers")
@@ -680,15 +810,16 @@ struct MarkerButtonLabel: View {
 /// A large round record button that turns into a stop square while recording.
 struct RecordButtonLabel: View {
     let isRecording: Bool
+    var size: CGFloat = 88
 
     var body: some View {
         ZStack {
             Circle()
                 .strokeBorder(.secondary, lineWidth: 4)
-                .frame(width: 88, height: 88)
-            RoundedRectangle(cornerRadius: isRecording ? 8 : 34)
+                .frame(width: size, height: size)
+            RoundedRectangle(cornerRadius: isRecording ? 8 : size * 0.39)
                 .fill(.red)
-                .frame(width: isRecording ? 36 : 68, height: isRecording ? 36 : 68)
+                .frame(width: size * (isRecording ? 0.41 : 0.77), height: size * (isRecording ? 0.41 : 0.77))
         }
         .contentShape(Circle())
         .animation(.easeInOut(duration: 0.15), value: isRecording)
