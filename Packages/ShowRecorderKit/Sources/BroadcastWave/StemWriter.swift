@@ -4,6 +4,12 @@ import Foundation
 ///
 /// Not real-time safe; used on the writer thread. Samples arrive as 32-bit float and are
 /// converted as `x × 2²³`, rounded and clamped to the 24-bit range.
+///
+/// A Stem starts as plain RIFF/WAVE with a 28-byte `JUNK` chunk reserved right after `WAVE`.
+/// Just before the RIFF size would pass the 32-bit limit (about 8 hours at 48 kHz), the Stem is
+/// promoted to RF64 (EBU Tech 3306): `RIFF` becomes `RF64`, `JUNK` becomes `ds64` holding the
+/// 64-bit sizes, and the 32-bit RIFF and data sizes are set to 0xFFFFFFFF. The Take keeps
+/// recording into the same file with no gap.
 public final class StemWriter {
     public struct Info: Sendable {
         public var sampleRate: Int
@@ -26,12 +32,26 @@ public final class StemWriter {
     public let url: URL
     public private(set) var frameCount: UInt64 = 0
 
+    /// Whether the Stem has been promoted to RF64.
+    private(set) var isRF64 = false
+
     private let handle: FileHandle
     private var bytes: [UInt8] = []
     private let dataSizeOffset: UInt64
+    /// The RIFF size (bytes after the size field) a plain RIFF Stem must stay below.
+    /// 0xFFFFFFFF itself is RF64's "see ds64" value, so it is never written as a real size.
+    private let rf64Threshold: UInt64
 
-    public init(url: URL, info: Info) throws {
+    public convenience init(url: URL, info: Info) throws {
+        try self.init(url: url, info: info, rf64Threshold: Self.maxRIFFSize)
+    }
+
+    /// `rf64Threshold` is the RIFF size at which the Stem is promoted to RF64. Tests lower it
+    /// so promotion can be checked without writing 4 GB.
+    init(url: URL, info: Info, rf64Threshold: UInt64) throws {
+        precondition(rf64Threshold <= Self.maxRIFFSize)
         self.url = url
+        self.rf64Threshold = rf64Threshold
         guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
             throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: url.path])
         }
@@ -51,6 +71,7 @@ public final class StemWriter {
             bytes.append(UInt8(truncatingIfNeeded: value >> 8))
             bytes.append(UInt8(truncatingIfNeeded: value >> 16))
         }
+        try promoteIfNeeded(riffEnd: try handle.offset() + UInt64(bytes.count))
         try handle.write(contentsOf: bytes)
         frameCount += UInt64(samples.count)
     }
@@ -67,24 +88,72 @@ public final class StemWriter {
     /// Writes the final chunk sizes and closes the file.
     public func finalize() throws {
         let dataBytes = frameCount * 3
-        if dataBytes % 2 == 1 { try handle.write(contentsOf: [0]) }
+        if dataBytes % 2 == 1 {
+            try promoteIfNeeded(riffEnd: try handle.offset() + 1)
+            try handle.write(contentsOf: [0])
+        }
         try writeSizes(dataBytes: dataBytes, riffEnd: try handle.offset())
         try handle.close()
     }
 
     /// RIFF size counts everything after its own field up to `riffEnd`; data size is the sample bytes.
     private func writeSizes(dataBytes: UInt64, riffEnd: UInt64) throws {
-        try handle.seek(toOffset: 4)
-        try handle.write(contentsOf: UInt32(truncatingIfNeeded: riffEnd - 8).littleEndianBytes)
+        if isRF64 {
+            // One write: the ds64 RIFF size, data size and sample count change together.
+            try handle.seek(toOffset: Self.ds64BodyOffset)
+            try handle.write(contentsOf: ds64Sizes(dataBytes: dataBytes, riffEnd: riffEnd))
+        } else {
+            try handle.seek(toOffset: 4)
+            try handle.write(contentsOf: UInt32(riffEnd - 8).littleEndianBytes)
+            try handle.seek(toOffset: dataSizeOffset)
+            try handle.write(contentsOf: UInt32(dataBytes).littleEndianBytes)
+        }
+    }
+
+    /// Promotes the Stem to RF64 if a RIFF ending at `riffEnd` would reach the threshold.
+    ///
+    /// Promotion is also a header commit covering everything appended so far. It is ordered so
+    /// that a crash between steps leaves a readable file:
+    /// 1. One write of the first 48 bytes: `RF64`, 0xFFFFFFFF, `WAVE`, then `ds64` with the
+    ///    current sizes over the reserved `JUNK`. The 32-bit data size is still correct here.
+    /// 2. The 32-bit data size becomes 0xFFFFFFFF, deferring to ds64.
+    /// Each step is one write within the first filesystem block, flushed before the next.
+    private func promoteIfNeeded(riffEnd: UInt64) throws {
+        guard !isRF64, riffEnd - 8 >= rf64Threshold else { return }
+        let end = try handle.offset()
+        var head: [UInt8] = Array("RF64".utf8) + UInt32.max.littleEndianBytes + Array("WAVE".utf8)
+        head += Array("ds64".utf8) + UInt32(Self.ds64BodySize).littleEndianBytes
+        head += ds64Sizes(dataBytes: frameCount * 3, riffEnd: end)
+        head += UInt32(0).littleEndianBytes  // table length
+        try handle.seek(toOffset: 0)
+        try handle.write(contentsOf: head)
+        try handle.synchronize()
         try handle.seek(toOffset: dataSizeOffset)
-        try handle.write(contentsOf: UInt32(truncatingIfNeeded: dataBytes).littleEndianBytes)
+        try handle.write(contentsOf: UInt32.max.littleEndianBytes)
+        try handle.synchronize()
+        try handle.seek(toOffset: end)
+        isRF64 = true
+    }
+
+    /// The ds64 RIFF size, data size and sample count (one sample per frame in a mono Stem).
+    private func ds64Sizes(dataBytes: UInt64, riffEnd: UInt64) -> [UInt8] {
+        (riffEnd - 8).littleEndianBytes + dataBytes.littleEndianBytes + frameCount.littleEndianBytes
     }
 
     // MARK: - Header
 
+    static let maxRIFFSize = UInt64(UInt32.max)
+    /// RIFF size, data size, sample count (8 bytes each) and table length (4 bytes).
+    private static let ds64BodySize = 28
+    private static let ds64BodyOffset: UInt64 = 20
+
     private static func header(info: Info) -> (bytes: [UInt8], dataSizeOffset: Int) {
         var out: [UInt8] = []
         out += Array("RIFF".utf8) + UInt32(0).littleEndianBytes + Array("WAVE".utf8)
+
+        // Reserved for ds64, which must be the first chunk after WAVE (EBU Tech 3306).
+        out += Array("JUNK".utf8) + UInt32(ds64BodySize).littleEndianBytes
+        out += [UInt8](repeating: 0, count: ds64BodySize)
 
         // fmt: PCM, mono, 24-bit
         out += Array("fmt ".utf8) + UInt32(16).littleEndianBytes
