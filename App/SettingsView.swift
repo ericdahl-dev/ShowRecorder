@@ -37,6 +37,13 @@ struct SettingsView: View {
                     }
                     .onChange(of: model.selectedDeviceID) { model.selectionDidChange() }
                     Text(model.usbChannelSummary).foregroundStyle(.secondary).monospacedDigit()
+                    Picker("Pre-roll", selection: $model.preRollSeconds) {
+                        ForEach(PreRollSetting.choices, id: \.self) { seconds in
+                            Text(seconds == 0 ? "Off" : "\(Int(seconds)) s").tag(seconds)
+                        }
+                    }
+                    .onChange(of: model.preRollSeconds) { model.preRollChanged() }
+                    Text(model.preRollNote).font(.footnote).foregroundStyle(.secondary)
                     #if os(iOS)
                     Toggle("Record button on the left in landscape", isOn: $model.transportLeading)
                         .onChange(of: model.transportLeading) { model.saveTransportSide() }

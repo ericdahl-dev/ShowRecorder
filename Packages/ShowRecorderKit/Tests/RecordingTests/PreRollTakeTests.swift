@@ -138,6 +138,51 @@ struct PreRollTakeTests {
         #expect(recorder.takeMarkers.map(\.position) == [48_000 + 960])
     }
 
+    @Test("The length is read when record is pressed: a value changed after Arming applies to the next Take")
+    func lengthReadAtPress() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(seconds: 2)
+        try recorder.arm(audio)
+        try await deliver(96_000, from: 0, to: audio, recorder)
+
+        recorder.preRollSeconds = 0.5
+        try recorder.startTake()
+        try await deliver(480, from: 96_000, to: audio, recorder)
+        try recorder.stopTake()
+        let shorter = try StemFile(contentsOf: take01(device).appending(path: "01 USB 01.wav"))
+        #expect(shorter.samples == (72_000..<96_480).map { Int32($0) })
+        #expect(try decodedTake(device).preRollFrames == 24_000)
+    }
+
+    @Test("Asking for more than the Armed buffer holds gets what it holds")
+    func lengthClamped() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(seconds: 1)
+        try recorder.arm(audio)
+        try await deliver(240_000, from: 0, to: audio, recorder)  // 5 s, buffer holds 2 s
+
+        recorder.preRollSeconds = 15
+        try recorder.startTake()
+        try await deliver(480, from: 240_000, to: audio, recorder)
+        try recorder.stopTake()
+        // The buffer holds 2 s and keeps 1 s as margin, so a Take gets at most 1 s.
+        #expect(try decodedTake(device).preRollFrames == 48_000)
+    }
+
+    @Test("Turned off after Arming, the next Take starts at the press")
+    func offAfterArming() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(seconds: 1)
+        try recorder.arm(audio)
+        try await deliver(48_000, from: 0, to: audio, recorder)
+        recorder.preRollSeconds = 0
+        try recorder.startTake()
+        try await deliver(480, from: 48_000, to: audio, recorder)
+        try recorder.stopTake()
+        #expect(try decodedTake(device).preRollFrames == nil)
+        #expect(try StemFile(contentsOf: take01(device).appending(path: "01 USB 01.wav")).samples == (48_000..<48_480).map { Int32($0) })
+    }
+
     @Test("A Drive that joins mid-Take is missing the Pre-roll as a Gap, and Repair fills it from the Device")
     func lateDriveGetsPreRollByRepair() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
