@@ -8,6 +8,10 @@ final class FakeXAirMixer: Sendable {
     struct Channel: Sendable {
         var name: String
         var color: Int32
+        /// X-Air "on": 1 = unmuted, 0 = muted.
+        var on: Int32 = 1
+        var fader: Float = 0.75
+        var inputSource: Int32 = 0
     }
 
     struct State: Sendable {
@@ -18,6 +22,10 @@ final class FakeXAirMixer: Sendable {
         var auxReturn = Channel(name: "", color: 0)
         /// When false, the mixer receives queries but never answers.
         var answers = true
+        /// When false, mute, fader and input source queries go unanswered (older firmware, say).
+        var answersMixState = true
+        /// When true, faders are reported as integers instead of floats.
+        var reportsFaderAsInt = false
         /// Every address queried, in order.
         var queries: [String] = []
     }
@@ -75,18 +83,28 @@ final class FakeXAirMixer: Sendable {
                 switch parts {
                 case ["xinfo"]:
                     return OSCMessage("/xinfo", ["127.0.0.1", .string(state.networkName), .string(state.model), .string(state.firmware)])
-                case let p where p.count == 4 && p[0] == "ch" && p[2] == "config":
+                case let p where p.count == 4 && p[0] == "ch":
                     guard let number = Int(p[1]), (1...16).contains(number) else { return nil }
-                    let channel = state.channels[number - 1]
-                    return p[3] == "name" ? OSCMessage(query.address, [.string(channel.name)])
-                        : p[3] == "color" ? OSCMessage(query.address, [.int(channel.color)]) : nil
-                case ["rtn", "aux", "config", "name"]:
-                    return OSCMessage(query.address, [.string(state.auxReturn.name)])
-                case ["rtn", "aux", "config", "color"]:
-                    return OSCMessage(query.address, [.int(state.auxReturn.color)])
+                    guard state.answersMixState || (p[2] == "config" && p[3] != "insrc") else { return nil }
+                    if state.reportsFaderAsInt, p[2] == "mix", p[3] == "fader" { return OSCMessage(query.address, [.int(1)]) }
+                    return Self.answer(query.address, section: p[2], field: p[3], channel: state.channels[number - 1], hasInputSource: true)
+                case let p where p.count == 4 && p[0] == "rtn" && p[1] == "aux":
+                    guard state.answersMixState || p[2] == "config" else { return nil }
+                    return Self.answer(query.address, section: p[2], field: p[3], channel: state.auxReturn, hasInputSource: false)
                 default:
                     return nil
                 }
+            }
+        }
+
+        private static func answer(_ address: String, section: String, field: String, channel: Channel, hasInputSource: Bool) -> OSCMessage? {
+            switch (section, field) {
+            case ("config", "name"): OSCMessage(address, [.string(channel.name)])
+            case ("config", "color"): OSCMessage(address, [.int(channel.color)])
+            case ("config", "insrc") where hasInputSource: OSCMessage(address, [.int(channel.inputSource)])
+            case ("mix", "on"): OSCMessage(address, [.int(channel.on)])
+            case ("mix", "fader"): OSCMessage(address, [.float(channel.fader)])
+            default: nil
             }
         }
     }

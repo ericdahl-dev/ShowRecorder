@@ -127,7 +127,8 @@ final class RecordScreenModel {
 
     func record() {
         do {
-            try recorder.startTake()
+            // Freeze whatever the Mixer Link knows right now into the Take's Stems.
+            try recorder.startTake(sources: mixerLink.sources)
             recordError = nil
         } catch {
             recordError = "Couldn't start recording: \(error.localizedDescription)"

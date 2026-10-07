@@ -1,6 +1,7 @@
 import AudioIO
 import BroadcastWave
 import Foundation
+import MixerLink
 import Observation
 import Synchronization
 
@@ -76,7 +77,10 @@ public final class Recorder {
     }
 
     /// Starts a Take in the open Show, creating a Show first if none is open.
-    public func startTake() throws {
+    ///
+    /// `sources` are frozen into the Take: Stem names and bext descriptions use them, and later
+    /// changes on the Mixer don't touch this Take's files. USB Channels without a Source get "USB NN".
+    public func startTake(sources: [Source] = []) throws {
         guard let device, let capture else { throw RecorderError.notArmed }
         guard !isRecording else { return }
         let date = now()
@@ -86,13 +90,19 @@ public final class Recorder {
 
         let sampleRate = Int(device.sampleRate.rounded())
         let timeReference = UInt64(date.timeIntervalSince(Calendar.current.startOfDay(for: date)) * Double(sampleRate))
+        var channels: [TakeMetadata.USBChannel] = []
         let stems = try (0..<capture.ring.channelCount).map { channel in
-            let number = String(format: "%02d", channel + 1)
-            let name = "USB \(number)"
+            let source = sources.indices.contains(channel) ? sources[channel] : .fallback(usbChannel: channel + 1)
+            let fileName = StemFileName.make(usbChannel: channel + 1, sourceName: source.name)
+            channels.append(TakeMetadata.USBChannel(usbChannel: channel + 1, stemFile: fileName, source: source))
             return try StemWriter(
-                url: takeFolder.appending(path: "\(number) \(name).wav"),
-                info: .init(sampleRate: sampleRate, description: name, originator: "ShowRecorder", timeReference: timeReference, originationDate: date))
+                url: takeFolder.appending(path: fileName),
+                info: .init(sampleRate: sampleRate, description: source.name, originator: "ShowRecorder", timeReference: timeReference, originationDate: date))
         }
+        try TakeMetadata(
+            show: show.name, take: show.takeCount, startedAt: date, sampleRate: sampleRate,
+            timeReference: timeReference, usbChannels: channels
+        ).write(to: takeFolder)
 
         let writer = TakeWriter(ring: capture.ring, stems: stems, commitInterval: sampleRate * 2)
         capture.ring.discardAll()
