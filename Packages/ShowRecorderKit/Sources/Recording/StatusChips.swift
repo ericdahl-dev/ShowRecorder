@@ -17,6 +17,16 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
     public var state: State
     public var id: Kind { kind }
 
+    /// A shorter text for tight layouts: a time left drops the "Device" or "Drive" the chip's icon already
+    /// says. Problems and "not set" keep their full words.
+    public var shortText: String {
+        for prefix in ["Device ", "Drive "] where text.hasPrefix(prefix) {
+            let rest = String(text.dropFirst(prefix.count))
+            if state != .failed, rest.contains(where: \.isNumber) { return rest }
+        }
+        return text
+    }
+
     /// The chips for the current Destinations and Mixer Link, in the order they're shown.
     ///
     /// - Parameter copies: how each Copy of the running Take is doing; empty when no Take is running.

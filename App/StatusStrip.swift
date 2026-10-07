@@ -5,26 +5,39 @@ import SwiftUI
 /// are quiet; a problem fills its chip. Every chip has an icon and words, so none relies on color.
 struct StatusStrip: View {
     let chips: [StatusChip]
+    /// Landscape iPhone: shorter text, so three chips fit beside the header.
+    var compact = false
     let tap: (StatusChip.Kind) -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         HStack(spacing: 8) {
             ForEach(chips) { chip in
                 Button { tap(chip.kind) } label: {
-                    Label(chip.text, systemImage: icon(for: chip))
-                        .font(.footnote.weight(.semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        .padding(.horizontal, 10)
-                        .frame(minHeight: 44)
-                        .frame(maxWidth: .infinity)
-                        .foregroundStyle(foreground(chip.state))
-                        .background(background(chip.state), in: RoundedRectangle(cornerRadius: 10))
+                    // The full text if it fits, else the short one, else the short one scaled down.
+                    ViewThatFits(in: .horizontal) {
+                        if !compact { chipLabel(chip, text: chip.text).fixedSize(horizontal: true, vertical: false) }
+                        chipLabel(chip, text: chip.shortText).fixedSize(horizontal: true, vertical: false)
+                        chipLabel(chip, text: chip.shortText).minimumScaleFactor(0.6)
+                    }
+                    .padding(.horizontal, 10)
+                    .frame(minHeight: 44)
+                    .frame(maxWidth: .infinity)
+                    .foregroundStyle(foreground(chip.state))
+                    .background(background(chip.state), in: RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(chip.text)
             }
         }
+    }
+
+    /// At the largest text sizes the chip keeps its icon and drops the words (VoiceOver still has them).
+    private func chipLabel(_ chip: StatusChip, text: String) -> some View {
+        Label(text, systemImage: icon(for: chip))
+            .labelStyle(StripLabelStyle(iconOnly: typeSize.isAccessibilitySize))
+            .font(.footnote.weight(.semibold))
+            .lineLimit(1)
     }
 
     private func icon(for chip: StatusChip) -> String {
@@ -63,6 +76,8 @@ struct AlertSlot: View {
     @State private var listing = false
 
     static let height: CGFloat = 56
+    /// Portrait keeps `height`; landscape overlays a shorter slot.
+    var slotHeight: CGFloat = AlertSlot.height
 
     var body: some View {
         Group {
@@ -72,7 +87,7 @@ struct AlertSlot: View {
                 Color.clear
             }
         }
-        .frame(height: Self.height)
+        .frame(height: slotHeight)
         .popover(isPresented: $listing) {
             VStack(spacing: 8) {
                 ForEach(queue.ordered) { alert in
@@ -146,6 +161,22 @@ struct AlertBanner: View {
         case .warning: Color(red: 1.0, green: 0.69, blue: 0.13)
         case .ok: Color(red: 0.12, green: 0.42, blue: 0.23)
         case .info: Color(red: 0.20, green: 0.30, blue: 0.55)
+        }
+    }
+}
+
+/// Icon and text side by side, or the icon alone at accessibility text sizes.
+private struct StripLabelStyle: LabelStyle {
+    let iconOnly: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        if iconOnly {
+            configuration.icon
+        } else {
+            HStack(spacing: 6) {
+                configuration.icon
+                configuration.title
+            }
         }
     }
 }

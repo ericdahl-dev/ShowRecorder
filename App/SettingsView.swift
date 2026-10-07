@@ -37,6 +37,10 @@ struct SettingsView: View {
                     }
                     .onChange(of: model.selectedDeviceID) { model.selectionDidChange() }
                     Text(model.usbChannelSummary).foregroundStyle(.secondary).monospacedDigit()
+                    #if os(iOS)
+                    Toggle("Record button on the left in landscape", isOn: $model.transportLeading)
+                        .onChange(of: model.transportLeading) { model.saveTransportSide() }
+                    #endif
                 } header: {
                     Text("Recording").id(SettingsSection.recording)
                 }
