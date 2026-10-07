@@ -38,10 +38,8 @@ public final class Recorder {
     @ObservationIgnored private let makeStem: (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink
     @ObservationIgnored private var device: (any AudioIODevice)?
     @ObservationIgnored private var capture: Capture?
-    @ObservationIgnored private var writers: [TakeWriter] = []
-    @ObservationIgnored private var driveAccess: DestinationAccess?
-    /// The running Take's metadata, its folders (one per Copy), and what a Copy that joins later needs to make the same Stems.
-    @ObservationIgnored private var take: (metadata: TakeMetadata, folders: [URL], stems: [StemSpec], info: StemWriter.Info)?
+    /// The running Take's Copies.
+    @ObservationIgnored private var session: TakeSession?
     /// How each Copy of the last Take ended up, for after it stops.
     @ObservationIgnored private var repairTask: Task<Void, Never>?
     /// Counts stopped Takes, so only the latest one's Repair sets `lastTakeOutcomes`.
@@ -169,33 +167,17 @@ public final class Recorder {
             show: show.name, take: show.takeCount, startedAt: date, sampleRate: sampleRate,
             timeReference: timeReference, usbChannels: channels)
 
-        // One writer per Copy, each draining its own ring, so a slow Drive never holds up the Device.
         let specs = zip(channels, resolved).map { StemSpec(file: $0.stemFile, description: $1.name) }
         let info = StemWriter.Info(sampleRate: sampleRate, description: "", originator: "ShowRecorder", timeReference: timeReference, originationDate: date)
-        var writers: [TakeWriter] = []
-        for (copy, takeFolder) in takeFolders.enumerated() {
-            let stems = try specs.map { try makeStem(takeFolder.appending(path: $0.file), info.described($0.description), nil) }
-            try metadata.write(to: takeFolder)
-            writers.append(TakeWriter(ring: capture.rings[copy], stems: stems, commitInterval: sampleRate * 2, onFailure: { [weak self] in
-                capture.disable(copy: copy)
-                Task { @MainActor in self?.copyFailed() }
-            }))
-        }
-
-        for (copy, writer) in writers.enumerated() {
-            capture.rings[copy].discardAll()
-            capture.rings[copy].joinFrame.store(0, ordering: .releasing)
-            writer.start()
-        }
-        take = (metadata, takeFolders, specs, info)
+        let session = try TakeSession(
+            show: show, folders: takeFolders, drive: takeFolders.count > 1 ? drive : nil, metadata: metadata, stems: specs,
+            info: info, capture: capture, makeStem: makeStem, freeSpace: freeSpace)
+        session.onCopyFailed = { [weak self, weak session] in self?.copyFailed(in: session) }
+        if takeFolders.count == 1 { drive?.release() }
+        self.session = session
         finishedCopies = [:]
         takeMarkers = []
         endedForLackOfSpace = false
-        capture.startCapturing(copies: writers.count)
-
-        self.writers = writers
-        driveAccess = takeFolders.count > 1 ? drive : nil
-        if takeFolders.count == 1 { drive?.release() }
         currentShow = show
         isRecording = true
     }
@@ -203,172 +185,50 @@ public final class Recorder {
     /// Places a Marker at the Take's current sample position (frames written so far), in every Stem
     /// of every Copy and in `Take.json`. Does nothing when no Take is running.
     public func addMarker(named name: String? = nil) {
-        guard isRecording, let capture, var take else { return }
-        let position = capture.takeFrameCount
-        let marker = TakeMetadata.Marker(position: position, name: name ?? "Marker \(takeMarkers.count + 1)", origin: .operator)
-        takeMarkers.append(marker)
-        take.metadata.markers = takeMarkers
-        self.take = take
-        // Take.json first: it's written whole and atomically, so a Marker survives even if the Stems'
-        // next header commit never happens.
-        for folder in take.folders { try? take.metadata.write(to: folder) }
-        for writer in writers { writer.setMarkers(stemMarkers) }
+        guard isRecording, let session else { return }
+        session.addMarker(named: name)
+        takeMarkers = session.metadata.markers
     }
 
     /// How `kind`'s Copy of the current (or last) Take is doing. A Copy that never started is missing.
     public func copyStatus(_ kind: DestinationKind) -> CopyStatus {
-        guard isRecording else { return finishedCopies[kind] ?? .missing }
-        let index = kind.index
-        guard writers.indices.contains(index) else { return .missing }
-        return writers[index].hasFailed ? .interrupted : .recording
+        guard isRecording, let session else { return finishedCopies[kind] ?? .missing }
+        return session.status(kind)
     }
 
     /// Looks for a Destination that has become available since the Take started. A Drive that appears
     /// joins the running Take: its Stems start with silence up to the join point, which is recorded as
     /// a Gap in `Take.json` on both Copies. Call it regularly while recording.
     public func checkDestinations() {
-        guard isRecording, let capture, var show = currentShow, var take else { return }
-
-        // Keep 60 s of audio free on each Destination. A Copy that's short stops cleanly while another
-        // has room; when the last healthy one is short the Take finalizes, before anything fills.
-        let reserve = Int64(60 * take.metadata.usbChannels.count * take.info.sampleRate * 3)
-        let healthy = writers.indices.filter { !writers[$0].hasFailed }
-        let low = healthy.filter { freeSpace(take.folders[$0]) < reserve }
-        if !low.isEmpty {
-            if low.count == healthy.count {
-                endedForLackOfSpace = true
-                try? stopTake()
-                return
-            }
-            for index in low {
-                capture.disable(copy: index)
-                writers[index].retire()
-            }
+        guard isRecording, let session else { return }
+        switch session.checkDestinations(drive: driveFolder) {
+        case .carryOn:
+            currentShow = session.show
+        case .outOfSpace:
+            endedForLackOfSpace = true
+            try? stopTake()
         }
-        if writers.count == 1, let access = driveFolder() {
-            guard freeSpace(access.folder) >= reserve else { access.release(); persistGaps(); return }
-            do {
-                let folder = try show.joinDrive(access.folder)
-                let stems = try take.stems.map { try makeStem(folder.appending(path: $0.file), take.info.described($0.description), nil) }
-                try take.metadata.write(to: folder)
-                let ring = capture.rings[1]
-                let writer = TakeWriter(ring: ring, stems: stems, commitInterval: take.info.sampleRate * 2, onFailure: { [weak self] in
-                    capture.disable(copy: 1)
-                    Task { @MainActor in self?.copyFailed() }
-                })
-                ring.discardAll()
-                ring.joinFrame.store(-1, ordering: .releasing)
-                writer.start()
-                if !takeMarkers.isEmpty { writer.setMarkers(stemMarkers) }
-                capture.requestJoin(copy: 1)
-                writers.append(writer)
-                take.folders.append(folder)
-                driveAccess = access
-                currentShow = show
-                self.take = take
-            } catch {
-                access.release()
-            }
-        }
-        if writers.count == 2, writers[1].isFinished, writers[1].hasFailed, let access = driveFolder() {
-            // The Drive may have come back at a different path (a remount), so find the Take folder
-            // under the folder we were just given.
-            let folder = access.folder
-                .appending(path: show.name, directoryHint: .isDirectory)
-                .appending(path: String(format: "Take %02d", show.takeCount), directoryHint: .isDirectory)
-            do {
-                guard FileManager.default.fileExists(atPath: folder.path), freeSpace(folder) >= reserve else {
-                    access.release()
-                    persistGaps()
-                    return
-                }
-                let old = writers[1]
-                let counts = old.stemFrameCounts
-                let stems = try take.stems.enumerated().map { index, spec in
-                    try makeStem(folder.appending(path: spec.file), take.info.described(spec.description), counts[index])
-                }
-                let ring = capture.rings[1]
-                let writer = TakeWriter(ring: ring, stems: stems, commitInterval: take.info.sampleRate * 2, onFailure: { [weak self] in
-                    capture.disable(copy: 1)
-                    Task { @MainActor in self?.copyFailed() }
-                }, priorGaps: old.gaps)
-                ring.discardAll()
-                ring.joinFrame.store(-1, ordering: .releasing)
-                writer.start()
-                if !takeMarkers.isEmpty { writer.setMarkers(stemMarkers) }
-                capture.requestJoin(copy: 1)
-                writers[1] = writer
-                try show.useDrive(access.folder)
-                take.folders[1] = folder
-                self.take = take
-                currentShow = show
-                driveAccess?.release()
-                driveAccess = access
-            } catch {
-                access.release()
-            }
-        }
-        persistGaps()
-    }
-
-    /// Stretches written as silence in any Copy, as `Take.json` records them.
-    /// With `takeEnd`, a Copy that is still interrupted is missing everything from where it stopped to there.
-    private func gaps(takeEnd: Int? = nil) -> [TakeMetadata.Gap] {
-        var gaps: [TakeMetadata.Gap] = []
-        for (index, writer) in writers.enumerated() {
-            let copy = DestinationKind(index: index)
-            for range in writer.gaps {
-                gaps.append(.init(copy: copy, start: range.lowerBound, end: range.upperBound))
-            }
-            if let takeEnd, writer.hasFailed, writer.framesWritten < takeEnd {
-                gaps.append(.init(copy: copy, start: writer.framesWritten, end: takeEnd))
-            }
-        }
-        return gaps.sorted { ($0.start, $0.end) < ($1.start, $1.end) }
-    }
-
-    /// Writes the Gaps found so far into `Take.json` in every Copy.
-    private func persistGaps(takeEnd: Int? = nil) {
-        guard var take else { return }
-        let gaps = gaps(takeEnd: takeEnd)
-        guard gaps != take.metadata.gaps else { return }
-        take.metadata.gaps = gaps
-        self.take = take
-        for folder in take.folders { try? take.metadata.write(to: folder) }
     }
 
     /// A Copy's writer failed. Once every Copy has, there's nowhere left to record: end the Take.
-    private func copyFailed() {
-        guard isRecording, !writers.isEmpty, writers.allSatisfy(\.hasFailed) else { return }
+    private func copyFailed(in failed: TakeSession?) {
+        guard isRecording, let session, session === failed, session.allFailed else { return }
         try? stopTake()
-    }
-
-    private var stemMarkers: [StemMarker] {
-        takeMarkers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
     }
 
     /// Stops the Take and waits until every Stem is written and finalized.
     /// A Copy that failed during the Take doesn't make this throw; see `copyStatus(_:)`.
     public func stopTake() throws {
-        guard isRecording, let capture else { return }
-        capture.stopCapturing()
-        for kind in DestinationKind.allCases { finishedCopies[kind] = copyStatus(kind) }
-        let writers = self.writers
+        guard isRecording, let session else { return }
+        // Not recording from here on, so a Copy that fails while draining doesn't stop the Take again.
         isRecording = false
-        for writer in writers { writer.stop() }
-        persistGaps(takeEnd: capture.takeFrameCount)
-        for kind in DestinationKind.allCases where finishedCopies[kind] == .recording {
-            // A Copy can fail while its writer drains at stop.
-            if writers.indices.contains(kind.index), writers[kind.index].hasFailed { finishedCopies[kind] = .interrupted }
-        }
-        let ended = take
-        self.writers = []
-        take = nil
+        self.session = nil
+        let finished = session.finish()
+        finishedCopies = finished.statuses
+        currentShow = session.show
         // The Takes are safe either way; the report and project are regenerated next time.
         regenerateReports()
-        let access = driveAccess
-        driveAccess = nil
-        if let ended { repair(ended.metadata, folders: ended.folders, holding: access) } else { access?.release() }
+        repair(finished.metadata, folders: finished.folders, holding: finished.access)
     }
 
     private func regenerateReports() {
@@ -430,12 +290,6 @@ public enum CopyStatus: Sendable, Equatable {
     case interrupted
     /// It never started: no Destination.
     case missing
-}
-
-/// One Stem's file name and Source name, kept so a Copy that joins mid-Take can create the same Stems.
-private struct StemSpec {
-    var file: String
-    var description: String
 }
 
 public enum RecorderError: Error, Equatable {
