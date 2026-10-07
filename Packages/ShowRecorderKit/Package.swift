@@ -11,6 +11,7 @@ let package = Package(
         .library(name: "CoreAudioIO", targets: ["CoreAudioIO"]),
         .library(name: "OSC", targets: ["OSC"]),
         .library(name: "MixerLink", targets: ["MixerLink"]),
+        .library(name: "ShowReport", targets: ["ShowReport"]),
     ],
     targets: [
         // The audio I/O boundary and a fake device. No platform audio frameworks.
@@ -18,16 +19,19 @@ let package = Package(
         // Broadcast WAV Stem files.
         .target(name: "BroadcastWave"),
         // The recorder: Armed state, meters, Shows and Takes. No platform audio frameworks.
-        .target(name: "Recording", dependencies: ["AudioIO", "BroadcastWave", "MixerLink"]),
+        .target(name: "Recording", dependencies: ["AudioIO", "BroadcastWave", "MixerLink", "ShowReport"]),
         // Core Audio devices on macOS. Empty on other platforms.
         .target(name: "CoreAudioIO", dependencies: ["AudioIO"]),
         // Open Sound Control messages and bundles. Pure encoding, no networking.
         .target(name: "OSC"),
         // The Mixer Link: mixer drivers (X-Air first) over UDP.
         .target(name: "MixerLink", dependencies: ["OSC"]),
+        // The Show report (Report.html and Channels.csv) built from a Show folder. Pure Foundation.
+        .target(name: "ShowReport"),
         .testTarget(name: "OSCTests", dependencies: ["OSC"]),
         .testTarget(name: "MixerLinkTests", dependencies: ["MixerLink", "OSC"]),
         .testTarget(name: "RecordingTests", dependencies: ["Recording", "AudioIO", "MixerLink"]),
         .testTarget(name: "BroadcastWaveTests", dependencies: ["BroadcastWave"]),
+        .testTarget(name: "ShowReportTests", dependencies: ["ShowReport", "Recording", "AudioIO", "MixerLink"]),
     ]
 )

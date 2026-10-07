@@ -1,0 +1,318 @@
+import Foundation
+
+/// A Show's report: every Take and each USB Channel's Stem and Source, read back from the Show folder.
+///
+/// Built only from what is on disk: each Take's `Take.json` and the Stems themselves. Durations come
+/// from the Stems' data chunks, so they show what was actually written.
+public struct ShowReport: Equatable, Sendable {
+    public struct Take: Equatable, Sendable {
+        public var number: Int
+        public var folderName: String
+        public var startedAt: Date
+        public var sampleRate: Int
+        public var usbChannels: [USBChannel]
+
+        /// The longest Stem's duration in seconds, or nil when no Stem could be read.
+        public var duration: Double? {
+            usbChannels.compactMap(\.duration).max()
+        }
+    }
+
+    public struct USBChannel: Equatable, Sendable {
+        public var usbChannel: Int
+        public var stemFile: String
+        public var sourceName: String
+        public var hasMixerName: Bool
+        public var hue: String
+        public var inverted: Bool
+        public var muted: Bool?
+        public var fader: Float?
+        public var inputSource: Int?
+        /// Samples in the Stem's data chunk, or nil when the Stem is missing or unreadable.
+        public var sampleCount: UInt64?
+        public var sampleRate: Int
+
+        public var duration: Double? {
+            sampleCount.map { Double($0) / Double(max(sampleRate, 1)) }
+        }
+    }
+
+    public static let htmlFileName = "Report.html"
+    public static let csvFileName = "Channels.csv"
+
+    public var showName: String
+    public var takes: [Take]
+
+    /// Reads every Take folder in `showFolder` that has a `Take.json`, in Take order.
+    public init(showFolder: URL) throws {
+        let fm = FileManager.default
+        let folders = try fm.contentsOfDirectory(at: showFolder, includingPropertiesForKeys: nil)
+        var takes: [Take] = []
+        for folder in folders {
+            let json = folder.appending(path: TakeFile.fileName)
+            guard fm.fileExists(atPath: json.path) else { continue }
+            let file = try TakeFile.read(from: json)
+            takes.append(Take(
+                number: file.take,
+                folderName: folder.lastPathComponent,
+                startedAt: file.startedAt,
+                sampleRate: file.sampleRate,
+                usbChannels: file.usbChannels.map { channel in
+                    USBChannel(
+                        usbChannel: channel.usbChannel,
+                        stemFile: channel.stemFile,
+                        sourceName: channel.name,
+                        hasMixerName: channel.hasMixerName,
+                        hue: channel.color.hue,
+                        inverted: channel.color.inverted,
+                        muted: channel.muted,
+                        fader: channel.fader,
+                        inputSource: channel.inputSource,
+                        sampleCount: StemDuration.sampleCount(of: folder.appending(path: channel.stemFile)),
+                        sampleRate: file.sampleRate)
+                }))
+        }
+        self.showName = showFolder.lastPathComponent
+        self.takes = takes.sorted { $0.number < $1.number }
+    }
+
+    /// Writes `Report.html` and `Channels.csv` into `showFolder`, replacing any earlier ones.
+    public static func write(showFolder: URL) throws {
+        let report = try ShowReport(showFolder: showFolder)
+        try Data(report.html.utf8).write(to: showFolder.appending(path: htmlFileName), options: .atomic)
+        try Data(report.csv.utf8).write(to: showFolder.appending(path: csvFileName), options: .atomic)
+    }
+
+    // MARK: - CSV
+
+    /// One row per Take and USB Channel, RFC 4180 quoting, CRLF line ends.
+    public var csv: String {
+        var rows = [["Take", "USB Channel", "Stem", "Source", "Mixer named", "Color", "Muted", "Fader", "Input source", "Duration (s)"]]
+        for take in takes {
+            for channel in take.usbChannels {
+                rows.append([
+                    String(take.number),
+                    String(channel.usbChannel),
+                    channel.stemFile,
+                    channel.sourceName,
+                    String(channel.hasMixerName),
+                    channel.colorName,
+                    channel.muted.map { String($0) } ?? "",
+                    channel.fader.map { String($0) } ?? "",
+                    channel.inputSource.map { String($0) } ?? "",
+                    channel.duration.map { String(format: "%.3f", $0) } ?? "",
+                ])
+            }
+        }
+        return rows.map { $0.map(Self.csvField).joined(separator: ",") + "\r\n" }.joined()
+    }
+
+    static func csvField(_ value: String) -> String {
+        guard value.contains(where: { $0 == "," || $0 == "\"" || $0.isNewline }) else { return value }
+        return "\"" + value.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+    }
+
+    // MARK: - HTML
+
+    /// A self-contained page: inline styles, no scripts or external assets, light and dark.
+    public var html: String {
+        var out = """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <meta name="color-scheme" content="light dark">
+            <title>\(Self.escape(showName))</title>
+            <style>
+            \(Self.style)
+            </style>
+            </head>
+            <body>
+            <h1>\(Self.escape(showName))</h1>
+            <p class="summary">\(takes.count == 1 ? "1 Take" : "\(takes.count) Takes")</p>
+
+            """
+        for take in takes {
+            out += section(for: take)
+        }
+        out += "</body>\n</html>\n"
+        return out
+    }
+
+    /// One Take: when it started, how long it ran, and every USB Channel's Stem and Source.
+    /// Later sections (Markers, Gaps, Repairs, Dropouts) belong inside this section.
+    private func section(for take: Take) -> String {
+        var out = """
+            <section>
+            <h2>Take \(take.number)</h2>
+            <dl>
+            <dt>Started</dt><dd>\(Self.timestamp(take.startedAt))</dd>
+            <dt>Duration</dt><dd>\(take.duration.map(Self.clock) ?? "unknown")</dd>
+            <dt>Sample rate</dt><dd>\(take.sampleRate) Hz</dd>
+            <dt>Folder</dt><dd>\(Self.escape(take.folderName))</dd>
+            </dl>
+            <div class="scroll"><table>
+            <thead><tr><th>USB Channel</th><th>Source</th><th>Stem</th><th>Color</th><th>Muted</th><th>Fader</th><th>Input source</th><th>Duration</th></tr></thead>
+            <tbody>
+
+            """
+        for channel in take.usbChannels {
+            let note = channel.hasMixerName ? "" : " <span class=\"note\">(not named on the Mixer)</span>"
+            let swatch = "<span class=\"swatch\" style=\"\(Self.swatchStyle(hue: channel.hue, inverted: channel.inverted))\"></span>"
+            out += "<tr>"
+            out += "<td class=\"num\">\(channel.usbChannel)</td>"
+            out += "<td class=\"source\">\(Self.escape(channel.sourceName))\(note)</td>"
+            out += "<td>\(Self.escape(channel.stemFile))</td>"
+            out += "<td>\(swatch)\(Self.escape(channel.colorName))</td>"
+            out += "<td>\(channel.muted.map { $0 ? "Muted" : "No" } ?? "")</td>"
+            out += "<td class=\"num\">\(channel.fader.map { "\(Int(($0 * 100).rounded()))%" } ?? "")</td>"
+            out += "<td class=\"num\">\(channel.inputSource.map(String.init) ?? "")</td>"
+            out += "<td class=\"num\">\(channel.duration.map(Self.clock) ?? "missing")</td>"
+            out += "</tr>\n"
+        }
+        out += "</tbody>\n</table></div>\n</section>\n"
+        return out
+    }
+
+    static func escape(_ text: String) -> String {
+        var out = ""
+        out.reserveCapacity(text.utf8.count)
+        for c in text {
+            switch c {
+            case "&": out += "&amp;"
+            case "<": out += "&lt;"
+            case ">": out += "&gt;"
+            case "\"": out += "&quot;"
+            case "'": out += "&#39;"
+            default: out.append(c)
+            }
+        }
+        return out
+    }
+
+    /// "1:05" or "1:02:03", whole seconds.
+    static func clock(_ seconds: Double) -> String {
+        let total = Int(seconds.rounded(.down))
+        let (h, m, s) = (total / 3600, total / 60 % 60, total % 60)
+        return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
+    }
+
+    /// Local time on the device that wrote the report.
+    static func timestamp(_ date: Date) -> String {
+        let c = Calendar(identifier: .gregorian).dateComponents(in: .current, from: date)
+        return String(format: "%04d-%02d-%02d %02d:%02d:%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0, c.hour ?? 0, c.minute ?? 0, c.second ?? 0)
+    }
+
+    /// Mixer hues map to fixed colors; an unknown hue is drawn like "off". Inverted is a filled swatch.
+    static func swatchStyle(hue: String, inverted: Bool) -> String {
+        let colors = [
+            "red": "#e5484d", "green": "#30a46c", "yellow": "#f5d90a", "blue": "#3e63dd",
+            "magenta": "#d6409f", "cyan": "#05a2c2", "white": "#e8e8ed",
+        ]
+        guard let color = colors[hue] else { return "border-color:var(--muted)" }
+        return inverted ? "background:\(color);border-color:\(color)" : "border-color:\(color)"
+    }
+
+    static let style = """
+        :root{--bg:#fff;--fg:#1c1c1e;--muted:#6e6e73;--line:#d1d1d6;--head:#f2f2f7}
+        @media (prefers-color-scheme: dark){:root{--bg:#000;--fg:#f2f2f7;--muted:#98989d;--line:#38383a;--head:#1c1c1e}}
+        *{box-sizing:border-box}
+        body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:15px/1.4 -apple-system,system-ui,sans-serif;-webkit-text-size-adjust:100%}
+        h1{font-size:1.6em;margin:0 0 4px;overflow-wrap:anywhere}
+        h2{font-size:1.25em;margin:28px 0 8px}
+        .summary,.note{color:var(--muted)}
+        dl{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:0 0 12px}
+        dt{color:var(--muted)}
+        dd{margin:0;overflow-wrap:anywhere}
+        .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+        table{border-collapse:collapse;width:100%;font-size:.9em}
+        th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top;white-space:nowrap}
+        th{background:var(--head)}
+        td.source{white-space:pre-wrap;min-width:8em}
+        .num{text-align:right;font-variant-numeric:tabular-nums}
+        .swatch{display:inline-block;width:.9em;height:.9em;margin-right:6px;border:2px solid;border-radius:3px;vertical-align:-.1em}
+        """
+}
+
+extension ShowReport.USBChannel {
+    /// "red", or "red inverted" for the X-Air style with colored background.
+    var colorName: String { inverted ? "\(hue) inverted" : hue }
+}
+
+/// The parts of a Take's `Take.json` the report uses. Mirrors `TakeMetadata` in Recording.
+struct TakeFile: Decodable {
+    struct USBChannel: Decodable {
+        struct Color: Decodable {
+            var hue: String
+            var inverted: Bool
+        }
+
+        var usbChannel: Int
+        var stemFile: String
+        var name: String
+        var hasMixerName: Bool
+        var color: Color
+        var muted: Bool?
+        var fader: Float?
+        var inputSource: Int?
+    }
+
+    var take: Int
+    var startedAt: Date
+    var sampleRate: Int
+    var usbChannels: [USBChannel]
+
+    static let fileName = "Take.json"
+
+    static func read(from url: URL) throws -> TakeFile {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(TakeFile.self, from: Data(contentsOf: url))
+    }
+}
+
+/// Reads a Stem's length from its chunk headers without loading the audio.
+enum StemDuration {
+    /// Samples in the data chunk (data size ÷ block align), capped at the bytes actually on disk.
+    static func sampleCount(of url: URL) -> UInt64? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        guard let fileSize = try? handle.seekToEnd(), (try? handle.seek(toOffset: 0)) != nil,
+              let riff = try? handle.read(upToCount: 12), riff.count == 12,
+              riff.prefix(4) == Data("RIFF".utf8), riff.suffix(4) == Data("WAVE".utf8)
+        else { return nil }
+
+        var offset: UInt64 = 12
+        var blockAlign: UInt64?
+        while offset + 8 <= fileSize {
+            guard (try? handle.seek(toOffset: offset)) != nil,
+                  let header = try? handle.read(upToCount: 8), header.count == 8 else { return nil }
+            let id = String(decoding: header.prefix(4), as: UTF8.self)
+            let size = UInt64(header.littleEndianUInt32(at: 4))
+            let body = offset + 8
+            switch id {
+            case "fmt ":
+                guard let fmt = try? handle.read(upToCount: 16), fmt.count == 16 else { return nil }
+                blockAlign = UInt64(fmt.littleEndianUInt16(at: 12))
+            case "data":
+                guard let blockAlign, blockAlign > 0 else { return nil }
+                return min(size, fileSize - body) / blockAlign
+            default:
+                break
+            }
+            offset = body + size + (size % 2)
+        }
+        return nil
+    }
+}
+
+private extension Data {
+    func littleEndianUInt16(at offset: Int) -> UInt16 {
+        UInt16(self[startIndex + offset]) | UInt16(self[startIndex + offset + 1]) << 8
+    }
+
+    func littleEndianUInt32(at offset: Int) -> UInt32 {
+        (0..<4).reduce(UInt32(0)) { $0 | UInt32(self[startIndex + offset + $1]) << (8 * $1) }
+    }
+}
