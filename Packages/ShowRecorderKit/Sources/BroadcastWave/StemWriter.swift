@@ -141,7 +141,7 @@ public final class StemWriter: StemSink {
     /// samples, so a half-written one or the padding byte after an odd count is ignored.
     public static func frameCount(of url: URL) -> UInt64? {
         guard let size = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? UInt64, size >= UInt64(dataStart) else { return nil }
-        return (size - UInt64(dataStart)) / 3
+        return (size - UInt64(dataStart)) / UInt64(bytesPerSample)
     }
 
     /// Where the audio starts in every Stem: the header is the same length for all of them.
