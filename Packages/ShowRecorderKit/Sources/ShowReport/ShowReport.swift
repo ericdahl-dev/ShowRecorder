@@ -31,6 +31,17 @@ public struct ShowReport: Equatable, Sendable {
             public var result: String
         }
 
+        /// Stretches of one Copy the recorder lost because its writer couldn't keep up, held as silence.
+        public var dropouts: [Dropout] = []
+
+        public struct Dropout: Equatable, Sendable {
+            /// "Device" or "Drive".
+            public var copy: String
+            public var startSeconds: Double
+            public var endSeconds: Double
+            public var lengthSeconds: Double { endSeconds - startSeconds }
+        }
+
         /// How much of the start of the Take is Pre-roll: audio from before record was pressed. `startedAt` is
         /// the press; the Stems, Markers and Gaps all count from the start of the audio, this much earlier.
         public var preRollSeconds: Double?
@@ -109,6 +120,10 @@ public struct ShowReport: Equatable, Sendable {
                     default: "Repair failed"
                     }
                     return Take.Gap(copy: gap.copy.capitalized, startSeconds: Double(gap.start) / rate, endSeconds: Double(gap.end) / rate, result: result)
+                },
+                dropouts: (file.dropouts ?? []).map { dropout in
+                    let rate = Double(max(file.sampleRate, 1))
+                    return Take.Dropout(copy: dropout.copy.capitalized, startSeconds: Double(dropout.start) / rate, endSeconds: Double(dropout.end) / rate)
                 },
                 preRollSeconds: (file.preRollFrames ?? 0) > 0 && file.sampleRate > 0
                     ? Double(file.preRollFrames ?? 0) / Double(file.sampleRate) : nil))
@@ -227,6 +242,13 @@ public struct ShowReport: Equatable, Sendable {
             }
             out += "</tbody>\n</table></div>\n"
         }
+        if !take.dropouts.isEmpty {
+            out += "<h3>Dropouts</h3>\n<p class=\"note\">Audio the recorder couldn't keep up with. It is silence of the right length in that Copy's Stems.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>Copy</th><th>From</th><th>To</th><th>Length</th></tr></thead>\n<tbody>\n"
+            for dropout in take.dropouts {
+                out += "<tr><td>\(Self.escape(dropout.copy))</td><td class=\"num\">\(Self.markerClock(dropout.startSeconds))</td><td class=\"num\">\(Self.markerClock(dropout.endSeconds))</td><td class=\"num\">\(Self.markerClock(dropout.lengthSeconds))</td></tr>\n"
+            }
+            out += "</tbody>\n</table></div>\n"
+        }
         out += "</section>\n"
         return out
     }
@@ -337,6 +359,7 @@ struct TakeFile: Decodable {
     var usbChannels: [USBChannel]
     var markers: [Marker]?
     var gaps: [Gap]?
+    var dropouts: [Gap]?
     var repairs: [Repair]?
     var preRollFrames: Int?
 

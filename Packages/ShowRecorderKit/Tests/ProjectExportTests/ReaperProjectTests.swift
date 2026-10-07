@@ -139,6 +139,20 @@ struct ReaperProjectTests {
         #expect(markers.map { Double($0[1]) } == [0, 1.25], "the Marker is 1.25 s into the Stem, 0.25 s after the press")
     }
 
+    @Test("A Dropout shows as a project marker named \"Dropout\" where the audio was lost, on the Take's timeline")
+    func dropoutMarker() throws {
+        try recorder.startTake()
+        func deliver(_ frames: Int) { device.deliver(Array(repeating: Array(repeating: 0, count: frames), count: 3)) }
+        deliver(24_000)  // 0.5 s
+        deliver(300_000)  // more than a ring holds: dropped
+        deliver(480)
+        try recorder.stopTake()
+
+        let markers = try project().all("MARKER")
+        #expect(markers.map { $0[2] } == ["Take 01", "Dropout"])
+        #expect(markers.map { Double($0[1]) } == [0, 0.5], "0.5 s into the Take, where the audio was lost")
+    }
+
     @Test("A project marker sits at the start of each Take")
     func markerAtEachTakeStart() throws {
         try recordTake(frames: 24_000, sources: [])
