@@ -22,6 +22,8 @@ public struct InterruptionPolicy: Sendable, Equatable {
         /// Input was replaced after a reset, but the new device's format didn't match the Take, so
         /// the Take was stopped and finalized and the recorder Armed on the new device.
         case takeEndedByReset
+        /// Moving the running Take to the new route (after an iOS route change) failed, so no audio reaches it.
+        case moveFailed(String)
         case takeStarted
         case becameActive
         case movedToBackground
@@ -47,6 +49,9 @@ public struct InterruptionPolicy: Sendable, Equatable {
     public private(set) var notice: String?
     /// The next restart has to build a new device rather than restart the old one.
     private var needsNewDevice = false
+    /// Input is stopped because moving the Take to a new route failed, not because of an interruption, so
+    /// the next route change should try the move again.
+    private var moveFailed = false
 
     public init() {}
 
@@ -85,9 +90,17 @@ public struct InterruptionPolicy: Sendable, Equatable {
             notice = "Couldn't restart audio input: \(reason). ShowRecorder tries again when it's back in the foreground."
             return Response(action: .none, log: "Restarting input failed: \(reason)")
 
+        case .moveFailed(let reason):
+            isInputStopped = true
+            needsNewDevice = true
+            moveFailed = true
+            notice = "Couldn't move the Take to the new audio input: \(reason). The Take is still open, but nothing is recorded until input comes back. ShowRecorder tries again when the route changes or it's back in the foreground."
+            return Response(action: .none, log: "Moving the Take to the new route failed: \(reason)")
+
         case .restarted:
             isInputStopped = false
             needsNewDevice = false
+            moveFailed = false
             notice = isRecording
                 ? "Input is back. Audio from the interruption is missing from this Take."
                 : nil
@@ -96,6 +109,7 @@ public struct InterruptionPolicy: Sendable, Equatable {
         case .takeEndedByReset:
             isInputStopped = false
             needsNewDevice = false
+            moveFailed = false
             notice = "The system reset its audio and the input changed, so the Take ended and was saved. Press record to start the next Take."
             return Response(action: .none, log: "Take ended after a media services reset: the new input's format differs")
 
@@ -122,9 +136,10 @@ public struct InterruptionPolicy: Sendable, Equatable {
     /// end; re-arming then would end the Take.
     public mutating func routeChanged(isRecording: Bool) -> RouteAction {
         if isInputStopped {
-            // The old device describes the old route, so the restart must build a new one.
+            // The old device describes the old route, so the restart must build a new one. After a failed
+            // move there is no restart coming: try the move again on this route.
             needsNewDevice = true
-            return .none
+            return moveFailed ? .moveInput : .none
         }
         return isRecording ? .moveInput : .rearm
     }
