@@ -219,6 +219,95 @@ struct GapTests {
         }
     }
 
+    func decodedTake(_ folder: URL) throws -> TakeMetadata {
+        let json = try Data(contentsOf: folder.appending(path: "2026-10-06 Show/Take 01/Take.json"))
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(TakeMetadata.self, from: json)
+    }
+
+    @Test("Markers keep their place on the Take timeline after the Device Copy stops")
+    func markersAfterDeviceFails() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(failing: [.device])
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder)
+        try await waitUntil { recorder.copyStatus(.device) == .interrupted }
+        try await deliverBlocks(5, to: audio, recorder)
+        recorder.addMarker(named: "Encore")
+        try recorder.stopTake()
+
+        #expect(try decodedTake(drive).markers.map(\.position) == [7200])
+        let cues = try cuePoints(drive.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
+        #expect(cues == [CuePoint(position: 7200, label: "Encore")])
+    }
+
+    @Test("Audio arriving while no Take is running doesn't move the Take timeline")
+    func idleAudioDoesNotCountTowardTheTake() {
+        let capture = Capture(channelCount: 1, sampleRate: 48_000)
+        let samples: [Float] = Array(repeating: 0, count: 480)
+        samples.withUnsafeBufferPointer { buffer in
+            var channel = buffer.baseAddress!
+            withUnsafePointer(to: &channel) { channels in
+                capture.receive(AudioBlock(channels: channels, channelCount: 1, frameCount: 480, hostTime: 0))
+            }
+        }
+        #expect(capture.takeFrameCount == 0)
+    }
+
+    @Test("A Drive that joins mid-Take gets the Markers placed before it joined")
+    func joiningDriveGetsEarlierMarkers() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let available = DriveSwitch()
+        let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DestinationAccess(folder: $0) } }, now: { RecordingTakeTests.showDay })
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder)
+        recorder.addMarker(named: "Verse")
+        available.folder = drive
+        recorder.checkDestinations()
+        try await deliverBlocks(5, to: audio, recorder)
+        try recorder.stopTake()
+
+        let take = "2026-10-06 Show/Take 01/01 USB 01.wav"
+        let expected = [CuePoint(position: 4800, label: "Verse")]
+        #expect(try cuePoints(device.appending(path: take)) == expected)
+        #expect(try cuePoints(drive.appending(path: take)) == expected)
+    }
+
+    @Test("A Drive that comes back at a new path is written there, not at the old one")
+    func driveComesBackAtNewPath() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let available = DriveSwitch()
+        available.folder = drive
+        let remounted = root.appending(path: "Drive 2")
+        let recorder = Recorder(
+            deviceFolder: device,
+            driveFolder: { available.folder.map { DestinationAccess(folder: $0) } },
+            now: { RecordingTakeTests.showDay },
+            makeStem: { url, info, resuming in
+                let real = try StemWriter.open(url: url, info: info, resumingAt: resuming)
+                return resuming == nil && url.path.contains("/Drive/") ? FailingStem(real, healthyFrames: 480) : real
+            })
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder)
+        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        try FileManager.default.moveItem(at: drive, to: remounted)
+        available.folder = remounted
+        recorder.checkDestinations()
+        try await deliverBlocks(5, to: audio, recorder)
+        try recorder.stopTake()
+
+        let moved = try StemFile(contentsOf: remounted.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
+        #expect(moved.samples.count == 7200)
+        #expect(!FileManager.default.fileExists(atPath: drive.path))
+    }
+
     @Test("A Copy short of space stops cleanly while another has room; the Take finalizes before the last one fills")
     func diskFullFinalizesBeforeLastCopyFills() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)

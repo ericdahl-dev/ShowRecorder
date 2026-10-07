@@ -36,8 +36,8 @@ public final class Recorder {
     @ObservationIgnored private var capture: Capture?
     @ObservationIgnored private var writers: [TakeWriter] = []
     @ObservationIgnored private var driveAccess: DestinationAccess?
-    /// The running Take's metadata and folders (one per Copy), and the ring position it started at.
-    @ObservationIgnored private var take: (metadata: TakeMetadata, folders: [URL], startFrame: Int, stems: [StemSpec], info: StemWriter.Info)?
+    /// The running Take's metadata, its folders (one per Copy), and what a Copy that joins later needs to make the same Stems.
+    @ObservationIgnored private var take: (metadata: TakeMetadata, folders: [URL], stems: [StemSpec], info: StemWriter.Info)?
     /// How each Copy of the last Take ended up, for after it stops.
     @ObservationIgnored private var finishedCopies: [DestinationKind: CopyStatus] = [:]
 
@@ -179,7 +179,7 @@ public final class Recorder {
             capture.rings[copy].joinFrame.store(0, ordering: .releasing)
             writer.start()
         }
-        take = (metadata, takeFolders, capture.rings[0].totalWrittenFrames, specs, info)
+        take = (metadata, takeFolders, specs, info)
         finishedCopies = [:]
         takeMarkers = []
         endedForLackOfSpace = false
@@ -196,7 +196,7 @@ public final class Recorder {
     /// of every Copy and in `Take.json`. Does nothing when no Take is running.
     public func addMarker(named name: String? = nil) {
         guard isRecording, let capture, var take else { return }
-        let position = capture.rings[0].totalWrittenFrames - take.startFrame
+        let position = capture.takeFrameCount
         let marker = TakeMetadata.Marker(position: position, name: name ?? "Marker \(takeMarkers.count + 1)", origin: .operator)
         takeMarkers.append(marker)
         take.metadata.markers = takeMarkers
@@ -204,7 +204,6 @@ public final class Recorder {
         // Take.json first: it's written whole and atomically, so a Marker survives even if the Stems'
         // next header commit never happens.
         for folder in take.folders { try? take.metadata.write(to: folder) }
-        let stemMarkers = takeMarkers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
         for writer in writers { writer.setMarkers(stemMarkers) }
     }
 
@@ -252,6 +251,7 @@ public final class Recorder {
                 ring.discardAll()
                 ring.joinFrame.store(-1, ordering: .releasing)
                 writer.start()
+                if !takeMarkers.isEmpty { writer.setMarkers(stemMarkers) }
                 capture.requestJoin(copy: 1)
                 writers.append(writer)
                 take.folders.append(folder)
@@ -262,14 +262,22 @@ public final class Recorder {
                 access.release()
             }
         }
-        if writers.count == 2, writers[1].isFinished, writers[1].hasFailed,
-           FileManager.default.fileExists(atPath: take.folders[1].path), freeSpace(take.folders[1]) >= reserve,
-           let access = driveFolder() {
+        if writers.count == 2, writers[1].isFinished, writers[1].hasFailed, let access = driveFolder() {
+            // The Drive may have come back at a different path (a remount), so find the Take folder
+            // under the folder we were just given.
+            let folder = access.folder
+                .appending(path: show.name, directoryHint: .isDirectory)
+                .appending(path: String(format: "Take %02d", show.takeCount), directoryHint: .isDirectory)
             do {
+                guard FileManager.default.fileExists(atPath: folder.path), freeSpace(folder) >= reserve else {
+                    access.release()
+                    persistGaps()
+                    return
+                }
                 let old = writers[1]
                 let counts = old.stemFrameCounts
                 let stems = try take.stems.enumerated().map { index, spec in
-                    try makeStem(take.folders[1].appending(path: spec.file), take.info.described(spec.description), counts[index])
+                    try makeStem(folder.appending(path: spec.file), take.info.described(spec.description), counts[index])
                 }
                 let ring = capture.rings[1]
                 let writer = TakeWriter(ring: ring, stems: stems, commitInterval: take.info.sampleRate * 2, onFailure: { [weak self] in
@@ -279,9 +287,15 @@ public final class Recorder {
                 ring.discardAll()
                 ring.joinFrame.store(-1, ordering: .releasing)
                 writer.start()
+                if !takeMarkers.isEmpty { writer.setMarkers(stemMarkers) }
                 capture.requestJoin(copy: 1)
                 writers[1] = writer
-                if driveAccess == nil { driveAccess = access } else { access.release() }
+                try show.useDrive(access.folder)
+                take.folders[1] = folder
+                self.take = take
+                currentShow = show
+                driveAccess?.release()
+                driveAccess = access
             } catch {
                 access.release()
             }
@@ -319,6 +333,10 @@ public final class Recorder {
     private func copyFailed() {
         guard isRecording, !writers.isEmpty, writers.allSatisfy(\.hasFailed) else { return }
         try? stopTake()
+    }
+
+    private var stemMarkers: [StemMarker] {
+        takeMarkers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
     }
 
     /// Stops the Take and waits until every Stem is written and finalized.
@@ -447,6 +465,6 @@ final class Capture: Sendable {
             if mask & (1 << copy) != 0 { rings[copy].write(block) }
             copy += 1
         }
-        takeFrames.add(block.frameCount, ordering: .relaxed)
+        if mask != 0 { takeFrames.add(block.frameCount, ordering: .relaxed) }
     }
 }
