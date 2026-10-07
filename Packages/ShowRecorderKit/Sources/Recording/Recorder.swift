@@ -21,6 +21,10 @@ public final class Recorder {
     public private(set) var takeMarkers: [TakeMetadata.Marker] = []
     /// Whether the last Take was ended by the recorder because the last healthy Destination was about to fill.
     public private(set) var endedForLackOfSpace = false
+    /// How each Copy of the last Take ended up: complete, has Gaps, Repaired or Repair failed.
+    public private(set) var lastTakeOutcomes: [DestinationKind: CopyOutcome] = [:]
+    /// Whether Repair is still filling Gaps from the last Take.
+    public private(set) var isRepairing = false
 
     /// The Device Destination: Documents/Shows.
     public static var defaultDeviceFolder: URL {
@@ -39,6 +43,10 @@ public final class Recorder {
     /// The running Take's metadata, its folders (one per Copy), and what a Copy that joins later needs to make the same Stems.
     @ObservationIgnored private var take: (metadata: TakeMetadata, folders: [URL], stems: [StemSpec], info: StemWriter.Info)?
     /// How each Copy of the last Take ended up, for after it stops.
+    @ObservationIgnored private var repairTask: Task<Void, Never>?
+    /// Counts stopped Takes, so only the latest one's Repair sets `lastTakeOutcomes`.
+    @ObservationIgnored private var takeGeneration = 0
+    @ObservationIgnored private var pendingRepairs = 0
     @ObservationIgnored private var finishedCopies: [DestinationKind: CopyStatus] = [:]
 
     /// - Parameters:
@@ -347,24 +355,74 @@ public final class Recorder {
         for kind in [DestinationKind.device, .drive] { finishedCopies[kind] = copyStatus(kind) }
         let writers = self.writers
         isRecording = false
-        defer {
-            driveAccess?.release()
-            driveAccess = nil
-        }
         for writer in writers { writer.stop() }
         persistGaps(takeEnd: capture.takeFrameCount)
-        self.writers = []
-        take = nil
         for kind in [DestinationKind.device, .drive] where finishedCopies[kind] == .recording {
             // A Copy can fail while its writer drains at stop.
             let index = kind == .device ? 0 : 1
             if writers.indices.contains(index), writers[index].hasFailed { finishedCopies[kind] = .interrupted }
         }
+        let ended = take
+        self.writers = []
+        take = nil
         // The Takes are safe either way; the report and project are regenerated next time.
+        regenerateReports()
+        let access = driveAccess
+        driveAccess = nil
+        if let ended { repair(ended.metadata, folders: ended.folders, holding: access) } else { access?.release() }
+    }
+
+    private func regenerateReports() {
         for copy in currentShow?.copies ?? [] {
             try? ShowReport.write(showFolder: copy.folder)
             try? copy.writeProjects()
         }
+    }
+
+    /// Fills the ended Take's Gaps from the other Copy, off the main thread, and records the result in
+    /// `Take.json`. `access` (the Drive's folder) is held until it's done.
+    private func repair(_ metadata: TakeMetadata, folders: [URL], holding access: DestinationAccess?) {
+        let names = ["device", "drive"]
+        let kinds: [DestinationKind] = [.device, .drive]
+        func outcomes(_ metadata: TakeMetadata) -> [DestinationKind: CopyOutcome] {
+            Dictionary(uniqueKeysWithValues: folders.indices.map { (kinds[$0], metadata.outcome(ofCopy: names[$0])) })
+        }
+        takeGeneration += 1
+        let generation = takeGeneration
+        lastTakeOutcomes = outcomes(metadata)
+        guard !metadata.gaps.isEmpty else {
+            access?.release()
+            return
+        }
+        let copies = folders.indices.map { TakeRepair.Copy(name: names[$0], folder: folders[$0]) }
+        // Repair must not fill a Destination past the space reserve: a Copy stopped for being nearly
+        // full stays as it is, with its Gaps.
+        let reserve = Int64(60 * metadata.usbChannels.count * metadata.sampleRate * 3)
+        let skip = Set(copies.filter { copy in
+            let extra = TakeRepair.bytesToExtend(copy, in: copies, metadata: metadata)
+            return extra > 0 && freeSpace(copy.folder) - extra < reserve
+        }.map(\.name))
+        pendingRepairs += 1
+        isRepairing = true
+        let previous = repairTask
+        repairTask = Task { [weak self] in
+            await previous?.value
+            let repairs = await Task.detached { TakeRepair.run(copies: copies, metadata: metadata, skip: skip) }.value
+            var done = metadata
+            done.repairs = repairs
+            for folder in folders { try? done.write(to: folder) }
+            guard let self else { return }
+            if generation == takeGeneration { lastTakeOutcomes = outcomes(done) }
+            regenerateReports()
+            access?.release()
+            pendingRepairs -= 1
+            isRepairing = pendingRepairs > 0
+        }
+    }
+
+    /// Waits for Repair of the last Take to finish.
+    public func waitForRepair() async {
+        await repairTask?.value
     }
 }
 

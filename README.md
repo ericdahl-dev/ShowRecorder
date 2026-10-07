@@ -19,6 +19,7 @@ You don't need a dedicated recording laptop. Plug a multichannel USB mixer or au
   - If the Device or Drive fails mid-Take, the other carries on, and the failed Copy picks up again when it comes back.
   - Each Gap is held as silence so Stems stay aligned, and is listed in `Take.json` and the report.
   - The Take finalizes with 60 s of space left on the last healthy Destination.
+  - **Repair:** after the Take ends, each Copy's Gaps are filled from the other Copy, so both end identical. The record screen and report say whether each Copy is complete, has Gaps, Repaired or Repair failed.
 - **Any multichannel USB input:** every channel the device sends is recorded, with no fixed channel count.
 - **Mixer Link over Wi-Fi** (X-Air mixers today):
   - Enter the mixer's IP and each meter shows its Source's name and color.
@@ -32,7 +33,7 @@ You don't need a dedicated recording laptop. Plug a multichannel USB mixer or au
   - On iPhone and iPad, the current USB route.
   - Recording continues with the screen locked, in the background and through interruptions.
 
-Not built yet: writing to the SSD and the phone at the same time, Repair, pre-roll, markers, Templates, Mixer Triggers, the Show list and sharing. See the [open issues](https://github.com/ericdahl-dev/ShowRecorder/issues).
+Not built yet: writing to the SSD and the phone at the same time, pre-roll, markers, Templates, Mixer Triggers, the Show list and sharing. See the [open issues](https://github.com/ericdahl-dev/ShowRecorder/issues).
 
 ## The rig
 

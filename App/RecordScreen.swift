@@ -25,6 +25,9 @@ struct RecordScreen: View {
             if let warning = model.destinationWarning {
                 Banner(text: warning, systemImage: "externaldrive.badge.exclamationmark", tint: .orange)
             }
+            if let summary = model.copySummary, !model.recorder.isRecording {
+                Banner(text: summary.text, systemImage: summary.isProblem ? "exclamationmark.triangle.fill" : "checkmark.circle.fill", tint: summary.isProblem ? .orange : .green)
+            }
             if let notice = model.interruptions.notice {
                 Banner(text: notice, systemImage: "phone.badge.waveform.fill", tint: .orange)
             }
@@ -174,6 +177,27 @@ final class RecordScreenModel {
         case (_, .missing): return "No Drive. Recording to this device only."
         default: return nil
         }
+    }
+
+    /// How each Copy of the last Take stands, shown once recording has stopped.
+    var copySummary: (text: String, isProblem: Bool)? {
+        if recorder.isRecording { return nil }
+        if recorder.isRepairing { return ("Repairing Gaps from the other Copy…", false) }
+        let outcomes = recorder.lastTakeOutcomes
+        guard !outcomes.isEmpty else { return nil }
+        func word(_ outcome: CopyOutcome) -> String {
+            switch outcome {
+            case .complete: "complete"
+            case .hasGaps: "has Gaps"
+            case .repaired: "Repaired"
+            case .repairFailed: "Repair failed"
+            }
+        }
+        let parts = [(DestinationKind.device, "Device"), (.drive, "Drive")].compactMap { kind, name in
+            outcomes[kind].map { "\(name) copy: \(word($0))" }
+        }
+        let problem = outcomes.values.contains { $0 == .hasGaps || $0 == .repairFailed }
+        return (parts.joined(separator: " · "), problem)
     }
 
     /// Looks for a Drive that has appeared or come back, and refreshes the Copy statuses. Also notices a
