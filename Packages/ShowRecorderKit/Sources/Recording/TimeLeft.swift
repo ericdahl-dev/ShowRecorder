@@ -1,3 +1,5 @@
+import BroadcastWave
+
 /// How long a Destination can keep recording: free space ÷ the data rate of every USB Channel
 /// (mono 24-bit Stems).
 public struct TimeLeft: Equatable, Sendable, CustomStringConvertible {
@@ -5,7 +7,7 @@ public struct TimeLeft: Equatable, Sendable, CustomStringConvertible {
     public let seconds: Int64?
 
     public init(availableBytes: Int64, usbChannelCount: Int, sampleRate: Int) {
-        let bytesPerSecond = Int64(usbChannelCount) * Int64(sampleRate) * 3
+        let bytesPerSecond = Int64(usbChannelCount) * Int64(sampleRate) * Int64(StemWriter.bytesPerSample)
         seconds = bytesPerSecond > 0 ? max(availableBytes, 0) / bytesPerSecond : nil
     }
 

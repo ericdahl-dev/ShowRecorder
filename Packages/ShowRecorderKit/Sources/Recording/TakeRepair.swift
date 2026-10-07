@@ -23,7 +23,7 @@ enum TakeRepair {
         let length = length(copies: copies, metadata: metadata)
         return metadata.usbChannels.reduce(into: Int64(0)) { total, channel in
             let frames = Int(StemWriter.frameCount(of: copy.folder.appending(path: channel.stemFile)) ?? 0)
-            total += Int64(max(length - frames, 0)) * 3
+            total += Int64(max(length - frames, 0) * StemWriter.bytesPerSample)
         }
     }
 
