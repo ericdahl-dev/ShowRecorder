@@ -18,7 +18,7 @@ public final class Recorder {
     public private(set) var currentShow: Show?
 
     /// The XR18 and MR18 send 18 USB Channels. Fewer means some of the Mixer won't be recorded.
-    public static let expectedUSBChannelCount = 18
+    nonisolated public static let expectedUSBChannelCount = 18
 
     /// The Device Destination: Documents/Shows.
     public static var defaultDeviceFolder: URL {

@@ -68,14 +68,14 @@ struct RecordScreen: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             Picker("Input", selection: $model.selectedDeviceID) {
-                if model.devices.isEmpty {
-                    Text("No audio input").tag(String?.none)
+                if model.selectedDeviceID == nil {
+                    Text(model.devices.isEmpty ? "No audio input" : "Choose an input").tag(String?.none)
                 }
                 ForEach(model.devices, id: \.id) { device in
                     Text(device.name).tag(Optional(device.id))
                 }
             }
-            .onChange(of: model.selectedDeviceID) { model.armSelectedDevice() }
+            .onChange(of: model.selectedDeviceID) { model.selectionDidChange() }
             .disabled(model.recorder.isRecording)
 
             HStack(spacing: 6) {
@@ -94,9 +94,13 @@ struct RecordScreen: View {
 
 /// One choosable audio device.
 struct DeviceChoice: Identifiable {
-    let id: String
+    /// What the hot-plug decision sees. `info.id` is stable across unplug and replug.
+    let info: InputDeviceInfo
+    /// The label shown in the picker.
     let name: String
     let make: () throws -> any AudioIODevice
+
+    var id: String { info.id }
 }
 
 @MainActor
@@ -109,6 +113,8 @@ final class RecordScreenModel {
     private(set) var levels: [Float] = []
     private(set) var armError: String?
     private(set) var recordError: String?
+    /// The device as it was when last Armed, to tell a format change from a new device.
+    @ObservationIgnored private var armedDevice: InputDeviceInfo?
 
     init() {
         devices = Self.availableDevices()
@@ -160,6 +166,10 @@ final class RecordScreenModel {
         let routeWatcher = Task { await watchRouteChanges() }
         defer { routeWatcher.cancel() }
         #endif
+        #if os(macOS)
+        let deviceWatcher = Task { await watchDeviceChanges() }
+        defer { deviceWatcher.cancel() }
+        #endif
         while !Task.isCancelled {
             let fresh = recorder.takeMeterLevels()
             levels = fresh.enumerated().map { index, level in
@@ -170,13 +180,22 @@ final class RecordScreenModel {
         }
     }
 
+    /// The picker changed. Skips the device the model has just Armed itself after a device change.
+    func selectionDidChange() {
+        if recorder.isArmed, armedDevice?.id == selectedDeviceID { return }
+        armSelectedDevice()
+    }
+
     func armSelectedDevice() {
         guard let choice = devices.first(where: { $0.id == selectedDeviceID }) else {
             recorder.disarm()
+            armedDevice = nil
             return
         }
         do {
+            armedDevice = nil
             try recorder.arm(choice.make())
+            armedDevice = choice.info
             armError = nil
             #if os(iOS)
             // The route's name and channels are only known once the session is active.
@@ -217,6 +236,49 @@ final class RecordScreenModel {
     }
     #endif
 
+    #if os(macOS)
+    /// Refreshes the device list whenever Core Audio reports a change, until canceled.
+    private func watchDeviceChanges() async {
+        for await _ in CoreAudioDevice.changes() {
+            // One plug or unplug arrives as a burst of notifications; let it settle first.
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            applyDeviceListChange()
+        }
+    }
+
+    /// Re-reads the device list and keeps, switches, re-arms or disarms as `InputDeviceChange` decides.
+    private func applyDeviceListChange() {
+        let fresh = Self.availableDevices()
+        let change = InputDeviceChange.decide(
+            old: devices.map(\.info), new: fresh.map(\.info),
+            selectedID: selectedDeviceID,
+            armed: recorder.isArmed ? armedDevice : nil,
+            isRecording: recorder.isRecording)
+        devices = fresh
+        if change.stopsTake {
+            do {
+                try recorder.stopTake()
+                recordError = change.message
+            } catch {
+                recordError = "\(change.message ?? "The input device changed during the Take.") But the Take didn't finish cleanly: \(error.localizedDescription)"
+            }
+        }
+        selectedDeviceID = change.selectedID
+        switch change.action {
+        case .none:
+            break
+        case .arm:
+            armSelectedDevice()
+        case .disarm:
+            recorder.disarm()
+            armedDevice = nil
+            levels = []
+            if !change.stopsTake { armError = change.message }
+        }
+    }
+    #endif
+
     private static func availableDevices() -> [DeviceChoice] {
         var choices: [DeviceChoice] = []
         #if os(macOS)
@@ -230,7 +292,9 @@ final class RecordScreenModel {
         }
         for device in devices {
             choices.append(DeviceChoice(
-                id: "coreaudio-\(device.id)",
+                info: InputDeviceInfo(
+                    id: "coreaudio-\(device.uid)", name: device.name,
+                    inputChannelCount: device.inputChannelCount, sampleRate: device.sampleRate),
                 name: "\(device.name) (\(device.inputChannelCount) in)",
                 make: { device }))
         }
@@ -239,12 +303,17 @@ final class RecordScreenModel {
         let input = AVAudioSession.sharedInstance().currentRoute.inputs.first
         let channels = input?.channels?.count
         choices.append(DeviceChoice(
-            id: routeDeviceID,
+            info: InputDeviceInfo(
+                id: routeDeviceID, name: input?.portName ?? "Audio input",
+                inputChannelCount: channels ?? 0, sampleRate: AVAudioSession.sharedInstance().sampleRate),
             name: "\(input?.portName ?? "Audio input")" + (channels.map { " (\($0) in)" } ?? ""),
             make: { try SessionAudioDevice.current() }))
         #endif
         #if DEBUG
-        choices.append(DeviceChoice(id: "demo", name: "Demo signal (18 channels)", make: { DemoAudioDevice() }))
+        choices.append(DeviceChoice(
+            info: InputDeviceInfo(id: "demo", name: "Demo signal", inputChannelCount: 18, sampleRate: 48_000),
+            name: "Demo signal (18 channels)",
+            make: { DemoAudioDevice() }))
         #endif
         return choices
     }
