@@ -83,6 +83,8 @@ xcodebuild -project ShowRecorder.xcodeproj -scheme ShowRecorder \
 
 `scripts/verify.sh` runs the same checks as CI (package tests, macOS and iOS Simulator builds); set `DEVICE_ID` and `DEVELOPMENT_TEAM` to also build for a device. CI runs on every pull request on GitHub's free hosted `macos-26` runner and must pass before a PR merges.
 
+`scripts/preflight.sh` builds an unsigned iOS Release app and checks what App Store Connect rejects a build for (icon, privacy manifest, export compliance, usage strings, version numbers); pass an `.xcarchive` to check one you already have. Set `BUILD_NUMBER` to override `CURRENT_PROJECT_VERSION` at build time. The marketing version stays in `project.yml`.
+
 To run on a device, pick your own team in Xcode. After editing `project.yml`, run `xcodegen generate` and commit both files.
 
 Debug builds include an 18-channel **Demo signal** input, so the record screen works in the simulator without hardware.

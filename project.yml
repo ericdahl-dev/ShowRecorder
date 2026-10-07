@@ -45,6 +45,9 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: ShowRecorder
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
         NSMicrophoneUsageDescription: ShowRecorder records every channel from your mixer.
         NSLocalNetworkUsageDescription: ShowRecorder reads channel names and colors from your mixer over the local network.
         UILaunchScreen: {}
