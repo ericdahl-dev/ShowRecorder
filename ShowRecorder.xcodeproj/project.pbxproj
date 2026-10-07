@@ -13,7 +13,9 @@
 		7978ADCB74542A7F2803E11F /* MeterGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB46E32691A6C070E799F33D /* MeterGrid.swift */; };
 		992430B53737588E241A07B2 /* RecordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */; };
 		A9A8E28730C7E54C34DF1CAE /* CoreAudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = F366717F80C358C5B3DD7D70 /* CoreAudioIO */; };
+		D1B69547449C5B4B58E8DBEA /* MixerLink in Frameworks */ = {isa = PBXBuildFile; productRef = 3F4AE86B4D698E33356CCFFE /* MixerLink */; };
 		E81A70130E30A8E156EDA841 /* AudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = 06DFC4C4263644F94AB1BE1B /* AudioIO */; };
+		FCD9E387A92C0F8E8839DA3B /* MixerLinkPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3092F6CE618D2E154BEF796 /* MixerLinkPanel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -25,6 +27,7 @@
 		A570C7ADCE1D60BED124A213 /* ShowRecorder.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShowRecorder.entitlements; sourceTree = "<group>"; };
 		BB46E32691A6C070E799F33D /* MeterGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeterGrid.swift; sourceTree = "<group>"; };
 		DBBDC7B3AA4C8B14B57747DD /* ShowRecorder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ShowRecorder.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E3092F6CE618D2E154BEF796 /* MixerLinkPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixerLinkPanel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -35,6 +38,7 @@
 				E81A70130E30A8E156EDA841 /* AudioIO in Frameworks */,
 				32D2E536D45006ECF7CCDB6E /* Recording in Frameworks */,
 				A9A8E28730C7E54C34DF1CAE /* CoreAudioIO in Frameworks */,
+				D1B69547449C5B4B58E8DBEA /* MixerLink in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -56,6 +60,7 @@
 				2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */,
 				3ED85A0ECD05797420331099 /* Info.plist */,
 				BB46E32691A6C070E799F33D /* MeterGrid.swift */,
+				E3092F6CE618D2E154BEF796 /* MixerLinkPanel.swift */,
 				84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */,
 				A570C7ADCE1D60BED124A213 /* ShowRecorder.entitlements */,
 				7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */,
@@ -98,6 +103,7 @@
 				06DFC4C4263644F94AB1BE1B /* AudioIO */,
 				E4B425D454C0ADEC5187ABCF /* Recording */,
 				F366717F80C358C5B3DD7D70 /* CoreAudioIO */,
+				3F4AE86B4D698E33356CCFFE /* MixerLink */,
 			);
 			productName = ShowRecorder;
 			productReference = DBBDC7B3AA4C8B14B57747DD /* ShowRecorder.app */;
@@ -146,6 +152,7 @@
 			files = (
 				47525D0C9DECC739535A5E15 /* DemoAudioDevice.swift in Sources */,
 				7978ADCB74542A7F2803E11F /* MeterGrid.swift in Sources */,
+				FCD9E387A92C0F8E8839DA3B /* MixerLinkPanel.swift in Sources */,
 				992430B53737588E241A07B2 /* RecordScreen.swift in Sources */,
 				1D0AAB2401EFEADA6CDDEB2C /* ShowRecorderApp.swift in Sources */,
 			);
@@ -361,6 +368,10 @@
 		06DFC4C4263644F94AB1BE1B /* AudioIO */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AudioIO;
+		};
+		3F4AE86B4D698E33356CCFFE /* MixerLink */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MixerLink;
 		};
 		E4B425D454C0ADEC5187ABCF /* Recording */ = {
 			isa = XCSwiftPackageProductDependency;

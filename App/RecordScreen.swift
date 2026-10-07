@@ -1,6 +1,7 @@
 import AudioIO
 import Recording
 import CoreAudioIO
+import MixerLink
 import SwiftUI
 #if os(iOS)
 import AVFAudio
@@ -25,7 +26,8 @@ struct RecordScreen: View {
                     systemImage: "exclamationmark.triangle.fill",
                     tint: .orange)
             }
-            MeterGrid(levels: model.levels)
+            MixerLinkPanel(link: model.mixerLink, usbChannelCount: model.recorder.usbChannelCount)
+            MeterGrid(levels: model.levels, sources: model.mixerLink.sources)
             Spacer(minLength: 0)
             transport
         }
@@ -101,6 +103,7 @@ struct DeviceChoice: Identifiable {
 @Observable
 final class RecordScreenModel {
     let recorder = Recorder()
+    let mixerLink = MixerLinkController()
     private(set) var devices: [DeviceChoice] = []
     var selectedDeviceID: String?
     private(set) var levels: [Float] = []
