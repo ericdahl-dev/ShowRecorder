@@ -1,3 +1,4 @@
+import Accelerate
 import AudioIO
 import Synchronization
 
@@ -26,11 +27,9 @@ final class PeakMeters: @unchecked Sendable {
     /// Raises each channel's peak to the largest magnitude in the block. Real-time safe.
     func record(_ block: AudioBlock) {
         for channel in 0..<min(channelCount, block.channelCount) {
-            let samples = block.channels[channel]
+            // One C call: no generic iteration, which in debug builds takes a runtime lock per frame.
             var peak: Float = 0
-            for frame in 0..<block.frameCount {
-                peak = max(peak, abs(samples[frame]))
-            }
+            vDSP_maxmgv(block.channels[channel], 1, &peak, vDSP_Length(block.frameCount))
             raise(channel, to: peak)
         }
     }
