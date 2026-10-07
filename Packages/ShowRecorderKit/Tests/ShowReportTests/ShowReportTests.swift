@@ -160,6 +160,44 @@ struct ShowReportTests {
         #expect(!report.html.contains("Pre-roll"))
     }
 
+    /// Records a Take of 0.5 s, then 300,000 frames at once (more than a ring holds, so it is dropped), then 480.
+    func recordWithADropout() throws {
+        let device = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
+        try recorder.arm(device)
+        try recorder.startTake()
+        device.deliver([Array(repeating: 0, count: 24_000)])
+        device.deliver([Array(repeating: 0, count: 300_000)])
+        device.deliver([Array(repeating: 0, count: 480)])
+        try recorder.stopTake()
+    }
+
+    @Test("A Take that lost audio lists each Dropout with its Copy and times")
+    func dropoutsInReport() throws {
+        try recordWithADropout()
+        let take = try #require(try ShowReport(showFolder: show).takes.first)
+        #expect(take.dropouts.map(\.copy) == ["Device"])
+        #expect(take.dropouts.map(\.startSeconds) == [0.5])
+        #expect(take.dropouts.map(\.endSeconds) == [6.75])
+        #expect(take.dropouts.first?.lengthSeconds == 6.25)
+    }
+
+    @Test("Report.html has a Dropouts section for a Take that lost audio")
+    func dropoutsSection() throws {
+        try recordWithADropout()
+        let html = try String(contentsOf: show.appending(path: "Report.html"), encoding: .utf8)
+        #expect(html.contains("<h3>Dropouts</h3>"))
+        #expect(html.contains("0:00.5") && html.contains("0:06.7"), "from and to, to a tenth of a second")
+        #expect(html.contains("Device"))
+    }
+
+    @Test("A Take with no Dropouts reports as before, with no Dropouts section")
+    func noDropoutsSection() async throws {
+        try await record(channels: 1, sources: [], takes: [480])
+        let html = try String(contentsOf: show.appending(path: "Report.html"), encoding: .utf8)
+        #expect(!html.contains("Dropouts"))
+    }
+
     @Test("Report.html names the Show, each Take and each Source, with names escaped")
     func htmlListsTakesAndSources() async throws {
         try await record(channels: 2, sources: [
