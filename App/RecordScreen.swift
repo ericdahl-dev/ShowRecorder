@@ -27,6 +27,7 @@ struct RecordScreen: View {
             if let shortfall = model.usbChannelShortfall {
                 Banner(text: shortfall.message, systemImage: "exclamationmark.triangle.fill", tint: .orange)
             }
+            DrivePanel()
             MixerLinkPanel(link: model.mixerLink, usbChannelCount: model.recorder.usbChannelCount)
             MeterGrid(levels: model.levels, sources: model.mixerLink.sources)
             Spacer(minLength: 0)
