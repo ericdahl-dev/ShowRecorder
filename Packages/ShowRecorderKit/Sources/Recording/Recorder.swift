@@ -123,6 +123,7 @@ public final class Recorder {
         isRecording = false
         try writer.stop()
         if let currentShow { try? ShowReport.write(showFolder: currentShow.folder) }
+        try? currentShow?.writeProjects()  // The Take is safe either way; the project is regenerated next time.
     }
 }
 
