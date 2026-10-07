@@ -1,6 +1,7 @@
 import AudioIO
 import Recording
 import CoreAudioIO
+import Destinations
 import MixerLink
 import SwiftUI
 #if os(iOS)
@@ -27,7 +28,7 @@ struct RecordScreen: View {
             if let shortfall = model.usbChannelShortfall {
                 Banner(text: shortfall.message, systemImage: "exclamationmark.triangle.fill", tint: .orange)
             }
-            DrivePanel()
+            DrivePanel(usbChannelCount: model.recorder.usbChannelCount)
             MixerLinkPanel(link: model.mixerLink, usbChannelCount: model.recorder.usbChannelCount)
             MeterGrid(levels: model.levels, sources: model.mixerLink.sources)
             Spacer(minLength: 0)
@@ -122,7 +123,10 @@ struct DeviceChoice: Identifiable {
 @MainActor
 @Observable
 final class RecordScreenModel {
-    let recorder = Recorder()
+    /// Each Take goes to the Device and, when the Drive folder is connected at record time, the Drive.
+    let recorder = Recorder(driveFolder: {
+        DriveFolderStore().beginAccess().map { access in DestinationAccess(folder: access.folder, release: { access.end() }) }
+    })
     let mixerLink = MixerLinkController()
     private(set) var devices: [DeviceChoice] = []
     var selectedDeviceID: String?

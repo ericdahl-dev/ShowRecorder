@@ -23,13 +23,23 @@ public final class Recorder {
     }
 
     @ObservationIgnored private let deviceFolder: URL
+    @ObservationIgnored private let driveFolder: () -> DestinationAccess?
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private var device: (any AudioIODevice)?
     @ObservationIgnored private var capture: Capture?
-    @ObservationIgnored private var writer: TakeWriter?
+    @ObservationIgnored private var writers: [TakeWriter] = []
+    @ObservationIgnored private var driveAccess: DestinationAccess?
 
-    public init(deviceFolder: URL = Recorder.defaultDeviceFolder, now: @escaping () -> Date = Date.init) {
+    /// - Parameters:
+    ///   - deviceFolder: where the Device Copy of every Show goes.
+    ///   - driveFolder: asked at each record press for the Drive folder; nil writes to the Device only.
+    public init(
+        deviceFolder: URL = Recorder.defaultDeviceFolder,
+        driveFolder: @escaping () -> DestinationAccess? = { nil },
+        now: @escaping () -> Date = Date.init
+    ) {
         self.deviceFolder = deviceFolder
+        self.driveFolder = driveFolder
         self.now = now
     }
 
@@ -63,7 +73,7 @@ public final class Recorder {
     @discardableResult
     public func restartInput(on replacement: any AudioIODevice) throws -> Bool {
         guard let device, let capture,
-              replacement.inputChannelCount == capture.ring.channelCount,
+              replacement.inputChannelCount == capture.channelCount,
               replacement.sampleRate == device.sampleRate
         else {
             try arm(replacement)
@@ -87,12 +97,12 @@ public final class Recorder {
 
     /// Frames lost since Arming because the writer couldn't keep up. (Dropouts proper come in #15.)
     public var droppedFrameCount: Int {
-        capture?.ring.overflowedFrames.load(ordering: .relaxed) ?? 0
+        capture?.rings.map { $0.overflowedFrames.load(ordering: .relaxed) }.max() ?? 0
     }
 
-    /// Frames captured but not yet written to the Stems.
+    /// Frames captured but not yet written to the Stems, for the slowest Destination.
     var bufferedFrameCount: Int {
-        capture?.ring.availableFrames ?? 0
+        capture?.rings.map(\.availableFrames).max() ?? 0
     }
 
     /// Each USB Channel's linear peak level (0...1) since the last call. Empty when not Armed.
@@ -109,44 +119,79 @@ public final class Recorder {
         guard !isRecording else { return }
         let date = now()
 
-        var show = try currentShow ?? Show.create(in: deviceFolder, on: date)
-        let takeFolder = try show.createNextTakeFolder()
+        let drive = driveFolder()
+        var show: Show
+        do {
+            if var open = currentShow {
+                try open.useDrive(drive?.folder)
+                show = open
+            } else {
+                show = try Show.create(in: deviceFolder, drive: drive?.folder, on: date)
+            }
+        } catch {
+            drive?.release()
+            throw error
+        }
+        let takeFolders = try show.createNextTakeFolder()
 
         let sampleRate = Int(device.sampleRate.rounded())
         let timeReference = UInt64(date.timeIntervalSince(Calendar.current.startOfDay(for: date)) * Double(sampleRate))
-        var channels: [TakeMetadata.USBChannel] = []
-        let stems = try (0..<capture.ring.channelCount).map { channel in
-            let source = sources.indices.contains(channel) ? sources[channel] : .fallback(usbChannel: channel + 1)
-            let fileName = StemFileName.make(usbChannel: channel + 1, sourceName: source.name)
-            channels.append(TakeMetadata.USBChannel(usbChannel: channel + 1, stemFile: fileName, source: source))
-            return try StemWriter(
-                url: takeFolder.appending(path: fileName),
-                info: .init(sampleRate: sampleRate, description: source.name, originator: "ShowRecorder", timeReference: timeReference, originationDate: date))
+        let resolved = (0..<capture.channelCount).map { channel in
+            sources.indices.contains(channel) ? sources[channel] : .fallback(usbChannel: channel + 1)
         }
-        try TakeMetadata(
+        let channels = resolved.enumerated().map { index, source in
+            TakeMetadata.USBChannel(usbChannel: index + 1, stemFile: StemFileName.make(usbChannel: index + 1, sourceName: source.name), source: source)
+        }
+        let metadata = TakeMetadata(
             show: show.name, take: show.takeCount, startedAt: date, sampleRate: sampleRate,
-            timeReference: timeReference, usbChannels: channels
-        ).write(to: takeFolder)
+            timeReference: timeReference, usbChannels: channels)
 
-        let writer = TakeWriter(ring: capture.ring, stems: stems, commitInterval: sampleRate * 2)
-        capture.ring.discardAll()
-        writer.start()
-        capture.isCapturing.store(true, ordering: .releasing)
+        // One writer per Copy, each draining its own ring, so a slow Drive never holds up the Device.
+        var writers: [TakeWriter] = []
+        for (copy, takeFolder) in takeFolders.enumerated() {
+            let stems = try zip(channels, resolved).map { channel, source in
+                try StemWriter(
+                    url: takeFolder.appending(path: channel.stemFile),
+                    info: .init(sampleRate: sampleRate, description: source.name, originator: "ShowRecorder", timeReference: timeReference, originationDate: date))
+            }
+            try metadata.write(to: takeFolder)
+            writers.append(TakeWriter(ring: capture.rings[copy], stems: stems, commitInterval: sampleRate * 2))
+        }
 
-        self.writer = writer
+        for (copy, writer) in writers.enumerated() {
+            capture.rings[copy].discardAll()
+            writer.start()
+        }
+        capture.startCapturing(copies: writers.count)
+
+        self.writers = writers
+        driveAccess = takeFolders.count > 1 ? drive : nil
+        if takeFolders.count == 1 { drive?.release() }
         currentShow = show
         isRecording = true
     }
 
     /// Stops the Take and waits until every Stem is written and finalized.
     public func stopTake() throws {
-        guard isRecording, let capture, let writer else { return }
-        capture.isCapturing.store(false, ordering: .releasing)
-        self.writer = nil
+        guard isRecording, let capture else { return }
+        capture.stopCapturing()
+        let writers = self.writers
+        self.writers = []
         isRecording = false
-        try writer.stop()
-        if let currentShow { try? ShowReport.write(showFolder: currentShow.folder) }
-        try? currentShow?.writeProjects()  // The Take is safe either way; the project is regenerated next time.
+        defer {
+            driveAccess?.release()
+            driveAccess = nil
+        }
+        var firstError: (any Error)?
+        for writer in writers {
+            do { try writer.stop() } catch { firstError = firstError ?? error }
+        }
+        // The Takes are safe either way; the report and project are regenerated next time.
+        for copy in currentShow?.copies ?? [] {
+            try? ShowReport.write(showFolder: copy.folder)
+            try? copy.writeProjects()
+        }
+        if let firstError { throw firstError }
     }
 }
 
@@ -154,23 +199,50 @@ public enum RecorderError: Error, Equatable {
     case notArmed
 }
 
+/// Access to a Destination folder for the length of a Take. `release` ends it (for a Drive folder,
+/// the security scope).
+public struct DestinationAccess {
+    public let folder: URL
+    public let release: @MainActor () -> Void
+
+    public init(folder: URL, release: @escaping @MainActor () -> Void = {}) {
+        self.folder = folder
+        self.release = release
+    }
+}
+
 /// Everything the real-time callback touches, allocated when the recorder is Armed.
 final class Capture: Sendable {
     let meters: PeakMeters
-    let ring: SampleRing
-    let isCapturing = Atomic<Bool>(false)
+    /// One ring per Copy: the Device, then the Drive.
+    let rings: [SampleRing]
+    /// How many Copies are being captured: 0 (not recording), 1 (Device) or 2 (Device and Drive).
+    private let capturing = Atomic<Int>(0)
+
+    var channelCount: Int { rings[0].channelCount }
 
     init(channelCount: Int, sampleRate: Double) {
         meters = PeakMeters(channelCount: channelCount)
-        // Four seconds of headroom for the writer thread.
-        ring = SampleRing(channelCount: channelCount, capacity: Int(max(sampleRate, 1) * 4))
+        // Four seconds of headroom for each writer thread.
+        rings = (0..<2).map { _ in SampleRing(channelCount: channelCount, capacity: Int(max(sampleRate, 1) * 4)) }
     }
 
-    /// Real-time: meter every block, and queue it for the writer while a Take is running.
+    func startCapturing(copies: Int) {
+        capturing.store(min(copies, rings.count), ordering: .releasing)
+    }
+
+    func stopCapturing() {
+        capturing.store(0, ordering: .releasing)
+    }
+
+    /// Real-time: meter every block, and queue it for each Copy's writer while a Take is running.
     func receive(_ block: AudioBlock) {
         meters.record(block)
-        if isCapturing.load(ordering: .acquiring) {
-            ring.write(block)
+        let copies = capturing.load(ordering: .acquiring)
+        var copy = 0
+        while copy < copies {
+            rings[copy].write(block)
+            copy += 1
         }
     }
 }

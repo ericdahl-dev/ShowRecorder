@@ -129,6 +129,17 @@ public struct DriveFolderStore: Sendable {
         }
     }
 
+    /// Opens the Drive folder for a Take: resolves the bookmark and keeps its security scope until
+    /// `end()` is called. Nil when the Drive folder isn't chosen, connected or writable.
+    public func beginAccess() -> DriveAccess? {
+        guard case .available(let drive) = status() else { return nil }
+        let folder = drive.folder
+        guard folder.startAccessingSecurityScopedResource() else {
+            return DriveAccess(folder: folder, stop: {})  // no scope to hold outside a sandbox
+        }
+        return DriveAccess(folder: folder, stop: { folder.stopAccessingSecurityScopedResource() })
+    }
+
     // MARK: - Helpers
 
     #if os(macOS)
@@ -154,9 +165,23 @@ public struct DriveFolderStore: Sendable {
         try FileManager.default.removeItem(at: probe)
     }
 
-    static func availableBytes(at url: URL) -> Int64 {
+    /// Free space on the volume holding `url` (for example the Device's Documents folder).
+    public static func availableBytes(at url: URL) -> Int64 {
         let values = try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey, .volumeAvailableCapacityKey])
         if let important = values?.volumeAvailableCapacityForImportantUsage, important > 0 { return important }
         return Int64(values?.volumeAvailableCapacity ?? 0)
     }
+}
+
+/// The Drive folder opened for one Take. Call `end()` when the Take is finalized.
+public struct DriveAccess: Sendable {
+    public let folder: URL
+    private let stop: @Sendable () -> Void
+
+    init(folder: URL, stop: @escaping @Sendable () -> Void) {
+        self.folder = folder
+        self.stop = stop
+    }
+
+    public func end() { stop() }
 }
