@@ -41,6 +41,8 @@ public final class SessionAudioDevice: AudioIODevice, @unchecked Sendable {
         if let preferredInputUID, let port = audioSession.availableInputs?.first(where: { $0.uid == preferredInputUID }) {
             try audioSession.setPreferredInput(port)
         }
+        // The Marker button's haptic: iOS mutes haptics and system sounds while recording unless allowed.
+        try audioSession.setAllowHapticsAndSystemSoundsDuringRecording(true)
         try audioSession.setPreferredSampleRate(48_000)
         try audioSession.setActive(true)
 
