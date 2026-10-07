@@ -1,3 +1,4 @@
+import Destinations
 import Foundation
 import MixerLink
 
@@ -35,12 +36,11 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
 
     /// A stretch of the Take, in samples from its start, missing from one Copy.
     public struct Gap: Codable, Equatable, Sendable {
-        /// "device" or "drive".
-        public var copy: String
+        public var copy: DestinationKind
         public var start: Int
         public var end: Int
 
-        public init(copy: String, start: Int, end: Int) {
+        public init(copy: DestinationKind, start: Int, end: Int) {
             self.copy = copy
             self.start = start
             self.end = end
@@ -57,12 +57,12 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
             case failed
         }
 
-        public var copy: String
+        public var copy: DestinationKind
         public var start: Int
         public var end: Int
         public var outcome: Outcome
 
-        public init(copy: String, start: Int, end: Int, outcome: Outcome) {
+        public init(copy: DestinationKind, start: Int, end: Int, outcome: Outcome) {
             self.copy = copy
             self.start = start
             self.end = end
@@ -71,7 +71,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     }
 
     /// How a Copy of the Take ended up, from its Gaps and what Repair did about them.
-    public func outcome(ofCopy copy: String) -> CopyOutcome {
+    public func outcome(ofCopy copy: DestinationKind) -> CopyOutcome {
         guard gaps.contains(where: { $0.copy == copy }) else { return .complete }
         let results = repairs.filter { $0.copy == copy }
         if results.isEmpty { return .hasGaps }

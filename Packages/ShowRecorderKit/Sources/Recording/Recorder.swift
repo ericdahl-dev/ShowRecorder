@@ -218,7 +218,7 @@ public final class Recorder {
     /// How `kind`'s Copy of the current (or last) Take is doing. A Copy that never started is missing.
     public func copyStatus(_ kind: DestinationKind) -> CopyStatus {
         guard isRecording else { return finishedCopies[kind] ?? .missing }
-        let index = kind == .device ? 0 : 1
+        let index = kind.index
         guard writers.indices.contains(index) else { return .missing }
         return writers[index].hasFailed ? .interrupted : .recording
     }
@@ -316,7 +316,7 @@ public final class Recorder {
     private func gaps(takeEnd: Int? = nil) -> [TakeMetadata.Gap] {
         var gaps: [TakeMetadata.Gap] = []
         for (index, writer) in writers.enumerated() {
-            let copy = index == 0 ? "device" : "drive"
+            let copy = DestinationKind(index: index)
             for range in writer.gaps {
                 gaps.append(.init(copy: copy, start: range.lowerBound, end: range.upperBound))
             }
@@ -352,15 +352,14 @@ public final class Recorder {
     public func stopTake() throws {
         guard isRecording, let capture else { return }
         capture.stopCapturing()
-        for kind in [DestinationKind.device, .drive] { finishedCopies[kind] = copyStatus(kind) }
+        for kind in DestinationKind.allCases { finishedCopies[kind] = copyStatus(kind) }
         let writers = self.writers
         isRecording = false
         for writer in writers { writer.stop() }
         persistGaps(takeEnd: capture.takeFrameCount)
-        for kind in [DestinationKind.device, .drive] where finishedCopies[kind] == .recording {
+        for kind in DestinationKind.allCases where finishedCopies[kind] == .recording {
             // A Copy can fail while its writer drains at stop.
-            let index = kind == .device ? 0 : 1
-            if writers.indices.contains(index), writers[index].hasFailed { finishedCopies[kind] = .interrupted }
+            if writers.indices.contains(kind.index), writers[kind.index].hasFailed { finishedCopies[kind] = .interrupted }
         }
         let ended = take
         self.writers = []
@@ -382,10 +381,8 @@ public final class Recorder {
     /// Fills the ended Take's Gaps from the other Copy, off the main thread, and records the result in
     /// `Take.json`. `access` (the Drive's folder) is held until it's done.
     private func repair(_ metadata: TakeMetadata, folders: [URL], holding access: DestinationAccess?) {
-        let names = ["device", "drive"]
-        let kinds: [DestinationKind] = [.device, .drive]
         func outcomes(_ metadata: TakeMetadata) -> [DestinationKind: CopyOutcome] {
-            Dictionary(uniqueKeysWithValues: folders.indices.map { (kinds[$0], metadata.outcome(ofCopy: names[$0])) })
+            Dictionary(uniqueKeysWithValues: folders.indices.map { (DestinationKind(index: $0), metadata.outcome(ofCopy: DestinationKind(index: $0))) })
         }
         takeGeneration += 1
         let generation = takeGeneration
@@ -394,14 +391,14 @@ public final class Recorder {
             access?.release()
             return
         }
-        let copies = folders.indices.map { TakeRepair.Copy(name: names[$0], folder: folders[$0]) }
+        let copies = folders.indices.map { TakeRepair.Copy(kind: DestinationKind(index: $0), folder: folders[$0]) }
         // Repair must not fill a Destination past the space reserve: a Copy stopped for being nearly
         // full stays as it is, with its Gaps.
         let reserve = Int64(60 * metadata.usbChannels.count * metadata.sampleRate * 3)
         let skip = Set(copies.filter { copy in
             let extra = TakeRepair.bytesToExtend(copy, in: copies, metadata: metadata)
             return extra > 0 && freeSpace(copy.folder) - extra < reserve
-        }.map(\.name))
+        }.map(\.kind))
         pendingRepairs += 1
         isRepairing = true
         let previous = repairTask
@@ -424,11 +421,6 @@ public final class Recorder {
     public func waitForRepair() async {
         await repairTask?.value
     }
-}
-
-/// The two places a Take is written.
-public enum DestinationKind: Sendable, Hashable {
-    case device, drive
 }
 
 /// How one Copy of a Take is doing.

@@ -1,6 +1,24 @@
 import Foundation
 import Synchronization
 
+/// The two places a Take is written, and the one identity of a Copy: the Device's and the Drive's.
+/// The raw values are what `Take.json` stores.
+public enum DestinationKind: String, Codable, Sendable, Hashable, CaseIterable {
+    case device, drive
+
+    /// The Copy's position wherever Copies are kept in order: the Device first.
+    public var index: Int {
+        switch self {
+        case .device: 0
+        case .drive: 1
+        }
+    }
+
+    public init(index: Int) {
+        self = index == 0 ? .device : .drive
+    }
+}
+
 /// Where the Drive folder's bookmark is kept between launches. One per device.
 public protocol BookmarkStorage: Sendable {
     func load() -> StoredDriveFolder?

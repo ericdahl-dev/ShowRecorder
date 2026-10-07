@@ -1,11 +1,11 @@
 import BroadcastWave
+import Destinations
 import Foundation
 
 /// Repair (#14): after a Take ends, fills each Copy's Gaps from the other Copy.
 enum TakeRepair {
     struct Copy: Sendable {
-        /// "device" or "drive", as in `TakeMetadata.Gap.copy`.
-        var name: String
+        var kind: DestinationKind
         var folder: URL
     }
 
@@ -31,17 +31,17 @@ enum TakeRepair {
     /// A Gap is repaired only if the other Copy has the samples; where both Copies are missing the
     /// same stretch it stays silence and is reported as failed. Copies named in `skip` are left alone
     /// and get no entry: they stay as they were, with their Gaps.
-    static func run(copies: [Copy], metadata: TakeMetadata, skip: Set<String> = []) -> [TakeMetadata.Repair] {
+    static func run(copies: [Copy], metadata: TakeMetadata, skip: Set<DestinationKind> = []) -> [TakeMetadata.Repair] {
         let markers = metadata.markers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
         let stems = metadata.usbChannels.map(\.stemFile)
         let length = length(copies: copies, metadata: metadata)
 
         var repairs: [TakeMetadata.Repair] = []
-        for target in copies where !skip.contains(target.name) {
-            let gaps = metadata.gaps.filter { $0.copy == target.name }
+        for target in copies where !skip.contains(target.kind) {
+            let gaps = metadata.gaps.filter { $0.copy == target.kind }
             guard !gaps.isEmpty else { continue }
-            let source = copies.first { $0.name != target.name }
-            let sourceGaps = metadata.gaps.filter { $0.copy != target.name }.map { $0.start..<$0.end }
+            let source = copies.first { $0.kind != target.kind }
+            let sourceGaps = metadata.gaps.filter { $0.copy != target.kind }.map { $0.start..<$0.end }
 
             var copied = source != nil
             if let source {
