@@ -59,6 +59,27 @@ final class PreRollBuffer: @unchecked Sendable {
         written.store(start + frames, ordering: .releasing)
     }
 
+    /// Exactly the frames `range` (counted from the first frame ever written) of every channel, or nil if
+    /// they aren't all there: not written yet, or already overwritten (including while this was copying).
+    func read(frames range: Range<Int>) -> [[Float]]? {
+        let count = range.count
+        guard range.lowerBound >= 0, count <= capacity, range.upperBound <= written.load(ordering: .acquiring) else { return nil }
+        var channels = (0..<channelCount).map { _ in [Float](repeating: 0, count: count) }
+        if count > 0 {
+            let offset = range.lowerBound % capacity
+            let first = min(count, capacity - offset)
+            for channel in 0..<channelCount {
+                let base = UnsafePointer(storage + channel * capacity)
+                channels[channel].withUnsafeMutableBufferPointer { out in
+                    out.baseAddress!.update(from: base + offset, count: first)
+                    if first < count { (out.baseAddress! + first).update(from: base, count: count - first) }
+                }
+            }
+        }
+        atomicMemoryFence(ordering: .sequentiallyConsistent)
+        return writing.load(ordering: .acquiring) - capacity <= range.lowerBound ? channels : nil
+    }
+
     /// The last `maxFrames` frames (or fewer, when less has been written or the writer lapped the copy).
     func snapshot(maxFrames: Int) -> Snapshot {
         let end = written.load(ordering: .acquiring)

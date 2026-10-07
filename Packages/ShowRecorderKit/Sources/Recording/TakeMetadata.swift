@@ -31,6 +31,10 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     /// Markers placed during the Take, in the order they were placed.
     public var markers: [Marker] = []
 
+    /// How many frames at the start of the Take (and of every Stem) are Pre-roll: audio from before record
+    /// was pressed. `timeReference` is the wall-clock start of those frames. Nil when there was none.
+    public var preRollFrames: Int?
+
     /// Stretches of the Take missing from one Copy, held there as silence, in order.
     public var gaps: [Gap] = []
 
@@ -98,7 +102,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     static let fileName = "Take.json"
 
     enum CodingKeys: String, CodingKey {
-        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs
+        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames
     }
 
     public init(from decoder: any Decoder) throws {
@@ -112,6 +116,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         markers = try c.decodeIfPresent([Marker].self, forKey: .markers) ?? []  // Takes recorded before Markers existed
         gaps = try c.decodeIfPresent([Gap].self, forKey: .gaps) ?? []  // Takes recorded before Gaps existed
         repairs = try c.decodeIfPresent([Repair].self, forKey: .repairs) ?? []
+        preRollFrames = try c.decodeIfPresent(Int.self, forKey: .preRollFrames)
     }
 
     init(show: String, take: Int, startedAt: Date, sampleRate: Int, timeReference: UInt64, usbChannels: [USBChannel], markers: [Marker] = []) {

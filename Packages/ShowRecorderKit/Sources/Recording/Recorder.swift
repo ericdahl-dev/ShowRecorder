@@ -54,7 +54,7 @@ public final class Recorder {
         driveFolder: @escaping () -> DestinationAccess? = { nil },
         now: @escaping () -> Date = Date.init,
         freeSpace: @escaping (URL) -> Int64 = { DriveFolderStore.availableBytes(at: $0) },
-        preRollSeconds: Double = 10,
+        preRollSeconds: Double = 0,
         makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink = { try StemWriter.open(url: $0, info: $1, resumingAt: $2) }
     ) {
         self.freeSpace = freeSpace
@@ -167,22 +167,27 @@ public final class Recorder {
         let takeFolders = try show.createNextTakeFolder()
 
         let sampleRate = Int(device.sampleRate.rounded())
-        let timeReference = UInt64(date.timeIntervalSince(Calendar.current.startOfDay(for: date)) * Double(sampleRate))
+        // The Take starts with up to `preRollSeconds` of what the Armed recorder has heard, so its
+        // timeline, and every Stem's time reference, begin that long before the press.
+        let preRollFrames = min(Int((preRollSeconds * device.sampleRate).rounded()), capture.preRoll?.totalWrittenFrames ?? 0)
+        let pressReference = UInt64(date.timeIntervalSince(Calendar.current.startOfDay(for: date)) * Double(sampleRate))
+        let timeReference = pressReference >= UInt64(preRollFrames) ? pressReference - UInt64(preRollFrames) : 0
         let resolved = (0..<capture.channelCount).map { channel in
             sources.indices.contains(channel) ? sources[channel] : .fallback(usbChannel: channel + 1)
         }
         let channels = resolved.enumerated().map { index, source in
             TakeMetadata.USBChannel(usbChannel: index + 1, stemFile: StemFileName.make(usbChannel: index + 1, sourceName: source.name), source: source)
         }
-        let metadata = TakeMetadata(
+        var metadata = TakeMetadata(
             show: show.name, take: show.takeCount, startedAt: date, sampleRate: sampleRate,
             timeReference: timeReference, usbChannels: channels)
+        metadata.preRollFrames = preRollFrames > 0 ? preRollFrames : nil
 
         let specs = zip(channels, resolved).map { StemSpec(file: $0.stemFile, description: $1.name) }
         let info = StemWriter.Info(sampleRate: sampleRate, description: "", originator: "ShowRecorder", timeReference: timeReference, originationDate: date)
         let session = try TakeSession(
             show: show, folders: takeFolders, drive: takeFolders.count > 1 ? drive : nil, metadata: metadata, stems: specs,
-            info: info, capture: capture, makeStem: makeStem, freeSpace: freeSpace)
+            info: info, capture: capture, preRollFrames: preRollFrames, makeStem: makeStem, freeSpace: freeSpace)
         session.onCopyFailed = { [weak self, weak session] in self?.copyFailed(in: session) }
         if takeFolders.count == 1 { drive?.release() }
         self.session = session
@@ -291,8 +296,13 @@ final class Capture: Sendable {
     private let capturing = Atomic<Int>(0)
     /// Copies waiting for the real-time thread to start feeding them, one bit per ring.
     private let joinRequests = Atomic<Int>(0)
-    /// Frames delivered since the Take started: the Take's sample timeline.
+    /// Frames delivered since the Take started: the Take's sample timeline. A Take with Pre-roll starts
+    /// it at the Pre-roll's length, so frame 0 is the first Pre-roll sample.
     private let takeFrames = Atomic<Int>(0)
+    /// For a Take with Pre-roll: where the Take's first live frame sits in the Pre-roll buffer's own count,
+    /// set by the real-time thread at the block that starts feeding the Copies. -2 until then, -1 when the
+    /// Take has no Pre-roll.
+    let preRollStart = Atomic<Int>(-1)
 
     var channelCount: Int { rings[0].channelCount }
 
@@ -307,10 +317,23 @@ final class Capture: Sendable {
         rings = (0..<2).map { _ in SampleRing(channelCount: channelCount, capacity: Int(max(sampleRate, 1) * 4)) }
     }
 
-    func startCapturing(copies: Int) {
-        takeFrames.store(0, ordering: .releasing)
-        capturing.store((1 << min(copies, rings.count)) - 1, ordering: .releasing)
+    /// Starts feeding the Copies' rings. With `preRollFrames`, the Take's timeline starts at that many
+    /// frames and the Copies start at the next block boundary, which the real-time thread notes in
+    /// `preRollStart` so the Pre-roll and the live audio join without a lost or repeated sample.
+    func startCapturing(copies: Int, preRollFrames: Int = 0) {
+        let mask = (1 << min(copies, rings.count)) - 1
+        takeFrames.store(preRollFrames, ordering: .releasing)
+        if preRollFrames > 0, preRoll != nil {
+            preRollStart.store(-2, ordering: .releasing)
+            joinRequests.store(mask, ordering: .releasing)
+        } else {
+            preRollStart.store(-1, ordering: .releasing)
+            capturing.store(mask, ordering: .releasing)
+        }
     }
+
+    /// Whether the Take has Pre-roll but the real-time thread hasn't yet fed it a first block.
+    var awaitingFirstBlock: Bool { preRollStart.load(ordering: .acquiring) == -2 }
 
     /// Frames delivered since the Take started.
     var takeFrameCount: Int { takeFrames.load(ordering: .acquiring) }
@@ -337,6 +360,10 @@ final class Capture: Sendable {
         let requested = joinRequests.load(ordering: .acquiring)
         if requested != 0 {
             let frame = takeFrames.load(ordering: .relaxed)
+            if preRollStart.load(ordering: .relaxed) == -2 {
+                // The Pre-roll buffer already holds this block, so the live audio starts before it.
+                preRollStart.store((preRoll?.totalWrittenFrames ?? block.frameCount) - block.frameCount, ordering: .releasing)
+            }
             for copy in 0..<rings.count where requested & (1 << copy) != 0 {
                 rings[copy].joinFrame.store(frame, ordering: .releasing)
             }

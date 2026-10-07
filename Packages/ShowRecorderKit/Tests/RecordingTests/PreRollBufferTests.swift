@@ -119,3 +119,19 @@ struct PreRollBufferTests {
         #expect(torn == 0)
     }
 }
+
+extension PreRollBufferTests {
+    @Test("An exact range reads back exactly, and is refused when not all of it is there")
+    func readRange() {
+        let buffer = PreRollBuffer(channelCount: 2, capacity: 1_000)
+        write(buffer, from: 0, count: 2_750)
+
+        #expect(buffer.read(frames: 2_000..<2_300)?[0] == expected(channel: 0, from: 2_000, count: 300))
+        #expect(buffer.read(frames: 2_000..<2_300)?[1] == expected(channel: 1, from: 2_000, count: 300))
+        #expect(buffer.read(frames: 1_750..<2_750)?[0] == expected(channel: 0, from: 1_750, count: 1_000))
+        #expect(buffer.read(frames: 1_749..<2_749) == nil)  // overwritten
+        #expect(buffer.read(frames: 2_700..<2_800) == nil)  // not written yet
+        #expect(buffer.read(frames: 0..<1_001) == nil)  // longer than the buffer
+        #expect(buffer.read(frames: 2_100..<2_100)?.count == 2)
+    }
+}
