@@ -1,5 +1,6 @@
 import AudioIO
 import BroadcastWave
+import Destinations
 import Foundation
 @testable import Recording
 import Testing
@@ -130,7 +131,7 @@ struct GapTests {
         let json = try Data(contentsOf: device.appending(path: "2026-10-06 Show/Take 01/Take.json"))
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == [.init(copy: "drive", start: 480, end: 4800)])
+        #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == [.init(copy: .drive, start: 480, end: 4800)])
     }
 
     @Test("With no Drive at record the Take starts on the Device and the Drive Copy is missing")
@@ -178,7 +179,7 @@ struct GapTests {
         #expect(report.contains("<h3>Gaps</h3>"))
         #expect(report.contains("<td>Drive</td><td class=\"num\">0:00.0</td><td class=\"num\">0:00.1</td>"))
 
-        let expected = [TakeMetadata.Gap(copy: "drive", start: 0, end: 4800)]
+        let expected = [TakeMetadata.Gap(copy: .drive, start: 0, end: 4800)]
         for folder in [device, drive] {
             let json = try Data(contentsOf: folder.appending(path: "\(take)/Take.json"))
             let decoder = JSONDecoder()
@@ -215,7 +216,7 @@ struct GapTests {
             let json = try Data(contentsOf: folder.appending(path: "\(take)/Take.json"))
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
-            #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == [.init(copy: "drive", start: 480, end: 4800)])
+            #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == [.init(copy: .drive, start: 480, end: 4800)])
         }
     }
 

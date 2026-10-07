@@ -1,5 +1,6 @@
 import AudioIO
 import BroadcastWave
+import Destinations
 import Foundation
 @testable import Recording
 import Testing
@@ -34,7 +35,7 @@ extension GapTests {
             #expect(driveFiles[name] == data, "\(name) differs between the Copies")
         }
         let take = try decodedTake(device)
-        #expect(take.repairs == [.init(copy: "drive", start: 480, end: 4800, outcome: .repaired)])
+        #expect(take.repairs == [.init(copy: .drive, start: 480, end: 4800, outcome: .repaired)])
         #expect(recorder.lastTakeOutcomes[.device] == .complete)
         #expect(recorder.lastTakeOutcomes[.drive] == .repaired)
 
