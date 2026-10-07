@@ -10,6 +10,9 @@ import CoreAudio
 /// the block on. Nothing is allocated per block (ADR 0002).
 public final class CoreAudioDevice: AudioIODevice, @unchecked Sendable {
     public let id: AudioDeviceID
+    /// The device's persistent UID. Unlike `id`, it stays the same when the device is unplugged and
+    /// plugged back in.
+    public let uid: String
     public let name: String
     public let inputChannelCount: Int
     public let outputChannelCount: Int
@@ -17,8 +20,9 @@ public final class CoreAudioDevice: AudioIODevice, @unchecked Sendable {
 
     private var session: InputSession?
 
-    init(id: AudioDeviceID, name: String, inputChannelCount: Int, outputChannelCount: Int, sampleRate: Double) {
+    init(id: AudioDeviceID, uid: String, name: String, inputChannelCount: Int, outputChannelCount: Int, sampleRate: Double) {
         self.id = id
+        self.uid = uid
         self.name = name
         self.inputChannelCount = inputChannelCount
         self.outputChannelCount = outputChannelCount
@@ -34,6 +38,7 @@ public final class CoreAudioDevice: AudioIODevice, @unchecked Sendable {
             guard inputs > 0 else { return nil }
             return CoreAudioDevice(
                 id: id,
+                uid: stringProperty(kAudioDevicePropertyDeviceUID, of: id) ?? "id-\(id)",
                 name: stringProperty(kAudioObjectPropertyName, of: id) ?? "Audio Device \(id)",
                 inputChannelCount: inputs,
                 outputChannelCount: channelCount(of: id, scope: kAudioObjectPropertyScopeOutput),
@@ -76,7 +81,7 @@ public final class CoreAudioDevice: AudioIODevice, @unchecked Sendable {
 
 // MARK: - Core Audio property helpers
 
-private func deviceIDs() -> [AudioDeviceID] {
+func deviceIDs() -> [AudioDeviceID] {
     var address = AudioObjectPropertyAddress(
         mSelector: kAudioHardwarePropertyDevices,
         mScope: kAudioObjectPropertyScopeGlobal,
