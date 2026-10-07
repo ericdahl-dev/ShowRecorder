@@ -118,6 +118,26 @@ struct InterruptionPolicyTests {
         #expect(policy.handle(.becameActive, isRecording: true).action == .replaceDevice)
     }
 
+    @Test("An iOS route change while only Armed re-arms on the new route")
+    func routeChangeWhileArmedRearms() {
+        var policy = InterruptionPolicy()
+        #expect(policy.routeChanged(isRecording: false) == .rearm)
+    }
+
+    @Test("An iOS route change during a Take moves input to the new route instead of re-arming, so the Take isn't ended")
+    func routeChangeDuringTakeMovesInput() {
+        var policy = InterruptionPolicy()
+        #expect(policy.routeChanged(isRecording: true) == .moveInput)
+    }
+
+    @Test("An iOS route change while an interruption has input stopped leaves the restart to the interruption")
+    func routeChangeDuringInterruptionWaits() {
+        var policy = InterruptionPolicy()
+        _ = policy.handle(.interruptionBegan, isRecording: true)
+        #expect(policy.routeChanged(isRecording: true) == .none)
+        #expect(policy.handle(.interruptionEnded(shouldResume: true), isRecording: true).action == .replaceDevice)
+    }
+
     @Test("A media services reset that couldn't keep the Take says the Take ended")
     func mediaResetEndedTake() {
         var policy = InterruptionPolicy()

@@ -106,4 +106,26 @@ public struct InterruptionPolicy: Sendable, Equatable {
     }
 
     private var restartAction: Action { needsNewDevice ? .replaceDevice : .restartInput }
+
+    /// What to do when the iOS input route really changes.
+    public enum RouteAction: Sendable, Equatable {
+        /// Leave input alone; the interruption's restart picks up the new route.
+        case none
+        /// Arm on the new route (nothing to keep).
+        case rearm
+        /// Move input to the new route with `Recorder.restartInput(on:)`: the Take carries on if the
+        /// format still matches, and is stopped and saved only if it doesn't.
+        case moveInput
+    }
+
+    /// Decides what an iOS route change does. Calls and Siri can change the route as they begin and
+    /// end; re-arming then would end the Take.
+    public mutating func routeChanged(isRecording: Bool) -> RouteAction {
+        if isInputStopped {
+            // The old device describes the old route, so the restart must build a new one.
+            needsNewDevice = true
+            return .none
+        }
+        return isRecording ? .moveInput : .rearm
+    }
 }

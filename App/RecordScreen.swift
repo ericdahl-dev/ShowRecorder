@@ -248,7 +248,28 @@ final class RecordScreenModel {
             guard route != armedRoute else { continue }
             armedRoute = route
             devices = Self.availableDevices()
-            if selectedDeviceID == Self.routeDeviceID { armSelectedDevice() }
+            guard selectedDeviceID == Self.routeDeviceID else { continue }
+            switch interruptions.routeChanged(isRecording: recorder.isRecording) {
+            case .none: break
+            case .rearm: armSelectedDevice()
+            case .moveInput: moveTakeToCurrentRoute()
+            }
+        }
+    }
+
+    /// Moves a running Take onto the new route, keeping it if the format still matches (#10).
+    private func moveTakeToCurrentRoute() {
+        do {
+            let continued = try recorder.restartInput(on: SessionAudioDevice.current())
+            armedDevice = devices.first { $0.id == Self.routeDeviceID }?.info
+            levels = Array(repeating: 0, count: recorder.usbChannelCount)
+            Self.sessionLog.notice("Input route changed during a Take; \(continued ? "the Take continues" : "the format changed, so the Take was stopped and saved", privacy: .public)")
+            if !continued {
+                recordError = "The audio input changed format during the Take. Recording stopped and the Stems recorded so far were saved. Press record to start a new Take."
+            }
+        } catch {
+            Self.sessionLog.error("Moving the Take to the new route failed: \(String(describing: error), privacy: .public)")
+            recordError = "Couldn't move the Take to the new audio input: \(error)"
         }
     }
 
