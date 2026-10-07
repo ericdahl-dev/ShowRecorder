@@ -42,9 +42,12 @@ struct RecordScreen: View {
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
+                model.screenBecameActive()
                 model.handle(.becameActive)
                 model.drive.refresh()
-            case .background: model.handle(.movedToBackground)
+            case .background:
+                model.screenBecameIdle()
+                model.handle(.movedToBackground)
             default: break
             }
         }
@@ -531,6 +534,34 @@ final class RecordScreenModel {
         }
     }
 
+    // MARK: - Auto-disarm
+
+    @ObservationIgnored private var idle = IdleDisarm()
+    /// Whether the recorder was disarmed for sitting idle, so coming back should Arm it again.
+    @ObservationIgnored private var disarmedForIdle = false
+
+    /// The screen locked or the app left the front: start counting idle time.
+    func screenBecameIdle() {
+        idle.becameIdle(at: Date())
+    }
+
+    /// The app is in front again: stop counting, and Arm again if it was disarmed for being idle.
+    func screenBecameActive() {
+        idle.becameActive()
+        if disarmedForIdle {
+            disarmedForIdle = false
+            armSelectedDevice()
+        }
+    }
+
+    /// Disarms an unused recorder that has been idle for 30 minutes. Never during a Take.
+    private func disarmIfIdle() {
+        guard recorder.isArmed, idle.shouldDisarm(at: Date(), isRecording: recorder.isRecording) else { return }
+        recorder.disarm()
+        armedDevice = nil
+        disarmedForIdle = true
+    }
+
     /// The Pre-roll length changed in Settings: keep it, give it to the recorder, and, if Armed, Arm again so
     /// the buffer is sized for it. That only happens between Takes (Settings is locked during one).
     func preRollChanged() {
@@ -602,6 +633,7 @@ final class RecordScreenModel {
         while !Task.isCancelled {
             tick += 1
             if tick % 30 == 0 { refreshDestinations() }
+            if tick % 30 == 0 { disarmIfIdle() }
             // Re-check the Drive every few seconds so an unplugged one shows before record is pressed.
             if tick % 90 == 0 { drive.refresh() }
             let fresh = recorder.takeMeterLevels()
