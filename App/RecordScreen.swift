@@ -706,6 +706,7 @@ final class RecordScreenModel {
 
     /// Moves a running Take onto the new route, keeping it if the format still matches (#10).
     private func moveTakeToCurrentRoute() {
+        let wasStopped = interruptions.isInputStopped
         do {
             let device = try SessionAudioDevice.current()
             let continued = try recorder.restartInput(on: device)
@@ -716,9 +717,11 @@ final class RecordScreenModel {
             if !continued {
                 recordError = "The audio input changed format during the Take. Recording stopped and the Stems recorded so far were saved. Press record to start a new Take."
             }
+            // A retry that works ends the "input is stopped" state the failed move left behind.
+            if wasStopped { handle(.restarted) }
         } catch {
-            Self.sessionLog.error("Moving the Take to the new route failed: \(String(describing: error), privacy: .public)")
-            recordError = "Couldn't move the Take to the new audio input: \(error)"
+            // The policy says what's missing and tries again on the next route change or foreground.
+            handle(.moveFailed(String(describing: error)))
         }
     }
 

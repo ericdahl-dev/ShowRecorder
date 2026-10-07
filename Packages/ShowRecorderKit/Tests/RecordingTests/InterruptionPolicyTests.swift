@@ -146,4 +146,45 @@ struct InterruptionPolicyTests {
         #expect(!policy.isInputStopped)
         #expect(policy.notice?.contains("ended") == true)
     }
+
+    @Test("If moving a Take to a new route fails, input counts as stopped, the banner says audio is missing, and coming to the foreground retries")
+    func failedMoveRetriesOnActive() {
+        var policy = InterruptionPolicy()
+        let failed = policy.handle(.moveFailed("no input"), isRecording: true)
+        #expect(failed.action == .none)
+        #expect(failed.log?.contains("no input") == true)
+        #expect(policy.isInputStopped)
+        let notice = policy.notice ?? ""
+        #expect(notice.contains("no input"))
+        #expect(notice.contains("nothing is recorded"), "says audio is missing until input returns")
+        #expect(policy.handle(.becameActive, isRecording: true).action == .replaceDevice)
+    }
+
+    @Test("After a failed move, the next route change tries to move the Take again")
+    func failedMoveRetriesOnRouteChange() {
+        var policy = InterruptionPolicy()
+        _ = policy.handle(.moveFailed("no input"), isRecording: true)
+        #expect(policy.routeChanged(isRecording: true) == .moveInput)
+        // Still failing: it keeps trying on each change and on foreground.
+        _ = policy.handle(.moveFailed("still no input"), isRecording: true)
+        #expect(policy.routeChanged(isRecording: true) == .moveInput)
+        #expect(policy.handle(.becameActive, isRecording: true).action == .replaceDevice)
+    }
+
+    @Test("When a retried move works, input is back and the banner says what is missing from the Take")
+    func retriedMoveWorks() {
+        var policy = InterruptionPolicy()
+        _ = policy.handle(.moveFailed("no input"), isRecording: true)
+        _ = policy.handle(.restarted, isRecording: true)
+        #expect(!policy.isInputStopped)
+        #expect(policy.notice?.contains("missing") == true)
+        #expect(policy.routeChanged(isRecording: true) == .moveInput, "a later change is an ordinary move")
+    }
+
+    @Test("A failed move doesn't change how an interruption waits for its own restart")
+    func interruptionStillWaits() {
+        var policy = InterruptionPolicy()
+        _ = policy.handle(.interruptionBegan, isRecording: true)
+        #expect(policy.routeChanged(isRecording: true) == .none)
+    }
 }
