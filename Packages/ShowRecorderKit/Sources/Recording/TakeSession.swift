@@ -134,9 +134,9 @@ final class TakeSession {
     func checkDestinations(drive: () -> DestinationAccess?) -> Check {
         // Keep 60 s of audio free on each Destination. A Copy that's short stops cleanly while another
         // has room; when the last healthy one is short the Take finalizes, before anything fills.
-        let reserve = Int64(60 * metadata.usbChannels.count * info.sampleRate * 3)
+        let reserve = SpaceReserve(channelCount: metadata.usbChannels.count, sampleRate: info.sampleRate)
         let healthy = copies.filter { !$0.writer.hasFailed }
-        let low = healthy.filter { freeSpace($0.folder) < reserve }
+        let low = healthy.filter { reserve.isLow(free: freeSpace($0.folder)) }
         if !low.isEmpty {
             if low.count == healthy.count { return .outOfSpace }
             for copy in low {
@@ -173,12 +173,12 @@ final class TakeSession {
     /// Starts the Drive Copy, or restarts it over `old`. Both start new Stems in a Take folder under
     /// `access` and bring the Copy in through the same handshake; they differ in where the folder
     /// comes from, whether the Stems resume `old`'s and what happens to `old`'s access.
-    private func attachDrive(_ access: DestinationAccess, replacing old: CopyRecord?, reserve: Int64) {
+    private func attachDrive(_ access: DestinationAccess, replacing old: CopyRecord?, reserve: SpaceReserve) {
         var show = show
         do {
             let folder: URL
             if old == nil {
-                guard freeSpace(access.folder) >= reserve else { access.release(); return }
+                guard !reserve.isLow(free: freeSpace(access.folder)) else { access.release(); return }
                 folder = try show.joinDrive(access.folder)
             } else {
                 // The Drive may have come back at a different path (a remount), so find the Take folder
@@ -186,7 +186,7 @@ final class TakeSession {
                 folder = access.folder
                     .appending(path: show.name, directoryHint: .isDirectory)
                     .appending(path: String(format: "Take %02d", show.takeCount), directoryHint: .isDirectory)
-                guard FileManager.default.fileExists(atPath: folder.path), freeSpace(folder) >= reserve else {
+                guard FileManager.default.fileExists(atPath: folder.path), !reserve.isLow(free: freeSpace(folder)) else {
                     access.release()
                     return
                 }

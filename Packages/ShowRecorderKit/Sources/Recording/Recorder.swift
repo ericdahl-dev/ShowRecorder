@@ -254,10 +254,10 @@ public final class Recorder {
         let copies = folders.indices.map { TakeRepair.Copy(kind: DestinationKind(index: $0), folder: folders[$0]) }
         // Repair must not fill a Destination past the space reserve: a Copy stopped for being nearly
         // full stays as it is, with its Gaps.
-        let reserve = Int64(60 * metadata.usbChannels.count * metadata.sampleRate * 3)
+        let reserve = SpaceReserve(channelCount: metadata.usbChannels.count, sampleRate: metadata.sampleRate)
         let skip = Set(copies.filter { copy in
             let extra = TakeRepair.bytesToExtend(copy, in: copies, metadata: metadata)
-            return extra > 0 && freeSpace(copy.folder) - extra < reserve
+            return reserve.wouldBreach(free: freeSpace(copy.folder), adding: extra)
         }.map(\.kind))
         pendingRepairs += 1
         isRepairing = true

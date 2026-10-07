@@ -85,7 +85,7 @@ public final class StemWriter: StemSink {
         let header = Self.header(info: info)
         dataSizeOffset = UInt64(header.dataSizeOffset)
         markerRegionOffset = UInt64(header.markerRegionOffset)
-        let end = UInt64(header.bytes.count) + frameCount * 3
+        let end = UInt64(header.bytes.count) + frameCount * UInt64(Self.bytesPerSample)
         try handle.truncate(atOffset: end)
         try handle.seek(toOffset: 0)
         isRF64 = try handle.read(upToCount: 4) == Data("RF64".utf8)
@@ -117,7 +117,7 @@ public final class StemWriter: StemSink {
 
     private func encode(_ samples: UnsafeBufferPointer<Float>) {
         bytes.removeAll(keepingCapacity: true)
-        bytes.reserveCapacity(samples.count * 3)
+        bytes.reserveCapacity(samples.count * Self.bytesPerSample)
         for sample in samples {
             let value = Int32(max(-8_388_608, min(8_388_607, (Double(sample) * 8_388_608).rounded())))
             bytes.append(UInt8(truncatingIfNeeded: value))
@@ -132,7 +132,7 @@ public final class StemWriter: StemSink {
         precondition(frame + UInt64(samples.count) <= frameCount, "overwrite past the end of the Stem")
         encode(samples)
         let end = try handle.offset()
-        try handle.seek(toOffset: UInt64(Self.dataStart) + frame * 3)
+        try handle.seek(toOffset: UInt64(Self.dataStart) + frame * UInt64(Self.bytesPerSample))
         try handle.write(contentsOf: bytes)
         try handle.seek(toOffset: end)
     }
@@ -145,6 +145,9 @@ public final class StemWriter: StemSink {
     }
 
     /// Where the audio starts in every Stem: the header is the same length for all of them.
+    /// Bytes in one 24-bit sample: the one place that figure lives.
+    public static let bytesPerSample = 3
+
     static let dataStart = header(info: Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: Date(timeIntervalSince1970: 0))).bytes.count
 
     /// Appends samples. Values outside -1...1 are clamped.
@@ -159,14 +162,14 @@ public final class StemWriter: StemSink {
     /// If the app dies later, the file still plays up to this point.
     public func commitHeader() throws {
         let end = try handle.offset()
-        try writeSizes(dataBytes: frameCount * 3, riffEnd: end)
+        try writeSizes(dataBytes: frameCount * UInt64(Self.bytesPerSample), riffEnd: end)
         try handle.synchronize()
         try handle.seek(toOffset: end)
     }
 
     /// Writes the final chunk sizes and closes the file.
     public func finalize() throws {
-        let dataBytes = frameCount * 3
+        let dataBytes = frameCount * UInt64(Self.bytesPerSample)
         if dataBytes % 2 == 1 {
             try promoteIfNeeded(riffEnd: try handle.offset() + 1)
             try handle.write(contentsOf: [0])
@@ -202,7 +205,7 @@ public final class StemWriter: StemSink {
         let end = try handle.offset()
         var head: [UInt8] = Array("RF64".utf8) + UInt32.max.littleEndianBytes + Array("WAVE".utf8)
         head += Array("ds64".utf8) + UInt32(Self.ds64BodySize).littleEndianBytes
-        head += ds64Sizes(dataBytes: frameCount * 3, riffEnd: end)
+        head += ds64Sizes(dataBytes: frameCount * UInt64(Self.bytesPerSample), riffEnd: end)
         head += UInt32(0).littleEndianBytes  // table length
         try handle.seek(toOffset: 0)
         try handle.write(contentsOf: head)
@@ -271,7 +274,7 @@ public final class StemWriter: StemSink {
         out += Array("fmt ".utf8) + UInt32(16).littleEndianBytes
         out += UInt16(1).littleEndianBytes + UInt16(1).littleEndianBytes
         out += UInt32(info.sampleRate).littleEndianBytes
-        out += UInt32(info.sampleRate * 3).littleEndianBytes
+        out += UInt32(info.sampleRate * Self.bytesPerSample).littleEndianBytes
         out += UInt16(3).littleEndianBytes + UInt16(24).littleEndianBytes
 
         // bext (EBU Tech 3285 v2), 602 bytes with no coding history

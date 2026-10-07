@@ -18,10 +18,10 @@ public enum StemRepair {
             var out = [Float](repeating: 0, count: frames.count)
             let available = frames.clamped(to: 0..<sourceFrames)
             guard !available.isEmpty else { return out }
-            try reader.seek(toOffset: UInt64(StemWriter.dataStart + available.lowerBound * 3))
-            let data = [UInt8](try reader.read(upToCount: available.count * 3) ?? Data())
+            try reader.seek(toOffset: UInt64(StemWriter.dataStart + available.lowerBound * StemWriter.bytesPerSample))
+            let data = [UInt8](try reader.read(upToCount: available.count * StemWriter.bytesPerSample) ?? Data())
             for index in 0..<min(available.count, data.count / 3) {
-                let raw = Int32(data[index * 3]) | Int32(data[index * 3 + 1]) << 8 | Int32(data[index * 3 + 2]) << 16
+                let raw = Int32(data[index * StemWriter.bytesPerSample]) | Int32(data[index * StemWriter.bytesPerSample + 1]) << 8 | Int32(data[index * StemWriter.bytesPerSample + 2]) << 16
                 let value = (raw << 8) >> 8  // sign-extend 24 bits
                 out[available.lowerBound - frames.lowerBound + index] = Float(value) / 8_388_608
             }
