@@ -502,7 +502,7 @@ final class RecordScreenModel {
             guard route != armedRoute else { continue }
             armedRoute = route
             devices = Self.availableDevices()
-            guard selectedDeviceID == Self.routeDeviceID else { continue }
+            guard Self.isRouteInput(selectedDeviceID) else { continue }
             switch interruptions.routeChanged(isRecording: recorder.isRecording) {
             case .none: break
             case .rearm: armSelectedDevice()
@@ -517,7 +517,7 @@ final class RecordScreenModel {
             let device = try SessionAudioDevice.current()
             let continued = try recorder.restartInput(on: device)
             noteOfferedChannels(of: device)
-            armedDevice = devices.first { $0.id == Self.routeDeviceID }?.info
+            armedDevice = devices.first { $0.id == selectedDeviceID }?.info
             levels = Array(repeating: 0, count: recorder.usbChannelCount)
             Self.sessionLog.notice("Input route changed during a Take; \(continued ? "the Take continues" : "the format changed, so the Take was stopped and saved", privacy: .public)")
             if !continued {
@@ -529,7 +529,12 @@ final class RecordScreenModel {
         }
     }
 
-    private static let routeDeviceID = "ios-route"
+    private static let routeInputPrefix = "ios-input-"
+
+    /// Whether `id` is an iOS input, which follows the route when it changes.
+    private static func isRouteInput(_ id: String?) -> Bool {
+        id?.hasPrefix(routeInputPrefix) == true
+    }
 
     private static func currentRouteSignature() -> String {
         AVAudioSession.sharedInstance().currentRoute.inputs.map { "\($0.uid):\($0.channels?.count ?? 0)" }.joined(separator: "|")
@@ -601,14 +606,32 @@ final class RecordScreenModel {
         }
         #endif
         #if os(iOS)
-        let input = AVAudioSession.sharedInstance().currentRoute.inputs.first
-        let channels = input?.channels?.count
-        choices.append(DeviceChoice(
-            info: InputDeviceInfo(
-                id: routeDeviceID, name: input?.portName ?? "Audio input",
-                inputChannelCount: channels ?? 0, sampleRate: AVAudioSession.sharedInstance().sampleRate),
-            name: "\(input?.portName ?? "Audio input")" + (channels.map { " (\($0) in)" } ?? ""),
-            make: { try SessionAudioDevice.current() }))
+        // Every input iOS can see, USB interfaces first, so one that isn't the current route can be chosen.
+        let session = AVAudioSession.sharedInstance()
+        // Inputs are only listed for a recording category; this doesn't activate the session.
+        try? session.setCategory(.record, mode: .measurement, options: [])
+        let current = session.currentRoute.inputs.first
+        var ports = session.availableInputs ?? []
+        if let current, !ports.contains(where: { $0.uid == current.uid }) { ports.append(current) }
+        ports.sort { ($0.portType == .usbAudio ? 0 : 1) < ($1.portType == .usbAudio ? 0 : 1) }
+        for port in ports {
+            let isCurrent = port.uid == current?.uid
+            let channels = isCurrent ? port.channels?.count : nil
+            let uid = port.uid
+            choices.append(DeviceChoice(
+                info: InputDeviceInfo(
+                    id: Self.routeInputPrefix + uid, name: port.portName,
+                    inputChannelCount: channels ?? 0, sampleRate: session.sampleRate),
+                name: port.portName + (channels.map { " (\($0) in)" } ?? ""),
+                make: { try SessionAudioDevice.current(preferredInputUID: uid) }))
+        }
+        if ports.isEmpty {
+            // Nothing listed yet (the session isn't active): offer whatever iOS picks.
+            choices.append(DeviceChoice(
+                info: InputDeviceInfo(id: Self.routeInputPrefix + "default", name: "Audio input", inputChannelCount: 0, sampleRate: session.sampleRate),
+                name: "Audio input",
+                make: { try SessionAudioDevice.current() }))
+        }
         #endif
         #if DEBUG
         choices.append(DeviceChoice(
