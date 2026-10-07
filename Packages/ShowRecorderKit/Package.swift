@@ -11,6 +11,7 @@ let package = Package(
         .library(name: "CoreAudioIO", targets: ["CoreAudioIO"]),
         .library(name: "OSC", targets: ["OSC"]),
         .library(name: "MixerLink", targets: ["MixerLink"]),
+        .library(name: "Destinations", targets: ["Destinations"]),
         .library(name: "ShowReport", targets: ["ShowReport"]),
     ],
     targets: [
@@ -30,6 +31,9 @@ let package = Package(
         .target(name: "ShowReport"),
         // DAW projects (Reaper first) from a Show's Takes. Pure rendering, no file access.
         .target(name: "ProjectExport", dependencies: ["MixerLink"]),
+        // Where Takes are written: the Drive folder chosen by the operator.
+        .target(name: "Destinations"),
+        .testTarget(name: "DestinationsTests", dependencies: ["Destinations"]),
         .testTarget(name: "OSCTests", dependencies: ["OSC"]),
         .testTarget(name: "MixerLinkTests", dependencies: ["MixerLink", "OSC"]),
         .testTarget(name: "RecordingTests", dependencies: ["Recording", "AudioIO", "MixerLink"]),
