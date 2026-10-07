@@ -127,8 +127,9 @@ private final class InputSession {
                 mReserved: 0)
             try check("set the input format", AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Output, 1, &format, UInt32(MemoryLayout<AudioStreamBasicDescription>.size)))
 
-            var size = UInt32(MemoryLayout<UInt32>.size)
-            try check("read the buffer size", AudioUnitGetProperty(unit, kAudioUnitProperty_MaximumFramesPerSlice, kAudioUnitScope_Global, 0, &maxFrames, &size))
+            // Set, not just read: the render callback must never be asked for more frames than
+            // the preallocated buffers hold.
+            try check("set the buffer size", AudioUnitSetProperty(unit, kAudioUnitProperty_MaximumFramesPerSlice, kAudioUnitScope_Global, 0, &maxFrames, UInt32(MemoryLayout<UInt32>.size)))
         } catch {
             AudioComponentInstanceDispose(unit)
             throw error
@@ -171,7 +172,9 @@ private final class InputSession {
 
     /// Real-time: render this cycle's input and hand it on. No allocation, locks or logging.
     func render(flags: UnsafeMutablePointer<AudioUnitRenderActionFlags>, timestamp: UnsafePointer<AudioTimeStamp>, frames: UInt32) -> OSStatus {
-        let frameCount = min(Int(frames), maxFrames)
+        // Never truncate silently. A slice larger than the buffers is an error the HAL reports.
+        guard Int(frames) <= maxFrames else { return kAudioUnitErr_TooManyFramesToProcess }
+        let frameCount = Int(frames)
         for channel in 0..<channelCount {
             bufferList[channel].mDataByteSize = UInt32(frameCount * MemoryLayout<Float>.size)
         }
