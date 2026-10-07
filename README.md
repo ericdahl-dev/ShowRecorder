@@ -89,6 +89,28 @@ To run on a device, pick your own team in Xcode. After editing `project.yml`, ru
 
 Debug builds include an 18-channel **Demo signal** input, so the record screen works in the simulator without hardware.
 
+## Releasing to TestFlight
+
+Tag a version on `main` and push the tag:
+
+```sh
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+The **Release** workflow archives the iOS app, signs it with cloud-managed signing, runs `scripts/preflight.sh` on the archive and uploads it to TestFlight. The tag sets the marketing version (`v0.1.0` becomes `0.1.0`); the build number is the run number plus the attempt (for example `57.1`), so re-running a tag uploads a new, higher build instead of failing as a duplicate. It only runs for tags pushed to this repository, never for pull requests or forks, and refuses a tag that isn't on `main`. The build appears in App Store Connect under TestFlight after Apple finishes processing it, usually 5 to 15 minutes.
+
+Secrets (repository secrets, kept in Infisical project `showrecorder`, `prod`): `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (the `.p8` contents) and `DEVELOPMENT_TEAM`.
+
+If an upload fails, open the run's **Archive**, **Check the archive** or **Upload to TestFlight** step. The same output is attached to the run as the `release-logs` artifact. Common causes:
+
+| Message | Cause and fix |
+|---|---|
+| Preflight `FAIL:` line | Something App Store Connect would reject (icon, privacy manifest, compliance key, version). Run `scripts/preflight.sh` locally and fix it. |
+| `Authentication failed` or `401` | The key, issuer or `.p8` secret is wrong, or the key was revoked. Make a new key and update the secrets. |
+| `No profiles for 'dev.ericdahl.ShowRecorder'` | The key's role can't manage signing. It needs App Manager or Admin. |
+| `bundle version must be higher` | A build with that number already exists. Re-run the workflow; the attempt number raises it. |
+| `Tag ... is not on main` | Merge first, then tag the merged commit. |
+
 ## How the code is laid out
 
 ```

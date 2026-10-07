@@ -33,7 +33,7 @@ read_key() { /usr/libexec/PlistBuddy -c "Print :$1" "$plist" 2>/dev/null || true
 version=$(read_key CFBundleShortVersionString)
 build=$(read_key CFBundleVersion)
 case "$version" in ''|*'$('*) bad "CFBundleShortVersionString is '$version'" ;; *) ok "version $version" ;; esac
-case "$build" in ''|*'$('*|*[!0-9]*) bad "CFBundleVersion is '$build' (must be a whole number)" ;; *) ok "build number $build" ;; esac
+if echo "$build" | grep -Eq '^[0-9]+(\.[0-9]+){0,2}$'; then ok "build number $build"; else bad "CFBundleVersion is '$build' (must be 1 to 3 dot-separated whole numbers)"; fi
 
 compliance=$(read_key ITSAppUsesNonExemptEncryption)
 if [ "$compliance" = "false" ] || [ "$compliance" = "true" ]; then
