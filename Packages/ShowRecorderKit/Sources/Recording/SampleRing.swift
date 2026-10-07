@@ -54,6 +54,9 @@ final class SampleRing: @unchecked Sendable {
         written.load(ordering: .acquiring)
     }
 
+    /// Frames the consumer has taken so far, counting from the first frame ever stored.
+    var consumedFrames: Int { read.load(ordering: .acquiring) }
+
     var availableFrames: Int {
         written.load(ordering: .acquiring) - read.load(ordering: .relaxed)
     }
@@ -145,8 +148,10 @@ final class SampleRing: @unchecked Sendable {
         return frames
     }
 
-    /// Consumer: discards everything currently in the ring.
+    /// Consumer: discards everything currently in the ring, and forgets its drops.
     func discardAll() {
         read.store(written.load(ordering: .acquiring), ordering: .releasing)
+        dropsRead.store(dropsLogged.load(ordering: .acquiring), ordering: .releasing)
+        unloggedDroppedFrames.store(0, ordering: .releasing)
     }
 }
