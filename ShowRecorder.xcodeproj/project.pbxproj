@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		1D0AAB2401EFEADA6CDDEB2C /* ShowRecorderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */; };
+		27511B0372DDD64DA03A84AC /* AudioSessionEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A28ABB2DC3361762848F2190 /* AudioSessionEvents.swift */; };
 		32D2E536D45006ECF7CCDB6E /* Recording in Frameworks */ = {isa = PBXBuildFile; productRef = E4B425D454C0ADEC5187ABCF /* Recording */; };
 		47525D0C9DECC739535A5E15 /* DemoAudioDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */; };
 		7978ADCB74542A7F2803E11F /* MeterGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB46E32691A6C070E799F33D /* MeterGrid.swift */; };
@@ -23,6 +24,7 @@
 		3ED85A0ECD05797420331099 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowRecorderApp.swift; sourceTree = "<group>"; };
 		84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordScreen.swift; sourceTree = "<group>"; };
+		A28ABB2DC3361762848F2190 /* AudioSessionEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSessionEvents.swift; sourceTree = "<group>"; };
 		A48D43A0417E4FE9049EE0AC /* ShowRecorderKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ShowRecorderKit; path = Packages/ShowRecorderKit; sourceTree = SOURCE_ROOT; };
 		A570C7ADCE1D60BED124A213 /* ShowRecorder.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShowRecorder.entitlements; sourceTree = "<group>"; };
 		BB46E32691A6C070E799F33D /* MeterGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeterGrid.swift; sourceTree = "<group>"; };
@@ -57,6 +59,7 @@
 		7D29790BDD8606B15D2933AF /* App */ = {
 			isa = PBXGroup;
 			children = (
+				A28ABB2DC3361762848F2190 /* AudioSessionEvents.swift */,
 				2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */,
 				3ED85A0ECD05797420331099 /* Info.plist */,
 				BB46E32691A6C070E799F33D /* MeterGrid.swift */,
@@ -150,6 +153,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				27511B0372DDD64DA03A84AC /* AudioSessionEvents.swift in Sources */,
 				47525D0C9DECC739535A5E15 /* DemoAudioDevice.swift in Sources */,
 				7978ADCB74542A7F2803E11F /* MeterGrid.swift in Sources */,
 				FCD9E387A92C0F8E8839DA3B /* MixerLinkPanel.swift in Sources */,

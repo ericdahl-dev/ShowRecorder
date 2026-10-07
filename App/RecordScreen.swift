@@ -10,6 +10,7 @@ import AVFAudio
 /// The record screen. While it is showing, the recorder is Armed on the chosen device.
 struct RecordScreen: View {
     @State private var model = RecordScreenModel()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -19,6 +20,9 @@ struct RecordScreen: View {
             }
             if let error = model.recordError {
                 Banner(text: error, systemImage: "exclamationmark.octagon.fill", tint: .red)
+            }
+            if let notice = model.interruptions.notice {
+                Banner(text: notice, systemImage: "phone.badge.waveform.fill", tint: .orange)
             }
             if model.recorder.hasTooFewUSBChannels {
                 Banner(
@@ -33,6 +37,20 @@ struct RecordScreen: View {
         }
         .padding()
         .task { await model.runWhileVisible() }
+        // Locking the screen or leaving the app never ends a Take; becoming active retries input
+        // that an interruption left stopped.
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .active: model.handle(.becameActive)
+            case .background: model.handle(.movedToBackground)
+            default: break
+            }
+        }
+        #if os(iOS)
+        // Keep the screen awake while the record screen is showing.
+        .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
+        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+        #endif
         .confirmationDialog("Stop recording?", isPresented: $confirmingStop, titleVisibility: .visible) {
             Button("Stop Recording", role: .destructive) { model.stop() }
             Button("Keep Recording", role: .cancel) {}
@@ -115,6 +133,8 @@ final class RecordScreenModel {
     private(set) var recordError: String?
     /// The device as it was when last Armed, to tell a format change from a new device.
     @ObservationIgnored private var armedDevice: InputDeviceInfo?
+    /// What to do about audio interruptions, and the banner they leave (see AudioSessionEvents.swift).
+    var interruptions = InterruptionPolicy()
 
     init() {
         devices = Self.availableDevices()
@@ -136,6 +156,7 @@ final class RecordScreenModel {
             // Freeze whatever the Mixer Link knows right now into the Take's Stems.
             try recorder.startTake(sources: mixerLink.sources)
             recordError = nil
+            handle(.takeStarted)
         } catch {
             recordError = "Couldn't start recording: \(error.localizedDescription)"
         }
@@ -165,6 +186,8 @@ final class RecordScreenModel {
         #if os(iOS)
         let routeWatcher = Task { await watchRouteChanges() }
         defer { routeWatcher.cancel() }
+        let sessionWatcher = Task { await watchAudioSession() }
+        defer { sessionWatcher.cancel() }
         #endif
         #if os(macOS)
         let deviceWatcher = Task { await watchDeviceChanges() }
@@ -225,7 +248,28 @@ final class RecordScreenModel {
             guard route != armedRoute else { continue }
             armedRoute = route
             devices = Self.availableDevices()
-            if selectedDeviceID == Self.routeDeviceID { armSelectedDevice() }
+            guard selectedDeviceID == Self.routeDeviceID else { continue }
+            switch interruptions.routeChanged(isRecording: recorder.isRecording) {
+            case .none: break
+            case .rearm: armSelectedDevice()
+            case .moveInput: moveTakeToCurrentRoute()
+            }
+        }
+    }
+
+    /// Moves a running Take onto the new route, keeping it if the format still matches (#10).
+    private func moveTakeToCurrentRoute() {
+        do {
+            let continued = try recorder.restartInput(on: SessionAudioDevice.current())
+            armedDevice = devices.first { $0.id == Self.routeDeviceID }?.info
+            levels = Array(repeating: 0, count: recorder.usbChannelCount)
+            Self.sessionLog.notice("Input route changed during a Take; \(continued ? "the Take continues" : "the format changed, so the Take was stopped and saved", privacy: .public)")
+            if !continued {
+                recordError = "The audio input changed format during the Take. Recording stopped and the Stems recorded so far were saved. Press record to start a new Take."
+            }
+        } catch {
+            Self.sessionLog.error("Moving the Take to the new route failed: \(String(describing: error), privacy: .public)")
+            recordError = "Couldn't move the Take to the new audio input: \(error)"
         }
     }
 

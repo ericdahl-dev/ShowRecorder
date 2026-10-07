@@ -50,8 +50,11 @@ public final class SessionAudioDevice: AudioIODevice, @unchecked Sendable {
             sampleRate: audioSession.sampleRate)
     }
 
+    /// Starts input. Also reactivates the audio session, which an interruption deactivates, so this
+    /// is how input restarts afterwards; it throws if another app still holds the session.
     public func start(input: @escaping AudioInputHandler) throws {
         stop()
+        try AVAudioSession.sharedInstance().setActive(true)
         session = try InputSession(
             subtype: kAudioUnitSubType_RemoteIO,
             channelCount: inputChannelCount,
