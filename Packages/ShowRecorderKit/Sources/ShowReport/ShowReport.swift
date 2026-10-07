@@ -275,16 +275,19 @@ struct TakeFile: Decodable {
 /// Reads a Stem's length from its chunk headers without loading the audio.
 enum StemDuration {
     /// Samples in the data chunk (data size ÷ block align), capped at the bytes actually on disk.
+    /// Reads RIFF and RF64 (EBU Tech 3306), where a 32-bit size of 0xFFFFFFFF defers to `ds64`.
     static func sampleCount(of url: URL) -> UInt64? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
         guard let fileSize = try? handle.seekToEnd(), (try? handle.seek(toOffset: 0)) != nil,
               let riff = try? handle.read(upToCount: 12), riff.count == 12,
-              riff.prefix(4) == Data("RIFF".utf8), riff.suffix(4) == Data("WAVE".utf8)
+              riff.prefix(4) == Data("RIFF".utf8) || riff.prefix(4) == Data("RF64".utf8),
+              riff.suffix(4) == Data("WAVE".utf8)
         else { return nil }
 
         var offset: UInt64 = 12
         var blockAlign: UInt64?
+        var ds64DataSize: UInt64?
         while offset + 8 <= fileSize {
             guard (try? handle.seek(toOffset: offset)) != nil,
                   let header = try? handle.read(upToCount: 8), header.count == 8 else { return nil }
@@ -292,12 +295,16 @@ enum StemDuration {
             let size = UInt64(header.littleEndianUInt32(at: 4))
             let body = offset + 8
             switch id {
+            case "ds64":
+                guard let ds64 = try? handle.read(upToCount: 16), ds64.count == 16 else { return nil }
+                ds64DataSize = ds64.littleEndianUInt64(at: 8)
             case "fmt ":
                 guard let fmt = try? handle.read(upToCount: 16), fmt.count == 16 else { return nil }
                 blockAlign = UInt64(fmt.littleEndianUInt16(at: 12))
             case "data":
                 guard let blockAlign, blockAlign > 0 else { return nil }
-                return min(size, fileSize - body) / blockAlign
+                let dataSize = size == 0xFFFF_FFFF ? ds64DataSize ?? (fileSize - body) : size
+                return min(dataSize, fileSize - body) / blockAlign
             default:
                 break
             }
@@ -314,5 +321,9 @@ private extension Data {
 
     func littleEndianUInt32(at offset: Int) -> UInt32 {
         (0..<4).reduce(UInt32(0)) { $0 | UInt32(self[startIndex + offset + $1]) << (8 * $1) }
+    }
+
+    func littleEndianUInt64(at offset: Int) -> UInt64 {
+        (0..<8).reduce(UInt64(0)) { $0 | UInt64(self[startIndex + offset + $1]) << (8 * $1) }
     }
 }

@@ -1,4 +1,5 @@
 import AudioIO
+@testable import BroadcastWave
 import Foundation
 import MixerLink
 @testable import Recording
@@ -98,6 +99,30 @@ struct ShowReportTests {
         #expect(rows[1][9] == "0.010")
         #expect(rows[2][9] == "")
         #expect(try ShowReport(showFolder: show).takes[0].duration == 0.01)
+    }
+
+    @Test("A Stem promoted to RF64 reports its duration from ds64")
+    func rf64StemDuration() throws {
+        let take = show.appending(path: "Take 01")
+        try FileManager.default.createDirectory(at: take, withIntermediateDirectories: true)
+        try Data("""
+            {"show": "2026-10-06 Show", "take": 1, "startedAt": "2026-10-06T21:30:00Z", "sampleRate": 48000,
+             "timeReference": 0, "usbChannels": [{"usbChannel": 1, "stemFile": "01 Kick.wav", "name": "Kick",
+             "hasMixerName": true, "color": {"hue": "red", "inverted": false}}]}
+            """.utf8).write(to: take.appending(path: "Take.json"))
+        let stem = try StemWriter(
+            url: take.appending(path: "01 Kick.wav"),
+            info: .init(sampleRate: 48_000, description: "Kick", originator: "ShowRecorder", timeReference: 0, originationDate: Self.showDay),
+            rf64Threshold: 1_000)
+        let samples = [Float](repeating: 0, count: 24_000)
+        try samples.withUnsafeBufferPointer { try stem.append($0) }
+        try stem.finalize()
+        let head = try FileHandle(forReadingFrom: take.appending(path: "01 Kick.wav")).read(upToCount: 4)
+        #expect(head == Data("RF64".utf8))
+
+        try ShowReport.write(showFolder: show)
+
+        #expect(try csvRows()[1][9] == "0.500")
     }
 
     @Test("Report.html names the Show, each Take and each Source, with names escaped")
