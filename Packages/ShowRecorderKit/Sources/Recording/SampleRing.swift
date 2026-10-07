@@ -24,6 +24,11 @@ final class SampleRing: @unchecked Sendable {
 
     deinit { storage.deallocate() }
 
+    /// Frames ever written (not counting dropped blocks). Read from any thread.
+    var totalWrittenFrames: Int {
+        written.load(ordering: .acquiring)
+    }
+
     var availableFrames: Int {
         written.load(ordering: .acquiring) - read.load(ordering: .relaxed)
     }

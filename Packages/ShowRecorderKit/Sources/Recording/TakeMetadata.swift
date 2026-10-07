@@ -27,8 +27,52 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     /// Samples since local midnight at the start of the Take, as in every Stem's bext.
     public var timeReference: UInt64
     public var usbChannels: [USBChannel]
+    /// Markers placed during the Take, in the order they were placed.
+    public var markers: [Marker] = []
+
+    /// A named point in the Take, in samples from its start.
+    public struct Marker: Codable, Equatable, Sendable {
+        public enum Origin: String, Codable, Sendable {
+            case `operator`
+        }
+
+        public var position: Int
+        public var name: String
+        public var origin: Origin
+
+        public init(position: Int, name: String, origin: Origin) {
+            self.position = position
+            self.name = name
+            self.origin = origin
+        }
+    }
 
     static let fileName = "Take.json"
+
+    enum CodingKeys: String, CodingKey {
+        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        show = try c.decode(String.self, forKey: .show)
+        take = try c.decode(Int.self, forKey: .take)
+        startedAt = try c.decode(Date.self, forKey: .startedAt)
+        sampleRate = try c.decode(Int.self, forKey: .sampleRate)
+        timeReference = try c.decode(UInt64.self, forKey: .timeReference)
+        usbChannels = try c.decode([USBChannel].self, forKey: .usbChannels)
+        markers = try c.decodeIfPresent([Marker].self, forKey: .markers) ?? []  // Takes recorded before Markers existed
+    }
+
+    init(show: String, take: Int, startedAt: Date, sampleRate: Int, timeReference: UInt64, usbChannels: [USBChannel], markers: [Marker] = []) {
+        self.show = show
+        self.take = take
+        self.startedAt = startedAt
+        self.sampleRate = sampleRate
+        self.timeReference = timeReference
+        self.usbChannels = usbChannels
+        self.markers = markers
+    }
 
     func write(to takeFolder: URL) throws {
         let encoder = JSONEncoder()

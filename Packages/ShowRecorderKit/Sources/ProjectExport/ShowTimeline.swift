@@ -39,12 +39,25 @@ public struct ShowTimeline: Equatable, Sendable {
         /// The Take's length in samples, read from its Stems.
         public var frameCount: UInt64
         public var stems: [Stem]
+        /// Markers placed during the Take, in samples from its start.
+        public var markers: [Marker]
 
-        public init(number: Int, sampleRate: Int, frameCount: UInt64, stems: [Stem]) {
+        public init(number: Int, sampleRate: Int, frameCount: UInt64, stems: [Stem], markers: [Marker] = []) {
             self.number = number
             self.sampleRate = sampleRate
             self.frameCount = frameCount
             self.stems = stems
+            self.markers = markers
+        }
+
+        public struct Marker: Equatable, Sendable {
+            public var position: Int
+            public var name: String
+
+            public init(position: Int, name: String) {
+                self.position = position
+                self.name = name
+            }
         }
 
         public var duration: Double { sampleRate > 0 ? Double(frameCount) / Double(sampleRate) : 0 }

@@ -16,8 +16,9 @@ struct RF64StemTests {
     static func samples(_ range: Range<Int>) -> [Float] { CrashSafeStemTests.samples(range) }
     static func read(_ url: URL) throws -> [Float] { try CrashSafeStemTests.readWithCoreAudio(url) }
 
-    /// Header bytes before the data: RIFF(12) + JUNK/ds64(36) + fmt(24) + bext(610) + data id/size(8).
-    static let headerBytes = 690
+    /// Header bytes before the data: RIFF(12) + JUNK/ds64(36) + fmt(24) + bext(610) + the reserved
+    /// marker region + data id/size(8).
+    static let headerBytes = 690 + StemWriter.markerRegionSize
 
     static func bytes(_ url: URL) throws -> [UInt8] { Array(try Data(contentsOf: url)) }
 
@@ -53,7 +54,7 @@ struct RF64StemTests {
     @Test("A Stem promoted past the limit is RF64 with a ds64 chunk and reads back every sample")
     func promotedStemReadsBack() throws {
         let url = folder.appending(path: "promoted.wav")
-        let threshold: UInt64 = 20_000
+        let threshold: UInt64 = 20_000 + UInt64(StemWriter.markerRegionSize)
         let writer = try StemWriter(url: url, info: Self.info, rf64Threshold: threshold)
         let samples = Self.samples(0..<30_000)
         // Several appends, so promotion happens between buffers mid-Take.
@@ -80,7 +81,7 @@ struct RF64StemTests {
     @Test("A promoted Stem cut off anywhere after a header commit plays back the committed audio", arguments: 0..<12)
     func promotedCutOffAfterCommitPlaysCommittedAudio(seed: Int) throws {
         let url = folder.appending(path: "promoted-cut-\(seed).wav")
-        let writer = try StemWriter(url: url, info: Self.info, rf64Threshold: 20_000)
+        let writer = try StemWriter(url: url, info: Self.info, rf64Threshold: 20_000 + UInt64(StemWriter.markerRegionSize))
         let committed = Self.samples(0..<10_000)
         let more = Self.samples(10_000..<16_000)
 
@@ -103,7 +104,7 @@ struct RF64StemTests {
     @Test("Promotion is itself a header commit: a Stem cut off right after it plays back everything before it", arguments: 0..<12)
     func cutOffAfterPromotionPlaysAudioBeforeIt(seed: Int) throws {
         let url = folder.appending(path: "promotion-cut-\(seed).wav")
-        let writer = try StemWriter(url: url, info: Self.info, rf64Threshold: 20_000)
+        let writer = try StemWriter(url: url, info: Self.info, rf64Threshold: 20_000 + UInt64(StemWriter.markerRegionSize))
         let before = Self.samples(0..<6_000)
         let crossing = Self.samples(6_000..<8_000)
 

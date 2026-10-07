@@ -65,21 +65,42 @@ struct RecordScreen: View {
             Text(model.showSummary)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Button {
-                if model.recorder.isRecording {
-                    confirmingStop = true
-                } else {
-                    model.record()
+            HStack(spacing: 28) {
+                Button {
+                    if model.recorder.isRecording {
+                        confirmingStop = true
+                    } else {
+                        model.record()
+                    }
+                } label: {
+                    RecordButtonLabel(isRecording: model.recorder.isRecording)
                 }
-            } label: {
-                RecordButtonLabel(isRecording: model.recorder.isRecording)
+                .buttonStyle(.plain)
+                .disabled(!model.recorder.isArmed)
+                .accessibilityLabel(model.recorder.isRecording ? "Stop recording" : "Record")
+                .keyboardShortcut("r", modifiers: .command)
+
+                if model.recorder.isRecording {
+                    Button {
+                        model.recorder.addMarker()
+                    } label: {
+                        MarkerButtonLabel(count: model.recorder.takeMarkers.count)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Add Marker")
+                    .keyboardShortcut("m", modifiers: .command)
+                }
             }
-            .buttonStyle(.plain)
-            .disabled(!model.recorder.isArmed)
-            .accessibilityLabel(model.recorder.isRecording ? "Stop recording" : "Record")
-            .keyboardShortcut("r", modifiers: .command)
+            if let last = model.recorder.takeMarkers.last, model.recorder.isRecording {
+                Text("\(last.name) placed")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .id(model.recorder.takeMarkers.count)
+                    .transition(.opacity)
+            }
         }
         .frame(maxWidth: .infinity)
+        .animation(.easeInOut(duration: 0.15), value: model.recorder.takeMarkers.count)
     }
 
     private var header: some View {
@@ -387,6 +408,29 @@ final class RecordScreenModel {
             make: { DemoAudioDevice() }))
         #endif
         return choices
+    }
+}
+
+/// A large Marker button shown while recording, with the Take's Marker count.
+struct MarkerButtonLabel: View {
+    let count: Int
+
+    var body: some View {
+        VStack(spacing: 4) {
+            ZStack {
+                Circle()
+                    .fill(.yellow.opacity(0.2))
+                    .frame(width: 72, height: 72)
+                Image(systemName: "flag.fill")
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(.yellow)
+            }
+            Text(count == 1 ? "1 Marker" : "\(count) Markers")
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+        .contentShape(Rectangle())
     }
 }
 

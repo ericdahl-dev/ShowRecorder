@@ -16,6 +16,8 @@ public final class Recorder {
     public private(set) var usbChannelCount = 0
     /// The open Show, if any. Created on the first record press.
     public private(set) var currentShow: Show?
+    /// Markers placed in the current (or last) Take.
+    public private(set) var takeMarkers: [TakeMetadata.Marker] = []
 
     /// The Device Destination: Documents/Shows.
     public static var defaultDeviceFolder: URL {
@@ -29,6 +31,8 @@ public final class Recorder {
     @ObservationIgnored private var capture: Capture?
     @ObservationIgnored private var writers: [TakeWriter] = []
     @ObservationIgnored private var driveAccess: DestinationAccess?
+    /// The running Take's metadata and folders (one per Copy), and the ring position it started at.
+    @ObservationIgnored private var take: (metadata: TakeMetadata, folders: [URL], startFrame: Int)?
 
     /// - Parameters:
     ///   - deviceFolder: where the Device Copy of every Show goes.
@@ -162,6 +166,8 @@ public final class Recorder {
             capture.rings[copy].discardAll()
             writer.start()
         }
+        take = (metadata, takeFolders, capture.rings[0].totalWrittenFrames)
+        takeMarkers = []
         capture.startCapturing(copies: writers.count)
 
         self.writers = writers
@@ -171,12 +177,29 @@ public final class Recorder {
         isRecording = true
     }
 
+    /// Places a Marker at the Take's current sample position (frames written so far), in every Stem
+    /// of every Copy and in `Take.json`. Does nothing when no Take is running.
+    public func addMarker(named name: String? = nil) {
+        guard isRecording, let capture, var take else { return }
+        let position = capture.rings[0].totalWrittenFrames - take.startFrame
+        let marker = TakeMetadata.Marker(position: position, name: name ?? "Marker \(takeMarkers.count + 1)", origin: .operator)
+        takeMarkers.append(marker)
+        take.metadata.markers = takeMarkers
+        self.take = take
+        // Take.json first: it's written whole and atomically, so a Marker survives even if the Stems'
+        // next header commit never happens.
+        for folder in take.folders { try? take.metadata.write(to: folder) }
+        let stemMarkers = takeMarkers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
+        for writer in writers { writer.setMarkers(stemMarkers) }
+    }
+
     /// Stops the Take and waits until every Stem is written and finalized.
     public func stopTake() throws {
         guard isRecording, let capture else { return }
         capture.stopCapturing()
         let writers = self.writers
         self.writers = []
+        take = nil
         isRecording = false
         defer {
             driveAccess?.release()

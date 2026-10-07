@@ -32,7 +32,9 @@ extension Show {
                 frameCount = max(frameCount, frames)
                 stems.append(.init(usbChannel: channel.usbChannel, path: "\(folderName)/\(channel.stemFile)", name: channel.name))
             }
-            return ShowTimeline.Take(number: entry.take.take, sampleRate: entry.take.sampleRate, frameCount: frameCount, stems: stems)
+            return ShowTimeline.Take(
+                number: entry.take.take, sampleRate: entry.take.sampleRate, frameCount: frameCount, stems: stems,
+                markers: entry.take.markers.map { .init(position: $0.position, name: $0.name) })
         }
         return ShowTimeline(showName: name, usbChannels: channels.values.sorted { $0.number < $1.number }, takes: takes)
     }

@@ -11,6 +11,13 @@ public struct ShowReport: Equatable, Sendable {
         public var startedAt: Date
         public var sampleRate: Int
         public var usbChannels: [USBChannel]
+        /// Markers placed during the Take: seconds from its start, and name.
+        public var markers: [Marker] = []
+
+        public struct Marker: Equatable, Sendable {
+            public var seconds: Double
+            public var name: String
+        }
 
         /// The longest Stem's duration in seconds, or nil when no Stem could be read.
         public var duration: Double? {
@@ -70,6 +77,9 @@ public struct ShowReport: Equatable, Sendable {
                         inputSource: channel.inputSource,
                         sampleCount: StemDuration.sampleCount(of: folder.appending(path: channel.stemFile)),
                         sampleRate: file.sampleRate)
+                },
+                markers: (file.markers ?? []).map { marker in
+                    Take.Marker(seconds: file.sampleRate > 0 ? Double(marker.position) / Double(file.sampleRate) : 0, name: marker.name)
                 }))
         }
         self.showName = showFolder.lastPathComponent
@@ -171,8 +181,22 @@ public struct ShowReport: Equatable, Sendable {
             out += "<td class=\"num\">\(channel.duration.map(Self.clock) ?? "missing")</td>"
             out += "</tr>\n"
         }
-        out += "</tbody>\n</table></div>\n</section>\n"
+        out += "</tbody>\n</table></div>\n"
+        if !take.markers.isEmpty {
+            out += "<h3>Markers</h3>\n<div class=\"scroll\"><table>\n<thead><tr><th>Time</th><th>Marker</th></tr></thead>\n<tbody>\n"
+            for marker in take.markers {
+                out += "<tr><td class=\"num\">\(Self.markerClock(marker.seconds))</td><td>\(Self.escape(marker.name))</td></tr>\n"
+            }
+            out += "</tbody>\n</table></div>\n"
+        }
+        out += "</section>\n"
         return out
+    }
+
+    /// A Marker's time in the Take, to a tenth of a second ("1:05.3").
+    static func markerClock(_ seconds: Double) -> String {
+        let tenths = Int((seconds * 10).rounded(.down))
+        return "\(clock(Double(tenths / 10))).\(tenths % 10)"
     }
 
     static func escape(_ text: String) -> String {
@@ -262,6 +286,12 @@ struct TakeFile: Decodable {
     var startedAt: Date
     var sampleRate: Int
     var usbChannels: [USBChannel]
+    var markers: [Marker]?
+
+    struct Marker: Decodable {
+        var position: Int
+        var name: String
+    }
 
     static let fileName = "Take.json"
 

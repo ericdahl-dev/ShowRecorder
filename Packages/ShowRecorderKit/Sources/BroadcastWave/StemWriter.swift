@@ -38,6 +38,7 @@ public final class StemWriter {
     private let handle: FileHandle
     private var bytes: [UInt8] = []
     private let dataSizeOffset: UInt64
+    private let markerRegionOffset: UInt64
     /// The RIFF size (bytes after the size field) a plain RIFF Stem must stay below.
     /// 0xFFFFFFFF itself is RF64's "see ds64" value, so it is never written as a real size.
     private let rf64Threshold: UInt64
@@ -59,6 +60,29 @@ public final class StemWriter {
         let header = Self.header(info: info)
         try handle.write(contentsOf: header.bytes)
         dataSizeOffset = UInt64(header.dataSizeOffset)
+        markerRegionOffset = UInt64(header.markerRegionOffset)
+    }
+
+    /// Writes `markers` as `cue ` points with `LIST/adtl` labels into the region reserved before the
+    /// audio, replacing any written before. The region is rewritten in place, so Markers are as
+    /// crash-safe as the chunk sizes: they're on disk from the next header commit.
+    ///
+    /// Returns how many Markers fit. The region holds a few hundred; any that don't fit are left out
+    /// of the Stem (newest first) and stay in the Take's metadata.
+    @discardableResult
+    public func setMarkers(_ markers: [StemMarker]) throws -> Int {
+        // The largest prefix of `markers` that fits (binary search; the region size grows with count).
+        var low = 0, high = markers.count
+        while low < high {
+            let mid = (low + high + 1) / 2
+            if Self.markerRegion(Array(markers.prefix(mid))) != nil { low = mid } else { high = mid - 1 }
+        }
+        let region = Self.markerRegion(Array(markers.prefix(low))) ?? Self.markerRegion([])!
+        let end = try handle.offset()
+        try handle.seek(toOffset: markerRegionOffset)
+        try handle.write(contentsOf: region)
+        try handle.seek(toOffset: end)
+        return low
     }
 
     /// Appends samples. Values outside -1...1 are clamped.
@@ -147,7 +171,40 @@ public final class StemWriter {
     private static let ds64BodySize = 28
     private static let ds64BodyOffset: UInt64 = 20
 
-    private static func header(info: Info) -> (bytes: [UInt8], dataSizeOffset: Int) {
+    /// Bytes reserved before `data` for Markers (`cue ` and `LIST/adtl` chunks, padded with `JUNK`).
+    static let markerRegionSize = 16_384
+
+    /// The marker region for `markers`, exactly `markerRegionSize` bytes, or nil if they don't fit.
+    static func markerRegion(_ markers: [StemMarker]) -> [UInt8]? {
+        var out: [UInt8] = []
+        if !markers.isEmpty {
+            out += Array("cue ".utf8) + UInt32(4 + 24 * markers.count).littleEndianBytes
+            out += UInt32(markers.count).littleEndianBytes
+            for (index, marker) in markers.enumerated() {
+                out += UInt32(index + 1).littleEndianBytes        // cue point id
+                out += marker.position.littleEndianBytes          // play-order position
+                out += Array("data".utf8)
+                out += UInt32(0).littleEndianBytes + UInt32(0).littleEndianBytes  // chunk start, block start
+                out += marker.position.littleEndianBytes          // sample offset
+            }
+            var labels: [UInt8] = Array("adtl".utf8)
+            for (index, marker) in markers.enumerated() {
+                let text = Array(marker.label.utf8) + [0]
+                labels += Array("labl".utf8) + UInt32(4 + text.count).littleEndianBytes
+                labels += UInt32(index + 1).littleEndianBytes + text
+                if text.count % 2 == 1 { labels.append(0) }
+            }
+            out += Array("LIST".utf8) + UInt32(labels.count).littleEndianBytes + labels
+        }
+        let padding = markerRegionSize - out.count
+        guard padding == 0 || padding >= 8 else { return nil }
+        if padding > 0 {
+            out += Array("JUNK".utf8) + UInt32(padding - 8).littleEndianBytes + [UInt8](repeating: 0, count: padding - 8)
+        }
+        return out
+    }
+
+    private static func header(info: Info) -> (bytes: [UInt8], dataSizeOffset: Int, markerRegionOffset: Int) {
         var out: [UInt8] = []
         out += Array("RIFF".utf8) + UInt32(0).littleEndianBytes + Array("WAVE".utf8)
 
@@ -175,10 +232,13 @@ public final class StemWriter {
         bext += [UInt8](repeating: 0, count: 64 + 10 + 180)  // UMID, loudness, reserved
         out += Array("bext".utf8) + UInt32(bext.count).littleEndianBytes + bext
 
+        let markerRegionOffset = out.count
+        out += markerRegion([])!
+
         out += Array("data".utf8)
         let dataSizeOffset = out.count
         out += UInt32(0).littleEndianBytes
-        return (out, dataSizeOffset)
+        return (out, dataSizeOffset, markerRegionOffset)
     }
 
     private static func fixed(_ string: String, _ length: Int) -> [UInt8] {
@@ -198,5 +258,16 @@ public final class StemWriter {
 extension FixedWidthInteger {
     var littleEndianBytes: [UInt8] {
         withUnsafeBytes(of: littleEndian) { Array($0) }
+    }
+}
+
+/// A named point in a Stem, in samples from the start of the Take.
+public struct StemMarker: Equatable, Sendable {
+    public var position: UInt32
+    public var label: String
+
+    public init(position: UInt32, label: String) {
+        self.position = position
+        self.label = label
     }
 }

@@ -25,6 +25,15 @@ public struct ReaperExporter: ProjectExporter {
         for (index, take) in show.takes.enumerated() {
             out += "  MARKER \(index + 1) \(Self.seconds(starts[index])) \(Self.quote(Self.takeName(take.number))) 0 0\n"
         }
+        // The operator's Markers, numbered after the Take markers.
+        var markerNumber = show.takes.count
+        for (index, take) in show.takes.enumerated() where take.sampleRate > 0 {
+            for marker in take.markers {
+                markerNumber += 1
+                let time = starts[index] + Double(marker.position) / Double(take.sampleRate)
+                out += "  MARKER \(markerNumber) \(Self.seconds(time)) \(Self.quote(marker.name)) 0 0\n"
+            }
+        }
         for track in show.usbChannels {
             out += "  <TRACK\n"
             out += "    NAME \(Self.quote(track.name))\n"
