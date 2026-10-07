@@ -1,10 +1,10 @@
 @testable import Recording
 import Testing
 
-@Suite("Alert queue")
+@Suite("ScreenAlert queue")
 struct AlertQueueTests {
-    func alert(_ id: String, _ priority: Alert.Priority, tone: Alert.Tone = .warning) -> Alert {
-        Alert(id: id, priority: priority, tone: tone, text: id)
+    func alert(_ id: String, _ priority: ScreenAlert.Priority, tone: ScreenAlert.Tone = .warning) -> ScreenAlert {
+        ScreenAlert(id: id, priority: priority, tone: tone, text: id)
     }
 
     @Test("Only the highest-priority alert is shown; the rest are counted")

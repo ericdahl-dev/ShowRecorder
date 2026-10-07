@@ -15,7 +15,7 @@ struct MeterGrid: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: 280, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
     /// Maps a linear peak to 0...1 on a -60...0 dBFS scale.

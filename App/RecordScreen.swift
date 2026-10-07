@@ -9,44 +9,40 @@ import AVFAudio
 #endif
 
 /// The record screen. While it is showing, the recorder is Armed on the chosen device.
+///
+/// It shows the Take, not its setup: meters, transport, Markers, one status strip and one alert.
+/// Input, Drive and Mixer Link are set in Settings.
 struct RecordScreen: View {
-    @State private var model = RecordScreenModel()
+    @Bindable var model: RecordScreenModel
     @Environment(\.scenePhase) private var scenePhase
+    #if os(macOS)
+    @Environment(\.openSettings) private var openSettings
+    #endif
+    @State private var showingSettings = false
+    @State private var settingsSection: SettingsSection?
+    @State private var confirmingStop = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             header
-            if let error = model.armError {
-                Banner(text: error, systemImage: "exclamationmark.octagon.fill", tint: .red)
-            }
-            if let error = model.recordError {
-                Banner(text: error, systemImage: "exclamationmark.octagon.fill", tint: .red)
-            }
-            if let warning = model.destinationWarning {
-                Banner(text: warning, systemImage: "externaldrive.badge.exclamationmark", tint: .orange)
-            }
-            if let summary = model.copySummary, !model.recorder.isRecording {
-                Banner(text: summary.text, systemImage: summary.isProblem ? "exclamationmark.triangle.fill" : "checkmark.circle.fill", tint: summary.isProblem ? .orange : .green)
-            }
-            if let notice = model.interruptions.notice {
-                Banner(text: notice, systemImage: "phone.badge.waveform.fill", tint: .orange)
-            }
-            if let shortfall = model.usbChannelShortfall {
-                Banner(text: shortfall.message, systemImage: "exclamationmark.triangle.fill", tint: .orange)
-            }
-            DrivePanel(usbChannelCount: model.recorder.usbChannelCount)
-            MixerLinkPanel(link: model.mixerLink, usbChannelCount: model.recorder.usbChannelCount)
+            StatusStrip(chips: model.chips, tap: chipTapped)
+            AlertSlot(queue: model.alerts, perform: model.perform)
             MeterGrid(levels: model.levels, sources: model.mixerLink.sources)
-            Spacer(minLength: 0)
             transport
         }
         .padding()
         .task { await model.runWhileVisible() }
+        // Read Sources for the USB Channels the newly Armed device actually sends.
+        .task(id: model.recorder.usbChannelCount) {
+            await model.mixerLink.refreshSources(usbChannelCount: model.recorder.usbChannelCount)
+        }
         // Locking the screen or leaving the app never ends a Take; becoming active retries input
         // that an interruption left stopped.
         .onChange(of: scenePhase) { _, phase in
             switch phase {
-            case .active: model.handle(.becameActive)
+            case .active:
+                model.handle(.becameActive)
+                model.drive.refresh()
             case .background: model.handle(.movedToBackground)
             default: break
             }
@@ -55,6 +51,18 @@ struct RecordScreen: View {
         // Keep the screen awake while the record screen is showing.
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+        // A sheet, so opening Settings never takes the record screen (and the Armed recorder) away.
+        .sheet(isPresented: $showingSettings) {
+            NavigationStack {
+                SettingsView(model: model, scrollTo: settingsSection)
+                    .navigationTitle("Settings")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) { Button("Done") { showingSettings = false } }
+                    }
+            }
+            .presentationDetents([.large])
+        }
         #endif
         .confirmationDialog("Stop recording?", isPresented: $confirmingStop, titleVisibility: .visible) {
             Button("Stop Recording", role: .destructive) { model.stop() }
@@ -64,7 +72,23 @@ struct RecordScreen: View {
         }
     }
 
-    @State private var confirmingStop = false
+    /// Outside a Take a chip opens its part of Settings; during one it only retries (Drive, Mixer).
+    private func chipTapped(_ kind: StatusChip.Kind) {
+        if model.recorder.isRecording {
+            model.retryDuringTake(kind)
+        } else {
+            showSettings(kind.settingsSection)
+        }
+    }
+
+    private func showSettings(_ section: SettingsSection?) {
+        #if os(macOS)
+        openSettings()
+        #else
+        settingsSection = section
+        showingSettings = true
+        #endif
+    }
 
     private var transport: some View {
         VStack(spacing: 12) {
@@ -95,6 +119,7 @@ struct RecordScreen: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("Add Marker")
                     .keyboardShortcut("m", modifiers: .command)
+                    .sensoryFeedback(.success, trigger: model.recorder.takeMarkers.count)
                 }
             }
             if let last = model.recorder.takeMarkers.last, model.recorder.isRecording {
@@ -110,28 +135,40 @@ struct RecordScreen: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Picker("Input", selection: $model.selectedDeviceID) {
-                if model.selectedDeviceID == nil {
-                    Text(model.devices.isEmpty ? "No audio input" : "Choose an input").tag(String?.none)
-                }
-                ForEach(model.devices, id: \.id) { device in
-                    Text(device.name).tag(Optional(device.id))
-                }
-            }
-            .onChange(of: model.selectedDeviceID) { model.selectionDidChange() }
-            .disabled(model.recorder.isRecording)
-
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(model.recorder.isArmed ? Color.green : Color.secondary)
-                    .frame(width: 8, height: 8)
+        HStack(alignment: .center, spacing: 12) {
+            Circle()
+                .fill(model.recorder.isArmed ? Color.green : Color.secondary)
+                .frame(width: 12, height: 12)
+            VStack(alignment: .leading, spacing: 2) {
                 Text(model.recorder.isArmed ? "Armed" : "Not armed")
-                Text("·").foregroundStyle(.secondary)
-                Text(model.usbChannelSummary)
+                    .font(.headline)
+                Text(model.inputSummary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                     .monospacedDigit()
+                    .lineLimit(1)
             }
-            .font(.subheadline)
+            Spacer(minLength: 8)
+            Button { showSettings(nil) } label: {
+                Image(systemName: "gearshape")
+                    .font(.title3)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Settings")
+            #if os(macOS)
+            .help("Settings (⌘,)")
+            #endif
+        }
+    }
+}
+
+extension StatusChip.Kind {
+    var settingsSection: SettingsSection {
+        switch self {
+        case .device: .recording
+        case .drive: .storage
+        case .mixer: .mixer
         }
     }
 }
@@ -151,10 +188,18 @@ struct DeviceChoice: Identifiable {
 @Observable
 final class RecordScreenModel {
     /// Each Take goes to the Device and, when the Drive folder is connected at record time, the Drive.
-    let recorder = Recorder(driveFolder: {
-        DriveFolderStore().beginAccess().map { access in DestinationAccess(folder: access.folder, release: { access.end() }) }
-    })
+    let recorder: Recorder
+    /// The Drive folder and Device free space, kept current here so the status strip, Settings and the
+    /// recorder share one state whether or not Settings is open.
+    let drive: DriveFolderModel
     let mixerLink = MixerLinkController()
+    /// The Mixer's address, remembered between launches.
+    var mixerAddress: String
+    /// Whether the system denied microphone access (shows a button that opens the system settings).
+    private(set) var micDenied = false
+    private(set) var setupHintDismissed = UserDefaults.standard.bool(forKey: RecordScreenModel.hintKey)
+    private static let hintKey = "setupHintDismissed"
+    private static let mixerAddressKey = "mixerAddress"
     private(set) var devices: [DeviceChoice] = []
     var selectedDeviceID: String?
     private(set) var levels: [Float] = []
@@ -214,10 +259,106 @@ final class RecordScreenModel {
         wasRecording = recorder.isRecording
     }
 
+    /// The Armed device's name and channel count, for the header.
+    var inputSummary: String {
+        guard recorder.isArmed else { return "Choose an input in Settings" }
+        let name = armedDevice?.name ?? "Input"
+        return "\(name) · \(usbChannelSummary)"
+    }
+
+    /// The status strip: Device and Drive time left, and the Mixer Link.
+    var chips: [StatusChip] {
+        StatusChip.make(
+            usbChannelCount: recorder.usbChannelCount,
+            deviceAvailableBytes: drive.deviceAvailableBytes,
+            drive: drive.status,
+            mixer: mixerLink.status,
+            copies: recorder.isRecording ? [.device: deviceCopy, .drive: driveCopy] : [:])
+    }
+
+    /// Everything the record screen has to say, most urgent first; it shows one and counts the rest.
+    var alerts: AlertQueue {
+        var list: [ScreenAlert] = []
+        if let error = armError {
+            list.append(ScreenAlert(id: "arm", priority: .cannotRecord, tone: .critical, text: error, action: micDenied ? .openSystemSettings : nil))
+        }
+        if let error = recordError {
+            list.append(ScreenAlert(id: "record", priority: .cannotRecord, tone: .critical, text: error))
+        }
+        if let warning = destinationWarning {
+            list.append(ScreenAlert(id: "destination", priority: .destination, tone: deviceCopy == .interrupted && driveCopy == .interrupted ? .critical : .warning, text: warning))
+        }
+        if let shortfall = usbChannelShortfall {
+            list.append(ScreenAlert(id: "shortfall", priority: .input, tone: .warning, text: shortfall.message))
+        }
+        if let notice = interruptions.notice {
+            list.append(ScreenAlert(id: "interruption", priority: .input, tone: .warning, text: notice))
+        }
+        if let summary = copySummary, !recorder.isRecording {
+            list.append(ScreenAlert(id: "copies", priority: .copyResult, tone: summary.isProblem ? .warning : .ok, text: summary.text))
+        }
+        if showSetupHint {
+            list.append(ScreenAlert(id: "hint", priority: .hint, tone: .info, text: "Set the input, Drive and Mixer in Settings (the gear).", action: .dismissHint))
+        }
+        return AlertQueue(list)
+    }
+
+    /// A first-run nudge, once: neither a Drive nor a Mixer is set up yet.
+    private var showSetupHint: Bool {
+        !setupHintDismissed && !recorder.isRecording && drive.status == .notChosen && mixerAddress.isEmpty
+    }
+
+    func perform(_ action: ScreenAlert.Action) {
+        switch action {
+        case .openSystemSettings: openSystemSettings()
+        case .dismissHint:
+            setupHintDismissed = true
+            UserDefaults.standard.set(true, forKey: Self.hintKey)
+        }
+    }
+
+    private func openSystemSettings() {
+        #if os(iOS)
+        if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+        #else
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") { NSWorkspace.shared.open(url) }
+        #endif
+    }
+
+    /// During a Take the status strip can only retry: look for the Drive again, or reconnect the Mixer.
+    func retryDuringTake(_ kind: StatusChip.Kind) {
+        switch kind {
+        case .device: break
+        case .drive:
+            drive.refresh()
+            recorder.checkDestinations()
+        case .mixer:
+            if case .down = mixerLink.status { connectMixer() }
+        }
+    }
+
+    func connectMixer() {
+        saveMixerAddress()
+        let address = mixerAddress
+        let count = recorder.usbChannelCount
+        Task { await mixerLink.connect(to: address, usbChannelCount: count) }
+    }
+
+    func saveMixerAddress() {
+        UserDefaults.standard.set(mixerAddress, forKey: Self.mixerAddressKey)
+    }
+
     /// What to do about audio interruptions, and the banner they leave (see AudioSessionEvents.swift).
     var interruptions = InterruptionPolicy()
 
     init() {
+        let drive = DriveFolderModel()
+        let store = drive.store
+        self.drive = drive
+        recorder = Recorder(driveFolder: {
+            store.beginAccess().map { access in DestinationAccess(folder: access.folder, release: { access.end() }) }
+        })
+        mixerAddress = UserDefaults.standard.string(forKey: Self.mixerAddressKey) ?? ""
         devices = Self.availableDevices()
         selectedDeviceID = devices.first?.id
     }
@@ -280,10 +421,14 @@ final class RecordScreenModel {
     /// Arms the selected device, polls meters at about 30 Hz, and disarms when the screen goes away.
     func runWhileVisible() async {
         guard await hasMicrophonePermission() else {
-            armError = "ShowRecorder needs microphone access to record your mixer. Turn it on in Settings › Privacy & Security › Microphone."
+            micDenied = true
+            armError = "ShowRecorder needs microphone access to record your mixer. Allow it in the system's Privacy settings, under Microphone."
             return
         }
+        drive.refresh()
         armSelectedDevice()
+        // Reconnect to the remembered Mixer. This runs here, not in Settings, so it happens without Settings open.
+        if !mixerAddress.isEmpty, mixerLink.status == .idle { connectMixer() }
         defer { recorder.disarm() }
         #if os(iOS)
         let routeWatcher = Task { await watchRouteChanges() }
@@ -299,6 +444,8 @@ final class RecordScreenModel {
         while !Task.isCancelled {
             tick += 1
             if tick % 30 == 0 { refreshDestinations() }
+            // Re-check the Drive every few seconds so an unplugged one shows before record is pressed.
+            if tick % 90 == 0 { drive.refresh() }
             let fresh = recorder.takeMeterLevels()
             levels = fresh.enumerated().map { index, level in
                 // Fall back gently so short peaks stay visible.
@@ -482,7 +629,7 @@ struct MarkerButtonLabel: View {
             ZStack {
                 Circle()
                     .fill(.yellow.opacity(0.2))
-                    .frame(width: 72, height: 72)
+                    .frame(width: 88, height: 88)
                 Image(systemName: "flag.fill")
                     .font(.system(size: 28, weight: .semibold))
                     .foregroundStyle(.yellow)
@@ -514,21 +661,6 @@ struct RecordButtonLabel: View {
     }
 }
 
-struct Banner: View {
-    let text: String
-    let systemImage: String
-    let tint: Color
-
-    var body: some View {
-        Label(text, systemImage: systemImage)
-            .font(.callout)
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
-            .foregroundStyle(tint)
-    }
-}
-
 #Preview {
-    RecordScreen()
+    RecordScreen(model: RecordScreenModel())
 }

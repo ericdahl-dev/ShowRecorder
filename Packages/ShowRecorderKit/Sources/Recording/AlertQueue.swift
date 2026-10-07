@@ -1,5 +1,5 @@
 /// Something the record screen tells the operator.
-public struct Alert: Equatable, Identifiable, Sendable {
+public struct ScreenAlert: Equatable, Identifiable, Sendable {
     /// Most urgent first.
     public enum Priority: Int, Comparable, Sendable {
         /// Recording can't start or has stopped.
@@ -45,16 +45,16 @@ public struct Alert: Equatable, Identifiable, Sendable {
 /// pile of banners never pushes the meters or the transport around.
 public struct AlertQueue: Equatable, Sendable {
     /// Every alert, most urgent first. Alerts with the same `id` appear once.
-    public let ordered: [Alert]
+    public let ordered: [ScreenAlert]
 
-    public init(_ alerts: [Alert]) {
+    public init(_ alerts: [ScreenAlert]) {
         var seen = Set<String>()
         let unique = alerts.filter { seen.insert($0.id).inserted }
         // Stable: equal priorities keep the order given.
         ordered = unique.enumerated().sorted { ($0.element.priority, $0.offset) < ($1.element.priority, $1.offset) }.map(\.element)
     }
 
-    public var top: Alert? { ordered.first }
-    public var others: [Alert] { Array(ordered.dropFirst()) }
+    public var top: ScreenAlert? { ordered.first }
+    public var others: [ScreenAlert] { Array(ordered.dropFirst()) }
     public var moreCount: Int { max(ordered.count - 1, 0) }
 }
