@@ -32,9 +32,17 @@ public final class SessionAudioDevice: AudioIODevice, @unchecked Sendable {
     ///
     /// Record category in measurement mode, so iOS applies no gain control or voice processing.
     /// Asks for 48 kHz and the most input channels the route offers.
-    public static func current() throws -> SessionAudioDevice {
+    ///
+    /// With `preferredInputUID`, first asks iOS to use that input (a USB interface rather than the
+    /// built-in microphone). iOS decides, so the route afterwards may still differ.
+    public static func current(preferredInputUID: String? = nil) throws -> SessionAudioDevice {
         let audioSession = AVAudioSession.sharedInstance()
         try audioSession.setCategory(.record, mode: .measurement, options: [])
+        if let preferredInputUID, let port = audioSession.availableInputs?.first(where: { $0.uid == preferredInputUID }) {
+            try audioSession.setPreferredInput(port)
+        }
+        // The Marker button's haptic: iOS mutes haptics and system sounds while recording unless allowed.
+        try audioSession.setAllowHapticsAndSystemSoundsDuringRecording(true)
         try audioSession.setPreferredSampleRate(48_000)
         try audioSession.setActive(true)
 
