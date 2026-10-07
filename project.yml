@@ -48,6 +48,8 @@ targets:
         NSMicrophoneUsageDescription: ShowRecorder records every channel from your mixer.
         NSLocalNetworkUsageDescription: ShowRecorder reads channel names and colors from your mixer over the local network.
         UILaunchScreen: {}
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
         UIBackgroundModes:
           - audio
         UISupportedInterfaceOrientations:
