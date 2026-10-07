@@ -13,11 +13,19 @@ final class TakeWriter: @unchecked Sendable {
     /// Frames between header commits, so a crash loses at most this much (#6).
     private let commitInterval: Int
     private var framesSinceCommit = 0
+    /// Markers waiting to be written into the Stems by the writer thread.
+    private let pendingMarkers = Mutex<[StemMarker]?>(nil)
 
     init(ring: SampleRing, stems: [StemWriter], commitInterval: Int) {
         self.ring = ring
         self.stems = stems
         self.commitInterval = commitInterval
+    }
+
+    /// Replaces the Stems' Markers. Applied on the writer thread before its next write, and on disk
+    /// from the next header commit.
+    func setMarkers(_ markers: [StemMarker]) {
+        pendingMarkers.withLock { $0 = markers }
     }
 
     func start() {
@@ -41,6 +49,9 @@ final class TakeWriter: @unchecked Sendable {
             for stem in stems { try stem.commitHeader() }
             while true {
                 let stillRunning = running.load(ordering: .acquiring)
+                if let markers = pendingMarkers.withLock({ pending in defer { pending = nil }; return pending }) {
+                    for stem in stems { try stem.setMarkers(markers) }
+                }
                 let drained = try drainOnce()
                 framesSinceCommit += drained
                 if framesSinceCommit >= commitInterval {
