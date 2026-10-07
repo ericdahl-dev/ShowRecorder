@@ -9,6 +9,11 @@ struct MeterGrid: View {
     /// Source's name only when there are few enough channels to have room for it.
     var compact = false
 
+    /// The widest a meter (and its label) gets. Wide enough that 18 channels fill an iPad, narrow enough
+    /// that one or two channels aren't a screen-wide slab. The strip is centered when it's narrower
+    /// than the screen.
+    static let maxBarWidth: CGFloat = 64
+
     var body: some View {
         HStack(alignment: .bottom, spacing: 4) {
             ForEach(levels.indices, id: \.self) { index in
@@ -22,7 +27,7 @@ struct MeterGrid: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     /// Maps a linear peak to 0...1 on a -60...0 dBFS scale.
@@ -45,7 +50,7 @@ struct MeterBar: View {
                     .frame(height: geometry.size.height * fraction)
             }
         }
-        .frame(minWidth: 8, maxWidth: .infinity)
+        .frame(minWidth: 8, maxWidth: MeterGrid.maxBarWidth)
     }
 
     private var color: Color {
@@ -77,7 +82,7 @@ struct SourceLabel: View {
                         .minimumScaleFactor(0.6)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 2)
-                        .frame(maxWidth: .infinity, minHeight: compact ? 16 : 28)
+                        .frame(maxWidth: MeterGrid.maxBarWidth, minHeight: compact ? 16 : 28)
                         .foregroundStyle(source.color.inverted ? Color.black : source.color.swiftUIColor)
                         .background(source.color.inverted ? source.color.swiftUIColor : Color.clear, in: RoundedRectangle(cornerRadius: 3))
                         .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(source.color.swiftUIColor.opacity(0.6)))
@@ -85,7 +90,7 @@ struct SourceLabel: View {
                     // No room for the name: the Mixer's color for this channel, as a bar under the number.
                     RoundedRectangle(cornerRadius: 2)
                         .fill(source.color.swiftUIColor)
-                        .frame(maxWidth: .infinity, minHeight: 4, maxHeight: 4)
+                        .frame(maxWidth: MeterGrid.maxBarWidth, minHeight: 4, maxHeight: 4)
                 }
             }
         }

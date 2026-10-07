@@ -492,10 +492,8 @@ final class RecordScreenModel {
         mixerAddress = UserDefaults.standard.string(forKey: Self.mixerAddressKey) ?? ""
         devices = Self.availableDevices()
         selectedDeviceID = devices.first?.id
-        #if DEBUG
         // `-demoSignal` starts on the 18-channel demo signal, for screenshots and layout checks.
         if CommandLine.arguments.contains("-demoSignal"), devices.contains(where: { $0.id == "demo" }) { selectedDeviceID = "demo" }
-        #endif
     }
 
     /// "2026-10-06 Show · Take 02", or a hint before the first Take.
@@ -837,12 +835,12 @@ final class RecordScreenModel {
                 make: { try SessionAudioDevice.current() }))
         }
         #endif
-        #if DEBUG
-        choices.append(DeviceChoice(
-            info: InputDeviceInfo(id: "demo", name: "Demo signal", inputChannelCount: DemoAudioDevice.channelCount, sampleRate: 48_000),
-            name: "Demo signal (\(DemoAudioDevice.channelCount) channels)",
-            make: { DemoAudioDevice() }))
-        #endif
+        if DemoSignalAvailability.isAvailableInThisBuild {
+            choices.append(DeviceChoice(
+                info: InputDeviceInfo(id: "demo", name: "Demo signal", inputChannelCount: DemoAudioDevice.channelCount, sampleRate: 48_000),
+                name: "Demo signal (\(DemoAudioDevice.channelCount) channels)",
+                make: { DemoAudioDevice() }))
+        }
         return choices
     }
 }
