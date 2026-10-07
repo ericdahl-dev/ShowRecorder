@@ -27,7 +27,7 @@ public enum StemLength {
                 ds64DataSize = littleEndian(sizes.suffix(8))
             } else if id.elementsEqual("data".utf8) {
                 if size == 0xFFFF_FFFF, let ds64DataSize { size = ds64DataSize }
-                return min(size, fileSize - body) / 3
+                return min(size, fileSize - body) / UInt64(StemWriter.bytesPerSample)
             }
             offset = body + size + size % 2
         }

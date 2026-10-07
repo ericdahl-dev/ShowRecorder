@@ -40,11 +40,8 @@ public final class Recorder {
     @ObservationIgnored private var capture: Capture?
     /// The running Take's Copies.
     @ObservationIgnored private var session: TakeSession?
-    /// How each Copy of the last Take ended up, for after it stops.
-    @ObservationIgnored private var repairTask: Task<Void, Never>?
-    /// Counts stopped Takes, so only the latest one's Repair sets `lastTakeOutcomes`.
-    @ObservationIgnored private var takeGeneration = 0
-    @ObservationIgnored private var pendingRepairs = 0
+    /// Repairs ended Takes; its result is published as `lastTakeOutcomes` and `isRepairing`.
+    @ObservationIgnored private let repairQueue: RepairQueue
     @ObservationIgnored private var finishedCopies: [DestinationKind: CopyStatus] = [:]
 
     /// - Parameters:
@@ -58,10 +55,16 @@ public final class Recorder {
         makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink = { try StemWriter.open(url: $0, info: $1, resumingAt: $2) }
     ) {
         self.freeSpace = freeSpace
+        repairQueue = RepairQueue(freeSpace: freeSpace)
         self.makeStem = makeStem
         self.deviceFolder = deviceFolder
         self.driveFolder = driveFolder
         self.now = now
+        repairQueue.onChange = { [unowned self] in
+            lastTakeOutcomes = repairQueue.outcomes
+            isRepairing = repairQueue.isRunning
+        }
+        repairQueue.jobDone = { [unowned self] in regenerateReports() }
     }
 
     /// Starts receiving audio from `device`. Any previously Armed device is stopped first.
@@ -228,7 +231,7 @@ public final class Recorder {
         currentShow = session.show
         // The Takes are safe either way; the report and project are regenerated next time.
         regenerateReports()
-        repair(finished.metadata, folders: finished.folders, holding: finished.access)
+        repairQueue.enqueue(finished.metadata, folders: finished.folders, holding: finished.access)
     }
 
     private func regenerateReports() {
@@ -238,48 +241,9 @@ public final class Recorder {
         }
     }
 
-    /// Fills the ended Take's Gaps from the other Copy, off the main thread, and records the result in
-    /// `Take.json`. `access` (the Drive's folder) is held until it's done.
-    private func repair(_ metadata: TakeMetadata, folders: [URL], holding access: DestinationAccess?) {
-        func outcomes(_ metadata: TakeMetadata) -> [DestinationKind: CopyOutcome] {
-            Dictionary(uniqueKeysWithValues: folders.indices.map { (DestinationKind(index: $0), metadata.outcome(ofCopy: DestinationKind(index: $0))) })
-        }
-        takeGeneration += 1
-        let generation = takeGeneration
-        lastTakeOutcomes = outcomes(metadata)
-        guard !metadata.gaps.isEmpty else {
-            access?.release()
-            return
-        }
-        let copies = folders.indices.map { TakeRepair.Copy(kind: DestinationKind(index: $0), folder: folders[$0]) }
-        // Repair must not fill a Destination past the space reserve: a Copy stopped for being nearly
-        // full stays as it is, with its Gaps.
-        let reserve = SpaceReserve(channelCount: metadata.usbChannels.count, sampleRate: metadata.sampleRate)
-        let skip = Set(copies.filter { copy in
-            let extra = TakeRepair.bytesToExtend(copy, in: copies, metadata: metadata)
-            return reserve.wouldBreach(free: freeSpace(copy.folder), adding: extra)
-        }.map(\.kind))
-        pendingRepairs += 1
-        isRepairing = true
-        let previous = repairTask
-        repairTask = Task { [weak self] in
-            await previous?.value
-            let repairs = await Task.detached { TakeRepair.run(copies: copies, metadata: metadata, skip: skip) }.value
-            var done = metadata
-            done.repairs = repairs
-            for folder in folders { try? done.write(to: folder) }
-            guard let self else { return }
-            if generation == takeGeneration { lastTakeOutcomes = outcomes(done) }
-            regenerateReports()
-            access?.release()
-            pendingRepairs -= 1
-            isRepairing = pendingRepairs > 0
-        }
-    }
-
     /// Waits for Repair of the last Take to finish.
     public func waitForRepair() async {
-        await repairTask?.value
+        await repairQueue.wait()
     }
 }
 
