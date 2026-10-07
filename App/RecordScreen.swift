@@ -165,6 +165,7 @@ struct RecordScreen: View {
 
     private var transport: some View {
         VStack(spacing: 12) {
+            elapsed(font: .system(size: 44, weight: .semibold))
             Text(model.showSummary)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -200,7 +201,7 @@ struct RecordScreen: View {
                 Text(model.takeTitle)
                     .font(.title3.weight(.bold))
                     .monospacedDigit()
-                elapsed
+                elapsed(font: .title3)
                 if let note = nonUrgentAlert {
                     Button {
                         if let action = note.action { model.perform(action) }
@@ -224,14 +225,21 @@ struct RecordScreen: View {
         .frame(width: 128)
     }
 
-    @ViewBuilder private var elapsed: some View {
+    /// How long the running Take has gone, counting up each second. Blank (but the same height) when no
+    /// Take is running, so nothing moves when it appears.
+    @ViewBuilder private func elapsed(font: Font) -> some View {
         if let started = model.takeStartedAt, model.recorder.isRecording {
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                Text(ElapsedTime.format(seconds: Int(context.date.timeIntervalSince(started))))
-                    .font(.title3.monospacedDigit())
+                let text = ElapsedTime.format(seconds: Int(context.date.timeIntervalSince(started)))
+                Text(text)
+                    .font(font.monospacedDigit())
+                    .accessibilityLabel("Elapsed time")
+                    .accessibilityValue(text)
+                    // VoiceOver reads it when asked; it doesn't announce every second.
+                    .accessibilityAddTraits(.updatesFrequently)
             }
         } else {
-            Text(" ").font(.title3)
+            Text(" ").font(font)
         }
     }
 
@@ -315,7 +323,7 @@ final class RecordScreenModel {
     var mixerAddress: String
     /// Whether the system denied microphone access (shows a button that opens the system settings).
     private(set) var micDenied = false
-    /// When the running Take started, for the elapsed time in landscape.
+    /// When the running Take started, for the elapsed time.
     private(set) var takeStartedAt: Date?
     /// Landscape: the transport column on the leading edge instead of the trailing one (left-handed).
     var transportLeading: Bool = UserDefaults.standard.bool(forKey: RecordScreenModel.transportLeadingKey)
