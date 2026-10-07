@@ -265,7 +265,7 @@ struct RecordScreen: View {
                 .fill(model.recorder.isRecording ? Color.red : model.recorder.isArmed ? Color.green : Color.secondary)
                 .frame(width: 12, height: 12)
             VStack(alignment: .leading, spacing: 2) {
-                // The word carries the state; the dot's colour is only a second cue.
+                // The word carries the state; the dot's color is only a second cue.
                 Text(model.recorder.isRecording ? "Recording" : model.recorder.isArmed ? "Armed" : "Not armed")
                     .font(compact ? .subheadline.weight(.semibold) : .headline)
                 Text(compact ? model.compactInputSummary : model.inputSummary)
