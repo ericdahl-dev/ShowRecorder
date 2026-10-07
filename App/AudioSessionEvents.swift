@@ -32,7 +32,9 @@ extension RecordScreenModel {
             }
             do {
                 let wasRecording = recorder.isRecording
-                let continued = try recorder.restartInput(on: choice.make())
+                let device = try choice.make()
+                let continued = try recorder.restartInput(on: device)
+                noteOfferedChannels(of: device)
                 handle(wasRecording && !continued ? .takeEndedByReset : .restarted)
             } catch {
                 handle(.restartFailed(String(describing: error)))

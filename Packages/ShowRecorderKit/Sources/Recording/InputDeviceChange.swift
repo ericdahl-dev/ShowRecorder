@@ -14,6 +14,22 @@ public struct InputDeviceInfo: Equatable, Sendable {
         self.inputChannelCount = inputChannelCount
         self.sampleRate = sampleRate
     }
+
+    /// More than 2 inputs: a mixer or interface worth recording, rather than a built-in or stereo mic.
+    public var isMultichannel: Bool { inputChannelCount > 2 }
+
+    /// The order to offer devices in: multichannel devices first, most channels first; then the
+    /// system default input; then the rest as they came.
+    public static func preferredOrder(_ devices: [InputDeviceInfo], defaultID: String?) -> [InputDeviceInfo] {
+        devices.enumerated().sorted { a, b in
+            let (x, y) = (a.element, b.element)
+            if x.isMultichannel != y.isMultichannel { return x.isMultichannel }
+            if x.isMultichannel, x.inputChannelCount != y.inputChannelCount { return x.inputChannelCount > y.inputChannelCount }
+            let xDefault = x.id == defaultID, yDefault = y.id == defaultID
+            if xDefault != yDefault { return xDefault }
+            return a.offset < b.offset
+        }.map(\.element)
+    }
 }
 
 /// What to do when the list of audio input devices changes: which device to select, whether to
@@ -85,12 +101,14 @@ public struct InputDeviceChange: Equatable, Sendable {
             isRecording = false
         }
 
-        // A Mixer that was just plugged in wins over nothing, or over a device too small to carry
-        // it, but never moves a running Take.
-        let armedIsUsable = armed.map { $0.inputChannelCount >= Recorder.expectedUSBChannelCount } ?? false
-        if !armedIsUsable, !isRecording,
-           let full = new.first(where: { !oldIDs.contains($0.id) && $0.inputChannelCount >= Recorder.expectedUSBChannelCount }) {
-            change.selectedID = full.id
+        // A multichannel device that was just plugged in wins over nothing, or over a built-in or
+        // stereo mic, but never moves a running Take or another multichannel device. Of several
+        // arriving at once, the one with the most channels wins.
+        let armedIsMultichannel = armed?.isMultichannel ?? false
+        let arrived = new.filter { !oldIDs.contains($0.id) && $0.isMultichannel }
+        if !armedIsMultichannel, !isRecording,
+           let preferred = InputDeviceInfo.preferredOrder(arrived, defaultID: nil).first {
+            change.selectedID = preferred.id
             change.action = .arm
         }
         return change

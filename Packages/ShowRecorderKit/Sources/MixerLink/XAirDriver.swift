@@ -18,6 +18,19 @@ public final class XAirDriver: MixerDriver {
         return MixerIdentity(networkName: strings[1], model: strings[2], firmware: strings[3])
     }
 
+    /// The XR18 and MR18 send 18 USB Channels; the XR12 and XR16 send no multichannel USB audio. An
+    /// X-Air model not listed here has no known USB Channel count and is named like the XR18.
+    public func capabilities(for identity: MixerIdentity) -> MixerCapabilities {
+        switch identity.model.uppercased() {
+        case "XR18", "MR18": MixerCapabilities(usbChannelCount: 18, nameableUSBChannelCount: Self.nameableUSBChannelCount)
+        case "XR12", "XR16": MixerCapabilities(usbChannelCount: nil, nameableUSBChannelCount: 0)
+        default: MixerCapabilities(usbChannelCount: nil, nameableUSBChannelCount: Self.nameableUSBChannelCount)
+        }
+    }
+
+    /// USB Channels 1–16 carry input channels 1–16 and 17–18 the aux return; any beyond are not the X-Air's.
+    private static let nameableUSBChannelCount = 18
+
     /// USB Channels 1–16 carry input channels 1–16; 17–18 carry the aux return (left and right).
     /// The Mixer's actual USB routing is read in #20; until then this is the XR18's default.
     ///
@@ -28,6 +41,10 @@ public final class XAirDriver: MixerDriver {
         guard usbChannelCount > 0 else { return sources }
         var readsMixState = true
         for usbChannel in 1...usbChannelCount {
+            guard usbChannel <= Self.nameableUSBChannelCount else {
+                sources.append(.fallback(usbChannel: usbChannel))
+                continue
+            }
             let isInput = usbChannel <= 16
             let base = isInput ? String(format: "/ch/%02d", usbChannel) : "/rtn/aux"
             let name = try await string(at: base + "/config/name")

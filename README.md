@@ -45,7 +45,7 @@ Not built yet: writing to the SSD and the phone at the same time, Gaps and Repai
 |---|---|---|
 | Behringer XR18, Midas MR18 | 18 USB Channels | Yes, over Wi-Fi (USB coming) |
 | Behringer XR12/XR16 | No multichannel USB | n/a |
-| Behringer X32/M32 (X-USB card) | Should work as a USB interface (untested) | Planned |
+| Behringer X32/M32 (X-USB card) | Should work as a 32-channel USB interface (untested) | Planned |
 | Other class-compliant mixers and interfaces | Should work (untested) | Not yet |
 
 A list of tested hubs and SSDs will follow the first hardware check ([#4](https://github.com/ericdahl-dev/ShowRecorder/issues/4)).

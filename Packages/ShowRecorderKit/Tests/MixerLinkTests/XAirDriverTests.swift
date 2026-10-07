@@ -32,6 +32,35 @@ struct XAirDriverTests {
         #expect(label(sources[17]) == ("Playback", MixerColor(hue: .blue, inverted: false)))
     }
 
+    @Test("Reads one Source per USB Channel the device sends", arguments: [8, 16, 18])
+    func readsOneSourcePerUSBChannel(count: Int) async throws {
+        var state = FakeXAirMixer.State()
+        state.channels[0] = .init(name: "Kick", color: 1)
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+
+        let sources = try await driver.sources(usbChannelCount: count)
+
+        #expect(sources.count == count)
+        #expect(sources[0].name == "Kick")
+    }
+
+    @Test("USB Channels beyond the 18 the X-Air routes get their USB Channel name without asking the Mixer")
+    func channelsBeyondEighteenFallBack() async throws {
+        var state = FakeXAirMixer.State()
+        state.auxReturn = .init(name: "Playback", color: 4)
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+
+        let sources = try await driver.sources(usbChannelCount: 32)
+
+        #expect(sources.count == 32)
+        #expect(sources[17].name == "Playback")
+        #expect(sources[18] == .fallback(usbChannel: 19))
+        #expect(sources[31] == .fallback(usbChannel: 32))
+        #expect(mixer.queries.filter { $0.hasPrefix("/rtn/aux/config/name") }.count == 2)
+    }
+
     @Test("A Source with an empty name falls back to its USB Channel number")
     func emptyNameFallsBackToUSBChannel() async throws {
         let mixer = try await FakeXAirMixer()

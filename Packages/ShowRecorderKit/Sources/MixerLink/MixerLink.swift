@@ -22,6 +22,20 @@ public struct MixerIdentity: Equatable, Sendable {
     }
 }
 
+/// What one Mixer model can do over USB, as its driver knows it.
+public struct MixerCapabilities: Equatable, Sendable {
+    /// USB Channels the Mixer sends to the recorder. Nil when the model sends no multichannel USB
+    /// audio or the driver doesn't know the model.
+    public var usbChannelCount: Int?
+    /// How many USB Channels, from the first, the driver can give a Source name and color.
+    public var nameableUSBChannelCount: Int
+
+    public init(usbChannelCount: Int?, nameableUSBChannelCount: Int) {
+        self.usbChannelCount = usbChannelCount
+        self.nameableUSBChannelCount = nameableUSBChannelCount
+    }
+}
+
 /// Why the Mixer Link is down, in terms an operator can act on.
 public enum MixerLinkProblem: Error, Equatable, Sendable {
     /// Nothing answered at that address: wrong IP, or the Mixer is off.
@@ -53,6 +67,8 @@ public enum MixerLinkProblem: Error, Equatable, Sendable {
 /// Talks to one kind of Mixer. X-Air first; X32/M32 can follow with the same shape.
 public protocol MixerDriver: Sendable {
     func identify() async throws(MixerLinkProblem) -> MixerIdentity
+    /// What the identified model sends over USB and how many of its USB Channels this driver can name.
+    func capabilities(for identity: MixerIdentity) -> MixerCapabilities
     /// One Source per USB Channel, in USB Channel order.
     func sources(usbChannelCount: Int) async throws(MixerLinkProblem) -> [Source]
 }
