@@ -115,19 +115,18 @@ struct RecordScreen: View {
             HStack(alignment: .top, spacing: 12) {
                 if model.transportLeading { transportColumn }
                 MeterGrid(levels: model.levels, sources: model.mixerLink.sources, compact: true)
+                    // Urgent alerts sit over the top of the meters, which aren't tappable and don't move,
+                    // so the chips and the gear stay reachable (the Drive's Reconnect is one of them).
+                    .overlay(alignment: .top) {
+                        let urgent = AlertQueue(model.alerts.ordered.filter { $0.tone == .critical || $0.tone == .warning })
+                        AlertSlot(queue: urgent, perform: model.perform, slotHeight: 44)
+                            .allowsHitTesting(urgent.top != nil)
+                    }
                 if !model.transportLeading { transportColumn }
             }
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
-        // Urgent alerts cover the top row (its chips repeat the same state); the rest go in the column.
-        .overlay(alignment: .top) {
-            let urgent = AlertQueue(model.alerts.ordered.filter { $0.tone == .critical || $0.tone == .warning })
-            AlertSlot(queue: urgent, perform: model.perform, slotHeight: 44)
-                .padding(.horizontal)
-                .padding(.top, 8)
-                .allowsHitTesting(urgent.top != nil)
-        }
     }
 
     private func recordButton(size: CGFloat) -> some View {
@@ -158,7 +157,7 @@ struct RecordScreen: View {
         .opacity(model.recorder.isRecording ? 1 : 0.3)
         .accessibilityLabel("Add Marker")
         .keyboardShortcut("m", modifiers: .command)
-        .sensoryFeedback(.success, trigger: model.recorder.takeMarkers.count)
+        .sensoryFeedback(.success, trigger: model.recorder.takeMarkers.count) { old, new in new > old }
     }
 
     private var transport: some View {
@@ -199,18 +198,24 @@ struct RecordScreen: View {
                     .font(.title3.weight(.bold))
                     .monospacedDigit()
                 elapsed
-                if let note = nonUrgentNote {
-                    Text(note)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(3)
-                        .fixedSize(horizontal: false, vertical: true)
+                if let note = nonUrgentAlert {
+                    Button {
+                        if let action = note.action { model.perform(action) }
+                    } label: {
+                        Text(note.action == .dismissHint ? note.text + " Tap to dismiss." : note.text)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
+            // Only this spacer flexes, so Marker and Record stay put when the note above comes and goes.
             Spacer(minLength: 8)
             markerButton(size: 64)
-            Spacer(minLength: 24)
+            Color.clear.frame(height: 24)
             recordButton(size: 64)
         }
         .frame(width: 128)
@@ -228,8 +233,8 @@ struct RecordScreen: View {
     }
 
     /// The most urgent alert that isn't a warning or failure (a Copy result, the first-run hint), for the column.
-    private var nonUrgentNote: String? {
-        model.alerts.ordered.first { $0.tone == .ok || $0.tone == .info }?.text
+    private var nonUrgentAlert: ScreenAlert? {
+        model.alerts.ordered.first { $0.tone == .ok || $0.tone == .info }
     }
 
     private var gearButton: some View {
