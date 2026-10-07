@@ -168,7 +168,8 @@ struct RecordScreen: View {
             Text(model.showSummary)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            HStack(spacing: 28) {
+            // Top-aligned: Marker is taller (its count sits below), so centring would drop Record.
+            HStack(alignment: .top, spacing: 28) {
                 recordButton(size: 88)
                 markerButton(size: 88)
             }
