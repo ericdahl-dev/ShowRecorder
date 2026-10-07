@@ -63,11 +63,20 @@ public struct Source: Equatable, Sendable {
     public var color: MixerColor
     /// False when the Mixer had no name for it and `name` is the USB Channel default ("USB 07").
     public var hasMixerName: Bool
+    /// Mixer state at the time it was read. Nil when the Mixer didn't report it.
+    public var isMuted: Bool?
+    /// Fader position, 0...1.
+    public var fader: Float?
+    /// The Mixer's input source index for the channel.
+    public var inputSource: Int?
 
-    public init(name: String, color: MixerColor, hasMixerName: Bool = true) {
+    public init(name: String, color: MixerColor, hasMixerName: Bool = true, isMuted: Bool? = nil, fader: Float? = nil, inputSource: Int? = nil) {
         self.name = name
         self.color = color
         self.hasMixerName = hasMixerName
+        self.isMuted = isMuted
+        self.fader = fader
+        self.inputSource = inputSource
     }
 
     /// The default for USB Channel `number` (1-based) when the Mixer gives no name.
@@ -80,6 +89,8 @@ public struct Source: Equatable, Sendable {
 public struct MixerColor: Equatable, Sendable {
     public enum Hue: Int, Sendable, CaseIterable {
         case off, red, green, yellow, blue, magenta, cyan, white
+
+        public var name: String { String(describing: self) }
     }
 
     public var hue: Hue

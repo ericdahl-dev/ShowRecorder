@@ -18,7 +18,7 @@ let package = Package(
         // Broadcast WAV Stem files.
         .target(name: "BroadcastWave"),
         // The recorder: Armed state, meters, Shows and Takes. No platform audio frameworks.
-        .target(name: "Recording", dependencies: ["AudioIO", "BroadcastWave"]),
+        .target(name: "Recording", dependencies: ["AudioIO", "BroadcastWave", "MixerLink"]),
         // Core Audio devices on macOS. Empty on other platforms.
         .target(name: "CoreAudioIO", dependencies: ["AudioIO"]),
         // Open Sound Control messages and bundles. Pure encoding, no networking.
@@ -27,7 +27,7 @@ let package = Package(
         .target(name: "MixerLink", dependencies: ["OSC"]),
         .testTarget(name: "OSCTests", dependencies: ["OSC"]),
         .testTarget(name: "MixerLinkTests", dependencies: ["MixerLink", "OSC"]),
-        .testTarget(name: "RecordingTests", dependencies: ["Recording", "AudioIO"]),
+        .testTarget(name: "RecordingTests", dependencies: ["Recording", "AudioIO", "MixerLink"]),
         .testTarget(name: "BroadcastWaveTests", dependencies: ["BroadcastWave"]),
     ]
 )
