@@ -97,7 +97,7 @@ struct RecordScreen: View {
     private var portrait: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
-            StatusStrip(chips: model.chips, tap: chipTapped)
+            StatusStrip(chips: model.chips, power: model.power.status.chips, tap: chipTapped)
             AlertSlot(queue: model.alerts, perform: model.perform)
             MeterGrid(levels: model.levels, sources: model.mixerLink.sources)
             transport
@@ -112,7 +112,7 @@ struct RecordScreen: View {
             HStack(spacing: 10) {
                 headerSummary(compact: true)
                     .frame(maxWidth: 190, alignment: .leading)
-                StatusStrip(chips: model.chips, compact: true, tap: chipTapped)
+                StatusStrip(chips: model.chips, power: model.power.status.chips, compact: true, tap: chipTapped)
                 gearButton
             }
             HStack(alignment: .top, spacing: 12) {
@@ -331,6 +331,8 @@ final class RecordScreenModel {
     private static let transportLeadingKey = "transportLeading"
     /// The Pre-roll length in seconds (0 is Off), read when record is pressed. See `PreRollSetting`.
     var preRollSeconds: Double = PreRollSetting.load()
+    /// Battery and heat, shown as chips on the status strip.
+    let power = PowerMonitor()
     private(set) var setupHintDismissed = UserDefaults.standard.bool(forKey: RecordScreenModel.hintKey)
     private static let hintKey = "setupHintDismissed"
     private static let mixerAddressKey = "mixerAddress"
