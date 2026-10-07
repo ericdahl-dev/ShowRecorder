@@ -183,6 +183,42 @@ struct TakeSessionTests {
         #expect(finished.metadata.gaps == [.init(copy: .device, start: 480, end: takeEnd)])
     }
 
+    @Test("A Drive join requested just before the Take stops leaves the whole Take as a Gap in the Drive Copy")
+    func driveJoinStillWaitingAtStop() async throws {
+        let session = try session()
+        try await deliver(480)
+        let drive = drive
+        _ = session.checkDestinations(drive: { DestinationAccess(folder: drive) })
+        // No block arrives, so the real-time side never picks the Copy's join frame.
+        let takeEnd = capture.takeFrameCount
+        let finished = session.finish()
+
+        #expect(takeEnd == 480)
+        #expect(finished.metadata.gaps == [.init(copy: .drive, start: 0, end: takeEnd)])
+        #expect(finished.metadata.outcome(ofCopy: .drive) == .hasGaps)
+    }
+
+    @Test("A Drive rejoin requested just before the Take stops leaves the rest of the Take as a Gap in the Drive Copy")
+    func driveRejoinStillWaitingAtStop() async throws {
+        let opened = Opened()
+        let session = try session(opened: opened, wrap: { url, real in
+            let fresh = url.path.contains("/Drive/") && opened.resumes.last! == nil
+            return fresh ? FailingStem(real, healthyFrames: 480) : real
+        })
+        let drive = drive
+        try await deliver(480)
+        _ = session.checkDestinations(drive: { DestinationAccess(folder: drive) })
+        for _ in 0..<4 { try await deliver(480) }
+        try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
+        let failedAt = Int(session.copies[1].writer.stemFrameCounts[0])
+
+        _ = session.checkDestinations(drive: { DestinationAccess(folder: drive) })
+        let takeEnd = capture.takeFrameCount
+        let finished = session.finish()
+
+        #expect(finished.metadata.gaps == [.init(copy: .drive, start: 0, end: 480), .init(copy: .drive, start: failedAt, end: takeEnd)])
+    }
+
     @Test("A Marker lands in Take.json and in the Copy that joins after it")
     func markerReachesJoiningCopy() async throws {
         let session = try session()

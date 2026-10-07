@@ -11,6 +11,8 @@ final class TakeWriter: @unchecked Sendable {
     private let failed = Atomic<Bool>(false)
     private let done = Atomic<Bool>(false)
     private let retired = Atomic<Bool>(false)
+    /// Whether the real-time side ever told this Copy which Take frame it starts at.
+    private let joined = Atomic<Bool>(false)
     /// Called on the writer thread when this Copy fails, so capture can stop feeding it.
     private let onFailure: @Sendable () -> Void
     private var thread: Thread?
@@ -56,6 +58,10 @@ final class TakeWriter: @unchecked Sendable {
     /// Whether the writer thread has finished, so its files are closed and can be reopened.
     var isFinished: Bool { done.load(ordering: .acquiring) }
 
+    /// Whether the Take stopped before this Copy joined: it waited for a join frame that never came, so
+    /// it has no audio past where it began. Read once the writer has finished.
+    var neverJoined: Bool { isFinished && !joined.load(ordering: .acquiring) }
+
     /// Whether a write failed. The Copy stops there; the Take carries on in the other Copies.
     var hasFailed: Bool { failed.load(ordering: .acquiring) || retired.load(ordering: .acquiring) }
 
@@ -79,8 +85,8 @@ final class TakeWriter: @unchecked Sendable {
         do {
             // Commit once up front so even a Take that dies early leaves files that open.
             for stem in stems { try stem.commitHeader() }
-            let joined = try waitForJoin()
-            while joined {
+            let didJoin = try waitForJoin()
+            while didJoin {
                 let stillRunning = running.load(ordering: .acquiring)
                 if let markers = pendingMarkers.withLock({ pending in defer { pending = nil }; return pending }) {
                     for stem in stems { try stem.setMarkers(markers) }
@@ -116,6 +122,7 @@ final class TakeWriter: @unchecked Sendable {
             Thread.sleep(forTimeInterval: 0.002)
         }
         let join = ring.joinFrame.load(ordering: .acquiring)
+        joined.store(true, ordering: .releasing)
         let start = framesWritten
         if join > start { gapRanges.withLock { $0.append(start..<join) } }
         let silence = [Float](repeating: 0, count: 4096)
