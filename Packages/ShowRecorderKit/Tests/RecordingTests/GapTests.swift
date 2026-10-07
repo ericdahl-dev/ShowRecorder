@@ -214,4 +214,50 @@ struct GapTests {
             #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == [.init(copy: "drive", start: 480, end: 4800)])
         }
     }
+
+    @Test("A Copy short of space stops cleanly while another has room; the Take finalizes before the last one fills")
+    func diskFullFinalizesBeforeLastCopyFills() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let drive = drive
+        let free = FreeSpace(device: 100_000_000, drive: 100_000_000)
+        let recorder = Recorder(
+            deviceFolder: device,
+            driveFolder: { DestinationAccess(folder: drive) },
+            now: { RecordingTakeTests.showDay },
+            freeSpace: { free.bytes(at: $0) })
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(4, to: audio, recorder)
+        // 60 s of one 48 kHz 24-bit channel is 8.64 MB.
+        free.device = 5_000_000
+        recorder.checkDestinations()
+        #expect(recorder.isRecording)
+        #expect(recorder.copyStatus(.device) == .interrupted)
+        #expect(recorder.copyStatus(.drive) == .recording)
+
+        try await deliverBlocks(2, to: audio, recorder)
+        free.drive = 5_000_000
+        recorder.checkDestinations()
+
+        #expect(!recorder.isRecording)
+        let take = "2026-10-06 Show/Take 01"
+        #expect(try StemFile(contentsOf: device.appending(path: "\(take)/01 USB 01.wav")).samples.count == 4 * 480)
+        #expect(try StemFile(contentsOf: drive.appending(path: "\(take)/01 USB 01.wav")).samples.count == 6 * 480)
+    }
+}
+
+@MainActor
+final class FreeSpace {
+    var device: Int64
+    var drive: Int64
+
+    init(device: Int64, drive: Int64) {
+        self.device = device
+        self.drive = drive
+    }
+
+    func bytes(at url: URL) -> Int64 {
+        url.path.contains("/Drive/") ? drive : device
+    }
 }

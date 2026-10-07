@@ -1,5 +1,6 @@
 import AudioIO
 import BroadcastWave
+import Destinations
 import Foundation
 import MixerLink
 import Observation
@@ -18,6 +19,8 @@ public final class Recorder {
     public private(set) var currentShow: Show?
     /// Markers placed in the current (or last) Take.
     public private(set) var takeMarkers: [TakeMetadata.Marker] = []
+    /// Whether the last Take was ended by the recorder because the last healthy Destination was about to fill.
+    public private(set) var endedForLackOfSpace = false
 
     /// The Device Destination: Documents/Shows.
     public static var defaultDeviceFolder: URL {
@@ -27,6 +30,7 @@ public final class Recorder {
     @ObservationIgnored private let deviceFolder: URL
     @ObservationIgnored private let driveFolder: () -> DestinationAccess?
     @ObservationIgnored private let now: () -> Date
+    @ObservationIgnored private let freeSpace: (URL) -> Int64
     @ObservationIgnored private let makeStem: (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink
     @ObservationIgnored private var device: (any AudioIODevice)?
     @ObservationIgnored private var capture: Capture?
@@ -44,8 +48,10 @@ public final class Recorder {
         deviceFolder: URL = Recorder.defaultDeviceFolder,
         driveFolder: @escaping () -> DestinationAccess? = { nil },
         now: @escaping () -> Date = Date.init,
+        freeSpace: @escaping (URL) -> Int64 = { DriveFolderStore.availableBytes(at: $0) },
         makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink = { try StemWriter.open(url: $0, info: $1, resumingAt: $2) }
     ) {
+        self.freeSpace = freeSpace
         self.makeStem = makeStem
         self.deviceFolder = deviceFolder
         self.driveFolder = driveFolder
@@ -176,6 +182,7 @@ public final class Recorder {
         take = (metadata, takeFolders, capture.rings[0].totalWrittenFrames, specs, info)
         finishedCopies = [:]
         takeMarkers = []
+        endedForLackOfSpace = false
         capture.startCapturing(copies: writers.count)
 
         self.writers = writers
@@ -214,7 +221,25 @@ public final class Recorder {
     /// a Gap in `Take.json` on both Copies. Call it regularly while recording.
     public func checkDestinations() {
         guard isRecording, let capture, var show = currentShow, var take else { return }
+
+        // Keep 60 s of audio free on each Destination. A Copy that's short stops cleanly while another
+        // has room; when the last healthy one is short the Take finalizes, before anything fills.
+        let reserve = Int64(60 * take.metadata.usbChannels.count * take.info.sampleRate * 3)
+        let healthy = writers.indices.filter { !writers[$0].hasFailed }
+        let low = healthy.filter { freeSpace(take.folders[$0]) < reserve }
+        if !low.isEmpty {
+            if low.count == healthy.count {
+                endedForLackOfSpace = true
+                try? stopTake()
+                return
+            }
+            for index in low {
+                capture.disable(copy: index)
+                writers[index].retire()
+            }
+        }
         if writers.count == 1, let access = driveFolder() {
+            guard freeSpace(access.folder) >= reserve else { access.release(); persistGaps(); return }
             do {
                 let folder = try show.joinDrive(access.folder)
                 let stems = try take.stems.map { try makeStem(folder.appending(path: $0.file), take.info.described($0.description), nil) }
@@ -238,7 +263,8 @@ public final class Recorder {
             }
         }
         if writers.count == 2, writers[1].isFinished, writers[1].hasFailed,
-           FileManager.default.fileExists(atPath: take.folders[1].path), let access = driveFolder() {
+           FileManager.default.fileExists(atPath: take.folders[1].path), freeSpace(take.folders[1]) >= reserve,
+           let access = driveFolder() {
             do {
                 let old = writers[1]
                 let counts = old.stemFrameCounts

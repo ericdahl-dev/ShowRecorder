@@ -10,6 +10,7 @@ final class TakeWriter: @unchecked Sendable {
     private let finished = DispatchSemaphore(value: 0)
     private let failed = Atomic<Bool>(false)
     private let done = Atomic<Bool>(false)
+    private let retired = Atomic<Bool>(false)
     /// Called on the writer thread when this Copy fails, so capture can stop feeding it.
     private let onFailure: @Sendable () -> Void
     private var thread: Thread?
@@ -56,12 +57,21 @@ final class TakeWriter: @unchecked Sendable {
     var isFinished: Bool { done.load(ordering: .acquiring) }
 
     /// Whether a write failed. The Copy stops there; the Take carries on in the other Copies.
-    var hasFailed: Bool { failed.load(ordering: .acquiring) }
+    var hasFailed: Bool { failed.load(ordering: .acquiring) || retired.load(ordering: .acquiring) }
+
+    /// Ends this Copy early and cleanly, for a Destination that is about to fill. What was captured is
+    /// written and the Stems are finalized; the rest of the Take is a Gap in this Copy. The caller stops
+    /// feeding the ring first.
+    func retire() {
+        retired.store(true, ordering: .releasing)
+        stop()
+    }
 
     /// Drains whatever is left, finalizes every Stem and waits for the thread to finish.
     /// A failed Copy doesn't throw: it's reported through `hasFailed`.
     func stop() {
         running.store(false, ordering: .releasing)
+        if done.load(ordering: .acquiring) { return }  // already stopped
         finished.wait()
     }
 
