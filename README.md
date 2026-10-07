@@ -87,7 +87,7 @@ xcodebuild -project ShowRecorder.xcodeproj -scheme ShowRecorder \
 
 To run on a device, pick your own team in Xcode. After editing `project.yml`, run `xcodegen generate` and commit both files.
 
-Debug builds include an 18-channel **Demo signal** input, so the record screen works in the simulator without hardware.
+Debug and TestFlight builds include an 18-channel **Demo signal** input, so the record screen works in the simulator, or on a phone without a mixer. The App Store build never lists it.
 
 ## Releasing to TestFlight
 
