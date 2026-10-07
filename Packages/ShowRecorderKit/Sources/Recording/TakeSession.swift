@@ -109,14 +109,15 @@ final class TakeSession {
     var allFailed: Bool { !copies.isEmpty && copies.allSatisfy { $0.writer.hasFailed } }
 
     /// Stretches written as silence in any Copy, as `Take.json` records them.
-    /// With `takeEnd`, a Copy that is still interrupted is missing everything from where it stopped to there.
+    /// With `takeEnd`, a Copy that is still interrupted, or was asked to join but never got to, is missing
+    /// everything from where it stopped to there.
     func gaps(takeEnd: Int? = nil) -> [TakeMetadata.Gap] {
         var gaps: [TakeMetadata.Gap] = []
         for copy in copies {
             for range in copy.writer.gaps {
                 gaps.append(.init(copy: copy.kind, start: range.lowerBound, end: range.upperBound))
             }
-            if let takeEnd, copy.writer.hasFailed, copy.writer.framesWritten < takeEnd {
+            if let takeEnd, copy.writer.hasFailed || copy.writer.neverJoined, copy.writer.framesWritten < takeEnd {
                 gaps.append(.init(copy: copy.kind, start: copy.writer.framesWritten, end: takeEnd))
             }
         }
