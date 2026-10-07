@@ -45,7 +45,7 @@ struct MeterBar: View {
                     .frame(height: geometry.size.height * fraction)
             }
         }
-        .frame(minWidth: 8, maxWidth: 44)
+        .frame(minWidth: 8, maxWidth: .infinity)
     }
 
     private var color: Color {
@@ -77,7 +77,7 @@ struct SourceLabel: View {
                         .minimumScaleFactor(0.6)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 2)
-                        .frame(maxWidth: 44, minHeight: compact ? 16 : 28)
+                        .frame(maxWidth: .infinity, minHeight: compact ? 16 : 28)
                         .foregroundStyle(source.color.inverted ? Color.black : source.color.swiftUIColor)
                         .background(source.color.inverted ? source.color.swiftUIColor : Color.clear, in: RoundedRectangle(cornerRadius: 3))
                         .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(source.color.swiftUIColor.opacity(0.6)))
@@ -85,7 +85,7 @@ struct SourceLabel: View {
                     // No room for the name: the Mixer's color for this channel, as a bar under the number.
                     RoundedRectangle(cornerRadius: 2)
                         .fill(source.color.swiftUIColor)
-                        .frame(maxWidth: 44, minHeight: 4, maxHeight: 4)
+                        .frame(maxWidth: .infinity, minHeight: 4, maxHeight: 4)
                 }
             }
         }
