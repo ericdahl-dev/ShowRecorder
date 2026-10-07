@@ -10,7 +10,7 @@ import Foundation
 /// promoted to RF64 (EBU Tech 3306): `RIFF` becomes `RF64`, `JUNK` becomes `ds64` holding the
 /// 64-bit sizes, and the 32-bit RIFF and data sizes are set to 0xFFFFFFFF. The Take keeps
 /// recording into the same file with no gap.
-public final class StemWriter {
+public final class StemWriter: StemSink {
     public struct Info: Sendable {
         public var sampleRate: Int
         /// The Source name, stored as the bext description.
@@ -26,6 +26,13 @@ public final class StemWriter {
             self.originator = originator
             self.timeReference = timeReference
             self.originationDate = originationDate
+        }
+
+        /// This info with another Source name as the description.
+        public func described(_ description: String) -> Info {
+            var copy = self
+            copy.description = description
+            return copy
         }
     }
 
@@ -61,6 +68,29 @@ public final class StemWriter {
         try handle.write(contentsOf: header.bytes)
         dataSizeOffset = UInt64(header.dataSizeOffset)
         markerRegionOffset = UInt64(header.markerRegionOffset)
+    }
+
+    /// A new Stem, or, when `frames` is given, the Stem at `url` reopened to carry on after its first
+    /// `frames` samples (for a Destination that failed and came back). Anything past those samples
+    /// (a half-written sample, a padding byte) is cut off.
+    public static func open(url: URL, info: Info, resumingAt frames: UInt64?) throws -> StemWriter {
+        guard let frames else { return try StemWriter(url: url, info: info) }
+        return try StemWriter(resuming: url, info: info, frameCount: frames, rf64Threshold: maxRIFFSize)
+    }
+
+    private init(resuming url: URL, info: Info, frameCount: UInt64, rf64Threshold: UInt64) throws {
+        self.url = url
+        self.rf64Threshold = rf64Threshold
+        handle = try FileHandle(forUpdating: url)
+        let header = Self.header(info: info)
+        dataSizeOffset = UInt64(header.dataSizeOffset)
+        markerRegionOffset = UInt64(header.markerRegionOffset)
+        let end = UInt64(header.bytes.count) + frameCount * 3
+        try handle.truncate(atOffset: end)
+        try handle.seek(toOffset: 0)
+        isRF64 = try handle.read(upToCount: 4) == Data("RF64".utf8)
+        try handle.seek(toOffset: end)
+        self.frameCount = frameCount
     }
 
     /// Writes `markers` as `cue ` points with `LIST/adtl` labels into the region reserved before the
@@ -259,6 +289,17 @@ extension FixedWidthInteger {
     var littleEndianBytes: [UInt8] {
         withUnsafeBytes(of: littleEndian) { Array($0) }
     }
+}
+
+/// What a Take writer needs from a Stem file. `StemWriter` is the real one; tests substitute Stems
+/// that fail, to stand in for a Destination that goes away.
+public protocol StemSink: AnyObject {
+    /// Samples written so far.
+    var frameCount: UInt64 { get }
+    func append(_ samples: UnsafeBufferPointer<Float>) throws
+    func commitHeader() throws
+    func finalize() throws
+    @discardableResult func setMarkers(_ markers: [StemMarker]) throws -> Int
 }
 
 /// A named point in a Stem, in samples from the start of the Take.

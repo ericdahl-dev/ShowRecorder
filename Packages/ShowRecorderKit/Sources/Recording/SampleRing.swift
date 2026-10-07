@@ -12,6 +12,9 @@ final class SampleRing: @unchecked Sendable {
     /// Total frames ever written and read. Only the producer stores `written`, only the consumer `read`.
     private let written = Atomic<Int>(0)
     private let read = Atomic<Int>(0)
+    /// The Take frame this ring's Copy starts at: 0 for a Copy there from the start, later for one that
+    /// joined mid-Take, -1 until the real-time thread has set it.
+    let joinFrame = Atomic<Int>(-1)
     /// Frames dropped because the ring was full.
     let overflowedFrames = Atomic<Int>(0)
 

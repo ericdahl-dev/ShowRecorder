@@ -5,18 +5,26 @@ import Synchronization
 /// Drains the ring into one Stem per USB Channel on a dedicated thread, until stopped.
 final class TakeWriter: @unchecked Sendable {
     private let ring: SampleRing
-    private let stems: [StemWriter]
+    private let stems: [any StemSink]
     private let running = Atomic<Bool>(true)
     private let finished = DispatchSemaphore(value: 0)
-    private let failure = Mutex<(any Error)?>(nil)
+    private let failed = Atomic<Bool>(false)
+    private let done = Atomic<Bool>(false)
+    private let retired = Atomic<Bool>(false)
+    /// Called on the writer thread when this Copy fails, so capture can stop feeding it.
+    private let onFailure: @Sendable () -> Void
     private var thread: Thread?
     /// Frames between header commits, so a crash loses at most this much (#6).
     private let commitInterval: Int
     private var framesSinceCommit = 0
+    /// Stretches written as silence because this Copy joined late, as Take frames.
+    private let gapRanges: Mutex<[Range<Int>]>
     /// Markers waiting to be written into the Stems by the writer thread.
     private let pendingMarkers = Mutex<[StemMarker]?>(nil)
 
-    init(ring: SampleRing, stems: [StemWriter], commitInterval: Int) {
+    init(ring: SampleRing, stems: [any StemSink], commitInterval: Int, onFailure: @escaping @Sendable () -> Void = {}, priorGaps: [Range<Int>] = []) {
+        gapRanges = Mutex(priorGaps)
+        self.onFailure = onFailure
         self.ring = ring
         self.stems = stems
         self.commitInterval = commitInterval
@@ -36,18 +44,43 @@ final class TakeWriter: @unchecked Sendable {
         thread.start()
     }
 
+    /// Stretches written as silence because this Copy joined after the Take began.
+    var gaps: [Range<Int>] { gapRanges.withLock { $0 } }
+
+    /// Frames every Stem has: the Copy's length so far. Read once the writer has stopped.
+    var framesWritten: Int { Int(stems.map(\.frameCount).min() ?? 0) }
+
+    /// Samples in each Stem, in channel order. Read once the writer has stopped.
+    var stemFrameCounts: [UInt64] { stems.map(\.frameCount) }
+
+    /// Whether the writer thread has finished, so its files are closed and can be reopened.
+    var isFinished: Bool { done.load(ordering: .acquiring) }
+
+    /// Whether a write failed. The Copy stops there; the Take carries on in the other Copies.
+    var hasFailed: Bool { failed.load(ordering: .acquiring) || retired.load(ordering: .acquiring) }
+
+    /// Ends this Copy early and cleanly, for a Destination that is about to fill. What was captured is
+    /// written and the Stems are finalized; the rest of the Take is a Gap in this Copy. The caller stops
+    /// feeding the ring first.
+    func retire() {
+        retired.store(true, ordering: .releasing)
+        stop()
+    }
+
     /// Drains whatever is left, finalizes every Stem and waits for the thread to finish.
-    func stop() throws {
+    /// A failed Copy doesn't throw: it's reported through `hasFailed`.
+    func stop() {
         running.store(false, ordering: .releasing)
+        if done.load(ordering: .acquiring) { return }  // already stopped
         finished.wait()
-        if let error = failure.withLock({ $0 }) { throw error }
     }
 
     private func run() {
         do {
             // Commit once up front so even a Take that dies early leaves files that open.
             for stem in stems { try stem.commitHeader() }
-            while true {
+            let joined = try waitForJoin()
+            while joined {
                 let stillRunning = running.load(ordering: .acquiring)
                 if let markers = pendingMarkers.withLock({ pending in defer { pending = nil }; return pending }) {
                     for stem in stems { try stem.setMarkers(markers) }
@@ -65,9 +98,36 @@ final class TakeWriter: @unchecked Sendable {
             }
             for stem in stems { try stem.finalize() }
         } catch {
-            failure.withLock { $0 = error }
+            failed.store(true, ordering: .releasing)
+            onFailure()
+            ring.discardAll()
+            // Close what can be closed, so the Stems that did get written open.
+            for stem in stems { try? stem.finalize() }
         }
+        done.store(true, ordering: .releasing)
         finished.signal()
+    }
+
+    /// A Copy that joins mid-Take waits for the real-time thread to say which Take frame it starts at,
+    /// then writes silence up to it. Returns false if the Take stopped first.
+    private func waitForJoin() throws -> Bool {
+        while ring.joinFrame.load(ordering: .acquiring) < 0 {
+            if !running.load(ordering: .acquiring) { return false }
+            Thread.sleep(forTimeInterval: 0.002)
+        }
+        let join = ring.joinFrame.load(ordering: .acquiring)
+        let start = framesWritten
+        if join > start { gapRanges.withLock { $0.append(start..<join) } }
+        let silence = [Float](repeating: 0, count: 4096)
+        for stem in stems {
+            var remaining = join - Int(stem.frameCount)
+            while remaining > 0 {
+                let count = min(remaining, silence.count)
+                try silence.withUnsafeBufferPointer { try stem.append(UnsafeBufferPointer(rebasing: $0[..<count])) }
+                remaining -= count
+            }
+        }
+        return true
     }
 
     private func drainOnce() throws -> Int {

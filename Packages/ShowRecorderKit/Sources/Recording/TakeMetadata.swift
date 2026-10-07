@@ -30,6 +30,23 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     /// Markers placed during the Take, in the order they were placed.
     public var markers: [Marker] = []
 
+    /// Stretches of the Take missing from one Copy, held there as silence, in order.
+    public var gaps: [Gap] = []
+
+    /// A stretch of the Take, in samples from its start, missing from one Copy.
+    public struct Gap: Codable, Equatable, Sendable {
+        /// "device" or "drive".
+        public var copy: String
+        public var start: Int
+        public var end: Int
+
+        public init(copy: String, start: Int, end: Int) {
+            self.copy = copy
+            self.start = start
+            self.end = end
+        }
+    }
+
     /// A named point in the Take, in samples from its start.
     public struct Marker: Codable, Equatable, Sendable {
         public enum Origin: String, Codable, Sendable {
@@ -50,7 +67,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     static let fileName = "Take.json"
 
     enum CodingKeys: String, CodingKey {
-        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers
+        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps
     }
 
     public init(from decoder: any Decoder) throws {
@@ -62,6 +79,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         timeReference = try c.decode(UInt64.self, forKey: .timeReference)
         usbChannels = try c.decode([USBChannel].self, forKey: .usbChannels)
         markers = try c.decodeIfPresent([Marker].self, forKey: .markers) ?? []  // Takes recorded before Markers existed
+        gaps = try c.decodeIfPresent([Gap].self, forKey: .gaps) ?? []  // Takes recorded before Gaps existed
     }
 
     init(show: String, take: Int, startedAt: Date, sampleRate: Int, timeReference: UInt64, usbChannels: [USBChannel], markers: [Marker] = []) {

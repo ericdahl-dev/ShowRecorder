@@ -14,6 +14,11 @@ You don't need a dedicated recording laptop. Plug a multichannel USB mixer or au
   - One mono 24-bit, 48 kHz Broadcast WAV Stem per USB Channel, in `Show / Take NN / Stems` folders.
   - Each Stem's bext chunk carries its Source name and a time reference shared by every Stem in the Take.
 - **Crash-safe files:** headers are committed every 2 seconds, so if the app is killed or loses power, the Stems still play up to the last commit. Stems switch to RF64 before they pass 4 GB.
+- **Keeps recording when a Destination fails:**
+  - With no Drive at record, the Take starts on the Device with a warning, and the Drive joins when it appears.
+  - If the Device or Drive fails mid-Take, the other carries on, and the failed Copy picks up again when it comes back.
+  - Each Gap is held as silence so Stems stay aligned, and is listed in `Take.json` and the report.
+  - The Take finalizes with 60 s of space left on the last healthy Destination.
 - **Any multichannel USB input:** every channel the device sends is recorded, with no fixed channel count.
 - **Mixer Link over Wi-Fi** (X-Air mixers today):
   - Enter the mixer's IP and each meter shows its Source's name and color.
@@ -27,7 +32,7 @@ You don't need a dedicated recording laptop. Plug a multichannel USB mixer or au
   - On iPhone and iPad, the current USB route.
   - Recording continues with the screen locked, in the background and through interruptions.
 
-Not built yet: writing to the SSD and the phone at the same time, Gaps and Repair, pre-roll, markers, Templates, Mixer Triggers, the Show list and sharing. See the [open issues](https://github.com/ericdahl-dev/ShowRecorder/issues).
+Not built yet: writing to the SSD and the phone at the same time, Repair, pre-roll, markers, Templates, Mixer Triggers, the Show list and sharing. See the [open issues](https://github.com/ericdahl-dev/ShowRecorder/issues).
 
 ## The rig
 

@@ -56,6 +56,15 @@ public struct Show: Sendable, Equatable {
         driveFolder = folder
     }
 
+    /// Starts writing the running Take to the Drive folder `parent` too: the Show folder there (under
+    /// the same name) and a folder for the current Take. Returns that Take folder.
+    mutating func joinDrive(_ parent: URL) throws -> URL {
+        try useDrive(parent)
+        let takeFolder = driveFolder!.appending(path: String(format: "Take %02d", takeCount), directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: takeFolder, withIntermediateDirectories: false)
+        return takeFolder
+    }
+
     /// Creates "Take NN" for the next Take in every Copy and returns the folders, the Device first.
     mutating func createNextTakeFolder() throws -> [URL] {
         takeCount += 1
