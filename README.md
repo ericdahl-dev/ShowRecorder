@@ -107,7 +107,7 @@ If an upload fails, open the run's **Archive**, **Check the archive** or **Uploa
 |---|---|
 | Preflight `FAIL:` line | Something App Store Connect would reject (icon, privacy manifest, compliance key, version). Run `scripts/preflight.sh` locally and fix it. |
 | `Authentication failed` or `401` | The key, issuer or `.p8` secret is wrong, or the key was revoked. Make a new key and update the secrets. |
-| `No profiles for 'dev.ericdahl.ShowRecorder'` | The key's role can't manage signing. It needs App Manager or Admin. |
+| `Cloud signing permission error` / `No profiles for 'dev.ericdahl.ShowRecorder'` | Cloud-managed signing needs an **Admin** API key; App Manager can upload but can't create the distribution certificate. A key's role can't be edited, so create a new Admin key and update `ASC_KEY_ID` and `ASC_KEY_P8`. |
 | `bundle version must be higher` | A build with that number already exists. Re-run the workflow; the attempt number raises it. |
 | `Tag ... is not on main` | Merge first, then tag the merged commit. |
 
