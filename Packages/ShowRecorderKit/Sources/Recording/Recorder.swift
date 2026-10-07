@@ -94,7 +94,7 @@ public final class Recorder {
                 info: .init(sampleRate: sampleRate, description: name, originator: "ShowRecorder", timeReference: timeReference, originationDate: date))
         }
 
-        let writer = TakeWriter(ring: capture.ring, stems: stems)
+        let writer = TakeWriter(ring: capture.ring, stems: stems, commitInterval: sampleRate * 2)
         capture.ring.discardAll()
         writer.start()
         capture.isCapturing.store(true, ordering: .releasing)

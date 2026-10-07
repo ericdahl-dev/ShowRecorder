@@ -43,4 +43,36 @@ struct FullSessionTests {
         }
         #expect(recorder.droppedFrameCount == 0)
     }
+
+    @Test("While a Take runs, Stems on disk already play the audio up to the last header commit")
+    func stemsPlayMidTake() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "FullSessionTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let device = FakeAudioDevice(inputChannelCount: 2)
+        let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
+        try recorder.arm(device)
+        func value(_ channel: Int, _ frame: Int) -> Float { Float(channel * 400_000 + frame) / 8_388_608 }
+
+        try recorder.startTake()
+        // 3 seconds: past the 2-second commit interval.
+        for block in 0..<(48_000 * 3 / 480) {
+            device.deliver((0..<2).map { channel in (0..<480).map { value(channel, block * 480 + $0) } })
+        }
+
+        // The app "dies" here: no stopTake. Read what's on disk, as after a crash.
+        let take = root.appending(path: "2026-10-06 Show/Take 01")
+        var stems: [[Float]] = []
+        for _ in 0..<500 {
+            stems = ["01 USB 01", "02 USB 02"].map {
+                (try? readWithCoreAudio(take.appending(path: "\($0).wav"))) ?? []
+            }
+            if stems.allSatisfy({ $0.count >= 96_000 }) { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        for (channel, samples) in stems.enumerated() {
+            #expect(samples.count >= 96_000, "channel \(channel + 1) has at least 2 s committed")
+            #expect(samples == (0..<samples.count).map { value(channel, $0) }, "channel \(channel + 1) content")
+        }
+        try recorder.stopTake()
+    }
 }
