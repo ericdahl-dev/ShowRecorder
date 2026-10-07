@@ -52,6 +52,37 @@ public final class Recorder {
         isArmed = true
     }
 
+    /// Restarts input on the Armed device after the system stopped it (an audio session
+    /// interruption), without ending a running Take.
+    ///
+    /// Frames the device never delivered while it was stopped are not in the Take: the Stems carry
+    /// on from the next frame that arrives.
+    public func restartInput() throws {
+        guard let device, let capture else { throw RecorderError.notArmed }
+        try device.start(input: { block in capture.receive(block) })
+    }
+
+    /// Moves input to `replacement` (for example a freshly configured device after the system
+    /// reset its media services).
+    ///
+    /// When `replacement` has the same USB Channel count and sample rate, the running Take carries
+    /// on into the same Stems and this returns `true`. Otherwise the Take is stopped and finalized,
+    /// the recorder Arms on `replacement`, and this returns `false`.
+    @discardableResult
+    public func restartInput(on replacement: any AudioIODevice) throws -> Bool {
+        guard let device, let capture,
+              replacement.inputChannelCount == capture.ring.channelCount,
+              replacement.sampleRate == device.sampleRate
+        else {
+            try arm(replacement)
+            return false
+        }
+        device.stop()
+        self.device = replacement
+        try replacement.start(input: { block in capture.receive(block) })
+        return true
+    }
+
     /// Stops any Take, stops the device and clears the meters.
     public func disarm() {
         if isRecording { try? stopTake() }
