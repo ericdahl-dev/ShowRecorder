@@ -1,4 +1,3 @@
-#if DEBUG
 import AudioIO
 import Foundation
 
@@ -42,4 +41,3 @@ final class DemoAudioDevice: AudioIODevice, @unchecked Sendable {
         fake.stop()
     }
 }
-#endif
