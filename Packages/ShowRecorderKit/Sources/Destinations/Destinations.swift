@@ -58,6 +58,12 @@ public struct Drive: Equatable, Sendable {
     public var name: String
     /// Free space on the Drive's volume.
     public var availableBytes: Int64
+
+    public init(folder: URL, name: String, availableBytes: Int64) {
+        self.folder = folder
+        self.name = name
+        self.availableBytes = availableBytes
+    }
 }
 
 public enum DriveProblem: Error, Equatable, Sendable {
