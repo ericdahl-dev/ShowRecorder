@@ -116,6 +116,29 @@ struct ReaperProjectTests {
         }
     }
 
+    @Test("A Take with Pre-roll is placed from the start of its Pre-roll, and its Markers are on the same timeline as its Stems")
+    func preRollTake() throws {
+        let armed = FakeAudioDevice(inputChannelCount: 3)
+        let withPreRoll = Recorder(deviceFolder: root, now: { Self.showDay }, preRollSeconds: 1)
+        try withPreRoll.arm(armed)
+        func deliver(_ frames: Int) { armed.deliver(Array(repeating: Array(repeating: 0, count: frames), count: 3)) }
+        deliver(48_000)  // 1 s while Armed
+        try withPreRoll.startTake()
+        deliver(12_000)
+        withPreRoll.addMarker(named: "Chorus")  // 0.25 s after the press
+        deliver(12_000)
+        try withPreRoll.stopTake()
+
+        let rpp = try project()
+        let track = try #require(rpp.children("TRACK").first)
+        let item = try #require(track.children("ITEM").first)
+        #expect(item.double("POSITION") == 0)
+        #expect(item.double("LENGTH") == 1.5, "1 s of Pre-roll and 0.5 s recorded")
+        let markers = rpp.all("MARKER")
+        #expect(markers.map { $0[2] } == ["Take 01", "Chorus"])
+        #expect(markers.map { Double($0[1]) } == [0, 1.25], "the Marker is 1.25 s into the Stem, 0.25 s after the press")
+    }
+
     @Test("A project marker sits at the start of each Take")
     func markerAtEachTakeStart() throws {
         try recordTake(frames: 24_000, sources: [])
