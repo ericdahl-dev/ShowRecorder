@@ -34,7 +34,7 @@ let package = Package(
         .testTarget(name: "MixerLinkTests", dependencies: ["MixerLink", "OSC"]),
         .testTarget(name: "RecordingTests", dependencies: ["Recording", "AudioIO", "MixerLink"]),
         .testTarget(name: "BroadcastWaveTests", dependencies: ["BroadcastWave"]),
-        .testTarget(name: "ShowReportTests", dependencies: ["ShowReport", "Recording", "AudioIO", "MixerLink"]),
+        .testTarget(name: "ShowReportTests", dependencies: ["ShowReport", "Recording", "AudioIO", "MixerLink", "BroadcastWave"]),
         .testTarget(name: "ProjectExportTests", dependencies: ["ProjectExport", "Recording", "AudioIO", "MixerLink"]),
     ]
 )
