@@ -99,4 +99,18 @@ struct SampleRingDropTests {
         #expect(ring.takeUnloggedDroppedFrames() == 200, "the third is kept as a total")
         #expect(ring.takeUnloggedDroppedFrames() == 0, "and handed over once")
     }
+
+    @Test("Discarding the ring forgets its drops too, so the next Take doesn't inherit them")
+    func discardForgetsDrops() {
+        let ring = SampleRing(channelCount: 1, capacity: 1_000, dropLogCapacity: 1)
+        write(800, to: ring)
+        write(300, to: ring)  // logged
+        drain(800, from: ring)
+        write(900, to: ring)
+        write(300, to: ring)  // not logged: the log is full
+
+        ring.discardAll()
+        #expect(ring.nextDrop(final: true) == nil)
+        #expect(ring.takeUnloggedDroppedFrames() == 0)
+    }
 }

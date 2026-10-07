@@ -110,6 +110,9 @@ final class TakeWriter: @unchecked Sendable {
                     Thread.sleep(forTimeInterval: 0.005)
                 }
             }
+            // Audio dropped while the ring's log was full has no position: its silence goes at the end.
+            let unlogged = ring.takeUnloggedDroppedFrames()
+            if didJoin, unlogged > 0 { try writeSilence(unlogged) }
             for stem in stems { try stem.finalize() }
         } catch {
             failed.store(true, ordering: .releasing)
@@ -151,9 +154,33 @@ final class TakeWriter: @unchecked Sendable {
         return true
     }
 
+    /// Writes what the ring holds. Where the ring had to drop audio, writes silence of the lost length
+    /// instead, at that place in the stream, so every Stem stays as long as the Take.
     private func drainOnce() throws -> Int {
-        try ring.consume(maxFrames: 4096) { channel, samples in
+        var limit = 4096
+        if let drop = ring.nextDrop(final: !running.load(ordering: .acquiring)) {
+            let before = drop.storedFrames - ring.consumedFrames
+            if before <= 0 {
+                try writeSilence(drop.length)
+                ring.consumeDrop()
+                return drop.length
+            }
+            limit = min(limit, before)  // read up to the drop, not past it
+        }
+        return try ring.consume(maxFrames: limit) { channel, samples in
             try stems[channel].append(samples)
+        }
+    }
+
+    private func writeSilence(_ frames: Int) throws {
+        let silence = [Float](repeating: 0, count: 4096)
+        for stem in stems {
+            var remaining = frames
+            while remaining > 0 {
+                let count = min(remaining, silence.count)
+                try silence.withUnsafeBufferPointer { try stem.append(UnsafeBufferPointer(rebasing: $0[..<count])) }
+                remaining -= count
+            }
         }
     }
 }
