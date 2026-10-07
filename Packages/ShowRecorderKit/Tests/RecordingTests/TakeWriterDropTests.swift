@@ -107,4 +107,23 @@ struct TakeWriterDropTests {
 
         #expect(stem.samples == [Float](repeating: 0, count: 300) + (1_100..<2_000).map(Float.init) + [Float](repeating: 0, count: 300))
     }
+
+    @Test("The writer remembers where it wrote silence for dropped audio, on the Take's timeline")
+    func remembersDropouts() {
+        let ring = SampleRing(channelCount: 1, capacity: 1_000)
+        let gate = DispatchSemaphore(value: 0)
+        let writer = TakeWriter(ring: ring, stems: [MemoryStem(gate: gate)], commitInterval: 48_000)
+        ring.joinFrame.store(0, ordering: .releasing)
+        write(ring, from: 0, count: 800)
+        writer.start()
+        waitUntil { ring.availableFrames == 800 }
+        #expect(writer.dropouts.isEmpty)
+
+        write(ring, from: 800, count: 300)
+        gate.signal()
+        waitUntil { ring.availableFrames == 0 }
+        write(ring, from: 1_100, count: 100)
+        writer.stop()
+        #expect(writer.dropouts == [800..<1_100])
+    }
 }

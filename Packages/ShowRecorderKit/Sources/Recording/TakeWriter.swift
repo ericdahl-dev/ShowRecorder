@@ -21,6 +21,10 @@ final class TakeWriter: @unchecked Sendable {
     private var framesSinceCommit = 0
     /// Stretches written as silence because this Copy joined late, as Take frames.
     private let gapRanges: Mutex<[Range<Int>]>
+    /// Stretches written as silence because the ring dropped that audio, as Take frames.
+    private let dropoutRanges = Mutex<[Range<Int>]>([])
+    /// The operator's Markers, last set by `setMarkers`. Only the writer thread uses it.
+    private var operatorMarkers: [StemMarker] = []
     /// Markers waiting to be written into the Stems by the writer thread.
     private let pendingMarkers = Mutex<[StemMarker]?>(nil)
     /// Where the Copy's first frames come from, when it starts with Pre-roll: asked once, after the
@@ -40,8 +44,8 @@ final class TakeWriter: @unchecked Sendable {
         self.commitInterval = commitInterval
     }
 
-    /// Replaces the Stems' Markers. Applied on the writer thread before its next write, and on disk
-    /// from the next header commit.
+    /// Replaces the operator's Markers in the Stems (the writer adds Dropout Markers itself). Applied on the
+    /// writer thread before its next write, and on disk from the next header commit.
     func setMarkers(_ markers: [StemMarker]) {
         pendingMarkers.withLock { $0 = markers }
     }
@@ -62,6 +66,9 @@ final class TakeWriter: @unchecked Sendable {
 
     /// Samples in each Stem, in channel order. Read once the writer has stopped.
     var stemFrameCounts: [UInt64] { stems.map(\.frameCount) }
+
+    /// Stretches written as silence because the ring had no room for that audio.
+    var dropouts: [Range<Int>] { dropoutRanges.withLock { $0 } }
 
     /// Whether the writer thread has finished, so its files are closed and can be reopened.
     var isFinished: Bool { done.load(ordering: .acquiring) }
@@ -97,9 +104,12 @@ final class TakeWriter: @unchecked Sendable {
             while didJoin {
                 let stillRunning = running.load(ordering: .acquiring)
                 if let markers = pendingMarkers.withLock({ pending in defer { pending = nil }; return pending }) {
-                    for stem in stems { try stem.setMarkers(markers) }
+                    operatorMarkers = markers
+                    try writeMarkers()
                 }
+                let dropoutsBefore = dropoutRanges.withLock { $0.count }
                 let drained = try drainOnce()
+                if dropoutRanges.withLock({ $0.count }) != dropoutsBefore { try writeMarkers() }
                 framesSinceCommit += drained
                 if framesSinceCommit >= commitInterval {
                     for stem in stems { try stem.commitHeader() }
@@ -112,7 +122,10 @@ final class TakeWriter: @unchecked Sendable {
             }
             // Audio dropped while the ring's log was full has no position: its silence goes at the end.
             let unlogged = ring.takeUnloggedDroppedFrames()
-            if didJoin, unlogged > 0 { try writeSilence(unlogged) }
+            if didJoin, unlogged > 0 {
+                try writeDropout(unlogged)
+                try writeMarkers()
+            }
             for stem in stems { try stem.finalize() }
         } catch {
             failed.store(true, ordering: .releasing)
@@ -161,7 +174,7 @@ final class TakeWriter: @unchecked Sendable {
         if let drop = ring.nextDrop(final: !running.load(ordering: .acquiring)) {
             let before = drop.storedFrames - ring.consumedFrames
             if before <= 0 {
-                try writeSilence(drop.length)
+                try writeDropout(drop.length)
                 ring.consumeDrop()
                 return drop.length
             }
@@ -170,6 +183,20 @@ final class TakeWriter: @unchecked Sendable {
         return try ring.consume(maxFrames: limit) { channel, samples in
             try stems[channel].append(samples)
         }
+    }
+
+    /// Puts the operator's Markers and a "Dropout" Marker at each stretch this Copy lost into every Stem.
+    private func writeMarkers() throws {
+        let dropoutMarkers = dropouts.map { StemMarker(position: UInt32(clamping: $0.lowerBound), label: "Dropout") }
+        let all = (operatorMarkers + dropoutMarkers).sorted { $0.position < $1.position }
+        for stem in stems { try stem.setMarkers(all) }
+    }
+
+    /// Writes silence for audio the ring dropped, and remembers where.
+    private func writeDropout(_ frames: Int) throws {
+        let start = framesWritten
+        try writeSilence(frames)
+        dropoutRanges.withLock { $0.append(start..<start + frames) }
     }
 
     private func writeSilence(_ frames: Int) throws {

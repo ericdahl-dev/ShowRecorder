@@ -51,6 +51,22 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         }
     }
 
+    /// Stretches of one Copy that were lost because its writer couldn't keep up, written as silence of the
+    /// exact length so the Stems stay as long as the Take. Unlike a Gap, Repair doesn't fill them (yet).
+    public var dropouts: [Dropout] = []
+
+    public struct Dropout: Codable, Equatable, Sendable {
+        public var copy: DestinationKind
+        public var start: Int
+        public var end: Int
+
+        public init(copy: DestinationKind, start: Int, end: Int) {
+            self.copy = copy
+            self.start = start
+            self.end = end
+        }
+    }
+
     /// What Repair did about each Gap, once the Take had ended.
     public var repairs: [Repair] = []
 
@@ -86,6 +102,8 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     public struct Marker: Codable, Equatable, Sendable {
         public enum Origin: String, Codable, Sendable {
             case `operator`
+            /// Placed by the recorder where a Copy's audio was lost.
+            case dropout
         }
 
         public var position: Int
@@ -102,7 +120,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     static let fileName = "Take.json"
 
     enum CodingKeys: String, CodingKey {
-        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames
+        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts
     }
 
     public init(from decoder: any Decoder) throws {
@@ -117,6 +135,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         gaps = try c.decodeIfPresent([Gap].self, forKey: .gaps) ?? []  // Takes recorded before Gaps existed
         repairs = try c.decodeIfPresent([Repair].self, forKey: .repairs) ?? []
         preRollFrames = try c.decodeIfPresent(Int.self, forKey: .preRollFrames)
+        dropouts = try c.decodeIfPresent([Dropout].self, forKey: .dropouts) ?? []  // Takes recorded before Dropouts existed
     }
 
     init(show: String, take: Int, startedAt: Date, sampleRate: Int, timeReference: UInt64, usbChannels: [USBChannel], markers: [Marker] = []) {

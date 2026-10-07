@@ -238,4 +238,52 @@ struct TakeSessionTests {
             #expect(try decoder.decode(TakeMetadata.self, from: json).markers == [marker])
         }
     }
+
+    @Test("Audio the ring dropped becomes a Dropout in Take.json and a Dropout Marker where it was lost")
+    func dropoutRecorded() async throws {
+        let session = try session()
+        try await deliver(480)
+        try await deliver(200_000)  // more than a ring holds: dropped
+        try await deliver(480)
+        let finished = session.finish()
+
+        #expect(finished.metadata.dropouts == [.init(copy: .device, start: 480, end: 200_480)])
+        #expect(finished.metadata.markers == [.init(position: 480, name: "Dropout", origin: .dropout)])
+        // The Stem is as long as the Take: the silence is in it, and the Marker is in its cue points.
+        let stemURL = finished.folders[0].appending(path: "01 USB 01.wav")
+        #expect(try StemFile(contentsOf: stemURL).samples.count == 200_960)
+        #expect(try cuePoints(stemURL) == [CuePoint(position: 480, label: "Dropout")])
+    }
+
+    @Test("Dropout Markers don't count in the operator's Marker numbering")
+    func operatorMarkerNumberingSkipsDropouts() async throws {
+        let session = try session()
+        try await deliver(480)
+        try await deliver(200_000)
+        try await deliver(480)
+        // The writer thread notes the drop a moment after the audio is delivered.
+        try await waitUntil { !session.copies[0].writer.dropouts.isEmpty }
+        _ = session.checkDestinations(drive: { nil })
+        #expect(session.metadata.markers.map(\.origin) == [.dropout])
+
+        let marker = session.addMarker()
+        #expect(marker.name == "Marker 1")
+        _ = session.finish()
+    }
+
+    @Test("Both Copies losing the same stretch is two Dropouts in Take.json but one Marker")
+    func bothCopiesOneMarker() async throws {
+        let session = try session()
+        try await deliver(480)
+        let drive = drive
+        _ = session.checkDestinations(drive: { DestinationAccess(folder: drive) })
+        try await deliver(480)  // the Drive joins
+        try await deliver(200_000)  // both rings drop it
+        try await deliver(480)
+        let finished = session.finish()
+
+        #expect(finished.metadata.dropouts.map(\.copy) == [.device, .drive])
+        #expect(Set(finished.metadata.dropouts.map(\.start)).count == 1)
+        #expect(finished.metadata.markers.filter { $0.origin == .dropout }.count == 1)
+    }
 }
