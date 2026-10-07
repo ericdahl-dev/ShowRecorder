@@ -23,8 +23,16 @@ final class TakeWriter: @unchecked Sendable {
     private let gapRanges: Mutex<[Range<Int>]>
     /// Markers waiting to be written into the Stems by the writer thread.
     private let pendingMarkers = Mutex<[StemMarker]?>(nil)
+    /// Where the Copy's first frames come from, when it starts with Pre-roll: asked once, after the
+    /// real-time thread has said which Take frame the live audio starts at. Returns one array of samples
+    /// per channel, as long as the frames before that point, or nil if they are no longer there.
+    private let head: (() -> [[Float]]?)?
 
-    init(ring: SampleRing, stems: [any StemSink], commitInterval: Int, onFailure: @escaping @Sendable () -> Void = {}, priorGaps: [Range<Int>] = []) {
+    init(
+        ring: SampleRing, stems: [any StemSink], commitInterval: Int, onFailure: @escaping @Sendable () -> Void = {},
+        priorGaps: [Range<Int>] = [], head: (() -> [[Float]]?)? = nil
+    ) {
+        self.head = head
         gapRanges = Mutex(priorGaps)
         self.onFailure = onFailure
         self.ring = ring
@@ -123,6 +131,12 @@ final class TakeWriter: @unchecked Sendable {
         }
         let join = ring.joinFrame.load(ordering: .acquiring)
         joined.store(true, ordering: .releasing)
+        if let head, join > 0, framesWritten == 0, let samples = head(), samples.count == stems.count,
+           samples.allSatisfy({ $0.count == join }) {
+            for (index, stem) in stems.enumerated() {
+                try samples[index].withUnsafeBufferPointer { try stem.append($0) }
+            }
+        }
         let start = framesWritten
         if join > start { gapRanges.withLock { $0.append(start..<join) } }
         let silence = [Float](repeating: 0, count: 4096)

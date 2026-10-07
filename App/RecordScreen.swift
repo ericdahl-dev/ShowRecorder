@@ -481,9 +481,10 @@ final class RecordScreenModel {
         let drive = DriveFolderModel()
         let store = drive.store
         self.drive = drive
+        // Pre-roll is 10 s for now; #110 makes it a setting.
         recorder = Recorder(driveFolder: {
             store.beginAccess().map { access in DestinationAccess(folder: access.folder, release: { access.end() }) }
-        })
+        }, preRollSeconds: 10)
         mixerAddress = UserDefaults.standard.string(forKey: Self.mixerAddressKey) ?? ""
         devices = Self.availableDevices()
         selectedDeviceID = devices.first?.id

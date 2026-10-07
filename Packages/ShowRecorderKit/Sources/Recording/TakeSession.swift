@@ -57,7 +57,7 @@ final class TakeSession {
     /// and starts capturing. `drive` is the access held for the Drive Copy, when there is one.
     init(
         show: Show, folders: [URL], drive: DestinationAccess?, metadata: TakeMetadata, stems: [StemSpec],
-        info: StemWriter.Info, capture: Capture,
+        info: StemWriter.Info, capture: Capture, preRollFrames: Int = 0,
         makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink,
         freeSpace: @escaping (URL) -> Int64
     ) throws {
@@ -70,6 +70,14 @@ final class TakeSession {
         self.freeSpace = freeSpace
 
         // One writer per Copy, each draining its own ring, so a slow Drive never holds up the Device.
+        // With Pre-roll each Copy waits for the real-time thread's first block, then writes the Pre-roll
+        // before the live audio.
+        let head: (() -> [[Float]]?)? = preRollFrames > 0 && capture.preRoll != nil
+            ? { [capture] in
+                let start = capture.preRollStart.load(ordering: .acquiring)
+                guard start >= preRollFrames else { return nil }
+                return capture.preRoll?.read(frames: (start - preRollFrames)..<start)
+            } : nil
         var records: [CopyRecord] = []
         for (index, folder) in folders.enumerated() {
             let kind = DestinationKind(index: index)
@@ -77,12 +85,12 @@ final class TakeSession {
             try metadata.write(to: folder)
             records.append(CopyRecord(
                 kind: kind, folder: folder, ring: capture.rings[index],
-                writer: makeWriter(ring: capture.rings[index], kind: kind, stems: sinks),
+                writer: makeWriter(ring: capture.rings[index], kind: kind, stems: sinks, head: head),
                 access: kind == .drive ? drive : nil))
         }
-        for record in records { begin(record.writer, on: record.ring, joinFrame: 0) }
+        for record in records { begin(record.writer, on: record.ring, joinFrame: head == nil ? 0 : -1) }
         copies = records
-        capture.startCapturing(copies: records.count)
+        capture.startCapturing(copies: records.count, preRollFrames: head == nil ? 0 : preRollFrames)
     }
 
     /// Places a Marker at the Take's current sample position (frames written so far), in every Stem
@@ -161,7 +169,8 @@ final class TakeSession {
         capture.stopCapturing()
         var statuses = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.map { ($0, status($0)) })
         for copy in copies { copy.writer.stop() }
-        persistGaps(takeEnd: capture.takeFrameCount)
+        // A Take whose Copies were never fed a first block is empty, not missing everything.
+        persistGaps(takeEnd: capture.awaitingFirstBlock ? 0 : capture.takeFrameCount)
         for copy in copies where statuses[copy.kind] == .recording && copy.writer.hasFailed {
             // A Copy can fail while its writer drains at stop.
             statuses[copy.kind] = .interrupted
@@ -217,11 +226,14 @@ final class TakeSession {
 
     // MARK: - Helpers
 
-    private func makeWriter(ring: SampleRing, kind: DestinationKind, stems sinks: [any StemSink], priorGaps: [Range<Int>] = []) -> TakeWriter {
+    private func makeWriter(
+        ring: SampleRing, kind: DestinationKind, stems sinks: [any StemSink], priorGaps: [Range<Int>] = [],
+        head: (() -> [[Float]]?)? = nil
+    ) -> TakeWriter {
         TakeWriter(ring: ring, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] in
             capture.disable(copy: kind.index)
             Task { @MainActor in self?.onCopyFailed() }
-        }, priorGaps: priorGaps)
+        }, priorGaps: priorGaps, head: head)
     }
 
     /// Empties `ring`, says which Take frame its Copy starts at (-1 until the real-time thread picks
