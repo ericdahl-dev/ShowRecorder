@@ -10,7 +10,7 @@ import Foundation
 /// promoted to RF64 (EBU Tech 3306): `RIFF` becomes `RF64`, `JUNK` becomes `ds64` holding the
 /// 64-bit sizes, and the 32-bit RIFF and data sizes are set to 0xFFFFFFFF. The Take keeps
 /// recording into the same file with no gap.
-public final class StemWriter {
+public final class StemWriter: StemSink {
     public struct Info: Sendable {
         public var sampleRate: Int
         /// The Source name, stored as the bext description.
@@ -259,6 +259,15 @@ extension FixedWidthInteger {
     var littleEndianBytes: [UInt8] {
         withUnsafeBytes(of: littleEndian) { Array($0) }
     }
+}
+
+/// What a Take writer needs from a Stem file. `StemWriter` is the real one; tests substitute Stems
+/// that fail, to stand in for a Destination that goes away.
+public protocol StemSink: AnyObject {
+    func append(_ samples: UnsafeBufferPointer<Float>) throws
+    func commitHeader() throws
+    func finalize() throws
+    @discardableResult func setMarkers(_ markers: [StemMarker]) throws -> Int
 }
 
 /// A named point in a Stem, in samples from the start of the Take.

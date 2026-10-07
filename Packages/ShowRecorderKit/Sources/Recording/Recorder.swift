@@ -27,12 +27,15 @@ public final class Recorder {
     @ObservationIgnored private let deviceFolder: URL
     @ObservationIgnored private let driveFolder: () -> DestinationAccess?
     @ObservationIgnored private let now: () -> Date
+    @ObservationIgnored private let makeStem: (URL, StemWriter.Info) throws -> any StemSink
     @ObservationIgnored private var device: (any AudioIODevice)?
     @ObservationIgnored private var capture: Capture?
     @ObservationIgnored private var writers: [TakeWriter] = []
     @ObservationIgnored private var driveAccess: DestinationAccess?
     /// The running Take's metadata and folders (one per Copy), and the ring position it started at.
     @ObservationIgnored private var take: (metadata: TakeMetadata, folders: [URL], startFrame: Int)?
+    /// How each Copy of the last Take ended up, for after it stops.
+    @ObservationIgnored private var finishedCopies: [DestinationKind: CopyStatus] = [:]
 
     /// - Parameters:
     ///   - deviceFolder: where the Device Copy of every Show goes.
@@ -40,8 +43,10 @@ public final class Recorder {
     public init(
         deviceFolder: URL = Recorder.defaultDeviceFolder,
         driveFolder: @escaping () -> DestinationAccess? = { nil },
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        makeStem: @escaping (URL, StemWriter.Info) throws -> any StemSink = { try StemWriter(url: $0, info: $1) }
     ) {
+        self.makeStem = makeStem
         self.deviceFolder = deviceFolder
         self.driveFolder = driveFolder
         self.now = now
@@ -154,12 +159,12 @@ public final class Recorder {
         var writers: [TakeWriter] = []
         for (copy, takeFolder) in takeFolders.enumerated() {
             let stems = try zip(channels, resolved).map { channel, source in
-                try StemWriter(
-                    url: takeFolder.appending(path: channel.stemFile),
-                    info: .init(sampleRate: sampleRate, description: source.name, originator: "ShowRecorder", timeReference: timeReference, originationDate: date))
+                try makeStem(
+                    takeFolder.appending(path: channel.stemFile),
+                    .init(sampleRate: sampleRate, description: source.name, originator: "ShowRecorder", timeReference: timeReference, originationDate: date))
             }
             try metadata.write(to: takeFolder)
-            writers.append(TakeWriter(ring: capture.rings[copy], stems: stems, commitInterval: sampleRate * 2))
+            writers.append(TakeWriter(ring: capture.rings[copy], stems: stems, commitInterval: sampleRate * 2, onFailure: { capture.disable(copy: copy) }))
         }
 
         for (copy, writer) in writers.enumerated() {
@@ -167,6 +172,7 @@ public final class Recorder {
             writer.start()
         }
         take = (metadata, takeFolders, capture.rings[0].totalWrittenFrames)
+        finishedCopies = [:]
         takeMarkers = []
         capture.startCapturing(copies: writers.count)
 
@@ -193,10 +199,20 @@ public final class Recorder {
         for writer in writers { writer.setMarkers(stemMarkers) }
     }
 
+    /// How `kind`'s Copy of the current (or last) Take is doing. A Copy that never started is missing.
+    public func copyStatus(_ kind: DestinationKind) -> CopyStatus {
+        guard isRecording else { return finishedCopies[kind] ?? .missing }
+        let index = kind == .device ? 0 : 1
+        guard writers.indices.contains(index) else { return .missing }
+        return writers[index].hasFailed ? .interrupted : .recording
+    }
+
     /// Stops the Take and waits until every Stem is written and finalized.
+    /// A Copy that failed during the Take doesn't make this throw; see `copyStatus(_:)`.
     public func stopTake() throws {
         guard isRecording, let capture else { return }
         capture.stopCapturing()
+        for kind in [DestinationKind.device, .drive] { finishedCopies[kind] = copyStatus(kind) }
         let writers = self.writers
         self.writers = []
         take = nil
@@ -205,17 +221,32 @@ public final class Recorder {
             driveAccess?.release()
             driveAccess = nil
         }
-        var firstError: (any Error)?
-        for writer in writers {
-            do { try writer.stop() } catch { firstError = firstError ?? error }
+        for writer in writers { writer.stop() }
+        for kind in [DestinationKind.device, .drive] where finishedCopies[kind] == .recording {
+            // A Copy can fail while its writer drains at stop.
+            let index = kind == .device ? 0 : 1
+            if writers.indices.contains(index), writers[index].hasFailed { finishedCopies[kind] = .interrupted }
         }
         // The Takes are safe either way; the report and project are regenerated next time.
         for copy in currentShow?.copies ?? [] {
             try? ShowReport.write(showFolder: copy.folder)
             try? copy.writeProjects()
         }
-        if let firstError { throw firstError }
     }
+}
+
+/// The two places a Take is written.
+public enum DestinationKind: Sendable, Hashable {
+    case device, drive
+}
+
+/// How one Copy of a Take is doing.
+public enum CopyStatus: Sendable, Equatable {
+    case recording
+    /// Its Destination failed mid-Take. The Take carries on in the other Copy.
+    case interrupted
+    /// It never started: no Destination.
+    case missing
 }
 
 public enum RecorderError: Error, Equatable {
@@ -239,7 +270,7 @@ final class Capture: Sendable {
     let meters: PeakMeters
     /// One ring per Copy: the Device, then the Drive.
     let rings: [SampleRing]
-    /// How many Copies are being captured: 0 (not recording), 1 (Device) or 2 (Device and Drive).
+    /// Which Copies are being captured, one bit per ring (bit 0 the Device, bit 1 the Drive); 0 when not recording.
     private let capturing = Atomic<Int>(0)
 
     var channelCount: Int { rings[0].channelCount }
@@ -251,7 +282,12 @@ final class Capture: Sendable {
     }
 
     func startCapturing(copies: Int) {
-        capturing.store(min(copies, rings.count), ordering: .releasing)
+        capturing.store((1 << min(copies, rings.count)) - 1, ordering: .releasing)
+    }
+
+    /// Stops feeding one Copy's ring (its writer failed).
+    func disable(copy: Int) {
+        capturing.bitwiseAnd(~(1 << copy), ordering: .acquiringAndReleasing)
     }
 
     func stopCapturing() {
@@ -261,10 +297,10 @@ final class Capture: Sendable {
     /// Real-time: meter every block, and queue it for each Copy's writer while a Take is running.
     func receive(_ block: AudioBlock) {
         meters.record(block)
-        let copies = capturing.load(ordering: .acquiring)
+        let mask = capturing.load(ordering: .acquiring)
         var copy = 0
-        while copy < copies {
-            rings[copy].write(block)
+        while copy < rings.count {
+            if mask & (1 << copy) != 0 { rings[copy].write(block) }
             copy += 1
         }
     }

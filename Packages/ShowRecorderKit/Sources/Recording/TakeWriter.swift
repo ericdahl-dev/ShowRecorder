@@ -5,10 +5,12 @@ import Synchronization
 /// Drains the ring into one Stem per USB Channel on a dedicated thread, until stopped.
 final class TakeWriter: @unchecked Sendable {
     private let ring: SampleRing
-    private let stems: [StemWriter]
+    private let stems: [any StemSink]
     private let running = Atomic<Bool>(true)
     private let finished = DispatchSemaphore(value: 0)
-    private let failure = Mutex<(any Error)?>(nil)
+    private let failed = Atomic<Bool>(false)
+    /// Called on the writer thread when this Copy fails, so capture can stop feeding it.
+    private let onFailure: @Sendable () -> Void
     private var thread: Thread?
     /// Frames between header commits, so a crash loses at most this much (#6).
     private let commitInterval: Int
@@ -16,7 +18,8 @@ final class TakeWriter: @unchecked Sendable {
     /// Markers waiting to be written into the Stems by the writer thread.
     private let pendingMarkers = Mutex<[StemMarker]?>(nil)
 
-    init(ring: SampleRing, stems: [StemWriter], commitInterval: Int) {
+    init(ring: SampleRing, stems: [any StemSink], commitInterval: Int, onFailure: @escaping @Sendable () -> Void = {}) {
+        self.onFailure = onFailure
         self.ring = ring
         self.stems = stems
         self.commitInterval = commitInterval
@@ -36,11 +39,14 @@ final class TakeWriter: @unchecked Sendable {
         thread.start()
     }
 
+    /// Whether a write failed. The Copy stops there; the Take carries on in the other Copies.
+    var hasFailed: Bool { failed.load(ordering: .acquiring) }
+
     /// Drains whatever is left, finalizes every Stem and waits for the thread to finish.
-    func stop() throws {
+    /// A failed Copy doesn't throw: it's reported through `hasFailed`.
+    func stop() {
         running.store(false, ordering: .releasing)
         finished.wait()
-        if let error = failure.withLock({ $0 }) { throw error }
     }
 
     private func run() {
@@ -65,7 +71,11 @@ final class TakeWriter: @unchecked Sendable {
             }
             for stem in stems { try stem.finalize() }
         } catch {
-            failure.withLock { $0 = error }
+            failed.store(true, ordering: .releasing)
+            onFailure()
+            ring.discardAll()
+            // Close what can be closed, so the Stems that did get written open.
+            for stem in stems { try? stem.finalize() }
         }
         finished.signal()
     }
