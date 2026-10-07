@@ -115,8 +115,7 @@ public final class StemWriter: StemSink {
         return low
     }
 
-    /// Appends samples. Values outside -1...1 are clamped.
-    public func append(_ samples: UnsafeBufferPointer<Float>) throws {
+    private func encode(_ samples: UnsafeBufferPointer<Float>) {
         bytes.removeAll(keepingCapacity: true)
         bytes.reserveCapacity(samples.count * 3)
         for sample in samples {
@@ -125,6 +124,32 @@ public final class StemWriter: StemSink {
             bytes.append(UInt8(truncatingIfNeeded: value >> 8))
             bytes.append(UInt8(truncatingIfNeeded: value >> 16))
         }
+    }
+
+    /// Replaces samples already written, starting at `frame`, without moving the write position.
+    /// Used by Repair to fill a Gap in place.
+    public func overwrite(_ samples: UnsafeBufferPointer<Float>, atFrame frame: UInt64) throws {
+        precondition(frame + UInt64(samples.count) <= frameCount, "overwrite past the end of the Stem")
+        encode(samples)
+        let end = try handle.offset()
+        try handle.seek(toOffset: UInt64(Self.dataStart) + frame * 3)
+        try handle.write(contentsOf: bytes)
+        try handle.seek(toOffset: end)
+    }
+
+    /// Samples in the Stem file at `url`, from its size, or nil if it can't be read. Counts only whole
+    /// samples, so a half-written one or the padding byte after an odd count is ignored.
+    public static func frameCount(of url: URL) -> UInt64? {
+        guard let size = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? UInt64, size >= UInt64(dataStart) else { return nil }
+        return (size - UInt64(dataStart)) / 3
+    }
+
+    /// Where the audio starts in every Stem: the header is the same length for all of them.
+    static let dataStart = header(info: Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: Date(timeIntervalSince1970: 0))).bytes.count
+
+    /// Appends samples. Values outside -1...1 are clamped.
+    public func append(_ samples: UnsafeBufferPointer<Float>) throws {
+        encode(samples)
         try promoteIfNeeded(riffEnd: try handle.offset() + UInt64(bytes.count))
         try handle.write(contentsOf: bytes)
         frameCount += UInt64(samples.count)

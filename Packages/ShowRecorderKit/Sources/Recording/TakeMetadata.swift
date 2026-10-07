@@ -47,6 +47,37 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         }
     }
 
+    /// What Repair did about each Gap, once the Take had ended.
+    public var repairs: [Repair] = []
+
+    public struct Repair: Codable, Equatable, Sendable {
+        public enum Outcome: String, Codable, Sendable {
+            case repaired
+            /// The other Copy didn't have those samples either, or they couldn't be copied.
+            case failed
+        }
+
+        public var copy: String
+        public var start: Int
+        public var end: Int
+        public var outcome: Outcome
+
+        public init(copy: String, start: Int, end: Int, outcome: Outcome) {
+            self.copy = copy
+            self.start = start
+            self.end = end
+            self.outcome = outcome
+        }
+    }
+
+    /// How a Copy of the Take ended up, from its Gaps and what Repair did about them.
+    public func outcome(ofCopy copy: String) -> CopyOutcome {
+        guard gaps.contains(where: { $0.copy == copy }) else { return .complete }
+        let results = repairs.filter { $0.copy == copy }
+        if results.isEmpty { return .hasGaps }
+        return results.contains { $0.outcome != .repaired } ? .repairFailed : .repaired
+    }
+
     /// A named point in the Take, in samples from its start.
     public struct Marker: Codable, Equatable, Sendable {
         public enum Origin: String, Codable, Sendable {
@@ -67,7 +98,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     static let fileName = "Take.json"
 
     enum CodingKeys: String, CodingKey {
-        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps
+        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs
     }
 
     public init(from decoder: any Decoder) throws {
@@ -80,6 +111,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         usbChannels = try c.decode([USBChannel].self, forKey: .usbChannels)
         markers = try c.decodeIfPresent([Marker].self, forKey: .markers) ?? []  // Takes recorded before Markers existed
         gaps = try c.decodeIfPresent([Gap].self, forKey: .gaps) ?? []  // Takes recorded before Gaps existed
+        repairs = try c.decodeIfPresent([Repair].self, forKey: .repairs) ?? []
     }
 
     init(show: String, take: Int, startedAt: Date, sampleRate: Int, timeReference: UInt64, usbChannels: [USBChannel], markers: [Marker] = []) {
@@ -112,4 +144,12 @@ extension TakeMetadata.USBChannel {
             fader: source.fader,
             inputSource: source.inputSource)
     }
+}
+
+/// How one Copy of an ended Take stands.
+public enum CopyOutcome: String, Sendable, Equatable {
+    case complete
+    case hasGaps
+    case repaired
+    case repairFailed
 }

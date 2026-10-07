@@ -27,6 +27,8 @@ public struct ShowReport: Equatable, Sendable {
             public var copy: String
             public var startSeconds: Double
             public var endSeconds: Double
+            /// "Repaired", "Repair failed", or "Not repaired" when Repair hasn't run for it.
+            public var result: String
         }
 
         /// The longest Stem's duration in seconds, or nil when no Stem could be read.
@@ -93,7 +95,13 @@ public struct ShowReport: Equatable, Sendable {
                 },
                 gaps: (file.gaps ?? []).map { gap in
                     let rate = Double(max(file.sampleRate, 1))
-                    return Take.Gap(copy: gap.copy.capitalized, startSeconds: Double(gap.start) / rate, endSeconds: Double(gap.end) / rate)
+                    let repair = (file.repairs ?? []).first { $0.copy == gap.copy && $0.start == gap.start && $0.end == gap.end }
+                    let result = switch repair?.outcome {
+                    case "repaired": "Repaired"
+                    case nil: "Not repaired"
+                    default: "Repair failed"
+                    }
+                    return Take.Gap(copy: gap.copy.capitalized, startSeconds: Double(gap.start) / rate, endSeconds: Double(gap.end) / rate, result: result)
                 }))
         }
         self.showName = showFolder.lastPathComponent
@@ -204,9 +212,9 @@ public struct ShowReport: Equatable, Sendable {
             out += "</tbody>\n</table></div>\n"
         }
         if !take.gaps.isEmpty {
-            out += "<h3>Gaps</h3>\n<p class=\"note\">Missing from that Copy and held as silence.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>Copy</th><th>From</th><th>To</th></tr></thead>\n<tbody>\n"
+            out += "<h3>Gaps</h3>\n<p class=\"note\">Missing from that Copy and held as silence until repaired from the other Copy.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>Copy</th><th>From</th><th>To</th><th>Result</th></tr></thead>\n<tbody>\n"
             for gap in take.gaps {
-                out += "<tr><td>\(Self.escape(gap.copy))</td><td class=\"num\">\(Self.markerClock(gap.startSeconds))</td><td class=\"num\">\(Self.markerClock(gap.endSeconds))</td></tr>\n"
+                out += "<tr><td>\(Self.escape(gap.copy))</td><td class=\"num\">\(Self.markerClock(gap.startSeconds))</td><td class=\"num\">\(Self.markerClock(gap.endSeconds))</td><td>\(Self.escape(gap.result))</td></tr>\n"
             }
             out += "</tbody>\n</table></div>\n"
         }
@@ -309,6 +317,14 @@ struct TakeFile: Decodable {
     var usbChannels: [USBChannel]
     var markers: [Marker]?
     var gaps: [Gap]?
+    var repairs: [Repair]?
+
+    struct Repair: Decodable {
+        var copy: String
+        var start: Int
+        var end: Int
+        var outcome: String
+    }
 
     struct Gap: Decodable {
         var copy: String
