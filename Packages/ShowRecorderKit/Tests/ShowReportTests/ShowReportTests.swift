@@ -125,6 +125,41 @@ struct ShowReportTests {
         #expect(try csvRows()[1][9] == "0.500")
     }
 
+    @Test("A Take with Pre-roll reports when its audio started, when record was pressed, and the Pre-roll, with Marker times from the audio start")
+    func preRollInReport() async throws {
+        let device = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = Recorder(deviceFolder: root, now: { Self.showDay }, preRollSeconds: 1)
+        try recorder.arm(device)
+        device.deliver([Array(repeating: 0, count: 48_000)])  // 1 s while Armed
+        try recorder.startTake()
+        device.deliver([Array(repeating: 0, count: 12_000)])
+        recorder.addMarker(named: "Chorus")  // 0.25 s after the press, 1.25 s into the audio
+        device.deliver([Array(repeating: 0, count: 12_000)])
+        try recorder.stopTake()
+
+        let report = try ShowReport(showFolder: show)
+        let take = try #require(report.takes.first)
+        #expect(take.preRollSeconds == 1)
+        #expect(take.duration == 1.5, "the Stems hold the Pre-roll and the live audio")
+        #expect(take.markers.map(\.seconds) == [1.25])
+
+        let html = report.html
+        #expect(html.contains("<dt>Started</dt><dd>2026-10-06 21:29:59</dd>"), "the audio starts a second before the press")
+        #expect(html.contains("<dt>Record pressed</dt><dd>2026-10-06 21:30:00</dd>"))
+        #expect(html.contains("<dt>Pre-roll</dt><dd>1.0 s</dd>"))
+        #expect(html.contains("0:01.2"), "the Marker, from the start of the audio")
+    }
+
+    @Test("A Take without Pre-roll is reported as before")
+    func noPreRollInReport() async throws {
+        try await record(channels: 1, sources: [], takes: [480])
+        let report = try ShowReport(showFolder: show)
+        #expect(report.takes.first?.preRollSeconds == nil)
+        #expect(report.html.contains("<dt>Started</dt><dd>2026-10-06 21:30:00</dd>"))
+        #expect(!report.html.contains("Record pressed"))
+        #expect(!report.html.contains("Pre-roll"))
+    }
+
     @Test("Report.html names the Show, each Take and each Source, with names escaped")
     func htmlListsTakesAndSources() async throws {
         try await record(channels: 2, sources: [

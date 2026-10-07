@@ -31,6 +31,13 @@ public struct ShowReport: Equatable, Sendable {
             public var result: String
         }
 
+        /// How much of the start of the Take is Pre-roll: audio from before record was pressed. `startedAt` is
+        /// the press; the Stems, Markers and Gaps all count from the start of the audio, this much earlier.
+        public var preRollSeconds: Double?
+
+        /// When the Take's audio starts: `startedAt`, or earlier by the Pre-roll.
+        var audioStartedAt: Date { startedAt.addingTimeInterval(-(preRollSeconds ?? 0)) }
+
         /// The longest Stem's duration in seconds, or nil when no Stem could be read.
         public var duration: Double? {
             usbChannels.compactMap(\.duration).max()
@@ -102,7 +109,9 @@ public struct ShowReport: Equatable, Sendable {
                     default: "Repair failed"
                     }
                     return Take.Gap(copy: gap.copy.capitalized, startSeconds: Double(gap.start) / rate, endSeconds: Double(gap.end) / rate, result: result)
-                }))
+                },
+                preRollSeconds: (file.preRollFrames ?? 0) > 0 && file.sampleRate > 0
+                    ? Double(file.preRollFrames ?? 0) / Double(file.sampleRate) : nil))
         }
         self.showName = showFolder.lastPathComponent
         self.takes = takes.sorted { $0.number < $1.number }
@@ -179,8 +188,8 @@ public struct ShowReport: Equatable, Sendable {
             <section>
             <h2>Take \(take.number)</h2>
             <dl>
-            <dt>Started</dt><dd>\(Self.timestamp(take.startedAt))</dd>
-            <dt>Duration</dt><dd>\(take.duration.map(Self.clock) ?? "unknown")</dd>
+            <dt>Started</dt><dd>\(Self.timestamp(take.audioStartedAt))</dd>
+            \(Self.preRollRows(for: take))<dt>Duration</dt><dd>\(take.duration.map(Self.clock) ?? "unknown")</dd>
             <dt>Sample rate</dt><dd>\(take.sampleRate) Hz</dd>
             <dt>Folder</dt><dd>\(Self.escape(take.folderName))</dd>
             </dl>
@@ -220,6 +229,17 @@ public struct ShowReport: Equatable, Sendable {
         }
         out += "</section>\n"
         return out
+    }
+
+    /// For a Take with Pre-roll: when record was pressed and how much audio came before it. Marker and Gap
+    /// times in the report count from the start of the audio, so "Started" is that moment, not the press.
+    private static func preRollRows(for take: Take) -> String {
+        guard let preRoll = take.preRollSeconds else { return "" }
+        return """
+            <dt>Record pressed</dt><dd>\(timestamp(take.startedAt))</dd>
+            <dt>Pre-roll</dt><dd>\(String(format: "%.1f", preRoll)) s</dd>
+
+            """
     }
 
     /// A Marker's time in the Take, to a tenth of a second ("1:05.3").
@@ -318,6 +338,7 @@ struct TakeFile: Decodable {
     var markers: [Marker]?
     var gaps: [Gap]?
     var repairs: [Repair]?
+    var preRollFrames: Int?
 
     struct Repair: Decodable {
         var copy: String
