@@ -15,6 +15,8 @@ final class TakeWriter: @unchecked Sendable {
     /// Frames between header commits, so a crash loses at most this much (#6).
     private let commitInterval: Int
     private var framesSinceCommit = 0
+    /// Stretches written as silence because this Copy joined late, as Take frames.
+    private let gapRanges = Mutex<[Range<Int>]>([])
     /// Markers waiting to be written into the Stems by the writer thread.
     private let pendingMarkers = Mutex<[StemMarker]?>(nil)
 
@@ -39,6 +41,12 @@ final class TakeWriter: @unchecked Sendable {
         thread.start()
     }
 
+    /// Stretches written as silence because this Copy joined after the Take began.
+    var gaps: [Range<Int>] { gapRanges.withLock { $0 } }
+
+    /// Frames every Stem has: the Copy's length so far. Read once the writer has stopped.
+    var framesWritten: Int { Int(stems.map(\.frameCount).min() ?? 0) }
+
     /// Whether a write failed. The Copy stops there; the Take carries on in the other Copies.
     var hasFailed: Bool { failed.load(ordering: .acquiring) }
 
@@ -53,7 +61,8 @@ final class TakeWriter: @unchecked Sendable {
         do {
             // Commit once up front so even a Take that dies early leaves files that open.
             for stem in stems { try stem.commitHeader() }
-            while true {
+            let joined = try waitForJoin()
+            while joined {
                 let stillRunning = running.load(ordering: .acquiring)
                 if let markers = pendingMarkers.withLock({ pending in defer { pending = nil }; return pending }) {
                     for stem in stems { try stem.setMarkers(markers) }
@@ -78,6 +87,28 @@ final class TakeWriter: @unchecked Sendable {
             for stem in stems { try? stem.finalize() }
         }
         finished.signal()
+    }
+
+    /// A Copy that joins mid-Take waits for the real-time thread to say which Take frame it starts at,
+    /// then writes silence up to it. Returns false if the Take stopped first.
+    private func waitForJoin() throws -> Bool {
+        while ring.joinFrame.load(ordering: .acquiring) < 0 {
+            if !running.load(ordering: .acquiring) { return false }
+            Thread.sleep(forTimeInterval: 0.002)
+        }
+        let join = ring.joinFrame.load(ordering: .acquiring)
+        let start = framesWritten
+        if join > start { gapRanges.withLock { $0.append(start..<join) } }
+        let silence = [Float](repeating: 0, count: 4096)
+        for stem in stems {
+            var remaining = join - Int(stem.frameCount)
+            while remaining > 0 {
+                let count = min(remaining, silence.count)
+                try silence.withUnsafeBufferPointer { try stem.append(UnsafeBufferPointer(rebasing: $0[..<count])) }
+                remaining -= count
+            }
+        }
+        return true
     }
 
     private func drainOnce() throws -> Int {

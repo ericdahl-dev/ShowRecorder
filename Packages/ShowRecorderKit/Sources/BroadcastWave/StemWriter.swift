@@ -27,6 +27,13 @@ public final class StemWriter: StemSink {
             self.timeReference = timeReference
             self.originationDate = originationDate
         }
+
+        /// This info with another Source name as the description.
+        public func described(_ description: String) -> Info {
+            var copy = self
+            copy.description = description
+            return copy
+        }
     }
 
     public let url: URL
@@ -264,6 +271,8 @@ extension FixedWidthInteger {
 /// What a Take writer needs from a Stem file. `StemWriter` is the real one; tests substitute Stems
 /// that fail, to stand in for a Destination that goes away.
 public protocol StemSink: AnyObject {
+    /// Samples written so far.
+    var frameCount: UInt64 { get }
     func append(_ samples: UnsafeBufferPointer<Float>) throws
     func commitHeader() throws
     func finalize() throws

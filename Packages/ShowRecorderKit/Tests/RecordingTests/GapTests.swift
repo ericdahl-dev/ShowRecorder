@@ -10,6 +10,7 @@ final class FailingStem: StemSink, @unchecked Sendable {
     private let real: StemWriter
     private let healthyFrames: Int
     private var frames = 0
+    var frameCount: UInt64 { real.frameCount }
 
     init(_ real: StemWriter, healthyFrames: Int) {
         self.real = real
@@ -139,5 +140,40 @@ struct GapTests {
         #expect(recorder.copyStatus(.drive) == .missing)
         try recorder.stopTake()
         #expect(recorder.copyStatus(.drive) == .missing)
+    }
+
+    @Test("A Drive that appears mid-Take joins with the missed span written as silence and recorded as a Gap")
+    func driveJoinsMidTake() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let available = DriveSwitch()
+        let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DestinationAccess(folder: $0) } }, now: { RecordingTakeTests.showDay })
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder)
+        available.folder = drive
+        recorder.checkDestinations()
+        #expect(recorder.copyStatus(.drive) == .recording)
+        for block in 10..<15 {
+            audio.deliver([(0..<480).map { RecordingTakeTests.sample(Int32(block * 480 + $0)) }])
+            try await waitUntil { recorder.bufferedFrameCount == 0 }
+        }
+        try recorder.stopTake()
+
+        let take = "2026-10-06 Show/Take 01"
+        let deviceStem = try StemFile(contentsOf: device.appending(path: "\(take)/01 USB 01.wav"))
+        let driveStem = try StemFile(contentsOf: drive.appending(path: "\(take)/01 USB 01.wav"))
+        #expect(deviceStem.samples.count == 7200)
+        #expect(driveStem.samples.count == 7200)
+        #expect(driveStem.samples[..<4800].allSatisfy { $0 == 0 })
+        #expect(Array(driveStem.samples[4800...]) == Array(deviceStem.samples[4800...]))
+
+        let expected = [TakeMetadata.Gap(copy: "drive", start: 0, end: 4800)]
+        for folder in [device, drive] {
+            let json = try Data(contentsOf: folder.appending(path: "\(take)/Take.json"))
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == expected)
+        }
     }
 }
