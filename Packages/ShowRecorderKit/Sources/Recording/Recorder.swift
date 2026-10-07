@@ -27,7 +27,7 @@ public final class Recorder {
     @ObservationIgnored private let deviceFolder: URL
     @ObservationIgnored private let driveFolder: () -> DestinationAccess?
     @ObservationIgnored private let now: () -> Date
-    @ObservationIgnored private let makeStem: (URL, StemWriter.Info) throws -> any StemSink
+    @ObservationIgnored private let makeStem: (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink
     @ObservationIgnored private var device: (any AudioIODevice)?
     @ObservationIgnored private var capture: Capture?
     @ObservationIgnored private var writers: [TakeWriter] = []
@@ -44,7 +44,7 @@ public final class Recorder {
         deviceFolder: URL = Recorder.defaultDeviceFolder,
         driveFolder: @escaping () -> DestinationAccess? = { nil },
         now: @escaping () -> Date = Date.init,
-        makeStem: @escaping (URL, StemWriter.Info) throws -> any StemSink = { try StemWriter(url: $0, info: $1) }
+        makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink = { try StemWriter.open(url: $0, info: $1, resumingAt: $2) }
     ) {
         self.makeStem = makeStem
         self.deviceFolder = deviceFolder
@@ -160,7 +160,7 @@ public final class Recorder {
         let info = StemWriter.Info(sampleRate: sampleRate, description: "", originator: "ShowRecorder", timeReference: timeReference, originationDate: date)
         var writers: [TakeWriter] = []
         for (copy, takeFolder) in takeFolders.enumerated() {
-            let stems = try specs.map { try makeStem(takeFolder.appending(path: $0.file), info.described($0.description)) }
+            let stems = try specs.map { try makeStem(takeFolder.appending(path: $0.file), info.described($0.description), nil) }
             try metadata.write(to: takeFolder)
             writers.append(TakeWriter(ring: capture.rings[copy], stems: stems, commitInterval: sampleRate * 2, onFailure: { [weak self] in
                 capture.disable(copy: copy)
@@ -217,7 +217,7 @@ public final class Recorder {
         if writers.count == 1, let access = driveFolder() {
             do {
                 let folder = try show.joinDrive(access.folder)
-                let stems = try take.stems.map { try makeStem(folder.appending(path: $0.file), take.info.described($0.description)) }
+                let stems = try take.stems.map { try makeStem(folder.appending(path: $0.file), take.info.described($0.description), nil) }
                 try take.metadata.write(to: folder)
                 let ring = capture.rings[1]
                 let writer = TakeWriter(ring: ring, stems: stems, commitInterval: take.info.sampleRate * 2, onFailure: { [weak self] in
@@ -237,24 +237,52 @@ public final class Recorder {
                 access.release()
             }
         }
+        if writers.count == 2, writers[1].isFinished, writers[1].hasFailed,
+           FileManager.default.fileExists(atPath: take.folders[1].path), let access = driveFolder() {
+            do {
+                let old = writers[1]
+                let counts = old.stemFrameCounts
+                let stems = try take.stems.enumerated().map { index, spec in
+                    try makeStem(take.folders[1].appending(path: spec.file), take.info.described(spec.description), counts[index])
+                }
+                let ring = capture.rings[1]
+                let writer = TakeWriter(ring: ring, stems: stems, commitInterval: take.info.sampleRate * 2, onFailure: { [weak self] in
+                    capture.disable(copy: 1)
+                    Task { @MainActor in self?.copyFailed() }
+                }, priorGaps: old.gaps)
+                ring.discardAll()
+                ring.joinFrame.store(-1, ordering: .releasing)
+                writer.start()
+                capture.requestJoin(copy: 1)
+                writers[1] = writer
+                if driveAccess == nil { driveAccess = access } else { access.release() }
+            } catch {
+                access.release()
+            }
+        }
         persistGaps()
     }
 
     /// Stretches written as silence in any Copy, as `Take.json` records them.
-    private func closedGaps() -> [TakeMetadata.Gap] {
+    /// With `takeEnd`, a Copy that is still interrupted is missing everything from where it stopped to there.
+    private func gaps(takeEnd: Int? = nil) -> [TakeMetadata.Gap] {
         var gaps: [TakeMetadata.Gap] = []
         for (index, writer) in writers.enumerated() {
+            let copy = index == 0 ? "device" : "drive"
             for range in writer.gaps {
-                gaps.append(.init(copy: index == 0 ? "device" : "drive", start: range.lowerBound, end: range.upperBound))
+                gaps.append(.init(copy: copy, start: range.lowerBound, end: range.upperBound))
+            }
+            if let takeEnd, writer.hasFailed, writer.framesWritten < takeEnd {
+                gaps.append(.init(copy: copy, start: writer.framesWritten, end: takeEnd))
             }
         }
         return gaps.sorted { ($0.start, $0.end) < ($1.start, $1.end) }
     }
 
     /// Writes the Gaps found so far into `Take.json` in every Copy.
-    private func persistGaps() {
+    private func persistGaps(takeEnd: Int? = nil) {
         guard var take else { return }
-        let gaps = closedGaps()
+        let gaps = gaps(takeEnd: takeEnd)
         guard gaps != take.metadata.gaps else { return }
         take.metadata.gaps = gaps
         self.take = take
@@ -280,7 +308,7 @@ public final class Recorder {
             driveAccess = nil
         }
         for writer in writers { writer.stop() }
-        persistGaps()
+        persistGaps(takeEnd: capture.takeFrameCount)
         self.writers = []
         take = nil
         for kind in [DestinationKind.device, .drive] where finishedCopies[kind] == .recording {
@@ -356,6 +384,9 @@ final class Capture: Sendable {
         takeFrames.store(0, ordering: .releasing)
         capturing.store((1 << min(copies, rings.count)) - 1, ordering: .releasing)
     }
+
+    /// Frames delivered since the Take started.
+    var takeFrameCount: Int { takeFrames.load(ordering: .acquiring) }
 
     /// Asks the real-time thread to start feeding one Copy's ring from its next block, and to record
     /// the Take frame it starts at in the ring's `joinFrame`.

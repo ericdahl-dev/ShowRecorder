@@ -50,10 +50,10 @@ struct GapTests {
             deviceFolder: device,
             driveFolder: { DestinationAccess(folder: drive) },
             now: { RecordingTakeTests.showDay },
-            makeStem: { url, info in
-                let real = try StemWriter(url: url, info: info)
+            makeStem: { url, info, resuming in
+                let real = try StemWriter.open(url: url, info: info, resumingAt: resuming)
                 let kind: DestinationKind = url.path.contains("/Drive/") ? .drive : .device
-                return failing.contains(kind) ? FailingStem(real, healthyFrames: healthyFrames) : real
+                return failing.contains(kind) && resuming == nil ? FailingStem(real, healthyFrames: healthyFrames) : real
             })
     }
 
@@ -105,8 +105,8 @@ struct GapTests {
             deviceFolder: device,
             driveFolder: { DestinationAccess(folder: drive) },
             now: { RecordingTakeTests.showDay },
-            makeStem: { url, info in
-                let real = try StemWriter(url: url, info: info)
+            makeStem: { url, info, resuming in
+                let real = try StemWriter.open(url: url, info: info, resumingAt: resuming)
                 return url.path.hasPrefix(drive.resolvingSymlinksInPath().path) || url.path.hasPrefix(drive.path)
                     ? FailingStem(real, healthyFrames: 480) : real
             })
@@ -125,6 +125,12 @@ struct GapTests {
 
         let deviceStem = try StemFile(contentsOf: device.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
         #expect(deviceStem.samples.count == 4800)
+
+        // The Drive Copy is missing everything after the failure; the Device's Take.json says so.
+        let json = try Data(contentsOf: device.appending(path: "2026-10-06 Show/Take 01/Take.json"))
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == [.init(copy: "drive", start: 480, end: 4800)])
     }
 
     @Test("With no Drive at record the Take starts on the Device and the Drive Copy is missing")
@@ -174,6 +180,38 @@ struct GapTests {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == expected)
+        }
+    }
+
+    @Test("A Drive that comes back after failing reopens the same Stems, with silence for the Gap")
+    func driveComesBackAfterFailing() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(failing: [.drive])
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder)
+        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        recorder.checkDestinations()
+        #expect(recorder.copyStatus(.drive) == .recording)
+        for block in 10..<15 {
+            audio.deliver([(0..<480).map { RecordingTakeTests.sample(Int32(block * 480 + $0)) }])
+            try await waitUntil { recorder.bufferedFrameCount == 0 }
+        }
+        try recorder.stopTake()
+
+        let take = "2026-10-06 Show/Take 01"
+        let deviceStem = try StemFile(contentsOf: device.appending(path: "\(take)/01 USB 01.wav"))
+        let driveStem = try StemFile(contentsOf: drive.appending(path: "\(take)/01 USB 01.wav"))
+        #expect(driveStem.samples.count == 7200)
+        #expect(Array(driveStem.samples[..<480]) == Array(deviceStem.samples[..<480]))
+        #expect(driveStem.samples[480..<4800].allSatisfy { $0 == 0 })
+        #expect(Array(driveStem.samples[4800...]) == Array(deviceStem.samples[4800...]))
+        for folder in [device, drive] {
+            let json = try Data(contentsOf: folder.appending(path: "\(take)/Take.json"))
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == [.init(copy: "drive", start: 480, end: 4800)])
         }
     }
 }

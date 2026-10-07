@@ -70,6 +70,29 @@ public final class StemWriter: StemSink {
         markerRegionOffset = UInt64(header.markerRegionOffset)
     }
 
+    /// A new Stem, or, when `frames` is given, the Stem at `url` reopened to carry on after its first
+    /// `frames` samples (for a Destination that failed and came back). Anything past those samples
+    /// (a half-written sample, a padding byte) is cut off.
+    public static func open(url: URL, info: Info, resumingAt frames: UInt64?) throws -> StemWriter {
+        guard let frames else { return try StemWriter(url: url, info: info) }
+        return try StemWriter(resuming: url, info: info, frameCount: frames, rf64Threshold: maxRIFFSize)
+    }
+
+    private init(resuming url: URL, info: Info, frameCount: UInt64, rf64Threshold: UInt64) throws {
+        self.url = url
+        self.rf64Threshold = rf64Threshold
+        handle = try FileHandle(forUpdating: url)
+        let header = Self.header(info: info)
+        dataSizeOffset = UInt64(header.dataSizeOffset)
+        markerRegionOffset = UInt64(header.markerRegionOffset)
+        let end = UInt64(header.bytes.count) + frameCount * 3
+        try handle.truncate(atOffset: end)
+        try handle.seek(toOffset: 0)
+        isRF64 = try handle.read(upToCount: 4) == Data("RF64".utf8)
+        try handle.seek(toOffset: end)
+        self.frameCount = frameCount
+    }
+
     /// Writes `markers` as `cue ` points with `LIST/adtl` labels into the region reserved before the
     /// audio, replacing any written before. The region is rewritten in place, so Markers are as
     /// crash-safe as the chunk sizes: they're on disk from the next header commit.

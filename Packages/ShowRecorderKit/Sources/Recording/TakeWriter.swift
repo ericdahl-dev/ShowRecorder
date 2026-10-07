@@ -9,6 +9,7 @@ final class TakeWriter: @unchecked Sendable {
     private let running = Atomic<Bool>(true)
     private let finished = DispatchSemaphore(value: 0)
     private let failed = Atomic<Bool>(false)
+    private let done = Atomic<Bool>(false)
     /// Called on the writer thread when this Copy fails, so capture can stop feeding it.
     private let onFailure: @Sendable () -> Void
     private var thread: Thread?
@@ -16,11 +17,12 @@ final class TakeWriter: @unchecked Sendable {
     private let commitInterval: Int
     private var framesSinceCommit = 0
     /// Stretches written as silence because this Copy joined late, as Take frames.
-    private let gapRanges = Mutex<[Range<Int>]>([])
+    private let gapRanges: Mutex<[Range<Int>]>
     /// Markers waiting to be written into the Stems by the writer thread.
     private let pendingMarkers = Mutex<[StemMarker]?>(nil)
 
-    init(ring: SampleRing, stems: [any StemSink], commitInterval: Int, onFailure: @escaping @Sendable () -> Void = {}) {
+    init(ring: SampleRing, stems: [any StemSink], commitInterval: Int, onFailure: @escaping @Sendable () -> Void = {}, priorGaps: [Range<Int>] = []) {
+        gapRanges = Mutex(priorGaps)
         self.onFailure = onFailure
         self.ring = ring
         self.stems = stems
@@ -46,6 +48,12 @@ final class TakeWriter: @unchecked Sendable {
 
     /// Frames every Stem has: the Copy's length so far. Read once the writer has stopped.
     var framesWritten: Int { Int(stems.map(\.frameCount).min() ?? 0) }
+
+    /// Samples in each Stem, in channel order. Read once the writer has stopped.
+    var stemFrameCounts: [UInt64] { stems.map(\.frameCount) }
+
+    /// Whether the writer thread has finished, so its files are closed and can be reopened.
+    var isFinished: Bool { done.load(ordering: .acquiring) }
 
     /// Whether a write failed. The Copy stops there; the Take carries on in the other Copies.
     var hasFailed: Bool { failed.load(ordering: .acquiring) }
@@ -86,6 +94,7 @@ final class TakeWriter: @unchecked Sendable {
             // Close what can be closed, so the Stems that did get written open.
             for stem in stems { try? stem.finalize() }
         }
+        done.store(true, ordering: .releasing)
         finished.signal()
     }
 
