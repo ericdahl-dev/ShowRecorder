@@ -126,4 +126,14 @@ struct PowerStatusTests {
         #expect(both.warnings.map(\.tone) == [.critical, .critical])
         #expect(both.warnings.map(\.id) == ["thermal", "battery"], "ties: heat first, it can stop the recording sooner")
     }
+
+    // MARK: Strip
+
+    @Test("The strip gets the battery chip, then the heat chip, and only those that exist")
+    func chipsInOrder() {
+        #expect(status(0.5).chips.map(\.text) == ["50%"])
+        #expect(status(0.5, thermal: .serious).chips.map(\.text) == ["50%", "Hot"])
+        #expect(status(nil, .unknown, thermal: .fair).chips.map(\.text) == ["Warm"])
+        #expect(status(nil, .unknown).chips.isEmpty)
+    }
 }

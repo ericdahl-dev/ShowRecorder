@@ -41,6 +41,9 @@ public struct PowerStatus: Equatable, Sendable {
     /// Most urgent first; heat before battery when they tie.
     public var warnings: [Warning]
 
+    /// The chips to add to the status strip: battery, then heat, those that exist.
+    public var chips: [Chip] { [battery, thermal].compactMap { $0 } }
+
     /// Percent at or below which an unplugged device warns, and the lower one at which it is urgent.
     public static let warnPercent = 20
     public static let urgentPercent = 10

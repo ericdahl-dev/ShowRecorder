@@ -16,6 +16,7 @@
 		7978ADCB74542A7F2803E11F /* MeterGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB46E32691A6C070E799F33D /* MeterGrid.swift */; };
 		992430B53737588E241A07B2 /* RecordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */; };
 		A9A8E28730C7E54C34DF1CAE /* CoreAudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = F366717F80C358C5B3DD7D70 /* CoreAudioIO */; };
+		B243E4DC015F2D21E51CF47F /* PowerMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90AA2E3938B5B72E1F6B30B8 /* PowerMonitor.swift */; };
 		BD8A89087734093AB7AABE15 /* DriveFolderModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 497820F0F5EF694FC7765883 /* DriveFolderModel.swift */; };
 		BDB211EC46C2B160A043D06F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CC47A3C7EE61A034F3F6FE0 /* SettingsView.swift */; };
 		CFC9F8D3194115954ABE8B0D /* Destinations in Frameworks */ = {isa = PBXBuildFile; productRef = 2A213300C93BF0054D83D85D /* Destinations */; };
@@ -33,6 +34,7 @@
 		84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordScreen.swift; sourceTree = "<group>"; };
 		8CC47A3C7EE61A034F3F6FE0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		8F032F2B06E5F2F3AA51A95B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		90AA2E3938B5B72E1F6B30B8 /* PowerMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerMonitor.swift; sourceTree = "<group>"; };
 		A28ABB2DC3361762848F2190 /* AudioSessionEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSessionEvents.swift; sourceTree = "<group>"; };
 		A48D43A0417E4FE9049EE0AC /* ShowRecorderKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ShowRecorderKit; path = Packages/ShowRecorderKit; sourceTree = SOURCE_ROOT; };
 		A570C7ADCE1D60BED124A213 /* ShowRecorder.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShowRecorder.entitlements; sourceTree = "<group>"; };
@@ -75,6 +77,7 @@
 				497820F0F5EF694FC7765883 /* DriveFolderModel.swift */,
 				3ED85A0ECD05797420331099 /* Info.plist */,
 				BB46E32691A6C070E799F33D /* MeterGrid.swift */,
+				90AA2E3938B5B72E1F6B30B8 /* PowerMonitor.swift */,
 				A66A4A288C0B0A560B802624 /* PrivacyInfo.xcprivacy */,
 				84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */,
 				8CC47A3C7EE61A034F3F6FE0 /* SettingsView.swift */,
@@ -185,6 +188,7 @@
 				47525D0C9DECC739535A5E15 /* DemoAudioDevice.swift in Sources */,
 				BD8A89087734093AB7AABE15 /* DriveFolderModel.swift in Sources */,
 				7978ADCB74542A7F2803E11F /* MeterGrid.swift in Sources */,
+				B243E4DC015F2D21E51CF47F /* PowerMonitor.swift in Sources */,
 				992430B53737588E241A07B2 /* RecordScreen.swift in Sources */,
 				BDB211EC46C2B160A043D06F /* SettingsView.swift in Sources */,
 				1D0AAB2401EFEADA6CDDEB2C /* ShowRecorderApp.swift in Sources */,
