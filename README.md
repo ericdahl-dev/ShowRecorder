@@ -75,6 +75,8 @@ xcodebuild -project ShowRecorder.xcodeproj -scheme ShowRecorder \
   CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build
 ```
 
+`scripts/verify.sh` runs the same checks as CI (package tests, macOS and iOS Simulator builds); set `DEVICE_ID` and `DEVELOPMENT_TEAM` to also build for a device. CI runs on every pull request on GitHub's free hosted `macos-26` runner and must pass before a PR merges.
+
 To run on a device, pick your own team in Xcode. After editing `project.yml`, run `xcodegen generate` and commit both files.
 
 Debug builds include an 18-channel **Demo signal** input, so the record screen works in the simulator without hardware.
