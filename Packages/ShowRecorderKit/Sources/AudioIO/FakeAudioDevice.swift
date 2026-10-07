@@ -7,7 +7,15 @@ public final class FakeAudioDevice: AudioIODevice {
     public let outputChannelCount: Int
     public let sampleRate: Double
 
-    private let handler = Mutex<AudioInputHandler?>(nil)
+    /// Boxed so the mutex holds a class reference, not a function value. Passing a function `inout`
+    /// through `Mutex.withLock` re-wraps it in a thunk on every access, which grew a new layer per
+    /// delivered block until the stack overflowed.
+    private final class HandlerBox: Sendable {
+        let call: AudioInputHandler
+        init(_ call: @escaping AudioInputHandler) { self.call = call }
+    }
+
+    private let handler = Mutex<HandlerBox?>(nil)
 
     public init(name: String = "Fake Device", inputChannelCount: Int, outputChannelCount: Int = 0, sampleRate: Double = 48_000) {
         self.name = name
@@ -19,7 +27,7 @@ public final class FakeAudioDevice: AudioIODevice {
     public var isRunning: Bool { handler.withLock { $0 != nil } }
 
     public func start(input: @escaping AudioInputHandler) throws {
-        handler.withLock { $0 = input }
+        handler.withLock { $0 = HandlerBox(input) }
     }
 
     public func stop() {
@@ -29,7 +37,7 @@ public final class FakeAudioDevice: AudioIODevice {
     /// Delivers one block of audio to the running handler, on the calling thread.
     /// `channels[c]` holds the samples of USB Channel `c`; all channels must be the same length.
     public func deliver(_ channels: [[Float]], hostTime: UInt64 = 0) {
-        guard let input = handler.withLock({ $0 }) else { return }
+        guard let input = handler.withLock({ $0?.call }) else { return }
         let frameCount = channels.first?.count ?? 0
         precondition(channels.allSatisfy { $0.count == frameCount }, "all channels must have the same frame count")
 

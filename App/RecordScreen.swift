@@ -16,6 +16,9 @@ struct RecordScreen: View {
             if let error = model.armError {
                 Banner(text: error, systemImage: "exclamationmark.octagon.fill", tint: .red)
             }
+            if let error = model.recordError {
+                Banner(text: error, systemImage: "exclamationmark.octagon.fill", tint: .red)
+            }
             if model.recorder.hasTooFewUSBChannels {
                 Banner(
                     text: "This device sends \(model.usbChannelSummary). The XR18 and MR18 send 18, so some of the Mixer won't be recorded.",
@@ -24,9 +27,40 @@ struct RecordScreen: View {
             }
             MeterGrid(levels: model.levels)
             Spacer(minLength: 0)
+            transport
         }
         .padding()
         .task { await model.runWhileVisible() }
+        .confirmationDialog("Stop recording?", isPresented: $confirmingStop, titleVisibility: .visible) {
+            Button("Stop Recording", role: .destructive) { model.stop() }
+            Button("Keep Recording", role: .cancel) {}
+        } message: {
+            Text("This ends \(model.takeTitle).")
+        }
+    }
+
+    @State private var confirmingStop = false
+
+    private var transport: some View {
+        VStack(spacing: 12) {
+            Text(model.showSummary)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Button {
+                if model.recorder.isRecording {
+                    confirmingStop = true
+                } else {
+                    model.record()
+                }
+            } label: {
+                RecordButtonLabel(isRecording: model.recorder.isRecording)
+            }
+            .buttonStyle(.plain)
+            .disabled(!model.recorder.isArmed)
+            .accessibilityLabel(model.recorder.isRecording ? "Stop recording" : "Record")
+            .keyboardShortcut("r", modifiers: .command)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var header: some View {
@@ -40,6 +74,7 @@ struct RecordScreen: View {
                 }
             }
             .onChange(of: model.selectedDeviceID) { model.armSelectedDevice() }
+            .disabled(model.recorder.isRecording)
 
             HStack(spacing: 6) {
                 Circle()
@@ -70,10 +105,38 @@ final class RecordScreenModel {
     var selectedDeviceID: String?
     private(set) var levels: [Float] = []
     private(set) var armError: String?
+    private(set) var recordError: String?
 
     init() {
         devices = Self.availableDevices()
         selectedDeviceID = devices.first?.id
+    }
+
+    /// "2026-10-06 Show · Take 02", or a hint before the first Take.
+    var showSummary: String {
+        guard let show = recorder.currentShow else { return "Press record to start a Show" }
+        return "\(show.name) · \(takeTitle)"
+    }
+
+    var takeTitle: String {
+        String(format: "Take %02d", recorder.currentShow?.takeCount ?? 0)
+    }
+
+    func record() {
+        do {
+            try recorder.startTake()
+            recordError = nil
+        } catch {
+            recordError = "Couldn't start recording: \(error.localizedDescription)"
+        }
+    }
+
+    func stop() {
+        do {
+            try recorder.stopTake()
+        } catch {
+            recordError = "The Take didn't finish cleanly: \(error.localizedDescription)"
+        }
     }
 
     var usbChannelSummary: String {
@@ -180,6 +243,24 @@ final class RecordScreenModel {
         choices.append(DeviceChoice(id: "demo", name: "Demo signal (18 channels)", make: { DemoAudioDevice() }))
         #endif
         return choices
+    }
+}
+
+/// A large round record button that turns into a stop square while recording.
+struct RecordButtonLabel: View {
+    let isRecording: Bool
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .strokeBorder(.secondary, lineWidth: 4)
+                .frame(width: 88, height: 88)
+            RoundedRectangle(cornerRadius: isRecording ? 8 : 34)
+                .fill(.red)
+                .frame(width: isRecording ? 36 : 68, height: isRecording ? 36 : 68)
+        }
+        .contentShape(Circle())
+        .animation(.easeInOut(duration: 0.15), value: isRecording)
     }
 }
 
