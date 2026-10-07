@@ -2,9 +2,9 @@
 
 # ShowRecorder
 
-Record every channel of your mixer straight from an iPhone, iPad or Mac. There's no laptop to carry.
+Record every channel of your mixer from an iPhone or iPad, or the Mac you already have.
 
-Plug a multichannel USB mixer or audio interface into a USB-C iPhone through a powered hub, tap record, and you get a Show folder with one stem per channel. On mixers ShowRecorder knows how to talk to, each track is also named and colored from the mixer itself, so channel 7 arrives as `07 Lead Vocal.wav`, not `Input 7`. Behringer X-Air (XR18) and Midas MR18 are supported first; more mixers will follow.
+You don't need a dedicated recording laptop. Plug a multichannel USB mixer or audio interface into a USB-C iPhone through a powered hub, or into the Mac mini in your rack or the MacBook at front of house, tap record, and you get a Show folder with one stem per channel. On mixers ShowRecorder knows how to talk to, each track is also named and colored from the mixer itself, so channel 7 arrives as `07 Lead Vocal.wav`, not `Input 7`. Behringer X-Air (XR18) and Midas MR18 are supported first; more mixers will follow.
 
 > **Status: in development.** It isn't on the App Store yet. The recording core works and is tested; the remaining MVP work is tracked in [issue #1](https://github.com/ericdahl-dev/ShowRecorder/issues/1) and the issues linked from it.
 
