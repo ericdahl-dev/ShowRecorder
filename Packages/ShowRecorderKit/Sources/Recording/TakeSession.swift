@@ -98,7 +98,7 @@ final class TakeSession {
     @discardableResult
     func addMarker(named name: String? = nil) -> TakeMetadata.Marker {
         let marker = TakeMetadata.Marker(
-            position: capture.takeFrameCount, name: name ?? "Marker \(metadata.markers.count + 1)", origin: .operator)
+            position: capture.takeFrameCount, name: name ?? "Marker \(metadata.markers.filter { $0.origin == .operator }.count + 1)", origin: .operator)
         metadata.markers.append(marker)
         // Take.json first: it's written whole and atomically, so a Marker survives even if the Stems'
         // next header commit never happens.
@@ -159,6 +159,7 @@ final class TakeSession {
         if copies.count == 2, copies[1].writer.isFinished, copies[1].writer.hasFailed, let access = drive() {
             attachDrive(access, replacing: copies[1], reserve: reserve)
         }
+        collectDropouts()
         persistGaps()
         return .carryOn
     }
@@ -169,6 +170,7 @@ final class TakeSession {
         capture.stopCapturing()
         var statuses = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.map { ($0, status($0)) })
         for copy in copies { copy.writer.stop() }
+        collectDropouts()
         // A Take whose Copies were never fed a first block is empty, not missing everything.
         persistGaps(takeEnd: capture.awaitingFirstBlock ? 0 : capture.takeFrameCount)
         for copy in copies where statuses[copy.kind] == .recording && copy.writer.hasFailed {
@@ -212,7 +214,7 @@ final class TakeSession {
             let ring = capture.rings[DestinationKind.drive.index]
             let writer = makeWriter(ring: ring, kind: .drive, stems: sinks, priorGaps: old?.writer.gaps ?? [])
             begin(writer, on: ring, joinFrame: -1)
-            if !metadata.markers.isEmpty { writer.setMarkers(stemMarkers) }
+            if !stemMarkers.isEmpty { writer.setMarkers(stemMarkers) }
             capture.requestJoin(copy: DestinationKind.drive.index)
 
             let record = CopyRecord(kind: .drive, folder: folder, ring: ring, writer: writer, access: access)
@@ -244,12 +246,28 @@ final class TakeSession {
         writer.start()
     }
 
+    /// The operator's Markers, for the Stems. Each writer adds its own Dropout Markers.
     private var stemMarkers: [StemMarker] {
-        metadata.markers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
+        metadata.markers.filter { $0.origin == .operator }.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
     }
 
     private func writeMetadata() {
         for copy in copies { try? metadata.write(to: copy.folder) }
+    }
+
+    /// Moves the audio the writers had to drop into `Take.json` as Dropouts (one per Copy and stretch), with
+    /// one Dropout Marker at each position where any Copy lost audio.
+    private func collectDropouts() {
+        let found = copies
+            .flatMap { copy in copy.writer.dropouts.map { TakeMetadata.Dropout(copy: copy.kind, start: $0.lowerBound, end: $0.upperBound) } }
+            .sorted { ($0.start, $0.end, $0.copy.index) < ($1.start, $1.end, $1.copy.index) }
+        guard found != metadata.dropouts else { return }
+        let marked = Set(metadata.markers.filter { $0.origin == .dropout }.map(\.position))
+        for position in Set(found.map(\.start)).subtracting(marked).sorted() {
+            metadata.markers.append(.init(position: position, name: "Dropout", origin: .dropout))
+        }
+        metadata.dropouts = found
+        writeMetadata()
     }
 
     /// Writes the Gaps found so far into `Take.json` in every Copy.
