@@ -6,5 +6,8 @@ struct ShowRecorderApp: App {
         WindowGroup {
             RecordScreen()
         }
+        #if os(macOS)
+        .defaultSize(width: 1100, height: 720)
+        #endif
     }
 }

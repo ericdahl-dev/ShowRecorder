@@ -20,6 +20,8 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>ShowRecorder reads channel names and colors from your mixer over the local network.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>ShowRecorder records every channel from your mixer.</string>
 	<key>UIBackgroundModes</key>
