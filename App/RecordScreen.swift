@@ -626,7 +626,9 @@ final class RecordScreenModel {
         #endif
     }
 
-    /// Arms the selected device, polls meters at about 30 Hz, and disarms when the screen goes away.
+    /// Arms the selected device, polls meters at about 30 Hz, and disarms when the screen goes away, unless a
+    /// Take is running. A screen being torn down or rebuilt never ends a Take, and a screen that comes back
+    /// never Arms again over a running one (see `RecorderLifecycle`).
     func runWhileVisible() async {
         guard await hasMicrophonePermission() else {
             micDenied = true
@@ -634,10 +636,10 @@ final class RecordScreenModel {
             return
         }
         drive.refresh()
-        armSelectedDevice()
+        if RecorderLifecycle.screenAppeared(isArmed: recorder.isArmed) == .arm { armSelectedDevice() }
         // Reconnect to the remembered Mixer. This runs here, not in Settings, so it happens without Settings open.
         if !mixerAddress.isEmpty, mixerLink.status == .idle { connectMixer() }
-        defer { recorder.disarm() }
+        defer { if RecorderLifecycle.screenDisappeared(isRecording: recorder.isRecording) == .disarm { recorder.disarm() } }
         #if os(iOS)
         let routeWatcher = Task { await watchRouteChanges() }
         defer { routeWatcher.cancel() }
