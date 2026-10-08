@@ -61,4 +61,36 @@ struct ChannelMeterTests {
         meter.update(Self.level(rmsDbfs: -20, peakDbfs: -12), seconds: 1.0 / 30)
         #expect(abs(meter.peakDbfs + 6) < 0.01, "a quieter window doesn't pull the held tick down")
     }
+
+    @Test("The peak bar jumps to a new peak and falls back gently, 15% per 1/30 s, as the old meter did")
+    func peakBar() {
+        var meter = ChannelMeter()
+        meter.update(Self.level(rmsDbfs: -20, peakDbfs: -4), seconds: 1.0 / 30)
+        let peak = Float(pow(10, -4.0 / 20))
+        #expect(abs(meter.peakBar - peak) < 1e-5)
+        let silence = ChannelLevel(peak: 0, meanRectified: 0, frames: 1600)
+        meter.update(silence, seconds: 1.0 / 30)
+        #expect(abs(meter.peakBar - peak * 0.85) < 1e-5)
+        meter.update(silence, seconds: 1.0 / 60)
+        #expect(abs(meter.peakBar - peak * 0.85 * Float(pow(0.85, 0.5))) < 1e-5, "the fall follows real time, not the number of updates")
+        meter.update(Self.level(rmsDbfs: -20, peakDbfs: -30), seconds: 1.0 / 30)
+        #expect(meter.peakBar > Float(pow(10, -30.0 / 20)) * 2, "a quieter window doesn't snap the bar down")
+        for _ in 0..<300 { meter.update(silence, seconds: 1.0 / 30) }
+        #expect(meter.peakBar < 1e-4)
+    }
+
+    @Test("The peak bar is green up to -18 dBFS, yellow up to -6, red above, as the old meter was")
+    func peakBarColors() {
+        func color(_ dbfs: Double) -> PeakBarZone {
+            var meter = ChannelMeter()
+            meter.update(ChannelLevel(peak: Float(pow(10, dbfs / 20)), meanRectified: 0, frames: 1600), seconds: 1.0 / 30)
+            return meter.peakBarZone
+        }
+        #expect(color(-40) == .green)
+        #expect(color(-18.5) == .green)
+        #expect(color(-17.5) == .yellow)
+        #expect(color(-6.5) == .yellow)
+        #expect(color(-5.5) == .red)
+        #expect(color(0) == .red)
+    }
 }
