@@ -36,6 +36,9 @@ struct RecordScreen: View {
         .task { model.start() }
         .onAppear { model.screenAppeared() }
         .onDisappear { model.screenDisappeared() }
+        #if os(macOS)
+        .background(WindowCloseGuard(model: model))
+        #endif
         // Read Sources for the USB Channels the newly Armed device actually sends.
         .task(id: model.recorder.usbChannelCount) {
             await model.mixerLink.refreshSources(usbChannelCount: model.recorder.usbChannelCount)
