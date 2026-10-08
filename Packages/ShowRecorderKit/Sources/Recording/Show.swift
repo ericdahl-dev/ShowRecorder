@@ -13,8 +13,11 @@ public struct Show: Sendable, Equatable {
     public let startedAt: Date
     /// When the Show was ended, or nil while it is open.
     public private(set) var endedAt: Date?
+    /// Where the Show is, as the operator typed it. Nil when none was given.
+    public let venue: String?
 
-    init(name: String, folder: URL, driveFolder: URL? = nil, takeCount: Int, startedAt: Date = .distantPast, endedAt: Date? = nil) {
+    init(name: String, folder: URL, driveFolder: URL? = nil, takeCount: Int, startedAt: Date = .distantPast, endedAt: Date? = nil, venue: String? = nil) {
+        self.venue = venue
         self.name = name
         self.folder = folder
         self.driveFolder = driveFolder
@@ -31,9 +34,10 @@ public struct Show: Sendable, Equatable {
 
     /// Creates the Show folder on the Device (and on the Drive, if given), named "YYYY-MM-DD Show"
     /// from the start date. If that name is taken on either, a number is added ("… Show 2").
-    static func create(in deviceParent: URL, drive driveParent: URL?, on date: Date) throws -> Show {
+    static func create(in deviceParent: URL, drive driveParent: URL?, on date: Date, name given: String? = nil, venue: String? = nil) throws -> Show {
         let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
-        let base = String(format: "%04d-%02d-%02d Show", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+        let trimmed = Self.folderSafe(given ?? "")
+        let base = String(format: "%04d-%02d-%02d ", c.year ?? 0, c.month ?? 0, c.day ?? 0) + (trimmed.isEmpty ? "Show" : trimmed)
         let fm = FileManager.default
         let parents = [deviceParent] + (driveParent.map { [$0] } ?? [])
         for parent in parents { try fm.createDirectory(at: parent, withIntermediateDirectories: true) }
@@ -45,10 +49,21 @@ public struct Show: Sendable, Equatable {
         }
         let folder = deviceParent.appending(path: name, directoryHint: .isDirectory)
         try fm.createDirectory(at: folder, withIntermediateDirectories: false)
-        var show = Show(name: name, folder: folder, takeCount: 0, startedAt: date)
+        let venue = venue?.trimmingCharacters(in: .whitespacesAndNewlines)
+        var show = Show(name: name, folder: folder, takeCount: 0, startedAt: date, venue: venue?.isEmpty == false ? venue : nil)
         try show.file.write(to: folder)
         try show.useDrive(driveParent)
         return show
+    }
+
+    /// A name the operator typed, made usable as a folder name: trimmed, "/" and ":" turned into "-", and
+    /// leading dots dropped so the folder isn't hidden. It is never refused.
+    static func folderSafe(_ name: String) -> String {
+        var safe = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+        while safe.hasPrefix(".") { safe.removeFirst() }
+        return safe.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Writes this Show's next Takes to the Drive folder `parent` as well (creating the Show folder
@@ -65,7 +80,13 @@ public struct Show: Sendable, Equatable {
     }
 
     /// What `Show.json` holds for this Show.
-    var file: ShowFile { ShowFile(name: name, startedAt: startedAt, endedAt: endedAt) }
+    var file: ShowFile { ShowFile(name: name, startedAt: startedAt, endedAt: endedAt, venue: venue) }
+
+    /// Marks the Show ended in every Copy it has. A Copy that can't be written is skipped: the Show ends anyway.
+    mutating func end(at date: Date) {
+        endedAt = date
+        for copy in [folder] + (driveFolder.map { [$0] } ?? []) { try? file.write(to: copy) }
+    }
 
     /// The Show that was left open: the one in `deviceParent` with a readable `Show.json` that isn't ended,
     /// newest start first. Any other open Show is marked ended (one Show is open at a time). Folders without
@@ -120,6 +141,8 @@ struct ShowFile: Codable, Equatable {
     var name: String
     var startedAt: Date
     var endedAt: Date?
+    /// Where the Show is. Nil when none was given, and in Shows from before venues.
+    var venue: String?
 
     func write(to showFolder: URL) throws {
         let encoder = JSONEncoder()
