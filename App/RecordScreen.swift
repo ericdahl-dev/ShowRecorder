@@ -632,6 +632,18 @@ final class RecordScreenModel {
         return chip + power.status.chips
     }
 
+    /// Ends the open Show. Returns what to tell the operator, or nil when it ended.
+    func endShow() -> String? {
+        do {
+            try recorder.endShow()
+            return nil
+        } catch RecorderError.takeRunning {
+            return "A Show can't be ended during a Take."
+        } catch {
+            return "The Show couldn't be ended: \(error.localizedDescription)"
+        }
+    }
+
     /// Starts a new Show. Returns what to tell the operator, or nil when it started.
     func startNewShow(name: String, venue: String) -> String? {
         do {

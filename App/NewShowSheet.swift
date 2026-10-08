@@ -18,8 +18,17 @@ struct NewShowSheet: View {
                     Text(footer)
                 }
                 if let current = model.recorder.currentShow {
-                    Section("Open Show") {
+                    Section {
                         Text(current.name)
+                        Button("End Show", role: .destructive) {
+                            message = model.endShow()
+                            if message == nil { dismiss() }
+                        }
+                        .disabled(model.recorder.isRecording)
+                    } header: {
+                        Text("Open Show")
+                    } footer: {
+                        Text("Ending a Show keeps its files. The next record starts a new Show. A Show also ends after 6 hours with no Take.")
                     }
                 }
                 if let message {

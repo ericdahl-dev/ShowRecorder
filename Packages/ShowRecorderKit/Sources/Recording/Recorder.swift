@@ -192,6 +192,13 @@ public final class Recorder {
         currentShow = show
     }
 
+    /// Ends the open Show, so the next record starts a new one. Nothing happens when no Show is open.
+    public func endShow() throws {
+        guard !isRecording else { throw RecorderError.takeRunning }
+        currentShow?.end(at: now())
+        currentShow = nil
+    }
+
     /// Starts a Take in the open Show, creating a Show first if none is open.
     ///
     /// `sources` are frozen into the Take: Stem names and bext descriptions use them, and later
@@ -200,6 +207,9 @@ public final class Recorder {
         guard let device, let capture else { throw RecorderError.notArmed }
         guard !isRecording else { return }
         let date = now()
+
+        // A Show with no Take for 6 hours is over: this record starts a new one.
+        if let open = currentShow, open.isIdle(at: date) { currentShow?.end(at: date); currentShow = nil }
 
         let drive = driveFolder()
         var show: Show
@@ -374,6 +384,7 @@ public final class Recorder {
             showName: session.show.name, takeNumber: finished.metadata.take, deviceFolder: finished.folders[0],
             hadDrive: finished.folders.count > 1)
         currentShow = session.show
+        currentShow?.noteTakeEnded(at: now())
         // The Takes are safe either way; the report and project are regenerated next time.
         regenerateReports()
         repairQueue.enqueue(finished.metadata, folders: finished.folders, holding: finished.access)
