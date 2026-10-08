@@ -46,4 +46,10 @@ struct RecorderLifecycleTests {
         let stem = try StemFile(contentsOf: try #require(recorder.currentShow).folder.appending(path: "Take 01/01 USB 01.wav"))
         #expect(stem.samples == [1, 2, 3, 4])
     }
+
+    @Test("Closing a window while a Take is running asks first; with no Take it just closes")
+    func closingTheWindow() {
+        #expect(RecorderLifecycle.windowCloseRequested(isRecording: true) == .askToStop)
+        #expect(RecorderLifecycle.windowCloseRequested(isRecording: false) == .close)
+    }
 }

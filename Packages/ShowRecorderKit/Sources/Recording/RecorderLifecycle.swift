@@ -8,6 +8,18 @@ public enum RecorderLifecycle {
         case none, arm, disarm
     }
 
+    /// What to do when the operator closes the window the recorder is shown in (the Mac).
+    public enum WindowCloseAction: Equatable, Sendable {
+        case close
+        /// A Take is running: ask whether to stop it, and close only if the answer is stop.
+        case askToStop
+    }
+
+    /// The operator asked to close the window (the close button or Command-W).
+    public static func windowCloseRequested(isRecording: Bool) -> WindowCloseAction {
+        isRecording ? .askToStop : .close
+    }
+
     /// The screen went away.
     public static func screenDisappeared(isRecording: Bool) -> Action {
         isRecording ? .none : .disarm
