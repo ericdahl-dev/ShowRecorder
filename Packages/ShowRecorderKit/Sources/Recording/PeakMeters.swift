@@ -3,12 +3,18 @@ import AudioIO
 import Synchronization
 
 /// One channel's levels over the time since the last read.
-struct ChannelLevel: Equatable {
+public struct ChannelLevel: Equatable, Sendable {
     /// Largest magnitude, 0...1 of full scale.
-    var peak: Float
+    public var peak: Float
     /// Average of the magnitudes, 0...1 of full scale; 0 when there were no frames.
-    var meanRectified: Float
-    var frames: Int
+    public var meanRectified: Float
+    public var frames: Int
+
+    public init(peak: Float, meanRectified: Float, frames: Int) {
+        self.peak = peak
+        self.meanRectified = meanRectified
+        self.frames = frames
+    }
 }
 
 /// Per-USB-Channel levels (peak, and the average rectified level for the VU meter), written on the

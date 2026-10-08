@@ -158,6 +158,11 @@ public final class Recorder {
         capture?.meters.take() ?? []
     }
 
+    /// Each USB Channel's peak, average level and frame count since the last call. Empty when not Armed.
+    public func takeChannelLevels() -> [ChannelLevel] {
+        capture?.meters.takeLevels() ?? []
+    }
+
     /// Starts a Take in the open Show, creating a Show first if none is open.
     ///
     /// `sources` are frozen into the Take: Stem names and bext descriptions use them, and later
