@@ -9,18 +9,24 @@ public struct Show: Sendable, Equatable {
     /// The Show folder on the Drive, when the current Take is also written there.
     public private(set) var driveFolder: URL?
     public private(set) var takeCount: Int
+    /// When the Show started. Written to `Show.json` in every Copy.
+    public let startedAt: Date
+    /// When the Show was ended, or nil while it is open.
+    public private(set) var endedAt: Date?
 
-    init(name: String, folder: URL, driveFolder: URL? = nil, takeCount: Int) {
+    init(name: String, folder: URL, driveFolder: URL? = nil, takeCount: Int, startedAt: Date = .distantPast, endedAt: Date? = nil) {
         self.name = name
         self.folder = folder
         self.driveFolder = driveFolder
         self.takeCount = takeCount
+        self.startedAt = startedAt
+        self.endedAt = endedAt
     }
 
     /// Every Copy of the Show folder, the Device first.
     public var copies: [Show] {
-        [Show(name: name, folder: folder, takeCount: takeCount)]
-            + (driveFolder.map { [Show(name: name, folder: $0, takeCount: takeCount)] } ?? [])
+        [Show(name: name, folder: folder, takeCount: takeCount, startedAt: startedAt, endedAt: endedAt)]
+            + (driveFolder.map { [Show(name: name, folder: $0, takeCount: takeCount, startedAt: startedAt, endedAt: endedAt)] } ?? [])
     }
 
     /// Creates the Show folder on the Device (and on the Drive, if given), named "YYYY-MM-DD Show"
@@ -39,7 +45,8 @@ public struct Show: Sendable, Equatable {
         }
         let folder = deviceParent.appending(path: name, directoryHint: .isDirectory)
         try fm.createDirectory(at: folder, withIntermediateDirectories: false)
-        var show = Show(name: name, folder: folder, takeCount: 0)
+        var show = Show(name: name, folder: folder, takeCount: 0, startedAt: date)
+        try show.file.write(to: folder)
         try show.useDrive(driveParent)
         return show
     }
@@ -54,6 +61,34 @@ public struct Show: Sendable, Equatable {
         let folder = parent.appending(path: name, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         driveFolder = folder
+        try file.write(to: folder)
+    }
+
+    /// What `Show.json` holds for this Show.
+    var file: ShowFile { ShowFile(name: name, startedAt: startedAt, endedAt: endedAt) }
+
+    /// The Show that was left open: the one in `deviceParent` with a readable `Show.json` that isn't ended,
+    /// newest start first. Any other open Show is marked ended (one Show is open at a time). Folders without
+    /// a readable `Show.json`, such as Shows from before it existed, are left alone and never picked.
+    static func findOpen(in deviceParent: URL) -> Show? {
+        let fm = FileManager.default
+        guard let names = try? fm.contentsOfDirectory(atPath: deviceParent.path) else { return nil }
+        var open: [(folder: URL, file: ShowFile)] = []
+        for name in names {
+            let folder = deviceParent.appending(path: name, directoryHint: .isDirectory)
+            guard let file = ShowFile.read(from: folder), file.endedAt == nil else { continue }
+            open.append((folder, file))
+        }
+        open.sort { $0.file.startedAt > $1.file.startedAt }
+        guard let newest = open.first else { return nil }
+        for older in open.dropFirst() {
+            var ended = older.file
+            ended.endedAt = newest.file.startedAt
+            try? ended.write(to: older.folder)
+        }
+        let takes = ((try? fm.contentsOfDirectory(atPath: newest.folder.path)) ?? [])
+            .compactMap { $0.hasPrefix("Take ") ? Int($0.dropFirst(5)) : nil }
+        return Show(name: newest.file.name, folder: newest.folder, takeCount: takes.max() ?? 0, startedAt: newest.file.startedAt)
     }
 
     /// Starts writing the running Take to the Drive folder `parent` too: the Show folder there (under
@@ -74,5 +109,30 @@ public struct Show: Sendable, Equatable {
             try FileManager.default.createDirectory(at: takeFolder, withIntermediateDirectories: false)
             return takeFolder
         }
+    }
+}
+
+/// A Show's `Show.json`: its name as in the folder, when it started and, once it is over, when it ended.
+/// Written when the Show is created, in every Copy, so the open Show survives a crash or relaunch.
+struct ShowFile: Codable, Equatable {
+    static let fileName = "Show.json"
+
+    var name: String
+    var startedAt: Date
+    var endedAt: Date?
+
+    func write(to showFolder: URL) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode(self).write(to: showFolder.appending(path: Self.fileName), options: .atomic)
+    }
+
+    /// The file in `showFolder`, or nil when it is missing or can't be read.
+    static func read(from showFolder: URL) -> ShowFile? {
+        guard let data = try? Data(contentsOf: showFolder.appending(path: fileName)) else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try? decoder.decode(ShowFile.self, from: data)
     }
 }
