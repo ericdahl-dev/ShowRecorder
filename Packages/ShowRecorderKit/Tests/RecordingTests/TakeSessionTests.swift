@@ -286,4 +286,42 @@ struct TakeSessionTests {
         #expect(Set(finished.metadata.dropouts.map(\.start)).count == 1)
         #expect(finished.metadata.markers.filter { $0.origin == .dropout }.count == 1)
     }
+
+    @Test("Renaming counts operator Markers only: a Dropout Marker is never renamed and never takes an index")
+    func renameSkipsDropoutMarkers() async throws {
+        let session = try session()
+        try await deliver(480)
+        try await deliver(200_000)
+        try await deliver(480)
+        try await waitUntil { !session.copies[0].writer.dropouts.isEmpty }
+        _ = session.checkDestinations(drive: { nil })  // collects the Dropout Marker, at 480
+        session.addMarker()  // placed later, so it comes after the Dropout Marker in the list
+
+        #expect(session.renameMarker(at: 1, to: "Nope") == .noSuchMarker)
+        #expect(session.renameMarker(at: 0, to: "Chorus") == .renamed)
+        #expect(session.metadata.markers.map(\.name) == ["Dropout", "Chorus"])
+        _ = session.finish()
+    }
+
+    @Test("A Drive that joined after a Marker was placed gets the Marker's later rename too")
+    func renameReachesAJoinedDrive() async throws {
+        let session = try session()
+        try await deliver(480)
+        session.addMarker()
+        let drive = drive
+        _ = session.checkDestinations(drive: { DestinationAccess(folder: drive) })
+        try await deliver(480)  // the Drive joins
+        #expect(session.renameMarker(at: 0, to: "Chorus") == .renamed)
+        try await deliver(480)
+        let finished = session.finish()
+
+        #expect(finished.folders.count == 2)
+        for folder in finished.folders {
+            #expect(try cuePoints(folder.appending(path: "01 USB 01.wav")) == [CuePoint(position: 480, label: "Chorus")], "\(folder.path)")
+            let json = try Data(contentsOf: folder.appending(path: "Take.json"))
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            #expect(try decoder.decode(TakeMetadata.self, from: json).markers.map(\.name) == ["Chorus"])
+        }
+    }
 }

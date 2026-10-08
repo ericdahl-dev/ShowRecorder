@@ -107,6 +107,19 @@ final class TakeSession {
         return marker
     }
 
+    /// Renames the operator Marker at `index` (counting operator Markers only, in the order of
+    /// `Recorder.takeMarkers`), in `Take.json` and in the Stems' cue labels.
+    func renameMarker(at index: Int, to name: String) -> MarkerRename {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return .emptyName }
+        let positions = metadata.markers.indices.filter { metadata.markers[$0].origin == .operator }
+        guard positions.indices.contains(index) else { return .noSuchMarker }
+        metadata.markers[positions[index]].name = name
+        writeMetadata()
+        for copy in copies { copy.writer.setMarkers(stemMarkers) }
+        return .renamed
+    }
+
     /// How `kind`'s Copy is doing. A Copy that never started is missing.
     func status(_ kind: DestinationKind) -> CopyStatus {
         guard let copy = copies.first(where: { $0.kind == kind }) else { return .missing }
@@ -280,4 +293,15 @@ final class TakeSession {
         metadata.gaps = gaps
         writeMetadata()
     }
+}
+
+/// What came of renaming a Marker.
+public enum MarkerRename: Equatable, Sendable {
+    case renamed
+    /// No Take is running.
+    case notRecording
+    /// There is no operator Marker at that index.
+    case noSuchMarker
+    /// The new name is empty or only whitespace.
+    case emptyName
 }

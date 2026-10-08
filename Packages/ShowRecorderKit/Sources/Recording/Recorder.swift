@@ -220,6 +220,16 @@ public final class Recorder {
         takeMarkers = session.metadata.markers.filter { $0.origin == .operator }
     }
 
+    /// Renames one of the running Take's Markers: the one at `index` among the operator's Markers (the order
+    /// of `takeMarkers`), in `Take.json` and in every Stem's cue labels, in every Copy.
+    @discardableResult
+    public func renameMarker(at index: Int, to name: String) -> MarkerRename {
+        guard isRecording, let session else { return .notRecording }
+        let result = session.renameMarker(at: index, to: name)
+        takeMarkers = session.metadata.markers.filter { $0.origin == .operator }
+        return result
+    }
+
     /// How `kind`'s Copy of the current (or last) Take is doing. A Copy that never started is missing.
     public func copyStatus(_ kind: DestinationKind) -> CopyStatus {
         guard isRecording, let session else { return finishedCopies[kind] ?? .missing }
