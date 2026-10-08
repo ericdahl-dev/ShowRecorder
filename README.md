@@ -25,6 +25,12 @@ You don't need a dedicated recording laptop. Plug a multichannel USB mixer or au
   - Enter the mixer's IP and each meter shows its Source's name and color.
   - Names are frozen into the Stems and `Take.json` when record is pressed.
   - Mute, fader and input source are saved with each Take when the mixer reports them.
+- **Meters and levels** ([ADR 0005](docs/adr/0005-level-meter-scale.md)):
+  - Each USB Channel has a wide peak bar, a narrower average bar in front and a held-peak line across both.
+  - The average is a VU reading. A faint Target band, -18 to -15 dBFS, is shaded on every lane: the average bar is blue-gray below it, green in it and orange above it, and never red.
+  - The peak bar is green up to -18 dBFS, yellow up to -6 and red above. The held-peak line turns red and thicker above -3.
+  - A red Clip mark appears above a channel that reaches full scale. It stays until you tap that lane, start a new Take or disarm.
+  - Each Take records every channel's peak and average in `Take.json`, and the report has a Levels table.
 - **After the show:**
   - Each Show gets an HTML report and a CSV channel list.
   - Each Show gets a Reaper project with one track per USB Channel, Takes laid end to end and a marker at each Take.
@@ -33,7 +39,7 @@ You don't need a dedicated recording laptop. Plug a multichannel USB mixer or au
   - On iPhone and iPad, the current USB route.
   - Recording continues with the screen locked, in the background and through interruptions.
 
-Not built yet: writing to the SSD and the phone at the same time, pre-roll, markers, Templates, Mixer Triggers, the Show list and sharing. See the [open issues](https://github.com/ericdahl-dev/ShowRecorder/issues).
+Not built yet: Templates, Mixer Triggers, the Show list and sharing. See the [open issues](https://github.com/ericdahl-dev/ShowRecorder/issues).
 
 ## The rig
 
@@ -136,7 +142,7 @@ The audio callback never allocates, takes locks, logs or touches the file system
 ## Documentation
 
 - [`CONTEXT.md`](CONTEXT.md): the project's vocabulary (Show, Take, Stem, USB Channel, Source, Mixer Link…). Code, issues and UI copy use these terms.
-- [`docs/adr/`](docs/adr): architecture decisions.
+- [`docs/adr/`](docs/adr): architecture decisions, including the [level meter scale](docs/adr/0005-level-meter-scale.md).
 - [Issue #1](https://github.com/ericdahl-dev/ShowRecorder/issues/1): the product requirements and user stories.
 
 ## License

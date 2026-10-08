@@ -5,7 +5,7 @@ import Foundation
 ///
 /// The average is the power average of the VU levels, weighted by frames: the square root of the mean of
 /// the squares of each window's level (its average rectified level times the VU form factor). That is an
-/// RMS-style figure, in dBFS, the same scale the meter shows.
+/// RMS-style figure, in dBFS, the same scale the meter shows (docs/adr/0005-level-meter-scale.md).
 struct TakeLevels {
     struct Summary: Equatable {
         var peakDbfs: Double

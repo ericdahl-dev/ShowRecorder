@@ -1,6 +1,6 @@
 import Foundation
 
-/// One channel's VU reading, from the average rectified level of each short window of audio.
+/// One channel's VU reading (the scale is in docs/adr/0005-level-meter-scale.md), from the average rectified level of each short window of audio.
 ///
 /// Calibrated like a VU meter: 0 VU is the RMS of a steady sine, so the average of the rectified signal
 /// is scaled by pi / (2 sqrt 2), about 1.11. The needle's ballistics are a second-order system that reaches
