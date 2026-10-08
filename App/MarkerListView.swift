@@ -18,6 +18,11 @@ struct MarkerListView: View {
             ForEach(model.recorder.markerEntries) { entry in
                 row(entry)
             }
+            if model.recorder.takePreRollSeconds > 0, !model.recorder.markerEntries.isEmpty {
+                Text("Times are from when you pressed Record. The Stems, the report and the Reaper project count from the start of the Pre-roll, \(Int(model.recorder.takePreRollSeconds.rounded())) s earlier.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
             if let message {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
@@ -37,7 +42,7 @@ struct MarkerListView: View {
     @ViewBuilder
     private func row(_ entry: MarkerEntry) -> some View {
         let label = HStack {
-            Text(ElapsedTime.format(seconds: Int(entry.seconds)))
+            Text(ElapsedTime.format(seconds: Int(entry.secondsSincePress)))
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
                 .frame(minWidth: 56, alignment: .leading)
@@ -58,7 +63,7 @@ struct MarkerListView: View {
                 renaming = entry
             } label: { label }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(entry.name), at \(ElapsedTime.format(seconds: Int(entry.seconds))). Rename")
+            .accessibilityLabel("\(entry.name), at \(ElapsedTime.format(seconds: Int(entry.secondsSincePress))). Rename")
         }
     }
 }
