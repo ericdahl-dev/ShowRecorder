@@ -88,6 +88,8 @@ public final class Recorder {
             isRepairing = repairQueue.isRunning
         }
         repairQueue.jobDone = { [unowned self] in regenerateReports() }
+        // A Show left open by a crash or an earlier launch is the open Show again.
+        currentShow = Show.findOpen(in: deviceFolder)
     }
 
     /// Starts receiving audio from `device`. Any previously Armed device is stopped first.
