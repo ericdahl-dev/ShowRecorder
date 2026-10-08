@@ -304,4 +304,6 @@ public enum MarkerRename: Equatable, Sendable {
     case noSuchMarker
     /// The new name is empty or only whitespace.
     case emptyName
+    /// Renaming from files: no Copy could be reached or read, so nothing was renamed.
+    case noCopyUpdated
 }
