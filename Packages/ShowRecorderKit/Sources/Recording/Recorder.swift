@@ -170,6 +170,7 @@ public final class Recorder {
         for (channel, level) in levels.enumerated() where level.peak >= Self.clipLevel {
             clippedChannels.insert(channel)
         }
+        if isRecording { session?.accumulate(levels) }
         return levels
     }
 
@@ -238,6 +239,8 @@ public final class Recorder {
         clippedChannels = []
         endedForLackOfSpace = false
         currentShow = show
+        // The levels of a Take count from the press: drop what the meters gathered before it.
+        _ = capture.meters.takeLevels()
         isRecording = true
     }
 
@@ -348,6 +351,8 @@ public final class Recorder {
         // Not recording from here on, so a Copy that fails while draining doesn't stop the Take again.
         isRecording = false
         self.session = nil
+        // The last window, which the screen hasn't read yet, is still part of the Take.
+        session.accumulate(capture?.meters.takeLevels() ?? [])
         let finished = session.finish()
         finishedCopies = finished.statuses
         dropoutCount = finished.metadata.markers.filter { $0.origin == .dropout }.count

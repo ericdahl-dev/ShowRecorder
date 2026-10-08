@@ -65,6 +65,10 @@ public struct ShowReport: Equatable, Sendable {
         public var muted: Bool?
         public var fader: Float?
         public var inputSource: Int?
+        /// The channel's loudest peak and its average level over the Take, in dBFS; -80 when silent. Nil in
+        /// Takes made before levels were recorded.
+        public var peakDbfs: Double?
+        public var averageDbfs: Double?
         /// Samples in the Stem's data chunk, or nil when the Stem is missing or unreadable.
         public var sampleCount: UInt64?
         public var sampleRate: Int
@@ -105,6 +109,8 @@ public struct ShowReport: Equatable, Sendable {
                         muted: channel.muted,
                         fader: channel.fader,
                         inputSource: channel.inputSource,
+                        peakDbfs: channel.peakDbfs,
+                        averageDbfs: channel.averageDbfs,
                         sampleCount: StemDuration.sampleCount(of: folder.appending(path: channel.stemFile)),
                         sampleRate: file.sampleRate)
                 },
@@ -228,6 +234,13 @@ public struct ShowReport: Equatable, Sendable {
             out += "</tr>\n"
         }
         out += "</tbody>\n</table></div>\n"
+        if take.usbChannels.contains(where: { $0.peakDbfs != nil }) {
+            out += "<h3>Levels</h3>\n<p class=\"note\">From when record was pressed. Average is the power average of the VU level, as on the meters.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>USB Channel</th><th>Source</th><th>Peak (dBFS)</th><th>Average (dBFS)</th></tr></thead>\n<tbody>\n"
+            for channel in take.usbChannels {
+                out += "<tr><td class=\"num\">\(channel.usbChannel)</td><td class=\"source\">\(Self.escape(channel.sourceName))</td><td class=\"num\">\(Self.level(channel.peakDbfs))</td><td class=\"num\">\(Self.level(channel.averageDbfs))</td></tr>\n"
+            }
+            out += "</tbody>\n</table></div>\n"
+        }
         if !take.markers.isEmpty {
             out += "<h3>Markers</h3>\n<div class=\"scroll\"><table>\n<thead><tr><th>Time</th><th>Marker</th></tr></thead>\n<tbody>\n"
             for marker in take.markers {
@@ -251,6 +264,12 @@ public struct ShowReport: Equatable, Sendable {
         }
         out += "</section>\n"
         return out
+    }
+
+    /// A level in dBFS to a tenth, with "silent" for a channel that had no signal.
+    private static func level(_ dbfs: Double?) -> String {
+        guard let dbfs else { return "" }
+        return dbfs <= -80 ? "silent" : String(format: "%.1f", dbfs)
     }
 
     /// For a Take with Pre-roll: when record was pressed and how much audio came before it. Marker and Gap
@@ -351,6 +370,8 @@ struct TakeFile: Decodable {
         var muted: Bool?
         var fader: Float?
         var inputSource: Int?
+        var peakDbfs: Double?
+        var averageDbfs: Double?
     }
 
     var take: Int

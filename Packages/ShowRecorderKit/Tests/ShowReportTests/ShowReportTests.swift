@@ -198,6 +198,45 @@ struct ShowReportTests {
         #expect(!html.contains("Dropouts"))
     }
 
+    /// Records a Take of 1 s of a steady 0.1 on channel 1 and silence on channel 2.
+    func recordWithLevels() throws {
+        let device = FakeAudioDevice(inputChannelCount: 2)
+        let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
+        try recorder.arm(device)
+        try recorder.startTake()
+        device.deliver([Array(repeating: 0.1, count: 48_000), Array(repeating: 0, count: 48_000)])
+        try recorder.stopTake()
+    }
+
+    @Test("A Take lists each channel's peak and average level, and Report.html has a Levels table")
+    func levelsInReport() throws {
+        try recordWithLevels()
+        let report = try ShowReport(showFolder: show)
+        let channels = try #require(report.takes.first?.usbChannels)
+        #expect(abs(try #require(channels[0].peakDbfs) + 20) < 0.01)
+        #expect(abs(try #require(channels[0].averageDbfs) - 20 * log10(0.1 * 1.1107207345)) < 0.01)
+        let html = try String(contentsOf: show.appending(path: "Report.html"), encoding: .utf8)
+        #expect(html.contains("<h3>Levels</h3>"))
+        #expect(html.contains("-20.0") && html.contains("-19.1"), "to a tenth of a dB")
+        #expect(html.contains("silent"), "a silent channel isn't -80")
+    }
+
+    @Test("A Take from before levels were recorded has no Levels section")
+    func noLevelsSection() throws {
+        try recordWithLevels()
+        let takeJSON = show.appending(path: "Take 01/Take.json")
+        var object = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: takeJSON)) as? [String: Any])
+        var channels = try #require(object["usbChannels"] as? [[String: Any]])
+        for index in channels.indices {
+            channels[index].removeValue(forKey: "peakDbfs")
+            channels[index].removeValue(forKey: "averageDbfs")
+        }
+        object["usbChannels"] = channels
+        try JSONSerialization.data(withJSONObject: object).write(to: takeJSON)
+        let report = try ShowReport(showFolder: show)
+        #expect(!report.html.contains("Levels"))
+    }
+
     @Test("Report.html names the Show, each Take and each Source, with names escaped")
     func htmlListsTakesAndSources() async throws {
         try await record(channels: 2, sources: [
