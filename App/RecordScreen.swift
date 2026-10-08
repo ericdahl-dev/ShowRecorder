@@ -20,6 +20,7 @@ struct RecordScreen: View {
     #endif
     @State private var showingSettings = false
     @State private var showingMarkers = false
+    @State private var showingNewShow = false
     @State private var settingsSection: SettingsSection?
     @State private var confirmingStop = false
 
@@ -52,6 +53,7 @@ struct RecordScreen: View {
             .frame(minWidth: 440, minHeight: 360)
             #endif
         }
+        .sheet(isPresented: $showingNewShow) { NewShowSheet(model: model) }
         #if os(macOS)
         .background(WindowCloseGuard(model: model))
         #endif
@@ -189,9 +191,14 @@ struct RecordScreen: View {
     private var transport: some View {
         VStack(spacing: 12) {
             elapsed(font: .system(size: 44, weight: .semibold))
-            Text(model.showSummary)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            Button { showingNewShow = true } label: {
+                Text(model.showSummary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .disabled(model.recorder.isRecording)
+            .accessibilityHint("Starts a new Show")
             // Top-aligned: Marker is taller (its count sits below), so centring would drop Record.
             HStack(alignment: .top, spacing: 28) {
                 recordButton(size: 88)
@@ -217,11 +224,16 @@ struct RecordScreen: View {
     private var transportColumn: some View {
         VStack(spacing: 8) {
             VStack(spacing: 2) {
-                Text(model.recorder.currentShow?.name ?? "No Show yet")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                Button { showingNewShow = true } label: {
+                    Text(model.recorder.currentShow?.name ?? "No Show yet")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                .buttonStyle(.plain)
+                .disabled(model.recorder.isRecording)
+                .accessibilityHint("Starts a new Show")
                 Text(model.takeTitle)
                     .font(.title3.weight(.bold))
                     .monospacedDigit()
@@ -618,6 +630,18 @@ final class RecordScreenModel {
             ? [PowerStatus.Chip(text: dropouts == 1 ? "1 dropout" : "\(dropouts) dropouts", shortText: "\(dropouts)", symbol: "waveform.badge.exclamationmark", state: .attention)]
             : []
         return chip + power.status.chips
+    }
+
+    /// Starts a new Show. Returns what to tell the operator, or nil when it started.
+    func startNewShow(name: String, venue: String) -> String? {
+        do {
+            try recorder.startNewShow(name: name, venue: venue)
+            return nil
+        } catch RecorderError.takeRunning {
+            return "A Show can't be started during a Take."
+        } catch {
+            return "The Show couldn't be created: \(error.localizedDescription)"
+        }
     }
 
     /// Renames a Marker in the list, during the Take or after it. Returns what to tell the operator, or nil when

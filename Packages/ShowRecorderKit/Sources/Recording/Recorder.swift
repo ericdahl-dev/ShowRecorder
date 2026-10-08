@@ -182,6 +182,16 @@ public final class Recorder {
         clippedChannels.remove(channel)
     }
 
+    /// Starts a Show on purpose, with a name and a venue, ending the open Show if there is one. The folder is
+    /// "YYYY-MM-DD Name" ("YYYY-MM-DD Show" for no name). The next Take lands in it.
+    public func startNewShow(name: String, venue: String) throws {
+        guard !isRecording else { throw RecorderError.takeRunning }
+        let date = now()
+        let show = try Show.create(in: deviceFolder, drive: nil, on: date, name: name, venue: venue)
+        currentShow?.end(at: date)
+        currentShow = show
+    }
+
     /// Starts a Take in the open Show, creating a Show first if none is open.
     ///
     /// `sources` are frozen into the Take: Stem names and bext descriptions use them, and later
@@ -393,6 +403,8 @@ public enum CopyStatus: Sendable, Equatable {
 
 public enum RecorderError: Error, Equatable {
     case notArmed
+    /// A Show can't be started or ended while a Take is running.
+    case takeRunning
 }
 
 /// Access to a Destination folder for the length of a Take. `release` ends it (for a Drive folder,
