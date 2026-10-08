@@ -173,4 +173,37 @@ struct MarkerListTests {
         #expect(recorder.takeMarkers.map(\.name) == ["Marker 1"])
         try recorder.stopTake()
     }
+
+    @Test("With Pre-roll, a Marker's time since Record was pressed is its audio time minus the Pre-roll")
+    func timeSincePress() throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let drive = drive
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            preRollSeconds: 1)
+        try recorder.arm(audio)
+        audio.deliver([Array(repeating: 0, count: 48_000)])  // 1 s Armed: the Pre-roll
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0, count: 4_800)])
+        recorder.addMarker()
+
+        let entry = try #require(recorder.markerEntries.first)
+        #expect(entry.seconds == 1.1, "from the start of the audio, as in the files")
+        #expect(entry.secondsSincePress == 0.1, "from the press, as on the screen's timer")
+        #expect(recorder.takePreRollSeconds == 1)
+        try recorder.stopTake()
+    }
+
+    @Test("Without Pre-roll the two times are the same")
+    func noPreRollSameTimes() throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder()
+        try recorder.arm(audio)
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0, count: 4_800)])
+        recorder.addMarker()
+        #expect(recorder.markerEntries.first?.secondsSincePress == recorder.markerEntries.first?.seconds)
+        #expect(recorder.takePreRollSeconds == 0)
+        try recorder.stopTake()
+    }
 }

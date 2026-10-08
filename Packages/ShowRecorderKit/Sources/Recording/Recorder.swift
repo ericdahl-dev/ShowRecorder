@@ -22,6 +22,9 @@ public final class Recorder {
     /// Every Marker of the current (or last) Take, the recorder's Dropout Markers too, in the order they were
     /// placed, with their time in the Take. For the Marker list.
     public private(set) var markerEntries: [MarkerEntry] = []
+    /// How much of the start of the current (or last) Take is Pre-roll, in seconds: the Marker times in the
+    /// files count from before the press by this much.
+    public private(set) var takePreRollSeconds: Double = 0
     /// How many stretches of audio the running (or last) Take lost because a writer couldn't keep up. Each is
     /// silence of the right length in the Stems, a Marker and an entry in `Take.json`. Updated when the
     /// recorder checks Destinations (about once a second) and when the Take ends.
@@ -274,6 +277,8 @@ public final class Recorder {
     /// Updates `takeMarkers` and `markerEntries` from the Take's metadata.
     private func refreshMarkers(from metadata: TakeMetadata) {
         takeMarkers = metadata.markers.filter { $0.origin == .operator }
+        let preRoll = metadata.sampleRate > 0 ? Double(metadata.preRollFrames ?? 0) / Double(metadata.sampleRate) : 0
+        takePreRollSeconds = preRoll
         var operatorIndex = 0
         markerEntries = metadata.markers.enumerated().map { place, marker in
             defer { if marker.origin == .operator { operatorIndex += 1 } }
@@ -281,6 +286,8 @@ public final class Recorder {
                 id: place,
                 operatorIndex: marker.origin == .operator ? operatorIndex : nil,
                 seconds: metadata.sampleRate > 0 ? Double(marker.position) / Double(metadata.sampleRate) : 0,
+                secondsSincePress: metadata.sampleRate > 0
+                    ? Double(max(marker.position - (metadata.preRollFrames ?? 0), 0)) / Double(metadata.sampleRate) : 0,
                 name: marker.name)
         }
     }
@@ -474,7 +481,10 @@ public struct MarkerEntry: Equatable, Identifiable, Sendable {
     /// Which operator Marker this is (the index `Recorder.renameMarker` takes), or nil for a Dropout Marker,
     /// which the recorder placed and which can't be renamed.
     public var operatorIndex: Int?
+    /// Counted from the start of the audio, which includes the Pre-roll.
     public var seconds: Double
+    /// Counted from when Record was pressed, as the timer on the record screen does.
+    public var secondsSincePress: Double
     public var name: String
 
     public var isDropout: Bool { operatorIndex == nil }
