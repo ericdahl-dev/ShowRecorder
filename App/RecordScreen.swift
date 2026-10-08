@@ -121,7 +121,7 @@ struct RecordScreen: View {
             header
             StatusStrip(chips: model.chips, extras: model.extraChips, tap: chipTapped)
             AlertSlot(queue: model.alerts, perform: model.perform)
-            MeterGrid(meters: model.meters, sources: model.mixerLink.sources)
+            MeterGrid(meters: model.meters, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources)
             transport
         }
         .padding()
@@ -140,7 +140,7 @@ struct RecordScreen: View {
             }
             HStack(alignment: .top, spacing: 12) {
                 if model.transportLeading { transportColumn }
-                MeterGrid(meters: model.meters, sources: model.mixerLink.sources, compact: true)
+                MeterGrid(meters: model.meters, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources, compact: true)
                     // Urgent alerts sit over the top of the meters, which aren't tappable and don't move,
                     // so the chips and the gear stay reachable (the Drive's Reconnect is one of them).
                     .overlay(alignment: .top) {

@@ -9,6 +9,9 @@ import SwiftUI
 /// `ChannelMeter`.
 struct MeterGrid: View {
     let meters: [ChannelMeter]
+    /// The channels (from 0) that have clipped and not been cleared. Tapping a channel's lane clears its mark.
+    var clipped: Set<Int> = []
+    var clearClip: (Int) -> Void = { _ in }
     var sources: [Source] = []
     /// Short screens (landscape iPhone): every channel gets its number and a Mixer-color swatch, and the
     /// Source's name only when there are few enough channels to have room for it.
@@ -23,11 +26,23 @@ struct MeterGrid: View {
         HStack(alignment: .bottom, spacing: 4) {
             ForEach(meters.indices, id: \.self) { index in
                 VStack(spacing: 4) {
-                    MeterBar(meter: meters[index])
-                        .frame(maxHeight: .infinity)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("Level, USB Channel \(index + 1)")
-                        .accessibilityValue(Self.spokenLevel(meters[index]))
+                    VStack(spacing: 2) {
+                        // Shape as well as color: a triangle with an exclamation mark. The row is always there so
+                        // a clip doesn't move the meters.
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.red)
+                            .opacity(clipped.contains(index) ? 1 : 0)
+                        MeterBar(meter: meters[index])
+                            .frame(maxHeight: .infinity)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture { if clipped.contains(index) { clearClip(index) } }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Level, USB Channel \(index + 1)")
+                    .accessibilityValue(Self.spokenLevel(meters[index], clipped: clipped.contains(index)))
+                    .accessibilityAddTraits(clipped.contains(index) ? .isButton : [])
+                    .accessibilityHint(clipped.contains(index) ? "Double tap to clear the clip mark" : "")
                     SourceLabel(
                         number: index + 1,
                         source: sources.indices.contains(index) ? sources[index] : nil,
@@ -43,14 +58,15 @@ struct MeterGrid: View {
         min(max((dbfs + 60) / 60, 0), 1)
     }
 
-    static func spokenLevel(_ meter: ChannelMeter) -> String {
+    static func spokenLevel(_ meter: ChannelMeter, clipped: Bool = false) -> String {
         let place = switch meter.zone {
         case .low: "below the target"
         case .onTarget: "on target"
         case .hot: "above the target"
         }
         let average = meter.averageDbfs <= VUMeter.floorDbfs ? "silent" : "average \(Int(meter.averageDbfs.rounded())) dB, \(place)"
-        return meter.peakIsHot ? "\(average), peak near clipping" : average
+        let described = meter.peakIsHot ? "\(average), peak near clipping" : average
+        return clipped ? "Clipped. \(described)" : described
     }
 }
 
