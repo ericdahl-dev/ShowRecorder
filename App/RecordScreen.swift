@@ -28,11 +28,14 @@ struct RecordScreen: View {
 
     var body: some View {
         // One root for both layouts. The task, idle timer, sheet and dialog below hang on it, so rotating
-        // swaps the arrangement but never cancels `runWhileVisible` (which would disarm the recorder).
+        // swaps the arrangement but never goes away (which would disarm the recorder).
         ZStack {
             if isLandscape { landscape } else { portrait }
         }
-        .task { await model.runWhileVisible() }
+        // The loop is the model's, started once; the screen only says when it appears and goes away.
+        .task { model.start() }
+        .onAppear { model.screenAppeared() }
+        .onDisappear { model.screenDisappeared() }
         // Read Sources for the USB Channels the newly Armed device actually sends.
         .task(id: model.recorder.usbChannelCount) {
             await model.mixerLink.refreshSources(usbChannelCount: model.recorder.usbChannelCount)
@@ -626,10 +629,34 @@ final class RecordScreenModel {
         #endif
     }
 
-    /// Arms the selected device, polls meters at about 30 Hz, and disarms when the screen goes away, unless a
-    /// Take is running. A screen being torn down or rebuilt never ends a Take, and a screen that comes back
-    /// never Arms again over a running one (see `RecorderLifecycle`).
-    func runWhileVisible() async {
+    // MARK: - The loop that outlives the screen
+
+    @ObservationIgnored private var loop: Task<Void, Never>?
+    /// Set once the first Arm has been tried, so a screen appearing before that doesn't Arm early.
+    @ObservationIgnored private var didStart = false
+
+    /// Starts the loop that protects and shows a Take: it Arms the input, polls the meters, looks for a Drive
+    /// joining or space running low, keeps the Mixer Link and follows route changes. It belongs to the model,
+    /// not the screen, so it keeps running (and keeps a Take safe) when the screen is torn down or rebuilt.
+    /// Calling it again does nothing.
+    func start() {
+        guard loop == nil else { return }
+        loop = Task { await run() }
+    }
+
+    /// The screen appeared again: Arm if nothing is, never over a running Take (see `RecorderLifecycle`).
+    func screenAppeared() {
+        guard didStart, RecorderLifecycle.screenAppeared(isArmed: recorder.isArmed) == .arm else { return }
+        armSelectedDevice()
+    }
+
+    /// The screen went away: disarm an unused recorder, never a running Take.
+    func screenDisappeared() {
+        if RecorderLifecycle.screenDisappeared(isRecording: recorder.isRecording) == .disarm { recorder.disarm() }
+    }
+
+    private func run() async {
+        defer { loop = nil }
         guard await hasMicrophonePermission() else {
             micDenied = true
             armError = "ShowRecorder needs microphone access to record your mixer. Allow it in the system's Privacy settings, under Microphone."
@@ -637,9 +664,9 @@ final class RecordScreenModel {
         }
         drive.refresh()
         if RecorderLifecycle.screenAppeared(isArmed: recorder.isArmed) == .arm { armSelectedDevice() }
+        didStart = true
         // Reconnect to the remembered Mixer. This runs here, not in Settings, so it happens without Settings open.
         if !mixerAddress.isEmpty, mixerLink.status == .idle { connectMixer() }
-        defer { if RecorderLifecycle.screenDisappeared(isRecording: recorder.isRecording) == .disarm { recorder.disarm() } }
         #if os(iOS)
         let routeWatcher = Task { await watchRouteChanges() }
         defer { routeWatcher.cancel() }
