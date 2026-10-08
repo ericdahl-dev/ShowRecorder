@@ -41,6 +41,22 @@ struct ArmedRecorderTests {
         #expect(recorder.takeMeterLevels() == [0.25, 0.75, 0.0])
     }
 
+    @Test("The meter levels also give each channel's average level and frame count")
+    func channelLevelsGiveAverages() throws {
+        let device = FakeAudioDevice(inputChannelCount: 2)
+        let recorder = Recorder()
+        try recorder.arm(device)
+
+        device.deliver([[0.5, -0.5, 0.25, -0.25], [0, 0, 0, 0]])
+
+        let levels = recorder.takeChannelLevels()
+        #expect(levels.count == 2)
+        #expect(levels[0].peak == 0.5 && levels[0].frames == 4)
+        #expect(abs(levels[0].meanRectified - 0.375) < 1e-6)
+        #expect(levels[1] == ChannelLevel(peak: 0, meanRectified: 0, frames: 4))
+        #expect(recorder.takeChannelLevels().allSatisfy { $0.frames == 0 })
+    }
+
     @Test("Meters reset after each reading")
     func metersResetAfterReading() throws {
         let device = FakeAudioDevice(inputChannelCount: 2)

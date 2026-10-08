@@ -1,9 +1,13 @@
 import MixerLink
+import Recording
 import SwiftUI
 
 /// One vertical meter per USB Channel, numbered from 1, labeled with its Source when the Mixer Link is up.
+///
+/// Each meter shows the channel's VU average as a bar against the target band (-18 to -15 dBFS) and the
+/// recent peak as a tick. What the colors mean is decided in `ChannelMeter`.
 struct MeterGrid: View {
-    let levels: [Float]
+    let meters: [ChannelMeter]
     var sources: [Source] = []
     /// Short screens (landscape iPhone): every channel gets its number and a Mixer-color swatch, and the
     /// Source's name only when there are few enough channels to have room for it.
@@ -16,48 +20,74 @@ struct MeterGrid: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 4) {
-            ForEach(levels.indices, id: \.self) { index in
+            ForEach(meters.indices, id: \.self) { index in
                 VStack(spacing: 4) {
-                    MeterBar(fraction: Self.fraction(forLinearPeak: levels[index]))
+                    MeterBar(meter: meters[index])
                         .frame(maxHeight: .infinity)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Level, USB Channel \(index + 1)")
+                        .accessibilityValue(Self.spokenLevel(meters[index]))
                     SourceLabel(
                         number: index + 1,
                         source: sources.indices.contains(index) ? sources[index] : nil,
-                        compact: compact, showsName: !compact || levels.count <= 8)
+                        compact: compact, showsName: !compact || meters.count <= 8)
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
-    /// Maps a linear peak to 0...1 on a -60...0 dBFS scale.
-    static func fraction(forLinearPeak peak: Float) -> Double {
-        let dB = 20 * log10(Double(max(peak, 1e-6)))
-        return min(max((dB + 60) / 60, 0), 1)
+    /// Maps dBFS to 0...1 on a -60...0 scale.
+    static func fraction(forDbfs dbfs: Double) -> Double {
+        min(max((dbfs + 60) / 60, 0), 1)
+    }
+
+    static func spokenLevel(_ meter: ChannelMeter) -> String {
+        let place = switch meter.zone {
+        case .low: "below the target"
+        case .onTarget: "on target"
+        case .hot: "above the target"
+        }
+        let average = meter.averageDbfs <= VUMeter.floorDbfs ? "silent" : "average \(Int(meter.averageDbfs.rounded())) dB, \(place)"
+        return meter.peakIsHot ? "\(average), peak near clipping" : average
     }
 }
 
 struct MeterBar: View {
-    let fraction: Double
+    let meter: ChannelMeter
 
     var body: some View {
         GeometryReader { geometry in
+            let height = geometry.size.height
             ZStack(alignment: .bottom) {
                 RoundedRectangle(cornerRadius: 3).fill(.quaternary)
                     .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(.secondary.opacity(0.5), lineWidth: 1))
+                // The target band, faint, behind the bar.
+                Rectangle()
+                    .fill(.white.opacity(0.12))
+                    .frame(height: height * (MeterGrid.fraction(forDbfs: MeterZone.bandHighDbfs) - MeterGrid.fraction(forDbfs: MeterZone.bandLowDbfs)))
+                    .offset(y: -height * MeterGrid.fraction(forDbfs: MeterZone.bandLowDbfs))
                 RoundedRectangle(cornerRadius: 3)
-                    .fill(color)
-                    .frame(height: geometry.size.height * fraction)
+                    .fill(averageColor)
+                    .frame(height: height * MeterGrid.fraction(forDbfs: meter.averageDbfs))
+                // The peak tick: thicker as well as red when it's near clipping, so color isn't the only cue.
+                Rectangle()
+                    .fill(meter.peakIsHot ? Color.red : Color.primary.opacity(0.85))
+                    .frame(height: meter.peakIsHot ? 4 : 2)
+                    .offset(y: -max(height * MeterGrid.fraction(forDbfs: meter.peakDbfs) - 1, 0))
+                    .opacity(meter.peakDbfs <= VUMeter.floorDbfs ? 0 : 1)
             }
+            .clipShape(RoundedRectangle(cornerRadius: 3))
         }
         .frame(minWidth: 8, maxWidth: MeterGrid.maxBarWidth)
     }
 
-    private var color: Color {
-        // -6 dBFS and -18 dBFS thresholds on the -60...0 scale.
-        if fraction > 0.9 { return .red }
-        if fraction > 0.7 { return .yellow }
-        return .green
+    private var averageColor: Color {
+        switch meter.zone {
+        case .low: Color(red: 0.45, green: 0.58, blue: 0.72)
+        case .onTarget: .green
+        case .hot: .orange
+        }
     }
 }
 

@@ -121,7 +121,7 @@ struct RecordScreen: View {
             header
             StatusStrip(chips: model.chips, extras: model.extraChips, tap: chipTapped)
             AlertSlot(queue: model.alerts, perform: model.perform)
-            MeterGrid(levels: model.levels, sources: model.mixerLink.sources)
+            MeterGrid(meters: model.meters, sources: model.mixerLink.sources)
             transport
         }
         .padding()
@@ -140,7 +140,7 @@ struct RecordScreen: View {
             }
             HStack(alignment: .top, spacing: 12) {
                 if model.transportLeading { transportColumn }
-                MeterGrid(levels: model.levels, sources: model.mixerLink.sources, compact: true)
+                MeterGrid(meters: model.meters, sources: model.mixerLink.sources, compact: true)
                     // Urgent alerts sit over the top of the meters, which aren't tappable and don't move,
                     // so the chips and the gear stay reachable (the Drive's Reconnect is one of them).
                     .overlay(alignment: .top) {
@@ -377,7 +377,7 @@ final class RecordScreenModel {
     private static let mixerAddressKey = "mixerAddress"
     private(set) var devices: [DeviceChoice] = []
     var selectedDeviceID: String?
-    private(set) var levels: [Float] = []
+    private(set) var meters: [ChannelMeter] = []
     private(set) var armError: String?
     private(set) var recordError: String?
     /// The device as it was when last Armed, to tell a format change from a new device.
@@ -738,16 +738,19 @@ final class RecordScreenModel {
         defer { deviceWatcher.cancel() }
         #endif
         var tick = 0
+        var lastPoll = ContinuousClock.now
         while !Task.isCancelled {
             tick += 1
             if tick % 30 == 0 { refreshDestinations() }
             if tick % 30 == 0 { disarmIfIdle() }
             // Re-check the Drive every few seconds so an unplugged one shows before record is pressed.
             if tick % 90 == 0 { drive.refresh() }
-            let fresh = recorder.takeMeterLevels()
-            levels = fresh.enumerated().map { index, level in
-                // Fall back gently so short peaks stay visible.
-                max(level, (levels.indices.contains(index) ? levels[index] : 0) * 0.85)
+            let now = ContinuousClock.now
+            let seconds = min(max((now - lastPoll).inSeconds, 0.001), 0.25)
+            lastPoll = now
+            let fresh = recorder.takeChannelLevels()
+            if fresh.count == meters.count {
+                for index in fresh.indices { meters[index].update(fresh[index], seconds: seconds) }
             }
             try? await Task.sleep(for: .milliseconds(33))
         }
@@ -780,7 +783,7 @@ final class RecordScreenModel {
         } catch {
             armError = "Couldn't start \(choice.name): \(error)"
         }
-        levels = Array(repeating: 0, count: recorder.usbChannelCount)
+        meters = Array(repeating: ChannelMeter(), count: recorder.usbChannelCount)
     }
 
     private func hasMicrophonePermission() async -> Bool {
@@ -820,7 +823,7 @@ final class RecordScreenModel {
             let continued = try recorder.restartInput(on: device)
             noteOfferedChannels(of: device)
             armedDevice = devices.first { $0.id == selectedDeviceID }?.info
-            levels = Array(repeating: 0, count: recorder.usbChannelCount)
+            meters = Array(repeating: ChannelMeter(), count: recorder.usbChannelCount)
             Self.sessionLog.notice("Input route changed during a Take; \(continued ? "the Take continues" : "the format changed, so the Take was stopped and saved", privacy: .public)")
             if !continued {
                 recordError = "The audio input changed format during the Take. Recording stopped and the Stems recorded so far were saved. Press record to start a new Take."
@@ -890,7 +893,7 @@ final class RecordScreenModel {
         case .disarm:
             recorder.disarm()
             armedDevice = nil
-            levels = []
+            meters = []
             if !change.stopsTake { armError = change.message }
         }
     }
@@ -1000,4 +1003,8 @@ struct RecordButtonLabel: View {
 
 #Preview {
     RecordScreen(model: RecordScreenModel())
+}
+
+private extension Duration {
+    var inSeconds: Double { Double(components.seconds) + Double(components.attoseconds) / 1e18 }
 }
