@@ -19,6 +19,9 @@ public final class Recorder {
     public private(set) var currentShow: Show?
     /// Markers placed in the current (or last) Take.
     public private(set) var takeMarkers: [TakeMetadata.Marker] = []
+    /// Every Marker of the current (or last) Take, the recorder's Dropout Markers too, in the order they were
+    /// placed, with their time in the Take. For the Marker list.
+    public private(set) var markerEntries: [MarkerEntry] = []
     /// How many stretches of audio the running (or last) Take lost because a writer couldn't keep up. Each is
     /// silence of the right length in the Stems, a Marker and an entry in `Take.json`. Updated when the
     /// recorder checks Destinations (about once a second) and when the Take ends.
@@ -48,6 +51,7 @@ public final class Recorder {
     @ObservationIgnored private var capture: Capture?
     /// The running Take's Copies.
     @ObservationIgnored private var session: TakeSession?
+    @ObservationIgnored private var lastTake: LastTake?
     /// Repairs ended Takes; its result is published as `lastTakeOutcomes` and `isRepairing`.
     @ObservationIgnored private let repairQueue: RepairQueue
     @ObservationIgnored private var finishedCopies: [DestinationKind: CopyStatus] = [:]
@@ -206,6 +210,7 @@ public final class Recorder {
         self.session = session
         finishedCopies = [:]
         takeMarkers = []
+        markerEntries = []
         dropoutCount = 0
         endedForLackOfSpace = false
         currentShow = show
@@ -217,7 +222,7 @@ public final class Recorder {
     public func addMarker(named name: String? = nil) {
         guard isRecording, let session else { return }
         session.addMarker(named: name)
-        takeMarkers = session.metadata.markers.filter { $0.origin == .operator }
+        refreshMarkers(from: session.metadata)
     }
 
     /// Renames one of the running Take's Markers: the one at `index` among the operator's Markers (the order
@@ -226,8 +231,58 @@ public final class Recorder {
     public func renameMarker(at index: Int, to name: String) -> MarkerRename {
         guard isRecording, let session else { return .notRecording }
         let result = session.renameMarker(at: index, to: name)
-        takeMarkers = session.metadata.markers.filter { $0.origin == .operator }
+        refreshMarkers(from: session.metadata)
         return result
+    }
+
+    /// Where the last Take's Copies are, kept for renaming a Marker after it ended.
+    private struct LastTake {
+        var showName: String
+        var takeNumber: Int
+        var deviceFolder: URL
+        var hadDrive: Bool
+    }
+
+    /// Renames one of the last Take's operator Markers (the one at `index` among them, the order of
+    /// `takeMarkers`) from the files, in every Copy it can reach: `Take.json` and every Stem's cue label.
+    /// The Drive is reached again for the rename and let go after. The outcome names any Copy that wasn't
+    /// updated. Waits for Repair first, which would otherwise write the old name back.
+    public func renameLastTakeMarker(at index: Int, to name: String) async -> MarkerRenamer.Outcome {
+        await repairQueue.wait()
+        guard !isRecording, let take = lastTake else { return MarkerRenamer.Outcome(result: .notRecording, renamed: [], failed: []) }
+        var copies: [DestinationKind: URL] = [.device: take.deviceFolder]
+        var access: DestinationAccess?
+        if take.hadDrive {
+            access = driveFolder()
+            if let access { copies[.drive] = access.folder.appending(path: take.showName).appending(path: String(format: "Take %02d", take.takeNumber)) }
+        }
+        defer { access?.release() }
+        var outcome = MarkerRenamer.rename(markerAt: index, to: name, in: copies)
+        if take.hadDrive, access == nil {
+            outcome.failed.append(.init(copy: .drive, reason: "The Drive isn't available, so its Copy still has the old name."))
+        }
+        if !outcome.renamed.isEmpty, let metadata = Self.readTake(at: take.deviceFolder) { refreshMarkers(from: metadata) }
+        return outcome
+    }
+
+    private static func readTake(at folder: URL) -> TakeMetadata? {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return (try? Data(contentsOf: folder.appending(path: TakeMetadata.fileName))).flatMap { try? decoder.decode(TakeMetadata.self, from: $0) }
+    }
+
+    /// Updates `takeMarkers` and `markerEntries` from the Take's metadata.
+    private func refreshMarkers(from metadata: TakeMetadata) {
+        takeMarkers = metadata.markers.filter { $0.origin == .operator }
+        var operatorIndex = 0
+        markerEntries = metadata.markers.enumerated().map { place, marker in
+            defer { if marker.origin == .operator { operatorIndex += 1 } }
+            return MarkerEntry(
+                id: place,
+                operatorIndex: marker.origin == .operator ? operatorIndex : nil,
+                seconds: metadata.sampleRate > 0 ? Double(marker.position) / Double(metadata.sampleRate) : 0,
+                name: marker.name)
+        }
     }
 
     /// How `kind`'s Copy of the current (or last) Take is doing. A Copy that never started is missing.
@@ -245,6 +300,7 @@ public final class Recorder {
         case .carryOn:
             currentShow = session.show
             dropoutCount = session.dropoutCount
+            refreshMarkers(from: session.metadata)
         case .outOfSpace:
             endedForLackOfSpace = true
             try? stopTake()
@@ -267,6 +323,10 @@ public final class Recorder {
         let finished = session.finish()
         finishedCopies = finished.statuses
         dropoutCount = finished.metadata.markers.filter { $0.origin == .dropout }.count
+        refreshMarkers(from: finished.metadata)
+        lastTake = LastTake(
+            showName: session.show.name, takeNumber: finished.metadata.take, deviceFolder: finished.folders[0],
+            hadDrive: finished.folders.count > 1)
         currentShow = session.show
         // The Takes are safe either way; the report and project are regenerated next time.
         regenerateReports()
@@ -404,4 +464,18 @@ final class Capture: Sendable {
         }
         if mask != 0 { takeFrames.add(block.frameCount, ordering: .relaxed) }
     }
+}
+
+/// One line of the Marker list: a Marker with its time in the Take (counted from the start of the audio,
+/// as in the Stems, the report and the project).
+public struct MarkerEntry: Equatable, Identifiable, Sendable {
+    /// Its place in the Take's list of all Markers.
+    public var id: Int
+    /// Which operator Marker this is (the index `Recorder.renameMarker` takes), or nil for a Dropout Marker,
+    /// which the recorder placed and which can't be renamed.
+    public var operatorIndex: Int?
+    public var seconds: Double
+    public var name: String
+
+    public var isDropout: Bool { operatorIndex == nil }
 }

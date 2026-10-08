@@ -19,6 +19,7 @@ struct RecordScreen: View {
     @Environment(\.openSettings) private var openSettings
     #endif
     @State private var showingSettings = false
+    @State private var showingMarkers = false
     @State private var settingsSection: SettingsSection?
     @State private var confirmingStop = false
 
@@ -36,6 +37,21 @@ struct RecordScreen: View {
         .task { model.start() }
         .onAppear { model.screenAppeared() }
         .onDisappear { model.screenDisappeared() }
+        .sheet(isPresented: $showingMarkers) {
+            NavigationStack {
+                MarkerListView(model: model)
+                    .navigationTitle("Markers")
+                    #if os(iOS)
+                    .navigationBarTitleDisplayMode(.inline)
+                    #endif
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) { Button("Done") { showingMarkers = false } }
+                    }
+            }
+            #if os(macOS)
+            .frame(minWidth: 440, minHeight: 360)
+            #endif
+        }
         #if os(macOS)
         .background(WindowCloseGuard(model: model))
         #endif
@@ -119,6 +135,7 @@ struct RecordScreen: View {
                 headerSummary(compact: true)
                     .frame(maxWidth: 190, alignment: .leading)
                 StatusStrip(chips: model.chips, extras: model.extraChips, compact: true, tap: chipTapped)
+                markersButton
                 gearButton
             }
             HStack(alignment: .top, spacing: 12) {
@@ -255,6 +272,21 @@ struct RecordScreen: View {
         model.alerts.ordered.first { $0.tone == .ok || $0.tone == .info }
     }
 
+    /// Opens the Marker list. A sheet, so it never takes the record screen (and a running Take) away.
+    private var markersButton: some View {
+        Button { showingMarkers = true } label: {
+            Image(systemName: "list.bullet")
+                .font(.title3)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Markers")
+        #if os(macOS)
+        .help("Markers")
+        #endif
+    }
+
     private var gearButton: some View {
         Button { showSettings(nil) } label: {
             Image(systemName: "gearshape")
@@ -273,6 +305,7 @@ struct RecordScreen: View {
         HStack(alignment: .center, spacing: 12) {
             headerSummary(compact: false)
             Spacer(minLength: 8)
+            markersButton
             gearButton
         }
     }
@@ -585,6 +618,30 @@ final class RecordScreenModel {
             ? [PowerStatus.Chip(text: dropouts == 1 ? "1 dropout" : "\(dropouts) dropouts", shortText: "\(dropouts)", symbol: "waveform.badge.exclamationmark", state: .attention)]
             : []
         return chip + power.status.chips
+    }
+
+    /// Renames a Marker in the list, during the Take or after it. Returns what to tell the operator, or nil when
+    /// every Copy has the new name.
+    func renameMarker(_ entry: MarkerEntry, to name: String) async -> String? {
+        guard let index = entry.operatorIndex else { return "Dropout Markers can't be renamed." }
+        if recorder.isRecording {
+            switch recorder.renameMarker(at: index, to: name) {
+            case .renamed: return nil
+            case .emptyName: return "A Marker needs a name."
+            case .noSuchMarker: return "That Marker isn't there any more."
+            case .notRecording, .noCopyUpdated: return "The Take ended. Try again."
+            }
+        }
+        let outcome = await recorder.renameLastTakeMarker(at: index, to: name)
+        switch outcome.result {
+        case .emptyName: return "A Marker needs a name."
+        case .noSuchMarker: return "That Marker isn't there any more."
+        case .notRecording: return "There is no Take to rename a Marker in."
+        case .noCopyUpdated, .renamed:
+            let problems = outcome.failed.map { "\($0.copy == .drive ? "The Drive" : "This device") Copy still has the old name: \($0.reason)" }
+            if outcome.result == .noCopyUpdated { return "Couldn't rename it. " + problems.joined(separator: " ") }
+            return problems.isEmpty ? nil : problems.joined(separator: " ")
+        }
     }
 
     /// The Pre-roll length changed in Settings: keep it, give it to the recorder, and, if Armed, Arm again so

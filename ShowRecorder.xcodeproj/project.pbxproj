@@ -18,6 +18,7 @@
 		992430B53737588E241A07B2 /* RecordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */; };
 		A9A8E28730C7E54C34DF1CAE /* CoreAudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = F366717F80C358C5B3DD7D70 /* CoreAudioIO */; };
 		B243E4DC015F2D21E51CF47F /* PowerMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90AA2E3938B5B72E1F6B30B8 /* PowerMonitor.swift */; };
+		B5FB0EEE03B673365A8114BA /* MarkerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 078720CF89E26EE2F4248B22 /* MarkerListView.swift */; };
 		BD8A89087734093AB7AABE15 /* DriveFolderModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 497820F0F5EF694FC7765883 /* DriveFolderModel.swift */; };
 		BDB211EC46C2B160A043D06F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CC47A3C7EE61A034F3F6FE0 /* SettingsView.swift */; };
 		CFC9F8D3194115954ABE8B0D /* Destinations in Frameworks */ = {isa = PBXBuildFile; productRef = 2A213300C93BF0054D83D85D /* Destinations */; };
@@ -27,6 +28,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		078720CF89E26EE2F4248B22 /* MarkerListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkerListView.swift; sourceTree = "<group>"; };
 		2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoAudioDevice.swift; sourceTree = "<group>"; };
 		3ED85A0ECD05797420331099 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3F25297D625A2C059541D858 /* StatusStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusStrip.swift; sourceTree = "<group>"; };
@@ -78,6 +80,7 @@
 				2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */,
 				497820F0F5EF694FC7765883 /* DriveFolderModel.swift */,
 				3ED85A0ECD05797420331099 /* Info.plist */,
+				078720CF89E26EE2F4248B22 /* MarkerListView.swift */,
 				BB46E32691A6C070E799F33D /* MeterGrid.swift */,
 				90AA2E3938B5B72E1F6B30B8 /* PowerMonitor.swift */,
 				A66A4A288C0B0A560B802624 /* PrivacyInfo.xcprivacy */,
@@ -190,6 +193,7 @@
 				27511B0372DDD64DA03A84AC /* AudioSessionEvents.swift in Sources */,
 				47525D0C9DECC739535A5E15 /* DemoAudioDevice.swift in Sources */,
 				BD8A89087734093AB7AABE15 /* DriveFolderModel.swift in Sources */,
+				B5FB0EEE03B673365A8114BA /* MarkerListView.swift in Sources */,
 				7978ADCB74542A7F2803E11F /* MeterGrid.swift in Sources */,
 				B243E4DC015F2D21E51CF47F /* PowerMonitor.swift in Sources */,
 				992430B53737588E241A07B2 /* RecordScreen.swift in Sources */,
