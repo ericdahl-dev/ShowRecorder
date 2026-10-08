@@ -19,6 +19,11 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         public var muted: Bool?
         public var fader: Float?
         public var inputSource: Int?
+        /// This channel's loudest peak during the Take (from the press, not the Pre-roll), and its average
+        /// level, in dBFS: the power average of the VU levels (see `TakeLevels`). Nil in Takes made before
+        /// levels were recorded; -80 for a silent channel.
+        public var peakDbfs: Double?
+        public var averageDbfs: Double?
     }
 
     public var show: String

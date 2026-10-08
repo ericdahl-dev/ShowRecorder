@@ -43,6 +43,7 @@ final class TakeSession {
     /// The open Show, which gains a Drive folder when the Drive joins.
     private(set) var show: Show
     private(set) var metadata: TakeMetadata
+    private var levels: TakeLevels
     private(set) var copies: [CopyRecord] = []
     /// Called when any Copy's writer fails (on the main actor), so the owner can end the Take once none is left.
     var onCopyFailed: () -> Void = {}
@@ -63,6 +64,7 @@ final class TakeSession {
     ) throws {
         self.show = show
         self.metadata = metadata
+        levels = TakeLevels(channelCount: metadata.usbChannels.count)
         self.stems = stems
         self.info = info
         self.capture = capture
@@ -180,6 +182,11 @@ final class TakeSession {
         return .carryOn
     }
 
+    /// Adds the windows the meter read to the Take's levels. Written into `Take.json` when the Take finishes.
+    func accumulate(_ windows: [ChannelLevel]) {
+        levels.add(windows)
+    }
+
     /// Stops capturing, waits until every Stem is written and finalized and records the Gaps.
     /// A Copy that failed during the Take doesn't make this throw; see `Finished.statuses`.
     func finish() -> Finished {
@@ -187,6 +194,11 @@ final class TakeSession {
         var statuses = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.map { ($0, status($0)) })
         for copy in copies { copy.writer.stop() }
         collectDropouts()
+        for (channel, summary) in levels.summary.enumerated() where metadata.usbChannels.indices.contains(channel) {
+            metadata.usbChannels[channel].peakDbfs = summary.peakDbfs
+            metadata.usbChannels[channel].averageDbfs = summary.averageDbfs
+        }
+        writeMetadata()
         // A Take whose Copies were never fed a first block is empty, not missing everything.
         persistGaps(takeEnd: capture.awaitingFirstBlock ? 0 : capture.takeFrameCount)
         for copy in copies where statuses[copy.kind] == .recording && copy.writer.hasFailed {
