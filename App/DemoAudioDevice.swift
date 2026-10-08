@@ -24,6 +24,8 @@ final class DemoAudioDevice: AudioIODevice, @unchecked Sendable {
             var phase = 0.0
             // `-demoDropout`: every 15 s deliver one block bigger than a ring, so the recorder has to drop it.
             let overflows = CommandLine.arguments.contains("-demoDropout")
+            // `-demoClip`: every 3 s, one full-scale sample on channel 3, so the clip mark can be checked.
+            let clips = CommandLine.arguments.contains("-demoClip")
             var blocks = 0
             while !Task.isCancelled {
                 phase += 0.05
@@ -34,7 +36,9 @@ final class DemoAudioDevice: AudioIODevice, @unchecked Sendable {
                     let level = Float(0.02 + 0.3 * (1 + sin(phase + Double(channel) * 0.6))) * (channel == count - 1 ? 0 : 1)
                     return (0..<480).map { _ in Float.random(in: -level...level) }
                 }
-                fake.deliver(channels)
+                var delivered = channels
+                if clips, blocks % 300 == 0 { delivered[2][0] = 1 }
+                fake.deliver(delivered)
                 try? await Task.sleep(for: .milliseconds(10))
             }
         }

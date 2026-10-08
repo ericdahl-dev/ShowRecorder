@@ -29,6 +29,11 @@ public final class Recorder {
     /// silence of the right length in the Stems, a Marker and an entry in `Take.json`. Updated when the
     /// recorder checks Destinations (about once a second) and when the Take ends.
     public private(set) var dropoutCount = 0
+    /// The USB Channels (counted from 0) whose peak has reached full scale since they were last cleared. A
+    /// clip stays marked until `clearClip(channel:)` or the next Take, so it isn't missed by looking away.
+    public private(set) var clippedChannels: Set<Int> = []
+    /// A peak at or above this (linear) counts as a clip: within about 0.01 dB of full scale.
+    public static let clipLevel: Float = 0.999
     /// Whether the last Take was ended by the recorder because the last healthy Destination was about to fill.
     public private(set) var endedForLackOfSpace = false
     /// How each Copy of the last Take ended up: complete, has Gaps, Repaired or Repair failed.
@@ -133,6 +138,7 @@ public final class Recorder {
         device = nil
         capture = nil
         usbChannelCount = 0
+        clippedChannels = []
         isArmed = false
     }
 
@@ -160,7 +166,16 @@ public final class Recorder {
 
     /// Each USB Channel's peak, average level and frame count since the last call. Empty when not Armed.
     public func takeChannelLevels() -> [ChannelLevel] {
-        capture?.meters.takeLevels() ?? []
+        let levels = capture?.meters.takeLevels() ?? []
+        for (channel, level) in levels.enumerated() where level.peak >= Self.clipLevel {
+            clippedChannels.insert(channel)
+        }
+        return levels
+    }
+
+    /// Clears one channel's clip mark, when the operator taps it.
+    public func clearClip(channel: Int) {
+        clippedChannels.remove(channel)
     }
 
     /// Starts a Take in the open Show, creating a Show first if none is open.
@@ -220,6 +235,7 @@ public final class Recorder {
         takeMarkers = []
         markerEntries = []
         dropoutCount = 0
+        clippedChannels = []
         endedForLackOfSpace = false
         currentShow = show
         isRecording = true
