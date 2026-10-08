@@ -15,9 +15,16 @@ public struct Show: Sendable, Equatable {
     public private(set) var endedAt: Date?
     /// Where the Show is, as the operator typed it. Nil when none was given.
     public let venue: String?
+    /// When the last Take in the Show ended, or nil while it has none. A Show with no Take for `idleLimit`
+    /// ends, counting from here (or from `startedAt` when there is no Take).
+    public private(set) var lastTakeEndedAt: Date?
 
-    init(name: String, folder: URL, driveFolder: URL? = nil, takeCount: Int, startedAt: Date = .distantPast, endedAt: Date? = nil, venue: String? = nil) {
+    /// How long a Show can go with no Take before the next record starts a new one.
+    static let idleLimit: TimeInterval = 6 * 3600
+
+    init(name: String, folder: URL, driveFolder: URL? = nil, takeCount: Int, startedAt: Date = .distantPast, endedAt: Date? = nil, venue: String? = nil, lastTakeEndedAt: Date? = nil) {
         self.venue = venue
+        self.lastTakeEndedAt = lastTakeEndedAt
         self.name = name
         self.folder = folder
         self.driveFolder = driveFolder
@@ -80,7 +87,18 @@ public struct Show: Sendable, Equatable {
     }
 
     /// What `Show.json` holds for this Show.
-    var file: ShowFile { ShowFile(name: name, startedAt: startedAt, endedAt: endedAt, venue: venue) }
+    var file: ShowFile { ShowFile(name: name, startedAt: startedAt, endedAt: endedAt, venue: venue, lastTakeEndedAt: lastTakeEndedAt) }
+
+    /// Whether the Show has had no Take for the idle limit as of `date`.
+    func isIdle(at date: Date) -> Bool {
+        date.timeIntervalSince(lastTakeEndedAt ?? startedAt) >= Self.idleLimit
+    }
+
+    /// Records when a Take ended, in every Copy, for the idle rule.
+    mutating func noteTakeEnded(at date: Date) {
+        lastTakeEndedAt = date
+        for copy in [folder] + (driveFolder.map { [$0] } ?? []) { try? file.write(to: copy) }
+    }
 
     /// Marks the Show ended in every Copy it has. A Copy that can't be written is skipped: the Show ends anyway.
     mutating func end(at date: Date) {
@@ -109,7 +127,8 @@ public struct Show: Sendable, Equatable {
         }
         let takes = ((try? fm.contentsOfDirectory(atPath: newest.folder.path)) ?? [])
             .compactMap { $0.hasPrefix("Take ") ? Int($0.dropFirst(5)) : nil }
-        return Show(name: newest.file.name, folder: newest.folder, takeCount: takes.max() ?? 0, startedAt: newest.file.startedAt)
+        return Show(name: newest.file.name, folder: newest.folder, takeCount: takes.max() ?? 0, startedAt: newest.file.startedAt,
+                    venue: newest.file.venue, lastTakeEndedAt: newest.file.lastTakeEndedAt)
     }
 
     /// Starts writing the running Take to the Drive folder `parent` too: the Show folder there (under
@@ -143,6 +162,8 @@ struct ShowFile: Codable, Equatable {
     var endedAt: Date?
     /// Where the Show is. Nil when none was given, and in Shows from before venues.
     var venue: String?
+    /// When the last Take ended. Nil while the Show has none, and in Shows from before this.
+    var lastTakeEndedAt: Date?
 
     func write(to showFolder: URL) throws {
         let encoder = JSONEncoder()
