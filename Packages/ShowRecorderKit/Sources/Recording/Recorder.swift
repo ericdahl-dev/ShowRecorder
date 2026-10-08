@@ -32,7 +32,8 @@ public final class Recorder {
     /// The USB Channels (counted from 0) whose peak has reached full scale since they were last cleared. A
     /// clip stays marked until `clearClip(channel:)` or the next Take, so it isn't missed by looking away.
     public private(set) var clippedChannels: Set<Int> = []
-    /// A peak at or above this (linear) counts as a clip: within about 0.01 dB of full scale.
+    /// A peak at or above this (linear) counts as a clip: within about 0.01 dB of full scale
+    /// (docs/adr/0005-level-meter-scale.md).
     public static let clipLevel: Float = 0.999
     /// Whether the last Take was ended by the recorder because the last healthy Destination was about to fill.
     public private(set) var endedForLackOfSpace = false

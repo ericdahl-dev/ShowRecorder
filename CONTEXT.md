@@ -64,6 +64,26 @@ _Avoid_: Sync, heal, restore
 A stretch of a Take whose samples reached neither Copy because the recorder couldn't keep up. It is held as silence of the exact length and marked.
 _Avoid_: Gap, glitch, overrun (in user-facing text)
 
+### Levels
+
+Levels are in dBFS: 0 is full scale, and silence reads -80. The scale and thresholds are in [ADR 0005](docs/adr/0005-level-meter-scale.md).
+
+**Peak**:
+The highest level a USB Channel reaches, measured per meter window of about 33 ms. The wide peak bar shows it: it jumps to a new peak and falls 15% per 1/30 s. The bar is green up to -18, yellow above -18 up to -6 and red above -6. A held-peak line across the bar holds 1.5 s, then falls 40 dB per second; it turns red and thicker (4 pt instead of 2 pt) above -3, so color is not the only cue. A level that reaches full scale is "clipping".
+_Avoid_: Max, spike, transient
+
+**Average level**:
+How loud a USB Channel is on average, read like a VU meter: 0 VU is the level of a steady sine at its RMS, and the needle rises to 99% of a steady level in 300 ms with about 1% overshoot. The narrower average bar shows it. It is low (cool blue-gray) below -18, on target (green) from -18 to -15 inclusive and hot (orange) above -15. It is never red.
+_Avoid_: RMS, loudness, volume, gain
+
+**Target band**:
+The range of Average level to aim for: -18 to -15 dBFS, fixed for now. A faint shaded band marks it on every lane. -18 dBFS is the digital reference for 0 VU in the EBU R 68 convention (SMPTE uses -20 dBFS), so the band is a convention, not a single standard. Live sources have peaks roughly 12 to 18 dB above their average, so this average leaves headroom below full scale, and 24-bit recording leaves enough resolution that recording quieter costs little.
+_Avoid_: Sweet spot, safe zone, green zone
+
+**Clip mark**:
+A red triangle with an exclamation mark above a USB Channel's lane, shown when its Peak reaches 0.999 linear (within about 0.01 dB of full scale) in any meter window. A Peak of -0.5 dBFS is not a clip. It stays until the operator taps that lane, a new Take starts or the recorder is disarmed, and it stays after a Take ends.
+_Avoid_: Clip (alone), overload, red light
+
 ### Mixer
 
 **Mixer**:

@@ -3,7 +3,7 @@ import Foundation
 /// Where a channel's average level sits against the target band, -18 to -15 dBFS.
 ///
 /// The band is the usual recording level for live sound: it leaves 12 to 18 dB of headroom for peaks
-/// (see CONTEXT.md).
+/// (see CONTEXT.md, "Levels", and docs/adr/0005-level-meter-scale.md).
 public enum MeterZone: Equatable, Sendable {
     case low, onTarget, hot
 
@@ -26,7 +26,7 @@ public enum PeakBarZone: Equatable, Sendable {
     case green, yellow, red
 }
 
-/// One channel's meter as the screen draws it: the VU average, and a peak tick that holds and then falls.
+/// One channel's meter as the screen draws it (the numbers are in docs/adr/0005-level-meter-scale.md): the VU average, and a peak tick that holds and then falls.
 public struct ChannelMeter: Sendable {
     /// A peak above this reads as near clipping, and the tick turns red.
     public static let hotPeakDbfs = -3.0
