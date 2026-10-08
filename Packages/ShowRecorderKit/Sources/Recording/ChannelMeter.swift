@@ -21,6 +21,11 @@ public enum MeterZone: Equatable, Sendable {
     }
 }
 
+/// The color of the peak bar: the old meter's thresholds, on the peak.
+public enum PeakBarZone: Equatable, Sendable {
+    case green, yellow, red
+}
+
 /// One channel's meter as the screen draws it: the VU average, and a peak tick that holds and then falls.
 public struct ChannelMeter: Sendable {
     /// A peak above this reads as near clipping, and the tick turns red.
@@ -37,6 +42,14 @@ public struct ChannelMeter: Sendable {
 
     public init() {}
 
+    /// The peak bar, linear 0...1: jumps to a peak and falls back 15% per 1/30 s, as the old meter did.
+    public private(set) var peakBar: Float = 0
+
+    public var peakBarZone: PeakBarZone {
+        let dbfs = peakBar > 0 ? 20 * log10(Double(peakBar)) : VUMeter.floorDbfs
+        return dbfs > -6 ? .red : dbfs > -18 ? .yellow : .green
+    }
+
     public var averageDbfs: Double { vu.dbfs }
     public var zone: MeterZone { MeterZone(averageDbfs: averageDbfs) }
     public var peakIsHot: Bool { peakDbfs > Self.hotPeakDbfs }
@@ -44,6 +57,7 @@ public struct ChannelMeter: Sendable {
     /// Takes the levels the audio thread gathered over the last `seconds`.
     public mutating func update(_ level: ChannelLevel, seconds: Double) {
         vu.update(meanRectified: Double(level.meanRectified), seconds: seconds)
+        peakBar = max(level.peak, peakBar * Float(pow(0.85, seconds * 30)))
         let peak = level.peak > 0 ? max(20 * log10(Double(level.peak)), VUMeter.floorDbfs) : VUMeter.floorDbfs
         if peak >= peakDbfs {
             peakDbfs = peak

@@ -4,8 +4,9 @@ import SwiftUI
 
 /// One vertical meter per USB Channel, numbered from 1, labeled with its Source when the Mixer Link is up.
 ///
-/// Each meter shows the channel's VU average as a bar against the target band (-18 to -15 dBFS) and the
-/// recent peak as a tick. What the colors mean is decided in `ChannelMeter`.
+/// Each meter is the old peak bar (wide, behind), the VU average as a narrower bar in front, shown against
+/// the target band (-18 to -15 dBFS), and a line for the held peak. What the colors mean is decided in
+/// `ChannelMeter`.
 struct MeterGrid: View {
     let meters: [ChannelMeter]
     var sources: [Source] = []
@@ -67,10 +68,16 @@ struct MeterBar: View {
                     .fill(.white.opacity(0.12))
                     .frame(height: height * (MeterGrid.fraction(forDbfs: MeterZone.bandHighDbfs) - MeterGrid.fraction(forDbfs: MeterZone.bandLowDbfs)))
                     .offset(y: -height * MeterGrid.fraction(forDbfs: MeterZone.bandLowDbfs))
+                // The peak bar, as the old meter drew it.
                 RoundedRectangle(cornerRadius: 3)
+                    .fill(peakBarColor)
+                    .frame(height: height * MeterGrid.fraction(forDbfs: Self.dbfs(ofLinear: meter.peakBar)))
+                // The average, narrower and in front.
+                RoundedRectangle(cornerRadius: 2)
                     .fill(averageColor)
-                    .frame(height: height * MeterGrid.fraction(forDbfs: meter.averageDbfs))
-                // The peak tick: thicker as well as red when it's near clipping, so color isn't the only cue.
+                    .frame(width: geometry.size.width * 0.5, height: height * MeterGrid.fraction(forDbfs: meter.averageDbfs))
+                    .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(.black.opacity(0.35), lineWidth: 1))
+                // The held peak: thicker as well as red when it's near clipping, so color isn't the only cue.
                 Rectangle()
                     .fill(meter.peakIsHot ? Color.red : Color.primary.opacity(0.85))
                     .frame(height: meter.peakIsHot ? 4 : 2)
@@ -80,6 +87,18 @@ struct MeterBar: View {
             .clipShape(RoundedRectangle(cornerRadius: 3))
         }
         .frame(minWidth: 8, maxWidth: MeterGrid.maxBarWidth)
+    }
+
+    private static func dbfs(ofLinear level: Float) -> Double {
+        level > 0 ? 20 * log10(Double(level)) : VUMeter.floorDbfs
+    }
+
+    private var peakBarColor: Color {
+        switch meter.peakBarZone {
+        case .green: .green
+        case .yellow: .yellow
+        case .red: .red
+        }
     }
 
     private var averageColor: Color {
