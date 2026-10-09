@@ -229,6 +229,13 @@ public final class Recorder {
         return true
     }
 
+    /// Takes the typed name off USB Channel `usbChannel` (from 1), so the Show's later Takes use the Mixer's name
+    /// again. A Take that is running keeps the name it started with.
+    public func clearChannelName(forChannel usbChannel: Int) {
+        guard channelNames.removeValue(forKey: usbChannel) != nil else { return }
+        currentShow?.setChannelNames(channelNames)
+    }
+
     /// Starts a Take in the open Show, creating a Show first if none is open.
     ///
     /// `sources` are frozen into the Take: Stem names and bext descriptions use them, and later

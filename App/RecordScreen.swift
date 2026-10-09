@@ -23,6 +23,7 @@ struct RecordScreen: View {
     @State private var showingNewShow = false
     @State private var namingChannel: Int?
     @State private var channelName = ""
+    @State private var showingChannelNames = CommandLine.arguments.contains("-channelNames")
     @State private var showingShowList = CommandLine.arguments.contains("-showList")
     @State private var settingsSection: SettingsSection?
     @State private var confirmingStop = false
@@ -68,6 +69,7 @@ struct RecordScreen: View {
         }
         .sheet(isPresented: $showingNewShow) { NewShowSheet(model: model) }
         .sheet(isPresented: $showingShowList) { ShowListView(model: model) }
+        .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model) }
         #if os(macOS)
         .background(WindowCloseGuard(model: model))
         #endif
@@ -218,9 +220,12 @@ struct RecordScreen: View {
             .buttonStyle(.plain)
             .disabled(model.recorder.isRecording)
             .accessibilityHint("Starts a new Show")
-            Button("Shows") { showingShowList = true }
-                .font(.caption)
-                .disabled(model.recorder.isRecording)
+            HStack(spacing: 16) {
+                Button("Shows") { showingShowList = true }
+                    .disabled(model.recorder.isRecording)
+                Button("Channel names") { showingChannelNames = true }
+            }
+            .font(.caption)
             // Top-aligned: Marker is taller (its count sits below), so centring would drop Record.
             HStack(alignment: .top, spacing: 28) {
                 recordButton(size: 88)
@@ -256,9 +261,12 @@ struct RecordScreen: View {
                 .buttonStyle(.plain)
                 .disabled(model.recorder.isRecording)
                 .accessibilityHint("Starts a new Show")
-                Button("Shows") { showingShowList = true }
-                    .font(.caption2)
-                    .disabled(model.recorder.isRecording)
+                HStack(spacing: 10) {
+                    Button("Shows") { showingShowList = true }
+                        .disabled(model.recorder.isRecording)
+                    Button("Names") { showingChannelNames = true }
+                }
+                .font(.caption2)
                 Text(model.takeTitle)
                     .font(.title3.weight(.bold))
                     .monospacedDigit()

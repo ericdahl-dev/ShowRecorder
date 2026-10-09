@@ -11,6 +11,7 @@
 		255D20FDD3402F29F4A72FE9 /* ShowListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 034579A5DCE44DCC61521CA4 /* ShowListView.swift */; };
 		27511B0372DDD64DA03A84AC /* AudioSessionEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A28ABB2DC3361762848F2190 /* AudioSessionEvents.swift */; };
 		32D2E536D45006ECF7CCDB6E /* Recording in Frameworks */ = {isa = PBXBuildFile; productRef = E4B425D454C0ADEC5187ABCF /* Recording */; };
+		3F72BDB1F6F5F7C117C7A4DF /* ChannelNamesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F37D396FDE04128489306DC3 /* ChannelNamesView.swift */; };
 		42E521FCCC800B2B20D0B69B /* WindowCloseGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DFAA5CBF9186C8638F0BDDD /* WindowCloseGuard.swift */; };
 		47525D0C9DECC739535A5E15 /* DemoAudioDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */; };
 		4B277180EC441F56D74ED665 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8F032F2B06E5F2F3AA51A95B /* Assets.xcassets */; };
@@ -51,6 +52,7 @@
 		A66A4A288C0B0A560B802624 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		BB46E32691A6C070E799F33D /* MeterGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeterGrid.swift; sourceTree = "<group>"; };
 		DBBDC7B3AA4C8B14B57747DD /* ShowRecorder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ShowRecorder.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F37D396FDE04128489306DC3 /* ChannelNamesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelNamesView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,6 +85,7 @@
 			children = (
 				8F032F2B06E5F2F3AA51A95B /* Assets.xcassets */,
 				A28ABB2DC3361762848F2190 /* AudioSessionEvents.swift */,
+				F37D396FDE04128489306DC3 /* ChannelNamesView.swift */,
 				2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */,
 				497820F0F5EF694FC7765883 /* DriveFolderModel.swift */,
 				3ED85A0ECD05797420331099 /* Info.plist */,
@@ -200,6 +203,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				27511B0372DDD64DA03A84AC /* AudioSessionEvents.swift in Sources */,
+				3F72BDB1F6F5F7C117C7A4DF /* ChannelNamesView.swift in Sources */,
 				47525D0C9DECC739535A5E15 /* DemoAudioDevice.swift in Sources */,
 				BD8A89087734093AB7AABE15 /* DriveFolderModel.swift in Sources */,
 				B5FB0EEE03B673365A8114BA /* MarkerListView.swift in Sources */,
