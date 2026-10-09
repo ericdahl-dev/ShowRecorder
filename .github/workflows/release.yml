@@ -136,6 +136,13 @@ jobs:
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             2>&1 | tee "$RUNNER_TEMP/upload.log"
 
+      - name: Set What to Test and send the build to external testers
+        # The upload has happened; a failure here prints a warning and never fails the release.
+        continue-on-error: true
+        env:
+          TAG: ${{ github.ref_name }}
+        run: python3 scripts/testflight_notes.py
+
       - name: Remove the keys and the keychain
         if: always()
         run: |
