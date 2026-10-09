@@ -54,8 +54,14 @@ public enum ShowDeleter {
     }
 
     /// One path component that isn't hidden, so it can't climb out of the Shows folder or name a folder inside a Show.
-    private static func isPlainName(_ name: String) -> Bool {
+    static func isPlainName(_ name: String) -> Bool {
         !name.isEmpty && !name.hasPrefix(".") && !name.contains("/") && !name.contains("\\") && !name.contains("\0")
+    }
+
+    /// A real folder, not a link.
+    static func isRealFolder(_ folder: URL) -> Bool {
+        guard let values = try? folder.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]) else { return false }
+        return values.isDirectory == true && values.isSymbolicLink != true
     }
 
     /// A real folder (not a link) that is a Show: it has a `Show.json` or at least one "Take NN" folder.

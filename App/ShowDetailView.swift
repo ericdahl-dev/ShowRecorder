@@ -9,17 +9,25 @@ struct ShowDetailView: View {
     @State private var renaming: (take: Int, marker: MarkerDetail)?
     @State private var newName = ""
     @State private var message: String?
+    @State private var deletingTake: Int?
 
     var body: some View {
         Group {
             if let takes {
                 List {
                     ForEach(takes) { take in
-                        Section(String(format: "Take %02d", take.number)) {
+                        Section {
                             if take.markers.isEmpty {
                                 Text("No Markers").foregroundStyle(.secondary)
                             }
                             ForEach(Array(take.markers.enumerated()), id: \.offset) { _, marker in row(marker, take: take.number) }
+                        } header: {
+                            HStack {
+                                Text(String(format: "Take %02d", take.number))
+                                Spacer()
+                                Button("Delete…", role: .destructive) { deletingTake = take.number }
+                                    .font(.caption)
+                            }
                         }
                     }
                     if let message {
@@ -35,6 +43,9 @@ struct ShowDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .task { await reload() }
+        .sheet(item: Binding(get: { deletingTake.map { TakeID(number: $0) } }, set: { deletingTake = $0?.number })) { id in
+            DeleteShowSheet(model: model, show: show, take: id.number) { Task { await reload() } }
+        }
         .alert("Rename Marker", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Name", text: $newName)
             Button("Cancel", role: .cancel) {}
@@ -87,3 +98,5 @@ struct ShowDetailView: View {
         await reload()
     }
 }
+
+private struct TakeID: Identifiable { let number: Int; var id: Int { number } }
