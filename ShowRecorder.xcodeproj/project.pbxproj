@@ -23,6 +23,7 @@
 		BD8A89087734093AB7AABE15 /* DriveFolderModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 497820F0F5EF694FC7765883 /* DriveFolderModel.swift */; };
 		BDB211EC46C2B160A043D06F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CC47A3C7EE61A034F3F6FE0 /* SettingsView.swift */; };
 		C8FAB22502DCD4DD3F5DED9D /* NewShowSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 391362E4626ED278BF3DF54D /* NewShowSheet.swift */; };
+		CD0970AC1E67A961E697395E /* ShowDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2220CC601D180E6771D03197 /* ShowDetailView.swift */; };
 		CFC9F8D3194115954ABE8B0D /* Destinations in Frameworks */ = {isa = PBXBuildFile; productRef = 2A213300C93BF0054D83D85D /* Destinations */; };
 		D1B69547449C5B4B58E8DBEA /* MixerLink in Frameworks */ = {isa = PBXBuildFile; productRef = 3F4AE86B4D698E33356CCFFE /* MixerLink */; };
 		E81A70130E30A8E156EDA841 /* AudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = 06DFC4C4263644F94AB1BE1B /* AudioIO */; };
@@ -32,6 +33,7 @@
 /* Begin PBXFileReference section */
 		034579A5DCE44DCC61521CA4 /* ShowListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowListView.swift; sourceTree = "<group>"; };
 		078720CF89E26EE2F4248B22 /* MarkerListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkerListView.swift; sourceTree = "<group>"; };
+		2220CC601D180E6771D03197 /* ShowDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowDetailView.swift; sourceTree = "<group>"; };
 		2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoAudioDevice.swift; sourceTree = "<group>"; };
 		391362E4626ED278BF3DF54D /* NewShowSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewShowSheet.swift; sourceTree = "<group>"; };
 		3ED85A0ECD05797420331099 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -91,6 +93,7 @@
 				A66A4A288C0B0A560B802624 /* PrivacyInfo.xcprivacy */,
 				84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */,
 				8CC47A3C7EE61A034F3F6FE0 /* SettingsView.swift */,
+				2220CC601D180E6771D03197 /* ShowDetailView.swift */,
 				034579A5DCE44DCC61521CA4 /* ShowListView.swift */,
 				A570C7ADCE1D60BED124A213 /* ShowRecorder.entitlements */,
 				7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */,
@@ -205,6 +208,7 @@
 				B243E4DC015F2D21E51CF47F /* PowerMonitor.swift in Sources */,
 				992430B53737588E241A07B2 /* RecordScreen.swift in Sources */,
 				BDB211EC46C2B160A043D06F /* SettingsView.swift in Sources */,
+				CD0970AC1E67A961E697395E /* ShowDetailView.swift in Sources */,
 				255D20FDD3402F29F4A72FE9 /* ShowListView.swift in Sources */,
 				1D0AAB2401EFEADA6CDDEB2C /* ShowRecorderApp.swift in Sources */,
 				75CA30F76EAD77FB29C41E7C /* StatusStrip.swift in Sources */,
