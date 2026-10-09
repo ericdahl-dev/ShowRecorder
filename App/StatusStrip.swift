@@ -11,6 +11,7 @@ struct StatusStrip: View {
     var compact = false
     let tap: (StatusChip.Kind) -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.appearanceMode) private var mode
 
     var body: some View {
         HStack(spacing: 8) {
@@ -67,18 +68,18 @@ struct StatusStrip: View {
 
     private func foreground(_ state: StatusChip.State) -> Color {
         switch state {
-        case .failed: .white
-        case .attention: .black
-        case .ok: .primary
-        case .neutral: .secondary
+        case .failed: Color(Palette.pair(for: .chipFailed, mode: mode).text)
+        case .attention: Color(Palette.pair(for: .chipAttention, mode: mode).text)
+        case .ok: mode == .system ? .primary : Color(Palette.primaryText(mode))
+        case .neutral: mode == .system ? .secondary : Color(Palette.secondaryText(mode))
         }
     }
 
     private func background(_ state: StatusChip.State) -> Color {
         switch state {
-        case .failed: Color(red: 0.70, green: 0.15, blue: 0.12)
-        case .attention: Color(red: 1.0, green: 0.69, blue: 0.13)
-        case .ok, .neutral: Color.primary.opacity(0.08)
+        case .failed: Color(Palette.pair(for: .chipFailed, mode: mode).fill)
+        case .attention: Color(Palette.pair(for: .chipAttention, mode: mode).fill)
+        case .ok, .neutral: Color.primary.opacity(mode == .sunlight ? 0.12 : 0.08)
         }
     }
 }
@@ -123,6 +124,7 @@ struct AlertBanner: View {
     let moreCount: Int
     let perform: (ScreenAlert.Action) -> Void
     let showMore: () -> Void
+    @Environment(\.appearanceMode) private var mode
 
     var body: some View {
         HStack(spacing: 8) {
@@ -166,18 +168,17 @@ struct AlertBanner: View {
         }
     }
 
-    private var foreground: Color {
-        alert.tone == .warning ? .black : .white
-    }
-
-    private var background: Color {
+    private var element: Palette.Element {
         switch alert.tone {
-        case .critical: Color(red: 0.70, green: 0.15, blue: 0.12)
-        case .warning: Color(red: 1.0, green: 0.69, blue: 0.13)
-        case .ok: Color(red: 0.12, green: 0.42, blue: 0.23)
-        case .info: Color(red: 0.20, green: 0.30, blue: 0.55)
+        case .critical: .alertCritical
+        case .warning: .alertWarning
+        case .ok: .alertOk
+        case .info: .alertInfo
         }
     }
+
+    private var foreground: Color { Color(Palette.pair(for: element, mode: mode).text) }
+    private var background: Color { Color(Palette.pair(for: element, mode: mode).fill) }
 }
 
 /// Icon and text side by side, or the icon alone at accessibility text sizes.

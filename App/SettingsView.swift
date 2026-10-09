@@ -47,6 +47,11 @@ struct SettingsView: View {
                     }
                     .onChange(of: model.preRollSeconds) { model.preRollChanged() }
                     Text(model.preRollNote).font(.footnote).foregroundStyle(.secondary)
+                    Picker("Appearance", selection: $model.appearance) {
+                        ForEach(AppearanceMode.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    .onChange(of: model.appearance) { model.appearanceChanged() }
+                    Text(model.appearance.footnote).font(.footnote).foregroundStyle(.secondary)
                     #if os(iOS)
                     Toggle("Record button on the left in landscape", isOn: $model.transportLeading)
                         .onChange(of: model.transportLeading) { model.saveTransportSide() }
