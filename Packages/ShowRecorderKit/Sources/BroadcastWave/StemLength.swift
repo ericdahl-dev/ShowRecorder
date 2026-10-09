@@ -34,6 +34,31 @@ public enum StemLength {
         throw notAStem(url)
     }
 
+    /// Where the samples are in the Stem at `url`: the start of its data chunk and how many bytes it holds,
+    /// capped at what the file really has. Nil when the file isn't a Stem.
+    public static func audioRegion(at url: URL) -> (offset: UInt64, length: UInt64)? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        guard let fileSize = try? handle.seekToEnd(), (try? handle.seek(toOffset: 0)) != nil,
+              let header = try? handle.read(upToCount: 12), header.count == 12,
+              header.prefix(4).elementsEqual("RIFF".utf8) || header.prefix(4).elementsEqual("RF64".utf8) else { return nil }
+        var ds64DataSize: UInt64?
+        var offset: UInt64 = 12
+        while offset + 8 <= fileSize {
+            guard (try? handle.seek(toOffset: offset)) != nil, let chunk = try? handle.read(upToCount: 8), chunk.count == 8 else { return nil }
+            var size = littleEndian(chunk.suffix(4))
+            let body = offset + 8
+            if chunk.prefix(4).elementsEqual("ds64".utf8), let sizes = try? handle.read(upToCount: 16), sizes.count == 16 {
+                ds64DataSize = littleEndian(sizes.suffix(8))
+            } else if chunk.prefix(4).elementsEqual("data".utf8) {
+                if size == 0xFFFF_FFFF, let ds64DataSize { size = ds64DataSize }
+                return (body, min(size, fileSize - body))
+            }
+            offset = body + size + size % 2
+        }
+        return nil
+    }
+
     private static func littleEndian(_ bytes: Data) -> UInt64 {
         bytes.reversed().reduce(0) { $0 << 8 | UInt64($1) }
     }
