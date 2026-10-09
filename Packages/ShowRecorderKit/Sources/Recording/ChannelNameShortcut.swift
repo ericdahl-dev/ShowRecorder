@@ -23,6 +23,14 @@ public struct ChannelNameShortcut: Equatable, Sendable, Hashable {
         return "\(base) \(number)"
     }
 
+    /// Whether `lowercasedName` is this chip's name, or (for a numbered chip) its name with a number.
+    func matches(_ lowercasedName: String) -> Bool {
+        let base = base.lowercased()
+        if lowercasedName == base { return true }
+        guard isNumbered, lowercasedName.hasPrefix(base + " ") else { return false }
+        return Int(lowercasedName.dropFirst(base.count + 1)) != nil
+    }
+
     public static let kick = ChannelNameShortcut("Kick")
     public static let snare = ChannelNameShortcut("Snare")
     public static let hiHat = ChannelNameShortcut("Hi-hat")

@@ -46,6 +46,9 @@ public final class Recorder {
     /// started with them is named so from the start, and a name typed during a Take is put on its files
     /// when it ends.
     public private(set) var channelNames: [Int: String] = [:]
+    /// Names typed before on this device, newest first, offered as chips (`SavedChannelNames`).
+    public private(set) var savedChannelNames: [String] = []
+    @ObservationIgnored private let savedNames: UserDefaults
     @ObservationIgnored private var namingTask: Task<Void, Never>?
 
     /// The Device Destination: Documents/Shows.
@@ -80,8 +83,11 @@ public final class Recorder {
         now: @escaping () -> Date = Date.init,
         freeSpace: @escaping (URL) -> Int64 = { DriveFolderStore.availableBytes(at: $0) },
         preRollSeconds: Double = 0,
-        makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink = { try StemWriter.open(url: $0, info: $1, resumingAt: $2) }
+        makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink = { try StemWriter.open(url: $0, info: $1, resumingAt: $2) },
+        savedNames: UserDefaults = .standard
     ) {
+        self.savedNames = savedNames
+        savedChannelNames = SavedChannelNames.load(from: savedNames)
         self.freeSpace = freeSpace
         self.preRollSeconds = preRollSeconds
         repairQueue = RepairQueue(freeSpace: freeSpace)
@@ -226,7 +232,24 @@ public final class Recorder {
         if !isRecording { endIdleShow(at: now()) }
         channelNames[usbChannel] = name
         currentShow?.setChannelNames(channelNames)
+        savedChannelNames = SavedChannelNames.adding(name, to: savedChannelNames)
+        SavedChannelNames.save(savedChannelNames, to: savedNames)
         return true
+    }
+
+    /// Fills this Show's channel names from the Show before it, replacing any typed so far. Returns how many
+    /// names were copied, or nil when there is no Show before this one or it has no names (nothing changes).
+    @discardableResult
+    public func copyChannelNamesFromLastShow() -> Int? {
+        guard let current = currentShow, let previous = Show.lastShow(before: current, in: deviceFolder),
+              !previous.channelNames.isEmpty else { return nil }
+        channelNames = previous.channelNames
+        currentShow?.setChannelNames(channelNames)
+        for name in previous.channelNames.sorted(by: { $0.key > $1.key }).map(\.value) {
+            savedChannelNames = SavedChannelNames.adding(name, to: savedChannelNames)
+        }
+        SavedChannelNames.save(savedChannelNames, to: savedNames)
+        return channelNames.count
     }
 
     /// Takes the typed name off USB Channel `usbChannel` (from 1), so the Show's later Takes use the Mixer's name

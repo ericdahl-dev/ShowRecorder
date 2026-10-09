@@ -8,6 +8,7 @@ struct ChannelNamesView: View {
     let model: RecordScreenModel
     @Environment(\.dismiss) private var dismiss
     @State private var drafts: [Int: String] = [:]
+    @State private var copyMessage: String?
     @FocusState private var focused: Int?
 
     var body: some View {
@@ -30,7 +31,10 @@ struct ChannelNamesView: View {
                         if focused == row.number { chips(for: row) }
                     }
                 }
-                Section {} footer: {
+                Section {
+                    Button("Copy from last Show") { copyFromLastShow() }
+                    if let copyMessage { Text(copyMessage).font(.footnote).foregroundStyle(.secondary) }
+                } footer: {
                     Text("The files take the names when the Take ends. A name stays for the rest of the Show.")
                 }
             }
@@ -67,7 +71,29 @@ struct ChannelNamesView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.small)
                 }
+                // Names typed before, on this device.
+                ForEach(model.recorder.savedChannelNames, id: \.self) { saved in
+                    Button(saved) {
+                        drafts[row.number] = saved
+                        commit(row.number)
+                        focused = row.number
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .tint(.secondary)
+                }
             }
+        }
+    }
+
+    private func copyFromLastShow() {
+        if let count = model.recorder.copyChannelNamesFromLastShow() {
+            drafts = model.recorder.channelNames
+            copyMessage = count == 1 ? "Copied 1 name." : "Copied \(count) names."
+        } else {
+            copyMessage = model.recorder.currentShow == nil
+                ? "There is no Show yet. Press record or start a Show first."
+                : "The Show before this one has no names to copy."
         }
     }
 
