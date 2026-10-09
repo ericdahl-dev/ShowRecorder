@@ -18,11 +18,14 @@ public struct Show: Sendable, Equatable {
     /// When the last Take in the Show ended, or nil while it has none. A Show with no Take for `idleLimit`
     /// ends, counting from here (or from `startedAt` when there is no Take).
     public private(set) var lastTakeEndedAt: Date?
+    /// The names the operator typed for USB Channels (from 1), kept so the Show's later Takes start with them.
+    public private(set) var channelNames: [Int: String] = [:]
 
     /// How long a Show can go with no Take before the next record starts a new one.
     static let idleLimit: TimeInterval = 6 * 3600
 
-    init(name: String, folder: URL, driveFolder: URL? = nil, takeCount: Int, startedAt: Date = .distantPast, endedAt: Date? = nil, venue: String? = nil, lastTakeEndedAt: Date? = nil) {
+    init(name: String, folder: URL, driveFolder: URL? = nil, takeCount: Int, startedAt: Date = .distantPast, endedAt: Date? = nil, venue: String? = nil, lastTakeEndedAt: Date? = nil, channelNames: [Int: String] = [:]) {
+        self.channelNames = channelNames
         self.venue = venue
         self.lastTakeEndedAt = lastTakeEndedAt
         self.name = name
@@ -87,7 +90,20 @@ public struct Show: Sendable, Equatable {
     }
 
     /// What `Show.json` holds for this Show.
-    var file: ShowFile { ShowFile(name: name, startedAt: startedAt, endedAt: endedAt, venue: venue, lastTakeEndedAt: lastTakeEndedAt) }
+    var file: ShowFile {
+        ShowFile(
+            name: name, startedAt: startedAt, endedAt: endedAt, venue: venue, lastTakeEndedAt: lastTakeEndedAt,
+            channelNames: channelNames.isEmpty ? nil : Dictionary(uniqueKeysWithValues: channelNames.map { (String($0.key), $0.value) }))
+    }
+
+    /// Adopts `names` for later Takes without rewriting the files (they were written when the names were typed).
+    mutating func keepChannelNames(_ names: [Int: String]) { channelNames = names }
+
+    /// Keeps the typed channel names in `Show.json` in every Copy. A Copy that can't be written is skipped.
+    mutating func setChannelNames(_ names: [Int: String]) {
+        channelNames = names
+        for copy in [folder] + (driveFolder.map { [$0] } ?? []) { try? file.write(to: copy) }
+    }
 
     /// Whether the Show has had no Take for the idle limit as of `date`.
     func isIdle(at date: Date) -> Bool {
@@ -128,7 +144,8 @@ public struct Show: Sendable, Equatable {
         let takes = ((try? fm.contentsOfDirectory(atPath: newest.folder.path)) ?? [])
             .compactMap { $0.hasPrefix("Take ") ? Int($0.dropFirst(5)) : nil }
         return Show(name: newest.file.name, folder: newest.folder, takeCount: takes.max() ?? 0, startedAt: newest.file.startedAt,
-                    venue: newest.file.venue, lastTakeEndedAt: newest.file.lastTakeEndedAt)
+                    venue: newest.file.venue, lastTakeEndedAt: newest.file.lastTakeEndedAt,
+                    channelNames: newest.file.channelNames?.reduce(into: [:]) { if let number = Int($1.key) { $0[number] = $1.value } } ?? [:])
     }
 
     /// Starts writing the running Take to the Drive folder `parent` too: the Show folder there (under
@@ -164,6 +181,8 @@ struct ShowFile: Codable, Equatable {
     var venue: String?
     /// When the last Take ended. Nil while the Show has none, and in Shows from before this.
     var lastTakeEndedAt: Date?
+    /// The names typed for USB Channels, by number. Nil when there are none, and in Shows from before this.
+    var channelNames: [String: String]?
 
     func write(to showFolder: URL) throws {
         let encoder = JSONEncoder()

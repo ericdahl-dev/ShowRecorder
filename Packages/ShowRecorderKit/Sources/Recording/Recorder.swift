@@ -96,6 +96,7 @@ public final class Recorder {
         repairQueue.jobDone = { [unowned self] in regenerateReports() }
         // A Show left open by a crash or an earlier launch is the open Show again.
         currentShow = Show.findOpen(in: deviceFolder)
+        channelNames = currentShow?.channelNames ?? [:]
     }
 
     /// Starts receiving audio from `device`. Any previously Armed device is stopped first.
@@ -193,7 +194,9 @@ public final class Recorder {
     public func startNewShow(name: String, venue: String) throws {
         guard !isRecording else { throw RecorderError.takeRunning }
         let date = now()
-        let show = try Show.create(in: deviceFolder, drive: nil, on: date, name: name, venue: venue)
+        var show = try Show.create(in: deviceFolder, drive: nil, on: date, name: name, venue: venue)
+        // Names belong to a Show: the one being replaced keeps its own; names typed before any Show carry over.
+        if currentShow != nil { channelNames = [:] } else if !channelNames.isEmpty { show.setChannelNames(channelNames) }
         currentShow?.end(at: date)
         currentShow = show
     }
@@ -201,8 +204,17 @@ public final class Recorder {
     /// Ends the open Show, so the next record starts a new one. Nothing happens when no Show is open.
     public func endShow() throws {
         guard !isRecording else { throw RecorderError.takeRunning }
+        if currentShow != nil { channelNames = [:] }
         currentShow?.end(at: now())
         currentShow = nil
+    }
+
+    /// A Show with no Take for 6 hours is over; names typed since then are for the next one.
+    private func endIdleShow(at date: Date) {
+        guard let open = currentShow, open.isIdle(at: date) else { return }
+        currentShow?.end(at: date)
+        currentShow = nil
+        channelNames = [:]
     }
 
     /// Names USB Channel `usbChannel` (from 1). Works Armed or during a Take; nothing on disk changes until the
@@ -211,7 +223,9 @@ public final class Recorder {
     public func setChannelName(_ name: String, forChannel usbChannel: Int) -> Bool {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return false }
+        if !isRecording { endIdleShow(at: now()) }
         channelNames[usbChannel] = name
+        currentShow?.setChannelNames(channelNames)
         return true
     }
 
@@ -225,7 +239,7 @@ public final class Recorder {
         let date = now()
 
         // A Show with no Take for 6 hours is over: this record starts a new one.
-        if let open = currentShow, open.isIdle(at: date) { currentShow?.end(at: date); currentShow = nil }
+        endIdleShow(at: date)
 
         let drive = driveFolder()
         var show: Show
@@ -240,6 +254,7 @@ public final class Recorder {
             drive?.release()
             throw error
         }
+        if show.channelNames != channelNames { show.setChannelNames(channelNames) }
         let takeFolders = try show.createNextTakeFolder()
 
         let sampleRate = Int(device.sampleRate.rounded())
@@ -371,6 +386,7 @@ public final class Recorder {
         switch session.checkDestinations(drive: driveFolder) {
         case .carryOn:
             currentShow = session.show
+            currentShow?.keepChannelNames(channelNames)
             dropoutCount = session.dropoutCount
             refreshMarkers(from: session.metadata)
         case .outOfSpace:
@@ -402,6 +418,7 @@ public final class Recorder {
             showName: session.show.name, takeNumber: finished.metadata.take, deviceFolder: finished.folders[0],
             hadDrive: finished.folders.count > 1)
         currentShow = session.show
+        currentShow?.setChannelNames(channelNames)
         currentShow?.noteTakeEnded(at: now())
         // The Takes are safe either way; the report and project are regenerated next time.
         regenerateReports()
