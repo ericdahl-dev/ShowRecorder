@@ -93,6 +93,15 @@ public final class StemWriter: StemSink {
         self.frameCount = frameCount
     }
 
+    /// Replaces the bext description (the Source name) in place; the audio and everything else are untouched.
+    public func setDescription(_ description: String) throws {
+        let end = try handle.offset()
+        // The bext body sits just before the reserved Marker region, description first.
+        try handle.seek(toOffset: markerRegionOffset - Self.bextBodySize)
+        try handle.write(contentsOf: Self.fixed(description, 256))
+        try handle.seek(toOffset: end)
+    }
+
     /// Writes `markers` as `cue ` points with `LIST/adtl` labels into the region reserved before the
     /// audio, replacing any written before. The region is rewritten in place, so Markers are as
     /// crash-safe as the chunk sizes: they're on disk from the next header commit.
@@ -293,6 +302,9 @@ public final class StemWriter: StemSink {
         return out
     }
 
+    /// The bext body: EBU Tech 3285 v2 with no coding history.
+    private static let bextBodySize: UInt64 = 602
+
     private static func header(info: Info) -> (bytes: [UInt8], dataSizeOffset: Int, markerRegionOffset: Int) {
         var out: [UInt8] = []
         out += Array("RIFF".utf8) + UInt32(0).littleEndianBytes + Array("WAVE".utf8)
@@ -319,6 +331,7 @@ public final class StemWriter: StemSink {
         bext += UInt32(truncatingIfNeeded: info.timeReference >> 32).littleEndianBytes
         bext += UInt16(2).littleEndianBytes  // version
         bext += [UInt8](repeating: 0, count: 64 + 10 + 180)  // UMID, loudness, reserved
+        precondition(UInt64(bext.count) == bextBodySize)
         out += Array("bext".utf8) + UInt32(bext.count).littleEndianBytes + bext
 
         let markerRegionOffset = out.count

@@ -42,6 +42,12 @@ public final class Recorder {
     /// Whether Repair is still filling Gaps from the last Take.
     public private(set) var isRepairing = false
 
+    /// Names the operator typed for USB Channels (counted from 1). They win over the Mixer's names: a Take
+    /// started with them is named so from the start, and a name typed during a Take is put on its files
+    /// when it ends.
+    public private(set) var channelNames: [Int: String] = [:]
+    @ObservationIgnored private var namingTask: Task<Void, Never>?
+
     /// The Device Destination: Documents/Shows.
     public static var defaultDeviceFolder: URL {
         URL.documentsDirectory.appending(path: "Shows", directoryHint: .isDirectory)
@@ -199,6 +205,16 @@ public final class Recorder {
         currentShow = nil
     }
 
+    /// Names USB Channel `usbChannel` (from 1). Works Armed or during a Take; nothing on disk changes until the
+    /// Take ends (ADR 0002), and a name that is empty or only whitespace is refused (returns false).
+    @discardableResult
+    public func setChannelName(_ name: String, forChannel usbChannel: Int) -> Bool {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return false }
+        channelNames[usbChannel] = name
+        return true
+    }
+
     /// Starts a Take in the open Show, creating a Show first if none is open.
     ///
     /// `sources` are frozen into the Take: Stem names and bext descriptions use them, and later
@@ -236,8 +252,10 @@ public final class Recorder {
             (capture.preRoll?.capacity ?? 0) - Int(device.sampleRate.rounded())))
         let pressReference = UInt64(date.timeIntervalSince(Calendar.current.startOfDay(for: date)) * Double(sampleRate))
         let timeReference = pressReference >= UInt64(preRollFrames) ? pressReference - UInt64(preRollFrames) : 0
-        let resolved = (0..<capture.channelCount).map { channel in
-            sources.indices.contains(channel) ? sources[channel] : .fallback(usbChannel: channel + 1)
+        let resolved = (0..<capture.channelCount).map { channel -> Source in
+            var source = sources.indices.contains(channel) ? sources[channel] : .fallback(usbChannel: channel + 1)
+            if let typed = channelNames[channel + 1] { source.name = typed; source.hasMixerName = false }
+            return source
         }
         let channels = resolved.enumerated().map { index, source in
             TakeMetadata.USBChannel(usbChannel: index + 1, stemFile: StemFileName.make(usbChannel: index + 1, sourceName: source.name), source: source)
@@ -388,6 +406,27 @@ public final class Recorder {
         // The Takes are safe either way; the report and project are regenerated next time.
         regenerateReports()
         repairQueue.enqueue(finished.metadata, folders: finished.folders, holding: finished.access)
+        nameChannels(of: finished.metadata)
+    }
+
+    /// Puts the names typed during the Take on its files. Waits for Repair first, which works on the Stems
+    /// by their file names.
+    private func nameChannels(of metadata: TakeMetadata) {
+        let names = channelNames.filter { number, name in metadata.usbChannels.first { $0.usbChannel == number }.map { $0.name != name } ?? false }
+        guard !names.isEmpty, let take = lastTake else { return }
+        let previous = namingTask
+        namingTask = Task { @MainActor in
+            await previous?.value
+            await repairQueue.wait()
+            var copies: [DestinationKind: URL] = [.device: take.deviceFolder]
+            var access: DestinationAccess?
+            if take.hadDrive {
+                access = driveFolder()
+                if let access { copies[.drive] = access.folder.appending(path: take.showName).appending(path: String(format: "Take %02d", take.takeNumber)) }
+            }
+            defer { access?.release() }
+            _ = ChannelRenamer.rename(names: names, in: copies)
+        }
     }
 
     private func regenerateReports() {
@@ -400,6 +439,7 @@ public final class Recorder {
     /// Waits for Repair of the last Take to finish.
     public func waitForRepair() async {
         await repairQueue.wait()
+        await namingTask?.value
     }
 }
 
