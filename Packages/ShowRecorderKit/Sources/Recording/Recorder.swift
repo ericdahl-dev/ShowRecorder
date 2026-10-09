@@ -269,6 +269,29 @@ public final class Recorder {
         return ShowDeleter.delete(show: name, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
     }
 
+    /// Checks that the Drive Copy of Show `show` is whole (see `CopyCheck`). Reads every Stem, off the main thread.
+    public func checkDriveCopy(of show: String) async -> CopyCheck.Result {
+        guard let access = driveFolder() else { return .failed(["The Drive isn't available."]) }
+        defer { access.release() }
+        let device = deviceFolder, drive = access.folder
+        return await Task.detached { CopyCheck.verify(show: show, device: device, drive: drive) }.value
+    }
+
+    /// Deletes the Device copy of Show `show`, keeping the Drive copy, but only after `checkDriveCopy` passes.
+    /// Refused during a Take and for the open Show. If the check fails, nothing is deleted and the outcome
+    /// says why. Permanent.
+    public func deleteDeviceCopy(of show: String) async -> ShowDeleter.Outcome {
+        func refuse(_ reasons: [String]) -> ShowDeleter.Outcome { .init(deleted: [], failed: reasons.map { .init(copy: .device, reason: $0) }) }
+        if isRecording { return refuse(["A Take is running."]) }
+        if show == currentShow?.name { return refuse(["This Show is open. End it first."]) }
+        switch await checkDriveCopy(of: show) {
+        case .failed(let reasons): return refuse(reasons)
+        case .passed:
+            // Not recording and not the open Show, as of the check; look again before deleting for good.
+            return deleteShow(named: show, from: [.device])
+        }
+    }
+
     /// Deletes Take `take` of Show `show` from the chosen Copies, for good, with the same refusals as `deleteShow`.
     public func deleteTake(_ take: Int, ofShow show: String, from copies: Set<DestinationKind>) -> ShowDeleter.Outcome {
         let kinds = copies.sorted { $0.index < $1.index }
