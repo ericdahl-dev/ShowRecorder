@@ -2,10 +2,12 @@ import Destinations
 import Recording
 import SwiftUI
 
-/// Deletes a Show for good from the Copies you choose. You type the Show's name to confirm.
+/// Deletes a Show, or one Take of it, for good from the Copies you choose. You type the Show's name to confirm.
 struct DeleteShowSheet: View {
     let model: RecordScreenModel
     let show: ShowSummary
+    /// Set to delete just this Take of the Show.
+    var take: Int?
     var deleted: () -> Void = {}
     @Environment(\.dismiss) private var dismiss
     @State private var fromDevice = true
@@ -50,12 +52,12 @@ struct DeleteShowSheet: View {
                     Text("Type \(show.name) to confirm")
                 }
                 Section {
-                    Button("Delete \(show.name)", role: .destructive) { delete() }
+                    Button(take.map { "Delete Take \(String(format: "%02d", $0))" } ?? "Delete \(show.name)", role: .destructive) { delete() }
                         .disabled(blocked != nil || chosen.isEmpty || !ShowDeleter.confirms(typed: typed, for: show.name))
                     if let message { Text(message).foregroundStyle(.red) }
                 }
             }
-            .navigationTitle("Delete Show")
+            .navigationTitle(take == nil ? "Delete Show" : "Delete Take")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -68,13 +70,14 @@ struct DeleteShowSheet: View {
 
     private var footer: String {
         let takes = show.takeCount == 1 ? "1 Take" : "\(show.takeCount) Takes"
+        let what = take.map { "Take \(String(format: "%02d", $0)) of \(show.name)" } ?? "\(show.name) (\(takes))"
         let names = chosen.sorted { $0.index < $1.index }.map { $0 == .device ? "the Device copy" : "the Drive copy" }
         return names.isEmpty ? "Choose a Copy to delete."
-            : "This permanently deletes \(show.name) (\(takes)) from \(names.joined(separator: " and ")). There is no Trash, and it can't be undone."
+            : "This permanently deletes \(what) from \(names.joined(separator: " and ")). There is no Trash, and it can't be undone."
     }
 
     private func delete() {
-        let outcome = model.recorder.deleteShow(named: show.name, from: chosen)
+        let outcome = take.map { model.recorder.deleteTake($0, ofShow: show.name, from: chosen) } ?? model.recorder.deleteShow(named: show.name, from: chosen)
         if outcome.failed.isEmpty {
             deleted()
             dismiss()
