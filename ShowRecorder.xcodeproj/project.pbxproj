@@ -15,6 +15,7 @@
 		3F72BDB1F6F5F7C117C7A4DF /* ChannelNamesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F37D396FDE04128489306DC3 /* ChannelNamesView.swift */; };
 		42E521FCCC800B2B20D0B69B /* WindowCloseGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DFAA5CBF9186C8638F0BDDD /* WindowCloseGuard.swift */; };
 		47525D0C9DECC739535A5E15 /* DemoAudioDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */; };
+		4B1D83A876DD31D7B6E31F73 /* AppearanceStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F1B5EEDD8FA484B7416BB0B /* AppearanceStyle.swift */; };
 		4B277180EC441F56D74ED665 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8F032F2B06E5F2F3AA51A95B /* Assets.xcassets */; };
 		75CA30F76EAD77FB29C41E7C /* StatusStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F25297D625A2C059541D858 /* StatusStrip.swift */; };
 		7978ADCB74542A7F2803E11F /* MeterGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB46E32691A6C070E799F33D /* MeterGrid.swift */; };
@@ -40,6 +41,7 @@
 		2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoAudioDevice.swift; sourceTree = "<group>"; };
 		391362E4626ED278BF3DF54D /* NewShowSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewShowSheet.swift; sourceTree = "<group>"; };
 		3ED85A0ECD05797420331099 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		3F1B5EEDD8FA484B7416BB0B /* AppearanceStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceStyle.swift; sourceTree = "<group>"; };
 		3F25297D625A2C059541D858 /* StatusStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusStrip.swift; sourceTree = "<group>"; };
 		497820F0F5EF694FC7765883 /* DriveFolderModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveFolderModel.swift; sourceTree = "<group>"; };
 		7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowRecorderApp.swift; sourceTree = "<group>"; };
@@ -85,6 +87,7 @@
 		7D29790BDD8606B15D2933AF /* App */ = {
 			isa = PBXGroup;
 			children = (
+				3F1B5EEDD8FA484B7416BB0B /* AppearanceStyle.swift */,
 				8F032F2B06E5F2F3AA51A95B /* Assets.xcassets */,
 				A28ABB2DC3361762848F2190 /* AudioSessionEvents.swift */,
 				F37D396FDE04128489306DC3 /* ChannelNamesView.swift */,
@@ -205,6 +208,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4B1D83A876DD31D7B6E31F73 /* AppearanceStyle.swift in Sources */,
 				27511B0372DDD64DA03A84AC /* AudioSessionEvents.swift in Sources */,
 				3F72BDB1F6F5F7C117C7A4DF /* ChannelNamesView.swift in Sources */,
 				13CE6C2DF7A961177DECE074 /* DeleteShowSheet.swift in Sources */,

@@ -18,7 +18,7 @@ struct RecordScreen: View {
     #if os(macOS)
     @Environment(\.openSettings) private var openSettings
     #endif
-    @State private var showingSettings = false
+    @State private var showingSettings = CommandLine.arguments.contains("-showSettings")
     @State private var showingMarkers = false
     @State private var showingNewShow = false
     @State private var namingChannel: Int?
@@ -215,7 +215,7 @@ struct RecordScreen: View {
             Button { showingNewShow = true } label: {
                 Text(model.showSummary)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .secondaryText()
             }
             .buttonStyle(.plain)
             .disabled(model.recorder.isRecording)
@@ -234,7 +234,7 @@ struct RecordScreen: View {
             // The line is always there, so a placed Marker doesn't push anything.
             Text(markerPlacedText)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .secondaryText()
                 .id(model.recorder.takeMarkers.count)
         }
         .frame(maxWidth: .infinity)
@@ -254,7 +254,7 @@ struct RecordScreen: View {
                 Button { showingNewShow = true } label: {
                     Text(model.recorder.currentShow?.name ?? "No Show yet")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .secondaryText()
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                 }
@@ -277,7 +277,7 @@ struct RecordScreen: View {
                     } label: {
                         Text(note.action == .dismissHint ? note.text + " Tap to dismiss." : note.text)
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .secondaryText()
                             .multilineTextAlignment(.center)
                             .lineLimit(3)
                             .fixedSize(horizontal: false, vertical: true)
@@ -366,7 +366,7 @@ struct RecordScreen: View {
                     .font(compact ? .subheadline.weight(.semibold) : .headline)
                 Text(compact ? model.compactInputSummary : model.inputSummary)
                     .font(compact ? .caption : .subheadline)
-                    .foregroundStyle(.secondary)
+                    .secondaryText()
                     .monospacedDigit()
                     .lineLimit(1)
             }
@@ -415,6 +415,8 @@ final class RecordScreenModel {
     private static let transportLeadingKey = "transportLeading"
     /// The Pre-roll length in seconds (0 is Off), read when record is pressed. See `PreRollSetting`.
     var preRollSeconds: Double = PreRollSetting.load()
+    /// Dark, Sunlight or System (the device's).
+    var appearance: AppearanceMode = AppearanceMode.load()
     /// Battery and heat, shown as chips on the status strip.
     let power = PowerMonitor()
     private(set) var setupHintDismissed = UserDefaults.standard.bool(forKey: RecordScreenModel.hintKey)
@@ -603,6 +605,8 @@ final class RecordScreenModel {
         }
     }
 
+    func appearanceChanged() { appearance.save() }
+
     func saveTransportSide() {
         UserDefaults.standard.set(transportLeading, forKey: Self.transportLeadingKey)
     }
@@ -761,6 +765,13 @@ final class RecordScreenModel {
         guard loop == nil else { return }
         loop = Task { await run() }
         Task { await offerDemoSignalIfAvailable() }
+        // `-demoRecord` starts a Take two seconds after launch, for screenshots.
+        if CommandLine.arguments.contains("-demoRecord") {
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                if recorder.isArmed, !recorder.isRecording { record() }
+            }
+        }
     }
 
     /// The Demo signal needs StoreKit's answer (TestFlight or not), which arrives later; the input list
@@ -1029,21 +1040,25 @@ final class RecordScreenModel {
 struct MarkerButtonLabel: View {
     let count: Int
     var size: CGFloat = 88
+    @Environment(\.appearanceMode) private var mode
+
+    /// Yellow, or a darker amber in Sunlight where yellow on a light screen can't be seen.
+    private var flagColor: Color { mode == .sunlight ? Color(Palette.meter(.yellow, mode: .sunlight)) : .yellow }
 
     var body: some View {
         VStack(spacing: 4) {
             ZStack {
                 Circle()
-                    .fill(.yellow.opacity(0.2))
+                    .fill(flagColor.opacity(mode == .sunlight ? 0.25 : 0.2))
                     .frame(width: size, height: size)
                 Image(systemName: "flag.fill")
                     .font(.system(size: size * 0.32, weight: .semibold))
-                    .foregroundStyle(.yellow)
+                    .foregroundStyle(flagColor)
             }
             Text(count == 1 ? "1 Marker" : "\(count) Markers")
                 .font(.caption)
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
+                .secondaryText()
         }
         .contentShape(Rectangle())
     }

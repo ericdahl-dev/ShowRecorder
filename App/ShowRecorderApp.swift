@@ -11,6 +11,7 @@ struct ShowRecorderApp: App {
         Settings {
             SettingsView(model: model)
                 .frame(width: 520, height: 520)
+                .modifier(AppearanceRoot(mode: model.appearance))
         }
         #endif
     }
@@ -19,11 +20,13 @@ struct ShowRecorderApp: App {
         #if os(macOS)
         WindowGroup {
             RecordScreen(model: model)
+                .modifier(AppearanceRoot(mode: model.appearance))
         }
         .defaultSize(width: 1100, height: 720)
         #else
         WindowGroup {
             RecordScreen(model: model)
+                .modifier(AppearanceRoot(mode: model.appearance))
         }
         #endif
     }

@@ -20,6 +20,7 @@ struct MeterGrid: View {
     /// Short screens (landscape iPhone): every channel gets its number and a Mixer-color swatch, and the
     /// Source's name only when there are few enough channels to have room for it.
     var compact = false
+    @Environment(\.appearanceMode) private var mode
 
     /// The widest a meter (and its label) gets. Wide enough that 18 channels fill an iPad, narrow enough
     /// that one or two channels aren't a screen-wide slab. The strip is centered when it's narrower
@@ -35,7 +36,7 @@ struct MeterGrid: View {
                         // a clip doesn't move the meters.
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.caption2)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(mode == .system ? Color.red : Color(Palette.meter(.red, mode: mode)))
                             .opacity(clipped.contains(index) ? 1 : 0)
                         MeterBar(meter: meters[index])
                             .frame(maxHeight: .infinity)
@@ -88,6 +89,7 @@ struct MeterGrid: View {
 
 struct MeterBar: View {
     let meter: ChannelMeter
+    @Environment(\.appearanceMode) private var mode
 
     var body: some View {
         GeometryReader { geometry in
@@ -111,7 +113,7 @@ struct MeterBar: View {
                     .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(.black.opacity(0.35), lineWidth: 1))
                 // The held peak: thicker as well as red when it's near clipping, so color isn't the only cue.
                 Rectangle()
-                    .fill(meter.peakIsHot ? Color.red : Color.primary.opacity(0.85))
+                    .fill(meter.peakIsHot ? color(.red) : (mode == .system ? Color.primary.opacity(0.85) : Color(Palette.primaryText(mode))))
                     .frame(height: meter.peakIsHot ? 4 : 2)
                     .offset(y: -max(height * MeterGrid.fraction(forDbfs: meter.peakDbfs) - 1, 0))
                     .opacity(meter.peakDbfs <= VUMeter.floorDbfs ? 0 : 1)
@@ -125,19 +127,33 @@ struct MeterBar: View {
         level > 0 ? 20 * log10(Double(level)) : VUMeter.floorDbfs
     }
 
-    private var peakBarColor: Color {
-        switch meter.peakBarZone {
+    private func color(_ color: Palette.MeterColor) -> Color {
+        mode == .system ? systemColor(color) : Color(Palette.meter(color, mode: mode))
+    }
+
+    private func systemColor(_ color: Palette.MeterColor) -> Color {
+        switch color {
         case .green: .green
         case .yellow: .yellow
         case .red: .red
+        case .low: Color(red: 0.45, green: 0.58, blue: 0.72)
+        case .orange: .orange
+        }
+    }
+
+    private var peakBarColor: Color {
+        switch meter.peakBarZone {
+        case .green: color(.green)
+        case .yellow: color(.yellow)
+        case .red: color(.red)
         }
     }
 
     private var averageColor: Color {
         switch meter.zone {
-        case .low: Color(red: 0.45, green: 0.58, blue: 0.72)
-        case .onTarget: .green
-        case .hot: .orange
+        case .low: color(.low)
+        case .onTarget: color(.green)
+        case .hot: color(.orange)
         }
     }
 }
@@ -154,7 +170,7 @@ struct SourceLabel: View {
             Text("\(number)")
                 .font(.caption2)
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
+                .secondaryText()
             if let source {
                 if showsName {
                     Text(source.hasMixerName ? source.name : "–")
