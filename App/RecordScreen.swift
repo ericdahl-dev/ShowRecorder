@@ -425,19 +425,8 @@ final class RecordScreenModel {
         if recorder.isRepairing { return ("Repairing Gaps from the other Copy…", false) }
         let outcomes = recorder.lastTakeOutcomes
         guard !outcomes.isEmpty else { return nil }
-        func word(_ outcome: CopyOutcome) -> String {
-            switch outcome {
-            case .complete: "complete"
-            case .hasGaps: "has Gaps"
-            case .repaired: "Repaired"
-            case .repairFailed: "Repair failed"
-            }
-        }
-        let parts = [(DestinationKind.device, "Device"), (.drive, "Drive")].compactMap { kind, name in
-            outcomes[kind].map { "\(name) copy: \(word($0))" }
-        }
-        let problem = outcomes.values.contains { $0 == .hasGaps || $0 == .repairFailed }
-        return (parts.joined(separator: " · "), problem)
+        let summary = CopySummary(outcomes: outcomes, dropoutCount: recorder.dropoutCount)
+        return (summary.text, summary.isProblem)
     }
 
     /// Looks for a Drive that has appeared or come back, and refreshes the Copy statuses. Also notices a
