@@ -6,7 +6,7 @@ Record every channel of your mixer from an iPhone or iPad, or the Mac you alread
 
 You don't need a dedicated recording laptop. Plug a multichannel USB mixer or audio interface into a USB-C iPhone through a powered hub, or into the Mac mini in your rack or the MacBook at front of house, tap record, and you get a Show folder with one stem per channel. On mixers ShowRecorder knows how to talk to, each track is also named and colored from the mixer itself, so channel 7 arrives as `07 Lead Vocal.wav`, not `Input 7`. Behringer X-Air (XR18) and Midas MR18 are supported first; more mixers will follow.
 
-> **Status: in development.** It isn't on the App Store yet. The recording core works and is tested; the remaining MVP work is tracked in [issue #1](https://github.com/ericdahl-dev/ShowRecorder/issues/1) and the issues linked from it.
+> **Status: in development.** It isn't on the App Store yet. Builds go to testers through TestFlight (see [Releasing to TestFlight](#releasing-to-testflight)). The recording core works and is tested; the remaining MVP work is tracked in [issue #1](https://github.com/ericdahl-dev/ShowRecorder/issues/1) and the issues linked from it.
 
 ## What works today
 
@@ -21,6 +21,26 @@ You don't need a dedicated recording laptop. Plug a multichannel USB mixer or au
   - The Take finalizes with 60 s of space left on the last healthy Destination.
   - **Repair:** after the Take ends, each Copy's Gaps are filled from the other Copy, so both end identical. The record screen and report say whether each Copy is complete, has Gaps, Repaired or Repair failed.
 - **Any multichannel USB input:** every channel the device sends is recorded, with no fixed channel count.
+- **Pre-roll:** while Armed the recorder keeps the last seconds of audio, and a Take starts with them. Settings offers Off, 5, 10 or 20 s (10 s by default). The Show report and Reaper project line up with the Pre-roll.
+- **Markers:**
+  - A Marker button drops a named Marker at the current point in the Take. Markers are written into every Stem as cue points.
+  - The Marker list on the record screen shows each Marker's time since record was pressed and renames it during the Take.
+  - You can also rename a Marker after the Take, from the Show detail screen. The new name goes into `Take.json`, every Stem and the report and project.
+  - The Reaper project gets a marker for each one.
+- **Shows:**
+  - New Show on the record screen takes a name and an optional venue. End Show closes it. A Show with no Take for 6 hours ends, and the next record starts a new one.
+  - The open Show is kept in `Show.json` and survives a relaunch.
+  - The Show list shows past Shows, newest first, with date, duration, Takes and the state of each Copy. It reads the files, so it covers the Drive too.
+  - Show detail lists the Markers by Take and renames them.
+- **Dropouts:** if the recorder can't keep up and audio is lost, the Stem holds silence for exactly that long, a Dropout Marker is added and the record screen shows a Dropout count. Dropouts are in `Take.json` and the Show report.
+- **Settings:** input, Pre-roll, the Drive folder, time left on each Destination and the Mixer Link address are set in Settings (a sheet on iPhone and iPad, the Settings window on the Mac), and read-only during a Take.
+- **Battery and heat:** the status strip shows battery level and, when the device is warm, heat. An unplugged device at 20% or less warns, and at 10% or less it is urgent. Serious heat warns and critical heat is urgent.
+- **Keeps the Take safe:**
+  - A Take survives its screen being torn down or rebuilt. Only Stop and the app ending end a Take.
+  - On the Mac, closing the window during a Take asks whether to stop first.
+  - If the USB route changes mid-Take, the Take moves to the new route, and a failed move is retried.
+  - An Armed recorder nobody is using disarms 30 minutes after the screen locks or the app leaves the front.
+- **Layouts:** the record screen has portrait and landscape layouts. In portrait it shows the Take's elapsed time. On iPad the meters span the screen width.
 - **Mixer Link over Wi-Fi** (X-Air mixers today):
   - Enter the mixer's IP and each meter shows its Source's name and color.
   - Names are frozen into the Stems and `Take.json` when record is pressed.
@@ -39,7 +59,7 @@ You don't need a dedicated recording laptop. Plug a multichannel USB mixer or au
   - On iPhone and iPad, the current USB route.
   - Recording continues with the screen locked, in the background and through interruptions.
 
-Not built yet: Templates, Mixer Triggers, the Show list and sharing. See the [open issues](https://github.com/ericdahl-dev/ShowRecorder/issues).
+Not built yet: Templates, Mixer Triggers, Snapshot Markers, Mixer Link over USB, sharing a Show, editing a Show afterward, the Pro unlock and Trial, and the Free channel limit (today every channel is recorded). See the [open issues](https://github.com/ericdahl-dev/ShowRecorder/issues).
 
 ## The rig
 
@@ -48,16 +68,16 @@ Not built yet: Templates, Mixer Triggers, the Show list and sharing. See the [op
 | A multichannel USB mixer or audio interface | Class-compliant over USB, so iOS and macOS see it without a driver. Every channel it sends is recorded. |
 | USB-C iPhone (15 or later) or iPad, or any Mac | iOS/iPadOS/macOS 26. |
 | Powered USB-C hub | Charges the phone while the mixer and the SSD are connected. |
-| SSD | Optional until the two-destination slice lands. About 0.5 GB per channel per hour at 48 kHz/24-bit (about 9.3 GB per hour for 18 channels). |
+| SSD | Optional. Without one, Takes go to the Device only. About 0.5 GB per channel per hour at 48 kHz/24-bit (about 9.3 GB per hour for 18 channels). |
 | The mixer's network | Optional, for channel names and colors on supported mixers. |
 
 ### Mixer integration
 
 | Mixer | Recording | Names and colors |
 |---|---|---|
-| Behringer XR18, Midas MR18 | 18 USB Channels | Yes, over Wi-Fi (USB coming) |
+| Behringer XR18, Midas MR18 | 18 USB Channels | Yes, over Wi-Fi (USB not built yet) |
 | Behringer XR12/XR16 | No multichannel USB | n/a |
-| Behringer X32/M32 (X-USB card) | Should work as a 32-channel USB interface (untested) | Planned |
+| Behringer X32/M32 (X-USB card) | Should work as a 32-channel USB interface (untested) | Planned ([#199](https://github.com/ericdahl-dev/ShowRecorder/issues/199)) |
 | Other class-compliant mixers and interfaces | Should work (untested) | Not yet |
 
 A list of tested hubs and SSDs will follow the first hardware check ([#4](https://github.com/ericdahl-dev/ShowRecorder/issues/4)).
