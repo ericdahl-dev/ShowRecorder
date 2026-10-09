@@ -10,6 +10,7 @@ struct ShowDetailView: View {
     @State private var newName = ""
     @State private var message: String?
     @State private var deletingTake: Int?
+    @State private var deletingFile: (take: Int, channel: Int)?
 
     var body: some View {
         Group {
@@ -21,6 +22,19 @@ struct ShowDetailView: View {
                                 Text("No Markers").foregroundStyle(.secondary)
                             }
                             ForEach(Array(take.markers.enumerated()), id: \.offset) { _, marker in row(marker, take: take.number) }
+                            if !take.channels.isEmpty {
+                                DisclosureGroup("Channel files (\(take.channels.count))") {
+                                    ForEach(take.channels, id: \.number) { channel in
+                                        HStack {
+                                            Text("\(channel.number)").monospacedDigit().foregroundStyle(.secondary)
+                                            Text(channel.name)
+                                            Spacer()
+                                            Button("Delete…", role: .destructive) { deletingFile = (take.number, channel.number) }
+                                                .font(.caption)
+                                        }
+                                    }
+                                }
+                            }
                         } header: {
                             HStack {
                                 Text(String(format: "Take %02d", take.number))
@@ -43,6 +57,9 @@ struct ShowDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .task { await reload() }
+        .sheet(item: Binding(get: { deletingFile.map { FileID(take: $0.take, channel: $0.channel) } }, set: { deletingFile = $0.map { ($0.take, $0.channel) } })) { id in
+            DeleteShowSheet(model: model, show: show, take: id.take, channel: id.channel) { Task { await reload() } }
+        }
         .sheet(item: Binding(get: { deletingTake.map { TakeID(number: $0) } }, set: { deletingTake = $0?.number })) { id in
             DeleteShowSheet(model: model, show: show, take: id.number) { Task { await reload() } }
         }
@@ -100,3 +117,4 @@ struct ShowDetailView: View {
 }
 
 private struct TakeID: Identifiable { let number: Int; var id: Int { number } }
+private struct FileID: Identifiable { let take: Int; let channel: Int; var id: Int { take * 1000 + channel } }

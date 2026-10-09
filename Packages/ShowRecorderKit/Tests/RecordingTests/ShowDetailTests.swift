@@ -59,6 +59,8 @@ struct ShowDetailTests {
         #expect(takes[0].markers.map(\.operatorIndex) == [0, nil, 1])
         #expect(takes[0].markers.map(\.seconds) == [0.1, 7_000.0 / 48_000, 0.2])
         #expect(takes[1].markers.isEmpty)
+        #expect(takes[0].channels.map(\.number) == [1])
+        #expect(takes[0].channels.map(\.name) == ["USB 01"])
     }
 
     @Test("Renaming from the detail changes that Take's Marker in both Copies, and no other Take")

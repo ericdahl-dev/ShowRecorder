@@ -8,6 +8,8 @@ struct DeleteShowSheet: View {
     let show: ShowSummary
     /// Set to delete just this Take of the Show.
     var take: Int?
+    /// Set with `take` to delete just this channel's file from the Take.
+    var channel: Int?
     var deleted: () -> Void = {}
     @Environment(\.dismiss) private var dismiss
     @State private var fromDevice = true
@@ -52,12 +54,12 @@ struct DeleteShowSheet: View {
                     Text("Type \(show.name) to confirm")
                 }
                 Section {
-                    Button(take.map { "Delete Take \(String(format: "%02d", $0))" } ?? "Delete \(show.name)", role: .destructive) { delete() }
+                    Button(channel != nil ? "Delete channel \(channel ?? 0)'s file" : take.map { "Delete Take \(String(format: "%02d", $0))" } ?? "Delete \(show.name)", role: .destructive) { delete() }
                         .disabled(blocked != nil || chosen.isEmpty || !ShowDeleter.confirms(typed: typed, for: show.name))
                     if let message { Text(message).foregroundStyle(.red) }
                 }
             }
-            .navigationTitle(take == nil ? "Delete Show" : "Delete Take")
+            .navigationTitle(channel != nil ? "Delete File" : take == nil ? "Delete Show" : "Delete Take")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -70,14 +72,20 @@ struct DeleteShowSheet: View {
 
     private var footer: String {
         let takes = show.takeCount == 1 ? "1 Take" : "\(show.takeCount) Takes"
-        let what = take.map { "Take \(String(format: "%02d", $0)) of \(show.name)" } ?? "\(show.name) (\(takes))"
+        let what: String
+        if let take, let channel { what = "channel \(channel)'s file in Take \(String(format: "%02d", take)) of \(show.name)" }
+        else if let take { what = "Take \(String(format: "%02d", take)) of \(show.name)" }
+        else { what = "\(show.name) (\(takes))" }
         let names = chosen.sorted { $0.index < $1.index }.map { $0 == .device ? "the Device copy" : "the Drive copy" }
         return names.isEmpty ? "Choose a Copy to delete."
             : "This permanently deletes \(what) from \(names.joined(separator: " and ")). There is no Trash, and it can't be undone."
     }
 
     private func delete() {
-        let outcome = take.map { model.recorder.deleteTake($0, ofShow: show.name, from: chosen) } ?? model.recorder.deleteShow(named: show.name, from: chosen)
+        let outcome: ShowDeleter.Outcome
+        if let take, let channel { outcome = model.recorder.deleteChannel(channel, inTake: take, ofShow: show.name, from: chosen) }
+        else if let take { outcome = model.recorder.deleteTake(take, ofShow: show.name, from: chosen) }
+        else { outcome = model.recorder.deleteShow(named: show.name, from: chosen) }
         if outcome.failed.isEmpty {
             deleted()
             dismiss()
