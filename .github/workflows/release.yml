@@ -1,6 +1,8 @@
 name: Release
 
 # Tag a version (for example v0.1.0) to archive the iOS app, sign it and upload it to TestFlight.
+# Signs with one fixed Apple Distribution certificate (secrets DIST_CERT_P12_BASE64 and DIST_CERT_PASSWORD),
+# so no run creates a certificate and Apple's certificate limit is never reached.
 # Pull requests and forks never run this: it only fires on a tag pushed to this repository.
 on:
   push:
@@ -25,6 +27,8 @@ jobs:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       DEVELOPMENT_TEAM: ${{ secrets.DEVELOPMENT_TEAM }}
+      BUNDLE_ID: dev.ericdahl.ShowRecorder
+      PROFILE_NAME: ShowRecorder CI App Store
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,6 +62,35 @@ jobs:
           printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8"
           echo "ASC_KEY_PATH=$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
 
+      - name: Import the Apple Distribution certificate
+        env:
+          DIST_CERT_P12_BASE64: ${{ secrets.DIST_CERT_P12_BASE64 }}
+          DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
+        run: |
+          set +x
+          umask 077
+          KEYCHAIN="$RUNNER_TEMP/release.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          printf '%s' "$DIST_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/dist.p12" -k "$KEYCHAIN" -P "$DIST_CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/dist.p12"
+          echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+          # The certificate's serial number, to find it in App Store Connect.
+          SERIAL="$(security find-certificate -c "Apple Distribution" -p "$KEYCHAIN" | openssl x509 -noout -serial | cut -d= -f2)"
+          echo "CERT_SERIAL=$SERIAL" >> "$GITHUB_ENV"
+          security find-identity -v -p codesigning "$KEYCHAIN" | sed -E 's/[0-9A-F]{40}/<hash>/'
+
+      - name: Get the App Store provisioning profile
+        run: |
+          set +x
+          python3 scripts/ci_profile.py | tee "$RUNNER_TEMP/profile.txt"
+          echo "PROFILE_UUID=$(sed -n 's/^uuid=//p' "$RUNNER_TEMP/profile.txt")" >> "$GITHUB_ENV"
+
       - name: Archive
         run: |
           set -o pipefail
@@ -65,11 +98,9 @@ jobs:
             -project ShowRecorder.xcodeproj -scheme ShowRecorder -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/ShowRecorder.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-            DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN" \
             MARKETING_VERSION="$MARKETING_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             2>&1 | tee "$RUNNER_TEMP/archive.log"
 
@@ -86,7 +117,10 @@ jobs:
           <dict>
             <key>method</key><string>app-store-connect</string>
             <key>destination</key><string>upload</string>
-            <key>signingStyle</key><string>automatic</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict><key>${BUNDLE_ID}</key><string>${PROFILE_NAME}</string></dict>
             <key>teamID</key><string>${DEVELOPMENT_TEAM}</string>
             <key>uploadSymbols</key><true/>
             <key>manageAppVersionAndBuildNumber</key><false/>
@@ -97,15 +131,17 @@ jobs:
             -archivePath "$RUNNER_TEMP/ShowRecorder.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
             -exportPath "$RUNNER_TEMP/export" \
-            -allowProvisioningUpdates \
             -authenticationKeyPath "$ASC_KEY_PATH" \
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             2>&1 | tee "$RUNNER_TEMP/upload.log"
 
-      - name: Remove the App Store Connect key
+      - name: Remove the keys and the keychain
         if: always()
-        run: rm -rf "$RUNNER_TEMP/asc"
+        run: |
+          rm -rf "$RUNNER_TEMP/asc" "$RUNNER_TEMP/dist.p12"
+          [ -n "$KEYCHAIN" ] && security delete-keychain "$KEYCHAIN" || true
+          rm -f ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision || true
 
       - name: Keep the logs when something failed
         if: failure()
