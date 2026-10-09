@@ -6,6 +6,7 @@ struct ShowListView: View {
     let model: RecordScreenModel
     @Environment(\.dismiss) private var dismiss
     @State private var shows: [ShowSummary]?
+    @State private var deleting: ShowSummary?
 
     var body: some View {
         NavigationStack {
@@ -14,7 +15,11 @@ struct ShowListView: View {
                     if shows.isEmpty {
                         ContentUnavailableView("No Shows yet", systemImage: "music.mic", description: Text("Press record to start one."))
                     } else {
-                        List(shows) { show in NavigationLink { ShowDetailView(model: model, show: show) } label: { row(show) } }
+                        List(shows) { show in
+                            NavigationLink { ShowDetailView(model: model, show: show) } label: { row(show) }
+                                .contextMenu { Button("Delete…", role: .destructive) { deleting = show } }
+                                .swipeActions { Button("Delete…", role: .destructive) { deleting = show } }
+                        }
                     }
                 } else {
                     ProgressView()
@@ -28,7 +33,14 @@ struct ShowListView: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
         }
-        .task { shows = await load() }
+        .task {
+            shows = await load()
+            // `-deleteShowSheet` opens the delete sheet on the second Show, for screenshots.
+            if CommandLine.arguments.contains("-deleteShowSheet"), let shows, shows.count > 1 { deleting = shows[1] }
+        }
+        .sheet(item: $deleting) { show in
+            DeleteShowSheet(model: model, show: show) { Task { shows = await load() } }
+        }
         #if os(macOS)
         .frame(minWidth: 460, minHeight: 360)
         #endif
