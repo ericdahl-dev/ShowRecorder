@@ -13,6 +13,10 @@ struct MeterGrid: View {
     var clipped: Set<Int> = []
     var clearClip: (Int) -> Void = { _ in }
     var sources: [Source] = []
+    /// Names the operator typed, by USB Channel number (from 1). They win over the Mixer's names.
+    var typedNames: [Int: String] = [:]
+    /// Called with a USB Channel number (from 1) when its label is tapped, to name it.
+    var nameChannel: (Int) -> Void = { _ in }
     /// Short screens (landscape iPhone): every channel gets its number and a Mixer-color swatch, and the
     /// Source's name only when there are few enough channels to have room for it.
     var compact = false
@@ -45,12 +49,24 @@ struct MeterGrid: View {
                     .accessibilityHint(clipped.contains(index) ? "Double tap to clear the clip mark" : "")
                     SourceLabel(
                         number: index + 1,
-                        source: sources.indices.contains(index) ? sources[index] : nil,
+                        source: source(at: index),
                         compact: compact, showsName: !compact || meters.count <= 8)
+                        .contentShape(Rectangle())
+                        .onTapGesture { nameChannel(index + 1) }
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityHint("Double tap to name this channel")
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+
+    /// The Source to show for a channel: the typed name when there is one (with the Mixer's color, or none),
+    /// else the Mixer's.
+    private func source(at index: Int) -> Source? {
+        let mixer = sources.indices.contains(index) ? sources[index] : nil
+        guard let typed = typedNames[index + 1] else { return mixer }
+        return Source(name: typed, color: mixer?.color ?? .off, hasMixerName: true)
     }
 
     /// Maps dBFS to 0...1 on a -60...0 scale.

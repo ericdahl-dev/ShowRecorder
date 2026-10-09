@@ -21,6 +21,8 @@ struct RecordScreen: View {
     @State private var showingSettings = false
     @State private var showingMarkers = false
     @State private var showingNewShow = false
+    @State private var namingChannel: Int?
+    @State private var channelName = ""
     @State private var showingShowList = CommandLine.arguments.contains("-showList")
     @State private var settingsSection: SettingsSection?
     @State private var confirmingStop = false
@@ -53,6 +55,16 @@ struct RecordScreen: View {
             #if os(macOS)
             .frame(minWidth: 440, minHeight: 360)
             #endif
+        }
+        .alert(
+            "Name channel \(namingChannel ?? 0)",
+            isPresented: Binding(get: { namingChannel != nil }, set: { if !$0 { namingChannel = nil } })
+        ) {
+            TextField("Name", text: $channelName)
+            Button("Cancel", role: .cancel) {}
+            Button("Save") { if let namingChannel { model.recorder.setChannelName(channelName, forChannel: namingChannel) } }
+        } message: {
+            Text("The files take the name when the Take ends.")
         }
         .sheet(isPresented: $showingNewShow) { NewShowSheet(model: model) }
         .sheet(isPresented: $showingShowList) { ShowListView(model: model) }
@@ -125,7 +137,7 @@ struct RecordScreen: View {
             header
             StatusStrip(chips: model.chips, extras: model.extraChips, tap: chipTapped)
             AlertSlot(queue: model.alerts, perform: model.perform)
-            MeterGrid(meters: model.meters, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources)
+            MeterGrid(meters: model.meters, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources, typedNames: model.recorder.channelNames, nameChannel: nameChannel)
             transport
         }
         .padding()
@@ -144,7 +156,7 @@ struct RecordScreen: View {
             }
             HStack(alignment: .top, spacing: 12) {
                 if model.transportLeading { transportColumn }
-                MeterGrid(meters: model.meters, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources, compact: true)
+                MeterGrid(meters: model.meters, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources, typedNames: model.recorder.channelNames, nameChannel: nameChannel, compact: true)
                     // Urgent alerts sit over the top of the meters, which aren't tappable and don't move,
                     // so the chips and the gear stay reachable (the Drive's Reconnect is one of them).
                     .overlay(alignment: .top) {
@@ -188,6 +200,11 @@ struct RecordScreen: View {
         .accessibilityLabel("Add Marker")
         .keyboardShortcut("m", modifiers: .command)
         .sensoryFeedback(.success, trigger: model.recorder.takeMarkers.count) { old, new in new > old }
+    }
+
+    private func nameChannel(_ number: Int) {
+        channelName = model.recorder.channelNames[number] ?? (model.mixerLink.sources.indices.contains(number - 1) && model.mixerLink.sources[number - 1].hasMixerName ? model.mixerLink.sources[number - 1].name : "")
+        namingChannel = number
     }
 
     private var transport: some View {
