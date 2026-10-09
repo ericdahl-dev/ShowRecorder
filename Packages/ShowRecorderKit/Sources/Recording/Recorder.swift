@@ -255,6 +255,16 @@ public final class Recorder {
         return TakeDeleter.delete(take: take, ofShow: show, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
     }
 
+    /// Deletes USB Channel `channel`'s file from Take `take` of Show `show` in the chosen Copies, for good, with
+    /// the same refusals as `deleteShow`.
+    public func deleteChannel(_ channel: Int, inTake take: Int, ofShow show: String, from copies: Set<DestinationKind>) -> ShowDeleter.Outcome {
+        let kinds = copies.sorted { $0.index < $1.index }
+        guard !isRecording else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "A Take is running.") }) }
+        let access = copies.contains(.drive) ? driveFolder() : nil
+        defer { access?.release() }
+        return StemDeleter.delete(channel: channel, inTake: take, ofShow: show, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
+    }
+
     /// Starts a Take in the open Show, creating a Show first if none is open.
     ///
     /// `sources` are frozen into the Take: Stem names and bext descriptions use them, and later

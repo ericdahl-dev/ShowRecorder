@@ -7,6 +7,14 @@ public struct TakeDetail: Equatable, Sendable, Identifiable {
     public var number: Int
     public var folderName: String
     public var markers: [MarkerDetail]
+    /// The channels this Copy of the Take has a file for.
+    public var channels: [ChannelDetail]
+}
+
+/// One channel's file in a Take.
+public struct ChannelDetail: Equatable, Sendable {
+    public var number: Int
+    public var name: String
 }
 
 /// One Marker in a Take, in the order of `Take.json`.
@@ -31,7 +39,9 @@ public enum ShowDetail {
                     if marker.origin == .operator { index = operatorCount; operatorCount += 1 }
                     return MarkerDetail(name: marker.name, seconds: Double(marker.position) / Double(max(take.sampleRate, 1)), operatorIndex: index)
                 }
-                return TakeDetail(number: take.take, folderName: folder.lastPathComponent, markers: markers)
+                return TakeDetail(
+                    number: take.take, folderName: folder.lastPathComponent, markers: markers,
+                    channels: take.usbChannels.map { ChannelDetail(number: $0.usbChannel, name: $0.name) })
             }
     }
 
