@@ -14,18 +14,21 @@ struct ChannelNamesView: View {
         NavigationStack {
             List {
                 ForEach(rows) { row in
-                HStack {
-                    Text("\(row.number)")
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                        .frame(minWidth: 28, alignment: .trailing)
-                    TextField(row.hint, text: binding(for: row))
-                        .focused($focused, equals: row.number)
-                        .submitLabel(.next)
-                        .onSubmit { commit(row.number); focused = row.number < rows.count ? row.number + 1 : nil }
-                        .textFieldStyle(.plain)
-                        .accessibilityLabel("Name for USB Channel \(row.number)")
-                }
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("\(row.number)")
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                                .frame(minWidth: 28, alignment: .trailing)
+                            TextField(row.hint, text: binding(for: row))
+                                .focused($focused, equals: row.number)
+                                .submitLabel(.next)
+                                .onSubmit { commit(row.number); focused = row.number < rows.count ? row.number + 1 : nil }
+                                .textFieldStyle(.plain)
+                                .accessibilityLabel("Name for USB Channel \(row.number)")
+                        }
+                        if focused == row.number { chips(for: row) }
+                    }
                 }
                 Section {} footer: {
                     Text("The files take the names when the Take ends. A name stays for the rest of the Show.")
@@ -39,11 +42,33 @@ struct ChannelNamesView: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { commitAll(); dismiss() } }
             }
         }
-        .onAppear { drafts = model.recorder.channelNames }
+        .onAppear {
+            drafts = model.recorder.channelNames
+            // `-channelNames` opens the page for screenshots, with a row ready to show its chips.
+            if CommandLine.arguments.contains("-channelNames") { focused = 3 }
+        }
         .onDisappear { commitAll() }
         #if os(macOS)
         .frame(minWidth: 380, minHeight: 440)
         #endif
+    }
+
+    /// Shortcut chips for the row being edited. Tapping one fills the name; free text stays possible.
+    private func chips(for row: ChannelNameRow) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(ChannelNameShortcut.all, id: \.self) { shortcut in
+                    Button(shortcut.title) {
+                        let others = drafts.filter { $0.key != row.number }.map(\.value)
+                        drafts[row.number] = shortcut.name(taken: others)
+                        commit(row.number)
+                        focused = row.number
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+            }
+        }
     }
 
     private var rows: [ChannelNameRow] {
