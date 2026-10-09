@@ -55,7 +55,7 @@ public enum ShowList {
         return takeMetadata(in: showFolder).map { $0.take.outcome(ofCopy: copy) }.max { order.firstIndex(of: $0)! < order.firstIndex(of: $1)! } ?? .complete
     }
 
-    private static func takeMetadata(in showFolder: URL) -> [(folder: URL, take: TakeMetadata)] {
+    static func takeMetadata(in showFolder: URL) -> [(folder: URL, take: TakeMetadata)] {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let entries = (try? FileManager.default.contentsOfDirectory(at: showFolder, includingPropertiesForKeys: nil)) ?? []

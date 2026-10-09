@@ -14,7 +14,7 @@ struct ShowListView: View {
                     if shows.isEmpty {
                         ContentUnavailableView("No Shows yet", systemImage: "music.mic", description: Text("Press record to start one."))
                     } else {
-                        List(shows) { show in row(show) }
+                        List(shows) { show in NavigationLink { ShowDetailView(model: model, show: show) } label: { row(show) } }
                     }
                 } else {
                     ProgressView()
