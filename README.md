@@ -123,9 +123,11 @@ Tag a version on `main` and push the tag:
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
-The **Release** workflow archives the iOS app, signs it with cloud-managed signing, runs `scripts/preflight.sh` on the archive and uploads it to TestFlight. The tag sets the marketing version (`v0.1.0` becomes `0.1.0`); the build number is the run number plus the attempt (for example `57.1`), so re-running a tag uploads a new, higher build instead of failing as a duplicate. It only runs for tags pushed to this repository, never for pull requests or forks, and refuses a tag that isn't on `main`. The build appears in App Store Connect under TestFlight after Apple finishes processing it, usually 5 to 15 minutes.
+The **Release** workflow archives the iOS app, signs it with one fixed Apple Distribution certificate (see below), runs `scripts/preflight.sh` on the archive and uploads it to TestFlight. The tag sets the marketing version (`v0.1.0` becomes `0.1.0`); the build number is the run number plus the attempt (for example `57.1`), so re-running a tag uploads a new, higher build instead of failing as a duplicate. It only runs for tags pushed to this repository, never for pull requests or forks, and refuses a tag that isn't on `main`. The build appears in App Store Connect under TestFlight after Apple finishes processing it, usually 5 to 15 minutes.
 
-Secrets (repository secrets, kept in Infisical project `showrecorder`, `prod`): `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (the `.p8` contents) and `DEVELOPMENT_TEAM`.
+Secrets (repository secrets, kept in Infisical project `showrecorder`, `prod`): `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (the `.p8` contents), `DEVELOPMENT_TEAM`, `DIST_CERT_P12_BASE64` (an Apple Distribution certificate with its private key, exported as `.p12` and run through `base64`) and `DIST_CERT_PASSWORD` (the `.p12` password).
+
+**Why a fixed certificate:** the first setup used cloud-managed signing, which asks Apple for a new development certificate on every run (each run is a new machine). Apple caps certificates per account, so releases eventually failed with `Your account has reached the maximum number of certificates`. Now each run imports the same Distribution certificate into a temporary keychain, `scripts/ci_profile.py` fetches (or makes) the App Store profile `ShowRecorder CI App Store` through the App Store Connect API, and the archive is signed manually. Nothing is created per run. The certificate expires after a year: make a new one (Keychain Access > Request a Certificate from a Certificate Authority, then developer.apple.com > Certificates > Apple Distribution), export it as `.p12`, and update the two secrets. Keep an encrypted copy of the `.p12` and its password off the Mac.
 
 If an upload fails, open the run's **Archive**, **Check the archive** or **Upload to TestFlight** step. The same output is attached to the run as the `release-logs` artifact. Common causes:
 
@@ -133,7 +135,10 @@ If an upload fails, open the run's **Archive**, **Check the archive** or **Uploa
 |---|---|
 | Preflight `FAIL:` line | Something App Store Connect would reject (icon, privacy manifest, compliance key, version). Run `scripts/preflight.sh` locally and fix it. |
 | `Authentication failed` or `401` | The key, issuer or `.p8` secret is wrong, or the key was revoked. Make a new key and update the secrets. |
-| `Cloud signing permission error` / `No profiles for 'dev.ericdahl.ShowRecorder'` | Cloud-managed signing needs an **Admin** API key; App Manager can upload but can't create the distribution certificate. A key's role can't be edited, so create a new Admin key and update `ASC_KEY_ID` and `ASC_KEY_P8`. |
+| `Cloud signing permission error` / `No profiles for 'dev.ericdahl.ShowRecorder'` | Cloud-managed signing needs an **Admin** API key; App Manager can upload but can't create the distribution certificate. A key's role can't be edited, so create a new Admin key and update `ASC_KEY_ID` and `ASC_KEY_P8`. (Now the key must still be able to create profiles.) |
+| `Choose a certificate to revoke` | Only from the old cloud-managed setup. If it appears, the workflow is not using the fixed certificate: check `DIST_CERT_P12_BASE64` and `DIST_CERT_PASSWORD` exist. |
+| `security import` fails, or `No Apple Distribution identity` | The `.p12` secret is empty or the password is wrong. Re-export it and update both secrets. |
+| `serial mismatch` from `ci_profile.py` | The certificate in the secret was revoked or isn't in this team. Make and store a new one. |
 | `bundle version must be higher` | A build with that number already exists. Re-run the workflow; the attempt number raises it. |
 | `Tag ... is not on main` | Merge first, then tag the merged commit. |
 
