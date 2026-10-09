@@ -16,6 +16,7 @@ struct SettingsView: View {
     /// The section to scroll to when opened from a status chip.
     var scrollTo: SettingsSection?
     @State private var choosing = false
+    @State private var showingChannelNames = false
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -37,6 +38,8 @@ struct SettingsView: View {
                     }
                     .onChange(of: model.selectedDeviceID) { model.selectionDidChange() }
                     Text(model.usbChannelSummary).foregroundStyle(.secondary).monospacedDigit()
+                    Button("Channel names…") { showingChannelNames = true }
+                        .disabled(model.meters.isEmpty)
                     Picker("Pre-roll", selection: $model.preRollSeconds) {
                         ForEach(PreRollSetting.choices, id: \.self) { seconds in
                             Text(seconds == 0 ? "Off" : "\(Int(seconds)) s").tag(seconds)
@@ -78,6 +81,7 @@ struct SettingsView: View {
             }
             .formStyle(.grouped)
             .disabled(model.recorder.isRecording)
+            .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model) }
             .fileImporter(isPresented: $choosing, allowedContentTypes: [.folder]) { result in
                 if case .success(let url) = result { model.drive.choose(url) }
             }
