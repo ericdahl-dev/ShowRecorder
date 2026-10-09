@@ -14,6 +14,10 @@ public struct ShowSummary: Equatable, Sendable, Identifiable {
     /// How the Copy stands, from its Takes' Gaps and Repairs; nil when the Copy isn't there.
     public var deviceCopy: CopyOutcome?
     public var driveCopy: CopyOutcome?
+
+    /// The folder to hand to the share sheet or Files: the Device Copy, with its Stems, report and Reaper
+    /// project. Nil when the Show is only on the Drive, which is a disk of its own.
+    public var shareFolder: URL? { deviceCopy == nil ? nil : folder }
 }
 
 /// Reads the past Shows from the files, so it works for the Drive too and needs no database.

@@ -137,4 +137,21 @@ struct ShowListTests {
         #expect(shows[2].takeCount == 0)
         #expect(shows[2].duration == 0)
     }
+
+    @Test("A Show can be shared from the Device Copy when it has one, and not when only the Drive does")
+    func shareFolder() throws {
+        let both = recorder(withDrive: true)
+        try record(both)
+        try both.endShow()
+        clock.now = RecordingTakeTests.showDay.addingTimeInterval(24 * 3600)
+        try record(both)
+        try FileManager.default.removeItem(at: device.appending(path: "2026-10-07 Show"))
+
+        let shows = ShowList.read(device: device, drive: drive)
+        #expect(shows[1].shareFolder == device.appending(path: "2026-10-06 Show", directoryHint: .isDirectory))
+        #expect(shows[0].shareFolder == nil, "only on the Drive")
+        // What is shared is the whole Show folder: Stems, report and Reaper project.
+        let contents = try FileManager.default.contentsOfDirectory(atPath: try #require(shows[1].shareFolder).path)
+        #expect(contents.contains("Report.html") && contents.contains("2026-10-06 Show.RPP") && contents.contains("Take 01"))
+    }
 }
