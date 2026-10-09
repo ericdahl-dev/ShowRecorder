@@ -148,6 +148,20 @@ public struct Show: Sendable, Equatable {
                     channelNames: newest.file.channelNames?.reduce(into: [:]) { if let number = Int($1.key) { $0[number] = $1.value } } ?? [:])
     }
 
+    /// The Show that started most recently before `show`, in `deviceParent`, read from its `Show.json`.
+    static func lastShow(before show: Show, in deviceParent: URL) -> (name: String, channelNames: [Int: String])? {
+        let fm = FileManager.default
+        let names = (try? fm.contentsOfDirectory(atPath: deviceParent.path)) ?? []
+        let earlier = names.compactMap { name -> (name: String, file: ShowFile)? in
+            guard name != show.name, let file = ShowFile.read(from: deviceParent.appending(path: name, directoryHint: .isDirectory)),
+                  file.startedAt <= show.startedAt else { return nil }
+            return (name, file)
+        }
+        guard let last = earlier.max(by: { $0.file.startedAt < $1.file.startedAt }) else { return nil }
+        let names2 = last.file.channelNames?.reduce(into: [Int: String]()) { if let n = Int($1.key) { $0[n] = $1.value } } ?? [:]
+        return (last.name, names2)
+    }
+
     /// Starts writing the running Take to the Drive folder `parent` too: the Show folder there (under
     /// the same name) and a folder for the current Take. Returns that Take folder.
     mutating func joinDrive(_ parent: URL) throws -> URL {
