@@ -3,20 +3,26 @@ import Testing
 
 @Suite("Demo signal availability")
 struct DemoSignalAvailabilityTests {
-    @Test("Debug builds offer the Demo signal")
+    @Test("Debug builds offer the Demo signal whatever the environment, even before it is known")
     func debugBuild() {
-        #expect(DemoSignalAvailability.isAvailable(isDebugBuild: true, receiptFileName: nil))
-        #expect(DemoSignalAvailability.isAvailable(isDebugBuild: true, receiptFileName: "receipt"))
+        for environment: DistributionEnvironment? in [nil, .unknown, .sandbox, .production] {
+            #expect(DemoSignalAvailability.isAvailable(isDebugBuild: true, environment: environment))
+        }
     }
 
-    @Test("TestFlight builds offer it")
+    @Test("TestFlight (sandbox) builds offer it")
     func testFlightBuild() {
-        #expect(DemoSignalAvailability.isAvailable(isDebugBuild: false, receiptFileName: "sandboxReceipt"))
+        #expect(DemoSignalAvailability.isAvailable(isDebugBuild: false, environment: .sandbox))
     }
 
-    @Test("The App Store build and a build with no receipt do not")
+    @Test("The App Store (production) build does not")
     func appStoreBuild() {
-        #expect(!DemoSignalAvailability.isAvailable(isDebugBuild: false, receiptFileName: "receipt"))
-        #expect(!DemoSignalAvailability.isAvailable(isDebugBuild: false, receiptFileName: nil))
+        #expect(!DemoSignalAvailability.isAvailable(isDebugBuild: false, environment: .production))
+    }
+
+    @Test("A Release build whose environment is unknown or not yet answered does not")
+    func unknownEnvironment() {
+        #expect(!DemoSignalAvailability.isAvailable(isDebugBuild: false, environment: nil))
+        #expect(!DemoSignalAvailability.isAvailable(isDebugBuild: false, environment: .unknown))
     }
 }

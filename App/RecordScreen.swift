@@ -752,6 +752,15 @@ final class RecordScreenModel {
     func start() {
         guard loop == nil else { return }
         loop = Task { await run() }
+        Task { await offerDemoSignalIfAvailable() }
+    }
+
+    /// The Demo signal needs StoreKit's answer (TestFlight or not), which arrives later; the input list
+    /// starts without it and gets it here. Only adds an input: the selection and an armed device stay.
+    private func offerDemoSignalIfAvailable() async {
+        await DemoSignalAvailability.resolveEnvironment()
+        guard DemoSignalAvailability.isAvailableInThisBuild, !devices.contains(where: { $0.id == "demo" }) else { return }
+        devices = Self.availableDevices()
     }
 
     /// The screen appeared again: Arm if nothing is, never over a running Take (see `RecorderLifecycle`).
