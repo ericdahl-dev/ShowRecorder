@@ -119,4 +119,82 @@ struct ChannelRenamerTests {
         try recorder.stopTake()
         await recorder.waitForRepair()
     }
+
+    func recorder() -> Recorder {
+        let drive = drive
+        return Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
+    }
+
+    @Test("Names typed for the Show come back after a relaunch, and the next Take starts with them")
+    func namesSurviveRelaunch() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 2)
+        let first = recorder()
+        try first.arm(audio)
+        try first.startTake()
+        audio.deliver([[0.1], [0.1]])
+        first.setChannelName("Lead Vocal", forChannel: 2)
+        try first.stopTake()
+        await first.waitForRepair()
+
+        let relaunched = recorder()
+        #expect(relaunched.channelNames == [2: "Lead Vocal"])
+        let audio2 = FakeAudioDevice(inputChannelCount: 2)
+        try relaunched.arm(audio2)
+        try relaunched.startTake()
+        audio2.deliver([[0.1], [0.1]])
+        #expect(FileManager.default.fileExists(atPath: device.appending(path: "2026-10-06 Show/Take 02/02 Lead Vocal.wav").path))
+        try relaunched.stopTake()
+        await relaunched.waitForRepair()
+    }
+
+    @Test("A new Show (New Show or End Show) starts without the old Show's names, and the old Show keeps its own")
+    func newShowStartsClean() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 2)
+        let recorder = recorder()
+        try recorder.arm(audio)
+        try recorder.startTake()
+        audio.deliver([[0.1], [0.1]])
+        recorder.setChannelName("Lead Vocal", forChannel: 2)
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+
+        try recorder.startNewShow(name: "Late", venue: "")
+        #expect(recorder.channelNames.isEmpty)
+        try recorder.startTake()
+        audio.deliver([[0.1], [0.1]])
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+        #expect(FileManager.default.fileExists(atPath: device.appending(path: "2026-10-06 Late/Take 01/02 USB 02.wav").path))
+        #expect(ShowFile.read(from: device.appending(path: "2026-10-06 Show"))?.channelNames == ["2": "Lead Vocal"])
+
+        recorder.setChannelName("Bass", forChannel: 1)
+        try recorder.endShow()
+        #expect(recorder.channelNames.isEmpty)
+    }
+
+    @Test("After 6 idle hours the Show is over, so a name typed then is for the next Show")
+    func idleShowDropsNames() async throws {
+        final class Clock: @unchecked Sendable { nonisolated(unsafe) var now: Date; init(_ now: Date) { self.now = now } }
+        let clock = Clock(RecordingTakeTests.showDay)
+        let audio = FakeAudioDevice(inputChannelCount: 2)
+        let recorder = Recorder(deviceFolder: device, now: { clock.now })
+        try recorder.arm(audio)
+        try recorder.startTake()
+        audio.deliver([[0.1], [0.1]])
+        recorder.setChannelName("Lead Vocal", forChannel: 2)
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+
+        clock.now = clock.now.addingTimeInterval(7 * 3600)
+        recorder.setChannelName("Bass", forChannel: 1)
+        #expect(recorder.channelNames == [1: "Bass"])
+        try recorder.startTake()
+        audio.deliver([[0.1], [0.1]])
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+        let next = try #require(recorder.currentShow)
+        #expect(next.name != "2026-10-06 Show")
+        #expect(FileManager.default.fileExists(atPath: next.folder.appending(path: "Take 01/01 Bass.wav").path))
+        #expect(FileManager.default.fileExists(atPath: next.folder.appending(path: "Take 01/02 USB 02.wav").path))
+    }
 }
