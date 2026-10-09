@@ -53,6 +53,13 @@ struct ShowDetailView: View {
             }
         }
         .navigationTitle(show.name)
+        .toolbar {
+            if let folder = show.shareFolder {
+                ToolbarItem(placement: .primaryAction) {
+                    ShareLink(item: folder) { Label("Share", systemImage: "square.and.arrow.up") }
+                }
+            }
+        }
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif

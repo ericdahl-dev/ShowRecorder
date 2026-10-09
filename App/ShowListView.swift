@@ -17,8 +17,16 @@ struct ShowListView: View {
                     } else {
                         List(shows) { show in
                             NavigationLink { ShowDetailView(model: model, show: show) } label: { row(show) }
-                                .contextMenu { Button("Delete…", role: .destructive) { deleting = show } }
-                                .swipeActions { Button("Delete…", role: .destructive) { deleting = show } }
+                                .contextMenu {
+                                    if let folder = show.shareFolder { ShareLink("Share…", item: folder) }
+                                    Button("Delete…", role: .destructive) { deleting = show }
+                                }
+                                .swipeActions {
+                                    Button("Delete…", role: .destructive) { deleting = show }
+                                }
+                                .swipeActions(edge: .leading) {
+                                    if let folder = show.shareFolder { ShareLink(item: folder) { Label("Share", systemImage: "square.and.arrow.up") }.tint(.blue) }
+                                }
                         }
                     }
                 } else {
