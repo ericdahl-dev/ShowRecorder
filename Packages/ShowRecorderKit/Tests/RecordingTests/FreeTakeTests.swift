@@ -42,7 +42,7 @@ struct FreeTakeTests {
         #expect(try StemFile(contentsOf: take.appending(path: "04 USB 04.wav")).samples.count == 480)
     }
 
-    @Test("With a Drive both Copies get only the chosen Stems, and the report and Reaper project list just those channels")
+    @Test("With a Drive both Copies get only the chosen Stems, and a report and Reaper project list just those channels")
     func bothCopiesAndOutputs() throws {
         let drive = root.appending(path: "Drive")
         try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
@@ -50,7 +50,8 @@ struct FreeTakeTests {
         let recorder = Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 3)
         try recorder.arm(audio)
-        try recorder.startTake(allowance: allowance([1, 3]))
+        // Two recorded channels with the report and project on (the report itself is a Pro extra, see ProExtrasTests).
+        try recorder.startTake(allowance: TakeAllowance(recordedChannels: [1, 3], showReport: true, reaperExport: true, namingByHand: false))
         audio.deliver((0..<3).map { _ in Array(repeating: 0.2, count: 480) })
         try recorder.stopTake()
 
