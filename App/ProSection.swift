@@ -4,6 +4,10 @@ import SwiftUI
 /// The Pro section of Settings: the tier, Buy Pro, Restore Purchases and, on Free, which 2 USB Channels are
 /// recorded. Calm and out of the way: no prompts, and hidden during a Take (`SettingsLock`).
 struct ProSection: View {
+    /// Off until the Trial (#61) and the Pro product in App Store Connect exist: until then the section would tell
+    /// TestFlight testers "Plan: Free" while every USB Channel is still recorded.
+    static let isOffered = false
+
     @Bindable var model: RecordScreenModel
 
     private var store: ProStore { model.pro }
