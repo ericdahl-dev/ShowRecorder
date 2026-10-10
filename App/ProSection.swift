@@ -4,18 +4,23 @@ import SwiftUI
 /// The Pro section of Settings: the tier, Buy Pro, Restore Purchases and, on Free, which 2 USB Channels are
 /// recorded. Calm and out of the way: no prompts, and hidden during a Take (`SettingsLock`).
 struct ProSection: View {
-    /// Off until the Trial (#61) and the Pro product in App Store Connect exist: until then the section would tell
-    /// TestFlight testers "Plan: Free" while every USB Channel is still recorded.
+    /// Off until the Pro and Trial products exist in App Store Connect and `record()` passes the allowance: until
+    /// then the section, the first-launch Trial offer and the days-left chip would tell TestFlight testers about a
+    /// plan that limits nothing.
     static let isOffered = false
 
     @Bindable var model: RecordScreenModel
 
     private var store: ProStore { model.pro }
+    @State private var showingTrial = false
 
     var body: some View {
         let tier = store.tier()
         Section {
             LabeledContent("Plan", value: tier.title)
+            if tier == .free, store.purchases.trialStartedAt == nil {
+                Button("Start 14-day Trial…") { showingTrial = true }
+            }
             if tier != .pro {
                 Button {
                     Task { await store.buyPro() }
@@ -37,6 +42,7 @@ struct ProSection: View {
         } footer: {
             Text(footer)
         }
+        .sheet(isPresented: $showingTrial) { TrialSheet(store: store) }
     }
 
     private var priceText: String {

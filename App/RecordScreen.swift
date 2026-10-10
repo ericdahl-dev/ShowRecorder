@@ -28,6 +28,8 @@ struct RecordScreen: View {
     @State private var showingChannelNames = launchFlag("-channelNames")
     @State private var showingShowList = launchFlag("-showList")
     @State private var settingsSection: SettingsSection?
+    @State private var showingTrialOffer = false
+    @AppStorage(TrialOffer.offeredKey) private var trialOffered = false
 
     /// Landscape iPhone is short, not narrow: a Pro Max in landscape is wide but still short.
     @Environment(\.verticalSizeClass) private var verticalSizeClass
@@ -71,6 +73,15 @@ struct RecordScreen: View {
         .sheet(isPresented: $showingNewShow) { NewShowSheet(model: model) }
         .sheet(isPresented: $showingShowList) { ShowListView(model: model) }
         .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model) }
+        .sheet(isPresented: $showingTrialOffer) { TrialSheet(store: model.pro) }
+        // The first-launch Trial offer: once, when the Pro price has loaded, and never during a Take.
+        .onChange(of: model.pro.proProduct?.displayPrice, initial: true) { _, price in
+            guard ProSection.isOffered, TrialOffer.shouldOffer(
+                purchases: model.pro.purchases, alreadyOffered: trialOffered,
+                recording: model.recorder.isRecording, proPrice: price) else { return }
+            trialOffered = true
+            showingTrialOffer = true
+        }
         #if os(macOS)
         .background(WindowCloseGuard(model: model))
         #endif
@@ -688,7 +699,8 @@ final class RecordScreenModel {
         let chip = dropouts > 0
             ? [PowerStatus.Chip(text: dropouts == 1 ? "1 dropout" : "\(dropouts) dropouts", shortText: "\(dropouts)", symbol: "waveform.badge.exclamationmark", state: .attention)]
             : []
-        return chip + power.status.chips
+        let trial = ProSection.isOffered ? pro.tier().chip.map { [$0] } ?? [] : []
+        return chip + power.status.chips + trial
     }
 
     /// Ends the open Show. Returns what to tell the operator, or nil when it ended.
