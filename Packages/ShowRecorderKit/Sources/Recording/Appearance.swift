@@ -91,9 +91,9 @@ public enum Palette {
     public static func meter(_ color: MeterColor, mode: AppearanceMode) -> RGB {
         if mode == .sunlight {
             switch color {
-            case .green: return RGB(0.0, 0.50, 0.18)
-            case .yellow: return RGB(1.0, 0.80, 0.0)
-            case .red: return RGB(0.78, 0.0, 0.0)
+            case .green: return RGB(0.0, 0.68, 0.24)
+            case .yellow: return RGB(1.0, 0.85, 0.0)
+            case .red: return RGB(0.73, 0.0, 0.0)
             case .low: return RGB(0.20, 0.35, 0.60)
             case .orange: return RGB(0.80, 0.33, 0.0)
             }
