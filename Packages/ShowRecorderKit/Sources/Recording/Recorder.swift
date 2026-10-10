@@ -47,6 +47,10 @@ public final class Recorder {
     /// when it ends.
     public private(set) var channelNames: [Int: String] = [:]
     /// Names typed before on this device, newest first, offered as chips (`SavedChannelNames`).
+    /// True while a Take that started with no real Source names is running: the first real names
+    /// offered (see `offerSources`) are kept for the end of the Take.
+    private var takeAcceptsLateNames = false
+    private var lateMixerNames: [Int: String] = [:]
     public private(set) var savedChannelNames: [String] = []
     @ObservationIgnored private let savedNames: UserDefaults
     @ObservationIgnored private var namingTask: Task<Void, Never>?
@@ -379,7 +383,20 @@ public final class Recorder {
         currentShow = show
         // The levels of a Take count from the press: drop what the meters gathered before it.
         _ = capture.meters.takeLevels()
+        takeAcceptsLateNames = !sources.contains { $0.hasMixerName }
+        lateMixerNames = [:]
         isRecording = true
+    }
+
+    /// The Mixer Link came up (or its names changed) during a Take. If the Take started with no Mixer
+    /// names, the first real ones are adopted, and put on its files when it finalizes. A Take that
+    /// started with real names stays frozen. Touches no audio and no files while recording.
+    public func offerSources(_ sources: [Source]) {
+        guard isRecording, takeAcceptsLateNames else { return }
+        let names = Dictionary(uniqueKeysWithValues: sources.enumerated().filter { $0.element.hasMixerName }.map { ($0.offset + 1, $0.element.name) })
+        guard !names.isEmpty else { return }
+        lateMixerNames = names
+        takeAcceptsLateNames = false
     }
 
     /// Places a Marker at the Take's current sample position (frames written so far), in every Stem
@@ -511,7 +528,12 @@ public final class Recorder {
     /// Puts the names typed during the Take on its files. Waits for Repair first, which works on the Stems
     /// by their file names.
     private func nameChannels(of metadata: TakeMetadata) {
-        let names = channelNames.filter { number, name in metadata.usbChannels.first { $0.usbChannel == number }.map { $0.name != name } ?? false }
+        takeAcceptsLateNames = false
+        func changes(_ number: Int, _ name: String) -> Bool { metadata.usbChannels.first { $0.usbChannel == number }.map { $0.name != name } ?? false }
+        // Names typed by hand win over the Mixer's.
+        let late = lateMixerNames.filter { channelNames[$0.key] == nil && changes($0.key, $0.value) }
+        lateMixerNames = [:]
+        let names = late.merging(channelNames.filter { changes($0.key, $0.value) }) { _, typed in typed }
         guard !names.isEmpty, let take = lastTake else { return }
         let previous = namingTask
         namingTask = Task { @MainActor in
@@ -524,7 +546,7 @@ public final class Recorder {
                 if let access { copies[.drive] = access.folder.appending(path: take.showName).appending(path: String(format: "Take %02d", take.takeNumber)) }
             }
             defer { access?.release() }
-            _ = ChannelRenamer.rename(names: names, in: copies)
+            _ = ChannelRenamer.rename(names: names, lateChannels: Set(late.keys), in: copies)
         }
     }
 

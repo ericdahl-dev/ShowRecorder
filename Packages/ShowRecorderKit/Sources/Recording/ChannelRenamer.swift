@@ -19,8 +19,9 @@ public enum ChannelRenamer {
 
     /// - Parameters:
     ///   - names: the new name for each USB Channel (1-based) to rename.
+    ///   - lateChannels: the channels whose name is the Mixer's, which only arrived during the Take.
     ///   - copies: each Copy's folder for this Take (`…/Show/Take 01`).
-    public static func rename(names: [Int: String], in copies: [DestinationKind: URL]) -> Outcome {
+    public static func rename(names: [Int: String], lateChannels: Set<Int> = [], in copies: [DestinationKind: URL]) -> Outcome {
         let names = names.compactMapValues { name -> String? in
             let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed.isEmpty ? nil : trimmed
@@ -31,7 +32,7 @@ public enum ChannelRenamer {
         var failed: [MarkerRenamer.Failure] = []
         for (kind, folder) in copies.sorted(by: { $0.key.index < $1.key.index }) {
             do {
-                try rename(names: names, in: folder)
+                try rename(names: names, lateChannels: lateChannels, in: folder)
                 renamed.append(kind)
             } catch {
                 failed.append(.init(copy: kind, reason: String(describing: error)))
@@ -45,7 +46,7 @@ public enum ChannelRenamer {
         return Outcome(result: renamed.isEmpty ? .noCopyUpdated : .renamed, renamed: renamed, failed: failed)
     }
 
-    private static func rename(names: [Int: String], in folder: URL) throws {
+    private static func rename(names: [Int: String], lateChannels: Set<Int>, in folder: URL) throws {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         var take = try decoder.decode(TakeMetadata.self, from: Data(contentsOf: folder.appending(path: TakeMetadata.fileName)))
@@ -64,7 +65,8 @@ public enum ChannelRenamer {
             try stem.finalize()
             take.usbChannels[index].stemFile = file
             take.usbChannels[index].name = name
-            take.usbChannels[index].hasMixerName = false
+            take.usbChannels[index].hasMixerName = lateChannels.contains(channel.usbChannel)
+            take.usbChannels[index].nameArrivedLate = lateChannels.contains(channel.usbChannel) ? true : nil
         }
         try take.write(to: folder)
     }

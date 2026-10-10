@@ -76,6 +76,8 @@ struct RecordScreen: View {
         .task(id: model.recorder.usbChannelCount) {
             await model.mixerLink.refreshSources(usbChannelCount: model.recorder.usbChannelCount)
         }
+        // A Mixer Link that comes up during a Take names its Stems when the Take ends.
+        .onChange(of: model.mixerLink.sources) { _, sources in model.recorder.offerSources(sources) }
         // Locking the screen or leaving the app never ends a Take; becoming active retries input
         // that an interruption left stopped.
         .onChange(of: scenePhase) { _, phase in
