@@ -75,7 +75,8 @@ struct MeterGrid: View {
                     SourceLabel(
                         number: index + 1,
                         source: source(at: index),
-                        compact: compact, showsName: !compact || meters.count <= 8)
+                        compact: compact, showsName: !compact || meters.count <= 8,
+                        reservesNameRow: anyNamed(count: meters.count))
                         .contentShape(Rectangle())
                         .onTapGesture { nameChannel(index + 1) }
                         .accessibilityAddTraits(.isButton)
@@ -84,6 +85,12 @@ struct MeterGrid: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+
+    /// Whether any channel has a name to show. Then every lane keeps the same space for one, so a name under one
+    /// meter never makes that meter shorter than the others.
+    private func anyNamed(count: Int) -> Bool {
+        (0..<count).contains { source(at: $0) != nil }
     }
 
     /// The Source to show for a channel: the typed name when there is one (with the Mixer's color, or none),
@@ -211,6 +218,10 @@ struct SourceLabel: View {
     let source: Source?
     var compact = false
     var showsName = true
+    /// Keep the name row's space even with no name, so every lane is the same height.
+    var reservesNameRow = false
+
+    private var nameHeight: CGFloat { compact ? 16 : 28 }
 
     var body: some View {
         VStack(spacing: 2) {
@@ -226,7 +237,7 @@ struct SourceLabel: View {
                         .minimumScaleFactor(0.6)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 2)
-                        .frame(maxWidth: MeterGrid.maxBarWidth, minHeight: compact ? 16 : 28)
+                        .frame(maxWidth: MeterGrid.maxBarWidth, minHeight: nameHeight, maxHeight: nameHeight)
                         .foregroundStyle(source.color.inverted ? Color.black : source.color.swiftUIColor)
                         .background(source.color.inverted ? source.color.swiftUIColor : Color.clear, in: RoundedRectangle(cornerRadius: 3))
                         .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(source.color.swiftUIColor.opacity(0.6)))
@@ -236,6 +247,8 @@ struct SourceLabel: View {
                         .fill(source.color.swiftUIColor)
                         .frame(maxWidth: MeterGrid.maxBarWidth, minHeight: 4, maxHeight: 4)
                 }
+            } else if showsName, reservesNameRow {
+                Color.clear.frame(height: nameHeight)
             }
         }
         .accessibilityElement(children: .ignore)

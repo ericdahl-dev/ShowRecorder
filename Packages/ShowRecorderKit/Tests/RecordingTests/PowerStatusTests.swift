@@ -158,3 +158,13 @@ struct PowerStatusTests {
         #expect(status(0.5, thermal: .serious).thermal?.shortText == "Hot")
     }
 }
+
+@Suite("Power chips in a crowded strip")
+struct PowerChipShortTextTests {
+    @Test("Warm shows as its thermometer alone in a crowded strip (the words stay for VoiceOver); Hot keeps its word")
+    func warmIsIconOnly() {
+        let warm = PowerStatus.Chip(text: "Warm", shortText: "", symbol: "thermometer.medium", state: .neutral)
+        #expect(PowerStatus.thermalChip(for: .fair) == warm)
+        #expect(PowerStatus.thermalChip(for: .serious)?.shortText == "Hot")
+    }
+}
