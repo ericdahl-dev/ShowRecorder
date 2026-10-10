@@ -39,7 +39,7 @@ struct SettingsView: View {
                     .onChange(of: model.selectedDeviceID) { model.selectionDidChange() }
                     Text(model.usbChannelSummary).foregroundStyle(.secondary).monospacedDigit()
                     Button("Channel names…") { showingChannelNames = true }
-                        .disabled(model.meters.isEmpty)
+                        .disabled(model.meterModel.channelCount == 0)
                     Picker("Pre-roll", selection: $model.preRollSeconds) {
                         ForEach(PreRollSetting.choices, id: \.self) { seconds in
                             Text(seconds == 0 ? "Off" : "\(Int(seconds)) s").tag(seconds)

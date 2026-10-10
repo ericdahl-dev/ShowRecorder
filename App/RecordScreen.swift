@@ -139,7 +139,7 @@ struct RecordScreen: View {
             header
             StatusStrip(chips: model.chips, extras: model.extraChips, tap: chipTapped)
             AlertSlot(queue: model.alerts, perform: model.perform)
-            MeterGrid(meters: model.meters, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources, typedNames: model.recorder.channelNames, nameChannel: nameChannel)
+            MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources, typedNames: model.recorder.channelNames, nameChannel: nameChannel)
             transport
         }
         .padding()
@@ -158,7 +158,7 @@ struct RecordScreen: View {
             }
             HStack(alignment: .top, spacing: 12) {
                 if model.transportLeading { transportColumn }
-                MeterGrid(meters: model.meters, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources, typedNames: model.recorder.channelNames, nameChannel: nameChannel, compact: true)
+                MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources, typedNames: model.recorder.channelNames, nameChannel: nameChannel, compact: true)
                     // Urgent alerts sit over the top of the meters, which aren't tappable and don't move,
                     // so the chips and the gear stay reachable (the Drive's Reconnect is one of them).
                     .overlay(alignment: .top) {
@@ -424,7 +424,8 @@ final class RecordScreenModel {
     private static let mixerAddressKey = "mixerAddress"
     private(set) var devices: [DeviceChoice] = []
     var selectedDeviceID: String?
-    private(set) var meters: [ChannelMeter] = []
+    /// The level meters, in their own model: they change 30 times a second, and only the meter grid reads them.
+    let meterModel = MeterModel()
     private(set) var armError: String?
     private(set) var recordError: String?
     /// The device as it was when last Armed, to tell a format change from a new device.
@@ -827,9 +828,7 @@ final class RecordScreenModel {
             let seconds = min(max((now - lastPoll).inSeconds, 0.001), 0.25)
             lastPoll = now
             let fresh = recorder.takeChannelLevels()
-            if fresh.count == meters.count {
-                for index in fresh.indices { meters[index].update(fresh[index], seconds: seconds) }
-            }
+            meterModel.update(from: fresh, seconds: seconds)
             try? await Task.sleep(for: .milliseconds(33))
         }
     }
@@ -861,7 +860,7 @@ final class RecordScreenModel {
         } catch {
             armError = "Couldn't start \(choice.name): \(error)"
         }
-        meters = Array(repeating: ChannelMeter(), count: recorder.usbChannelCount)
+        meterModel.reset(channelCount: recorder.usbChannelCount)
     }
 
     private func hasMicrophonePermission() async -> Bool {
@@ -901,7 +900,7 @@ final class RecordScreenModel {
             let continued = try recorder.restartInput(on: device)
             noteOfferedChannels(of: device)
             armedDevice = devices.first { $0.id == selectedDeviceID }?.info
-            meters = Array(repeating: ChannelMeter(), count: recorder.usbChannelCount)
+            meterModel.reset(channelCount: recorder.usbChannelCount)
             Self.sessionLog.notice("Input route changed during a Take; \(continued ? "the Take continues" : "the format changed, so the Take was stopped and saved", privacy: .public)")
             if !continued {
                 recordError = "The audio input changed format during the Take. Recording stopped and the Stems recorded so far were saved. Press record to start a new Take."
@@ -971,7 +970,7 @@ final class RecordScreenModel {
         case .disarm:
             recorder.disarm()
             armedDevice = nil
-            meters = []
+            meterModel.reset(channelCount: 0)
             if !change.stopsTake { armError = change.message }
         }
     }

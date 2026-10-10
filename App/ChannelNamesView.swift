@@ -100,7 +100,7 @@ struct ChannelNamesView: View {
     private var rows: [ChannelNameRow] {
         let sources = model.mixerLink.sources
         let mixerNames = Dictionary(uniqueKeysWithValues: sources.indices.filter { sources[$0].hasMixerName }.map { ($0, sources[$0].name) })
-        return ChannelNameList.rows(channelCount: model.meters.count, mixerNames: mixerNames, typed: drafts)
+        return ChannelNameList.rows(channelCount: model.meterModel.channelCount, mixerNames: mixerNames, typed: drafts)
     }
 
     private func binding(for row: ChannelNameRow) -> Binding<String> {
@@ -118,6 +118,6 @@ struct ChannelNamesView: View {
     }
 
     private func commitAll() {
-        for number in 1...max(model.meters.count, 1) { commit(number) }
+        for number in 1...max(model.meterModel.channelCount, 1) { commit(number) }
     }
 }
