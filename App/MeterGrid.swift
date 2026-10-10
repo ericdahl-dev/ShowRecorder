@@ -1,6 +1,28 @@
 import MixerLink
+import Observation
 import Recording
 import SwiftUI
+
+/// The levels of every channel, kept apart from the screen's other state so a new reading redraws the meters and
+/// nothing else.
+@MainActor
+@Observable
+final class MeterModel {
+    private(set) var levels: [ChannelMeter] = []
+    /// How many channels there are. Changes only when the input does, so views that just need the count aren't
+    /// redrawn with every reading.
+    private(set) var channelCount = 0
+
+    func reset(channelCount count: Int) {
+        levels = Array(repeating: ChannelMeter(), count: count)
+        if channelCount != count { channelCount = count }
+    }
+
+    func update(from fresh: [ChannelLevel], seconds: Double) {
+        guard fresh.count == levels.count else { return }
+        for index in fresh.indices { levels[index].update(fresh[index], seconds: seconds) }
+    }
+}
 
 /// One vertical meter per USB Channel, numbered from 1, labeled with its Source when the Mixer Link is up.
 ///
@@ -8,7 +30,7 @@ import SwiftUI
 /// the target band (-18 to -15 dBFS), and a line for the held peak. What the colors mean is decided in
 /// `ChannelMeter`.
 struct MeterGrid: View {
-    let meters: [ChannelMeter]
+    let model: MeterModel
     /// The channels (from 0) that have clipped and not been cleared. Tapping a channel's lane clears its mark.
     var clipped: Set<Int> = []
     var clearClip: (Int) -> Void = { _ in }
@@ -28,6 +50,8 @@ struct MeterGrid: View {
     static let maxBarWidth: CGFloat = 64
 
     var body: some View {
+        // Reading the levels here makes this view, and only this one, redraw as they move.
+        let meters = model.levels
         HStack(alignment: .bottom, spacing: 4) {
             ForEach(meters.indices, id: \.self) { index in
                 VStack(spacing: 4) {
