@@ -18,12 +18,17 @@ struct SettingsView: View {
     @State private var choosing = false
     @State private var showingChannelNames = false
 
+    /// Whether a setting can't be changed right now: some can't while a Take runs (`SettingsLock`).
+    private func locked(_ item: SettingsItem) -> Bool {
+        SettingsLock.isLocked(item, isRecording: model.recorder.isRecording)
+    }
+
     var body: some View {
         ScrollViewReader { proxy in
             Form {
                 if model.recorder.isRecording {
                     Section {
-                        Label("Settings can't be changed during a Take.", systemImage: "lock.fill")
+                        Label("Input, Pre-roll, Drive and Mixer Link can't be changed during a Take.", systemImage: "lock.fill")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -37,6 +42,7 @@ struct SettingsView: View {
                         }
                     }
                     .onChange(of: model.selectedDeviceID) { model.selectionDidChange() }
+                    .disabled(locked(.input))
                     Text(model.usbChannelSummary).foregroundStyle(.secondary).monospacedDigit()
                     Button("Channel names…") { showingChannelNames = true }
                         .disabled(model.meterModel.channelCount == 0)
@@ -46,6 +52,7 @@ struct SettingsView: View {
                         }
                     }
                     .onChange(of: model.preRollSeconds) { model.preRollChanged() }
+                    .disabled(locked(.preRoll))
                     Text(model.preRollNote).font(.footnote).foregroundStyle(.secondary)
                     // Plain rows, not a menu: the whole row is the tap target, and a checkmark shows the choice.
                     Text("Appearance").font(.subheadline.weight(.semibold))
@@ -77,6 +84,7 @@ struct SettingsView: View {
                 Section {
                     driveStatus
                     Button(model.drive.status == .notChosen ? "Choose Drive Folder…" : "Change Drive Folder…") { choosing = true }
+                        .disabled(locked(.drive))
                     timeLeft
                 } header: {
                     Text("Storage").id(SettingsSection.storage)
@@ -91,15 +99,15 @@ struct SettingsView: View {
                         #endif
                         .onSubmit { model.connectMixer() }
                         .onChange(of: model.mixerAddress) { model.saveMixerAddress() }
+                        .disabled(locked(.mixerLink))
                     Button(isConnecting ? "Connecting…" : "Connect") { model.connectMixer() }
-                        .disabled(isConnecting || model.mixerAddress.isEmpty)
+                        .disabled(isConnecting || model.mixerAddress.isEmpty || locked(.mixerLink))
                     mixerStatus
                 } header: {
                     Text("Mixer Link").id(SettingsSection.mixer)
                 }
             }
             .formStyle(.grouped)
-            .disabled(model.recorder.isRecording)
             .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model) }
             .fileImporter(isPresented: $choosing, allowedContentTypes: [.folder]) { result in
                 if case .success(let url) = result { model.drive.choose(url) }
