@@ -90,6 +90,7 @@ struct MeterGrid: View {
 struct MeterBar: View {
     let meter: ChannelMeter
     @Environment(\.appearanceMode) private var mode
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         GeometryReader { geometry in
@@ -106,20 +107,25 @@ struct MeterBar: View {
                     .overlay(alignment: .top) { Rectangle().fill(ink.opacity(0.55)).frame(height: 1) }
                     .overlay(alignment: .bottom) { Rectangle().fill(ink.opacity(0.55)).frame(height: 1) }
                     .offset(y: -bandBottom)
-                // The peak bar, as the old meter drew it.
+                // The peak bar, as the old meter drew it. A bar only a pixel or two tall gets no outline, so a quiet
+                // channel doesn't look like it has signal.
+                let peakHeight = height * MeterGrid.fraction(forDbfs: Self.dbfs(ofLinear: meter.peakBar))
                 RoundedRectangle(cornerRadius: 3)
                     .fill(peakBarColor)
-                    .overlay { if let outline = Palette.meterOutline(mode) { RoundedRectangle(cornerRadius: 3).strokeBorder(Color(outline), lineWidth: 1.5) } }
-                    .frame(height: height * MeterGrid.fraction(forDbfs: Self.dbfs(ofLinear: meter.peakBar)))
-                // The average, narrower and in front.
+                    .overlay { if peakHeight >= 4, let outline { RoundedRectangle(cornerRadius: 3).strokeBorder(outline, lineWidth: 1.5) } }
+                    .frame(height: peakHeight)
+                // The average, narrower and in front, with an edge so it never melts into the peak bar's color.
+                let averageHeight = height * MeterGrid.fraction(forDbfs: meter.averageDbfs)
                 RoundedRectangle(cornerRadius: 2)
                     .fill(averageColor)
-                    .frame(width: geometry.size.width * 0.5, height: height * MeterGrid.fraction(forDbfs: meter.averageDbfs))
-                    .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(ink, lineWidth: 1.5))
-                // The held peak: thicker as well as red when it's near clipping, so color isn't the only cue.
+                    .overlay { if averageHeight >= 4 { RoundedRectangle(cornerRadius: 2).strokeBorder(averageEdge, lineWidth: geometry.size.width < 14 ? 1 : 1.5) } }
+                    .frame(width: geometry.size.width * 0.5, height: averageHeight)
+                // The held peak: thicker as well as red when it's near clipping, so color isn't the only cue. In an
+                // outlined meter it has a light core, so it still shows where it meets the bar's black edge.
                 Rectangle()
-                    .fill(meter.peakIsHot ? color(.red) : (mode == .system ? Color.primary.opacity(0.85) : Color(Palette.primaryText(mode))))
-                    .frame(height: meter.peakIsHot ? 4 : 2)
+                    .fill(meter.peakIsHot ? color(.red) : ink)
+                    .overlay { if outline != nil, !meter.peakIsHot { Rectangle().fill(.white).frame(height: 1) } }
+                    .frame(height: meter.peakIsHot ? 4 : (outline != nil ? 3 : 2))
                     .offset(y: -max(height * MeterGrid.fraction(forDbfs: meter.peakDbfs) - 1, 0))
                     .opacity(meter.peakDbfs <= VUMeter.floorDbfs ? 0 : 1)
             }
@@ -130,6 +136,15 @@ struct MeterBar: View {
 
     /// Text-colored ink for edges: black on a light screen, white on a dark one.
     private var ink: Color { mode == .system ? .primary : Color(Palette.primaryText(mode)) }
+
+    /// The black edge on a light screen (Sunlight, or System in light mode), where a yellow bar has no edge of its own.
+    private var outline: Color? {
+        if let outline = Palette.meterOutline(mode) { return Color(outline) }
+        return mode == .system && colorScheme == .light ? .black : nil
+    }
+
+    /// The average bar's edge: solid in Sunlight and light mode, softer in Dark where white lines on 18 lanes get busy.
+    private var averageEdge: Color { mode == .dark ? ink.opacity(0.7) : ink }
 
     private static func dbfs(ofLinear level: Float) -> Double {
         level > 0 ? 20 * log10(Double(level)) : VUMeter.floorDbfs

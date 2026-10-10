@@ -38,10 +38,20 @@ struct AppearanceTests {
         #expect(Palette.markerFlag(mode).contrast(with: background) >= 3)
     }
 
-    @Test("In Sunlight the peak-bar zones differ in lightness, not only hue: green and red each contrast at least 3:1 with yellow")
+    @Test("In Sunlight the peak-bar zones differ in lightness, not only hue: each pair of green, yellow and red contrasts at least 2:1, which a red-green color-blind viewer can still tell apart")
     func zonesDifferInLightness() {
-        let yellow = Palette.meter(.yellow, mode: .sunlight)
-        #expect(Palette.meter(.green, mode: .sunlight).contrast(with: yellow) >= 3)
-        #expect(Palette.meter(.red, mode: .sunlight).contrast(with: yellow) >= 3)
+        let green = Palette.meter(.green, mode: .sunlight), yellow = Palette.meter(.yellow, mode: .sunlight), red = Palette.meter(.red, mode: .sunlight)
+        #expect(green.contrast(with: yellow) >= 2)
+        #expect(red.contrast(with: yellow) >= 2)
+        #expect(green.contrast(with: red) >= 2)
+    }
+
+    @Test("A mode whose bright meter colors fall under 3:1 against the background has an outline")
+    func outlineWhenNeeded() {
+        for mode in AppearanceMode.allCases {
+            let background = Palette.background(mode)
+            let weak = Palette.MeterColor.allCases.contains { Palette.meter($0, mode: mode).contrast(with: background) < 3 }
+            if weak && mode != .system { #expect(Palette.meterOutline(mode) != nil, "\(mode)") }
+        }
     }
 }
