@@ -258,6 +258,16 @@ public final class Recorder {
         return channelNames.count
     }
 
+    /// What the naming box and the Channel names page do with what was typed: text names the channel, an empty or
+    /// blank box takes its typed name off.
+    public func updateChannelName(_ text: String, forChannel usbChannel: Int) {
+        if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            clearChannelName(forChannel: usbChannel)
+        } else {
+            setChannelName(text, forChannel: usbChannel)
+        }
+    }
+
     /// Takes the typed name off USB Channel `usbChannel` (from 1), so the Show's later Takes use the Mixer's name
     /// again. A Take that is running keeps the name it started with.
     public func clearChannelName(forChannel usbChannel: Int) {
