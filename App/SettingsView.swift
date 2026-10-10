@@ -100,7 +100,7 @@ struct SettingsView: View {
                     Text("Mixer Link").id(SettingsSection.mixer)
                 }
 
-                if !locked(.pro) { ProSection(model: model) }
+                if ProSection.isOffered, !locked(.pro) { ProSection(model: model) }
             }
             .formStyle(.grouped)
             .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model) }
