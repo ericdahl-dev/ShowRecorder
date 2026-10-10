@@ -19,6 +19,17 @@ public struct ShowReport: Equatable, Sendable {
             public var name: String
         }
 
+        /// Source renames made on the Mixer during the Take: seconds from its start, USB Channel, old and
+        /// new name. The Stems keep the names they started with.
+        public var renames: [Rename] = []
+
+        public struct Rename: Equatable, Sendable {
+            public var seconds: Double
+            public var usbChannel: Int
+            public var from: String
+            public var to: String
+        }
+
         /// Stretches of the Take missing from one Copy, held there as silence.
         public var gaps: [Gap] = []
 
@@ -116,6 +127,11 @@ public struct ShowReport: Equatable, Sendable {
                 },
                 markers: (file.markers ?? []).map { marker in
                     Take.Marker(seconds: file.sampleRate > 0 ? Double(marker.position) / Double(file.sampleRate) : 0, name: marker.name)
+                },
+                renames: (file.renames ?? []).map { rename in
+                    Take.Rename(
+                        seconds: file.sampleRate > 0 ? Double(rename.position) / Double(file.sampleRate) : 0,
+                        usbChannel: rename.usbChannel, from: rename.from, to: rename.to)
                 },
                 gaps: (file.gaps ?? []).map { gap in
                     let rate = Double(max(file.sampleRate, 1))
@@ -245,6 +261,13 @@ public struct ShowReport: Equatable, Sendable {
             out += "<h3>Markers</h3>\n<div class=\"scroll\"><table>\n<thead><tr><th>Time</th><th>Marker</th></tr></thead>\n<tbody>\n"
             for marker in take.markers {
                 out += "<tr><td class=\"num\">\(Self.markerClock(marker.seconds))</td><td>\(Self.escape(marker.name))</td></tr>\n"
+            }
+            out += "</tbody>\n</table></div>\n"
+        }
+        if !take.renames.isEmpty {
+            out += "<h3>Renames on the mixer</h3>\n<p class=\"note\">Sources renamed on the mixer during the Take. The Stems keep the names they started with.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>Time</th><th>USB Channel</th><th>From</th><th>To</th></tr></thead>\n<tbody>\n"
+            for rename in take.renames {
+                out += "<tr><td class=\"num\">\(Self.markerClock(rename.seconds))</td><td class=\"num\">\(rename.usbChannel)</td><td class=\"source\">\(Self.escape(rename.from))</td><td class=\"source\">\(Self.escape(rename.to))</td></tr>\n"
             }
             out += "</tbody>\n</table></div>\n"
         }
@@ -379,6 +402,7 @@ struct TakeFile: Decodable {
     var sampleRate: Int
     var usbChannels: [USBChannel]
     var markers: [Marker]?
+    var renames: [Rename]?
     var gaps: [Gap]?
     var dropouts: [Gap]?
     var repairs: [Repair]?
@@ -395,6 +419,13 @@ struct TakeFile: Decodable {
         var copy: String
         var start: Int
         var end: Int
+    }
+
+    struct Rename: Decodable {
+        var position: Int
+        var usbChannel: Int
+        var from: String
+        var to: String
     }
 
     struct Marker: Decodable {

@@ -71,6 +71,24 @@ public protocol MixerDriver: Sendable {
     func capabilities(for identity: MixerIdentity) -> MixerCapabilities
     /// One Source per USB Channel, in USB Channel order.
     func sources(usbChannelCount: Int) async throws(MixerLinkProblem) -> [Source]
+    /// Asks the Mixer to keep pushing changes for a while longer (X-Air: /xremote lasts 10 seconds) and
+    /// checks that it is still there. Throws when it doesn't answer.
+    func renewLiveUpdates() async throws(MixerLinkProblem)
+    /// The Source changes the Mixer pushes while live updates are renewed. Ends when the driver goes away.
+    func sourceChanges() -> AsyncStream<SourceChange>
+}
+
+/// A name or color the Mixer changed on one USB Channel's Source. Nil fields did not change.
+public struct SourceChange: Equatable, Sendable {
+    public var usbChannel: Int
+    public var name: String?
+    public var color: MixerColor?
+
+    public init(usbChannel: Int, name: String? = nil, color: MixerColor? = nil) {
+        self.usbChannel = usbChannel
+        self.name = name
+        self.color = color
+    }
 }
 
 /// What the Mixer routes to a USB Channel, as shown on its meter and in its Stem's name.

@@ -70,6 +70,43 @@ public final class XAirDriver: MixerDriver {
         return sources
     }
 
+    /// /xremote makes the Mixer push changes to this sender for 10 seconds. It has no reply, so /xinfo
+    /// is asked too, to know the Mixer is still there.
+    public func renewLiveUpdates() async throws(MixerLinkProblem) {
+        await client.send(OSCMessage("/xremote"))
+        _ = try await identify()
+    }
+
+    /// Name and color changes pushed for input channels (USB Channels 1–16) and the aux return (17–18).
+    public func sourceChanges() -> AsyncStream<SourceChange> {
+        let messages = client.unsolicited
+        return AsyncStream { continuation in
+            let task = Task {
+                for await message in messages {
+                    for change in Self.changes(in: message) { continuation.yield(change) }
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    private static func changes(in message: OSCMessage) -> [SourceChange] {
+        let parts = message.address.split(separator: "/").map(String.init)
+        guard parts.count == 4, parts[2] == "config" else { return [] }
+        let channels: [Int]
+        switch (parts[0], parts[1]) {
+        case ("ch", let number): channels = Int(number).flatMap { (1...16).contains($0) ? [$0] : nil } ?? []
+        case ("rtn", "aux"): channels = [17, 18]
+        default: channels = []
+        }
+        switch (parts[3], message.arguments.first) {
+        case ("name", .string(let name)?): return channels.map { SourceChange(usbChannel: $0, name: name) }
+        case ("color", .int(let index)?): return channels.map { SourceChange(usbChannel: $0, color: MixerColor(xAirIndex: index)) }
+        default: return []
+        }
+    }
+
     /// Reads an optional value: an odd reply makes it nil; no reply at all is thrown to the caller.
     private func optional<T>(_ read: () async throws(MixerLinkProblem) -> T) async throws(MixerLinkProblem) -> T? {
         do {

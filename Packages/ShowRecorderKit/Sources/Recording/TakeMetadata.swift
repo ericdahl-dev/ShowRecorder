@@ -75,6 +75,26 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         }
     }
 
+    /// Renames made on the Mixer during the Take, in the order they happened. The Stems keep the names they
+    /// started with (or, for a Take that started without Mixer names, got when it ended). Nil when there
+    /// were none, and in Takes made before the rename log existed.
+    public var renames: [Rename]?
+
+    /// A Source renamed on the Mixer at a point in the Take, in samples from its start.
+    public struct Rename: Codable, Equatable, Sendable {
+        public var position: Int
+        public var usbChannel: Int
+        public var from: String
+        public var to: String
+
+        public init(position: Int, usbChannel: Int, from: String, to: String) {
+            self.position = position
+            self.usbChannel = usbChannel
+            self.from = from
+            self.to = to
+        }
+    }
+
     /// What Repair did about each Gap, once the Take had ended.
     public var repairs: [Repair] = []
 
@@ -128,7 +148,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     static let fileName = "Take.json"
 
     enum CodingKeys: String, CodingKey {
-        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts
+        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames
     }
 
     public init(from decoder: any Decoder) throws {
@@ -144,6 +164,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         repairs = try c.decodeIfPresent([Repair].self, forKey: .repairs) ?? []
         preRollFrames = try c.decodeIfPresent(Int.self, forKey: .preRollFrames)
         dropouts = try c.decodeIfPresent([Dropout].self, forKey: .dropouts) ?? []  // Takes recorded before Dropouts existed
+        renames = try c.decodeIfPresent([Rename].self, forKey: .renames)
     }
 
     init(show: String, take: Int, startedAt: Date, sampleRate: Int, timeReference: UInt64, usbChannels: [USBChannel], markers: [Marker] = []) {

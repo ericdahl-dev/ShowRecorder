@@ -385,6 +385,7 @@ public final class Recorder {
         _ = capture.meters.takeLevels()
         takeAcceptsLateNames = !sources.contains { $0.hasMixerName }
         lateMixerNames = [:]
+        mixerNames = Dictionary(uniqueKeysWithValues: sources.enumerated().map { ($0.offset + 1, $0.element.name) })
         isRecording = true
     }
 
@@ -392,11 +393,28 @@ public final class Recorder {
     /// names, the first real ones are adopted, and put on its files when it finalizes. A Take that
     /// started with real names stays frozen. Touches no audio and no files while recording.
     public func offerSources(_ sources: [Source]) {
-        guard isRecording, takeAcceptsLateNames else { return }
+        guard isRecording else { return }
+        logRenames(in: sources)
+        guard takeAcceptsLateNames else { return }
         let names = Dictionary(uniqueKeysWithValues: sources.enumerated().filter { $0.element.hasMixerName }.map { ($0.offset + 1, $0.element.name) })
         guard !names.isEmpty else { return }
         lateMixerNames = names
         takeAcceptsLateNames = false
+    }
+
+    /// The name the Mixer last gave each USB Channel during this Take (or, from the start, the Source the
+    /// Take began with), to tell a rename from a repeat.
+    private var mixerNames: [Int: String] = [:]
+
+    private func logRenames(in sources: [Source]) {
+        guard let session else { return }
+        for (index, source) in sources.enumerated() {
+            let number = index + 1
+            let known = mixerNames[number] ?? Source.fallback(usbChannel: number).name
+            guard source.name != known else { continue }
+            session.logRename(usbChannel: number, from: known, to: source.name)
+            mixerNames[number] = source.name
+        }
     }
 
     /// Places a Marker at the Take's current sample position (frames written so far), in every Stem

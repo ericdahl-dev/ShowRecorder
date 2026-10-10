@@ -30,13 +30,16 @@ public final class MixerLinkController {
 
     @ObservationIgnored private var driver: (any MixerDriver)?
     @ObservationIgnored private let timeout: Duration
+    @ObservationIgnored private let renewEvery: Duration
     @ObservationIgnored private let makeDriver: @Sendable (MixerEndpoint, Duration) -> any MixerDriver
 
     public init(
         timeout: Duration = .seconds(1.5),
+        renewEvery: Duration = .seconds(5),
         makeDriver: @escaping @Sendable (MixerEndpoint, Duration) -> any MixerDriver = { XAirDriver(endpoint: $0, timeout: $1) }
     ) {
         self.timeout = timeout
+        self.renewEvery = renewEvery
         self.makeDriver = makeDriver
     }
 
@@ -45,6 +48,8 @@ public final class MixerLinkController {
     /// `usbChannelCount` is what the Armed device sends. With nothing Armed (0), as many Sources
     /// are read as the identified Mixer sends over USB, if its driver knows.
     public func connect(to address: String, usbChannelCount: Int) async {
+        liveTasks.forEach { $0.cancel() }
+        liveTasks = []
         driver = nil
         capabilities = nil
         pendingUSBChannelCount = nil
@@ -68,7 +73,9 @@ public final class MixerLinkController {
             pendingUSBChannelCount = nil
             self.driver = driver
             self.capabilities = capabilities
+            wantedUSBChannelCount = sources.count
             status = .up(identity, path: .wifi)
+            startLiveUpdates(driver)
         } catch {
             fail(error)
         }
@@ -86,12 +93,66 @@ public final class MixerLinkController {
         guard let driver, let capabilities, identity != nil, usbChannelCount != sources.count else { return }
         do {
             sources = try await Self.sources(from: driver, capabilities: capabilities, usbChannelCount: usbChannelCount)
+            wantedUSBChannelCount = sources.count
         } catch {
             fail(error)
         }
     }
 
     @ObservationIgnored private var pendingUSBChannelCount: Int?
+    @ObservationIgnored private var liveTasks: [Task<Void, Never>] = []
+
+    /// Keeps the Sources current: renews the Mixer's live updates and applies the changes it pushes.
+    private func startLiveUpdates(_ driver: any MixerDriver) {
+        liveTasks.forEach { $0.cancel() }
+        let changes = driver.sourceChanges()
+        liveTasks = [
+            Task { [weak self] in
+                for await change in changes { self?.apply(change) }
+            },
+            Task { [weak self, renewEvery] in
+                while !Task.isCancelled {
+                    guard let self else { return }
+                    await self.renew(driver)
+                    try? await Task.sleep(for: renewEvery)
+                }
+            },
+        ]
+    }
+
+    /// One renewal. A Mixer that doesn't answer takes the Link down; one that answers while the Link is
+    /// down brings it back up, with the Sources read again since renames may have been missed.
+    private func renew(_ driver: any MixerDriver) async {
+        do {
+            try await driver.renewLiveUpdates()
+            guard identity == nil else { return }
+            let identity = try await driver.identify()
+            let capabilities = driver.capabilities(for: identity)
+            let sources = try await Self.sources(from: driver, capabilities: capabilities, usbChannelCount: wantedUSBChannelCount)
+            guard !Task.isCancelled else { return }
+            self.sources = sources
+            self.driver = driver
+            self.capabilities = capabilities
+            status = .up(identity, path: .wifi)
+        } catch {
+            guard !Task.isCancelled else { return }
+            fail(error)
+        }
+    }
+
+    /// How many Sources to read again when the Link comes back.
+    @ObservationIgnored private var wantedUSBChannelCount = 0
+
+    private func apply(_ change: SourceChange) {
+        guard sources.indices.contains(change.usbChannel - 1) else { return }
+        var source = sources[change.usbChannel - 1]
+        if let name = change.name {
+            source.name = name.isEmpty ? Source.fallback(usbChannel: change.usbChannel).name : name
+            source.hasMixerName = !name.isEmpty
+        }
+        if let color = change.color { source.color = color }
+        sources[change.usbChannel - 1] = source
+    }
 
     /// One Source per USB Channel: named by the driver as far as the Mixer's capabilities allow,
     /// "USB NN" after that.
