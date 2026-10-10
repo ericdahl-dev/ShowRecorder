@@ -483,9 +483,16 @@ final class RecordScreenModel {
 
     /// The Armed device's name and channel count, for the header.
     var inputSummary: String {
-        guard recorder.isArmed else { return "Choose an input in Settings" }
+        guard recorder.isArmed else { return recordBlock?.text ?? "Choose an input in Settings" }
         let name = armedDevice?.name ?? "Input"
         return "\(name) · \(usbChannelSummary)"
+    }
+
+    /// Why Record is dimmed, when it is, and what to offer.
+    var recordBlock: RecordAvailability.Block? {
+        RecordAvailability.block(
+            isArmed: recorder.isArmed, isRecording: recorder.isRecording, micDenied: micDenied,
+            armFailed: armError != nil && !micDenied, disarmedForIdle: disarmedForIdle, hasInputs: !devices.isEmpty)
     }
 
     /// The status strip: Device and Drive time left, and the Mixer Link.
@@ -502,7 +509,9 @@ final class RecordScreenModel {
     var alerts: AlertQueue {
         var list: [ScreenAlert] = []
         if let error = armError {
-            list.append(ScreenAlert(id: "arm", priority: .cannotRecord, tone: .critical, text: error, action: micDenied ? .openSystemSettings : nil))
+            list.append(ScreenAlert(id: "arm", priority: .cannotRecord, tone: .critical, text: error, action: micDenied ? .openSystemSettings : .arm))
+        } else if disarmedForIdle, let block = recordBlock {
+            list.append(ScreenAlert(id: "idle", priority: .cannotRecord, tone: .warning, text: block.text, action: block.action))
         }
         if let error = recordError {
             list.append(ScreenAlert(id: "record", priority: .cannotRecord, tone: .critical, text: error))
@@ -538,6 +547,10 @@ final class RecordScreenModel {
         case .dismissHint:
             setupHintDismissed = true
             UserDefaults.standard.set(true, forKey: Self.hintKey)
+        case .arm:
+            // Arm only: never starts a Take.
+            disarmedForIdle = false
+            armSelectedDevice()
         case .checkDrive:
             // Look again now, and say so if it's still not there.
             drive.refresh()
@@ -636,7 +649,7 @@ final class RecordScreenModel {
 
     @ObservationIgnored private var idle = IdleDisarm()
     /// Whether the recorder was disarmed for sitting idle, so coming back should Arm it again.
-    @ObservationIgnored private var disarmedForIdle = false
+    private(set) var disarmedForIdle = false
 
     /// The screen locked or the app left the front: start counting idle time.
     func screenBecameIdle() {
