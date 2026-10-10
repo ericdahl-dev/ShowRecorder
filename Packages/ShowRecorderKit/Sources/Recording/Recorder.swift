@@ -319,7 +319,8 @@ public final class Recorder {
     ///
     /// `sources` are frozen into the Take: Stem names and bext descriptions use them, and later
     /// changes on the Mixer don't touch this Take's files. USB Channels without a Source get "USB NN".
-    public func startTake(sources: [Source] = []) throws {
+    /// - Parameter allowance: what this Take may do, frozen at the press (ADR 0004). Nil records every USB Channel.
+    public func startTake(sources: [Source] = [], allowance: TakeAllowance? = nil) throws {
         guard let device, let capture else { throw RecorderError.notArmed }
         guard !isRecording else { return }
         let date = now()
@@ -361,12 +362,13 @@ public final class Recorder {
         let channels = resolved.enumerated().map { index, source in
             TakeMetadata.USBChannel(usbChannel: index + 1, stemFile: StemFileName.make(usbChannel: index + 1, sourceName: source.name), source: source)
         }
+        let recorded = allowance?.recordedChannels ?? Set(channels.map(\.usbChannel))
         var metadata = TakeMetadata(
             show: show.name, take: show.takeCount, startedAt: date, sampleRate: sampleRate,
-            timeReference: timeReference, usbChannels: channels)
+            timeReference: timeReference, usbChannels: channels.filter { recorded.contains($0.usbChannel) })
         metadata.preRollFrames = preRollFrames > 0 ? preRollFrames : nil
 
-        let specs = zip(channels, resolved).map { StemSpec(file: $0.stemFile, description: $1.name) }
+        let specs = zip(channels, resolved).map { StemSpec(file: $0.stemFile, description: $1.name, isRecorded: recorded.contains($0.usbChannel)) }
         let info = StemWriter.Info(sampleRate: sampleRate, description: "", originator: "ShowRecorder", timeReference: timeReference, originationDate: date)
         let session = try TakeSession(
             show: show, folders: takeFolders, drive: takeFolders.count > 1 ? drive : nil, metadata: metadata, stems: specs,
