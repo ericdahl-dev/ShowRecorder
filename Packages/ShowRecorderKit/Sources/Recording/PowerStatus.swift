@@ -64,6 +64,17 @@ public struct PowerStatus: Equatable, Sendable {
     public static let urgentPercent = 10
 
     /// - Parameter batteryLevel: 0...1, or nil when the device has no battery.
+    /// The heat chip. Warm is only worth a glance, so in a crowded strip it is the thermometer alone (its word stays
+    /// for VoiceOver); Hot and Very hot keep their words.
+    public static func thermalChip(for thermal: Thermal) -> Chip? {
+        switch thermal {
+        case .nominal: nil
+        case .fair: Chip(text: "Warm", shortText: "", symbol: "thermometer.medium", state: .neutral)
+        case .serious: Chip(text: "Hot", symbol: "thermometer.high", state: .attention)
+        case .critical: Chip(text: "Very hot", symbol: "thermometer.high", state: .failed)
+        }
+    }
+
     public init(batteryLevel: Double?, charging: Charging, thermal: Thermal) {
         var warnings: [Warning] = []
 
@@ -100,14 +111,14 @@ public struct PowerStatus: Equatable, Sendable {
         case .nominal:
             self.thermal = nil
         case .fair:
-            self.thermal = Chip(text: "Warm", symbol: "thermometer.medium", state: .neutral)
+            self.thermal = Self.thermalChip(for: .fair)
         case .serious:
-            self.thermal = Chip(text: "Hot", symbol: "thermometer.high", state: .attention)
+            self.thermal = Self.thermalChip(for: .serious)
             warnings.append(Warning(
                 id: "thermal", tone: .warning,
                 text: "The device is running hot and may slow down. Move it into the shade and let air reach it."))
         case .critical:
-            self.thermal = Chip(text: "Very hot", symbol: "thermometer.high", state: .failed)
+            self.thermal = Self.thermalChip(for: .critical)
             warnings.append(Warning(
                 id: "thermal", tone: .critical,
                 text: "The device is very hot and may slow down or shut down. Cool it now: shade, airflow, take it out of any case."))
