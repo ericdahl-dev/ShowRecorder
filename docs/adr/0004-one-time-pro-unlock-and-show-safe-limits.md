@@ -4,6 +4,14 @@ ShowRecorder is free to download with a 14-day full Trial (a $0 non-consumable i
 
 The **Show-Safe Promise** binds every limit: a Take never stops, and audio is never withheld, because of a Trial, limit or license. Limits are checked only when record is pressed; a Trial that expires during a Take records to the end.
 
+## Decisions confirmed by Eric (2026-10-10)
+
+- **Price:** a launch price of **$19.99 for the first 3 months** after App Store release, then **$29.99**. One-time, Universal Purchase (iPhone, iPad, Mac), Family Sharing on.
+- **Free:** 2 USB Channels of the operator's choice after the Trial, with Source names and colors from the Mixer. Never a time cap.
+- **Trial:** 14 days, every feature.
+- **In Pro, beyond every USB Channel:** the Show report and Reaper export, Templates and Mixer Triggers (not built yet), 96 kHz recording (#195), and naming channels by hand (typed names, the Channel names page, shortcut chips and saved names).
+- Every limit is checked only when record is pressed (the Show-Safe Promise). A Free user's earlier Shows, reports and Stems are never locked.
+
 ## Consequences
 
 - Family Sharing can't be turned off for an in-app purchase once enabled; a church team on one family plan shares one unlock.
