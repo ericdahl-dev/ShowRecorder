@@ -55,6 +55,20 @@ extension ShowSummary {
 
 /// Reads the past Shows from the files, so it works for the Drive too and needs no database.
 public enum ShowList {
+    /// What reading the Show list found: Shows (possibly none) or a folder that couldn't be read.
+    public enum Result: Equatable, Sendable {
+        case shows([ShowSummary])
+        case unreadable
+    }
+
+    /// Like `read`, but says so when the Shows folder exists and can't be read, so "no Shows" and "can't read" differ.
+    public static func load(device: URL, drive: URL?) -> Result {
+        for folder in [device, drive].compactMap({ $0 }) where FileManager.default.fileExists(atPath: folder.path) {
+            if (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) == nil { return .unreadable }
+        }
+        return .shows(read(device: device, drive: drive))
+    }
+
     public static func read(device: URL, drive: URL?) -> [ShowSummary] {
         let fm = FileManager.default
         func names(in parent: URL?) -> [String] {

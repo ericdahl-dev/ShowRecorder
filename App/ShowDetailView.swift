@@ -16,6 +16,9 @@ struct ShowDetailView: View {
         Group {
             if let takes {
                 List {
+                    if takes.isEmpty {
+                        Text("No Takes yet").foregroundStyle(.secondary)
+                    }
                     ForEach(takes) { take in
                         Section {
                             if take.markers.isEmpty {

@@ -6,12 +6,21 @@ struct ShowListView: View {
     let model: RecordScreenModel
     @Environment(\.dismiss) private var dismiss
     @State private var shows: [ShowSummary]?
+    @State private var unreadable = false
     @State private var deleting: ShowSummary?
 
     var body: some View {
         NavigationStack {
             Group {
-                if let shows {
+                if unreadable {
+                    ContentUnavailableView {
+                        Label("Can't read the Shows folder", systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text("The Shows on this device or the Drive couldn't be opened.")
+                    } actions: {
+                        Button("Try again") { Task { await reload() } }
+                    }
+                } else if let shows {
                     if shows.isEmpty {
                         ContentUnavailableView("No Shows yet", systemImage: "music.mic", description: Text("Press record to start one."))
                     } else {
@@ -42,12 +51,12 @@ struct ShowListView: View {
             }
         }
         .task {
-            shows = await load()
+            await reload()
             // `-deleteShowSheet` opens the delete sheet on the second Show, for screenshots.
             if launchFlag("-deleteShowSheet"), let shows, shows.count > 1 { deleting = shows[1] }
         }
         .sheet(item: $deleting) { show in
-            DeleteShowSheet(model: model, show: show) { Task { shows = await load() } }
+            DeleteShowSheet(model: model, show: show) { Task { await reload() } }
         }
         #if os(macOS)
         .frame(minWidth: 460, minHeight: 360)
@@ -82,13 +91,20 @@ struct ShowListView: View {
         return "\(date) · \(length) · \(takes)"
     }
 
-    private func load() async -> [ShowSummary] {
+    private func reload() async {
+        switch await load() {
+        case .shows(let found): shows = found; unreadable = false
+        case .unreadable: shows = nil; unreadable = true
+        }
+    }
+
+    private func load() async -> ShowList.Result {
         let store = model.drive.store
         let device = Recorder.defaultDeviceFolder
         return await Task.detached {
             let access = store.beginAccess()
             defer { access?.end() }
-            return ShowList.read(device: device, drive: access?.folder)
+            return ShowList.load(device: device, drive: access?.folder)
         }.value
     }
 }

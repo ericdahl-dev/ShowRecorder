@@ -37,6 +37,25 @@ struct ShowListTests {
         recorder.disarm()
     }
 
+    @Test("A Shows folder that can't be read is a failure, not an empty list")
+    func unreadableFolder() throws {
+        try FileManager.default.createDirectory(at: device, withIntermediateDirectories: true)
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: device.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: device.path) }
+
+        #expect(ShowList.load(device: device, drive: nil) == .unreadable)
+    }
+
+    @Test("A Shows folder that is empty or not made yet is no Shows, and Shows come back as Shows")
+    func emptyIsNotFailure() throws {
+        #expect(ShowList.load(device: device, drive: nil) == .shows([]))
+        try FileManager.default.createDirectory(at: device, withIntermediateDirectories: true)
+        #expect(ShowList.load(device: device, drive: drive) == .shows([]))
+        try record(recorder())
+        guard case .shows(let shows) = ShowList.load(device: device, drive: nil) else { Issue.record("expected Shows"); return }
+        #expect(shows.count == 1)
+    }
+
     @Test("Shows are listed newest first with their start, Take count and duration from first Take start to last Take end")
     func newestFirst() throws {
         let recorder = recorder()
