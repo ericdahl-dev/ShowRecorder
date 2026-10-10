@@ -18,6 +18,7 @@ struct DeleteShowSheet: View {
     @State private var message: String?
     @State private var check: CopyCheck.Result?
     @State private var checking = false
+    @State private var confirmingPlain = false
 
     private var isOpenShow: Bool { model.recorder.currentShow?.name == show.name }
     private var blocked: String? {
@@ -27,6 +28,7 @@ struct DeleteShowSheet: View {
     }
     /// Deleting only the Device copy of a Show that has a Drive copy is allowed after the Drive copy is checked.
     private var needsCheck: Bool { take == nil && chosen == [.device] && show.driveCopy != nil }
+    private var confirmation: DeleteConfirmation { DeleteConfirmation.needed(take: take, channel: channel) }
     private var checkPassed: Bool { check == .passed }
     private var chosen: Set<DestinationKind> {
         var kinds: Set<DestinationKind> = []
@@ -42,8 +44,16 @@ struct DeleteShowSheet: View {
                     Section { Label(blocked, systemImage: "lock.fill").foregroundStyle(.secondary) }
                 }
                 Section {
-                    Toggle("Device copy", isOn: $fromDevice).disabled(show.deviceCopy == nil).onChange(of: fromDevice) { check = nil }
-                    Toggle("Drive copy", isOn: $fromDrive).disabled(show.driveCopy == nil).onChange(of: fromDrive) { check = nil }
+                    if show.deviceCopy != nil {
+                        Toggle("Device copy", isOn: $fromDevice).onChange(of: fromDevice) { check = nil }
+                    } else {
+                        LabeledContent("Device copy", value: "Not there").foregroundStyle(.secondary)
+                    }
+                    if show.driveCopy != nil {
+                        Toggle("Drive copy", isOn: $fromDrive).onChange(of: fromDrive) { check = nil }
+                    } else {
+                        LabeledContent("Drive copy", value: "Not there").foregroundStyle(.secondary)
+                    }
                 } header: {
                     Text("Delete from")
                 } footer: {
@@ -64,18 +74,29 @@ struct DeleteShowSheet: View {
                         Text("The Device copy is only deleted when every Take and channel is on the Drive with the same audio and no Gaps.")
                     }
                 }
-                Section {
-                    TextField("Type the Show's name", text: $typed)
-                        .autocorrectionDisabled()
-                        #if os(iOS)
-                        .textInputAutocapitalization(.never)
-                        #endif
-                } header: {
-                    Text("Type \(show.name) to confirm")
+                if confirmation == .typedName {
+                    Section {
+                        TextField("Type the Show's name", text: $typed)
+                            .autocorrectionDisabled()
+                            #if os(iOS)
+                            .textInputAutocapitalization(.never)
+                            #endif
+                    } header: {
+                        Text("Type \(show.name) to confirm")
+                    }
                 }
                 Section {
-                    Button(channel != nil ? "Delete channel \(channel ?? 0)'s file" : take.map { "Delete Take \(String(format: "%02d", $0))" } ?? "Delete \(show.name)", role: .destructive) { delete() }
-                        .disabled(blocked != nil || chosen.isEmpty || (needsCheck && !checkPassed) || !ShowDeleter.confirms(typed: typed, for: show.name))
+                    Button(channel != nil ? "Delete channel \(channel ?? 0)'s file" : take.map { "Delete Take \(String(format: "%02d", $0))" } ?? "Delete \(show.name)", role: .destructive) {
+                        if confirmation == .plain { confirmingPlain = true } else { delete() }
+                    }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
+                        .disabled(blocked != nil || chosen.isEmpty || (needsCheck && !checkPassed) || (confirmation == .typedName && !ShowDeleter.confirms(typed: typed, for: show.name)))
+                        .confirmationDialog("Delete for good?", isPresented: $confirmingPlain, titleVisibility: .visible) {
+                            Button("Delete", role: .destructive) { delete() }
+                        } message: {
+                            Text(footer)
+                        }
                     if let message { Text(message).foregroundStyle(.red) }
                 }
             }
