@@ -20,6 +20,8 @@ struct RecordScreen: View {
     #endif
     @State private var showingSettings = launchFlag("-showSettings")
     @State private var showingMarkers = false
+    /// How wide the transport is, so the gap between Stop and Marker can shrink on a very narrow screen.
+    @State private var transportWidth: CGFloat = 402
     @State private var showingNewShow = false
     @State private var namingChannel: Int?
     @State private var channelName = ""
@@ -198,8 +200,11 @@ struct RecordScreen: View {
         }
         .buttonStyle(.plain)
         .disabled(!model.recorder.isRecording)
-        .opacity(model.recorder.isRecording ? 1 : 0.3)
+        // Dimmed but readable while Armed: it is there, just not usable until a Take runs.
+        .opacity(model.recorder.isRecording ? 1 : 0.55)
         .accessibilityLabel("Add Marker")
+        .accessibilityValue(model.recorder.takeMarkers.count == 1 ? "1 Marker" : "\(model.recorder.takeMarkers.count) Markers")
+        .accessibilityHint(model.recorder.isRecording ? "" : "Available during a Take")
         .sensoryFeedback(.success, trigger: model.recorder.takeMarkers.count) { old, new in new > old }
     }
 
@@ -231,7 +236,7 @@ struct RecordScreen: View {
             }
             .font(.caption)
             // Top-aligned: Marker is taller (its count sits below), so centring would drop Record.
-            HStack(alignment: .top, spacing: 28) {
+            HStack(alignment: .top, spacing: CGFloat(TransportLayout.gap(availableWidth: Double(transportWidth), buttonSize: 88))) {
                 recordButton(size: 88)
                 markerButton(size: 88)
             }
@@ -244,6 +249,8 @@ struct RecordScreen: View {
                 .id(model.recorder.takeMarkers.count)
         }
         .frame(maxWidth: .infinity)
+        .background { GeometryReader { geometry in Color.clear.preference(key: TransportWidthKey.self, value: geometry.size.width) } }
+        .onPreferenceChange(TransportWidthKey.self) { transportWidth = $0 }
         .animation(.easeInOut(duration: 0.15), value: model.recorder.takeMarkers.count)
     }
 
@@ -1084,6 +1091,11 @@ struct MarkerButtonLabel: View {
         }
         .contentShape(Rectangle())
     }
+}
+
+private struct TransportWidthKey: PreferenceKey {
+    static let defaultValue: CGFloat = 402
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 /// A large round record button that turns into a stop square while recording.
