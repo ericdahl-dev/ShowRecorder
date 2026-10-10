@@ -49,7 +49,7 @@ struct ChannelNamesView: View {
         .onAppear {
             drafts = model.recorder.channelNames
             // `-channelNames` opens the page for screenshots, with a row ready to show its chips.
-            if CommandLine.arguments.contains("-channelNames") { focused = 3 }
+            if launchFlag("-channelNames") { focused = 3 }
         }
         .onDisappear { commitAll() }
         #if os(macOS)

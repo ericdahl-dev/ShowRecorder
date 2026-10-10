@@ -23,9 +23,9 @@ final class DemoAudioDevice: AudioIODevice, @unchecked Sendable {
             let count = DemoAudioDevice.channelCount
             var phase = 0.0
             // `-demoDropout`: every 15 s deliver one block bigger than a ring, so the recorder has to drop it.
-            let overflows = CommandLine.arguments.contains("-demoDropout")
+            let overflows = launchFlag("-demoDropout")
             // `-demoClip`: every 3 s, one full-scale sample on channel 3, so the clip mark can be checked.
-            let clips = CommandLine.arguments.contains("-demoClip")
+            let clips = launchFlag("-demoClip")
             var blocks = 0
             while !Task.isCancelled {
                 phase += 0.05

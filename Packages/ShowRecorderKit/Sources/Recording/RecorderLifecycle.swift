@@ -15,6 +15,18 @@ public enum RecorderLifecycle {
         case askToStop
     }
 
+    /// What to do when the operator quits the app (the Mac).
+    public enum QuitAction: Equatable, Sendable {
+        case quit
+        /// A Take is running: ask whether to stop it, and quit only if the answer is stop.
+        case askToStop
+    }
+
+    /// The operator asked to quit (Command-Q or the Dock menu).
+    public static func quitRequested(isRecording: Bool) -> QuitAction {
+        isRecording ? .askToStop : .quit
+    }
+
     /// The operator asked to close the window (the close button or Command-W).
     public static func windowCloseRequested(isRecording: Bool) -> WindowCloseAction {
         isRecording ? .askToStop : .close
