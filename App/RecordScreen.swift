@@ -18,13 +18,13 @@ struct RecordScreen: View {
     #if os(macOS)
     @Environment(\.openSettings) private var openSettings
     #endif
-    @State private var showingSettings = CommandLine.arguments.contains("-showSettings")
+    @State private var showingSettings = launchFlag("-showSettings")
     @State private var showingMarkers = false
     @State private var showingNewShow = false
     @State private var namingChannel: Int?
     @State private var channelName = ""
-    @State private var showingChannelNames = CommandLine.arguments.contains("-channelNames")
-    @State private var showingShowList = CommandLine.arguments.contains("-showList")
+    @State private var showingChannelNames = launchFlag("-channelNames")
+    @State private var showingShowList = launchFlag("-showList")
     @State private var settingsSection: SettingsSection?
 
     /// Landscape iPhone is short, not narrow: a Pro Max in landscape is wide but still short.
@@ -579,7 +579,7 @@ final class RecordScreenModel {
         devices = Self.availableDevices()
         selectedDeviceID = devices.first?.id
         // `-demoSignal` starts on the 18-channel demo signal, for screenshots and layout checks.
-        if CommandLine.arguments.contains("-demoSignal"), devices.contains(where: { $0.id == "demo" }) { selectedDeviceID = "demo" }
+        if launchFlag("-demoSignal"), devices.contains(where: { $0.id == "demo" }) { selectedDeviceID = "demo" }
     }
 
     /// "2026-10-06 Show · Take 02", or a hint before the first Take.
@@ -765,7 +765,7 @@ final class RecordScreenModel {
         loop = Task { await run() }
         Task { await offerDemoSignalIfAvailable() }
         // `-demoRecord` starts a Take two seconds after launch, for screenshots.
-        if CommandLine.arguments.contains("-demoRecord") {
+        if launchFlag("-demoRecord") {
             Task {
                 try? await Task.sleep(for: .seconds(2))
                 if recorder.isArmed, !recorder.isRecording { record() }

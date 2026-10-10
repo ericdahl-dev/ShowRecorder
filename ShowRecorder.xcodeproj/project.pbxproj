@@ -20,6 +20,7 @@
 		75CA30F76EAD77FB29C41E7C /* StatusStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F25297D625A2C059541D858 /* StatusStrip.swift */; };
 		7978ADCB74542A7F2803E11F /* MeterGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB46E32691A6C070E799F33D /* MeterGrid.swift */; };
 		992430B53737588E241A07B2 /* RecordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */; };
+		A159D220EC3F72CD05142F7A /* LaunchFlag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 625D1286301830679767FD67 /* LaunchFlag.swift */; };
 		A9A8E28730C7E54C34DF1CAE /* CoreAudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = F366717F80C358C5B3DD7D70 /* CoreAudioIO */; };
 		B243E4DC015F2D21E51CF47F /* PowerMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90AA2E3938B5B72E1F6B30B8 /* PowerMonitor.swift */; };
 		B5FB0EEE03B673365A8114BA /* MarkerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 078720CF89E26EE2F4248B22 /* MarkerListView.swift */; };
@@ -31,6 +32,7 @@
 		D1B69547449C5B4B58E8DBEA /* MixerLink in Frameworks */ = {isa = PBXBuildFile; productRef = 3F4AE86B4D698E33356CCFFE /* MixerLink */; };
 		E81A70130E30A8E156EDA841 /* AudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = 06DFC4C4263644F94AB1BE1B /* AudioIO */; };
 		F316B6D0CB9427B29787ED74 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A66A4A288C0B0A560B802624 /* PrivacyInfo.xcprivacy */; };
+		F7769B6393421DB1EE75F743 /* QuitGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38DF639C46586DCDF4866E87 /* QuitGuard.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,11 +41,13 @@
 		132D4E144CE66237000078F5 /* DeleteShowSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteShowSheet.swift; sourceTree = "<group>"; };
 		2220CC601D180E6771D03197 /* ShowDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowDetailView.swift; sourceTree = "<group>"; };
 		2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoAudioDevice.swift; sourceTree = "<group>"; };
+		38DF639C46586DCDF4866E87 /* QuitGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuitGuard.swift; sourceTree = "<group>"; };
 		391362E4626ED278BF3DF54D /* NewShowSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewShowSheet.swift; sourceTree = "<group>"; };
 		3ED85A0ECD05797420331099 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3F1B5EEDD8FA484B7416BB0B /* AppearanceStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceStyle.swift; sourceTree = "<group>"; };
 		3F25297D625A2C059541D858 /* StatusStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusStrip.swift; sourceTree = "<group>"; };
 		497820F0F5EF694FC7765883 /* DriveFolderModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveFolderModel.swift; sourceTree = "<group>"; };
+		625D1286301830679767FD67 /* LaunchFlag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchFlag.swift; sourceTree = "<group>"; };
 		7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowRecorderApp.swift; sourceTree = "<group>"; };
 		84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordScreen.swift; sourceTree = "<group>"; };
 		8CC47A3C7EE61A034F3F6FE0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -95,11 +99,13 @@
 				2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */,
 				497820F0F5EF694FC7765883 /* DriveFolderModel.swift */,
 				3ED85A0ECD05797420331099 /* Info.plist */,
+				625D1286301830679767FD67 /* LaunchFlag.swift */,
 				078720CF89E26EE2F4248B22 /* MarkerListView.swift */,
 				BB46E32691A6C070E799F33D /* MeterGrid.swift */,
 				391362E4626ED278BF3DF54D /* NewShowSheet.swift */,
 				90AA2E3938B5B72E1F6B30B8 /* PowerMonitor.swift */,
 				A66A4A288C0B0A560B802624 /* PrivacyInfo.xcprivacy */,
+				38DF639C46586DCDF4866E87 /* QuitGuard.swift */,
 				84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */,
 				8CC47A3C7EE61A034F3F6FE0 /* SettingsView.swift */,
 				2220CC601D180E6771D03197 /* ShowDetailView.swift */,
@@ -214,10 +220,12 @@
 				13CE6C2DF7A961177DECE074 /* DeleteShowSheet.swift in Sources */,
 				47525D0C9DECC739535A5E15 /* DemoAudioDevice.swift in Sources */,
 				BD8A89087734093AB7AABE15 /* DriveFolderModel.swift in Sources */,
+				A159D220EC3F72CD05142F7A /* LaunchFlag.swift in Sources */,
 				B5FB0EEE03B673365A8114BA /* MarkerListView.swift in Sources */,
 				7978ADCB74542A7F2803E11F /* MeterGrid.swift in Sources */,
 				C8FAB22502DCD4DD3F5DED9D /* NewShowSheet.swift in Sources */,
 				B243E4DC015F2D21E51CF47F /* PowerMonitor.swift in Sources */,
+				F7769B6393421DB1EE75F743 /* QuitGuard.swift in Sources */,
 				992430B53737588E241A07B2 /* RecordScreen.swift in Sources */,
 				BDB211EC46C2B160A043D06F /* SettingsView.swift in Sources */,
 				CD0970AC1E67A961E697395E /* ShowDetailView.swift in Sources */,

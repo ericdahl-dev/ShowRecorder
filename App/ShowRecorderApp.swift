@@ -2,6 +2,9 @@ import SwiftUI
 
 @main
 struct ShowRecorderApp: App {
+    #if os(macOS)
+    @NSApplicationDelegateAdaptor(QuitGuard.self) private var quitGuard
+    #endif
     /// Owned here so the record screen and the Mac Settings scene share one model.
     @State private var model = RecordScreenModel()
 
@@ -43,6 +46,7 @@ struct ShowRecorderApp: App {
         WindowGroup {
             RecordScreen(model: model)
                 .modifier(AppearanceRoot(mode: model.appearance))
+                .onAppear { QuitGuard.model = model }
         }
         .defaultSize(width: 1100, height: 720)
         #else

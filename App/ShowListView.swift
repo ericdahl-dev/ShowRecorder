@@ -44,7 +44,7 @@ struct ShowListView: View {
         .task {
             shows = await load()
             // `-deleteShowSheet` opens the delete sheet on the second Show, for screenshots.
-            if CommandLine.arguments.contains("-deleteShowSheet"), let shows, shows.count > 1 { deleting = shows[1] }
+            if launchFlag("-deleteShowSheet"), let shows, shows.count > 1 { deleting = shows[1] }
         }
         .sheet(item: $deleting) { show in
             DeleteShowSheet(model: model, show: show) { Task { shows = await load() } }
