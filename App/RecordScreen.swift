@@ -26,7 +26,6 @@ struct RecordScreen: View {
     @State private var showingChannelNames = CommandLine.arguments.contains("-channelNames")
     @State private var showingShowList = CommandLine.arguments.contains("-showList")
     @State private var settingsSection: SettingsSection?
-    @State private var confirmingStop = false
 
     /// Landscape iPhone is short, not narrow: a Pro Max in landscape is wide but still short.
     @Environment(\.verticalSizeClass) private var verticalSizeClass
@@ -108,7 +107,7 @@ struct RecordScreen: View {
             .presentationDetents([.large])
         }
         #endif
-        .confirmationDialog("Stop recording?", isPresented: $confirmingStop, titleVisibility: .visible) {
+        .confirmationDialog("Stop recording?", isPresented: $model.confirmingStop, titleVisibility: .visible) {
             Button("Stop Recording", role: .destructive) { model.stop() }
             Button("Keep Recording", role: .cancel) {}
         } message: {
@@ -176,7 +175,7 @@ struct RecordScreen: View {
     private func recordButton(size: CGFloat) -> some View {
         Button {
             if model.recorder.isRecording {
-                confirmingStop = true
+                model.confirmingStop = true
             } else {
                 model.record()
             }
@@ -186,7 +185,6 @@ struct RecordScreen: View {
         .buttonStyle(.plain)
         .disabled(!model.recorder.isArmed)
         .accessibilityLabel(model.recorder.isRecording ? "Stop recording" : "Record")
-        .keyboardShortcut("r", modifiers: .command)
     }
 
     /// Always in place, dimmed when no Take is running, so Record never shifts under the thumb.
@@ -200,7 +198,6 @@ struct RecordScreen: View {
         .disabled(!model.recorder.isRecording)
         .opacity(model.recorder.isRecording ? 1 : 0.3)
         .accessibilityLabel("Add Marker")
-        .keyboardShortcut("m", modifiers: .command)
         .sensoryFeedback(.success, trigger: model.recorder.takeMarkers.count) { old, new in new > old }
     }
 
@@ -424,6 +421,8 @@ final class RecordScreenModel {
     private static let mixerAddressKey = "mixerAddress"
     private(set) var devices: [DeviceChoice] = []
     var selectedDeviceID: String?
+    /// Whether the "Stop recording?" question is showing. In the model so the Take menu can ask it too.
+    var confirmingStop = false
     /// The level meters, in their own model: they change 30 times a second, and only the meter grid reads them.
     let meterModel = MeterModel()
     private(set) var armError: String?
