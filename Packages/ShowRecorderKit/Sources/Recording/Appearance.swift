@@ -78,11 +78,21 @@ public enum Palette {
         case green, yellow, red, low, orange
     }
 
+    /// The line drawn around a meter bar in Sunlight, so a bright color still has an edge against white. Nil elsewhere.
+    public static func meterOutline(_ mode: AppearanceMode) -> RGB? {
+        mode == .sunlight ? RGB(0, 0, 0) : nil
+    }
+
+    /// The Marker button's flag: amber in Sunlight, where yellow on a light screen can't be seen.
+    public static func markerFlag(_ mode: AppearanceMode) -> RGB {
+        mode == .sunlight ? RGB(0.60, 0.45, 0.0) : RGB(1.0, 0.85, 0.20)
+    }
+
     public static func meter(_ color: MeterColor, mode: AppearanceMode) -> RGB {
         if mode == .sunlight {
             switch color {
             case .green: return RGB(0.0, 0.50, 0.18)
-            case .yellow: return RGB(0.60, 0.45, 0.0)
+            case .yellow: return RGB(1.0, 0.80, 0.0)
             case .red: return RGB(0.78, 0.0, 0.0)
             case .low: return RGB(0.20, 0.35, 0.60)
             case .orange: return RGB(0.80, 0.33, 0.0)

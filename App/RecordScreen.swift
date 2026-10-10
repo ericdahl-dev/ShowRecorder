@@ -1043,7 +1043,7 @@ struct MarkerButtonLabel: View {
     @Environment(\.appearanceMode) private var mode
 
     /// Yellow, or a darker amber in Sunlight where yellow on a light screen can't be seen.
-    private var flagColor: Color { mode == .sunlight ? Color(Palette.meter(.yellow, mode: .sunlight)) : .yellow }
+    private var flagColor: Color { mode == .system ? .yellow : Color(Palette.markerFlag(mode)) }
 
     var body: some View {
         VStack(spacing: 4) {

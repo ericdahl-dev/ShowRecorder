@@ -97,20 +97,25 @@ struct MeterBar: View {
             ZStack(alignment: .bottom) {
                 RoundedRectangle(cornerRadius: 3).fill(.quaternary)
                     .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(.secondary.opacity(0.5), lineWidth: 1))
-                // The target band, faint, behind the bar.
+                // The target band behind the bar, with an edge line at each end so it shows on a light screen too.
+                let bandTop = height * MeterGrid.fraction(forDbfs: MeterZone.bandHighDbfs)
+                let bandBottom = height * MeterGrid.fraction(forDbfs: MeterZone.bandLowDbfs)
                 Rectangle()
-                    .fill(.white.opacity(0.12))
-                    .frame(height: height * (MeterGrid.fraction(forDbfs: MeterZone.bandHighDbfs) - MeterGrid.fraction(forDbfs: MeterZone.bandLowDbfs)))
-                    .offset(y: -height * MeterGrid.fraction(forDbfs: MeterZone.bandLowDbfs))
+                    .fill(ink.opacity(0.14))
+                    .frame(height: bandTop - bandBottom)
+                    .overlay(alignment: .top) { Rectangle().fill(ink.opacity(0.55)).frame(height: 1) }
+                    .overlay(alignment: .bottom) { Rectangle().fill(ink.opacity(0.55)).frame(height: 1) }
+                    .offset(y: -bandBottom)
                 // The peak bar, as the old meter drew it.
                 RoundedRectangle(cornerRadius: 3)
                     .fill(peakBarColor)
+                    .overlay { if let outline = Palette.meterOutline(mode) { RoundedRectangle(cornerRadius: 3).strokeBorder(Color(outline), lineWidth: 1.5) } }
                     .frame(height: height * MeterGrid.fraction(forDbfs: Self.dbfs(ofLinear: meter.peakBar)))
                 // The average, narrower and in front.
                 RoundedRectangle(cornerRadius: 2)
                     .fill(averageColor)
                     .frame(width: geometry.size.width * 0.5, height: height * MeterGrid.fraction(forDbfs: meter.averageDbfs))
-                    .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(.black.opacity(0.35), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(ink, lineWidth: 1.5))
                 // The held peak: thicker as well as red when it's near clipping, so color isn't the only cue.
                 Rectangle()
                     .fill(meter.peakIsHot ? color(.red) : (mode == .system ? Color.primary.opacity(0.85) : Color(Palette.primaryText(mode))))
@@ -122,6 +127,9 @@ struct MeterBar: View {
         }
         .frame(minWidth: 8, maxWidth: MeterGrid.maxBarWidth)
     }
+
+    /// Text-colored ink for edges: black on a light screen, white on a dark one.
+    private var ink: Color { mode == .system ? .primary : Color(Palette.primaryText(mode)) }
 
     private static func dbfs(ofLinear level: Float) -> Double {
         level > 0 ? 20 * log10(Double(level)) : VUMeter.floorDbfs
