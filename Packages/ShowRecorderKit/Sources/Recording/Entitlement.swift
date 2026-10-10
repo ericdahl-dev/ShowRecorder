@@ -5,6 +5,15 @@ public enum Tier: Equatable, Sendable {
     case free
     case trial(daysLeft: Int)
     case pro
+
+    /// How Settings names the tier.
+    public var title: String {
+        switch self {
+        case .free: "Free"
+        case .trial(let daysLeft): "14-day Trial, \(daysLeft) \(daysLeft == 1 ? "day" : "days") left"
+        case .pro: "Pro"
+        }
+    }
 }
 
 public enum Entitlement {

@@ -24,8 +24,10 @@
 		A9A8E28730C7E54C34DF1CAE /* CoreAudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = F366717F80C358C5B3DD7D70 /* CoreAudioIO */; };
 		B243E4DC015F2D21E51CF47F /* PowerMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90AA2E3938B5B72E1F6B30B8 /* PowerMonitor.swift */; };
 		B5FB0EEE03B673365A8114BA /* MarkerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 078720CF89E26EE2F4248B22 /* MarkerListView.swift */; };
+		BADEF205E3EB926F596C5E62 /* ProSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E878A7AD64F581255B82A6E /* ProSection.swift */; };
 		BD8A89087734093AB7AABE15 /* DriveFolderModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 497820F0F5EF694FC7765883 /* DriveFolderModel.swift */; };
 		BDB211EC46C2B160A043D06F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CC47A3C7EE61A034F3F6FE0 /* SettingsView.swift */; };
+		C68029C5842FA7BCB2FBF535 /* ProStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93A6FB94028F7291894E26FC /* ProStore.swift */; };
 		C8FAB22502DCD4DD3F5DED9D /* NewShowSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 391362E4626ED278BF3DF54D /* NewShowSheet.swift */; };
 		CD0970AC1E67A961E697395E /* ShowDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2220CC601D180E6771D03197 /* ShowDetailView.swift */; };
 		CFC9F8D3194115954ABE8B0D /* Destinations in Frameworks */ = {isa = PBXBuildFile; productRef = 2A213300C93BF0054D83D85D /* Destinations */; };
@@ -47,13 +49,16 @@
 		3F1B5EEDD8FA484B7416BB0B /* AppearanceStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceStyle.swift; sourceTree = "<group>"; };
 		3F25297D625A2C059541D858 /* StatusStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusStrip.swift; sourceTree = "<group>"; };
 		497820F0F5EF694FC7765883 /* DriveFolderModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveFolderModel.swift; sourceTree = "<group>"; };
+		5E878A7AD64F581255B82A6E /* ProSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProSection.swift; sourceTree = "<group>"; };
 		625D1286301830679767FD67 /* LaunchFlag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchFlag.swift; sourceTree = "<group>"; };
 		7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowRecorderApp.swift; sourceTree = "<group>"; };
+		848566071F05B3D655086E7A /* ShowRecorder.storekit */ = {isa = PBXFileReference; path = ShowRecorder.storekit; sourceTree = "<group>"; };
 		84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordScreen.swift; sourceTree = "<group>"; };
 		8CC47A3C7EE61A034F3F6FE0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		8DFAA5CBF9186C8638F0BDDD /* WindowCloseGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowCloseGuard.swift; sourceTree = "<group>"; };
 		8F032F2B06E5F2F3AA51A95B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		90AA2E3938B5B72E1F6B30B8 /* PowerMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerMonitor.swift; sourceTree = "<group>"; };
+		93A6FB94028F7291894E26FC /* ProStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProStore.swift; sourceTree = "<group>"; };
 		A28ABB2DC3361762848F2190 /* AudioSessionEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSessionEvents.swift; sourceTree = "<group>"; };
 		A48D43A0417E4FE9049EE0AC /* ShowRecorderKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ShowRecorderKit; path = Packages/ShowRecorderKit; sourceTree = SOURCE_ROOT; };
 		A570C7ADCE1D60BED124A213 /* ShowRecorder.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShowRecorder.entitlements; sourceTree = "<group>"; };
@@ -105,12 +110,15 @@
 				391362E4626ED278BF3DF54D /* NewShowSheet.swift */,
 				90AA2E3938B5B72E1F6B30B8 /* PowerMonitor.swift */,
 				A66A4A288C0B0A560B802624 /* PrivacyInfo.xcprivacy */,
+				5E878A7AD64F581255B82A6E /* ProSection.swift */,
+				93A6FB94028F7291894E26FC /* ProStore.swift */,
 				38DF639C46586DCDF4866E87 /* QuitGuard.swift */,
 				84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */,
 				8CC47A3C7EE61A034F3F6FE0 /* SettingsView.swift */,
 				2220CC601D180E6771D03197 /* ShowDetailView.swift */,
 				034579A5DCE44DCC61521CA4 /* ShowListView.swift */,
 				A570C7ADCE1D60BED124A213 /* ShowRecorder.entitlements */,
+				848566071F05B3D655086E7A /* ShowRecorder.storekit */,
 				7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */,
 				3F25297D625A2C059541D858 /* StatusStrip.swift */,
 				8DFAA5CBF9186C8638F0BDDD /* WindowCloseGuard.swift */,
@@ -225,6 +233,8 @@
 				7978ADCB74542A7F2803E11F /* MeterGrid.swift in Sources */,
 				C8FAB22502DCD4DD3F5DED9D /* NewShowSheet.swift in Sources */,
 				B243E4DC015F2D21E51CF47F /* PowerMonitor.swift in Sources */,
+				BADEF205E3EB926F596C5E62 /* ProSection.swift in Sources */,
+				C68029C5842FA7BCB2FBF535 /* ProStore.swift in Sources */,
 				F7769B6393421DB1EE75F743 /* QuitGuard.swift in Sources */,
 				992430B53737588E241A07B2 /* RecordScreen.swift in Sources */,
 				BDB211EC46C2B160A043D06F /* SettingsView.swift in Sources */,
