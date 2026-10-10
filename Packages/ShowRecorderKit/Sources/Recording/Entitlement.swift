@@ -14,6 +14,13 @@ public enum Tier: Equatable, Sendable {
         case .pro: "Pro"
         }
     }
+
+    /// The record screen's quiet days-left chip during the Trial; nothing on Free or Pro. It never warns.
+    public var chip: PowerStatus.Chip? {
+        guard case .trial(let daysLeft) = self else { return nil }
+        return PowerStatus.Chip(
+            text: title, shortText: "\(daysLeft) \(daysLeft == 1 ? "day" : "days")", symbol: "clock", state: .neutral)
+    }
 }
 
 public enum Entitlement {

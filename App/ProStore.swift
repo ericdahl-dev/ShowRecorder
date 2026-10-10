@@ -12,6 +12,8 @@ final class ProStore {
     private(set) var purchases = ProPurchases(owned: [])
     /// The Pro product, once loaded. Nil until then, or when the App Store doesn't offer it.
     private(set) var proProduct: Product?
+    /// The $0 14-day Trial product, once loaded.
+    private(set) var trialProduct: Product?
     private(set) var loadingProducts = true
     /// A purchase or restore in progress.
     private(set) var busy = false
@@ -42,30 +44,48 @@ final class ProStore {
     func loadProducts() async {
         loadingProducts = true
         defer { loadingProducts = false }
-        proProduct = try? await Product.products(for: [ProPurchases.proProductID]).first
+        let products = (try? await Product.products(for: [ProPurchases.proProductID, ProPurchases.trialProductID])) ?? []
+        proProduct = products.first { $0.id == ProPurchases.proProductID }
+        trialProduct = products.first { $0.id == ProPurchases.trialProductID }
+    }
+
+    /// The Trial's disclosure, once Pro's price is known (Guideline 3.1.1 asks for it).
+    var trialDisclosure: TrialDisclosure? {
+        proProduct.map { TrialDisclosure(proPrice: $0.displayPrice) }
     }
 
     func buyPro() async {
-        guard let proProduct, !busy else { return }
+        guard let proProduct else { return }
+        await purchase(proProduct, failure: "Couldn't buy Pro")
+    }
+
+    /// Starts the 14-day Trial: a $0 purchase, so its start date is the App Store's and survives reinstalling.
+    func startTrial() async {
+        guard let trialProduct else { return }
+        await purchase(trialProduct, failure: "Couldn't start the Trial")
+    }
+
+    private func purchase(_ product: Product, failure: String) async {
+        guard !busy else { return }
         busy = true
         defer { busy = false }
         note = nil
         do {
-            switch try await proProduct.purchase() {
+            switch try await product.purchase() {
             case .success(.verified(let transaction)):
                 await transaction.finish()
                 await refreshOwned()
             case .success(.unverified):
                 note = "The App Store couldn't confirm the purchase. Try Restore Purchases."
             case .pending:
-                note = "Waiting for approval. Pro unlocks when it is approved."
+                note = "Waiting for approval. It unlocks when it is approved."
             case .userCancelled:  // spelling: ok (StoreKit's name)
                 break
             @unknown default:
                 break
             }
         } catch {
-            note = "Couldn't buy Pro: \(error.localizedDescription)"
+            note = "\(failure): \(error.localizedDescription)"
         }
     }
 

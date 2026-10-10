@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		07FB0DD2A97E806B1CB409A1 /* TrialSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDF413BFBEF5212621189D4 /* TrialSheet.swift */; };
 		13CE6C2DF7A961177DECE074 /* DeleteShowSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 132D4E144CE66237000078F5 /* DeleteShowSheet.swift */; };
 		1D0AAB2401EFEADA6CDDEB2C /* ShowRecorderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */; };
 		255D20FDD3402F29F4A72FE9 /* ShowListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 034579A5DCE44DCC61521CA4 /* ShowListView.swift */; };
@@ -65,6 +66,7 @@
 		A66A4A288C0B0A560B802624 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		BB46E32691A6C070E799F33D /* MeterGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeterGrid.swift; sourceTree = "<group>"; };
 		DBBDC7B3AA4C8B14B57747DD /* ShowRecorder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ShowRecorder.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DDDF413BFBEF5212621189D4 /* TrialSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrialSheet.swift; sourceTree = "<group>"; };
 		F37D396FDE04128489306DC3 /* ChannelNamesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelNamesView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -121,6 +123,7 @@
 				848566071F05B3D655086E7A /* ShowRecorder.storekit */,
 				7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */,
 				3F25297D625A2C059541D858 /* StatusStrip.swift */,
+				DDDF413BFBEF5212621189D4 /* TrialSheet.swift */,
 				8DFAA5CBF9186C8638F0BDDD /* WindowCloseGuard.swift */,
 			);
 			path = App;
@@ -242,6 +245,7 @@
 				255D20FDD3402F29F4A72FE9 /* ShowListView.swift in Sources */,
 				1D0AAB2401EFEADA6CDDEB2C /* ShowRecorderApp.swift in Sources */,
 				75CA30F76EAD77FB29C41E7C /* StatusStrip.swift in Sources */,
+				07FB0DD2A97E806B1CB409A1 /* TrialSheet.swift in Sources */,
 				42E521FCCC800B2B20D0B69B /* WindowCloseGuard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
