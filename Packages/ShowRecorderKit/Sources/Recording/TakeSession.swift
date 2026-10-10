@@ -100,7 +100,7 @@ final class TakeSession {
     @discardableResult
     func addMarker(named name: String? = nil) -> TakeMetadata.Marker {
         let marker = TakeMetadata.Marker(
-            position: capture.takeFrameCount, name: name ?? "Marker \(metadata.markers.filter { $0.origin == .operator }.count + 1)", origin: .operator)
+            position: capture.takeFrameCount, name: name.map { NameLimit.cut($0) } ?? "Marker \(metadata.markers.filter { $0.origin == .operator }.count + 1)", origin: .operator)
         metadata.markers.append(marker)
         // Take.json first: it's written whole and atomically, so a Marker survives even if the Stems'
         // next header commit never happens.
@@ -112,7 +112,7 @@ final class TakeSession {
     /// Renames the operator Marker at `index` (counting operator Markers only, in the order of
     /// `Recorder.takeMarkers`), in `Take.json` and in the Stems' cue labels.
     func renameMarker(at index: Int, to name: String) -> MarkerRename {
-        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = NameLimit.cut(name.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !name.isEmpty else { return .emptyName }
         let positions = metadata.markers.indices.filter { metadata.markers[$0].origin == .operator }
         guard positions.indices.contains(index) else { return .noSuchMarker }

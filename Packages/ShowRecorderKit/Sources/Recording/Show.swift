@@ -73,7 +73,7 @@ public struct Show: Sendable, Equatable {
             .replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ":", with: "-")
         while safe.hasPrefix(".") { safe.removeFirst() }
-        return safe.trimmingCharacters(in: .whitespacesAndNewlines)
+        return NameLimit.cut(safe.trimmingCharacters(in: .whitespacesAndNewlines)).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Writes this Show's next Takes to the Drive folder `parent` as well (creating the Show folder
