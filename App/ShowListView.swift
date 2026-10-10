@@ -55,12 +55,22 @@ struct ShowListView: View {
     }
 
     private func row(_ show: ShowSummary) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(show.name).font(.headline)
-            Text(detail(show)).font(.subheadline).foregroundStyle(.secondary)
-            Text(copies(show)).font(.caption).foregroundStyle(copiesAreProblem(show) ? Color.red : .secondary)
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(show.name).font(.headline)
+                Text(detail(show)).font(.subheadline).foregroundStyle(.secondary)
+                if let note = show.copyNote {
+                    Text(note.text).font(.caption).foregroundStyle(note.severity == .problem ? Color.red : .orange)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: 0)
+            if let folder = show.shareFolder {
+                ShareLink(item: folder) { Label("Share", systemImage: "square.and.arrow.up").labelStyle(.iconOnly) }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Share \(show.name)")
+            }
         }
-        .accessibilityElement(children: .combine)
     }
 
     private func detail(_ show: ShowSummary) -> String {
@@ -70,25 +80,6 @@ struct ShowListView: View {
         let minutes = Int(show.duration / 60)
         let length = minutes < 1 ? "under a minute" : minutes < 60 ? "\(minutes) min" : "\(minutes / 60) h \(minutes % 60) min"
         return "\(date) · \(length) · \(takes)"
-    }
-
-    private func copies(_ show: ShowSummary) -> String {
-        "Device copy: \(Self.word(show.deviceCopy)) · Drive copy: \(Self.word(show.driveCopy))"
-    }
-
-    private func copiesAreProblem(_ show: ShowSummary) -> Bool {
-        [show.deviceCopy, show.driveCopy].contains { $0 == .hasGaps || $0 == .repairFailed }
-    }
-
-    /// The same words as the record screen and the report.
-    private static func word(_ outcome: CopyOutcome?) -> String {
-        switch outcome {
-        case nil: "not there"
-        case .complete: "complete"
-        case .hasGaps: "has Gaps"
-        case .repaired: "Repaired"
-        case .repairFailed: "Repair failed"
-        }
     }
 
     private func load() async -> [ShowSummary] {

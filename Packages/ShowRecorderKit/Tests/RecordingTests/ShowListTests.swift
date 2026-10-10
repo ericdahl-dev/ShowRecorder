@@ -154,4 +154,54 @@ struct ShowListTests {
         let contents = try FileManager.default.contentsOfDirectory(atPath: try #require(shows[1].shareFolder).path)
         #expect(contents.contains("Report.html") && contents.contains("2026-10-06 Show.RPP") && contents.contains("Take 01"))
     }
+
+    @Test("Show.json says a Drive Copy was written once one was, in both Copies; a Device-only Show says not")
+    func showFileRemembersDrive() throws {
+        let both = recorder(withDrive: true)
+        try record(both)
+        try both.endShow()
+        clock.now = RecordingTakeTests.showDay.addingTimeInterval(24 * 3600)
+        try record(recorder())
+
+        #expect(ShowFile.read(from: device.appending(path: "2026-10-06 Show"))?.driveCopyWritten == true)
+        #expect(ShowFile.read(from: drive.appending(path: "2026-10-06 Show"))?.driveCopyWritten == true)
+        #expect(ShowFile.read(from: device.appending(path: "2026-10-07 Show"))?.driveCopyWritten != true)
+    }
+
+    @Test("The Copy note: nothing when both Copies are complete, 'No Drive copy' when a Drive Copy never existed, 'Drive not connected now' when one was written but the Drive is away")
+    func copyNote() throws {
+        let both = recorder(withDrive: true)
+        try record(both)
+        try both.endShow()
+        clock.now = RecordingTakeTests.showDay.addingTimeInterval(24 * 3600)
+        try record(recorder())
+
+        let connected = ShowList.read(device: device, drive: drive)
+        #expect(connected[1].copyNote == nil, "both complete")
+        #expect(connected[0].copyNote == CopyNote(text: "No Drive copy", severity: .warning), "never written")
+
+        let away = ShowList.read(device: device, drive: nil)
+        #expect(away[1].copyNote == CopyNote(text: "Drive not connected now", severity: .warning), "written, Drive away")
+        #expect(away[0].copyNote == CopyNote(text: "No Drive copy", severity: .warning))
+    }
+
+    @Test("Gaps and a failed Repair are a problem; Repaired is fine; an old Show.json without the field still lists")
+    func copyNoteProblemsAndOldShows() throws {
+        func summary(_ device: CopyOutcome?, _ drive: CopyOutcome?, written: Bool? = true, connected: Bool = true) -> ShowSummary {
+            ShowSummary(name: "S", folder: root, startedAt: .distantPast, takeCount: 1, duration: 0, deviceCopy: device, driveCopy: drive,
+                        driveCopyWritten: written, driveConnected: connected)
+        }
+        #expect(summary(.complete, .repaired).copyNote == nil)
+        #expect(summary(.complete, .hasGaps).copyNote == CopyNote(text: "Drive copy has Gaps", severity: .problem))
+        #expect(summary(.repairFailed, .complete).copyNote == CopyNote(text: "Device Repair failed", severity: .problem))
+        #expect(summary(.complete, nil, connected: true).copyNote?.text == "Drive copy missing")
+        #expect(summary(.complete, nil, written: nil, connected: false).copyNote?.text == "No Drive copy")
+
+        let old = device.appending(path: "2026-10-01 Old")
+        try FileManager.default.createDirectory(at: old, withIntermediateDirectories: true)
+        try Data(#"{"name":"2026-10-01 Old","startedAt":"2026-10-01T20:00:00Z"}"#.utf8).write(to: old.appending(path: "Show.json"))
+        let listed = ShowList.read(device: device, drive: drive).first { $0.name == "2026-10-01 Old" }
+        #expect(listed?.driveCopyWritten == nil)
+        #expect(listed?.copyNote?.text == "No Drive copy")
+    }
 }
