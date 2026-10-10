@@ -26,6 +26,8 @@ public struct ScreenAlert: Equatable, Identifiable, Sendable {
     public enum Action: Equatable, Sendable {
         case openSystemSettings
         case dismissHint
+        /// Look for the Drive again, during a Take.
+        case checkDrive
     }
 
     public var id: String
