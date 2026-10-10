@@ -42,3 +42,39 @@ struct DestinationAlertTests {
         #expect(DestinationAlert.make(isRecording: false, device: .recording, drive: .missing) == nil)
     }
 }
+
+/// The Drive coming back during a Take.
+@Suite("Drive rejoin notice")
+struct DriveRejoinNoticeTests {
+    @Test("The Drive stopped alert offers Check Drive, and says so when the check found nothing")
+    func checkDriveAction() throws {
+        let stopped = try #require(DestinationAlert.make(isRecording: true, device: .recording, drive: .interrupted))
+        #expect(stopped.action == .checkDrive)
+        #expect(stopped.text.hasPrefix("The Drive stopped."))
+
+        let again = try #require(DestinationAlert.make(isRecording: true, device: .recording, drive: .interrupted, checkedAndNotFound: true))
+        #expect(again.text.hasPrefix("Still not found. The Drive stopped."))
+        #expect(again.action == .checkDrive)
+    }
+
+    @Test("The notice appears when the Drive comes back during a Take, stays until the Take ends, and is not made up for a Drive that was never lost")
+    func rejoinNotice() throws {
+        var notice = DriveRejoinNotice()
+        notice.update(isRecording: true, drive: .recording)
+        #expect(notice.alert == nil, "never lost")
+
+        notice.update(isRecording: true, drive: .interrupted)
+        #expect(notice.alert == nil, "still lost")
+
+        notice.update(isRecording: true, drive: .recording)
+        let alert = try #require(notice.alert)
+        #expect(alert.id == "drive-back" && alert.tone == .ok && alert.priority == .destination)
+        #expect(alert.text == "The Drive is back. The Gap will be Repaired after the Take.")
+
+        notice.update(isRecording: true, drive: .recording)
+        #expect(notice.alert != nil, "stays while the Take runs")
+
+        notice.update(isRecording: false, drive: .recording)
+        #expect(notice.alert == nil, "gone once the Take ends")
+    }
+}

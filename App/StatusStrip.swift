@@ -156,6 +156,7 @@ struct AlertBanner: View {
         switch action {
         case .openSystemSettings: "Open Settings"
         case .dismissHint: "Got it"
+        case .checkDrive: "Check Drive"
         }
     }
 

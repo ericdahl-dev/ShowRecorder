@@ -433,6 +433,9 @@ final class RecordScreenModel {
     /// How each Copy of the running Take is doing, refreshed about once a second.
     private(set) var deviceCopy: CopyStatus = .missing
     private(set) var driveCopy: CopyStatus = .missing
+    /// The Drive stopped and Check Drive found nothing, until it comes back.
+    private var driveCheckedAndNotFound = false
+    private var driveRejoin = DriveRejoinNotice()
     @ObservationIgnored private var wasRecording = false
 
     /// How each Copy of the last Take stands, shown once recording has stopped.
@@ -451,6 +454,8 @@ final class RecordScreenModel {
         if recorder.isRecording { recorder.checkDestinations() }
         deviceCopy = recorder.copyStatus(.device)
         driveCopy = recorder.copyStatus(.drive)
+        if driveCopy != .interrupted { driveCheckedAndNotFound = false }
+        driveRejoin.update(isRecording: recorder.isRecording, drive: driveCopy)
         if wasRecording, !recorder.isRecording, recordError == nil {
             recordError = recorder.endedForLackOfSpace
                 ? "Recording stopped because the last Destination was about to fill. Everything recorded was saved."
@@ -491,9 +496,10 @@ final class RecordScreenModel {
         if let error = recordError {
             list.append(ScreenAlert(id: "record", priority: .cannotRecord, tone: .critical, text: error))
         }
-        if let alert = DestinationAlert.make(isRecording: recorder.isRecording, device: deviceCopy, drive: driveCopy) {
+        if let alert = DestinationAlert.make(isRecording: recorder.isRecording, device: deviceCopy, drive: driveCopy, checkedAndNotFound: driveCheckedAndNotFound) {
             list.append(alert)
         }
+        if let rejoined = driveRejoin.alert { list.append(rejoined) }
         if let shortfall = usbChannelShortfall {
             list.append(ScreenAlert(id: "shortfall", priority: .input, tone: .warning, text: shortfall.message))
         }
@@ -521,6 +527,11 @@ final class RecordScreenModel {
         case .dismissHint:
             setupHintDismissed = true
             UserDefaults.standard.set(true, forKey: Self.hintKey)
+        case .checkDrive:
+            // Look again now, and say so if it's still not there.
+            drive.refresh()
+            refreshDestinations()
+            driveCheckedAndNotFound = driveCopy == .interrupted
         }
     }
 
