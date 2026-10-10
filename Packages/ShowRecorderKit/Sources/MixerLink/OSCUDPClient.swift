@@ -16,16 +16,29 @@ actor OSCUDPClient {
     private var pending: [Pending] = []
     /// Set when the connection reports a problem; pending and new requests fail with it.
     private var problem: MixerLinkProblem?
+    /// Messages nobody asked for, such as the changes a Mixer pushes after /xremote.
+    nonisolated let unsolicited: AsyncStream<OSCMessage>
+    private let unsolicitedContinuation: AsyncStream<OSCMessage>.Continuation
 
     init(endpoint: MixerEndpoint) {
         self.endpoint = endpoint
+        (unsolicited, unsolicitedContinuation) = AsyncStream.makeStream()
         connection = NWConnection(
             host: NWEndpoint.Host(endpoint.host),
             port: NWEndpoint.Port(rawValue: endpoint.port) ?? 10024,
             using: .udp)
     }
 
-    deinit { connection.cancel() }
+    deinit {
+        unsolicitedContinuation.finish()
+        connection.cancel()
+    }
+
+    /// Sends `message` without waiting for a reply.
+    func send(_ message: OSCMessage) {
+        startIfNeeded()
+        connection.send(content: Data(message.encoded()), completion: .contentProcessed { _ in })
+    }
 
     /// Sends `message` and waits for the first reply with `replyAddress` (by default the same address).
     func request(_ message: OSCMessage, replyAddress: String? = nil, timeout: Duration) async throws(MixerLinkProblem) -> OSCMessage {
@@ -60,6 +73,8 @@ actor OSCUDPClient {
             case .waiting(let error), .failed(let error):
                 let path = self.connection.currentPath
                 Task { await self.connectionFailed(MixerLinkProblem(error, path: path, host: self.endpoint.host)) }
+            case .ready:
+                Task { await self.connectionReady() }
             default:
                 break
             }
@@ -80,7 +95,10 @@ actor OSCUDPClient {
 
     private func deliver(_ messages: [OSCMessage]) {
         for message in messages {
-            guard let index = pending.firstIndex(where: { $0.address == message.address }) else { continue }
+            guard let index = pending.firstIndex(where: { $0.address == message.address }) else {
+                unsolicitedContinuation.yield(message)
+                continue
+            }
             pending.remove(at: index).continuation.resume(returning: message)
         }
     }
@@ -88,6 +106,11 @@ actor OSCUDPClient {
     private func fail(_ id: UUID, with problem: MixerLinkProblem) {
         guard let index = pending.firstIndex(where: { $0.id == id }) else { return }
         pending.remove(at: index).continuation.resume(throwing: problem)
+    }
+
+    /// The network came back: stop failing requests with the problem it had.
+    private func connectionReady() {
+        problem = nil
     }
 
     private func connectionFailed(_ problem: MixerLinkProblem) {

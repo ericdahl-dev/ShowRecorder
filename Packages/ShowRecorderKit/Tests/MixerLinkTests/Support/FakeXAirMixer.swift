@@ -26,6 +26,8 @@ final class FakeXAirMixer: Sendable {
         var answersMixState = true
         /// When true, faders are reported as integers instead of floats.
         var reportsFaderAsInt = false
+        /// How long a /xremote keeps the sender subscribed to pushed changes. A real X-Air: 10 seconds.
+        var xremoteLifetime: TimeInterval = 10
         /// Every address queried, in order.
         var queries: [String] = []
     }
@@ -60,15 +62,55 @@ final class FakeXAirMixer: Sendable {
 
     var queries: [String] { responder.state.withLock { $0.queries } }
 
+    /// Renames input channel `number` (1...16) on the Mixer, as the operator would at its surface, and
+    /// pushes the change to every client whose /xremote is still running.
+    func rename(channel number: Int, to name: String) {
+        update { $0.channels[number - 1].name = name }
+        responder.push(OSCMessage(String(format: "/ch/%02d/config/name", number), [.string(name)]))
+    }
+
+    /// Recolors input channel `number` (1...16), pushing the change like `rename`.
+    func recolor(channel number: Int, to color: Int32) {
+        update { $0.channels[number - 1].color = color }
+        responder.push(OSCMessage(String(format: "/ch/%02d/config/color", number), [.int(color)]))
+    }
+
+    /// Renames the aux return (USB Channels 17 and 18).
+    func renameAuxReturn(to name: String) {
+        update { $0.auxReturn.name = name }
+        responder.push(OSCMessage("/rtn/aux/config/name", [.string(name)]))
+    }
+
     private final class Responder: Sendable {
         let state: Mutex<State>
+        /// Clients that sent /xremote, and when each one's subscription runs out.
+        private let subscribers = Mutex<[(connection: NWConnection, expires: Date)]>([])
 
         init(_ state: State) { self.state = Mutex(state) }
+
+        func push(_ message: OSCMessage) {
+            guard state.withLock({ $0.answers }) else { return }
+            let live = subscribers.withLock { $0.filter { $0.expires > Date() } }
+            for subscriber in live {
+                subscriber.connection.send(content: Data(message.encoded()), completion: .contentProcessed { _ in })
+            }
+        }
+
+        private func subscribe(_ connection: NWConnection) {
+            let lifetime = state.withLock { $0.xremoteLifetime }
+            subscribers.withLock { list in
+                list.removeAll { $0.connection === connection }
+                list.append((connection, Date().addingTimeInterval(lifetime)))
+            }
+        }
 
         func serve(_ connection: NWConnection) {
             connection.receiveMessage { [self] data, _, _, error in
                 guard error == nil else { return }
-                if let data, let query = try? OSCMessage(decoding: Array(data)), let reply = reply(to: query) {
+                if let data, let query = try? OSCMessage(decoding: Array(data)), query.address == "/xremote" {
+                    if state.withLock({ $0.answers }) { subscribe(connection) }
+                    state.withLock { $0.queries.append("/xremote") }
+                } else if let data, let query = try? OSCMessage(decoding: Array(data)), let reply = reply(to: query) {
                     connection.send(content: Data(reply.encoded()), completion: .contentProcessed { _ in })
                 }
                 serve(connection)

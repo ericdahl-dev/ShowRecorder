@@ -191,6 +191,33 @@ struct ShowReportTests {
         #expect(html.contains("Device"))
     }
 
+    @Test("A Take lists the Source renames made on the Mixer during it, with times from the audio start, and escapes the names")
+    func renamesInReport() async throws {
+        let device = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
+        try recorder.arm(device)
+        try recorder.startTake(sources: [Source(name: "Kick", color: .off)])
+        device.deliver([Array(repeating: 0, count: 24_000)])  // 0.5 s
+        recorder.offerSources([Source(name: "<b>Bass</b> Drum", color: .off)])
+        device.deliver([Array(repeating: 0, count: 24_000)])
+        try recorder.stopTake()
+
+        let report = try ShowReport(showFolder: show)
+        let rename = try #require(report.takes.first?.renames.first)
+        #expect(rename.seconds == 0.5)
+        #expect((rename.usbChannel, rename.from, rename.to) == (1, "Kick", "<b>Bass</b> Drum"))
+        let html = report.html
+        #expect(html.contains("<h3>Renames on the mixer</h3>"))
+        #expect(html.contains("0:00.5") && html.contains("&lt;b&gt;Bass&lt;/b&gt; Drum"))
+    }
+
+    @Test("A Take with no renames has no renames section")
+    func noRenamesSection() async throws {
+        try await record(channels: 1, sources: [], takes: [480])
+        let html = try String(contentsOf: show.appending(path: "Report.html"), encoding: .utf8)
+        #expect(!html.contains("Renames"))
+    }
+
     @Test("A Take with no Dropouts reports as before, with no Dropouts section")
     func noDropoutsSection() async throws {
         try await record(channels: 1, sources: [], takes: [480])

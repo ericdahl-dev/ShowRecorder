@@ -109,6 +109,13 @@ final class TakeSession {
         return marker
     }
 
+    /// Logs that a Mixer renamed a Source, at the Take's current sample position, in `Take.json` of every
+    /// Copy. Touches no audio and no Stem.
+    func logRename(usbChannel: Int, from: String, to: String) {
+        metadata.renames = (metadata.renames ?? []) + [.init(position: capture.takeFrameCount, usbChannel: usbChannel, from: from, to: to)]
+        writeMetadata()
+    }
+
     /// Renames the operator Marker at `index` (counting operator Markers only, in the order of
     /// `Recorder.takeMarkers`), in `Take.json` and in the Stems' cue labels.
     func renameMarker(at index: Int, to name: String) -> MarkerRename {
