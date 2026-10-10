@@ -30,6 +30,7 @@ struct ShowDetailView: View {
                                             Text(channel.name)
                                             Spacer()
                                             Button("Delete…", role: .destructive) { deletingFile = (take.number, channel.number) }
+                                                .buttonStyle(.borderless)
                                                 .font(.caption)
                                         }
                                     }
@@ -40,6 +41,7 @@ struct ShowDetailView: View {
                                 Text(String(format: "Take %02d", take.number))
                                 Spacer()
                                 Button("Delete…", role: .destructive) { deletingTake = take.number }
+                                    .buttonStyle(.borderless)
                                     .font(.caption)
                             }
                         }
