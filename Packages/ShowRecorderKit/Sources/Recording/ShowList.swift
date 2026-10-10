@@ -14,10 +14,43 @@ public struct ShowSummary: Equatable, Sendable, Identifiable {
     /// How the Copy stands, from its Takes' Gaps and Repairs; nil when the Copy isn't there.
     public var deviceCopy: CopyOutcome?
     public var driveCopy: CopyOutcome?
+    /// Whether `Show.json` says a Drive Copy was ever created; nil when it doesn't say (older Shows).
+    public var driveCopyWritten: Bool? = nil
+    /// Whether the Drive was connected when the list was read.
+    public var driveConnected = false
 
     /// The folder to hand to the share sheet or Files: the Device Copy, with its Stems, report and Reaper
     /// project. Nil when the Show is only on the Drive, which is a disk of its own.
     public var shareFolder: URL? { deviceCopy == nil ? nil : folder }
+}
+
+/// The one quiet line under a Show in the list, shown only when a Copy isn't complete.
+public struct CopyNote: Equatable, Sendable {
+    public enum Severity: Equatable, Sendable { case warning, problem }
+    public var text: String
+    public var severity: Severity
+}
+
+extension ShowSummary {
+    /// What to say about the Copies, or nil when both are complete (or Repaired). Words as in CONTEXT.md.
+    public var copyNote: CopyNote? {
+        var parts: [(String, CopyNote.Severity)] = []
+        func add(_ copy: String, _ outcome: CopyOutcome?, missing: String) {
+            switch outcome {
+            case nil: parts.append((missing, .warning))
+            case .complete, .repaired: break
+            case .hasGaps: parts.append(("\(copy) copy has Gaps", .problem))
+            case .repairFailed: parts.append(("\(copy) Repair failed", .problem))
+            }
+        }
+        add("Device", deviceCopy, missing: "No Device copy")
+        let driveMissing: String
+        if driveCopyWritten == true { driveMissing = driveConnected ? "Drive copy missing" : "Drive not connected now" }
+        else { driveMissing = "No Drive copy" }
+        add("Drive", driveCopy, missing: driveMissing)
+        guard !parts.isEmpty else { return nil }
+        return CopyNote(text: parts.map(\.0).joined(separator: " · "), severity: parts.contains { $0.1 == .problem } ? .problem : .warning)
+    }
 }
 
 /// Reads the past Shows from the files, so it works for the Drive too and needs no database.
@@ -39,7 +72,9 @@ public enum ShowList {
                 name: name, folder: folder, startedAt: start, takeCount: takes.count,
                 duration: takes.map(\.end).max().map { $0.timeIntervalSince(first ?? start) } ?? 0,
                 deviceCopy: outcome(of: .device, in: folder),
-                driveCopy: driveFolder.flatMap { outcome(of: .drive, in: $0) })
+                driveCopy: driveFolder.flatMap { outcome(of: .drive, in: $0) },
+                driveCopyWritten: file?.driveCopyWritten ?? driveFolder.flatMap { ShowFile.read(from: $0)?.driveCopyWritten },
+                driveConnected: drive != nil)
         }
         .sorted { ($0.startedAt, $0.name) > ($1.startedAt, $1.name) }
     }
