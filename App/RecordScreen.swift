@@ -212,6 +212,8 @@ struct RecordScreen: View {
             Button { showingNewShow = true } label: {
                 Text(model.showSummary)
                     .font(.subheadline)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
                     .secondaryText()
             }
             .buttonStyle(.plain)
@@ -231,6 +233,8 @@ struct RecordScreen: View {
             // The line is always there, so a placed Marker doesn't push anything.
             Text(markerPlacedText)
                 .font(.caption)
+                .lineLimit(1)
+                .truncationMode(.middle)
                 .secondaryText()
                 .id(model.recorder.takeMarkers.count)
         }

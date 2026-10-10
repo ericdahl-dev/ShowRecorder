@@ -27,7 +27,7 @@ public enum MarkerRenamer {
     ///   - index: among the operator's Markers, in the order of `Take.json`.
     ///   - copies: each Copy's folder for this Take (`…/Show/Take 01`).
     public static func rename(markerAt index: Int, to name: String, in copies: [DestinationKind: URL]) -> Outcome {
-        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = NameLimit.cut(name.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !name.isEmpty else { return Outcome(result: .emptyName, renamed: [], failed: []) }
 
         var renamed: [DestinationKind] = []
