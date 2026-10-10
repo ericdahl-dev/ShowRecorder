@@ -435,6 +435,8 @@ final class RecordScreenModel {
     var appearance: AppearanceMode = AppearanceMode.load()
     /// Battery and heat, shown as chips on the status strip.
     let power = PowerMonitor()
+    /// Pro, the Trial and the Free channel choice (ADR 0004).
+    let pro = ProStore()
     private(set) var setupHintDismissed = UserDefaults.standard.bool(forKey: RecordScreenModel.hintKey)
     private static let hintKey = "setupHintDismissed"
     private static let mixerAddressKey = "mixerAddress"
@@ -755,6 +757,12 @@ final class RecordScreenModel {
             sampleRate: armedDevice?.sampleRate ?? 48_000)
         let size = ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .memory)
         return "A Take starts with the last \(Int(preRollSeconds)) s before you press record. Uses about \(size) of memory while Armed."
+    }
+
+    /// What a Take pressed right now may do: the tier, the Free channel choice and the Armed USB Channels.
+    /// Read from cached state only, never waiting on the App Store, so it can be frozen at the record press.
+    func currentAllowance() -> TakeAllowance {
+        Entitlement.allowance(for: pro.tier(), channelCount: recorder.usbChannelCount, freeChoice: pro.freeChoice)
     }
 
     var usbChannelSummary: String {

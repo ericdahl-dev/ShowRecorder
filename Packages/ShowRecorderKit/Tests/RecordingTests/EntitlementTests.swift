@@ -57,4 +57,12 @@ struct EntitlementTests {
         #expect(recorded([], of: 1) == [1], "a 1-channel input records its only channel")
         #expect(recorded([], of: 0) == [])
     }
+
+    @Test("Settings names the tier in the glossary's words: Free, 14-day Trial with the days left, Pro")
+    func titles() {
+        #expect(Tier.free.title == "Free")
+        #expect(Tier.trial(daysLeft: 9).title == "14-day Trial, 9 days left")
+        #expect(Tier.trial(daysLeft: 1).title == "14-day Trial, 1 day left")
+        #expect(Tier.pro.title == "Pro")
+    }
 }
