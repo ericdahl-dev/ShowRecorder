@@ -23,14 +23,25 @@ struct AppearanceTests {
         }
     }
 
-    @Test("Text on the background is at least 7:1 in Dark and Sunlight, and the meter colors are at least 3:1 against it", arguments: [AppearanceMode.dark, .sunlight])
+    @Test("Text on the background is at least 7:1 in Dark and Sunlight; meter colors are at least 3:1 against the background, or against their outline when they have one", arguments: [AppearanceMode.dark, .sunlight])
     func textAndMeters(mode: AppearanceMode) {
         let background = Palette.background(mode)
         #expect(Palette.primaryText(mode).contrast(with: background) >= 7)
         #expect(Palette.secondaryText(mode).contrast(with: background) >= 7)
+        let outline = Palette.meterOutline(mode)
+        if let outline { #expect(outline.contrast(with: background) >= 7) }
         for color in Palette.MeterColor.allCases {
-            let ratio = Palette.meter(color, mode: mode).contrast(with: background)
+            let edge = outline ?? background
+            let ratio = Palette.meter(color, mode: mode).contrast(with: edge)
             #expect(ratio >= 3, "\(color) in \(mode): \(ratio)")
         }
+        #expect(Palette.markerFlag(mode).contrast(with: background) >= 3)
+    }
+
+    @Test("In Sunlight the peak-bar zones differ in lightness, not only hue: green and red each contrast at least 3:1 with yellow")
+    func zonesDifferInLightness() {
+        let yellow = Palette.meter(.yellow, mode: .sunlight)
+        #expect(Palette.meter(.green, mode: .sunlight).contrast(with: yellow) >= 3)
+        #expect(Palette.meter(.red, mode: .sunlight).contrast(with: yellow) >= 3)
     }
 }
