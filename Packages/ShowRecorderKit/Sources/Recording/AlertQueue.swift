@@ -28,6 +28,8 @@ public struct ScreenAlert: Equatable, Identifiable, Sendable {
         case dismissHint
         /// Look for the Drive again, during a Take.
         case checkDrive
+        /// Arm the chosen input again. Arms only; never starts a Take.
+        case arm
     }
 
     public var id: String

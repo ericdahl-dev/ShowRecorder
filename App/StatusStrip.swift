@@ -157,6 +157,7 @@ struct AlertBanner: View {
         case .openSystemSettings: "Open Settings"
         case .dismissHint: "Got it"
         case .checkDrive: "Check Drive"
+        case .arm: "Arm"
         }
     }
 
