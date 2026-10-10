@@ -15,6 +15,9 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         public var stemFile: String
         public var name: String
         public var hasMixerName: Bool
+        /// True when the Take started with no Mixer name for this channel and the Mixer's arrived during it.
+        /// Nil otherwise, and in Takes made before late names existed.
+        public var nameArrivedLate: Bool?
         public var color: Color
         public var muted: Bool?
         public var fader: Float?
