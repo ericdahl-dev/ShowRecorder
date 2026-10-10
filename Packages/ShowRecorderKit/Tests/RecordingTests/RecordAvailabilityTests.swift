@@ -16,23 +16,23 @@ struct RecordAvailabilityTests {
 
     @Test("Microphone access off: say so and offer the system Settings")
     func microphoneDenied() throws {
-        let block = try #require(block(micDenied: true))
-        #expect(block.text == "Microphone access is off. Allow it in Settings.")
-        #expect(block.action == .openSystemSettings)
+        let reason = try #require(block(micDenied: true))
+        #expect(reason.text == "Microphone access is off. Allow it in Settings.")
+        #expect(reason.action == .openSystemSettings)
     }
 
     @Test("An input that failed to start offers Arm again")
     func armFailed() throws {
-        let block = try #require(block(armFailed: true))
-        #expect(block.text == "The input didn't start.")
-        #expect(block.action == .arm)
+        let reason = try #require(block(armFailed: true))
+        #expect(reason.text == "The input didn't start.")
+        #expect(reason.action == .arm)
     }
 
     @Test("Disarmed for sitting idle: say how long and offer Arm")
     func idle() throws {
-        let block = try #require(block(idle: true))
-        #expect(block.text == "Disarmed after 30 minutes idle.")
-        #expect(block.action == .arm)
+        let reason = try #require(block(idle: true))
+        #expect(reason.text == "Disarmed after 30 minutes idle.")
+        #expect(reason.action == .arm)
     }
 
     @Test("No input to choose, or none chosen yet: say which, with no button")
