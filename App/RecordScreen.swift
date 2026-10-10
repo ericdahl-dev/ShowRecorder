@@ -435,18 +435,6 @@ final class RecordScreenModel {
     private(set) var driveCopy: CopyStatus = .missing
     @ObservationIgnored private var wasRecording = false
 
-    /// A persistent warning while a Take is missing a Copy.
-    var destinationWarning: String? {
-        guard recorder.isRecording else { return nil }
-        switch (deviceCopy, driveCopy) {
-        case (.interrupted, .interrupted): return "Both Copies stopped writing."
-        case (.interrupted, _): return "This device stopped writing. Recording continues on the Drive."
-        case (_, .interrupted): return "The Drive stopped. Recording continues on this device, and the Drive rejoins when it comes back."
-        case (_, .missing): return "No Drive. Recording to this device only."
-        default: return nil
-        }
-    }
-
     /// How each Copy of the last Take stands, shown once recording has stopped.
     var copySummary: (text: String, isProblem: Bool)? {
         if recorder.isRecording { return nil }
@@ -503,8 +491,8 @@ final class RecordScreenModel {
         if let error = recordError {
             list.append(ScreenAlert(id: "record", priority: .cannotRecord, tone: .critical, text: error))
         }
-        if let warning = destinationWarning {
-            list.append(ScreenAlert(id: "destination", priority: .destination, tone: deviceCopy == .interrupted && driveCopy == .interrupted ? .critical : .warning, text: warning))
+        if let alert = DestinationAlert.make(isRecording: recorder.isRecording, device: deviceCopy, drive: driveCopy) {
+            list.append(alert)
         }
         if let shortfall = usbChannelShortfall {
             list.append(ScreenAlert(id: "shortfall", priority: .input, tone: .warning, text: shortfall.message))
