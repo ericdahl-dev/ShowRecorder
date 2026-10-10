@@ -64,9 +64,9 @@ struct RecordScreen: View {
         ) {
             TextField("Name", text: $channelName)
             Button("Cancel", role: .cancel) {}
-            Button("Save") { if let namingChannel { model.recorder.setChannelName(channelName, forChannel: namingChannel) } }
+            Button("Save") { if let namingChannel { model.recorder.updateChannelName(channelName, forChannel: namingChannel) } }
         } message: {
-            Text("The files take the name when the Take ends.")
+            Text("The files take the name when the Take ends. Leave it empty to take the name off.")
         }
         .sheet(isPresented: $showingNewShow) { NewShowSheet(model: model) }
         .sheet(isPresented: $showingShowList) { ShowListView(model: model) }
