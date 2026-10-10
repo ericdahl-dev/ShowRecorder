@@ -1,6 +1,7 @@
+import Recording
 import SwiftUI
 
-/// Starts a Show on purpose, with a name and a venue. Reached by tapping the Show name on the record screen.
+/// The Show sheet: End Show first when a Show is open, then a name and venue to start another. Reached by tapping the Show line on the record screen.
 struct NewShowSheet: View {
     let model: RecordScreenModel
     @Environment(\.dismiss) private var dismiss
@@ -8,34 +9,40 @@ struct NewShowSheet: View {
     @State private var venue = ""
     @State private var message: String?
 
+    private var sheet: ShowSheet {
+        ShowSheet(openShowName: model.recorder.currentShow?.name, isRecording: model.recorder.isRecording)
+    }
+
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    TextField("Name", text: $name)
-                    TextField("Venue", text: $venue)
-                } footer: {
-                    Text(footer)
-                }
-                if let current = model.recorder.currentShow {
+                if sheet.endShowFirst, let current = model.recorder.currentShow {
                     Section {
                         Text(current.name)
                         Button("End Show", role: .destructive) {
                             message = model.endShow()
                             if message == nil { dismiss() }
                         }
-                        .disabled(model.recorder.isRecording)
+                        .disabled(!sheet.canEndShow)
                     } header: {
                         Text("Open Show")
                     } footer: {
-                        Text("Ending a Show keeps its files. The next record starts a new Show. A Show also ends after 6 hours with no Take.")
+                        Text(sheet.endShowNote)
                     }
+                }
+                Section {
+                    TextField("Name", text: $name)
+                    TextField("Venue", text: $venue)
+                } header: {
+                    if sheet.endShowFirst { Text("Start another Show") }
+                } footer: {
+                    Text(sheet.startShowNote)
                 }
                 if let message {
                     Section { Text(message).foregroundStyle(.red) }
                 }
             }
-            .navigationTitle("New Show")
+            .navigationTitle(sheet.title)
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -46,18 +53,12 @@ struct NewShowSheet: View {
                         message = model.startNewShow(name: name, venue: venue)
                         if message == nil { dismiss() }
                     }
-                    .disabled(model.recorder.isRecording)
+                    .disabled(!sheet.canStartShow)
                 }
             }
         }
         #if os(macOS)
         .frame(minWidth: 380, minHeight: 280)
         #endif
-    }
-
-    private var footer: String {
-        model.recorder.isRecording
-            ? "A Show can't be started during a Take."
-            : "The Show ends the open one. The next Take is Take 01 of the new Show. Leave the name blank for \"Show\"."
     }
 }

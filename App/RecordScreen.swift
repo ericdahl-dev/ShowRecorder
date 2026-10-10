@@ -210,15 +210,18 @@ struct RecordScreen: View {
         VStack(spacing: 12) {
             elapsed(font: .system(size: 44, weight: .semibold))
             Button { showingNewShow = true } label: {
-                Text(model.showSummary)
-                    .font(.subheadline)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .secondaryText()
+                HStack(spacing: 4) {
+                    Text(model.showSummary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Image(systemName: "chevron.down").imageScale(.small)
+                }
+                .font(.subheadline)
+                .secondaryText()
             }
             .buttonStyle(.plain)
             .disabled(model.recorder.isRecording)
-            .accessibilityHint("Starts a new Show")
+            .accessibilityHint("Opens the Show sheet")
             HStack(spacing: 16) {
                 Button("Shows") { showingShowList = true }
                     .disabled(model.recorder.isRecording)
@@ -253,15 +256,18 @@ struct RecordScreen: View {
         VStack(spacing: 8) {
             VStack(spacing: 2) {
                 Button { showingNewShow = true } label: {
-                    Text(model.recorder.currentShow?.name ?? "No Show yet")
-                        .font(.caption)
-                        .secondaryText()
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    HStack(spacing: 3) {
+                        Text(model.recorder.currentShow?.name ?? "No Show yet")
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                        Image(systemName: "chevron.down").imageScale(.small)
+                    }
+                    .font(.caption)
+                    .secondaryText()
                 }
                 .buttonStyle(.plain)
                 .disabled(model.recorder.isRecording)
-                .accessibilityHint("Starts a new Show")
+                .accessibilityHint("Opens the Show sheet")
                 HStack(spacing: 10) {
                     Button("Shows") { showingShowList = true }
                         .disabled(model.recorder.isRecording)
