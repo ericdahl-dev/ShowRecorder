@@ -59,7 +59,7 @@ final class ProStore {
                 note = "The App Store couldn't confirm the purchase. Try Restore Purchases."
             case .pending:
                 note = "Waiting for approval. Pro unlocks when it is approved."
-            case .userCancelled:
+            case .userCancelled:  // spelling: ok (StoreKit's name)
                 break
             @unknown default:
                 break
