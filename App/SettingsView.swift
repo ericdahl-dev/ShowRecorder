@@ -54,24 +54,17 @@ struct SettingsView: View {
                     .onChange(of: model.preRollSeconds) { model.preRollChanged() }
                     .disabled(locked(.preRoll))
                     Text(model.preRollNote).font(.footnote).foregroundStyle(.secondary)
-                    // Plain rows, not a menu: the whole row is the tap target, and a checkmark shows the choice.
-                    Text("Appearance").font(.subheadline.weight(.semibold))
-                    ForEach(AppearanceMode.allCases, id: \.self) { mode in
-                        Button {
-                            model.appearance = mode
-                            model.appearanceChanged()
-                        } label: {
-                            HStack {
-                                Text(mode.title)
-                                Spacer()
-                                if model.appearance == mode { Image(systemName: "checkmark").foregroundStyle(.tint) }
-                            }
-                            .frame(minHeight: 44)
-                            .contentShape(Rectangle())
+                    // A dropdown menu. The choice is stored the moment it is picked (in the binding's setter), so it does
+                    // not depend on the screen redrawing when the appearance changes under the open menu.
+                    Picker("Appearance", selection: Binding(
+                        get: { model.appearance },
+                        set: { model.appearance = $0; model.appearanceChanged() }
+                    )) {
+                        ForEach(AppearanceMode.allCases, id: \.self) { mode in
+                            Text(mode.title).tag(mode)
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityAddTraits(model.appearance == mode ? [.isButton, .isSelected] : .isButton)
                     }
+                    .pickerStyle(.menu)
                     Text(model.appearance.footnote).font(.footnote).foregroundStyle(.secondary)
                     #if os(iOS)
                     Toggle("Record button on the left in landscape", isOn: $model.transportLeading)
