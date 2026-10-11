@@ -32,7 +32,7 @@ EVERY CHANNEL, ITS OWN FILE
 One Broadcast WAV per USB channel, at the mixer's 48 kHz or up to 96 kHz on interfaces that offer it. From an 18-channel mixer you get 18 Stems in step with each other.
 
 NAMED FROM THE MIXER
-On the mixer's Wi-Fi, ShowRecorder reads your channel names and colors, so channel 3 arrives as "03 Snare.wav", not "USB 03". Find mixers locates the mixer on the network; there is no IP address to type.
+On the mixer's Wi-Fi, ShowRecorder reads your channel names and colors, so channel 3 arrives as "03 Snare.wav", not "USB 03". Find Mixers locates the mixer on the network; there is no IP address to type.
 
 A SECOND COPY AS YOU RECORD
 Add a USB drive and every Take is written to the device and the drive at once. If the drive drops out, the missing part is filled back in from the other copy after the Take.
@@ -92,7 +92,7 @@ First release.
 6.9" iPhone (required) and 13" iPad. Captions, in order:
 
 1. Every channel, its own file (the record screen during a Take, 18 named meters)
-2. Named from your mixer (the Mixer Link and Find mixers)
+2. Named from your mixer (the Mixer Link and Find Mixers)
 3. A second copy on a USB drive (the record screen with the Drive chip)
 4. Markers as you record
 5. Ready to mix (a Show with its report and Reaper project)
