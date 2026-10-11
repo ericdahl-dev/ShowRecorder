@@ -35,7 +35,7 @@ final class RepairQueue {
     /// Queues Repair of an ended Take: fills its Gaps from the other Copy, off the main thread, and
     /// records the result in `Take.json`. `access` (the Drive's folder) is held until it's done.
     /// A Take with no Gaps has nothing to repair; its outcomes are complete and `access` is released.
-    func enqueue(_ metadata: TakeMetadata, folders: [URL], holding access: DestinationAccess?) {
+    func enqueue(_ metadata: TakeMetadata, folders: [URL], holding access: DriveAccess?) {
         func outcomes(_ metadata: TakeMetadata) -> [DestinationKind: CopyOutcome] {
             Dictionary(uniqueKeysWithValues: folders.indices.map { (DestinationKind(index: $0), metadata.outcome(ofCopy: DestinationKind(index: $0))) })
         }
@@ -44,7 +44,7 @@ final class RepairQueue {
         self.outcomes = outcomes(metadata)
         onChange()
         guard !metadata.gaps.isEmpty else {
-            access?.release()
+            access?.end()
             return
         }
         let copies = folders.indices.map { TakeRepair.Copy(kind: DestinationKind(index: $0), folder: folders[$0]) }
@@ -66,12 +66,12 @@ final class RepairQueue {
             done.repairs = repairs
             for folder in folders { try? done.write(to: folder) }
             guard let self else {
-                access?.release()
+                access?.end()
                 return
             }
             if mine == generation { self.outcomes = outcomes(done) }
             jobDone()
-            access?.release()
+            access?.end()
             pending -= 1
             isRunning = pending > 0
             onChange()

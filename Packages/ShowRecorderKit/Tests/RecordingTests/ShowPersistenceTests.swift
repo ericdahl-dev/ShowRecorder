@@ -23,7 +23,7 @@ struct ShowPersistenceTests {
         let drive = drive
         return Recorder(
             deviceFolder: device,
-            driveFolder: { withDrive ? DestinationAccess(folder: drive) : nil },
+            driveFolder: { withDrive ? DriveAccess(folder: drive) : nil },
             now: { now })
     }
 

@@ -22,7 +22,7 @@ struct MarkerRenameTests {
 
     func recorder() -> Recorder {
         let drive = drive
-        return Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
+        return Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
     }
 
     func names(inTakeJSONOf copy: URL) throws -> [String] {

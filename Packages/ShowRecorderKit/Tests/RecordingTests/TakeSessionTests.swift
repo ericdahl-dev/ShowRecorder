@@ -69,7 +69,7 @@ struct TakeSessionTests {
         let session = try session()
         try await deliver(480)
         let drive = drive
-        let check = session.checkDestinations(drive: { DestinationAccess(folder: drive) })
+        let check = session.checkDestinations(drive: { DriveAccess(folder: drive) })
 
         #expect(check == .carryOn)
         #expect(session.copies.map(\.kind) == [.device, .drive])
@@ -89,7 +89,7 @@ struct TakeSessionTests {
         let session = try session()
         var asked = 0
         let drive = drive
-        _ = session.checkDestinations(drive: { asked += 1; return DestinationAccess(folder: drive) })
+        _ = session.checkDestinations(drive: { asked += 1; return DriveAccess(folder: drive) })
         #expect(asked == 1)
         // The Drive Copy is healthy: nothing to join or rejoin, so it isn't asked again.
         _ = session.checkDestinations(drive: { asked += 1; return nil })
@@ -102,7 +102,7 @@ struct TakeSessionTests {
         let drive = drive
         let session = try session(free: { $0.path.hasPrefix(drive.path) ? 0 : .max })
         var released = 0
-        let check = session.checkDestinations(drive: { DestinationAccess(folder: drive, release: { released += 1 }) })
+        let check = session.checkDestinations(drive: { DriveAccess(folder: drive, stop: { released += 1 }) })
         #expect(check == .carryOn)
         #expect(released == 1)
         #expect(session.copies.count == 1)
@@ -120,14 +120,14 @@ struct TakeSessionTests {
         var firstReleased = 0
         var secondReleased = 0
         try await deliver(480)
-        _ = session.checkDestinations(drive: { DestinationAccess(folder: drive, release: { firstReleased += 1 }) })
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive, stop: { firstReleased += 1 }) })
         for _ in 0..<4 { try await deliver(480) }
         try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
         // It joined at 480 and failed on its first audio: it has the silence and nothing more.
         let failedAt = Int(session.copies[1].writer.stemFrameCounts[0])
         #expect(failedAt == 480)
 
-        let check = session.checkDestinations(drive: { DestinationAccess(folder: drive, release: { secondReleased += 1 }) })
+        let check = session.checkDestinations(drive: { DriveAccess(folder: drive, stop: { secondReleased += 1 }) })
 
         #expect(check == .carryOn)
         #expect(opened.resumes.last == UInt64(failedAt))
@@ -154,7 +154,7 @@ struct TakeSessionTests {
         let session = try session(free: { url in
             (url.path.hasPrefix(drive.path) ? driveLow : deviceLow) ? 0 : .max
         })
-        _ = session.checkDestinations(drive: { DestinationAccess(folder: drive) })
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
         try await deliver(480)
 
         driveLow = true
@@ -188,7 +188,7 @@ struct TakeSessionTests {
         let session = try session()
         try await deliver(480)
         let drive = drive
-        _ = session.checkDestinations(drive: { DestinationAccess(folder: drive) })
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
         // No block arrives, so the real-time side never picks the Copy's join frame.
         let takeEnd = capture.takeFrameCount
         let finished = session.finish()
@@ -207,12 +207,12 @@ struct TakeSessionTests {
         })
         let drive = drive
         try await deliver(480)
-        _ = session.checkDestinations(drive: { DestinationAccess(folder: drive) })
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
         for _ in 0..<4 { try await deliver(480) }
         try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
         let failedAt = Int(session.copies[1].writer.stemFrameCounts[0])
 
-        _ = session.checkDestinations(drive: { DestinationAccess(folder: drive) })
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
         let takeEnd = capture.takeFrameCount
         let finished = session.finish()
 
@@ -227,7 +227,7 @@ struct TakeSessionTests {
         #expect(marker.name == "Marker 1")
         #expect(marker.position == 480)
         let drive = drive
-        _ = session.checkDestinations(drive: { DestinationAccess(folder: drive) })
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
         try await deliver(480)
         let finished = session.finish()
 
@@ -276,7 +276,7 @@ struct TakeSessionTests {
         let session = try session()
         try await deliver(480)
         let drive = drive
-        _ = session.checkDestinations(drive: { DestinationAccess(folder: drive) })
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
         try await deliver(480)  // the Drive joins
         try await deliver(200_000)  // both rings drop it
         try await deliver(480)
@@ -309,7 +309,7 @@ struct TakeSessionTests {
         try await deliver(480)
         session.addMarker()
         let drive = drive
-        _ = session.checkDestinations(drive: { DestinationAccess(folder: drive) })
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
         try await deliver(480)  // the Drive joins
         #expect(session.renameMarker(at: 0, to: "Chorus") == .renamed)
         try await deliver(480)

@@ -23,7 +23,7 @@ struct MarkerRenamerTests {
     func recordTake() throws {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let drive = drive
-        let recorder = Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
+        let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
         try recorder.startTake()
         func deliver(_ frames: Int) {
@@ -126,7 +126,7 @@ struct MarkerRenamerTests {
     func dropoutCuesSurvive() throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let drive = drive
-        let recorder = Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
+        let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0, count: 4_800)])

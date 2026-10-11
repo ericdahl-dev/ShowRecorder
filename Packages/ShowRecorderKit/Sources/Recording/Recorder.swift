@@ -65,7 +65,7 @@ public final class Recorder {
     }
 
     @ObservationIgnored private let deviceFolder: URL
-    @ObservationIgnored private let driveFolder: () -> DestinationAccess?
+    @ObservationIgnored private let driveFolder: () -> DriveAccess?
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let freeSpace: (URL) -> Int64
     /// How often a running Take's Destinations are checked (`checkDestinations()`). Nil leaves it to the caller.
@@ -92,7 +92,7 @@ public final class Recorder {
     ///   - driveFolder: asked at each record press for the Drive folder; nil writes to the Device only.
     public init(
         deviceFolder: URL = Recorder.defaultDeviceFolder,
-        driveFolder: @escaping () -> DestinationAccess? = { nil },
+        driveFolder: @escaping () -> DriveAccess? = { nil },
         now: @escaping () -> Date = Date.init,
         freeSpace: @escaping (URL) -> Int64 = { DriveFolderStore.availableBytes(at: $0) },
         preRollSeconds: Double = 0,
@@ -323,14 +323,14 @@ public final class Recorder {
         let kinds = copies.sorted { $0.index < $1.index }
         guard !isRecording else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "A Take is running.") }) }
         let access = copies.contains(.drive) ? driveFolder() : nil
-        defer { access?.release() }
+        defer { access?.end() }
         return ShowDeleter.delete(show: name, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
     }
 
     /// Checks that the Drive Copy of Show `show` is whole (see `CopyCheck`). Reads every Stem, off the main thread.
     public func checkDriveCopy(of show: String) async -> CopyCheck.Result {
         guard let access = driveFolder() else { return .failed(["The Drive isn't available."]) }
-        defer { access.release() }
+        defer { access.end() }
         let device = deviceFolder, drive = access.folder
         return await Task.detached { CopyCheck.verify(show: show, device: device, drive: drive) }.value
     }
@@ -355,7 +355,7 @@ public final class Recorder {
         let kinds = copies.sorted { $0.index < $1.index }
         guard !isRecording else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "A Take is running.") }) }
         let access = copies.contains(.drive) ? driveFolder() : nil
-        defer { access?.release() }
+        defer { access?.end() }
         return TakeDeleter.delete(take: take, ofShow: show, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
     }
 
@@ -365,7 +365,7 @@ public final class Recorder {
         let kinds = copies.sorted { $0.index < $1.index }
         guard !isRecording else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "A Take is running.") }) }
         let access = copies.contains(.drive) ? driveFolder() : nil
-        defer { access?.release() }
+        defer { access?.end() }
         return StemDeleter.delete(channel: channel, inTake: take, ofShow: show, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
     }
 
@@ -393,7 +393,7 @@ public final class Recorder {
                 nextShow = nil
             }
         } catch {
-            drive?.release()
+            drive?.end()
             throw error
         }
         if show.channelNames != channelNames { show.setChannelNames(channelNames) }
@@ -431,7 +431,7 @@ public final class Recorder {
             show: show, folders: takeFolders, drive: takeFolders.count > 1 ? drive : nil, metadata: metadata, stems: specs,
             info: info, capture: capture, preRollFrames: preRollFrames, makeStem: makeStem, freeSpace: freeSpace)
         session.onCopyFailed = { [weak self, weak session] in self?.copyFailed(in: session) }
-        if takeFolders.count == 1 { drive?.release() }
+        if takeFolders.count == 1 { drive?.end() }
         self.session = session
         finishedCopies = [:]
         takeMarkers = []
@@ -517,12 +517,12 @@ public final class Recorder {
         await repairQueue.wait()
         guard !isRecording, let take = lastTake else { return MarkerRenamer.Outcome(result: .notRecording, renamed: [], failed: []) }
         var copies: [DestinationKind: URL] = [.device: take.deviceFolder]
-        var access: DestinationAccess?
+        var access: DriveAccess?
         if take.hadDrive {
             access = driveFolder()
             if let access { copies[.drive] = access.folder.appending(path: take.showName).appending(path: TakeMetadata.name(take: take.takeNumber)) }
         }
-        defer { access?.release() }
+        defer { access?.end() }
         var outcome = MarkerRenamer.rename(markerAt: index, to: name, in: copies)
         if take.hadDrive, access == nil {
             outcome.failed.append(.init(copy: .drive, reason: "The Drive isn't available, so its Copy still has the old name."))
@@ -632,12 +632,12 @@ public final class Recorder {
             await previous?.value
             await repairQueue.wait()
             var copies: [DestinationKind: URL] = [.device: take.deviceFolder]
-            var access: DestinationAccess?
+            var access: DriveAccess?
             if take.hadDrive {
                 access = driveFolder()
                 if let access { copies[.drive] = access.folder.appending(path: take.showName).appending(path: TakeMetadata.name(take: take.takeNumber)) }
             }
-            defer { access?.release() }
+            defer { access?.end() }
             _ = ChannelRenamer.rename(names: names, lateChannels: Set(late.keys), in: copies)
         }
     }
@@ -672,18 +672,6 @@ public enum RecorderError: Error, Equatable {
     case notArmed
     /// A Show can't be started or ended while a Take is running.
     case takeRunning
-}
-
-/// Access to a Destination folder for the length of a Take. `release` ends it (for a Drive folder,
-/// the security scope).
-public struct DestinationAccess {
-    public let folder: URL
-    public let release: @MainActor () -> Void
-
-    public init(folder: URL, release: @escaping @MainActor () -> Void = {}) {
-        self.folder = folder
-        self.release = release
-    }
 }
 
 /// Everything the real-time callback touches, allocated when the recorder is Armed.

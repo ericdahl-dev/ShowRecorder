@@ -47,7 +47,7 @@ struct PreRollTakeTests {
         let drive = drive
         return Recorder(
             deviceFolder: device,
-            driveFolder: { available?.value == true ? DestinationAccess(folder: drive) : nil },
+            driveFolder: { available?.value == true ? DriveAccess(folder: drive) : nil },
             now: { RecordingTakeTests.showDay }, preRollSeconds: seconds, destinationCheckInterval: nil)
     }
 

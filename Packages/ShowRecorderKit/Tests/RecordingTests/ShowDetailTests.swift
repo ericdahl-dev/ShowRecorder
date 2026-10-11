@@ -36,7 +36,7 @@ struct ShowDetailTests {
 
     func recorder() -> Recorder {
         let clock = clock, drive = drive
-        return Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { MainActor.assumeIsolated { clock.now } })
+        return Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { MainActor.assumeIsolated { clock.now } })
     }
 
     @Test("Markers are listed by Take with their time in the Take; a Take with none lists none; a Dropout Marker has no rename index")

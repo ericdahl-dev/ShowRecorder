@@ -60,7 +60,7 @@ struct RepairQueueTests {
         let runner = Runner()
         let queue = RepairQueue(freeSpace: { _ in .max }, run: runner.run)
         var released = 0
-        queue.enqueue(metadata(take: 1, gaps: []), folders: try folders("a"), holding: DestinationAccess(folder: root, release: { released += 1 }))
+        queue.enqueue(metadata(take: 1, gaps: []), folders: try folders("a"), holding: DriveAccess(folder: root, stop: { released += 1 }))
 
         #expect(queue.outcomes == [.device: .complete, .drive: .complete])
         #expect(!queue.isRunning)
@@ -75,7 +75,7 @@ struct RepairQueueTests {
         var released = 0
         var changes = 0
         queue.onChange = { changes += 1 }
-        queue.enqueue(metadata(take: 1, gaps: [driveGap]), folders: try folders("a", deviceFrames: 4800, driveFrames: 480), holding: DestinationAccess(folder: root, release: { released += 1 }))
+        queue.enqueue(metadata(take: 1, gaps: [driveGap]), folders: try folders("a", deviceFrames: 4800, driveFrames: 480), holding: DriveAccess(folder: root, stop: { released += 1 }))
 
         #expect(queue.outcomes == [.device: .complete, .drive: .hasGaps])
         #expect(queue.isRunning)

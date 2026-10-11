@@ -22,7 +22,7 @@ struct StemDeleterTests {
     /// One Take of 3 channels in an ended Show, in both Copies.
     func record() throws -> Recorder {
         let drive = drive
-        let recorder = Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
+        let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 3)
         try recorder.arm(audio)
         try recorder.startTake()

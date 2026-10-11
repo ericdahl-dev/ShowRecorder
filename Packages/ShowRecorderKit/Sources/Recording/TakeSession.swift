@@ -39,7 +39,7 @@ final class TakeSession {
         let ring: SampleRing
         var writer: TakeWriter
         /// Held until the Take is finished and Repaired. Only the Drive has one.
-        var access: DestinationAccess?
+        var access: DriveAccess?
     }
 
     /// What `checkDestinations` found.
@@ -53,7 +53,7 @@ final class TakeSession {
     struct Finished {
         var metadata: TakeMetadata
         var folders: [URL]
-        var access: DestinationAccess?
+        var access: DriveAccess?
         var statuses: [DestinationKind: CopyStatus]
         var signal: TakeSignal
     }
@@ -75,7 +75,7 @@ final class TakeSession {
     /// Opens the Stems in each of `folders` (one per Copy, the Device first), writes `Take.json` there
     /// and starts capturing. `drive` is the access held for the Drive Copy, when there is one.
     init(
-        show: Show, folders: [URL], drive: DestinationAccess?, metadata: TakeMetadata, stems: [StemSpec],
+        show: Show, folders: [URL], drive: DriveAccess?, metadata: TakeMetadata, stems: [StemSpec],
         info: StemWriter.Info, capture: Capture, preRollFrames: Int = 0,
         makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink,
         freeSpace: @escaping (URL) -> Int64
@@ -185,7 +185,7 @@ final class TakeSession {
     ///
     /// `drive` is asked only when a Drive could join or rejoin, and each access it returns is either
     /// kept for the Take or released here.
-    func checkDestinations(drive: () -> DestinationAccess?) -> Check {
+    func checkDestinations(drive: () -> DriveAccess?) -> Check {
         // Keep 60 s of audio free on each Destination. A Copy that's short stops cleanly while another
         // has room; when the last healthy one is short the Take finalizes, before anything fills.
         let reserve = SpaceReserve(channelCount: metadata.usbChannels.count, sampleRate: info.sampleRate)
@@ -244,12 +244,12 @@ final class TakeSession {
     /// Starts the Drive Copy, or restarts it over `old`. Both start new Stems in a Take folder under
     /// `access` and bring the Copy in through the same handshake; they differ in where the folder
     /// comes from, whether the Stems resume `old`'s and what happens to `old`'s access.
-    private func attachDrive(_ access: DestinationAccess, replacing old: CopyRecord?, reserve: SpaceReserve) {
+    private func attachDrive(_ access: DriveAccess, replacing old: CopyRecord?, reserve: SpaceReserve) {
         var show = show
         do {
             let folder: URL
             if old == nil {
-                guard !reserve.isLow(free: freeSpace(access.folder)) else { access.release(); return }
+                guard !reserve.isLow(free: freeSpace(access.folder)) else { access.end(); return }
                 folder = try show.joinDrive(access.folder)
             } else {
                 // The Drive may have come back at a different path (a remount), so find the Take folder
@@ -258,7 +258,7 @@ final class TakeSession {
                     .appending(path: show.name, directoryHint: .isDirectory)
                     .appending(path: TakeMetadata.name(take: show.takeCount), directoryHint: .isDirectory)
                 guard FileManager.default.fileExists(atPath: folder.path), !reserve.isLow(free: freeSpace(folder)) else {
-                    access.release()
+                    access.end()
                     return
                 }
                 try show.useDrive(access.folder)
@@ -280,10 +280,10 @@ final class TakeSession {
 
             let record = CopyRecord(kind: .drive, folder: folder, ring: ring, writer: writer, access: access)
             if old == nil { copies.append(record) } else { copies[1] = record }
-            old?.access?.release()
+            old?.access?.end()
             self.show = show
         } catch {
-            access.release()
+            access.end()
         }
     }
 

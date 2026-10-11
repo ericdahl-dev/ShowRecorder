@@ -1,6 +1,7 @@
 import AudioIO
 import Foundation
 import MixerLink
+import Destinations
 @testable import Recording
 import Testing
 
@@ -31,7 +32,7 @@ struct BothDestinationsTests {
     func copiesAreByteIdentical() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 4)
         let drive = drive
-        let recorder = Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
+        let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
 
         for take in 0..<2 {
@@ -71,7 +72,7 @@ struct BothDestinationsTests {
     func driveAppearingMidShowJoinsNextTake() throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let available = DriveSwitch()
-        let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DestinationAccess(folder: $0) } }, now: { RecordingTakeTests.showDay })
+        let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } }, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
 
         try recorder.startTake()
@@ -92,7 +93,7 @@ struct BothDestinationsTests {
         try FileManager.default.createDirectory(at: drive.appending(path: "2026-10-06 Show"), withIntermediateDirectories: true)
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let drive = drive
-        let recorder = Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
+        let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
 
         try recorder.startTake()
@@ -108,7 +109,7 @@ struct BothDestinationsTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let released = ReleaseCounter()
         let drive = drive
-        let recorder = Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive, release: { released.count += 1 }) }, now: { RecordingTakeTests.showDay })
+        let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive, stop: { released.count += 1 }) }, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
 
         try recorder.startTake()

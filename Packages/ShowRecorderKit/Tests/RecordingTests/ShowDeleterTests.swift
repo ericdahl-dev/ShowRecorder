@@ -23,7 +23,7 @@ struct ShowDeleterTests {
 
     func recorder() -> Recorder {
         let clock = clock, drive = drive
-        return Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { MainActor.assumeIsolated { clock.now } })
+        return Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { MainActor.assumeIsolated { clock.now } })
     }
 
     /// Records one Take in "2026-10-06 Show", ends it, then records another Show a day later (left open).

@@ -205,15 +205,16 @@ public struct DriveFolderStore: Sendable {
     }
 }
 
-/// The Drive folder opened for one Take. Call `end()` when the Take is finalized.
+/// The Drive folder opened for one Take, held until the Take is finalized and Repaired. `end()` lets it go
+/// (for a bookmarked folder, its security scope).
 public struct DriveAccess: Sendable {
     public let folder: URL
-    private let stop: @Sendable () -> Void
+    private let stop: @MainActor @Sendable () -> Void
 
-    init(folder: URL, stop: @escaping @Sendable () -> Void) {
+    public init(folder: URL, stop: @escaping @MainActor @Sendable () -> Void = {}) {
         self.folder = folder
         self.stop = stop
     }
 
-    public func end() { stop() }
+    @MainActor public func end() { stop() }
 }

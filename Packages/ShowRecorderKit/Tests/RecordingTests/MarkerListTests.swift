@@ -21,7 +21,7 @@ struct MarkerListTests {
         let drive = drive
         return Recorder(
             deviceFolder: device,
-            driveFolder: { available ? DestinationAccess(folder: drive, release: { released?.count += 1 }) : nil },
+            driveFolder: { available ? DriveAccess(folder: drive, stop: { released?.count += 1 }) : nil },
             now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
     }
 
@@ -140,7 +140,7 @@ struct MarkerListTests {
         let drive = drive
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(
-            deviceFolder: device, driveFolder: { flag.available ? DestinationAccess(folder: drive) : nil },
+            deviceFolder: device, driveFolder: { flag.available ? DriveAccess(folder: drive) : nil },
             now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         try recorder.arm(audio)
         try recorder.startTake()
@@ -179,7 +179,7 @@ struct MarkerListTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let drive = drive
         let recorder = Recorder(
-            deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
             preRollSeconds: 1, destinationCheckInterval: nil)
         try recorder.arm(audio)
         audio.deliver([Array(repeating: 0, count: 48_000)])  // 1 s Armed: the Pre-roll

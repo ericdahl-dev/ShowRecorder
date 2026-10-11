@@ -1,5 +1,6 @@
 import AudioIO
 import Foundation
+import Destinations
 @testable import Recording
 import Testing
 
@@ -23,7 +24,7 @@ struct MarkerTests {
     func markerAtCurrentPosition() throws {
         let audio = FakeAudioDevice(inputChannelCount: 3)
         let drive = drive
-        let recorder = Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
+        let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
 
         try recorder.startTake()
