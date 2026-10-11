@@ -33,13 +33,7 @@ struct RecordScreen: View {
 
     /// Landscape iPhone is short, not narrow: a Pro Max in landscape is wide but still short.
     @Environment(\.verticalSizeClass) private var verticalSizeClass
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     private var isLandscape: Bool { verticalSizeClass == .compact }
-    /// The Marker list, Channel names or Settings, open as a panel on an iPhone so Stop and Marker stay in reach.
-    @State private var panel: LivePanel?
-    private var placement: LivePanelPlacement {
-        LivePanelPlacement(horizontalCompact: horizontalSizeClass == .compact, verticalCompact: verticalSizeClass == .compact)
-    }
 
     var body: some View {
         // One root for both layouts. The task, idle timer, sheet and dialog below hang on it, so rotating
@@ -53,7 +47,7 @@ struct RecordScreen: View {
         .task { model.start() }
         .onAppear {
             model.screenAppeared()
-            // Screenshot and test flags open these the way a tap would: a panel on an iPhone.
+            // Screenshot and test flags open these the way a tap would.
             if launchFlag("-showSettings") { showSettings(nil) }
             if launchFlag("-channelNames") { open(.channelNames) }
             if launchFlag("-showMarkers") { open(.markers) }
@@ -174,37 +168,13 @@ struct RecordScreen: View {
         #endif
     }
 
-    /// Opens the Marker list or Channel names: as a panel on an iPhone, a sheet on an iPad or Mac.
+    /// Opens the Marker list or Channel names as a full sheet. Never in the meters' place: Eric didn't want
+    /// anything over the meters (TestFlight feedback on v0.1.20).
     private func open(_ kind: LivePanel) {
-        guard placement != .sheet else {
-            switch kind {
-            case .markers: showingMarkers = true
-            case .channelNames: showingChannelNames = true
-            }
-            return
+        switch kind {
+        case .markers: showingMarkers = true
+        case .channelNames: showingChannelNames = true
         }
-        panel = panel == kind ? nil : kind
-    }
-
-    /// A panel in the record screen, not a sheet over it, so Record, Stop and Marker stay where they are.
-    private func panelView(_ kind: LivePanel) -> some View {
-        Group {
-            switch kind {
-            case .markers:
-                NavigationStack {
-                    MarkerListView(model: model)
-                        .navigationTitle("Markers")
-                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { panel = nil } } }
-                        #if os(iOS)
-                        .navigationBarTitleDisplayMode(.inline)
-                        #endif
-                }
-            case .channelNames:
-                ChannelNamesView(model: model, done: { panel = nil })
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.separator))
     }
 
     private var portrait: some View {
@@ -212,14 +182,8 @@ struct RecordScreen: View {
             header
             StatusStrip(chips: model.chips, extras: model.extraChips, tap: chipTapped)
             AlertSlot(queue: model.alerts, perform: model.perform)
-            if let panel, placement == .overMeters {
-                // Takes the meters' place, never the transport's: Stop and Marker stay in reach.
-                panelView(panel)
-                    .frame(maxHeight: .infinity)
-            } else {
-                MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources, typedNames: model.recorder.channelNames, nameChannel: nameChannel)
-                    .overlay { if let block = model.recordBlock { DisarmedNotice(block: block, perform: model.perform) } }
-            }
+            MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources, typedNames: model.recorder.channelNames, nameChannel: nameChannel)
+                .overlay { if let block = model.recordBlock { DisarmedNotice(block: block, perform: model.perform) } }
             transport
         }
         .padding()
@@ -247,11 +211,6 @@ struct RecordScreen: View {
                         AlertSlot(queue: urgent, perform: model.perform, slotHeight: 44)
                             .allowsHitTesting(urgent.top != nil)
                     }
-                if let panel, placement == .besideMeters {
-                    // Beside the meters, which get narrower but keep their height.
-                    panelView(panel)
-                        .frame(maxWidth: 360, maxHeight: .infinity)
-                }
                 if !model.transportLeading { transportColumn }
             }
         }
@@ -292,8 +251,6 @@ struct RecordScreen: View {
     }
 
     private func nameChannel(_ number: Int) {
-        // On an iPhone a modal alert with a keyboard would cover Stop and Marker: open the Channel names panel.
-        guard placement == .sheet else { panel = .channelNames; return }
         channelName = model.recorder.channelNames[number] ?? (model.mixerLink.sources.indices.contains(number - 1) && model.mixerLink.sources[number - 1].hasMixerName ? model.mixerLink.sources[number - 1].name : "")
         namingChannel = number
     }
@@ -457,8 +414,7 @@ struct RecordScreen: View {
         model.alerts.ordered.first { $0.tone == .ok || $0.tone == .info }
     }
 
-    /// Opens the Marker list: a panel on an iPhone, a sheet on an iPad or Mac. Neither takes the record
-    /// screen (and a running Take) away.
+    /// Opens the Marker list as a sheet, which never takes the record screen (and a running Take) away.
     private var markersButton: some View {
         Button { open(.markers) } label: {
             Image(systemName: "list.bullet")
@@ -1477,7 +1433,7 @@ private extension Duration {
     var inSeconds: Double { Double(components.seconds) + Double(components.attoseconds) / 1e18 }
 }
 
-/// What can open as a panel on the record screen (#250).
+/// What opens as a sheet from the record screen: the Marker list and Channel names.
 enum LivePanel: Equatable {
     case markers, channelNames
 }
