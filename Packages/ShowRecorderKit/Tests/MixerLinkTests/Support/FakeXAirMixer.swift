@@ -33,13 +33,24 @@ final class FakeXAirMixer: Sendable {
     }
 
     private let responder: Responder
-    private let listener: NWListener
+    private let listener: Mutex<NWListener?>
     let port: UInt16
 
     init(_ state: State = State()) async throws {
         let responder = Responder(state)
+        let (listener, port) = try await Self.listen(on: .any, responder: responder)
+        self.responder = responder
+        self.listener = Mutex(listener)
+        self.port = port
+    }
+
+    deinit { listener.withLock { $0?.cancel() } }
+
+    /// Opens a loopback UDP listener on `port` that answers with `responder`, and returns it with its port.
+    private static func listen(on port: NWEndpoint.Port, responder: Responder) async throws -> (NWListener, UInt16) {
         let parameters = NWParameters.udp
-        parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
+        parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: port)
+        parameters.allowLocalEndpointReuse = true
         let listener = try NWListener(using: parameters)
         let ready = AsyncStream<UInt16>.makeStream()
         listener.stateUpdateHandler = { [listener] update in
@@ -51,12 +62,21 @@ final class FakeXAirMixer: Sendable {
         }
         listener.start(queue: .global())
         var iterator = ready.stream.makeAsyncIterator()
-        self.responder = responder
-        self.listener = listener
-        port = await iterator.next() ?? 0
+        return (listener, await iterator.next() ?? 0)
     }
 
-    deinit { listener.cancel() }
+    /// Switches the Mixer off, as a power cycle does: nothing listens on its port any more. (On loopback macOS doesn't
+    /// report the bounce to the Link's connection, so this doesn't make it fail; `OSCUDPClientRecoveryTests` covers that.)
+    func powerOff() {
+        listener.withLock { $0?.cancel(); $0 = nil }
+        responder.dropConnections()
+    }
+
+    /// Switches it back on, on the same port, with the same state (plus anything changed while it was off).
+    func powerOn() async throws {
+        let (listener, _) = try await Self.listen(on: NWEndpoint.Port(rawValue: port)!, responder: responder)
+        self.listener.withLock { $0 = listener }
+    }
 
     func update(_ change: @Sendable (inout State) -> Void) { responder.state.withLock { change(&$0) } }
 
@@ -88,6 +108,15 @@ final class FakeXAirMixer: Sendable {
 
         init(_ state: State) { self.state = Mutex(state) }
 
+        /// Every connection served, so a power-off can close them all.
+        private let connections = Mutex<[NWConnection]>([])
+
+        func dropConnections() {
+            let all = connections.withLock { list in defer { list = [] }; return list }
+            for connection in all { connection.cancel() }
+            subscribers.withLock { $0 = [] }
+        }
+
         func push(_ message: OSCMessage) {
             guard state.withLock({ $0.answers }) else { return }
             let live = subscribers.withLock { $0.filter { $0.expires > Date() } }
@@ -105,6 +134,7 @@ final class FakeXAirMixer: Sendable {
         }
 
         func serve(_ connection: NWConnection) {
+            connections.withLock { list in if !list.contains(where: { $0 === connection }) { list.append(connection) } }
             connection.receiveMessage { [self] data, _, _, error in
                 guard error == nil else { return }
                 if let data, let query = try? OSCMessage(decoding: Array(data)), query.address == "/xremote" {

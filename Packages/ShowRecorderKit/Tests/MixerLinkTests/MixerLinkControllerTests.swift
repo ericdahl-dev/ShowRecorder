@@ -15,8 +15,8 @@ struct MixerLinkControllerTests {
 
         #expect(link.status == .up(MixerIdentity(networkName: "FOH-XR18", model: "XR18", firmware: "1.22"), path: .wifi))
         #expect(link.sources.count == 18)
-        #expect(link.sources[1].name == "Snare")
-        #expect(link.sources[0].name == "USB 01")
+        #expect(link.sources[safe: 1]?.name == "Snare")
+        #expect(link.sources[safe: 0]?.name == "USB 01")
     }
 
     @Test("Reads one Source per USB Channel the Armed device sends", arguments: [8, 16, 18, 32])
@@ -52,7 +52,7 @@ struct MixerLinkControllerTests {
         await link.refreshSources(usbChannelCount: 8)
 
         #expect(link.sources.count == 8)
-        #expect(link.sources[0].name == "Kick")
+        #expect(link.sources[safe: 0]?.name == "Kick")
     }
 
     @Test("A device Armed while the Link is still connecting gets Sources for its own count")

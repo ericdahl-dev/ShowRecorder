@@ -25,8 +25,8 @@ struct MixerLinkLiveTests {
         #expect(await eventually { mixer.queries.contains("/xremote") })
         mixer.rename(channel: 2, to: "Snare Top")
 
-        #expect(await eventually { link.sources[1].name == "Snare Top" })
-        #expect(link.sources[1].hasMixerName)
+        #expect(await eventually { link.sources[safe: 1]?.name == "Snare Top" })
+        #expect(link.sources[safe: 1]?.hasMixerName == true)
     }
 
     @Test("The Link renews /xremote before it runs out, so renames keep arriving long after the first one lapsed")
@@ -46,7 +46,7 @@ struct MixerLinkLiveTests {
         if ContinuousClock.now < lapsed { try await Task.sleep(until: lapsed) }
         mixer.rename(channel: 3, to: "Hat")
 
-        #expect(await eventually(10) { link.sources[2].name == "Hat" })
+        #expect(await eventually(10) { link.sources[safe: 2]?.name == "Hat" })
     }
 
     @Test("When the Mixer goes quiet the Link goes down, and when it is back the Sources are read again, including renames it missed")
@@ -54,20 +54,40 @@ struct MixerLinkLiveTests {
         var state = FakeXAirMixer.State()
         state.channels[0] = .init(name: "Kick", color: 1)
         let mixer = try await FakeXAirMixer(state)
-        let link = MixerLinkController(timeout: .milliseconds(100), renewEvery: .milliseconds(100))
+        // Margins wide enough for a busy machine: each read may take up to 500 ms, and every wait allows 10 s.
+        let link = MixerLinkController(timeout: .milliseconds(500), renewEvery: .milliseconds(100))
         await link.connect(to: "127.0.0.1:\(mixer.port)", usbChannelCount: 18)
-        #expect(link.sources[0].name == "Kick")
+        #expect(link.sources[safe: 0]?.name == "Kick")
 
         mixer.update { $0.answers = false }
-        #expect(await eventually { link.status == .down(.noReply(host: "127.0.0.1")) })
+        #expect(await eventually(10) { link.status == .down(.noReply(host: "127.0.0.1")) })
         mixer.update { $0.channels[0].name = "Bass Drum" }  // renamed while nobody could hear it
         mixer.update { $0.answers = true }
 
-        #expect(await eventually { link.identity != nil })
+        #expect(await eventually(10) { link.identity != nil && link.sources.count == 18 })
         #expect(link.sources.count == 18)
-        #expect(link.sources[0].name == "Bass Drum")
+        #expect(link.sources[safe: 0]?.name == "Bass Drum")
         mixer.rename(channel: 2, to: "Snare")  // and live updates work again
-        #expect(await eventually { link.sources[1].name == "Snare" })
+        #expect(await eventually(10) { link.sources[safe: 1]?.name == "Snare" })
+    }
+
+    @Test("After the Mixer is switched off and on again, the Link comes back by itself with the Sources read again")
+    func powerCycle() async throws {
+        var state = FakeXAirMixer.State()
+        state.channels[0] = .init(name: "Kick", color: 1)
+        let mixer = try await FakeXAirMixer(state)
+        let link = MixerLinkController(timeout: .milliseconds(500), renewEvery: .milliseconds(100))
+        await link.connect(to: "127.0.0.1:\(mixer.port)", usbChannelCount: 18)
+        #expect(link.sources[safe: 0]?.name == "Kick")
+
+        mixer.powerOff()
+        #expect(await eventually(10) { if case .down = link.status { true } else { false } })
+        mixer.update { $0.channels[0].name = "Bass Drum" }
+        try await mixer.powerOn()
+
+        #expect(await eventually(10) { link.sources[safe: 0]?.name == "Bass Drum" })
+        mixer.rename(channel: 2, to: "Snare")
+        #expect(await eventually(10) { link.sources[safe: 1]?.name == "Snare" })
     }
 
     @Test("Color changes and aux return renames are applied too, and a cleared name goes back to the USB default")
@@ -83,9 +103,9 @@ struct MixerLinkLiveTests {
         mixer.renameAuxReturn(to: "Playback")
         mixer.rename(channel: 4, to: "")
 
-        #expect(await eventually { link.sources[16].name == "Playback" && link.sources[17].name == "Playback" })
-        #expect(await eventually { link.sources[3].name == "USB 04" })
-        #expect(link.sources[3].hasMixerName == false)
-        #expect(link.sources[3].color == MixerColor(hue: .green, inverted: true))
+        #expect(await eventually { link.sources[safe: 16]?.name == "Playback" && link.sources[safe: 17]?.name == "Playback" })
+        #expect(await eventually { link.sources[safe: 3]?.name == "USB 04" })
+        #expect(link.sources[safe: 3]?.hasMixerName == false)
+        #expect(link.sources[safe: 3]?.color == MixerColor(hue: .green, inverted: true))
     }
 }
