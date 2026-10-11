@@ -18,6 +18,10 @@ The **Show-Safe Promise** binds every limit: a Take never stops, and audio is ne
 - **Templates are venue setups:** the typed channel names, the Mixer (by its network name), the Show name pattern and the Pre-roll, so one tap readies a different room. As first written (Mixer address, name pattern, Pre-roll) they saved too little to sell.
 - **Mixer Triggers are not promised** until they are built (#28, #29 are on hold; whether the XR18 can do it is unconfirmed, #16). When they ship they join Pro.
 
+## Per-mixer unlocks later (Eric, 2026-10-11)
+
+Considered: pricing like Mixing Station, a one-time unlock per mixer family (X Air $5.99, X32 $6.99, WING $6.99 on the App Store). Decided: **launch with Pro at $19.99, then $29.99, as "every mixer, every feature"**. At launch only the X Air is supported, so a per-mixer unlock would be Pro under another name. When a second family ships (Pioneer DJM first, #364), add **cheaper single-family unlocks** beside Pro. Pro owners keep everything, so nobody who bought early loses out. A generic class-compliant interface still needs a place in that menu; decide it with the first pack. The DJ price question (beating DJM-REC for less, #367) is answered by a DJM pack, not by lowering Pro.
+
 ## Consequences
 
 - Family Sharing can't be turned off for an in-app purchase once enabled; a church team on one family plan shares one unlock.
