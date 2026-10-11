@@ -18,14 +18,14 @@ struct RecordScreen: View {
     #if os(macOS)
     @Environment(\.openSettings) private var openSettings
     #endif
-    @State private var showingSettings = launchFlag("-showSettings")
+    @State private var showingSettings = false
     @State private var showingMarkers = false
     /// How wide the transport is, so the gap between Stop and Marker can shrink on a very narrow screen.
     @State private var transportWidth: CGFloat = 402
     @State private var showingNewShow = false
     @State private var namingChannel: Int?
     @State private var channelName = ""
-    @State private var showingChannelNames = launchFlag("-channelNames")
+    @State private var showingChannelNames = false
     @State private var showingShowList = launchFlag("-showList")
     @State private var settingsSection: SettingsSection?
     @State private var showingTrialOffer = false
@@ -33,7 +33,13 @@ struct RecordScreen: View {
 
     /// Landscape iPhone is short, not narrow: a Pro Max in landscape is wide but still short.
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     private var isLandscape: Bool { verticalSizeClass == .compact }
+    /// The Marker list, Channel names or Settings, open as a panel on an iPhone so Stop and Marker stay in reach.
+    @State private var panel: LivePanel?
+    private var placement: LivePanelPlacement {
+        LivePanelPlacement(horizontalCompact: horizontalSizeClass == .compact, verticalCompact: verticalSizeClass == .compact)
+    }
 
     var body: some View {
         // One root for both layouts. The task, idle timer, sheet and dialog below hang on it, so rotating
@@ -43,7 +49,13 @@ struct RecordScreen: View {
         }
         // The loop is the model's, started once; the screen only says when it appears and goes away.
         .task { model.start() }
-        .onAppear { model.screenAppeared() }
+        .onAppear {
+            model.screenAppeared()
+            // Screenshot and test flags open these the way a tap would: a panel on an iPhone.
+            if launchFlag("-showSettings") { showSettings(nil) }
+            if launchFlag("-channelNames") { open(.channelNames) }
+            if launchFlag("-showMarkers") { open(.markers) }
+        }
         .onDisappear { model.screenDisappeared() }
         .sheet(isPresented: $showingMarkers) {
             NavigationStack {
@@ -149,8 +161,51 @@ struct RecordScreen: View {
         openSettings()
         #else
         settingsSection = section
-        showingSettings = true
+        if placement == .sheet { showingSettings = true } else { panel = .settings }
         #endif
+    }
+
+    /// Opens the Marker list or Channel names: as a panel on an iPhone, a sheet on an iPad or Mac.
+    private func open(_ kind: LivePanel) {
+        guard placement != .sheet else {
+            switch kind {
+            case .markers: showingMarkers = true
+            case .channelNames: showingChannelNames = true
+            case .settings: showSettings(nil)
+            }
+            return
+        }
+        panel = panel == kind ? nil : kind
+    }
+
+    /// A panel in the record screen, not a sheet over it, so Record, Stop and Marker stay where they are.
+    private func panelView(_ kind: LivePanel) -> some View {
+        Group {
+            switch kind {
+            case .markers:
+                NavigationStack {
+                    MarkerListView(model: model)
+                        .navigationTitle("Markers")
+                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { panel = nil } } }
+                        #if os(iOS)
+                        .navigationBarTitleDisplayMode(.inline)
+                        #endif
+                }
+            case .channelNames:
+                ChannelNamesView(model: model, done: { panel = nil })
+            case .settings:
+                NavigationStack {
+                    SettingsView(model: model, scrollTo: settingsSection)
+                        .navigationTitle("Settings")
+                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { panel = nil } } }
+                        #if os(iOS)
+                        .navigationBarTitleDisplayMode(.inline)
+                        #endif
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.separator))
     }
 
     private var portrait: some View {
@@ -158,7 +213,13 @@ struct RecordScreen: View {
             header
             StatusStrip(chips: model.chips, extras: model.extraChips, tap: chipTapped)
             AlertSlot(queue: model.alerts, perform: model.perform)
-            MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources, typedNames: model.recorder.channelNames, nameChannel: nameChannel)
+            if let panel, placement == .overMeters {
+                // Takes the meters' place, never the transport's: Stop and Marker stay in reach.
+                panelView(panel)
+                    .frame(maxHeight: .infinity)
+            } else {
+                MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources, typedNames: model.recorder.channelNames, nameChannel: nameChannel)
+            }
             transport
         }
         .padding()
@@ -185,6 +246,11 @@ struct RecordScreen: View {
                         AlertSlot(queue: urgent, perform: model.perform, slotHeight: 44)
                             .allowsHitTesting(urgent.top != nil)
                     }
+                if let panel, placement == .besideMeters {
+                    // Beside the meters, which get narrower but keep their height.
+                    panelView(panel)
+                        .frame(maxWidth: 360, maxHeight: .infinity)
+                }
                 if !model.transportLeading { transportColumn }
             }
         }
@@ -225,6 +291,8 @@ struct RecordScreen: View {
     }
 
     private func nameChannel(_ number: Int) {
+        // On an iPhone a modal alert with a keyboard would cover Stop and Marker: open the Channel names panel.
+        guard placement == .sheet else { panel = .channelNames; return }
         channelName = model.recorder.channelNames[number] ?? (model.mixerLink.sources.indices.contains(number - 1) && model.mixerLink.sources[number - 1].hasMixerName ? model.mixerLink.sources[number - 1].name : "")
         namingChannel = number
     }
@@ -248,7 +316,7 @@ struct RecordScreen: View {
             HStack(spacing: 16) {
                 Button("Shows") { showingShowList = true }
                     .disabled(model.recorder.isRecording)
-                Button("Channel names") { showingChannelNames = true }
+                Button("Channel names") { open(.channelNames) }
             }
             .font(.caption)
             // Top-aligned: Marker is taller (its count sits below), so centring would drop Record.
@@ -296,7 +364,7 @@ struct RecordScreen: View {
                 HStack(spacing: 10) {
                     Button("Shows") { showingShowList = true }
                         .disabled(model.recorder.isRecording)
-                    Button("Names") { showingChannelNames = true }
+                    Button("Names") { open(.channelNames) }
                 }
                 .font(.caption2)
                 Text(model.takeTitle)
@@ -349,9 +417,10 @@ struct RecordScreen: View {
         model.alerts.ordered.first { $0.tone == .ok || $0.tone == .info }
     }
 
-    /// Opens the Marker list. A sheet, so it never takes the record screen (and a running Take) away.
+    /// Opens the Marker list: a panel on an iPhone, a sheet on an iPad or Mac. Neither takes the record
+    /// screen (and a running Take) away.
     private var markersButton: some View {
-        Button { showingMarkers = true } label: {
+        Button { open(.markers) } label: {
             Image(systemName: "list.bullet")
                 .font(.title3)
                 .frame(width: 44, height: 44)
@@ -1314,4 +1383,9 @@ struct RecordButtonLabel: View {
 
 private extension Duration {
     var inSeconds: Double { Double(components.seconds) + Double(components.attoseconds) / 1e18 }
+}
+
+/// What can open as a panel on the record screen (#250).
+enum LivePanel: Equatable {
+    case markers, channelNames, settings
 }
