@@ -9,7 +9,14 @@ import StoreKit
 @Observable
 final class ProStore {
     /// What the current entitlements mean: whether Pro is owned and when the Trial started.
-    private(set) var purchases = ProPurchases(owned: [])
+    /// Starts from the last known purchases on this device (#316), until the App Store answers.
+    private(set) var purchases = ProPurchases.lastKnown() ?? ProPurchases(owned: [])
+    /// Whether the tier is known: the App Store has answered this launch, or an earlier one did. Until then nothing
+    /// is limited (Show-Safe Promise, #316).
+    private(set) var tierKnown = ProPurchases.lastKnown() != nil
+    /// Called when the known tier changes (the App Store answered, a purchase, a refund), so the recorder can re-Arm
+    /// between Takes at the rate it may now use.
+    @ObservationIgnored var onTierChange: (() -> Void)?
     /// The Pro product, once loaded. Nil until then, or when the App Store doesn't offer it.
     private(set) var proProduct: Product?
     /// The $0 14-day Trial product, once loaded.
@@ -40,6 +47,9 @@ final class ProStore {
     }
 
     func tier(now: Date = Date()) -> Tier { purchases.tier(now: now) }
+
+    /// The tier for limits: nil while it isn't known yet, which limits nothing (#316).
+    func knownTier(now: Date = Date()) -> Tier? { tierKnown ? purchases.tier(now: now) : nil }
 
     func loadProducts() async {
         loadingProducts = true
@@ -114,6 +124,10 @@ final class ProStore {
                 purchaseDate: transaction.purchaseDate,
                 revocationDate: transaction.revocationDate))
         }
+        let before = knownTier()
         purchases = ProPurchases(owned: owned)
+        tierKnown = true
+        purchases.saveAsLastKnown()
+        if knownTier() != before { onTierChange?() }
     }
 }

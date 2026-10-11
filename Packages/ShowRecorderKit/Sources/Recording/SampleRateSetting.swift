@@ -20,7 +20,8 @@ public enum SampleRateSetting {
     }
 
     /// Whether this tier records at up to 48 kHz only.
-    public static func capAt48k(proOffered: Bool, tier: Tier) -> Bool {
+    /// An unknown tier (nil, before the App Store has answered) isn't capped (#316).
+    public static func capAt48k(proOffered: Bool, tier: Tier?) -> Bool {
         proOffered && tier == .free
     }
 

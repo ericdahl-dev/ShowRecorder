@@ -63,8 +63,10 @@ extension Entitlement {
 
     /// What a Take gets when record is pressed. Nil (nothing limited) while Pro isn't offered, so TestFlight records
     /// every USB Channel until the Pro and Trial products exist (#60).
-    public static func allowanceAtPress(proOffered: Bool, tier: Tier, channelCount: Int, freeChoice: [Int]) -> TakeAllowance? {
-        guard proOffered else { return nil }
+    /// - Parameter tier: nil while the App Store hasn't said what's owned: then nothing is limited (#316, Show-Safe
+    ///   Promise), so a Pro user's first Take after a fresh install records everything.
+    public static func allowanceAtPress(proOffered: Bool, tier: Tier?, channelCount: Int, freeChoice: [Int]) -> TakeAllowance? {
+        guard proOffered, let tier else { return nil }
         return allowance(for: tier, channelCount: channelCount, freeChoice: freeChoice)
     }
 
