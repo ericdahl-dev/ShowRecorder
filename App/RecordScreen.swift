@@ -30,6 +30,29 @@ struct RecordScreen: View {
     @State private var settingsSection: SettingsSection?
     @State private var showingTrialOffer = false
     @AppStorage(TrialOffer.offeredKey) private var trialOffered = false
+    /// The paywall on screen. `model.paywall` is one that came due; it waits here until no other sheet is up (#357).
+    @State private var shownPaywall: PaywallRequest?
+
+    /// Whether a sheet is up, so the record screen doesn't present another over it.
+    private var anotherSheetOpen: Bool {
+        showingSettings || showingMarkers || showingNewShow || showingShowList || showingChannelNames
+            || showingTrialOffer || model.showingSoundcheck || shownPaywall != nil
+    }
+
+    /// Shows a paywall that came due, else the first-launch Trial offer, once no other sheet is up.
+    private func presentWaitingSheet() {
+        guard !anotherSheetOpen else { return }
+        if let request = model.paywall {
+            model.paywall = nil
+            shownPaywall = request
+            return
+        }
+        guard ProSection.isOffered, TrialOffer.shouldOffer(
+            purchases: model.pro.purchases, alreadyOffered: trialOffered, recording: model.recorder.isRecording,
+            proPrice: model.pro.proProduct?.displayPrice, anotherSheetOpen: anotherSheetOpen) else { return }
+        trialOffered = true
+        showingTrialOffer = true
+    }
 
     /// Landscape iPhone is short, not narrow: a Pro Max in landscape is wide but still short.
     @Environment(\.verticalSizeClass) private var verticalSizeClass
@@ -87,15 +110,12 @@ struct RecordScreen: View {
         .sheet(isPresented: $showingShowList) { ShowListView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingTrialOffer) { TrialSheet(store: model.pro).modifier(AppearanceRoot(mode: model.appearance)) }
-        .sheet(item: $model.paywall) { request in PaywallSheet(store: model.pro, moment: request.moment).modifier(AppearanceRoot(mode: model.appearance)) }
-        // The first-launch Trial offer: once, when the Pro price has loaded, and never during a Take.
-        .onChange(of: model.pro.proProduct?.displayPrice, initial: true) { _, price in
-            guard ProSection.isOffered, TrialOffer.shouldOffer(
-                purchases: model.pro.purchases, alreadyOffered: trialOffered,
-                recording: model.recorder.isRecording, proPrice: price) else { return }
-            trialOffered = true
-            showingTrialOffer = true
-        }
+        .sheet(item: $shownPaywall) { request in PaywallSheet(store: model.pro, moment: request.moment).modifier(AppearanceRoot(mode: model.appearance)) }
+        // The first-launch Trial offer: once, when the Pro price has loaded, never during a Take and never over another
+        // sheet. A paywall that came due waits for other sheets too: presenting over Settings closed both (#357).
+        .onChange(of: model.pro.proProduct?.displayPrice, initial: true) { _, _ in presentWaitingSheet() }
+        .onChange(of: anotherSheetOpen) { _, _ in presentWaitingSheet() }
+        .onChange(of: model.paywall) { _, _ in presentWaitingSheet() }
         #if os(macOS)
         .background(WindowCloseGuard(model: model))
         #endif
