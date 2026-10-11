@@ -10,6 +10,9 @@ final class TakeWriter: @unchecked Sendable {
     private let finished = DispatchSemaphore(value: 0)
     private let failed = Atomic<Bool>(false)
     private let done = Atomic<Bool>(false)
+    /// Set when Stop gave up waiting on this Copy (#320): from then on the writer touches its Stems no more.
+    private let abandoned = Atomic<Bool>(false)
+    private struct Abandoned: Error {}
     private let retired = Atomic<Bool>(false)
     /// Whether the real-time side ever told this Copy which Take frame it starts at.
     private let joined = Atomic<Bool>(false)
@@ -90,10 +93,27 @@ final class TakeWriter: @unchecked Sendable {
 
     /// Drains whatever is left, finalizes every Stem and waits for the thread to finish.
     /// A failed Copy doesn't throw: it's reported through `hasFailed`.
-    func stop() {
+    func stop(timeout: Duration? = nil) {
         running.store(false, ordering: .releasing)
         if done.load(ordering: .acquiring) { return }  // already stopped
-        finished.wait()
+        guard let timeout else {
+            finished.wait()
+            return
+        }
+        let seconds = Double(timeout.components.seconds) + Double(timeout.components.attoseconds) / 1e18
+        if finished.wait(timeout: .now() + seconds) == .timedOut {
+            // A Destination that hangs (a Drive pulled mid-write) doesn't hold up Stop (#320): the Copy is given up and
+            // failed. A write already under way can't be taken back, but the writer starts no new one when it wakes.
+            abandoned.store(true, ordering: .releasing)
+            failed.store(true, ordering: .releasing)
+        }
+    }
+
+    /// Whether Stop gave up waiting on this Copy.
+    var wasAbandoned: Bool { abandoned.load(ordering: .acquiring) }
+
+    private func checkAbandoned() throws {
+        if abandoned.load(ordering: .acquiring) { throw Abandoned() }
     }
 
     private func run() {
@@ -109,6 +129,7 @@ final class TakeWriter: @unchecked Sendable {
                 }
                 let dropoutsBefore = dropoutRanges.withLock { $0.count }
                 let drained = try drainOnce()
+                try checkAbandoned()
                 if dropoutRanges.withLock({ $0.count }) != dropoutsBefore { try writeMarkers() }
                 framesSinceCommit += drained
                 if framesSinceCommit >= commitInterval {
@@ -120,6 +141,7 @@ final class TakeWriter: @unchecked Sendable {
                     Thread.sleep(forTimeInterval: 0.005)
                 }
             }
+            try checkAbandoned()
             // Audio dropped while the ring's log was full has no position: its silence goes at the end.
             let unlogged = ring.takeUnloggedDroppedFrames()
             if didJoin, unlogged > 0 {
@@ -127,12 +149,14 @@ final class TakeWriter: @unchecked Sendable {
                 try writeMarkers()
             }
             for stem in stems { try stem.finalize() }
-        } catch {
+        } catch where !abandoned.load(ordering: .acquiring) {
             failed.store(true, ordering: .releasing)
             onFailure()
             ring.discardAll()
             // Close what can be closed, so the Stems that did get written open.
             for stem in stems { try? stem.finalize() }
+        } catch {
+            // Abandoned at Stop: leave the files exactly as they are.
         }
         done.store(true, ordering: .releasing)
         finished.signal()
@@ -181,6 +205,7 @@ final class TakeWriter: @unchecked Sendable {
             limit = min(limit, before)  // read up to the drop, not past it
         }
         return try ring.consume(maxFrames: limit) { channel, samples in
+            try checkAbandoned()
             try stems[channel].append(samples)
         }
     }

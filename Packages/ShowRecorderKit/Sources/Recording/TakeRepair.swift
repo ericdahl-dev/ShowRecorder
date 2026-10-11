@@ -37,7 +37,8 @@ final class TakeRepair {
     /// Queues Repair of an ended Take: fills its Gaps from the other Copy, off the main thread, and
     /// records the result in `Take.json`. `access` (the Drive's folder) is held until it's done.
     /// A Take with no Gaps has nothing to repair; its outcomes are complete and `access` is released.
-    func enqueue(_ metadata: TakeMetadata, folders: [URL], holding access: DriveAccess?) {
+    /// - Parameter abandoned: Copies Stop gave up on (#320), left as they are.
+    func enqueue(_ metadata: TakeMetadata, folders: [URL], holding access: DriveAccess?, abandoned: Set<DestinationKind> = []) {
         func outcomes(_ metadata: TakeMetadata) -> [DestinationKind: CopyOutcome] {
             Dictionary(uniqueKeysWithValues: folders.indices.map { (DestinationKind(index: $0), metadata.outcome(ofCopy: DestinationKind(index: $0))) })
         }
@@ -55,7 +56,7 @@ final class TakeRepair {
         let reserve = SpaceReserve(channelCount: metadata.usbChannels.count, sampleRate: metadata.sampleRate)
         let skip = Set(copies.filter { copy in
             reserve.wouldBreach(free: freeSpace(copy.folder), adding: Self.bytesToExtend(copy, in: copies, metadata: metadata))
-        }.map(\.kind))
+        }.map(\.kind)).union(abandoned)
         pending += 1
         isRunning = true
         onChange()

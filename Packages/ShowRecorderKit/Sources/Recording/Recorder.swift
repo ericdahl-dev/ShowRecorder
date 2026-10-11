@@ -85,6 +85,8 @@ public final class Recorder {
     @ObservationIgnored private var lastTake: LastTake?
     /// Repairs ended Takes; its result is published as `lastTakeOutcomes` and `isRepairing`.
     @ObservationIgnored private let repair: TakeRepair
+    /// How long Stop waits on a Copy's writer before giving that Copy up (#320).
+    @ObservationIgnored private let writerStopTimeout: Duration
     @ObservationIgnored private var finishedCopies: [DestinationKind: CopyStatus] = [:]
 
     /// - Parameters:
@@ -98,9 +100,11 @@ public final class Recorder {
         preRollSeconds: Double = 0,
         makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink = { try StemWriter.open(url: $0, info: $1, resumingAt: $2) },
         savedNames: UserDefaults = .standard,
-        destinationCheckInterval: Duration? = .seconds(1)
+        destinationCheckInterval: Duration? = .seconds(1),
+        writerStopTimeout: Duration = .seconds(5)
     ) {
         self.destinationCheckInterval = destinationCheckInterval
+        self.writerStopTimeout = writerStopTimeout
         self.savedNames = savedNames
         savedChannelNames = SavedChannelNames.load(from: savedNames)
         self.freeSpace = freeSpace
@@ -418,6 +422,7 @@ public final class Recorder {
         }
         let (show, session, takeFolders) = opened
         session.onCopyFailed = { [weak self, weak session] in self?.copyFailed(in: session) }
+        session.stopTimeout = writerStopTimeout
         if takeFolders.count == 1 { drive?.end() }
         self.session = session
         finishedCopies = [:]
@@ -673,8 +678,8 @@ public final class Recorder {
         currentShow?.setChannelNames(channelNames)
         currentShow?.noteTakeEnded(at: now())
         // The Takes are safe either way; the report and project are regenerated next time.
-        regenerateReports()
-        repair.enqueue(finished.metadata, folders: finished.folders, holding: finished.access)
+        regenerateReports(skipping: finished.abandoned)
+        repair.enqueue(finished.metadata, folders: finished.folders, holding: finished.access, abandoned: finished.abandoned)
         nameChannels(of: finished.metadata)
     }
 
@@ -704,11 +709,12 @@ public final class Recorder {
         }
     }
 
-    /// Rewrites the Show report and Reaper project, when the last Take's allowance includes them (Pro or Trial).
-    /// On Free they are left as they were: never written, and never removed.
-    private func regenerateReports() {
+    /// Rewrites the Show report and Reaper project, when the last Take's allowance includes them (Pro or Trial). Never
+    /// during a Take: a Repair that finishes mid-Take leaves them for its end (#320). A Copy Stop gave up on is skipped.
+    private func regenerateReports(skipping skipped: Set<DestinationKind> = []) {
+        guard !isRecording else { return }
         let allowance = lastAllowance
-        for copy in currentShow?.copies ?? [] {
+        for (index, copy) in (currentShow?.copies ?? []).enumerated() where !skipped.contains(DestinationKind(index: index)) {
             if allowance?.showReport ?? true { try? ShowReport.write(showFolder: copy.folder) }
             if allowance?.reaperExport ?? true { try? copy.writeProjects() }
         }

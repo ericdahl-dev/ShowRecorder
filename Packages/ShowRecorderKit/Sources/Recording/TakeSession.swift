@@ -56,7 +56,12 @@ final class TakeSession {
         var access: DriveAccess?
         var statuses: [DestinationKind: CopyStatus]
         var signal: TakeSignal
+        /// Copies Stop gave up on (#320): their files are left as they are, and Repair doesn't touch them.
+        var abandoned: Set<DestinationKind> = []
     }
+
+    /// How long Stop waits for each Copy's writer before giving it up (#320). Nil waits for ever.
+    var stopTimeout: Duration?
 
     /// The open Show, which gains a Drive folder when the Drive joins.
     private(set) var show: Show
@@ -233,7 +238,7 @@ final class TakeSession {
     func finish() -> Finished {
         capture.stopCapturing()
         var statuses = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.map { ($0, status($0)) })
-        for copy in copies { copy.writer.stop() }
+        for copy in copies { copy.writer.stop(timeout: stopTimeout) }
         collectDropouts()
         // Levels are kept per captured channel; Take.json lists only the recorded ones, by USB Channel number.
         for (channel, summary) in levels.summary.enumerated() {
@@ -250,7 +255,8 @@ final class TakeSession {
         }
         return Finished(
             metadata: metadata, folders: copies.map(\.folder), access: copies.lazy.compactMap(\.access).first, statuses: statuses,
-            signal: TakeSignal(recorded: metadata.usbChannels.count, withSignal: levels.channelsWithSignal()))
+            signal: TakeSignal(recorded: metadata.usbChannels.count, withSignal: levels.channelsWithSignal()),
+            abandoned: Set(copies.filter { $0.writer.wasAbandoned }.map(\.kind)))
     }
 
     // MARK: - Drive join and rejoin
