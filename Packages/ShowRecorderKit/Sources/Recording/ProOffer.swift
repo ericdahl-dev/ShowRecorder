@@ -7,10 +7,22 @@ public struct TakeSignal: Equatable, Sendable {
 
     public var recorded: Int
     public var withSignal: Int
+    /// The USB Channel that peaked loudest during the Take, signal or not; nil with no channels.
+    public var loudest: Loudest?
 
-    public init(recorded: Int, withSignal: Int) {
+    public struct Loudest: Equatable, Sendable {
+        public var usbChannel: Int
+        public var peakDbfs: Double
+        public init(usbChannel: Int, peakDbfs: Double) {
+            self.usbChannel = usbChannel
+            self.peakDbfs = peakDbfs
+        }
+    }
+
+    public init(recorded: Int, withSignal: Int, loudest: Loudest? = nil) {
         self.recorded = recorded
         self.withSignal = withSignal
+        self.loudest = loudest
     }
 }
 

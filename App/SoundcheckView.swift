@@ -24,9 +24,10 @@ struct SoundcheckView: View {
                 Section {
                     ForEach(Soundcheck.Step.Kind.allCases, id: \.self) { kind in row(kind) }
                 }
-                if let failed = steps.first(where: { !$0.passed }) {
+                // Only once the run is over: mid-run, "Everything checked out" showed before the Take was judged.
+                if !running, let failed = steps.first(where: { !$0.passed }) {
                     Section { Text("Fix \(Self.title(failed.kind)) and run it again.").font(.headline) }
-                } else if !steps.isEmpty {
+                } else if !running, !steps.isEmpty {
                     Section { Text("Everything checked out. The rig is ready.").font(.headline) }
                 }
             }
@@ -65,7 +66,7 @@ struct SoundcheckView: View {
                 if let step {
                     Image(systemName: step.passed ? "checkmark.circle.fill" : "xmark.octagon.fill")
                         .foregroundStyle(step.passed ? .green : .red)
-                } else if current == kind {
+                } else if Soundcheck.isChecking(kind, current: current) {
                     ProgressView()
                 } else {
                     Image(systemName: "circle").secondaryText()
@@ -80,7 +81,7 @@ struct SoundcheckView: View {
         // Say passed or failed in words; the icons alone read as "Selected" and "Error".
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Self.title(kind))
-        .accessibilityValue(step.map { "\($0.passed ? "Passed" : "Failed"). \($0.message)" } ?? (current == kind ? "Checking" : "Not checked yet"))
+        .accessibilityValue(step.map { "\($0.passed ? "Passed" : "Failed"). \($0.message)" } ?? (Soundcheck.isChecking(kind, current: current) ? "Checking" : "Not checked yet"))
     }
 
     static func title(_ kind: Soundcheck.Step.Kind) -> String {

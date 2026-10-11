@@ -35,6 +35,16 @@ struct SoundcheckTests {
         #expect(Soundcheck.judgeChannels(usbChannelCount: 4, expected: nil, signal: TakeSignal(recorded: 4, withSignal: 1)).passed)
     }
 
+    @Test("While the test Take records, USB Channels shows as being checked too: it is judged from that Take's audio")
+    func checkingDuringTake() {
+        #expect(Soundcheck.isChecking(.take, current: .take))
+        #expect(Soundcheck.isChecking(.channels, current: .take))
+        #expect(Soundcheck.isChecking(.channels, current: .channels))
+        #expect(Soundcheck.isChecking(.files, current: .take) == false)
+        #expect(Soundcheck.isChecking(.channels, current: .mixer) == false)
+        #expect(Soundcheck.isChecking(.channels, current: nil) == false)
+    }
+
     @Test("Channels: nothing Armed, fewer than the Mixer sends, or no signal each fails with what to do")
     func channelsProblems() {
         #expect(Soundcheck.judgeChannels(usbChannelCount: 0, expected: 18, signal: nil).message == "No input is Armed. Choose the Mixer's USB input in Settings.")
@@ -43,6 +53,10 @@ struct SoundcheckTests {
         #expect(Soundcheck.judgeChannels(usbChannelCount: 18, expected: 18, signal: TakeSignal(recorded: 18, withSignal: 0)).message
             == "No signal on any USB Channel. Play something through the Mixer and check its USB routing.")
         #expect(!Soundcheck.judgeChannels(usbChannelCount: 18, expected: 18, signal: TakeSignal(recorded: 18, withSignal: 0)).passed)
+        // The loudest channel, so a quiet mic is told apart from no audio at all (TestFlight, 2026-10-11).
+        let quiet = TakeSignal(recorded: 18, withSignal: 0, loudest: .init(usbChannel: 1, peakDbfs: -58.4))
+        #expect(Soundcheck.judgeChannels(usbChannelCount: 18, expected: 18, signal: quiet).message
+            == "No USB Channel went above -50 dBFS. The loudest was USB 1, at -58 dBFS. Speak or play into a channel, or raise its gain on the Mixer.")
     }
 
     @Test("Take: every Copy complete (or Repaired) passes and names where it went")

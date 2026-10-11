@@ -18,7 +18,24 @@ struct ProOfferTests {
         audio.deliver([Array(repeating: 0.3, count: 480), Array(repeating: 0.2, count: 480), Array(repeating: 0.0001, count: 480), Array(repeating: 0.25, count: 480)])
         _ = recorder.takeChannelLevels()
         try recorder.stopTake()
-        #expect(recorder.lastTakeSignal == TakeSignal(recorded: 2, withSignal: 3))
+        #expect(recorder.lastTakeSignal?.recorded == 2)
+        #expect(recorder.lastTakeSignal?.withSignal == 3)
+    }
+
+    @Test("After a Take the Recorder says which USB Channel peaked loudest, and how loud, even below the signal threshold")
+    func loudestChannel() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "ProOfferTests-\(UUID().uuidString)")
+        let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
+        let audio = FakeAudioDevice(inputChannelCount: 3)
+        try recorder.arm(audio)
+        try recorder.startTake()
+        // -60, -54 and silent: none carries signal, but USB 2 was the loudest.
+        audio.deliver([Array(repeating: 0.001, count: 480), Array(repeating: 0.002, count: 480), Array(repeating: 0, count: 480)])
+        try recorder.stopTake()
+        let signal = try #require(recorder.lastTakeSignal)
+        #expect(signal.withSignal == 0)
+        #expect(signal.loudest?.usbChannel == 2)
+        #expect(abs((signal.loudest?.peakDbfs ?? 0) + 53.98) < 0.1)
     }
 
     func offers() -> ProOffers { ProOffers(defaults: UserDefaults(suiteName: "ProOfferTests-\(UUID().uuidString)")!) }
