@@ -300,25 +300,32 @@ struct RecordScreen: View {
     private var transport: some View {
         VStack(spacing: 12) {
             elapsed(font: .system(size: 44, weight: .semibold))
-            Button { showingNewShow = true } label: {
-                HStack(spacing: 4) {
-                    Text(model.showSummary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Image(systemName: "chevron.down").imageScale(.small)
+            // One 44 pt row for the Show and its two lists (#240): big enough to hit, and no taller than the
+            // two short lines it replaced, so the meters don't lose height.
+            HStack(spacing: 4) {
+                Button { showingNewShow = true } label: {
+                    HStack(spacing: 4) {
+                        Text(model.showSummary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Image(systemName: "chevron.down").imageScale(.small)
+                    }
+                    .secondaryText()
+                    .tapTarget()
                 }
-                .font(.subheadline)
-                .secondaryText()
-            }
-            .buttonStyle(.plain)
-            .disabled(model.recorder.isRecording)
-            .accessibilityHint("Opens the Show sheet")
-            HStack(spacing: 16) {
-                Button("Shows") { showingShowList = true }
+                .buttonStyle(.plain)
+                .disabled(model.recorder.isRecording)
+                .accessibilityHint("Opens the Show sheet")
+                Spacer(minLength: 4)
+                Button { showingShowList = true } label: { Text("Shows").tapTarget() }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.tint)
                     .disabled(model.recorder.isRecording)
-                Button("Channel names") { open(.channelNames) }
+                Button { open(.channelNames) } label: { Text("Names").tapTarget() }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.tint)
             }
-            .font(.caption)
+            .font(.subheadline)
             // Top-aligned: Marker is taller (its count sits below), so centring would drop Record.
             HStack(alignment: .top, spacing: CGFloat(TransportLayout.gap(availableWidth: Double(transportWidth), buttonSize: 88))) {
                 recordButton(size: 88)
@@ -357,20 +364,30 @@ struct RecordScreen: View {
                     }
                     .font(.caption)
                     .secondaryText()
+                    .tapTarget()
                 }
                 .buttonStyle(.plain)
                 .disabled(model.recorder.isRecording)
                 .accessibilityHint("Opens the Show sheet")
-                HStack(spacing: 10) {
-                    Button("Shows") { showingShowList = true }
+                HStack(spacing: 4) {
+                    Button { showingShowList = true } label: { Text("Shows").tapTarget() }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.tint)
                         .disabled(model.recorder.isRecording)
-                    Button("Names") { open(.channelNames) }
+                    Button { open(.channelNames) } label: { Text("Names").tapTarget() }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.tint)
                 }
-                .font(.caption2)
-                Text(model.takeTitle)
-                    .font(.title3.weight(.bold))
-                    .monospacedDigit()
-                elapsed(font: .title3)
+                .font(.caption)
+                // One line for the Take and how long it has run, so the 44 pt rows above still fit a short screen.
+                HStack(spacing: 6) {
+                    Text(model.takeTitle)
+                        .font(.title3.weight(.bold))
+                        .monospacedDigit()
+                    elapsed(font: .title3)
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 if let note = nonUrgentAlert {
                     Button {
                         if let action = note.action { model.perform(action) }
@@ -1388,4 +1405,11 @@ private extension Duration {
 /// What can open as a panel on the record screen (#250).
 enum LivePanel: Equatable {
     case markers, channelNames, settings
+}
+
+extension View {
+    /// At least 44 by 44 pt to hit, the whole area, as Apple's guidelines ask (#240).
+    func tapTarget() -> some View {
+        frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+    }
 }

@@ -136,21 +136,21 @@ struct AlertBanner: View {
                 text
                     .padding(.vertical, 10)
             } else {
-                Button(action: showMore) { text.contentShape(Rectangle()) }
+                // The whole height of the banner, not just the text's line, so it is easy to hit.
+                Button(action: showMore) { text.frame(maxHeight: .infinity, alignment: .leading).contentShape(Rectangle()) }
                     .buttonStyle(.plain)
                     .accessibilityHint("Shows the whole message")
             }
             if let action = alert.action {
-                Button(label(for: action)) { perform(action) }
+                // The bezel adds about 7 pt above and below: 30 inside makes a 44 pt button, inside the slot.
+                Button { perform(action) } label: { Text(label(for: action)).frame(minHeight: 30) }
                     .buttonStyle(.bordered)
                     .tint(foreground)
             }
             if moreCount > 0 {
-                Button("+\(moreCount) more", action: showMore)
+                Button(action: showMore) { Text("+\(moreCount) more").underline().tapTarget() }
                     .font(.callout.weight(.semibold))
-                    .frame(minHeight: 44)
                     .buttonStyle(.plain)
-                    .underline()
             }
         }
         .padding(.horizontal, 12)
