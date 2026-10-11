@@ -2,7 +2,7 @@
 
 Everything in App Store Connect that only Eric (the Account Holder) can do, in order, with the values to type. Menu names are as of 2026 and may differ slightly. Tracked in #338; if something looks different, comment there and an agent will update this file.
 
-Already done (2026-10-10): the app record (bundle `dev.ericdahl.ShowRecorder`) and the pages https://ericdahl.dev/showrecorder, https://ericdahl.dev/privacy and https://ericdahl.dev/support.
+Already done (2026-10-10): the app record (bundle `dev.ericdahl.ShowRecorder`) and the pages https://ericdahl.dev/showrecorder, https://ericdahl.dev/showrecorder/privacy and https://ericdahl.dev/showrecorder/support.
 
 Text to paste comes from two files beside this one:
 
@@ -22,7 +22,7 @@ At https://appstoreconnect.apple.com, open **Business** (older name: Agreements,
 
 **Apps → ShowRecorder → App Privacy**
 
-- [ ] **Privacy Policy URL:** `https://ericdahl.dev/privacy`
+- [ ] **Privacy Policy URL:** `https://ericdahl.dev/showrecorder/privacy`
 - [ ] **Data collection:** Get Started → "**No, we do not collect data from this app**" → Save → **Publish**. ShowRecorder sends nothing anywhere; the Mixer Link and Find mixers stay on the local network.
 
 ## 3. In-app purchases (after step 1 is Active)
@@ -48,7 +48,7 @@ An agent can create these two through the API once step 1 is Active: say "create
 
 **Apps → ShowRecorder → iOS App → 1.0**
 
-- [ ] **Text:** paste the subtitle, promotional text, keywords and description from [`listing.md`](listing.md). Marketing URL `https://showrecorder.app`, Support URL `https://ericdahl.dev/support`.
+- [ ] **Text:** paste the subtitle, promotional text, keywords and description from [`listing.md`](listing.md). Marketing URL `https://showrecorder.app`, Support URL `https://ericdahl.dev/showrecorder/support`.
 - [ ] **In-App Purchases:** add both Pro and the Trial, so they're reviewed with the first version.
 - [ ] **Screenshots:** iPhone 6.9" (1320 × 2868) and iPad 13" (2064 × 2752); the app runs on iPad, so both sizes are required. An agent makes them from the Simulator once the UI is final (#64); you upload or approve them.
 - [ ] **App Review Information:** your name, phone and email. Sign-in: not required. Notes: paste [`review-notes.md`](review-notes.md).

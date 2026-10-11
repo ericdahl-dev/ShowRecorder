@@ -58,11 +58,11 @@ During the TestFlight beta everything is unlocked.
 
 ## Privacy
 
-ShowRecorder collects no data. Your recordings stay on your device and your drive, and the app only talks to your mixer on your local network. [Privacy policy](https://ericdahl.dev/privacy).
+ShowRecorder collects no data. Your recordings stay on your device and your drive, and the app only talks to your mixer on your local network. [Privacy policy](https://ericdahl.dev/showrecorder/privacy).
 
 ## Help
 
-[Support](https://ericdahl.dev/support) · [showrecorder@ericdahl.dev](mailto:showrecorder@ericdahl.dev) · [Report a problem](https://github.com/ericdahl-dev/ShowRecorder/issues)
+[Support](https://ericdahl.dev/showrecorder/support) · [showrecorder@ericdahl.dev](mailto:showrecorder@ericdahl.dev) · [Report a problem](https://github.com/ericdahl-dev/ShowRecorder/issues)
 
 ---
 
