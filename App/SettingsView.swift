@@ -96,6 +96,7 @@ struct SettingsView: View {
                     Button(isConnecting ? "Connecting…" : "Connect") { model.connectMixer() }
                         .disabled(isConnecting || model.mixerAddress.isEmpty || locked(.mixerLink))
                     mixerStatus
+                    FindMixersRow(model: model, disabled: locked(.mixerLink))
                 } header: {
                     Text("Mixer Link").id(SettingsSection.mixer)
                 }
