@@ -4,10 +4,10 @@ import SwiftUI
 /// The Pro section of Settings: the tier, Buy Pro, Restore Purchases and, on Free, which 2 USB Channels are
 /// recorded. Calm and out of the way: no prompts, and hidden during a Take (`SettingsLock`).
 struct ProSection: View {
-    /// Off until the Pro and Trial products exist in App Store Connect and `record()` passes the allowance: until
-    /// then the section, the first-launch Trial offer and the days-left chip would tell TestFlight testers about a
-    /// plan that limits nothing. Also not before 96 kHz (#195) and Templates (#33, #34) are built: the footer and the
-    /// App Store text promise them (ADR 0004, launch scope).
+    /// Off until the Pro and Trial products exist in App Store Connect, and not before 96 kHz (#195) and Templates
+    /// (#33, #34) are built: the footer and the App Store text promise them (ADR 0004, launch scope). It also switches
+    /// the limits on: while off, `record()` passes no allowance, so every USB Channel is recorded with every extra
+    /// (#60), and the section, the first-launch Trial offer and the days-left chip stay hidden.
     static let isOffered = false
 
     @Bindable var model: RecordScreenModel
