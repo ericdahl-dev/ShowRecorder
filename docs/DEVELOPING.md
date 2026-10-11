@@ -139,5 +139,5 @@ The audio callback never allocates, takes locks, logs or touches the file system
   - On iPhone and iPad, the current USB route.
   - Recording continues with the screen locked, in the background and through interruptions.
 
-Also built since this list was first written: Templates (venue setups), Find mixers, a sample-rate choice up to 96 kHz, crash recovery of a cut-off Take, Dropouts for interrupted input, and the Pro, Trial and Free-limit groundwork (hidden behind `ProSection.isOffered` until the products exist). Not built yet: Mixer Triggers, Snapshot Markers, Mixer Link over USB, sharing a Show, and editing a Show afterward. See the [open issues](https://github.com/ericdahl-dev/ShowRecorder/issues) and the [App Store launch milestone](https://github.com/ericdahl-dev/ShowRecorder/milestone/1).
+Also built since this list was first written: Templates (venue setups), Find mixers, a sample-rate choice up to 96 kHz, crash recovery of a cut-off Take, Dropouts for interrupted input, and Pro, the 14-day Trial and the Free limit (on in every build since #371). Not built yet: Mixer Triggers, Snapshot Markers, Mixer Link over USB, sharing a Show, and editing a Show afterward. See the [open issues](https://github.com/ericdahl-dev/ShowRecorder/issues) and the [App Store launch milestone](https://github.com/ericdahl-dev/ShowRecorder/milestone/1).
 
