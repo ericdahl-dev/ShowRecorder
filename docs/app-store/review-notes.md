@@ -3,8 +3,8 @@
 ShowRecorder records a live multitrack from a Behringer X Air mixer (XR18 / MR18) connected over USB: one WAV file per mixer channel. No account and no sign-in.
 
 Testing without a mixer:
-1. Open Settings (the gear, top right) > Recording > Input and choose "Demo signal (18 channels)". It plays a test signal on 18 channels so every screen works without hardware.
-2. Close Settings. The record screen shows 18 level meters. Press the red button to record, the flag to add a Marker, and the square to stop (it asks first).
+1. Open Settings (the gear, top right) > Recording > Input and choose "Demo signal (18 channels)". It plays a test signal on 18 channels so every screen works without hardware. (If that option isn't listed, the app records from the built-in microphone, which works the same way with one channel.)
+2. Close Settings. The record screen shows the level meters. Press the red button to record, the flag to add a Marker, and the square to stop (it asks first).
 3. Tap "Shows" to see the recording. Each Show folder (also in the Files app, On My iPhone > ShowRecorder) has one WAV per channel, a Show report and a Reaper project.
 
 In-app purchases:
