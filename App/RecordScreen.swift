@@ -648,7 +648,7 @@ final class RecordScreenModel {
     }
 
     var takeTitle: String {
-        String(format: "Take %02d", recorder.currentShow?.takeCount ?? 0)
+        TakeMetadata.name(take: recorder.currentShow?.takeCount ?? 0)
     }
 
     func record() {

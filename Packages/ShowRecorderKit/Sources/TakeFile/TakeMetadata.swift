@@ -176,6 +176,11 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
 
     public static let fileName = "Take.json"
 
+    /// "Take 01": a Take's name, and the name of its folder in every Copy.
+    public static func name(take: Int) -> String {
+        String(format: "Take %02d", take)
+    }
+
     enum CodingKeys: String, CodingKey {
         case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames
     }

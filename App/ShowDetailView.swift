@@ -43,7 +43,7 @@ struct ShowDetailView: View {
                             }
                         } header: {
                             HStack {
-                                Text(String(format: "Take %02d", take.number))
+                                Text(TakeMetadata.name(take: take.number))
                                 Spacer()
                                 Button("Delete…", role: .destructive) { deletingTake = take.number }
                                     .buttonStyle(.borderless)

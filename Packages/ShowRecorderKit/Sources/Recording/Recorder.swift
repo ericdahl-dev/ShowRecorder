@@ -520,7 +520,7 @@ public final class Recorder {
         var access: DestinationAccess?
         if take.hadDrive {
             access = driveFolder()
-            if let access { copies[.drive] = access.folder.appending(path: take.showName).appending(path: String(format: "Take %02d", take.takeNumber)) }
+            if let access { copies[.drive] = access.folder.appending(path: take.showName).appending(path: TakeMetadata.name(take: take.takeNumber)) }
         }
         defer { access?.release() }
         var outcome = MarkerRenamer.rename(markerAt: index, to: name, in: copies)
@@ -635,7 +635,7 @@ public final class Recorder {
             var access: DestinationAccess?
             if take.hadDrive {
                 access = driveFolder()
-                if let access { copies[.drive] = access.folder.appending(path: take.showName).appending(path: String(format: "Take %02d", take.takeNumber)) }
+                if let access { copies[.drive] = access.folder.appending(path: take.showName).appending(path: TakeMetadata.name(take: take.takeNumber)) }
             }
             defer { access?.release() }
             _ = ChannelRenamer.rename(names: names, lateChannels: Set(late.keys), in: copies)

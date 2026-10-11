@@ -24,7 +24,7 @@ public enum CopyCheck {
         let deviceTakes = ShowList.takeMetadata(in: deviceShow).sorted { $0.take.take < $1.take.take }
         if deviceTakes.isEmpty { return .failed(["The Device copy has no Takes to compare."]) }
         for (deviceFolder, deviceTake) in deviceTakes {
-            let name = String(format: "Take %02d", deviceTake.take)
+            let name = TakeMetadata.name(take: deviceTake.take)
             let driveFolder = driveShow.appending(path: deviceFolder.lastPathComponent, directoryHint: .isDirectory)
             guard let driveTake = try? TakeMetadata.read(fromTakeFolder: driveFolder) else {
                 problems.append("\(name) is missing on the Drive.")

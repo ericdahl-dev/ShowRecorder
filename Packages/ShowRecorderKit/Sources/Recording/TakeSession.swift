@@ -256,7 +256,7 @@ final class TakeSession {
                 // under the folder we were just given.
                 folder = access.folder
                     .appending(path: show.name, directoryHint: .isDirectory)
-                    .appending(path: String(format: "Take %02d", show.takeCount), directoryHint: .isDirectory)
+                    .appending(path: TakeMetadata.name(take: show.takeCount), directoryHint: .isDirectory)
                 guard FileManager.default.fileExists(atPath: folder.path), !reserve.isLow(free: freeSpace(folder)) else {
                     access.release()
                     return

@@ -21,7 +21,7 @@ public enum TakeDeleter {
                 continue
             }
             let showFolder = parent.appending(path: show, directoryHint: .isDirectory)
-            let folder = showFolder.appending(path: String(format: "Take %02d", take), directoryHint: .isDirectory)
+            let folder = showFolder.appending(path: TakeMetadata.name(take: take), directoryHint: .isDirectory)
             guard ShowDeleter.isRealFolder(showFolder), ShowDeleter.isRealFolder(folder),
                   FileManager.default.fileExists(atPath: folder.appending(path: TakeMetadata.fileName).path) else {
                 failed.append(.init(copy: kind, reason: "There is no such Take in this Copy."))
