@@ -35,11 +35,16 @@ public struct USBChannelShortfall: Equatable, Sendable {
         if let offered = offeredChannelCount, offered > usbChannelCount {
             return USBChannelShortfall(usbChannelCount: usbChannelCount, reason: .systemGrantedFewer(offered: offered))
         }
-        if let mixer, let mixerSends = capabilities?.usbChannelCount, mixerSends > usbChannelCount {
+        // A 1- or 2-channel input (the device's microphone, a stereo interface) isn't the Mixer's USB: recording it
+        // with the Mixer linked over Wi-Fi for names is on purpose, so no warning.
+        if usbChannelCount > Self.notTheMixerUpTo, let mixer, let mixerSends = capabilities?.usbChannelCount, mixerSends > usbChannelCount {
             return USBChannelShortfall(usbChannelCount: usbChannelCount, reason: .mixerSendsMore(mixer: mixer, mixerSends: mixerSends))
         }
         return nil
     }
+
+    /// Inputs with this many channels or fewer are never taken for the Mixer's USB.
+    static let notTheMixerUpTo = 2
 
     /// The banner text. It names a Mixer only when one was identified.
     public var message: String {
@@ -49,8 +54,7 @@ public struct USBChannelShortfall: Equatable, Sendable {
             return "This input offers \(offered) channels, but the system is sending the recorder \(sent), so some channels won't be recorded."
         case .mixerSendsMore(let mixer, let mixerSends):
             // Short enough for the banner's 2 lines on an iPhone (#292); the Mixer chip already names the Mixer.
-            let verb = usbChannelCount == 1 ? "is" : "are"
-            return "Only \(usbChannelCount) of the \(mixer.model)'s \(mixerSends) USB Channels \(verb) coming in. Arm the \(mixer.model) to record all \(mixerSends)."
+            return "Only \(usbChannelCount) of the \(mixer.model)'s \(mixerSends) USB Channels are coming in. Arm the \(mixer.model) to record all \(mixerSends)."
         }
     }
 }
