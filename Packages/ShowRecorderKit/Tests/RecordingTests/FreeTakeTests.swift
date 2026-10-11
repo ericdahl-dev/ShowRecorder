@@ -47,7 +47,7 @@ struct FreeTakeTests {
         let drive = root.appending(path: "Drive")
         try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
         let device = root.appending(path: "Device")
-        let recorder = Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 3)
         try recorder.arm(audio)
         // Two recorded channels with the report and project on (the report itself is a Pro extra, see ProExtrasTests).
@@ -73,7 +73,7 @@ struct FreeTakeTests {
         let device = root.appending(path: "Device")
         final class Plug: @unchecked Sendable { var connected = false }
         let plug = Plug()
-        let recorder = Recorder(deviceFolder: device, driveFolder: { plug.connected ? DestinationAccess(folder: drive) : nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        let recorder = Recorder(deviceFolder: device, driveFolder: { plug.connected ? DriveAccess(folder: drive) : nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 3)
         try recorder.arm(audio)
         try recorder.startTake(allowance: allowance([2, 3]))

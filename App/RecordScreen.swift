@@ -632,7 +632,7 @@ final class RecordScreenModel {
         let store = drive.store
         self.drive = drive
         recorder = Recorder(driveFolder: {
-            store.beginAccess().map { access in DestinationAccess(folder: access.folder, release: { access.end() }) }
+            store.beginAccess()
         }, preRollSeconds: PreRollSetting.load())
         mixerAddress = UserDefaults.standard.string(forKey: Self.mixerAddressKey) ?? ""
         devices = Self.availableDevices()
@@ -648,7 +648,7 @@ final class RecordScreenModel {
     }
 
     var takeTitle: String {
-        String(format: "Take %02d", recorder.currentShow?.takeCount ?? 0)
+        TakeMetadata.name(take: recorder.currentShow?.takeCount ?? 0)
     }
 
     func record() {

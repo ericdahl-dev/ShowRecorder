@@ -22,7 +22,7 @@ struct TakeDeleterTests {
     /// Three Takes in an ended Show, in both Copies.
     func threeTakes() throws -> Recorder {
         let drive = drive
-        let recorder = Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
+        let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         for _ in 1...3 {

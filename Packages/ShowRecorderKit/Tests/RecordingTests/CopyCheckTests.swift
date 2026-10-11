@@ -23,7 +23,7 @@ struct CopyCheckTests {
     /// Two Takes of 2 channels in both Copies, the Show ended.
     func record() throws {
         let drive = drive
-        let recorder = Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
+        let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 2)
         try recorder.arm(audio)
         for _ in 1...2 {
@@ -102,7 +102,7 @@ struct CopyCheckTests {
 
     func recorderWithDrive(_ connected: Bool = true) -> Recorder {
         let drive = drive
-        return Recorder(deviceFolder: device, driveFolder: { connected ? DestinationAccess(folder: drive) : nil }, now: { RecordingTakeTests.showDay })
+        return Recorder(deviceFolder: device, driveFolder: { connected ? DriveAccess(folder: drive) : nil }, now: { RecordingTakeTests.showDay })
     }
 
     @Test("Deleting the Device copy after the check removes only the Device copy; a failed check, a missing Drive or an open Show deletes nothing")

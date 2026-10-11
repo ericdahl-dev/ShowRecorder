@@ -51,7 +51,7 @@ public enum ShowDetail {
     public static func renameMarker(
         at index: Int, to name: String, inTake take: Int, ofShow show: String, device: URL, drive: URL?
     ) -> MarkerRenamer.Outcome {
-        let takeFolder = String(format: "Take %02d", take)
+        let takeFolder = TakeMetadata.name(take: take)
         var copies: [DestinationKind: URL] = [.device: device.appending(path: show).appending(path: takeFolder)]
         if let drive {
             let folder = drive.appending(path: show).appending(path: takeFolder)

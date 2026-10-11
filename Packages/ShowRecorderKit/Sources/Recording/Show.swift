@@ -174,7 +174,7 @@ public struct Show: Sendable, Equatable {
     /// the same name) and a folder for the current Take. Returns that Take folder.
     mutating func joinDrive(_ parent: URL) throws -> URL {
         try useDrive(parent)
-        let takeFolder = driveFolder!.appending(path: String(format: "Take %02d", takeCount), directoryHint: .isDirectory)
+        let takeFolder = driveFolder!.appending(path: TakeMetadata.name(take: takeCount), directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: takeFolder, withIntermediateDirectories: false)
         return takeFolder
     }
@@ -182,7 +182,7 @@ public struct Show: Sendable, Equatable {
     /// Creates "Take NN" for the next Take in every Copy and returns the folders, the Device first.
     mutating func createNextTakeFolder() throws -> [URL] {
         takeCount += 1
-        let takeName = String(format: "Take %02d", takeCount)
+        let takeName = TakeMetadata.name(take: takeCount)
         return try ([folder] + (driveFolder.map { [$0] } ?? [])).map { showFolder in
             let takeFolder = showFolder.appending(path: takeName, directoryHint: .isDirectory)
             try FileManager.default.createDirectory(at: takeFolder, withIntermediateDirectories: false)

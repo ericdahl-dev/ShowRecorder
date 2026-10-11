@@ -17,6 +17,14 @@ public enum DestinationKind: String, Codable, Sendable, Hashable, CaseIterable {
     public init(index: Int) {
         self = index == 0 ? .device : .drive
     }
+
+    /// "Device" or "Drive", as the operator reads it.
+    public var name: String {
+        switch self {
+        case .device: "Device"
+        case .drive: "Drive"
+        }
+    }
 }
 
 /// Where the Drive folder's bookmark is kept between launches. One per device.
@@ -197,12 +205,13 @@ public struct DriveFolderStore: Sendable {
     }
 }
 
-/// The Drive folder opened for one Take. Call `end()` when the Take is finalized.
+/// The Drive folder opened for one Take, held until the Take is finalized and Repaired. `end()` lets it go
+/// (for a bookmarked folder, its security scope).
 public struct DriveAccess: Sendable {
     public let folder: URL
     private let stop: @Sendable () -> Void
 
-    init(folder: URL, stop: @escaping @Sendable () -> Void) {
+    public init(folder: URL, stop: @escaping @Sendable () -> Void = {}) {
         self.folder = folder
         self.stop = stop
     }

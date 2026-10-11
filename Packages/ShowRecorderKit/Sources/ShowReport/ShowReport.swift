@@ -229,14 +229,14 @@ public struct ShowReport: Equatable, Sendable {
         if !take.gaps.isEmpty {
             out += "<h3>Gaps</h3>\n<p class=\"note\">Missing from that Copy and held as silence until repaired from the other Copy.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>Copy</th><th>From</th><th>To</th><th>Result</th></tr></thead>\n<tbody>\n"
             for gap in take.gaps {
-                out += "<tr><td>\(Self.name(of: gap.copy))</td><td class=\"num\">\(Self.markerClock(gap.startSeconds))</td><td class=\"num\">\(Self.markerClock(gap.endSeconds))</td><td>\(Self.result(of: gap.repair))</td></tr>\n"
+                out += "<tr><td>\(gap.copy.name)</td><td class=\"num\">\(Self.markerClock(gap.startSeconds))</td><td class=\"num\">\(Self.markerClock(gap.endSeconds))</td><td>\(Self.result(of: gap.repair))</td></tr>\n"
             }
             out += "</tbody>\n</table></div>\n"
         }
         if !take.dropouts.isEmpty {
             out += "<h3>Dropouts</h3>\n<p class=\"note\">Audio the recorder couldn't keep up with. It is silence of the right length in that Copy's Stems.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>Copy</th><th>From</th><th>To</th><th>Length</th></tr></thead>\n<tbody>\n"
             for dropout in take.dropouts {
-                out += "<tr><td>\(Self.name(of: dropout.copy))</td><td class=\"num\">\(Self.markerClock(dropout.startSeconds))</td><td class=\"num\">\(Self.markerClock(dropout.endSeconds))</td><td class=\"num\">\(Self.markerClock(dropout.lengthSeconds))</td></tr>\n"
+                out += "<tr><td>\(dropout.copy.name)</td><td class=\"num\">\(Self.markerClock(dropout.startSeconds))</td><td class=\"num\">\(Self.markerClock(dropout.endSeconds))</td><td class=\"num\">\(Self.markerClock(dropout.lengthSeconds))</td></tr>\n"
             }
             out += "</tbody>\n</table></div>\n"
         }
@@ -244,21 +244,9 @@ public struct ShowReport: Equatable, Sendable {
         return out
     }
 
-    /// "Device" or "Drive".
-    static func name(of copy: DestinationKind) -> String {
-        switch copy {
-        case .device: "Device"
-        case .drive: "Drive"
-        }
-    }
-
     /// What Repair did about a Gap, in words.
     static func result(of repair: TakeMetadata.Repair.Outcome?) -> String {
-        switch repair {
-        case .repaired: "Repaired"
-        case .failed: "Repair failed"
-        case nil: "Not repaired"
-        }
+        repair?.word ?? "Not repaired"
     }
 
     /// A level in dBFS to a tenth, with "silent" for a channel that had no signal.

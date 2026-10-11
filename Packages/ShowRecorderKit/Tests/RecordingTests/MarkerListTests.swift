@@ -17,15 +17,14 @@ struct MarkerListTests {
         try FileManager.default.createDirectory(at: root.appending(path: "Drive"), withIntermediateDirectories: true)
     }
 
-    func recorder(drive available: Bool = true, released: Counter? = nil) -> Recorder {
+    func recorder(drive available: Bool = true, released: ReleaseCounter? = nil) -> Recorder {
         let drive = drive
         return Recorder(
             deviceFolder: device,
-            driveFolder: { available ? DestinationAccess(folder: drive, release: { released?.count += 1 }) : nil },
+            driveFolder: { available ? DriveAccess(folder: drive, stop: { released?.increment() }) : nil },
             now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
     }
 
-    final class Counter { var count = 0 }
 
     @Test("Each Marker is listed with its time in the Take, its name and its index among the operator's Markers")
     func listsMarkers() throws {
@@ -111,7 +110,7 @@ struct MarkerListTests {
     @Test("After the Take a Marker can be renamed in both Copies, with the Drive reached again for the rename and let go after")
     func renameAfterTheTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        let released = Counter()
+        let released = ReleaseCounter()
         let recorder = recorder(released: released)
         try recorder.arm(audio)
         try recorder.startTake()
@@ -140,7 +139,7 @@ struct MarkerListTests {
         let drive = drive
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(
-            deviceFolder: device, driveFolder: { flag.available ? DestinationAccess(folder: drive) : nil },
+            deviceFolder: device, driveFolder: { flag.available ? DriveAccess(folder: drive) : nil },
             now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         try recorder.arm(audio)
         try recorder.startTake()
@@ -179,7 +178,7 @@ struct MarkerListTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let drive = drive
         let recorder = Recorder(
-            deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
             preRollSeconds: 1, destinationCheckInterval: nil)
         try recorder.arm(audio)
         audio.deliver([Array(repeating: 0, count: 48_000)])  // 1 s Armed: the Pre-roll

@@ -23,7 +23,7 @@ struct ChannelRenamerTests {
     func recordTake() throws {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let drive = drive
-        let recorder = Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
+        let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
         try recorder.startTake()
         audio.deliver((0..<2).map { channel in (0..<4_800).map { Float($0 % 1000 + channel * 1000) / 8_388_608 } })
@@ -96,7 +96,7 @@ struct ChannelRenamerTests {
     func nameDuringTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let drive = drive
-        let recorder = Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
+        let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
         try recorder.startTake()
         audio.deliver([[0.1], [0.1]])
@@ -122,7 +122,7 @@ struct ChannelRenamerTests {
 
     func recorder() -> Recorder {
         let drive = drive
-        return Recorder(deviceFolder: device, driveFolder: { DestinationAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
+        return Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
     }
 
     @Test("Names typed for the Show come back after a relaunch, and the next Take starts with them")

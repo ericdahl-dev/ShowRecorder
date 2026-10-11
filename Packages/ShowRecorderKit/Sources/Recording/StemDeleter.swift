@@ -22,7 +22,7 @@ public enum StemDeleter {
                 continue
             }
             let showFolder = parent.appending(path: show, directoryHint: .isDirectory)
-            let takeFolder = showFolder.appending(path: String(format: "Take %02d", take), directoryHint: .isDirectory)
+            let takeFolder = showFolder.appending(path: TakeMetadata.name(take: take), directoryHint: .isDirectory)
             do {
                 try delete(channel: channel, in: takeFolder, showFolder: showFolder)
                 deleted.append(kind)

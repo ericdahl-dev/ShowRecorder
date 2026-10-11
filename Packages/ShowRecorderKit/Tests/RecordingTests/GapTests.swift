@@ -49,7 +49,7 @@ struct GapTests {
         let drive = drive
         return Recorder(
             deviceFolder: device,
-            driveFolder: { DestinationAccess(folder: drive) },
+            driveFolder: { DriveAccess(folder: drive) },
             now: { RecordingTakeTests.showDay },
             makeStem: { url, info, resuming in
                 let real = try StemWriter.open(url: url, info: info, resumingAt: resuming)
@@ -104,7 +104,7 @@ struct GapTests {
         let drive = drive
         let recorder = Recorder(
             deviceFolder: device,
-            driveFolder: { DestinationAccess(folder: drive) },
+            driveFolder: { DriveAccess(folder: drive) },
             now: { RecordingTakeTests.showDay },
             makeStem: { url, info, resuming in
                 let real = try StemWriter.open(url: url, info: info, resumingAt: resuming)
@@ -153,7 +153,7 @@ struct GapTests {
     func driveJoinsMidTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let available = DriveSwitch()
-        let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DestinationAccess(folder: $0) } }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         try recorder.arm(audio)
 
         try recorder.startTake()
@@ -262,7 +262,7 @@ struct GapTests {
     func joiningDriveGetsEarlierMarkers() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let available = DriveSwitch()
-        let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DestinationAccess(folder: $0) } }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         try recorder.arm(audio)
 
         try recorder.startTake()
@@ -287,7 +287,7 @@ struct GapTests {
         let remounted = root.appending(path: "Drive 2")
         let recorder = Recorder(
             deviceFolder: device,
-            driveFolder: { available.folder.map { DestinationAccess(folder: $0) } },
+            driveFolder: { available.folder.map { DriveAccess(folder: $0) } },
             now: { RecordingTakeTests.showDay },
             makeStem: { url, info, resuming in
                 let real = try StemWriter.open(url: url, info: info, resumingAt: resuming)
@@ -316,7 +316,7 @@ struct GapTests {
         let free = FreeSpace(device: 100_000_000, drive: 100_000_000)
         let recorder = Recorder(
             deviceFolder: device,
-            driveFolder: { DestinationAccess(folder: drive) },
+            driveFolder: { DriveAccess(folder: drive) },
             now: { RecordingTakeTests.showDay },
             freeSpace: { free.bytes(at: $0) }, destinationCheckInterval: nil)
         try recorder.arm(audio)

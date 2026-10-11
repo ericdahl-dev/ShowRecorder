@@ -36,7 +36,7 @@ struct TakeEndTests {
         let free = FreeSpace(device: 100_000_000, drive: 100_000_000)
         let recorder = Recorder(
             deviceFolder: device,
-            driveFolder: { DestinationAccess(folder: drive) },
+            driveFolder: { DriveAccess(folder: drive) },
             now: { RecordingTakeTests.showDay },
             freeSpace: { free.bytes(at: $0) },
             destinationCheckInterval: .milliseconds(10))
@@ -77,7 +77,7 @@ struct TakeEndTests {
         let available = DriveAvailability()
         let recorder = Recorder(
             deviceFolder: device,
-            driveFolder: { available.isOn ? DestinationAccess(folder: drive) : nil },
+            driveFolder: { available.isOn ? DriveAccess(folder: drive) : nil },
             now: { RecordingTakeTests.showDay },
             destinationCheckInterval: .milliseconds(10))
         try recorder.arm(audio)
