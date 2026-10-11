@@ -54,7 +54,7 @@ ShowRecorder will be a free download with a **14-day Trial** of everything.
 - **Free** records 2 USB channels of your choice, with names and colors from the mixer.
 - **Pro** is a one-time purchase, shared with your family: every USB channel, channel names you type, the Show report and Reaper project, 96 kHz, and Templates. $19.99.
 
-During the TestFlight beta everything is unlocked.
+In the TestFlight beta, the Trial and Pro use sandbox purchases, which cost testers nothing.
 
 ## Privacy
 
