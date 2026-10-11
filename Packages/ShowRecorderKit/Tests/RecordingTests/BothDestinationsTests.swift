@@ -109,7 +109,7 @@ struct BothDestinationsTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let released = ReleaseCounter()
         let drive = drive
-        let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive, stop: { released.count += 1 }) }, now: { RecordingTakeTests.showDay })
+        let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive, stop: { released.increment() }) }, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
 
         try recorder.startTake()
@@ -123,9 +123,4 @@ struct BothDestinationsTests {
 @MainActor
 final class DriveSwitch {
     var folder: URL?
-}
-
-@MainActor
-final class ReleaseCounter {
-    var count = 0
 }

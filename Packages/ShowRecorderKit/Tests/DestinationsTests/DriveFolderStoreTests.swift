@@ -77,7 +77,6 @@ struct DriveFolderStoreTests {
     }
 
     @Test("Access for a Take gives the Drive folder while it's available, and nothing otherwise")
-    @MainActor
     func beginAccessOnlyWhenAvailable() throws {
         let store = DriveFolderStore(storage: storage)
         #expect(store.beginAccess() == nil)

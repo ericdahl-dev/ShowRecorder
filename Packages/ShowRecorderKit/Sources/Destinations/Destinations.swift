@@ -209,12 +209,12 @@ public struct DriveFolderStore: Sendable {
 /// (for a bookmarked folder, its security scope).
 public struct DriveAccess: Sendable {
     public let folder: URL
-    private let stop: @MainActor @Sendable () -> Void
+    private let stop: @Sendable () -> Void
 
-    public init(folder: URL, stop: @escaping @MainActor @Sendable () -> Void = {}) {
+    public init(folder: URL, stop: @escaping @Sendable () -> Void = {}) {
         self.folder = folder
         self.stop = stop
     }
 
-    @MainActor public func end() { stop() }
+    public func end() { stop() }
 }

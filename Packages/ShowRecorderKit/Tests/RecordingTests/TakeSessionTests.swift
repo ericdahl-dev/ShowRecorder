@@ -101,10 +101,10 @@ struct TakeSessionTests {
     func fullDriveIsReleased() async throws {
         let drive = drive
         let session = try session(free: { $0.path.hasPrefix(drive.path) ? 0 : .max })
-        var released = 0
-        let check = session.checkDestinations(drive: { DriveAccess(folder: drive, stop: { released += 1 }) })
+        let released = ReleaseCounter()
+        let check = session.checkDestinations(drive: { DriveAccess(folder: drive, stop: { released.increment() }) })
         #expect(check == .carryOn)
-        #expect(released == 1)
+        #expect(released.count == 1)
         #expect(session.copies.count == 1)
         _ = session.finish()
     }
@@ -117,25 +117,25 @@ struct TakeSessionTests {
             return fresh ? FailingStem(real, healthyFrames: 480) : real
         })
         let drive = drive
-        var firstReleased = 0
-        var secondReleased = 0
+        let firstReleased = ReleaseCounter()
+        let secondReleased = ReleaseCounter()
         try await deliver(480)
-        _ = session.checkDestinations(drive: { DriveAccess(folder: drive, stop: { firstReleased += 1 }) })
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive, stop: { firstReleased.increment() }) })
         for _ in 0..<4 { try await deliver(480) }
         try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
         // It joined at 480 and failed on its first audio: it has the silence and nothing more.
         let failedAt = Int(session.copies[1].writer.stemFrameCounts[0])
         #expect(failedAt == 480)
 
-        let check = session.checkDestinations(drive: { DriveAccess(folder: drive, stop: { secondReleased += 1 }) })
+        let check = session.checkDestinations(drive: { DriveAccess(folder: drive, stop: { secondReleased.increment() }) })
 
         #expect(check == .carryOn)
         #expect(opened.resumes.last == UInt64(failedAt))
         #expect(session.status(.drive) == .recording)
         #expect(session.copies.count == 2)
         // The earlier access is let go; the new one is held to the end.
-        #expect(firstReleased == 1)
-        #expect(secondReleased == 0)
+        #expect(firstReleased.count == 1)
+        #expect(secondReleased.count == 0)
 
         let rejoinFrame = capture.takeFrameCount
         try await deliver(480)
@@ -143,7 +143,7 @@ struct TakeSessionTests {
 
         #expect(finished.metadata.gaps == [.init(copy: .drive, start: 0, end: 480), .init(copy: .drive, start: failedAt, end: rejoinFrame)])
         #expect(finished.statuses[.drive] == .recording)
-        #expect(secondReleased == 0)
+        #expect(secondReleased.count == 0)
     }
 
     @Test("The last healthy Copy running low ends the Take; a Copy running low while another has room retires")
