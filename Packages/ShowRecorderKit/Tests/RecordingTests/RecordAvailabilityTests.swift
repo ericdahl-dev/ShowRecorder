@@ -37,9 +37,9 @@ struct RecordAvailabilityTests {
 
     @Test("No input to choose, or none chosen yet: say which, with no button")
     func noInput() throws {
-        #expect(try #require(block(devices: false)).text == "No audio input. Plug in your interface.")
+        #expect(try #require(block(devices: false)).text == "No audio interface. Plug in the Mixer's USB cable.")
         #expect(try #require(block(devices: false)).action == nil)
-        #expect(try #require(block()).text == "Choose an input in Settings.")
+        #expect(try #require(block()).text == "Choose the audio interface in Settings.")
         #expect(try #require(block()).action == nil)
     }
 

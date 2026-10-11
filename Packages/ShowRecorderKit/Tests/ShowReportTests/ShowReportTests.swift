@@ -207,7 +207,7 @@ struct ShowReportTests {
         #expect(rename.seconds == 0.5)
         #expect((rename.usbChannel, rename.from, rename.to) == (1, "Kick", "<b>Bass</b> Drum"))
         let html = report.html
-        #expect(html.contains("<h3>Renames on the mixer</h3>"))
+        #expect(html.contains("<h3>Renames on the Mixer</h3>"))
         #expect(html.contains("0:00.5") && html.contains("&lt;b&gt;Bass&lt;/b&gt; Drum"))
     }
 

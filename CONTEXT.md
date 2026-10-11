@@ -45,8 +45,8 @@ The external storage Destination, such as an SSD on the hub or a Mac volume.
 _Avoid_: SSD, external disk
 
 **Device**:
-The internal storage Destination on the iPhone, iPad or Mac running the app.
-_Avoid_: Internal, local, phone storage
+The internal storage Destination on the iPhone, iPad or Mac running the app. For the hardware itself, say "this iPhone", "this iPad" or "this Mac".
+_Avoid_: Internal, local, phone storage, this device
 
 **Copy**:
 One Take's Stems as written to one Destination, as in "the Drive copy" and "the Device copy".
@@ -69,7 +69,7 @@ _Avoid_: Gap, glitch, overrun (in user-facing text)
 Levels are in dBFS: 0 is full scale, and silence reads -80. The scale and thresholds are in [ADR 0005](docs/adr/0005-level-meter-scale.md).
 
 **Peak**:
-The highest level a USB Channel reaches, measured per meter window of about 33 ms. The wide peak bar shows it: it jumps to a new peak and falls 15% per 1/30 s. The bar is green up to -18, yellow above -18 up to -6 and red above -6. A held-peak line across the bar holds 1.5 s, then falls 40 dB per second; it turns red and thicker (4 pt instead of 2 pt) above -3, so color is not the only cue. A level that reaches full scale is "clipping".
+The highest level a USB Channel reaches, measured per meter window of about 33 ms. The wide peak bar shows it: it jumps to a new peak and falls 20 dB per second. The bar is green up to -18, yellow above -18 up to -6 and red above -6. A held-peak line across the bar holds 1.5 s, then falls 40 dB per second; it turns red and thicker (4 pt instead of 2 pt) above -3, so color is not the only cue. A level that reaches full scale is "clipping".
 _Avoid_: Max, spike, transient
 
 **Average level**:
@@ -94,9 +94,17 @@ _Avoid_: Console, desk, board
 The connection over which the recorder reads Source names and colors, Snapshots and Mixer Triggers from the Mixer. It is separate from the USB audio, and recording never depends on it.
 _Avoid_: OSC connection, control link
 
+**Audio interface**:
+The USB audio device the recorder is Armed on, usually the Mixer itself (such as "X18/XR18"). Chosen in Settings.
+_Avoid_: Input, audio input, sound card
+
 **USB Channel**:
 One of the numbered audio channels the mixer sends to the recorder over USB. Every USB Channel is recorded in every Take.
 _Avoid_: Input, track
+
+**Channel name**:
+A name the operator types for a USB Channel, used for its Stem in place of the Source's name. Typed names are a Pro feature; Templates carry them.
+_Avoid_: Track name, label
 
 **Source**:
 Whatever the mixer routes to a USB Channel: an input channel, the aux input, a bus or the main mix. It carries the name and color shown for the Stem.

@@ -27,7 +27,7 @@ extension RecordScreenModel {
             }
         case .replaceDevice:
             guard let choice = devices.first(where: { $0.id == selectedDeviceID }) else {
-                handle(.restartFailed("no input is selected"))
+                handle(.restartFailed("no audio interface is selected"))
                 return
             }
             do {

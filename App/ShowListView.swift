@@ -16,7 +16,7 @@ struct ShowListView: View {
                     ContentUnavailableView {
                         Label("Can't read the Shows folder", systemImage: "exclamationmark.triangle")
                     } description: {
-                        Text("The Shows on this device or the Drive couldn't be opened.")
+                        Text("The Shows on the Device or the Drive couldn't be opened.")
                     } actions: {
                         Button("Try again") { Task { await reload() } }
                     }

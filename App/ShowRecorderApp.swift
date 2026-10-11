@@ -30,7 +30,7 @@ struct ShowRecorderApp: App {
             Button("Record") { model.record() }
                 .keyboardShortcut("r", modifiers: .command)
                 .disabled(!model.recorder.isArmed || model.recorder.isRecording)
-            Button("Stop Recording…") { model.confirmingStop = true }
+            Button("Stop Take…") { model.confirmingStop = true }
                 .keyboardShortcut(".", modifiers: .command)
                 .disabled(!model.recorder.isRecording)
             Button("Add Marker") { model.recorder.addMarker() }

@@ -12,7 +12,7 @@ public enum RecordAvailability {
         if micDenied { return Block(text: "Microphone access is off. Allow it in Settings.", action: .openSystemSettings) }
         if armFailed { return Block(text: "The input didn't start.", action: .arm) }
         if disarmedForIdle { return Block(text: "Disarmed after 30 minutes idle.", action: .arm) }
-        if !hasInputs { return Block(text: "No audio input. Plug in your interface.", action: nil) }
-        return Block(text: "Choose an input in Settings.", action: nil)
+        if !hasInputs { return Block(text: "No audio interface. Plug in the Mixer's USB cable.", action: nil) }
+        return Block(text: "Choose the audio interface in Settings.", action: nil)
     }
 }

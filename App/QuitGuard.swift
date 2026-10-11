@@ -3,7 +3,7 @@ import AppKit
 import Recording
 
 /// Command-Q (or Quit from the Dock) during a Take asks "Stop the Take?" first, as closing the window does.
-/// Keep Recording cancels the quit; Stop Recording ends the Take and quits (see `RecorderLifecycle.quitRequested`).
+/// Keep Going cancels the quit; Stop Take ends the Take and quits (see `RecorderLifecycle.quitRequested`).
 final class QuitGuard: NSObject, NSApplicationDelegate {
     /// Set by the app once its model exists.
     @MainActor static weak var model: RecordScreenModel?
@@ -16,8 +16,8 @@ final class QuitGuard: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.messageText = "Stop the Take?"
         alert.informativeText = "\(model.takeTitle) is still recording. Quitting ends it."
-        alert.addButton(withTitle: "Keep Recording")
-        alert.addButton(withTitle: "Stop Recording").hasDestructiveAction = true
+        alert.addButton(withTitle: "Keep Going")
+        alert.addButton(withTitle: "Stop Take").hasDestructiveAction = true
         guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
         model.stop()
         return .terminateNow

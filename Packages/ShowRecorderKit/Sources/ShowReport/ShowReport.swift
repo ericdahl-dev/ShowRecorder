@@ -220,7 +220,7 @@ public struct ShowReport: Equatable, Sendable {
             out += "</tbody>\n</table></div>\n"
         }
         if !take.renames.isEmpty {
-            out += "<h3>Renames on the mixer</h3>\n<p class=\"note\">Sources renamed on the mixer during the Take. The Stems keep the names they started with.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>Time</th><th>USB Channel</th><th>From</th><th>To</th></tr></thead>\n<tbody>\n"
+            out += "<h3>Renames on the Mixer</h3>\n<p class=\"note\">Sources renamed on the Mixer during the Take. The Stems keep the names they started with.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>Time</th><th>USB Channel</th><th>From</th><th>To</th></tr></thead>\n<tbody>\n"
             for rename in take.renames {
                 out += "<tr><td class=\"num\">\(Self.markerClock(rename.seconds))</td><td class=\"num\">\(rename.usbChannel)</td><td class=\"source\">\(Self.escape(rename.from))</td><td class=\"source\">\(Self.escape(rename.to))</td></tr>\n"
             }

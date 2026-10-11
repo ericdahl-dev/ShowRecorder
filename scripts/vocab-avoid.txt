@@ -1,0 +1,15 @@
+# Words CONTEXT.md says to avoid in strings the app shows (#248).
+# Each line: a regex matched against a string literal, then " => " and what to say instead.
+[Ss]top [Rr]ecording => "Stop Take N?" (name the Take)
+[Kk]eep [Rr]ecording => "Keep Going"
+[Tt]his device => "the Device" for storage, "this iPhone"/"this iPad"/"this Mac" for the hardware
+(^"|[ (])dropouts?\b(?![.)]) => "Dropout" (a glossary term)
+[Cc]hannel files => "Stems"
+^"Input"$ => "Audio interface"
+[Nn]o (audio )?input\b => "No audio interface"
+[Cc]hoose an input => "Choose the Mixer's audio interface"
+^"Set the input => "Choose the audio interface"
+^"Audio input"$ => "Audio interface"
+USB input => "audio interface"
+\b(the|a|no|any) mixers?\b => "Mixer" (a glossary term)
+\bmixer's\b => "Mixer's"

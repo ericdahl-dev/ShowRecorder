@@ -51,7 +51,7 @@ public final class SessionAudioDevice: AudioIODevice, @unchecked Sendable {
         if maximum > 0 {
             try audioSession.setPreferredInputNumberOfChannels(maximum)
         }
-        let name = audioSession.currentRoute.inputs.first?.portName ?? "Audio input"
+        let name = audioSession.currentRoute.inputs.first?.portName ?? "Audio interface"
         return SessionAudioDevice(
             name: name,
             inputChannelCount: audioSession.inputNumberOfChannels,

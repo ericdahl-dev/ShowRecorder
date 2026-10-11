@@ -7,9 +7,9 @@ Rigs that ShowRecorder has recorded on, checked on real hardware (not the Simula
 | Device | Interface | Connection | What was checked | Result |
 |---|---|---|---|---|
 | MacBook Pro 16-inch (2023, M2 Max), macOS 27 | Behringer XR18 | USB cable straight to the Mac | 18 USB Channels with independent signal; a Take with every Stem | 18 Stems, 0 Dropouts |
-| MacBook Pro 16-inch (2023, M2 Max), macOS 27 | Behringer XR18 | Wi-Fi (Mixer Link) | Channel names and colors; Find mixers with no address typed | Names on every Stem; found in under 4 s, 3 of 3 |
+| MacBook Pro 16-inch (2023, M2 Max), macOS 27 | Behringer XR18 | Wi-Fi (Mixer Link) | Channel names and colors; Find Mixers with no address typed | Names on every Stem; found in under 4 s, 3 of 3 |
 | MacBook Pro 16-inch (2023, M2 Max), macOS 27 | Audient EVO 4 | USB | A Take at 96 kHz; switching the interface's sample rate | Recorded at 96 kHz |
-| iPhone (TestFlight build) | Behringer XR18 | Wi-Fi (Mixer Link) | Find mixers with no address typed | Found |
+| iPhone (TestFlight build) | Behringer XR18 | Wi-Fi (Mixer Link) | Find Mixers with no address typed | Found |
 
 ## Waiting on the hardware session (#327)
 

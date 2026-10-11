@@ -47,7 +47,7 @@ struct SoundcheckTests {
 
     @Test("Channels: nothing Armed, fewer than the Mixer sends, or no signal each fails with what to do")
     func channelsProblems() {
-        #expect(Soundcheck.judgeChannels(usbChannelCount: 0, expected: 18, signal: nil).message == "No input is Armed. Choose the Mixer's USB input in Settings.")
+        #expect(Soundcheck.judgeChannels(usbChannelCount: 0, expected: 18, signal: nil).message == "No audio interface is Armed. Choose the Mixer's audio interface in Settings.")
         #expect(Soundcheck.judgeChannels(usbChannelCount: 2, expected: 18, signal: TakeSignal(recorded: 2, withSignal: 2)).message
             == "The input sends 2 USB Channels; the Mixer sends 18. On the Mixer, set the USB interface to 18/18 (X AIR Edit: Setup, Audio/Midi).")
         #expect(Soundcheck.judgeChannels(usbChannelCount: 18, expected: 18, signal: TakeSignal(recorded: 18, withSignal: 0)).message

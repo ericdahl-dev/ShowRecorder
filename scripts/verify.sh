@@ -6,6 +6,9 @@ set -eu
 cd "$(dirname "$0")/.."
 DD="${DERIVED_DATA:-build/dd}"
 
+echo "== Vocabulary (CONTEXT.md)"
+./scripts/vocab-check.sh
+
 echo "== Package tests"
 (cd Packages/ShowRecorderKit && swift test)
 
