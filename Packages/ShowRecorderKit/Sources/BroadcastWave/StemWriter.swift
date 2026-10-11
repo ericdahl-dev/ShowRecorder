@@ -188,7 +188,8 @@ public final class StemWriter: StemSink {
     public static let bytesPerSample = 3
 
     /// Where the audio starts in every Stem, plain RIFF or RF64: the header is the same length for all of them.
-    static let dataStart = header(info: Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: Date(timeIntervalSince1970: 0))).bytes.count
+    /// Where the samples start in a Stem this writer makes: the header is a fixed size whatever the Info.
+    public static let dataStart = header(info: Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: Date(timeIntervalSince1970: 0))).bytes.count
 
     /// Appends samples. Values outside -1...1 are clamped.
     public func append(_ samples: UnsafeBufferPointer<Float>) throws {
