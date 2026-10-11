@@ -4,6 +4,8 @@ Paste into App Store Connect > ShowRecorder > the 1.0 version (and App Informati
 
 Brand names (Behringer, X Air, XR18, MR18) appear only as compatibility text in the description. They are not in the name, subtitle or keywords (Guideline 2.3.7).
 
+1.0 is iPhone and iPad only; the Mac follows right after (Eric, 2026-10-11). Put "Mac" back in the promotional text, description and "What you need" when the Mac version is submitted.
+
 ## Name (30)
 
 ShowRecorder
@@ -14,7 +16,7 @@ Multitrack recorder for mixers
 
 ## Promotional text (170)
 
-Record every channel of your mixer on your iPhone, iPad or Mac. One file per channel, named from the mixer, with a second copy on a USB drive. Try everything for 14 days.
+Record every channel of your mixer on your iPhone or iPad. One file per channel, named from the mixer, with a second copy on a USB drive. Try everything for 14 days.
 
 ## Keywords (100)
 
@@ -24,7 +26,7 @@ live,stems,wav,gig,band,church,concert,sound engineer,multichannel,usb audio,daw
 
 Record every channel of your mixer, with no recording laptop at the gig.
 
-Plug a compatible mixer into your iPhone, iPad or Mac, press record, and get one 24-bit WAV file per channel, named after what's on it and ready for your DAW.
+Plug a compatible mixer into your iPhone or iPad, press record, and get one 24-bit WAV file per channel, named after what's on it and ready for your DAW.
 
 EVERY CHANNEL, ITS OWN FILE
 One Broadcast WAV per USB channel, at the mixer's 48 kHz or up to 96 kHz on interfaces that offer it. From an 18-channel mixer you get 18 Stems in step with each other.
@@ -55,11 +57,11 @@ A Take never stops, and your audio is never held back, because of a Trial, a lim
 
 FREE, 14-DAY TRIAL AND PRO
 ShowRecorder is free to download. Start a 14-day Trial of everything at no cost. After the Trial, Free records 2 USB channels of your choice, with names and colors from the mixer.
-Pro is a one-time purchase, shared with your family and across iPhone, iPad and Mac: every USB channel, typed channel names, the Show report and Reaper project, 96 kHz and Templates. No subscription.
+Pro is a one-time purchase, shared with your family and across your iPhone and iPad: every USB channel, typed channel names, the Show report and Reaper project, 96 kHz and Templates. No subscription.
 
 WHAT YOU NEED
 - A Behringer X Air XR18 or MR18 for 18 channels with names and colors. Other class-compliant USB audio interfaces record too, without names.
-- A USB-C iPhone, an iPad or a Mac.
+- A USB-C iPhone or an iPad.
 - A powered USB-C hub lets the phone charge while the mixer and a drive are plugged in.
 - About 9.3 GB per hour for 18 channels at 48 kHz. The app shows the recording time left.
 
