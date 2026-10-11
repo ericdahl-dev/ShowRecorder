@@ -9,7 +9,7 @@ public struct TrialDisclosure: Equatable, Sendable {
     /// - Parameter proPrice: the Pro product's display price, such as "$19.99".
     public init(proPrice: String) {
         lines = [
-            "Everything Pro does, at no cost, for 14 days: every USB Channel, the Show report and Reaper export.",
+            "Everything Pro does, at no cost, for 14 days: every USB Channel, channel names you type, the Show report, Reaper export, 96 kHz recording and Templates.",
             "When the Trial ends, Free records 2 USB Channels of your choice. Your Shows and Takes stay yours.",
             "Pro is a one-time purchase of \(proPrice), shared with your family. Nothing is charged when the Trial ends.",
             "A Take never stops because the Trial ends. It is checked only when you press record.",
