@@ -109,13 +109,9 @@ public enum ShowList {
     }
 
     static func takeMetadata(in showFolder: URL) -> [(folder: URL, take: TakeMetadata)] {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
         let entries = (try? FileManager.default.contentsOfDirectory(at: showFolder, includingPropertiesForKeys: nil)) ?? []
         return entries.compactMap { folder in
-            guard let data = try? Data(contentsOf: folder.appending(path: TakeMetadata.fileName)),
-                  let take = try? decoder.decode(TakeMetadata.self, from: data)
-            else { return nil }
+            guard let take = try? TakeMetadata.read(fromTakeFolder: folder) else { return nil }
             return (folder, take)
         }
     }

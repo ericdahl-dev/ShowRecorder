@@ -20,15 +20,18 @@ let package = Package(
         // Broadcast WAV Stem files.
         .target(name: "BroadcastWave"),
         // The recorder: Armed state, meters, Shows and Takes. No platform audio frameworks.
-        .target(name: "Recording", dependencies: ["AudioIO", "BroadcastWave", "MixerLink", "ShowReport", "ProjectExport", "Destinations"]),
+        .target(name: "Recording", dependencies: ["AudioIO", "BroadcastWave", "MixerLink", "ShowReport", "ProjectExport", "Destinations", "TakeFile"]),
+        // A Take's Take.json: what was recorded, its Markers, Gaps, Dropouts and Repairs. Written by Recording,
+        // read by Recording and the Show report.
+        .target(name: "TakeFile", dependencies: ["Destinations"]),
         // Core Audio devices on macOS. Empty on other platforms.
         .target(name: "CoreAudioIO", dependencies: ["AudioIO"]),
         // Open Sound Control messages and bundles. Pure encoding, no networking.
         .target(name: "OSC"),
         // The Mixer Link: mixer drivers (X-Air first) over UDP.
         .target(name: "MixerLink", dependencies: ["OSC"]),
-        // The Show report (Report.html and Channels.csv) built from a Show folder. Pure Foundation.
-        .target(name: "ShowReport"),
+        // The Show report (Report.html and Channels.csv) built from a Show folder's Take.json files and Stems.
+        .target(name: "ShowReport", dependencies: ["TakeFile", "Destinations", "BroadcastWave"]),
         // DAW projects (Reaper first) from a Show's Takes. Pure rendering, no file access.
         .target(name: "ProjectExport", dependencies: ["MixerLink"]),
         // Where Takes are written: the Drive folder chosen by the operator.
@@ -38,7 +41,7 @@ let package = Package(
         .testTarget(name: "MixerLinkTests", dependencies: ["MixerLink", "OSC"]),
         .testTarget(name: "RecordingTests", dependencies: ["Recording", "AudioIO", "MixerLink", "Destinations"]),
         .testTarget(name: "BroadcastWaveTests", dependencies: ["BroadcastWave"]),
-        .testTarget(name: "ShowReportTests", dependencies: ["ShowReport", "Recording", "AudioIO", "MixerLink", "BroadcastWave"]),
+        .testTarget(name: "ShowReportTests", dependencies: ["ShowReport", "Recording", "AudioIO", "MixerLink", "BroadcastWave", "ProjectExport"]),
         .testTarget(name: "ProjectExportTests", dependencies: ["ProjectExport", "Recording", "AudioIO", "MixerLink"]),
     ]
 )

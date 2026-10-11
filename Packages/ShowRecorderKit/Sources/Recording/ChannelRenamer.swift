@@ -47,9 +47,7 @@ public enum ChannelRenamer {
     }
 
     private static func rename(names: [Int: String], lateChannels: Set<Int>, in folder: URL) throws {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        var take = try decoder.decode(TakeMetadata.self, from: Data(contentsOf: folder.appending(path: TakeMetadata.fileName)))
+        var take = try TakeMetadata.read(fromTakeFolder: folder)
         let fm = FileManager.default
         for index in take.usbChannels.indices {
             let channel = take.usbChannels[index]

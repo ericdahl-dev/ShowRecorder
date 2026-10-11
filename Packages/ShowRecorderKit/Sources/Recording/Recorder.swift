@@ -493,9 +493,7 @@ public final class Recorder {
     }
 
     private static func readTake(at folder: URL) -> TakeMetadata? {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return (try? Data(contentsOf: folder.appending(path: TakeMetadata.fileName))).flatMap { try? decoder.decode(TakeMetadata.self, from: $0) }
+        try? TakeMetadata.read(fromTakeFolder: folder)
     }
 
     /// Updates `takeMarkers` and `markerEntries` from the Take's metadata.

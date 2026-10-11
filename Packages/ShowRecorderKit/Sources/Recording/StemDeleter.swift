@@ -42,9 +42,7 @@ public enum StemDeleter {
 
     private static func delete(channel: Int, in takeFolder: URL, showFolder: URL) throws {
         guard ShowDeleter.isRealFolder(showFolder), ShowDeleter.isRealFolder(takeFolder) else { throw DeleteError.noSuchChannel }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        var take = try decoder.decode(TakeMetadata.self, from: Data(contentsOf: takeFolder.appending(path: TakeMetadata.fileName)))
+        var take = try TakeMetadata.read(fromTakeFolder: takeFolder)
         guard let index = take.usbChannels.firstIndex(where: { $0.usbChannel == channel }) else { throw DeleteError.noSuchChannel }
         let file = take.usbChannels[index].stemFile
         guard ShowDeleter.isPlainName(file), file.hasSuffix(".wav") else { throw DeleteError.noSuchChannel }
