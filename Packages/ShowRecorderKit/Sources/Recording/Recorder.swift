@@ -39,6 +39,8 @@ public final class Recorder {
     public private(set) var endedForLackOfSpace = false
     /// How each Copy of the last Take ended up: complete, has Gaps, Repaired or Repair failed.
     public private(set) var lastTakeOutcomes: [DestinationKind: CopyOutcome] = [:]
+    /// How many USB Channels the last Take recorded and how many carried signal (#62: Free's limit, felt).
+    public private(set) var lastTakeSignal: TakeSignal?
     /// Whether Repair is still filling Gaps from the last Take.
     public private(set) var isRepairing = false
 
@@ -556,6 +558,7 @@ public final class Recorder {
         session.accumulate(capture?.meters.takeLevels() ?? [])
         let finished = session.finish()
         finishedCopies = finished.statuses
+        lastTakeSignal = finished.signal
         dropoutCount = finished.metadata.markers.filter { $0.origin == .dropout }.count
         refreshMarkers(from: finished.metadata)
         lastTake = LastTake(

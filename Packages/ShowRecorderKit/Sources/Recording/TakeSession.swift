@@ -55,6 +55,7 @@ final class TakeSession {
         var folders: [URL]
         var access: DestinationAccess?
         var statuses: [DestinationKind: CopyStatus]
+        var signal: TakeSignal
     }
 
     /// The open Show, which gains a Drive folder when the Drive joins.
@@ -233,7 +234,9 @@ final class TakeSession {
             // A Copy can fail while its writer drains at stop.
             statuses[copy.kind] = .interrupted
         }
-        return Finished(metadata: metadata, folders: copies.map(\.folder), access: copies.lazy.compactMap(\.access).first, statuses: statuses)
+        return Finished(
+            metadata: metadata, folders: copies.map(\.folder), access: copies.lazy.compactMap(\.access).first, statuses: statuses,
+            signal: TakeSignal(recorded: metadata.usbChannels.count, withSignal: levels.channelsWithSignal()))
     }
 
     // MARK: - Drive join and rejoin

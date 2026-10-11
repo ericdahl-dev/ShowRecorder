@@ -14,11 +14,15 @@ struct ProSection: View {
 
     private var store: ProStore { model.pro }
     @State private var showingTrial = false
+    @State private var showingPaywall = false
 
     var body: some View {
         let tier = store.tier()
         Section {
             LabeledContent("Plan", value: tier.title)
+            if tier != .pro {
+                Button("See what Pro adds") { showingPaywall = true }
+            }
             if tier == .free, store.purchases.trialStartedAt == nil {
                 Button("Start 14-day Trial…") { showingTrial = true }
             }
@@ -44,6 +48,7 @@ struct ProSection: View {
             Text(footer)
         }
         .sheet(isPresented: $showingTrial) { TrialSheet(store: store) }
+        .sheet(isPresented: $showingPaywall) { PaywallSheet(store: store, moment: nil) }
     }
 
     private var priceText: String {
