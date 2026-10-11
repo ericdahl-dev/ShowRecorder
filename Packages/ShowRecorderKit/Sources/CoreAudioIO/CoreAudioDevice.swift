@@ -46,6 +46,40 @@ public final class CoreAudioDevice: AudioIODevice, @unchecked Sendable {
         }
     }
 
+    /// The sample rates the device offers, in whole Hz, lowest first (#195). A mixer's USB input usually offers
+    /// only the rate set on the mixer.
+    public var availableSampleRates: [Int] { availableNominalSampleRates(of: id) }
+
+    /// Sets the device's sample rate, which on a Mac is the interface's rate for every app (Audio MIDI Setup), and
+    /// returns the device as it is afterwards. Throws when the device refuses or doesn't change within a second.
+    public static func settingSampleRate(_ rate: Int, of device: CoreAudioDevice) throws -> CoreAudioDevice {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyNominalSampleRate,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        var wanted = Float64(rate)
+        let status = AudioObjectSetPropertyData(device.id, &address, 0, nil, UInt32(MemoryLayout<Float64>.size), &wanted)
+        guard status == noErr else { throw SampleRateError.refused(status) }
+        for _ in 0..<50 where Int(nominalSampleRate(of: device.id).rounded()) != rate {
+            Thread.sleep(forTimeInterval: 0.02)
+        }
+        guard let updated = inputDevices().first(where: { $0.uid == device.uid }),
+              Int(updated.sampleRate.rounded()) == rate else { throw SampleRateError.notApplied(rate) }
+        return updated
+    }
+
+    public enum SampleRateError: Error, CustomStringConvertible {
+        case refused(OSStatus)
+        case notApplied(Int)
+
+        public var description: String {
+            switch self {
+            case .refused(let status): "the interface refused the sample rate (\(status))"
+            case .notApplied(let rate): "the interface didn't switch to \(rate) Hz"
+            }
+        }
+    }
+
     /// The system's default input device, if there is one.
     public static func defaultInputDeviceID() -> AudioDeviceID? {
         var address = AudioObjectPropertyAddress(
@@ -116,6 +150,28 @@ private func stringProperty(_ selector: AudioObjectPropertySelector, of id: Audi
     var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
     guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &value) == noErr, let value else { return nil }
     return value.takeRetainedValue() as String
+}
+
+/// The device's offered rates. Core Audio gives ranges; a range offers the common rates inside it.
+private func availableNominalSampleRates(of id: AudioDeviceID) -> [Int] {
+    var address = AudioObjectPropertyAddress(
+        mSelector: kAudioDevicePropertyAvailableNominalSampleRates,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMain)
+    var size: UInt32 = 0
+    guard AudioObjectGetPropertyDataSize(id, &address, 0, nil, &size) == noErr, size > 0 else { return [] }
+    var ranges = [AudioValueRange](repeating: AudioValueRange(), count: Int(size) / MemoryLayout<AudioValueRange>.size)
+    guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &ranges) == noErr else { return [] }
+    let common = [44_100, 48_000, 88_200, 96_000, 176_400, 192_000]
+    var rates = Set<Int>()
+    for range in ranges {
+        if range.mMinimum == range.mMaximum {
+            rates.insert(Int(range.mMinimum.rounded()))
+        } else {
+            rates.formUnion(common.filter { Double($0) >= range.mMinimum && Double($0) <= range.mMaximum })
+        }
+    }
+    return rates.sorted()
 }
 
 private func nominalSampleRate(of id: AudioDeviceID) -> Double {
