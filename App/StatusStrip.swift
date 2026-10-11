@@ -143,7 +143,7 @@ struct AlertBanner: View {
             }
             if let action = alert.action {
                 // The bezel adds about 7 pt above and below: 30 inside makes a 44 pt button, inside the slot.
-                Button { perform(action) } label: { Text(label(for: action)).frame(minHeight: 30) }
+                Button { perform(action) } label: { Text(action.title).frame(minHeight: 30) }
                     .buttonStyle(.bordered)
                     .tint(foreground)
             }
@@ -167,14 +167,6 @@ struct AlertBanner: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func label(for action: ScreenAlert.Action) -> String {
-        switch action {
-        case .openSystemSettings: "Open Settings"
-        case .dismissHint: "Got it"
-        case .checkDrive: "Check Drive"
-        case .arm: "Arm"
-        }
-    }
 
     private var icon: String {
         switch alert.tone {
@@ -211,5 +203,42 @@ private struct StripLabelStyle: LabelStyle {
                 configuration.title
             }
         }
+    }
+}
+
+extension ScreenAlert.Action {
+    /// The button's words, the same in the alert banner and the disarmed record screen.
+    var title: String {
+        switch self {
+        case .openSystemSettings: "Open Settings"
+        case .dismissHint: "Got it"
+        case .checkDrive: "Check Drive"
+        case .arm: "Arm"
+        }
+    }
+}
+
+/// Fills the empty meter region while nothing is Armed: why, and the one thing to do about it (#253).
+struct DisarmedNotice: View {
+    let block: RecordAvailability.Block
+    let perform: (ScreenAlert.Action) -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "waveform.slash")
+                .font(.largeTitle)
+                .secondaryText()
+            Text(block.text)
+                .font(.headline)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            if let action = block.action {
+                Button { perform(action) } label: { Text(action.title).frame(minHeight: 30) }
+                    .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding()
+        .frame(maxWidth: 320)
+        .accessibilityElement(children: .combine)
     }
 }
