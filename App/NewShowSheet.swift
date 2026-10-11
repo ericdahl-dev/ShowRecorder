@@ -87,17 +87,28 @@ struct NewShowSheet: View {
                     message = model.startShow(from: template)
                     if message == nil { dismiss() }
                 } label: {
-                    LabeledContent(template.name, value: template.venue ?? "")
+                    LabeledContent {
+                        Text(template.venue ?? "")
+                    } label: {
+                        if template.id == model.templates.defaultID {
+                            Label(template.name, systemImage: "star.fill")
+                        } else {
+                            Text(template.name)
+                        }
+                    }
                 }
+                .accessibilityValue(template.id == model.templates.defaultID ? "Default" : "")
                 .disabled(access != .usable)
                 .swipeActions {
                     Button("Delete", role: .destructive) { model.templates.delete(template.id) }
+                    defaultButton(template)
                     Button("Rename") {
                         templateName = template.name
                         renaming = template
                     }
                 }
                 .contextMenu {
+                    defaultButton(template)
                     Button("Rename") {
                         templateName = template.name
                         renaming = template
@@ -113,7 +124,15 @@ struct NewShowSheet: View {
         } header: {
             Text("Templates")
         } footer: {
-            Text(access.note ?? "Starting from a Template ends the open Show and brings its channel names, Pre-roll and Mixer.")
+            Text(access.note ?? "Starting from a Template ends the open Show and brings its channel names, Pre-roll and Mixer. The default (★) readies the next Show when the app opens with none open.")
         }
+    }
+
+    private func defaultButton(_ template: Template) -> some View {
+        let isDefault = template.id == model.templates.defaultID
+        return Button(isDefault ? "Not default" : "Make default") {
+            model.templates.setDefault(isDefault ? nil : template.id)
+        }
+        .tint(.yellow)
     }
 }

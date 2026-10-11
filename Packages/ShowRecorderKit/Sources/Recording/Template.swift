@@ -37,6 +37,19 @@ public struct Template: Codable, Equatable, Identifiable, Sendable {
         return match.host
     }
 
+    /// A Template from a past Show's setup (#34): its channel names and venue, named like the Show without the date
+    /// ("2026-10-09 Youth Night" gives "Youth Night"). Shows don't keep a Mixer or Pre-roll, so those are today's.
+    /// Nil when the Show's file can't be read.
+    public static func fromShow(folder: URL, mixerNetworkName: String?, mixerAddress: String, preRollSeconds: Double) -> Template? {
+        guard let file = ShowFile.read(from: folder) else { return nil }
+        let datePrefix = #/^\d{4}-\d{2}-\d{2} /#
+        let name = file.name.replacing(datePrefix, with: "")
+        let names = file.channelNames?.reduce(into: [Int: String]()) { if let number = Int($1.key) { $0[number] = $1.value } } ?? [:]
+        return Template(
+            name: name, venue: file.venue, channelNames: names,
+            mixerNetworkName: mixerNetworkName, mixerAddress: mixerAddress, preRollSeconds: preRollSeconds)
+    }
+
     func withID(_ id: UUID) -> Template {
         var copy = self
         copy.id = id
@@ -48,13 +61,26 @@ public struct Template: Codable, Equatable, Identifiable, Sendable {
 public struct TemplateStore {
     /// The key they are stored under.
     public static let key = "templates"
+    /// The key of the default Template's id.
+    public static let defaultKey = "defaultTemplate"
     private let defaults: UserDefaults
     public private(set) var templates: [Template]
+    public private(set) var defaultID: Template.ID?
+
+    /// The Template that readies the next Show at launch when none is open (#34).
+    public var defaultTemplate: Template? { templates.first { $0.id == defaultID } }
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         let stored = defaults.data(forKey: Self.key).flatMap { try? JSONDecoder().decode([Template].self, from: $0) }
         templates = Self.sorted(stored ?? [])
+        defaultID = defaults.string(forKey: Self.defaultKey).flatMap(UUID.init(uuidString:))
+    }
+
+    /// Makes `id` the default Template, or none.
+    public mutating func setDefault(_ id: Template.ID?) {
+        defaultID = id
+        defaults.set(id?.uuidString, forKey: Self.defaultKey)
     }
 
     /// Adds `template`, or replaces the one with its id.
@@ -72,6 +98,7 @@ public struct TemplateStore {
     }
 
     public mutating func delete(_ id: Template.ID) {
+        if defaultID == id { setDefault(nil) }
         templates.removeAll { $0.id == id }
         persist()
     }

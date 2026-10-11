@@ -799,6 +799,37 @@ final class RecordScreenModel {
         return nil
     }
 
+    /// At launch with no Show open: the default Template readies the next Show (its channel names now, its name when
+    /// record starts it), and sets its Pre-roll and Mixer (#34).
+    func applyDefaultTemplate() {
+        guard templateAccess == .usable, let template = templates.defaultTemplate,
+              recorder.prepareNextShow(from: template) else { return }
+        if preRollSeconds != template.preRollSeconds {
+            preRollSeconds = template.preRollSeconds
+            preRollChanged()
+        }
+        if !template.mixerAddress.isEmpty || template.mixerNetworkName != nil {
+            Task { await connectMixer(for: template) }
+        }
+    }
+
+    /// Saves a past Show's setup as a Template named `name`: its channel names and venue, with today's Pre-roll and
+    /// Mixer (#34). Returns what to tell the operator, or nil when it was saved.
+    func saveTemplate(fromShow folder: URL, named name: String) -> String? {
+        guard var template = Template.fromShow(
+            folder: folder, mixerNetworkName: mixerLink.identity?.networkName,
+            mixerAddress: mixerAddress, preRollSeconds: preRollSeconds) else { return "This Show's setup couldn't be read." }
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty { template.name = name }
+        templates.save(template)
+        return nil
+    }
+
+    /// The name a Template from this past Show starts with: the Show's, without the date.
+    func templateName(forShow folder: URL) -> String {
+        Template.fromShow(folder: folder, mixerNetworkName: nil, mixerAddress: "", preRollSeconds: 0)?.name ?? ""
+    }
+
     private func connectMixer(for template: Template) async {
         if !template.mixerAddress.isEmpty {
             mixerAddress = template.mixerAddress
@@ -905,6 +936,7 @@ final class RecordScreenModel {
     func start() {
         guard loop == nil else { return }
         loop = Task { await run() }
+        applyDefaultTemplate()
         Task { await offerDemoSignalIfAvailable() }
         // `-demoRecord` starts a Take two seconds after launch, for screenshots.
         if launchFlag("-demoRecord") {

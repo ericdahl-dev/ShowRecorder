@@ -212,6 +212,7 @@ public final class Recorder {
     public func startNewShow(name: String, venue: String) throws {
         guard !isRecording else { throw RecorderError.takeRunning }
         let date = now()
+        nextShow = nil
         var show = try Show.create(in: deviceFolder, drive: nil, on: date, name: name, venue: venue)
         // Names belong to a Show: the one being replaced keeps its own; names typed before any Show carry over.
         if currentShow != nil { channelNames = [:] } else if !channelNames.isEmpty { show.setChannelNames(channelNames) }
@@ -228,6 +229,25 @@ public final class Recorder {
             setChannelName(name, forChannel: channel)
         }
         currentShow?.setChannelNames(channelNames)
+    }
+
+    /// The name and venue the next Show gets when a record press starts one, set by the default Template (#34).
+    private var nextShow: (name: String, venue: String?)?
+
+    /// Readies the next Show from the default Template, without creating it: its channel names now, and its name and
+    /// venue when a record press starts it. Only when no Show is open (an idle one is ended first) and between Takes;
+    /// returns whether it did.
+    @discardableResult
+    public func prepareNextShow(from template: Template) -> Bool {
+        guard !isRecording else { return false }
+        endIdleShow(at: now())
+        guard currentShow == nil else { return false }
+        channelNames = [:]
+        for (channel, name) in template.channelNames.sorted(by: { $0.key < $1.key }) {
+            setChannelName(name, forChannel: channel)
+        }
+        nextShow = (template.name, template.venue)
+        return true
     }
 
     /// Ends the open Show, so the next record starts a new one. Nothing happens when no Show is open.
@@ -364,7 +384,8 @@ public final class Recorder {
                 try open.useDrive(drive?.folder)
                 show = open
             } else {
-                show = try Show.create(in: deviceFolder, drive: drive?.folder, on: date)
+                show = try Show.create(in: deviceFolder, drive: drive?.folder, on: date, name: nextShow?.name, venue: nextShow?.venue)
+                nextShow = nil
             }
         } catch {
             drive?.release()
