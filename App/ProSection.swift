@@ -47,8 +47,8 @@ struct ProSection: View {
         } footer: {
             Text(footer)
         }
-        .sheet(isPresented: $showingTrial) { TrialSheet(store: store) }
-        .sheet(isPresented: $showingPaywall) { PaywallSheet(store: store, moment: nil) }
+        .sheet(isPresented: $showingTrial) { TrialSheet(store: store).modifier(AppearanceRoot(mode: model.appearance)) }
+        .sheet(isPresented: $showingPaywall) { PaywallSheet(store: store, moment: nil).modifier(AppearanceRoot(mode: model.appearance)) }
     }
 
     private var priceText: String {

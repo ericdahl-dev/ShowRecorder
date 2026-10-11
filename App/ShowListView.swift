@@ -57,6 +57,7 @@ struct ShowListView: View {
         }
         .sheet(item: $deleting) { show in
             DeleteShowSheet(model: model, show: show) { Task { await reload() } }
+                .modifier(AppearanceRoot(mode: model.appearance))
         }
         #if os(macOS)
         .frame(minWidth: 460, minHeight: 360)

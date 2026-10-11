@@ -59,6 +59,7 @@ struct RecordScreen: View {
             #if os(macOS)
             .frame(minWidth: 440, minHeight: 360)
             #endif
+            .modifier(AppearanceRoot(mode: model.appearance))
         }
         .alert(
             "Name channel \(namingChannel ?? 0)",
@@ -70,11 +71,13 @@ struct RecordScreen: View {
         } message: {
             Text("The files take the name when the Take ends. Leave it empty to take the name off.")
         }
-        .sheet(isPresented: $showingNewShow) { NewShowSheet(model: model) }
-        .sheet(isPresented: $showingShowList) { ShowListView(model: model) }
-        .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model) }
-        .sheet(isPresented: $showingTrialOffer) { TrialSheet(store: model.pro) }
-        .sheet(item: $model.paywall) { request in PaywallSheet(store: model.pro, moment: request.moment) }
+        // Each sheet applies the Appearance itself: iOS presents a sheet on its own, and one that only inherits the
+        // window's look keeps the old one until it is shown again.
+        .sheet(isPresented: $showingNewShow) { NewShowSheet(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
+        .sheet(isPresented: $showingShowList) { ShowListView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
+        .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
+        .sheet(isPresented: $showingTrialOffer) { TrialSheet(store: model.pro).modifier(AppearanceRoot(mode: model.appearance)) }
+        .sheet(item: $model.paywall) { request in PaywallSheet(store: model.pro, moment: request.moment).modifier(AppearanceRoot(mode: model.appearance)) }
         // The first-launch Trial offer: once, when the Pro price has loaded, and never during a Take.
         .onChange(of: model.pro.proProduct?.displayPrice, initial: true) { _, price in
             guard ProSection.isOffered, TrialOffer.shouldOffer(
@@ -121,6 +124,7 @@ struct RecordScreen: View {
                     }
             }
             .presentationDetents([.large])
+            .modifier(AppearanceRoot(mode: model.appearance))
         }
         #endif
         .confirmationDialog("Stop recording?", isPresented: $model.confirmingStop, titleVisibility: .visible) {

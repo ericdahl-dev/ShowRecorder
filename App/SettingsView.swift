@@ -114,7 +114,7 @@ struct SettingsView: View {
                 if ProSection.isOffered, !locked(.pro) { ProSection(model: model) }
             }
             .formStyle(.grouped)
-            .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model) }
+            .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
             .fileImporter(isPresented: $choosing, allowedContentTypes: [.folder]) { result in
                 if case .success(let url) = result { model.drive.choose(url) }
             }
