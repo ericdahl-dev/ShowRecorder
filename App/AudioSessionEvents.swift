@@ -32,7 +32,8 @@ extension RecordScreenModel {
             }
             do {
                 let wasRecording = recorder.isRecording
-                let device = try choice.make()
+                // The replacement keeps the rate the recorder runs at, so a running Take can continue.
+                let device = try choice.make(recorder.sampleRate ?? sampleRateChoice, false)
                 let continued = try recorder.restartInput(on: device)
                 noteOfferedChannels(of: device)
                 handle(wasRecording && !continued ? .takeEndedByReset : .restarted)

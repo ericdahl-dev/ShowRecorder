@@ -418,7 +418,10 @@ struct DeviceChoice: Identifiable {
     let info: InputDeviceInfo
     /// The label shown in the picker.
     let name: String
-    let make: () throws -> any AudioIODevice
+    /// The sample rates the input offers, for the picker (#195); empty when it can't say.
+    var availableSampleRates: [Int] = []
+    /// Opens the input at `chosen` (nil: as it is), at most 48 kHz when `capAt48k`. A mixer's input keeps its rate.
+    let make: (_ chosen: Int?, _ capAt48k: Bool) throws -> any AudioIODevice
 
     var id: String { info.id }
 }
@@ -1017,7 +1020,8 @@ final class RecordScreenModel {
         }
         do {
             armedDevice = nil
-            let device = try choice.make()
+            let device = try choice.make(
+                sampleRateChoice, SampleRateSetting.capAt48k(proOffered: ProSection.isOffered, tier: pro.tier()))
             try recorder.arm(device)
             noteOfferedChannels(of: device)
             armedDevice = choice.info
@@ -1146,6 +1150,38 @@ final class RecordScreenModel {
     }
     #endif
 
+    /// iOS can't list a route's rates before it runs, so the picker offers these and iOS picks the nearest it can;
+    /// a mixer's input keeps the mixer's rate.
+    private static let sessionSampleRates = [44_100, 48_000, 96_000]
+
+    /// The rate to ask iOS for: the choice, at most 48 kHz when capped; nil asks for nothing.
+    private static func sessionRate(_ chosen: Int?, capAt48k: Bool) -> Int? {
+        guard let chosen else { return nil }
+        return capAt48k ? min(chosen, 48_000) : chosen
+    }
+
+    /// The sample rate choice (#195): nil is the interface's own rate, the Mac's default; iPhone and iPad default to
+    /// 48 kHz, which the app has always asked iOS for.
+    var sampleRateChoice: Int? = {
+        #if os(macOS)
+        SampleRateSetting.load(platformDefault: nil)
+        #else
+        SampleRateSetting.load(platformDefault: 48_000)
+        #endif
+    }()
+
+    /// The rate choice changed in Settings: keep it and, if Armed, Arm again at it. Settings is locked during a Take.
+    func sampleRateChanged() {
+        SampleRateSetting.save(sampleRateChoice)
+        if recorder.isArmed { armSelectedDevice() }
+    }
+
+    /// What the rate picker offers for the selected input: "Interface" and each rate it offers, or just "Interface"
+    /// when it offers one (a mixer).
+    var sampleRateChoices: [Int?] {
+        SampleRateSetting.choices(available: devices.first { $0.id == selectedDeviceID }?.availableSampleRates ?? [])
+    }
+
     private static func availableDevices() -> [DeviceChoice] {
         var choices: [DeviceChoice] = []
         #if os(macOS)
@@ -1161,7 +1197,13 @@ final class RecordScreenModel {
                     id: id, name: device.name,
                     inputChannelCount: device.inputChannelCount, sampleRate: device.sampleRate),
                 name: "\(device.name) (\(device.inputChannelCount) in)",
-                make: { device }))
+                availableSampleRates: device.availableSampleRates,
+                make: { chosen, capAt48k in
+                    guard let rate = SampleRateSetting.rateToSet(
+                        chosen: chosen, available: device.availableSampleRates,
+                        current: Int(device.sampleRate.rounded()), capAt48k: capAt48k) else { return device }
+                    return try CoreAudioDevice.settingSampleRate(rate, of: device)
+                }))
         }
         for info in InputDeviceInfo.preferredOrder(macChoices.map(\.info), defaultID: defaultChoiceID) {
             if let choice = macChoices.first(where: { $0.id == info.id }) { choices.append(choice) }
@@ -1185,21 +1227,25 @@ final class RecordScreenModel {
                     id: Self.routeInputPrefix + uid, name: port.portName,
                     inputChannelCount: channels ?? 0, sampleRate: session.sampleRate),
                 name: port.portName + (channels.map { " (\($0) in)" } ?? ""),
-                make: { try SessionAudioDevice.current(preferredInputUID: uid) }))
+                availableSampleRates: Self.sessionSampleRates,
+                make: { chosen, capAt48k in
+                    try SessionAudioDevice.current(preferredInputUID: uid, sampleRate: Self.sessionRate(chosen, capAt48k: capAt48k))
+                }))
         }
         if ports.isEmpty {
             // Nothing listed yet (the session isn't active): offer whatever iOS picks.
             choices.append(DeviceChoice(
                 info: InputDeviceInfo(id: Self.routeInputPrefix + "default", name: "Audio input", inputChannelCount: 0, sampleRate: session.sampleRate),
                 name: "Audio input",
-                make: { try SessionAudioDevice.current() }))
+                availableSampleRates: Self.sessionSampleRates,
+                make: { chosen, capAt48k in try SessionAudioDevice.current(sampleRate: Self.sessionRate(chosen, capAt48k: capAt48k)) }))
         }
         #endif
         if DemoSignalAvailability.isAvailableInThisBuild {
             choices.append(DeviceChoice(
                 info: InputDeviceInfo(id: "demo", name: "Demo signal", inputChannelCount: DemoAudioDevice.channelCount, sampleRate: 48_000),
                 name: "Demo signal (\(DemoAudioDevice.channelCount) channels)",
-                make: { DemoAudioDevice() }))
+                make: { _, _ in DemoAudioDevice() }))
         }
         return choices
     }

@@ -43,6 +43,16 @@ struct SettingsView: View {
                     }
                     .onChange(of: model.selectedDeviceID) { model.selectionDidChange() }
                     .disabled(locked(.input))
+                    Picker("Sample rate", selection: $model.sampleRateChoice) {
+                        ForEach(model.sampleRateChoices, id: \.self) { rate in
+                            Text(SampleRateSetting.label(rate, current: model.recorder.sampleRate)).tag(rate)
+                        }
+                        if let chosen = model.sampleRateChoice, !model.sampleRateChoices.contains(chosen) {
+                            Text(SampleRateSetting.label(chosen, current: nil)).tag(Optional(chosen))
+                        }
+                    }
+                    .onChange(of: model.sampleRateChoice) { model.sampleRateChanged() }
+                    .disabled(locked(.input))
                     Text(model.usbChannelSummary).foregroundStyle(.secondary).monospacedDigit()
                     Button("Channel names…") { showingChannelNames = true }
                         .disabled(model.meterModel.channelCount == 0)
