@@ -219,6 +219,7 @@ struct RecordScreen: View {
                     .frame(maxHeight: .infinity)
             } else {
                 MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources, typedNames: model.recorder.channelNames, nameChannel: nameChannel)
+                    .overlay { if let block = model.recordBlock { DisarmedNotice(block: block, perform: model.perform) } }
             }
             transport
         }
@@ -239,6 +240,7 @@ struct RecordScreen: View {
             HStack(alignment: .top, spacing: 12) {
                 if model.transportLeading { transportColumn }
                 MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources, typedNames: model.recorder.channelNames, nameChannel: nameChannel, compact: true)
+                    .overlay { if let block = model.recordBlock { DisarmedNotice(block: block, perform: model.perform) } }
                     // Urgent alerts sit over the top of the meters, which aren't tappable and don't move,
                     // so the chips and the gear stay reachable (the Drive's Reconnect is one of them).
                     .overlay(alignment: .top) {
@@ -317,7 +319,9 @@ struct RecordScreen: View {
                 .disabled(model.recorder.isRecording)
                 .accessibilityHint("Opens the Show sheet")
                 Spacer(minLength: 4)
+                // 44 pt wide each, plus a clear gap, so "Shows" and "Names" read as two buttons.
                 Button { showingShowList = true } label: { Text("Shows").tapTarget() }
+                    .padding(.trailing, 12)
                     .buttonStyle(.plain)
                     .foregroundStyle(.tint)
                     .disabled(model.recorder.isRecording)
