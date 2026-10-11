@@ -164,8 +164,22 @@ final class TakeSession {
     /// Stretches written as silence in any Copy, as `Take.json` records them.
     /// With `takeEnd`, a Copy that is still interrupted, or was asked to join but never got to, is missing
     /// everything from where it stopped to there.
+    /// What the writers dropped, split into audio every Copy lacks (Dropouts) and audio another Copy has (Gaps that
+    /// Repair fills, #318). A Copy that failed or hasn't joined lacks everything past where it got to.
+    private func dropoutSplit() -> DropoutSplit {
+        var dropped: [DestinationKind: [Range<Int>]] = [:]
+        var notRecording: [DestinationKind: [Range<Int>]] = [:]
+        for copy in copies {
+            dropped[copy.kind] = copy.writer.dropouts
+            var lacking = copy.writer.gaps
+            if copy.writer.hasFailed || copy.writer.neverJoined { lacking.append(copy.writer.framesWritten..<Int.max) }
+            notRecording[copy.kind] = lacking
+        }
+        return DropoutSplit(dropped: dropped, notRecording: notRecording)
+    }
+
     func gaps(takeEnd: Int? = nil) -> [TakeMetadata.Gap] {
-        var gaps: [TakeMetadata.Gap] = []
+        var gaps: [TakeMetadata.Gap] = dropoutSplit().gaps
         for copy in copies {
             for range in copy.writer.gaps {
                 gaps.append(.init(copy: copy.kind, start: range.lowerBound, end: range.upperBound))
@@ -319,9 +333,8 @@ final class TakeSession {
     /// Moves the audio the writers had to drop into `Take.json` as Dropouts (one per Copy and stretch), with
     /// one Dropout Marker at each position where any Copy lost audio.
     private func collectDropouts() {
-        let found = copies
-            .flatMap { copy in copy.writer.dropouts.map { TakeMetadata.Dropout(copy: copy.kind, start: $0.lowerBound, end: $0.upperBound) } }
-            .sorted { ($0.start, $0.end, $0.copy.index) < ($1.start, $1.end, $1.copy.index) }
+        // Only audio every Copy lacks; a stretch another Copy has is a Gap (see `gaps(takeEnd:)`).
+        let found = dropoutSplit().dropouts
         guard found != metadata.dropouts else { return }
         let marked = Set(metadata.markers.filter { $0.origin == .dropout }.map(\.position))
         for position in Set(found.map(\.start)).subtracting(marked).sorted() {
