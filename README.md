@@ -52,7 +52,7 @@ A Take never stops, and your audio is never held back, because of a trial, a lim
 ShowRecorder will be a free download with a **14-day Trial** of everything.
 
 - **Free** records 2 USB channels of your choice, with names and colors from the mixer.
-- **Pro** is a one-time purchase, shared with your family: every USB channel, channel names you type, the Show report and Reaper project, 96 kHz, and Templates. Launch price $19.99, then $29.99.
+- **Pro** is a one-time purchase, shared with your family: every USB channel, channel names you type, the Show report and Reaper project, 96 kHz, and Templates. $19.99.
 
 During the TestFlight beta everything is unlocked.
 

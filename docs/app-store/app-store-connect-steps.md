@@ -32,7 +32,7 @@ An agent can create these two through the API once step 1 is Active: say "create
 **Pro**
 
 - [ ] Type **Non-Consumable**. Reference Name `Pro`. Product ID `dev.ericdahl.ShowRecorder.pro` (exactly; the app looks for this).
-- [ ] **Price:** $19.99, the launch price (ADR 0004). Under **Price Schedule**, add a planned change to **$29.99**, starting 3 months after the release date.
+- [x] **Price:** $19.99 (ADR 0004). No planned change: the move to $29.99 is on hold (Eric, 2026-10-11).
 - [ ] **Family Sharing: On.** This can't be turned off later (ADR 0004 wants it on).
 - [ ] **Localization (English U.S.):** Display Name `ShowRecorder Pro` (30 characters max). Description `Every USB Channel, report, Reaper, 96 kHz, Templates` (55 characters max).
 - [ ] **Review screenshot:** the paywall (taken for #324).
