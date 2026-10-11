@@ -11,7 +11,7 @@ public struct ScanRange: Equatable, Sendable {
     ///   - netmask: its network's mask, such as "255.255.255.0".
     public init?(address: String, netmask: String) {
         guard let own = Self.parse(address), let netmask = Self.parse(netmask) else { return nil }
-        // A network bigger than a /22 is scanned only in the /22 around the device, to keep it to about a second.
+        // A network bigger than a /22 is scanned only in the /22 around the device, to keep it to a few seconds.
         let mask = netmask | Self.widestScanMask
         let network = own & mask
         let broadcast = network | ~mask
@@ -46,9 +46,9 @@ public struct FoundMixer: Equatable, Sendable {
 }
 
 /// Asks many addresses for `/xinfo` at once and lists the X-Air mixers that answer (#289). Unicast only, from one UDP
-/// socket, in two rounds within the timeout. It sends nothing but `/xinfo`.
+/// socket, paced, then listens for `timeout` after the last query. It sends nothing but `/xinfo`.
 public enum MixerScanner {
-    public static func scan(hosts: [String], port: UInt16 = 10024, timeout: Duration = .seconds(1.5)) async -> [FoundMixer] {
+    public static func scan(hosts: [String], port: UInt16 = 10024, timeout: Duration = .seconds(1)) async -> [FoundMixer] {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 continuation.resume(returning: scanBlocking(hosts: hosts, port: port, timeout: timeout))
@@ -64,18 +64,13 @@ public enum MixerScanner {
 
         let query = OSCMessage("/xinfo").encoded()
         var found: [String: MixerIdentity] = [:]
-        let started = ContinuousClock.now
-        // Twice: the first round also makes the system look up each address on the network (ARP), and while it does,
-        // it holds only a few packets and drops the rest. The second round asks again whoever hasn't answered.
-        for (round, until) in [(1, started + timeout * 0.4), (2, started + timeout)] {
-            let ask = round == 1 ? hosts : hosts.filter { found[$0] == nil }
-            for (index, host) in ask.enumerated() {
-                send(query, to: host, port: port, on: fd)
-                // A short pause every 64 addresses, so the burst doesn't overflow the network's queues.
-                if index % 64 == 63 { collect(on: fd, into: &found, until: ContinuousClock.now + .milliseconds(5)) }
-            }
-            collect(on: fd, into: &found, until: until)
+        // Paced, about 2 ms an address: each query to a new address also makes the system look the address up (ARP),
+        // and a burst of a thousand lookups is dropped on Wi-Fi, so a cold scan finds nothing (seen on the XR18).
+        for host in hosts {
+            send(query, to: host, port: port, on: fd)
+            collect(on: fd, into: &found, until: ContinuousClock.now + .milliseconds(2))
         }
+        collect(on: fd, into: &found, until: ContinuousClock.now + timeout)
         return found
             .map { FoundMixer(host: $0.key, identity: $0.value) }
             .sorted { (ScanRange.parse($0.host) ?? 0) < (ScanRange.parse($1.host) ?? 0) }
@@ -86,13 +81,19 @@ public enum MixerScanner {
         address.sin_family = sa_family_t(AF_INET)
         address.sin_port = port.bigEndian
         guard inet_pton(AF_INET, host, &address.sin_addr) == 1 else { return }
-        // A send that fails (no route, the host is down) just means that address won't answer.
-        _ = query.withUnsafeBytes { bytes in
-            withUnsafePointer(to: &address) {
-                $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                    sendto(fd, bytes.baseAddress, bytes.count, 0, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+        // A full send buffer (EAGAIN) waits until it can send, or the query would be lost. Any other failure (no
+        // route, the host is down) just means that address won't answer.
+        while true {
+            let sent = query.withUnsafeBytes { bytes in
+                withUnsafePointer(to: &address) {
+                    $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                        sendto(fd, bytes.baseAddress, bytes.count, 0, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+                    }
                 }
             }
+            guard sent < 0, errno == EAGAIN else { return }
+            var writable = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
+            guard poll(&writable, 1, 50) > 0 else { return }
         }
     }
 
