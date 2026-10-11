@@ -11,6 +11,8 @@ struct ShowDetailView: View {
     @State private var message: String?
     @State private var deletingTake: Int?
     @State private var deletingFile: (take: Int, channel: Int)?
+    @State private var savingTemplate = false
+    @State private var templateName = ""
 
     var body: some View {
         Group {
@@ -59,6 +61,14 @@ struct ShowDetailView: View {
         }
         .navigationTitle(show.name)
         .toolbar {
+            if model.templateAccess != .proOnly {
+                ToolbarItem(placement: .secondaryAction) {
+                    Button("Save as Template…") {
+                        templateName = model.templateName(forShow: show.folder)
+                        savingTemplate = true
+                    }
+                }
+            }
             if let folder = show.shareFolder {
                 ToolbarItem(placement: .primaryAction) {
                     ShareLink(item: folder) { Label("Share", systemImage: "square.and.arrow.up") }
@@ -74,6 +84,13 @@ struct ShowDetailView: View {
         }
         .sheet(item: Binding(get: { deletingTake.map { TakeID(number: $0) } }, set: { deletingTake = $0?.number })) { id in
             DeleteShowSheet(model: model, show: show, take: id.number) { Task { await reload() } }
+        }
+        .alert("Save as Template", isPresented: $savingTemplate) {
+            TextField("Template name", text: $templateName)
+            Button("Cancel", role: .cancel) {}
+            Button("Save") { message = model.saveTemplate(fromShow: show.folder, named: templateName) }
+        } message: {
+            Text("Saves this Show's channel names and venue, with today's Pre-roll and Mixer.")
         }
         .alert("Rename Marker", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Name", text: $newName)

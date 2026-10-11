@@ -68,4 +68,59 @@ struct TemplateTests {
         #expect(sunday().connectAddress(found: [other]) == "192.168.1.146")
         #expect(sunday().connectAddress(found: []) == "192.168.1.146")
     }
+
+    @Test("The default Template readies the next Show without creating one: the next record starts it, named after the Template, with its names (#34)")
+    func prepareNextShow() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "TemplateTests-\(UUID().uuidString)")
+        let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, savedNames: defaults)
+        let audio = FakeAudioDevice(inputChannelCount: 4)
+        try recorder.arm(audio)
+
+        #expect(recorder.prepareNextShow(from: sunday()))
+        #expect(recorder.currentShow == nil, "no empty Show folder at launch")
+        #expect(recorder.channelNames == [1: "Pastor", 3: "Keys"])
+
+        try recorder.startTake()
+        try recorder.stopTake()
+        #expect(recorder.currentShow?.name.hasSuffix(" Sunday Service") == true)
+        #expect(recorder.currentShow?.venue == "Main hall")
+        #expect(recorder.currentShow?.channelNames == [1: "Pastor", 3: "Keys"])
+
+        // With a Show open, nothing changes.
+        #expect(!recorder.prepareNextShow(from: Template(name: "Other", venue: nil, channelNames: [2: "X"], mixerNetworkName: nil, mixerAddress: "", preRollSeconds: 0)))
+        #expect(recorder.channelNames == [1: "Pastor", 3: "Keys"])
+    }
+
+    @Test("One Template can be the default; it is kept across launches, can be cleared, and deleting it clears it (#34)")
+    func defaultTemplate() throws {
+        var store = TemplateStore(defaults: defaults)
+        store.save(sunday())
+        let id = try #require(store.templates.first?.id)
+        #expect(store.defaultTemplate == nil)
+        store.setDefault(id)
+        #expect(TemplateStore(defaults: defaults).defaultTemplate?.name == "Sunday Service")
+        store.setDefault(nil)
+        #expect(TemplateStore(defaults: defaults).defaultTemplate == nil)
+        store.setDefault(id)
+        store.delete(id)
+        #expect(TemplateStore(defaults: defaults).defaultTemplate == nil)
+    }
+
+    @Test("A past Show's setup can be saved as a Template: its channel names and venue, named like the Show without the date (#34)")
+    func fromPastShow() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "TemplateTests-\(UUID().uuidString)")
+        let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, savedNames: defaults)
+        try recorder.arm(FakeAudioDevice(inputChannelCount: 2))
+        try recorder.startNewShow(name: "Youth Night", venue: "Gym")
+        recorder.setChannelName("Leader", forChannel: 2)
+        let folder = try #require(recorder.currentShow?.folder)
+        try recorder.endShow()
+
+        let template = try #require(Template.fromShow(folder: folder, mixerNetworkName: "Skeyelab XR18", mixerAddress: "192.168.1.146", preRollSeconds: 5))
+        #expect(template.name == "Youth Night")
+        #expect(template.venue == "Gym")
+        #expect(template.channelNames == [2: "Leader"])
+        #expect(template.mixerNetworkName == "Skeyelab XR18" && template.preRollSeconds == 5)
+        #expect(Template.fromShow(folder: root.appending(path: "nope"), mixerNetworkName: nil, mixerAddress: "", preRollSeconds: 0) == nil)
+    }
 }
