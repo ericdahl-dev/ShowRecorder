@@ -639,8 +639,9 @@ final class RecordScreenModel {
 
     func record() {
         do {
-            // Freeze whatever the Mixer Link knows right now into the Take's Stems.
-            try recorder.startTake(sources: mixerLink.sources)
+            // Freeze whatever the Mixer Link knows right now, and what the tier allows, into the Take (Show-Safe
+            // Promise: judged only here, never during the Take).
+            try recorder.startTake(sources: mixerLink.sources, allowance: currentAllowance())
             takeStartedAt = Date()
             recordError = nil
             handle(.takeStarted)
@@ -771,10 +772,13 @@ final class RecordScreenModel {
         return "A Take starts with the last \(Int(preRollSeconds)) s before you press record. Uses about \(size) of memory while Armed."
     }
 
-    /// What a Take pressed right now may do: the tier, the Free channel choice and the Armed USB Channels.
-    /// Read from cached state only, never waiting on the App Store, so it can be frozen at the record press.
-    func currentAllowance() -> TakeAllowance {
-        Entitlement.allowance(for: pro.tier(), channelCount: recorder.usbChannelCount, freeChoice: pro.freeChoice)
+    /// What a Take pressed right now may do: the tier, the Free channel choice and the Armed USB Channels; nil
+    /// (nothing limited) while Pro isn't offered. Read from cached state only, never waiting on the App Store, so it
+    /// can be frozen at the record press.
+    func currentAllowance() -> TakeAllowance? {
+        Entitlement.allowanceAtPress(
+            proOffered: ProSection.isOffered, tier: pro.tier(),
+            channelCount: recorder.usbChannelCount, freeChoice: pro.freeChoice)
     }
 
     var usbChannelSummary: String {
