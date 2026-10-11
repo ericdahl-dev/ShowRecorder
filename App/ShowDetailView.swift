@@ -81,9 +81,11 @@ struct ShowDetailView: View {
         .task { await reload() }
         .sheet(item: Binding(get: { deletingFile.map { FileID(take: $0.take, channel: $0.channel) } }, set: { deletingFile = $0.map { ($0.take, $0.channel) } })) { id in
             DeleteShowSheet(model: model, show: show, take: id.take, channel: id.channel) { Task { await reload() } }
+                .modifier(AppearanceRoot(mode: model.appearance))
         }
         .sheet(item: Binding(get: { deletingTake.map { TakeID(number: $0) } }, set: { deletingTake = $0?.number })) { id in
             DeleteShowSheet(model: model, show: show, take: id.number) { Task { await reload() } }
+                .modifier(AppearanceRoot(mode: model.appearance))
         }
         .alert("Save as Template", isPresented: $savingTemplate) {
             TextField("Template name", text: $templateName)
