@@ -6,7 +6,8 @@ import SwiftUI
 struct ProSection: View {
     /// Off until the Pro and Trial products exist in App Store Connect and `record()` passes the allowance: until
     /// then the section, the first-launch Trial offer and the days-left chip would tell TestFlight testers about a
-    /// plan that limits nothing.
+    /// plan that limits nothing. Also not before 96 kHz (#195) and Templates (#33, #34) are built: the footer and the
+    /// App Store text promise them (ADR 0004, launch scope).
     static let isOffered = false
 
     @Bindable var model: RecordScreenModel
@@ -52,7 +53,7 @@ struct ProSection: View {
 
     private var footer: String {
         if store.tier() == .pro { return "Thank you. Every USB Channel is recorded." }
-        return "Pro is a one-time purchase, shared with your family. It records every USB Channel and adds the Show report, Reaper export, Templates and Mixer Triggers."
+        return "Pro is a one-time purchase, shared with your family. It records every USB Channel and adds channel names you type, the Show report, Reaper export, 96 kHz recording and Templates for each venue."
     }
 
     /// The 2 USB Channels Free records, out of those the Armed input offers.
