@@ -160,8 +160,10 @@ struct RecordScreen: View {
         #if os(macOS)
         openSettings()
         #else
+        // Always a full sheet: squeezed into the meters' place it showed only a few rows (Eric, v0.1.20).
+        // It is locked during a Take anyway, so it doesn't need Stop and Marker beside it.
         settingsSection = section
-        if placement == .sheet { showingSettings = true } else { panel = .settings }
+        showingSettings = true
         #endif
     }
 
@@ -171,7 +173,6 @@ struct RecordScreen: View {
             switch kind {
             case .markers: showingMarkers = true
             case .channelNames: showingChannelNames = true
-            case .settings: showSettings(nil)
             }
             return
         }
@@ -193,15 +194,6 @@ struct RecordScreen: View {
                 }
             case .channelNames:
                 ChannelNamesView(model: model, done: { panel = nil })
-            case .settings:
-                NavigationStack {
-                    SettingsView(model: model, scrollTo: settingsSection)
-                        .navigationTitle("Settings")
-                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { panel = nil } } }
-                        #if os(iOS)
-                        .navigationBarTitleDisplayMode(.inline)
-                        #endif
-                }
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -1408,7 +1400,7 @@ private extension Duration {
 
 /// What can open as a panel on the record screen (#250).
 enum LivePanel: Equatable {
-    case markers, channelNames, settings
+    case markers, channelNames
 }
 
 extension View {
