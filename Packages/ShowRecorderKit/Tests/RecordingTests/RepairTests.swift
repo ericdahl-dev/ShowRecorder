@@ -72,7 +72,7 @@ extension GapTests {
     func repairFillsJoinGap() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let available = DriveSwitch()
-        let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DestinationAccess(folder: $0) } }, now: { RecordingTakeTests.showDay })
+        let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DestinationAccess(folder: $0) } }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         try recorder.arm(audio)
 
         try recorder.startTake()
@@ -130,7 +130,7 @@ extension GapTests {
             deviceFolder: device,
             driveFolder: { DestinationAccess(folder: drive) },
             now: { RecordingTakeTests.showDay },
-            freeSpace: { free.bytes(at: $0) })
+            freeSpace: { free.bytes(at: $0) }, destinationCheckInterval: nil)
         try recorder.arm(audio)
 
         try recorder.startTake()
