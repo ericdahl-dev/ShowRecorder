@@ -14,14 +14,18 @@ struct USBChannelShortfallTests {
         #expect(USBChannelShortfall.check(usbChannelCount: count, offeredChannelCount: nil, mixer: nil, capabilities: nil) == nil)
     }
 
-    @Test("A device sending fewer USB Channels than the identified Mixer sends is a shortfall that names the Mixer, short enough for 2 lines on an iPhone (#292)", arguments: [1, 8, 16])
+    @Test("A device sending fewer USB Channels than the identified Mixer sends is a shortfall that names the Mixer, short enough for 2 lines on an iPhone (#292)", arguments: [3, 8, 16])
     func fewerThanIdentifiedMixer(count: Int) throws {
         let shortfall = try #require(USBChannelShortfall.check(
             usbChannelCount: count, offeredChannelCount: nil, mixer: xr18, capabilities: xr18Capabilities))
 
-        let verb = count == 1 ? "is" : "are"
-        #expect(shortfall.message == "Only \(count) of the XR18's 18 USB Channels \(verb) coming in. Arm the XR18 to record all 18.")
+        #expect(shortfall.message == "Only \(count) of the XR18's 18 USB Channels are coming in. Arm the XR18 to record all 18.")
         #expect(shortfall.message.count <= 90)
+    }
+
+    @Test("A 1- or 2-channel input (the iPhone's microphone, a stereo interface) with the Mixer linked over Wi-Fi is on purpose: no warning", arguments: [1, 2])
+    func micWithLinkedMixer(count: Int) {
+        #expect(USBChannelShortfall.check(usbChannelCount: count, offeredChannelCount: nil, mixer: xr18, capabilities: xr18Capabilities) == nil)
     }
 
     @Test("A device sending at least what the identified Mixer sends is fine", arguments: [18, 32])
