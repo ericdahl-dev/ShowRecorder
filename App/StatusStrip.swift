@@ -106,9 +106,11 @@ struct AlertSlot: View {
         .frame(height: slotHeight)
         .popover(isPresented: $listing) {
             VStack(spacing: 8) {
+                // Here every alert is shown in full (#292): the slot's 2 lines can cut a long one off.
                 ForEach(queue.ordered) { alert in
-                    AlertBanner(alert: alert, moreCount: 0, perform: perform) {}
-                        .frame(height: Self.height)
+                    AlertBanner(alert: alert, moreCount: 0, inFull: true, perform: perform) {}
+                        .frame(minHeight: Self.height)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding()
@@ -122,17 +124,22 @@ struct AlertSlot: View {
 struct AlertBanner: View {
     let alert: ScreenAlert
     let moreCount: Int
+    /// In the list of every alert: the whole text, however many lines. In the slot: 2 lines, and a tap shows the list.
+    var inFull = false
     let perform: (ScreenAlert.Action) -> Void
     let showMore: () -> Void
     @Environment(\.appearanceMode) private var mode
 
     var body: some View {
         HStack(spacing: 8) {
-            Label(alert.text, systemImage: icon)
-                .font(.callout.weight(.medium))
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            if inFull {
+                text
+                    .padding(.vertical, 10)
+            } else {
+                Button(action: showMore) { text.contentShape(Rectangle()) }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Shows the whole message")
+            }
             if let action = alert.action {
                 Button(label(for: action)) { perform(action) }
                     .buttonStyle(.bordered)
@@ -150,6 +157,14 @@ struct AlertBanner: View {
         .frame(maxHeight: .infinity)
         .foregroundStyle(foreground)
         .background(background, in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private var text: some View {
+        Label(alert.text, systemImage: icon)
+            .font(.callout.weight(.medium))
+            .lineLimit(inFull ? nil : 2)
+            .minimumScaleFactor(inFull ? 1 : 0.8)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func label(for action: ScreenAlert.Action) -> String {

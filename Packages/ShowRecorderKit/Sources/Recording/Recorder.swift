@@ -53,6 +53,8 @@ public final class Recorder {
     private var lateMixerNames: [Int: String] = [:]
     public private(set) var savedChannelNames: [String] = []
     @ObservationIgnored private let savedNames: UserDefaults
+    /// What the current or last Take was allowed, frozen at its record press. Nil: everything (no allowance given).
+    @ObservationIgnored private var lastAllowance: TakeAllowance?
     @ObservationIgnored private var namingTask: Task<Void, Never>?
 
     /// The Device Destination: Documents/Shows.
@@ -256,6 +258,16 @@ public final class Recorder {
         return channelNames.count
     }
 
+    /// What the naming box and the Channel names page do with what was typed: text names the channel, an empty or
+    /// blank box takes its typed name off.
+    public func updateChannelName(_ text: String, forChannel usbChannel: Int) {
+        if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            clearChannelName(forChannel: usbChannel)
+        } else {
+            setChannelName(text, forChannel: usbChannel)
+        }
+    }
+
     /// Takes the typed name off USB Channel `usbChannel` (from 1), so the Show's later Takes use the Mixer's name
     /// again. A Take that is running keeps the name it started with.
     public func clearChannelName(forChannel usbChannel: Int) {
@@ -319,7 +331,8 @@ public final class Recorder {
     ///
     /// `sources` are frozen into the Take: Stem names and bext descriptions use them, and later
     /// changes on the Mixer don't touch this Take's files. USB Channels without a Source get "USB NN".
-    public func startTake(sources: [Source] = []) throws {
+    /// - Parameter allowance: what this Take may do, frozen at the press (ADR 0004). Nil records every USB Channel.
+    public func startTake(sources: [Source] = [], allowance: TakeAllowance? = nil) throws {
         guard let device, let capture else { throw RecorderError.notArmed }
         guard !isRecording else { return }
         let date = now()
@@ -355,18 +368,21 @@ public final class Recorder {
         let timeReference = pressReference >= UInt64(preRollFrames) ? pressReference - UInt64(preRollFrames) : 0
         let resolved = (0..<capture.channelCount).map { channel -> Source in
             var source = sources.indices.contains(channel) ? sources[channel] : .fallback(usbChannel: channel + 1)
-            if let typed = channelNames[channel + 1] { source.name = typed; source.hasMixerName = false }
+            // Names typed by hand are a Pro extra: kept on Free, but not put on its files.
+            if allowance?.namingByHand ?? true, let typed = channelNames[channel + 1] { source.name = typed; source.hasMixerName = false }
             return source
         }
         let channels = resolved.enumerated().map { index, source in
             TakeMetadata.USBChannel(usbChannel: index + 1, stemFile: StemFileName.make(usbChannel: index + 1, sourceName: source.name), source: source)
         }
+        let recorded = allowance?.recordedChannels ?? Set(channels.map(\.usbChannel))
+        lastAllowance = allowance
         var metadata = TakeMetadata(
             show: show.name, take: show.takeCount, startedAt: date, sampleRate: sampleRate,
-            timeReference: timeReference, usbChannels: channels)
+            timeReference: timeReference, usbChannels: channels.filter { recorded.contains($0.usbChannel) })
         metadata.preRollFrames = preRollFrames > 0 ? preRollFrames : nil
 
-        let specs = zip(channels, resolved).map { StemSpec(file: $0.stemFile, description: $1.name) }
+        let specs = zip(channels, resolved).map { StemSpec(file: $0.stemFile, description: $1.name, isRecorded: recorded.contains($0.usbChannel)) }
         let info = StemWriter.Info(sampleRate: sampleRate, description: "", originator: "ShowRecorder", timeReference: timeReference, originationDate: date)
         let session = try TakeSession(
             show: show, folders: takeFolders, drive: takeFolders.count > 1 ? drive : nil, metadata: metadata, stems: specs,
@@ -548,10 +564,11 @@ public final class Recorder {
     private func nameChannels(of metadata: TakeMetadata) {
         takeAcceptsLateNames = false
         func changes(_ number: Int, _ name: String) -> Bool { metadata.usbChannels.first { $0.usbChannel == number }.map { $0.name != name } ?? false }
-        // Names typed by hand win over the Mixer's.
-        let late = lateMixerNames.filter { channelNames[$0.key] == nil && changes($0.key, $0.value) }
+        // Names typed by hand win over the Mixer's, when the Take may use them (Pro or Trial).
+        let typedNames = lastAllowance?.namingByHand ?? true ? channelNames : [:]
+        let late = lateMixerNames.filter { typedNames[$0.key] == nil && changes($0.key, $0.value) }
         lateMixerNames = [:]
-        let names = late.merging(channelNames.filter { changes($0.key, $0.value) }) { _, typed in typed }
+        let names = late.merging(typedNames.filter { changes($0.key, $0.value) }) { _, typed in typed }
         guard !names.isEmpty, let take = lastTake else { return }
         let previous = namingTask
         namingTask = Task { @MainActor in
@@ -568,10 +585,13 @@ public final class Recorder {
         }
     }
 
+    /// Rewrites the Show report and Reaper project, when the last Take's allowance includes them (Pro or Trial).
+    /// On Free they are left as they were: never written, and never removed.
     private func regenerateReports() {
+        let allowance = lastAllowance
         for copy in currentShow?.copies ?? [] {
-            try? ShowReport.write(showFolder: copy.folder)
-            try? copy.writeProjects()
+            if allowance?.showReport ?? true { try? ShowReport.write(showFolder: copy.folder) }
+            if allowance?.reaperExport ?? true { try? copy.writeProjects() }
         }
     }
 

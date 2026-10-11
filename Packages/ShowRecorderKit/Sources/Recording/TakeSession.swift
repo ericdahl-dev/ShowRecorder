@@ -7,6 +7,23 @@ import MixerLink
 struct StemSpec {
     var file: String
     var description: String
+    /// False for a USB Channel this Take doesn't record (Free records 2): it is captured like the others, so
+    /// every channel stays in step, but its samples go nowhere and no file is made.
+    var isRecorded = true
+}
+
+/// Where an unrecorded USB Channel's samples go: counted, never written.
+final class DiscardingSink: StemSink {
+    private(set) var frameCount: UInt64
+
+    init(frameCount: UInt64 = 0) {
+        self.frameCount = frameCount
+    }
+
+    func append(_ samples: UnsafeBufferPointer<Float>) throws { frameCount += UInt64(samples.count) }
+    func commitHeader() throws {}
+    func finalize() throws {}
+    func setMarkers(_ markers: [StemMarker]) throws -> Int { markers.count }
 }
 
 /// The running Take's Copies. Owns one record per Copy (its folder, ring, writer and, for the Drive,
@@ -64,7 +81,7 @@ final class TakeSession {
     ) throws {
         self.show = show
         self.metadata = metadata
-        levels = TakeLevels(channelCount: metadata.usbChannels.count)
+        levels = TakeLevels(channelCount: capture.channelCount)
         self.stems = stems
         self.info = info
         self.capture = capture
@@ -83,7 +100,9 @@ final class TakeSession {
         var records: [CopyRecord] = []
         for (index, folder) in folders.enumerated() {
             let kind = DestinationKind(index: index)
-            let sinks = try stems.map { try makeStem(folder.appending(path: $0.file), info.described($0.description), nil) }
+            let sinks: [any StemSink] = try stems.map { spec in
+                spec.isRecorded ? try makeStem(folder.appending(path: spec.file), info.described(spec.description), nil) : DiscardingSink()
+            }
             try metadata.write(to: folder)
             records.append(CopyRecord(
                 kind: kind, folder: folder, ring: capture.rings[index],
@@ -201,9 +220,11 @@ final class TakeSession {
         var statuses = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.map { ($0, status($0)) })
         for copy in copies { copy.writer.stop() }
         collectDropouts()
-        for (channel, summary) in levels.summary.enumerated() where metadata.usbChannels.indices.contains(channel) {
-            metadata.usbChannels[channel].peakDbfs = summary.peakDbfs
-            metadata.usbChannels[channel].averageDbfs = summary.averageDbfs
+        // Levels are kept per captured channel; Take.json lists only the recorded ones, by USB Channel number.
+        for (channel, summary) in levels.summary.enumerated() {
+            guard let index = metadata.usbChannels.firstIndex(where: { $0.usbChannel == channel + 1 }) else { continue }
+            metadata.usbChannels[index].peakDbfs = summary.peakDbfs
+            metadata.usbChannels[index].averageDbfs = summary.averageDbfs
         }
         writeMetadata()
         // A Take whose Copies were never fed a first block is empty, not missing everything.
@@ -240,8 +261,10 @@ final class TakeSession {
                 try show.useDrive(access.folder)
             }
             let counts = old?.writer.stemFrameCounts
-            let sinks = try stems.enumerated().map { index, spec in
-                try makeStem(folder.appending(path: spec.file), info.described(spec.description), counts?[index])
+            let sinks: [any StemSink] = try stems.enumerated().map { index, spec in
+                spec.isRecorded
+                    ? try makeStem(folder.appending(path: spec.file), info.described(spec.description), counts?[index])
+                    : DiscardingSink(frameCount: counts?[index] ?? 0)
             }
             // A Take folder that was rejoined already has its Take.json.
             if old == nil { try metadata.write(to: folder) }

@@ -48,7 +48,9 @@ public struct USBChannelShortfall: Equatable, Sendable {
         case .systemGrantedFewer(let offered):
             return "This input offers \(offered) channels, but the system is sending the recorder \(sent), so some channels won't be recorded."
         case .mixerSendsMore(let mixer, let mixerSends):
-            return "This device sends \(sent). The \(mixer.model) (\(mixer.networkName)) sends \(mixerSends), so some of the Mixer won't be recorded."
+            // Short enough for the banner's 2 lines on an iPhone (#292); the Mixer chip already names the Mixer.
+            let verb = usbChannelCount == 1 ? "is" : "are"
+            return "Only \(usbChannelCount) of the \(mixer.model)'s \(mixerSends) USB Channels \(verb) coming in. Arm the \(mixer.model) to record all \(mixerSends)."
         }
     }
 }

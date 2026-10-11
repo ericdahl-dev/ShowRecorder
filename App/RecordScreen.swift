@@ -20,12 +20,16 @@ struct RecordScreen: View {
     #endif
     @State private var showingSettings = launchFlag("-showSettings")
     @State private var showingMarkers = false
+    /// How wide the transport is, so the gap between Stop and Marker can shrink on a very narrow screen.
+    @State private var transportWidth: CGFloat = 402
     @State private var showingNewShow = false
     @State private var namingChannel: Int?
     @State private var channelName = ""
     @State private var showingChannelNames = launchFlag("-channelNames")
     @State private var showingShowList = launchFlag("-showList")
     @State private var settingsSection: SettingsSection?
+    @State private var showingTrialOffer = false
+    @AppStorage(TrialOffer.offeredKey) private var trialOffered = false
 
     /// Landscape iPhone is short, not narrow: a Pro Max in landscape is wide but still short.
     @Environment(\.verticalSizeClass) private var verticalSizeClass
@@ -62,13 +66,22 @@ struct RecordScreen: View {
         ) {
             TextField("Name", text: $channelName)
             Button("Cancel", role: .cancel) {}
-            Button("Save") { if let namingChannel { model.recorder.setChannelName(channelName, forChannel: namingChannel) } }
+            Button("Save") { if let namingChannel { model.recorder.updateChannelName(channelName, forChannel: namingChannel) } }
         } message: {
-            Text("The files take the name when the Take ends.")
+            Text("The files take the name when the Take ends. Leave it empty to take the name off.")
         }
         .sheet(isPresented: $showingNewShow) { NewShowSheet(model: model) }
         .sheet(isPresented: $showingShowList) { ShowListView(model: model) }
         .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model) }
+        .sheet(isPresented: $showingTrialOffer) { TrialSheet(store: model.pro) }
+        // The first-launch Trial offer: once, when the Pro price has loaded, and never during a Take.
+        .onChange(of: model.pro.proProduct?.displayPrice, initial: true) { _, price in
+            guard ProSection.isOffered, TrialOffer.shouldOffer(
+                purchases: model.pro.purchases, alreadyOffered: trialOffered,
+                recording: model.recorder.isRecording, proPrice: price) else { return }
+            trialOffered = true
+            showingTrialOffer = true
+        }
         #if os(macOS)
         .background(WindowCloseGuard(model: model))
         #endif
@@ -198,8 +211,11 @@ struct RecordScreen: View {
         }
         .buttonStyle(.plain)
         .disabled(!model.recorder.isRecording)
-        .opacity(model.recorder.isRecording ? 1 : 0.3)
+        // Dimmed but readable while Armed: it is there, just not usable until a Take runs.
+        .opacity(model.recorder.isRecording ? 1 : 0.55)
         .accessibilityLabel("Add Marker")
+        .accessibilityValue(model.recorder.takeMarkers.count == 1 ? "1 Marker" : "\(model.recorder.takeMarkers.count) Markers")
+        .accessibilityHint(model.recorder.isRecording ? "" : "Available during a Take")
         .sensoryFeedback(.success, trigger: model.recorder.takeMarkers.count) { old, new in new > old }
     }
 
@@ -231,7 +247,7 @@ struct RecordScreen: View {
             }
             .font(.caption)
             // Top-aligned: Marker is taller (its count sits below), so centring would drop Record.
-            HStack(alignment: .top, spacing: 28) {
+            HStack(alignment: .top, spacing: CGFloat(TransportLayout.gap(availableWidth: Double(transportWidth), buttonSize: 88))) {
                 recordButton(size: 88)
                 markerButton(size: 88)
             }
@@ -244,6 +260,8 @@ struct RecordScreen: View {
                 .id(model.recorder.takeMarkers.count)
         }
         .frame(maxWidth: .infinity)
+        .background { GeometryReader { geometry in Color.clear.preference(key: TransportWidthKey.self, value: geometry.size.width) } }
+        .onPreferenceChange(TransportWidthKey.self) { transportWidth = $0 }
         .animation(.easeInOut(duration: 0.15), value: model.recorder.takeMarkers.count)
     }
 
@@ -428,6 +446,8 @@ final class RecordScreenModel {
     var appearance: AppearanceMode = AppearanceMode.load()
     /// Battery and heat, shown as chips on the status strip.
     let power = PowerMonitor()
+    /// Pro, the Trial and the Free channel choice (ADR 0004).
+    let pro = ProStore()
     private(set) var setupHintDismissed = UserDefaults.standard.bool(forKey: RecordScreenModel.hintKey)
     private static let hintKey = "setupHintDismissed"
     private static let mixerAddressKey = "mixerAddress"
@@ -679,7 +699,8 @@ final class RecordScreenModel {
         let chip = dropouts > 0
             ? [PowerStatus.Chip(text: dropouts == 1 ? "1 dropout" : "\(dropouts) dropouts", shortText: "\(dropouts)", symbol: "waveform.badge.exclamationmark", state: .attention)]
             : []
-        return chip + power.status.chips
+        let trial = ProSection.isOffered ? pro.tier().chip.map { [$0] } ?? [] : []
+        return chip + power.status.chips + trial
     }
 
     /// Ends the open Show. Returns what to tell the operator, or nil when it ended.
@@ -748,6 +769,12 @@ final class RecordScreenModel {
             sampleRate: armedDevice?.sampleRate ?? 48_000)
         let size = ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .memory)
         return "A Take starts with the last \(Int(preRollSeconds)) s before you press record. Uses about \(size) of memory while Armed."
+    }
+
+    /// What a Take pressed right now may do: the tier, the Free channel choice and the Armed USB Channels.
+    /// Read from cached state only, never waiting on the App Store, so it can be frozen at the record press.
+    func currentAllowance() -> TakeAllowance {
+        Entitlement.allowance(for: pro.tier(), channelCount: recorder.usbChannelCount, freeChoice: pro.freeChoice)
     }
 
     var usbChannelSummary: String {
@@ -1084,6 +1111,11 @@ struct MarkerButtonLabel: View {
         }
         .contentShape(Rectangle())
     }
+}
+
+private struct TransportWidthKey: PreferenceKey {
+    static let defaultValue: CGFloat = 402
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 /// A large round record button that turns into a stop square while recording.

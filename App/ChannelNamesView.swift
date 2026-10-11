@@ -27,6 +27,14 @@ struct ChannelNamesView: View {
                                 .onSubmit { commit(row.number); focused = row.number < rows.count ? row.number + 1 : nil }
                                 .textFieldStyle(.plain)
                                 .accessibilityLabel("Name for USB Channel \(row.number)")
+                            if !(drafts[row.number] ?? "").isEmpty {
+                                Button { drafts[row.number] = nil; commit(row.number) } label: {
+                                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.borderless)
+                                .frame(minWidth: 44, minHeight: 44)
+                                .accessibilityLabel("Clear the name for USB Channel \(row.number)")
+                            }
                         }
                         if focused == row.number { chips(for: row) }
                     }
@@ -104,16 +112,18 @@ struct ChannelNamesView: View {
     }
 
     private func binding(for row: ChannelNameRow) -> Binding<String> {
-        Binding(get: { drafts[row.number] ?? "" }, set: { drafts[row.number] = $0 })
+        Binding(get: { drafts[row.number] ?? "" }, set: { text in
+            drafts[row.number] = text
+            // Emptying a row takes the name off right away, not only on Return or Done.
+            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { commit(row.number) }
+        })
     }
 
     private func commit(_ number: Int) {
         let text = (drafts[number] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        if text.isEmpty {
-            drafts[number] = nil
-            model.recorder.clearChannelName(forChannel: number)
-        } else if model.recorder.channelNames[number] != text {
-            model.recorder.setChannelName(text, forChannel: number)
+        if text.isEmpty { drafts[number] = nil }
+        if model.recorder.channelNames[number] != (text.isEmpty ? nil : text) {
+            model.recorder.updateChannelName(text, forChannel: number)
         }
     }
 

@@ -31,17 +31,22 @@ struct MixerLinkLiveTests {
 
     @Test("The Link renews /xremote before it runs out, so renames keep arriving long after the first one lapsed")
     func renewsXremote() async throws {
+        // Wide margins so a slow CI runner can't make it flaky (#283): renewals every 0.1 s against a 2 s lifetime,
+        // and the rename only after the first registration has run out. It waits on conditions, not fixed sleeps.
         var state = FakeXAirMixer.State()
-        state.xremoteLifetime = 0.3
+        state.xremoteLifetime = 2
         let mixer = try await FakeXAirMixer(state)
         let link = MixerLinkController(renewEvery: .milliseconds(100))
+        let connected = ContinuousClock.now
         await link.connect(to: "127.0.0.1:\(mixer.port)", usbChannelCount: 18)
 
-        try await Task.sleep(for: .milliseconds(900))
+        #expect(await eventually(10) { mixer.queries.filter { $0 == "/xremote" }.count >= 4 })
+        // Past the first registration's lifetime, so only a renewal can deliver the rename.
+        let lapsed = connected + .milliseconds(2_300)
+        if ContinuousClock.now < lapsed { try await Task.sleep(until: lapsed) }
         mixer.rename(channel: 3, to: "Hat")
 
-        #expect(await eventually { link.sources[2].name == "Hat" })
-        #expect(mixer.queries.filter { $0 == "/xremote" }.count >= 4)
+        #expect(await eventually(10) { link.sources[2].name == "Hat" })
     }
 
     @Test("When the Mixer goes quiet the Link goes down, and when it is back the Sources are read again, including renames it missed")

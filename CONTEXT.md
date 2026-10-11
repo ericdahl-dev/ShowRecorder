@@ -117,7 +117,7 @@ The one-time unlock that records every USB Channel and adds the Show report, Rea
 _Avoid_: Premium, full version, paid tier
 
 **Trial**:
-A 14-day period after first launch in which everything Pro does is available.
+A 14-day period in which everything Pro does is available. It starts when the operator taps Start 14-day Trial (a $0 in-app purchase, offered once at first launch and in Settings), and the App Store keeps its start date.
 _Avoid_: Demo, free trial (in UI copy say "14-day Trial")
 
 **Free**:

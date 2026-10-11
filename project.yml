@@ -22,6 +22,13 @@ targets:
     supportedDestinations: [iOS, macOS]
     sources:
       - path: App
+        excludes:
+          - ShowRecorder.storekit
+      # Local StoreKit testing only (the scheme's Run action); never copied into the app.
+      - path: App/ShowRecorder.storekit
+        buildPhase: none
+    scheme:
+      storeKitConfiguration: App/ShowRecorder.storekit
     dependencies:
       - package: ShowRecorderKit
         product: AudioIO

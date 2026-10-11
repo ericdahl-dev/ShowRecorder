@@ -14,12 +14,14 @@ struct USBChannelShortfallTests {
         #expect(USBChannelShortfall.check(usbChannelCount: count, offeredChannelCount: nil, mixer: nil, capabilities: nil) == nil)
     }
 
-    @Test("A device sending fewer USB Channels than the identified Mixer sends is a shortfall that names the Mixer", arguments: [8, 16])
+    @Test("A device sending fewer USB Channels than the identified Mixer sends is a shortfall that names the Mixer, short enough for 2 lines on an iPhone (#292)", arguments: [1, 8, 16])
     func fewerThanIdentifiedMixer(count: Int) throws {
         let shortfall = try #require(USBChannelShortfall.check(
             usbChannelCount: count, offeredChannelCount: nil, mixer: xr18, capabilities: xr18Capabilities))
 
-        #expect(shortfall.message == "This device sends \(count) USB Channels. The XR18 (FOH-XR18) sends 18, so some of the Mixer won't be recorded.")
+        let verb = count == 1 ? "is" : "are"
+        #expect(shortfall.message == "Only \(count) of the XR18's 18 USB Channels \(verb) coming in. Arm the XR18 to record all 18.")
+        #expect(shortfall.message.count <= 90)
     }
 
     @Test("A device sending at least what the identified Mixer sends is fine", arguments: [18, 32])
@@ -49,13 +51,5 @@ struct USBChannelShortfallTests {
     @Test("Nothing Armed means nothing to warn about")
     func nothingArmed() {
         #expect(USBChannelShortfall.check(usbChannelCount: 0, offeredChannelCount: nil, mixer: xr18, capabilities: xr18Capabilities) == nil)
-    }
-
-    @Test("One USB Channel reads in the singular")
-    func singular() throws {
-        let shortfall = try #require(USBChannelShortfall.check(
-            usbChannelCount: 1, offeredChannelCount: nil, mixer: xr18, capabilities: xr18Capabilities))
-
-        #expect(shortfall.message.hasPrefix("This device sends 1 USB Channel."))
     }
 }

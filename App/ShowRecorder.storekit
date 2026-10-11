@@ -1,0 +1,63 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "6C1B5F2A",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "19.99",
+      "familyShareable" : true,
+      "internalID" : "6753000001",
+      "localizations" : [
+        {
+          "description" : "Record every USB Channel, with the Show report, Reaper export, Templates and Mixer Triggers.",
+          "displayName" : "ShowRecorder Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "dev.ericdahl.ShowRecorder.pro",
+      "referenceName" : "Pro",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "0.0",
+      "familyShareable" : false,
+      "internalID" : "6753000002",
+      "localizations" : [
+        {
+          "description" : "Everything Pro does, for 14 days.",
+          "displayName" : "14-day Trial",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "dev.ericdahl.ShowRecorder.trial",
+      "referenceName" : "Trial",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
