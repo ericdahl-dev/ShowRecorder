@@ -145,6 +145,11 @@ struct RecordScreen: View {
         } message: {
             Text("This ends \(model.takeTitle).")
         }
+        // A Take the recorder ended by itself (out of space, no Destination) takes the question with it, so it
+        // never offers "Keep Recording" with nothing recording (#322).
+        .onChange(of: model.recorder.isRecording) { _, recording in
+            if !recording { model.confirmingStop = false }
+        }
     }
 
     /// Outside a Take a chip opens its part of Settings; during one it only retries (Drive, Mixer).
