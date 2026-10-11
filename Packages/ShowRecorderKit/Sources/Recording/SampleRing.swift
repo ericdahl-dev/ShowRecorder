@@ -84,6 +84,13 @@ final class SampleRing: @unchecked Sendable {
         written.store(start + frames, ordering: .releasing)
     }
 
+    /// Producer: records that `frames` of input never arrived (input stopped for an interruption, #317), as a drop at
+    /// the current position, so the consumer writes that much silence with a Dropout. Real-time safe.
+    func skip(frames: Int) {
+        guard frames > 0 else { return }
+        logDrop(storedFrames: written.load(ordering: .relaxed), length: frames)
+    }
+
     /// Producer: remembers a dropped block. Real-time safe.
     private func logDrop(storedFrames: Int, length: Int) {
         let logged = dropsLogged.load(ordering: .relaxed)

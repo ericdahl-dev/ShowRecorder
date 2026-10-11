@@ -87,6 +87,8 @@ public final class Recorder {
     @ObservationIgnored private let repair: TakeRepair
     /// How long Stop waits on a Copy's writer before giving that Copy up (#320).
     @ObservationIgnored private let writerStopTimeout: Duration
+    /// The host clock's ticks per second, for spotting a stop in the input (#317). Tests set it.
+    @ObservationIgnored private let hostTicksPerSecond: Double
     @ObservationIgnored private var finishedCopies: [DestinationKind: CopyStatus] = [:]
 
     /// - Parameters:
@@ -101,9 +103,11 @@ public final class Recorder {
         makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink = { try StemWriter.open(url: $0, info: $1, resumingAt: $2) },
         savedNames: UserDefaults = .standard,
         destinationCheckInterval: Duration? = .seconds(1),
+        hostTicksPerSecond: Double? = nil,
         writerStopTimeout: Duration = .seconds(5)
     ) {
         self.destinationCheckInterval = destinationCheckInterval
+        self.hostTicksPerSecond = hostTicksPerSecond ?? Capture.machTicksPerSecond
         self.writerStopTimeout = writerStopTimeout
         self.savedNames = savedNames
         savedChannelNames = SavedChannelNames.load(from: savedNames)
@@ -150,7 +154,9 @@ public final class Recorder {
     /// Starts receiving audio from `device`. Any previously Armed device is stopped first.
     public func arm(_ device: any AudioIODevice) throws {
         disarm()
-        let capture = Capture(channelCount: device.inputChannelCount, sampleRate: device.sampleRate, preRollSeconds: preRollSeconds)
+        let capture = Capture(
+            channelCount: device.inputChannelCount, sampleRate: device.sampleRate, preRollSeconds: preRollSeconds,
+            hostTicksPerSecond: hostTicksPerSecond)
         try device.start(input: { block in capture.receive(block) })
         self.device = device
         self.capture = capture
@@ -760,12 +766,26 @@ final class Capture: Sendable {
     /// set by the real-time thread at the block that starts feeding the Copies. -2 until then, -1 when the
     /// Take has no Pre-roll.
     let preRollStart = Atomic<Int>(-1)
+    /// Host-clock ticks per frame, and the host time the next block should start at: a block that starts much later
+    /// means input stopped (an interruption), and the missing stretch becomes a Dropout (#317). 0 until the first block.
+    private let hostTicksPerFrame: Double
+    private let expectedHostTime = Atomic<UInt64>(0)
+    /// A gap shorter than this (frames) is timing jitter, not lost input.
+    private let gapThreshold: Int
+    /// The host clock's ticks per second on this machine.
+    static let machTicksPerSecond: Double = {
+        var info = mach_timebase_info_data_t()
+        mach_timebase_info(&info)
+        return 1e9 * Double(info.denom) / Double(info.numer)
+    }()
 
     var channelCount: Int { rings[0].channelCount }
 
     /// - Parameter preRollSeconds: how much audio to keep before a Take starts; the buffer holds a second
     ///   more, so a snapshot of that length isn't cut short by the writer overwriting its oldest frames.
-    init(channelCount: Int, sampleRate: Double, preRollSeconds: Double = 0) {
+    init(channelCount: Int, sampleRate: Double, preRollSeconds: Double = 0, hostTicksPerSecond: Double = Capture.machTicksPerSecond) {
+        hostTicksPerFrame = hostTicksPerSecond / max(sampleRate, 1)
+        gapThreshold = Int(max(sampleRate, 1) * 0.05)
         meters = PeakMeters(channelCount: channelCount)
         preRoll = preRollSeconds > 0
             ? PreRollBuffer(channelCount: channelCount, capacity: Int((preRollSeconds + 1) * max(sampleRate, 1)))
@@ -811,6 +831,26 @@ final class Capture: Sendable {
     }
 
     /// Real-time: meter every block, and queue it for each Copy's writer while a Take is running.
+    /// Real-time safe. If this block starts well after the last one ended, input was stopped (a call, Siri, another
+    /// app took the session): the missing frames go into every Copy being recorded as a drop, which its writer turns
+    /// into silence with a Dropout, and the Take's timeline moves on by as much, so the Stems keep their length (#317).
+    private func noteInputGap(before block: AudioBlock, capturing mask: Int) {
+        guard block.hostTime != 0 else { return }
+        let expected = expectedHostTime.load(ordering: .relaxed)
+        if expected != 0, mask != 0, block.hostTime > expected {
+            let gap = Int((Double(block.hostTime - expected) / hostTicksPerFrame).rounded())
+            if gap > gapThreshold {
+                var copy = 0
+                while copy < rings.count {
+                    if mask & (1 << copy) != 0 { rings[copy].skip(frames: gap) }
+                    copy += 1
+                }
+                takeFrames.add(gap, ordering: .relaxed)
+            }
+        }
+        expectedHostTime.store(block.hostTime + UInt64((Double(block.frameCount) * hostTicksPerFrame).rounded()), ordering: .relaxed)
+    }
+
     func receive(_ block: AudioBlock) {
         meters.record(block)
         preRoll?.write(block)
@@ -828,6 +868,7 @@ final class Capture: Sendable {
             joinRequests.bitwiseAnd(~requested, ordering: .acquiringAndReleasing)
         }
         let mask = capturing.load(ordering: .acquiring)
+        noteInputGap(before: block, capturing: mask)
         var copy = 0
         while copy < rings.count {
             if mask & (1 << copy) != 0 { rings[copy].write(block) }
