@@ -8,7 +8,10 @@ struct ProSection: View {
     /// (#33, #34) are built: the footer and the App Store text promise them (ADR 0004, launch scope). It also switches
     /// the limits on: while off, `record()` passes no allowance, so every USB Channel is recorded with every extra
     /// (#60), and the section, the first-launch Trial offer and the days-left chip stay hidden.
-    static let isOffered = false
+    ///
+    /// Debug builds only: the `-proPreview` launch flag turns it on, for the App Review screenshots (#324). Release and
+    /// TestFlight builds ignore launch flags, so testers never see it early.
+    static let isOffered = launchFlag("-proPreview")
 
     @Bindable var model: RecordScreenModel
 

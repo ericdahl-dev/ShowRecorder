@@ -10,10 +10,10 @@ import StoreKit
 final class ProStore {
     /// What the current entitlements mean: whether Pro is owned and when the Trial started.
     /// Starts from the last known purchases on this device (#316), until the App Store answers.
-    private(set) var purchases = ProPurchases.lastKnown() ?? ProPurchases(owned: [])
+    private(set) var purchases = ProStore.debugTrial ?? ProPurchases.lastKnown() ?? ProPurchases(owned: [])
     /// Whether the tier is known: the App Store has answered this launch, or an earlier one did. Until then nothing
     /// is limited (Show-Safe Promise, #316).
-    private(set) var tierKnown = ProPurchases.lastKnown() != nil
+    private(set) var tierKnown = ProStore.debugTrial != nil || ProPurchases.lastKnown() != nil
     /// Called when the known tier changes (the App Store answered, a purchase, a refund), so the recorder can re-Arm
     /// between Takes at the rate it may now use.
     @ObservationIgnored var onTierChange: (() -> Void)?
@@ -47,6 +47,19 @@ final class ProStore {
     }
 
     func tier(now: Date = Date()) -> Tier { purchases.tier(now: now) }
+
+    /// Debug builds only: `-trialDaysLeft N` acts as if a Trial with N days left is owned (0 has just ended), so the
+    /// days-left chip, the last-days offer and the end of the Trial can be checked without waiting two weeks (#324).
+    private static let debugTrial: ProPurchases? = {
+        #if DEBUG
+        guard UserDefaults.standard.object(forKey: "trialDaysLeft") != nil else { return nil }
+        let left = UserDefaults.standard.integer(forKey: "trialDaysLeft")
+        let started = Date().addingTimeInterval(-Entitlement.trialLength + Double(left) * 86_400 - 60)
+        return ProPurchases(owned: [OwnedPurchase(productID: ProPurchases.trialProductID, purchaseDate: started)])
+        #else
+        return nil
+        #endif
+    }()
 
     /// The tier for limits: nil while it isn't known yet, which limits nothing (#316).
     func knownTier(now: Date = Date()) -> Tier? { tierKnown ? purchases.tier(now: now) : nil }
@@ -116,6 +129,7 @@ final class ProStore {
 
     /// Re-reads every current entitlement, own or Family Shared, so refunds and revocations count too.
     private func refreshOwned() async {
+        guard Self.debugTrial == nil else { return }  // a Debug run pretending a Trial keeps it
         var owned: [OwnedPurchase] = []
         for await entitlement in Transaction.currentEntitlements {
             guard case .verified(let transaction) = entitlement else { continue }
