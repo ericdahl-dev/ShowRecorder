@@ -36,6 +36,7 @@
 		CFC9F8D3194115954ABE8B0D /* Destinations in Frameworks */ = {isa = PBXBuildFile; productRef = 2A213300C93BF0054D83D85D /* Destinations */; };
 		D1B69547449C5B4B58E8DBEA /* MixerLink in Frameworks */ = {isa = PBXBuildFile; productRef = 3F4AE86B4D698E33356CCFFE /* MixerLink */; };
 		E81A70130E30A8E156EDA841 /* AudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = 06DFC4C4263644F94AB1BE1B /* AudioIO */; };
+		E8ED4177702282C467A8AC09 /* SoundcheckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D7ADCDE507077F908B89E77 /* SoundcheckView.swift */; };
 		F316B6D0CB9427B29787ED74 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A66A4A288C0B0A560B802624 /* PrivacyInfo.xcprivacy */; };
 		F7769B6393421DB1EE75F743 /* QuitGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38DF639C46586DCDF4866E87 /* QuitGuard.swift */; };
 /* End PBXBuildFile section */
@@ -56,6 +57,7 @@
 		497820F0F5EF694FC7765883 /* DriveFolderModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveFolderModel.swift; sourceTree = "<group>"; };
 		5E878A7AD64F581255B82A6E /* ProSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProSection.swift; sourceTree = "<group>"; };
 		625D1286301830679767FD67 /* LaunchFlag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchFlag.swift; sourceTree = "<group>"; };
+		6D7ADCDE507077F908B89E77 /* SoundcheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundcheckView.swift; sourceTree = "<group>"; };
 		7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowRecorderApp.swift; sourceTree = "<group>"; };
 		848566071F05B3D655086E7A /* ShowRecorder.storekit */ = {isa = PBXFileReference; path = ShowRecorder.storekit; sourceTree = "<group>"; };
 		84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordScreen.swift; sourceTree = "<group>"; };
@@ -128,6 +130,7 @@
 				A570C7ADCE1D60BED124A213 /* ShowRecorder.entitlements */,
 				848566071F05B3D655086E7A /* ShowRecorder.storekit */,
 				7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */,
+				6D7ADCDE507077F908B89E77 /* SoundcheckView.swift */,
 				3F25297D625A2C059541D858 /* StatusStrip.swift */,
 				DDDF413BFBEF5212621189D4 /* TrialSheet.swift */,
 				8DFAA5CBF9186C8638F0BDDD /* WindowCloseGuard.swift */,
@@ -252,6 +255,7 @@
 				CD0970AC1E67A961E697395E /* ShowDetailView.swift in Sources */,
 				255D20FDD3402F29F4A72FE9 /* ShowListView.swift in Sources */,
 				1D0AAB2401EFEADA6CDDEB2C /* ShowRecorderApp.swift in Sources */,
+				E8ED4177702282C467A8AC09 /* SoundcheckView.swift in Sources */,
 				75CA30F76EAD77FB29C41E7C /* StatusStrip.swift in Sources */,
 				07FB0DD2A97E806B1CB409A1 /* TrialSheet.swift in Sources */,
 				42E521FCCC800B2B20D0B69B /* WindowCloseGuard.swift in Sources */,

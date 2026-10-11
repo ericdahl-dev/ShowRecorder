@@ -214,6 +214,7 @@ extension ScreenAlert.Action {
         case .dismissHint: "Got it"
         case .checkDrive: "Check Drive"
         case .arm: "Arm"
+        case .soundcheck: "Soundcheck"
         }
     }
 }

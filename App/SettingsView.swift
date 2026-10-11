@@ -17,6 +17,7 @@ struct SettingsView: View {
     var scrollTo: SettingsSection?
     @State private var choosing = false
     @State private var showingChannelNames = false
+    @State private var showingSoundcheck = false
 
     /// Whether a setting can't be changed right now: some can't while a Take runs (`SettingsLock`).
     private func locked(_ item: SettingsItem) -> Bool {
@@ -111,10 +112,18 @@ struct SettingsView: View {
                     Text("Mixer Link").id(SettingsSection.mixer)
                 }
 
+                Section {
+                    Button("Run Soundcheck") { showingSoundcheck = true }
+                        .disabled(model.recorder.isRecording)
+                } footer: {
+                    Text("A 30 s test of the Mixer Link, the USB Channels, every Copy and the files. Not during a Take.")
+                }
+
                 if ProSection.isOffered, !locked(.pro) { ProSection(model: model) }
             }
             .formStyle(.grouped)
             .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
+            .sheet(isPresented: $showingSoundcheck) { SoundcheckView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
             .fileImporter(isPresented: $choosing, allowedContentTypes: [.folder]) { result in
                 if case .success(let url) = result { model.drive.choose(url) }
             }

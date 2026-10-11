@@ -1,0 +1,140 @@
+import Destinations
+import AudioIO
+import Foundation
+import MixerLink
+@testable import Recording
+import Testing
+
+/// The Soundcheck (#63): each step passes or says, in plain words, what's wrong.
+@Suite("Soundcheck")
+struct SoundcheckTests {
+    static let xr18 = MixerIdentity(networkName: "FOH", model: "XR18", firmware: "1.26")
+
+    @Test("Mixer: up with Source names passes and says which Mixer")
+    func mixerUp() {
+        let step = Soundcheck.judgeMixer(status: .up(Self.xr18, path: .wifi), sources: [Source(name: "Kick", color: .off), .fallback(usbChannel: 2)])
+        #expect(step.passed)
+        #expect(step.message == "FOH (XR18) is linked, with 1 channel named.")
+    }
+
+    @Test("Mixer: not set, down, or up with no names each fails with what to do")
+    func mixerProblems() {
+        #expect(Soundcheck.judgeMixer(status: .idle, sources: []) == .init(kind: .mixer, passed: false, message: "No Mixer linked. Add its address in Settings, under Mixer."))
+        let down = Soundcheck.judgeMixer(status: .down(.noReply(host: "10.0.0.9")), sources: [])
+        #expect(!down.passed)
+        #expect(down.message == MixerLinkProblem.noReply(host: "10.0.0.9").message)
+        let unnamed = Soundcheck.judgeMixer(status: .up(Self.xr18, path: .wifi), sources: [.fallback(usbChannel: 1)])
+        #expect(!unnamed.passed)
+        #expect(unnamed.message == "FOH (XR18) is linked, but none of its channels has a name. Name them on the Mixer to have them on the Stems.")
+    }
+
+    @Test("Channels: as many as the Mixer sends, with signal, passes and counts them")
+    func channelsPass() {
+        let step = Soundcheck.judgeChannels(usbChannelCount: 18, expected: 18, signal: TakeSignal(recorded: 18, withSignal: 12))
+        #expect(step == .init(kind: .channels, passed: true, message: "18 USB Channels, 12 with signal."))
+        #expect(Soundcheck.judgeChannels(usbChannelCount: 4, expected: nil, signal: TakeSignal(recorded: 4, withSignal: 1)).passed)
+    }
+
+    @Test("Channels: nothing Armed, fewer than the Mixer sends, or no signal each fails with what to do")
+    func channelsProblems() {
+        #expect(Soundcheck.judgeChannels(usbChannelCount: 0, expected: 18, signal: nil).message == "No input is Armed. Choose the Mixer's USB input in Settings.")
+        #expect(Soundcheck.judgeChannels(usbChannelCount: 2, expected: 18, signal: TakeSignal(recorded: 2, withSignal: 2)).message
+            == "The input sends 2 USB Channels; the Mixer sends 18. On the Mixer, set the USB interface to 18/18 (X AIR Edit: Setup, Audio/Midi).")
+        #expect(Soundcheck.judgeChannels(usbChannelCount: 18, expected: 18, signal: TakeSignal(recorded: 18, withSignal: 0)).message
+            == "No signal on any USB Channel. Play something through the Mixer and check its USB routing.")
+        #expect(!Soundcheck.judgeChannels(usbChannelCount: 18, expected: 18, signal: TakeSignal(recorded: 18, withSignal: 0)).passed)
+    }
+
+    @Test("Take: every Copy complete (or Repaired) passes and names where it went")
+    func takePass() {
+        #expect(Soundcheck.judgeTake(outcomes: [.device: .complete, .drive: .repaired], driveChosen: true)
+            == .init(kind: .take, passed: true, message: "Written to the Device and the Drive."))
+        #expect(Soundcheck.judgeTake(outcomes: [.device: .complete], driveChosen: false)
+            == .init(kind: .take, passed: true, message: "Written to the Device. No Drive is chosen, so there is one Copy."))
+    }
+
+    @Test("Take: not run, a Copy with Gaps, or a chosen Drive that wasn't written each fails")
+    func takeProblems() {
+        #expect(Soundcheck.judgeTake(outcomes: [:], driveChosen: false).message == "The test Take didn't run.")
+        #expect(Soundcheck.judgeTake(outcomes: [.device: .complete, .drive: .hasGaps], driveChosen: true).message
+            == "The Drive copy has Gaps: the Drive stopped during the test. Check its cable and space.")
+        #expect(Soundcheck.judgeTake(outcomes: [.device: .repairFailed, .drive: .complete], driveChosen: true).message
+            == "The Device copy couldn't be Repaired. Check the Device's free space.")
+        #expect(Soundcheck.judgeTake(outcomes: [.device: .complete], driveChosen: true).message
+            == "Nothing was written to the Drive. Check it in Settings, under Drive.")
+    }
+
+    @Test("Files: the report and the Reaper project in the Show folder pass; each missing one is named")
+    func files() throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "SoundcheckFiles-\(UUID().uuidString)/Soundcheck")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        #expect(Soundcheck.judgeFiles(showFolder: folder).message == "Missing from the Show folder: the Show report and the Reaper project.")
+        try Data().write(to: folder.appending(path: "Report.html"))
+        #expect(Soundcheck.judgeFiles(showFolder: folder).message == "Missing from the Show folder: the Reaper project.")
+        try Data().write(to: folder.appending(path: "Soundcheck.RPP"))
+        #expect(Soundcheck.judgeFiles(showFolder: folder) == .init(kind: .files, passed: true, message: "The Show report and the Reaper project are in the Show folder."))
+    }
+
+    @Test("A run records a short Take into its own Soundcheck Show, judges every step, then ends that Show")
+    @MainActor
+    func run() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "SoundcheckRun-\(UUID().uuidString)")
+        let audio = FakeAudioDevice(inputChannelCount: 2)
+        let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        try recorder.arm(audio)
+        // The fake device delivers only when told: feed it a tone on channel 1 and silence on 2 while the Take runs.
+        let feeding = Task { @MainActor in
+            while !Task.isCancelled {
+                audio.deliver([[Float](repeating: 0.5, count: 480), [Float](repeating: 0, count: 480)])
+                try? await Task.sleep(for: .milliseconds(5))
+            }
+        }
+        defer { feeding.cancel() }
+
+        var seen: [Soundcheck.Step.Kind] = []
+        var resultsWhenTakeStarted: [Soundcheck.Step.Kind] = []
+        var results: [Soundcheck.Step.Kind] = []
+        let steps = await Soundcheck.run(
+            recorder: recorder, mixer: .idle, sources: [], expectedUSBChannels: nil, driveChosen: false,
+            takeLength: .milliseconds(300),
+            progress: { kind in
+                seen.append(kind)
+                if kind == .take { resultsWhenTakeStarted = results }
+            },
+            result: { results.append($0.kind) })
+
+        #expect(steps.map(\.kind) == [.mixer, .channels, .take, .files])
+        #expect(steps.map(\.passed) == [false, true, true, true])
+        #expect(steps[1].message == "2 USB Channels, 1 with signal.")
+        #expect(seen == [.mixer, .take, .channels, .files])
+        // Each result is reported as soon as it's known: the Mixer's before the 30 s Take, not after it.
+        #expect(resultsWhenTakeStarted == [.mixer])
+        #expect(results == [.mixer, .channels, .take, .files])
+        #expect(recorder.currentShow == nil)
+        #expect(!recorder.isRecording)
+        let shows = try FileManager.default.contentsOfDirectory(atPath: root.path)
+        #expect(shows.contains { $0.contains("Soundcheck") })
+    }
+
+    @Test("A run never starts during a Take")
+    @MainActor
+    func notDuringATake() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "SoundcheckBusy-\(UUID().uuidString)")
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        try recorder.arm(audio)
+        try recorder.startTake()
+        let steps = await Soundcheck.run(recorder: recorder, mixer: .idle, sources: [], expectedUSBChannels: nil, driveChosen: false)
+        #expect(steps == [.init(kind: .take, passed: false, message: "A Take is running. Stop it before the Soundcheck.")])
+        #expect(recorder.isRecording)
+        try recorder.stopTake()
+    }
+
+    @Test("The Soundcheck is offered once, never during a Take, and not over the first-run setup hint")
+    func offer() {
+        #expect(Soundcheck.shouldOffer(alreadyOffered: false, isRecording: false, setupHintShowing: false))
+        #expect(!Soundcheck.shouldOffer(alreadyOffered: true, isRecording: false, setupHintShowing: false))
+        #expect(!Soundcheck.shouldOffer(alreadyOffered: false, isRecording: true, setupHintShowing: false))
+        #expect(!Soundcheck.shouldOffer(alreadyOffered: false, isRecording: false, setupHintShowing: true))
+    }
+}

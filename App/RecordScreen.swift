@@ -51,6 +51,7 @@ struct RecordScreen: View {
             if launchFlag("-showSettings") { showSettings(nil) }
             if launchFlag("-channelNames") { open(.channelNames) }
             if launchFlag("-showMarkers") { open(.markers) }
+            if launchFlag("-soundcheck") { model.showingSoundcheck = true }
         }
         .onDisappear { model.screenDisappeared() }
         .sheet(isPresented: $showingMarkers) {
@@ -82,6 +83,7 @@ struct RecordScreen: View {
         // Each sheet applies the Appearance itself: iOS presents a sheet on its own, and one that only inherits the
         // window's look keeps the old one until it is shown again.
         .sheet(isPresented: $showingNewShow) { NewShowSheet(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
+        .sheet(isPresented: $model.showingSoundcheck) { SoundcheckView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingShowList) { ShowListView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingTrialOffer) { TrialSheet(store: model.pro).modifier(AppearanceRoot(mode: model.appearance)) }
@@ -674,7 +676,27 @@ final class RecordScreenModel {
         if showSetupHint {
             list.append(ScreenAlert(id: "hint", priority: .hint, tone: .info, text: "Set the input, Drive and Mixer in Settings (the gear).", action: .dismissHint))
         }
+        // Offered once, as a banner rather than a sheet, so it never stacks on another first-launch sheet (#63).
+        if Soundcheck.shouldOffer(alreadyOffered: soundcheckOffered, isRecording: recorder.isRecording, setupHintShowing: showSetupHint) {
+            list.append(ScreenAlert(id: "soundcheck", priority: .hint, tone: .info, text: "Check your rig with a 30 s Soundcheck.", action: .soundcheck))
+        }
         return AlertQueue(list)
+    }
+
+    /// Whether the Soundcheck has been offered (opened once from the banner or Settings).
+    var soundcheckOffered = UserDefaults.standard.bool(forKey: RecordScreenModel.soundcheckOfferedKey) {
+        didSet { UserDefaults.standard.set(soundcheckOffered, forKey: Self.soundcheckOfferedKey) }
+    }
+    private static let soundcheckOfferedKey = "soundcheckOffered"
+    /// The Soundcheck sheet over the record screen.
+    var showingSoundcheck = false
+
+    /// Runs the Soundcheck with what the Mixer Link and the Drive know right now.
+    func runSoundcheck(progress: (Soundcheck.Step.Kind) -> Void, result: (Soundcheck.Step) -> Void) async -> [Soundcheck.Step] {
+        await Soundcheck.run(
+            recorder: recorder, mixer: mixerLink.status, sources: mixerLink.sources,
+            expectedUSBChannels: mixerLink.capabilities?.usbChannelCount, driveChosen: drive.status != .notChosen,
+            progress: progress, result: result)
     }
 
     /// A first-run nudge, once: neither a Drive nor a Mixer is set up yet.
@@ -692,6 +714,8 @@ final class RecordScreenModel {
             // Arm only: never starts a Take.
             disarmedForIdle = false
             armSelectedDevice()
+        case .soundcheck:
+            showingSoundcheck = true
         case .checkDrive:
             // Look again now, and say so if it's still not there.
             drive.refresh()
