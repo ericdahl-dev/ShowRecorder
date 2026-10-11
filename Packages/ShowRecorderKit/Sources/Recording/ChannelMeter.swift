@@ -42,7 +42,11 @@ public struct ChannelMeter: Sendable {
 
     public init() {}
 
-    /// The peak bar, linear 0...1: jumps to a peak and falls back 15% per 1/30 s, as the old meter did.
+    /// The peak bar falls this fast after a peak: slower than the old meter's 42 dB a second, so a hit stays
+    /// readable for about a second (Eric, 2026-10-11).
+    public static let peakBarFallDbfsPerSecond = 20.0
+
+    /// The peak bar, linear 0...1: jumps to a peak and falls back at `peakBarFallDbfsPerSecond`.
     public private(set) var peakBar: Float = 0
 
     public var peakBarZone: PeakBarZone {
@@ -57,7 +61,7 @@ public struct ChannelMeter: Sendable {
     /// Takes the levels the audio thread gathered over the last `seconds`.
     public mutating func update(_ level: ChannelLevel, seconds: Double) {
         vu.update(meanRectified: Double(level.meanRectified), seconds: seconds)
-        peakBar = max(level.peak, peakBar * Float(pow(0.85, seconds * 30)))
+        peakBar = max(level.peak, peakBar * Float(pow(10, -Self.peakBarFallDbfsPerSecond * seconds / 20)))
         let peak = level.peak > 0 ? max(20 * log10(Double(level.peak)), VUMeter.floorDbfs) : VUMeter.floorDbfs
         if peak >= peakDbfs {
             peakDbfs = peak

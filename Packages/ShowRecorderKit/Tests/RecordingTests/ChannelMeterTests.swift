@@ -62,19 +62,19 @@ struct ChannelMeterTests {
         #expect(abs(meter.peakDbfs + 6) < 0.01, "a quieter window doesn't pull the held tick down")
     }
 
-    @Test("The peak bar jumps to a new peak and falls back gently, 15% per 1/30 s, as the old meter did")
+    @Test("The peak bar jumps to a new peak and falls back at 20 dB a second")
     func peakBar() {
         var meter = ChannelMeter()
         meter.update(Self.level(rmsDbfs: -20, peakDbfs: -4), seconds: 1.0 / 30)
-        let peak = Float(pow(10, -4.0 / 20))
-        #expect(abs(meter.peakBar - peak) < 1e-5)
+        func dbfs(_ bar: Float) -> Double { 20 * log10(Double(bar)) }
+        #expect(abs(dbfs(meter.peakBar) + 4) < 0.01)
         let silence = ChannelLevel(peak: 0, meanRectified: 0, frames: 1600)
-        meter.update(silence, seconds: 1.0 / 30)
-        #expect(abs(meter.peakBar - peak * 0.85) < 1e-5)
-        meter.update(silence, seconds: 1.0 / 60)
-        #expect(abs(meter.peakBar - peak * 0.85 * Float(pow(0.85, 0.5))) < 1e-5, "the fall follows real time, not the number of updates")
-        meter.update(Self.level(rmsDbfs: -20, peakDbfs: -30), seconds: 1.0 / 30)
-        #expect(meter.peakBar > Float(pow(10, -30.0 / 20)) * 2, "a quieter window doesn't snap the bar down")
+        for _ in 0..<15 { meter.update(silence, seconds: 1.0 / 30) }
+        #expect(abs(dbfs(meter.peakBar) + 14) < 0.01, "half a second later it is 10 dB down")
+        meter.update(silence, seconds: 0.5)
+        #expect(abs(dbfs(meter.peakBar) + 24) < 0.01, "the fall follows real time, not the number of updates")
+        meter.update(Self.level(rmsDbfs: -20, peakDbfs: -40), seconds: 1.0 / 30)
+        #expect(dbfs(meter.peakBar) > -25, "a quieter window doesn't snap the bar down")
         for _ in 0..<300 { meter.update(silence, seconds: 1.0 / 30) }
         #expect(meter.peakBar < 1e-4)
     }
