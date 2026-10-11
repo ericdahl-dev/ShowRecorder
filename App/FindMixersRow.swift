@@ -18,7 +18,9 @@ struct FindMixersRow: View {
             Text("Not on a Wi-Fi or Ethernet network.")
                 .font(.footnote).foregroundStyle(.secondary)
         } else if let found, found.isEmpty, !searching {
-            Text("No mixers answered. Check this device is on the mixer's network and Local Network access is on.")
+            // On iOS the first search is also the first local-network send, so it asks for Local Network access and
+            // the replies are lost while it asks.
+            Text("No mixers answered. Check this device is on the mixer's network and Local Network access is on. If it just asked about Local Network, tap Find mixers again.")
                 .font(.footnote).foregroundStyle(.secondary)
         } else if let found {
             ForEach(found, id: \.host) { mixer in
