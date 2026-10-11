@@ -83,22 +83,33 @@ struct NewShowSheet: View {
         let access = model.templateAccess
         Section {
             ForEach(model.templates.templates) { template in
-                Button {
-                    message = model.startShow(from: template)
-                    if message == nil { dismiss() }
-                } label: {
-                    LabeledContent {
-                        Text(template.venue ?? "")
+                let isDefault = template.id == model.templates.defaultID
+                HStack(spacing: 4) {
+                    Button {
+                        message = model.startShow(from: template)
+                        if message == nil { dismiss() }
                     } label: {
-                        if template.id == model.templates.defaultID {
-                            Label(template.name, systemImage: "star.fill")
-                        } else {
-                            Text(template.name)
-                        }
+                        LabeledContent(template.name, value: template.venue ?? "")
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
                     }
+                    .buttonStyle(.borderless)
+                    .tint(.primary)
+                    .accessibilityValue(isDefault ? "Default" : "")
+                    .disabled(access != .usable)
+                    // The default, in plain sight (Eric): filled for the default, an outline to make this one it.
+                    Button {
+                        model.templates.setDefault(isDefault ? nil : template.id)
+                    } label: {
+                        Image(systemName: isDefault ? "star.fill" : "star")
+                            .foregroundStyle(isDefault ? Color.yellow : Color.secondary)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel(isDefault ? "Default Template" : "Make default")
+                    .disabled(access == .proOnly)
                 }
-                .accessibilityValue(template.id == model.templates.defaultID ? "Default" : "")
-                .disabled(access != .usable)
                 .swipeActions {
                     Button("Delete", role: .destructive) { model.templates.delete(template.id) }
                     defaultButton(template)
@@ -124,7 +135,7 @@ struct NewShowSheet: View {
         } header: {
             Text("Templates")
         } footer: {
-            Text(access.note ?? "Starting from a Template ends the open Show and brings its channel names, Pre-roll and Mixer. The default (★) readies the next Show when the app opens with none open.")
+            Text(access.note ?? "Starting from a Template ends the open Show and brings its channel names, Pre-roll and Mixer. Tap ☆ to make a Template the default (★): it readies the next Show when the app opens with none open.")
         }
     }
 
