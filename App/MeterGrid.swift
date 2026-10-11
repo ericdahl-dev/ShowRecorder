@@ -82,6 +82,15 @@ struct MeterGrid: View {
                         .accessibilityAddTraits(.isButton)
                         .accessibilityHint("Double tap to name this channel")
                 }
+                // A 44 pt touch zone at the foot of the lane (#240): the label is shorter than that, and making it
+                // taller would take height from the meters. It clears a clip mark when there is one, else names.
+                .overlay(alignment: .bottom) {
+                    Color.clear
+                        .frame(height: 44)
+                        .contentShape(Rectangle())
+                        .onTapGesture { if clipped.contains(index) { clearClip(index) } else { nameChannel(index + 1) } }
+                        .accessibilityHidden(true)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
