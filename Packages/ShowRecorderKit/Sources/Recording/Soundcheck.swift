@@ -49,6 +49,12 @@ public enum Soundcheck {
         }
     }
 
+    /// Whether `kind` is being checked while `current` runs. USB Channels is judged from the test Take's audio, so it
+    /// shows as checked during the Take too; otherwise it looked skipped (TestFlight, 2026-10-11).
+    public static func isChecking(_ kind: Step.Kind, current: Step.Kind?) -> Bool {
+        kind == current || (kind == .channels && current == .take)
+    }
+
     /// - Parameters:
     ///   - expected: how many USB Channels the linked Mixer sends, when known.
     ///   - signal: what the test Take carried; nil before it ran.
@@ -58,6 +64,9 @@ public enum Soundcheck {
         }
         if let expected, usbChannelCount < expected {
             return Step(kind: .channels, passed: false, message: "The input sends \(usbChannelCount) USB Channels; the Mixer sends \(expected). On the Mixer, set the USB interface to \(expected)/\(expected) (X AIR Edit: Setup, Audio/Midi).")
+        }
+        if let signal, signal.withSignal == 0, let loudest = signal.loudest, loudest.peakDbfs > VUMeter.floorDbfs {
+            return Step(kind: .channels, passed: false, message: "No USB Channel went above \(Int(TakeSignal.thresholdDbfs)) dBFS. The loudest was USB \(loudest.usbChannel), at \(Int(loudest.peakDbfs.rounded())) dBFS. Speak or play into a channel, or raise its gain on the Mixer.")
         }
         guard let signal, signal.withSignal > 0 else {
             return Step(kind: .channels, passed: false, message: "No signal on any USB Channel. Play something through the Mixer and check its USB routing.")

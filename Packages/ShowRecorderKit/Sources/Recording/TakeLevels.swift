@@ -38,6 +38,12 @@ struct TakeLevels {
         }
     }
 
+    /// The USB Channel (from 1) that peaked loudest, and its peak; nil with no channels.
+    func loudest() -> TakeSignal.Loudest? {
+        summary.enumerated().max { $0.element.peakDbfs < $1.element.peakDbfs }
+            .map { TakeSignal.Loudest(usbChannel: $0.offset + 1, peakDbfs: $0.element.peakDbfs) }
+    }
+
     /// How many channels peaked above `thresholdDbfs` during the Take: the ones carrying signal, recorded or not.
     func channelsWithSignal(thresholdDbfs: Double = TakeSignal.thresholdDbfs) -> Int {
         summary.filter { $0.peakDbfs > thresholdDbfs }.count

@@ -255,7 +255,7 @@ final class TakeSession {
         }
         return Finished(
             metadata: metadata, folders: copies.map(\.folder), access: copies.lazy.compactMap(\.access).first, statuses: statuses,
-            signal: TakeSignal(recorded: metadata.usbChannels.count, withSignal: levels.channelsWithSignal()),
+            signal: TakeSignal(recorded: metadata.usbChannels.count, withSignal: levels.channelsWithSignal(), loudest: levels.loudest()),
             abandoned: Set(copies.filter { $0.writer.wasAbandoned }.map(\.kind)))
     }
 
