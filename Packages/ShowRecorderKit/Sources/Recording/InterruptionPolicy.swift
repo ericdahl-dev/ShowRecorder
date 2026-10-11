@@ -5,8 +5,8 @@
 /// returned action. Nothing here ends a Take: going to the background or locking the screen does
 /// nothing, and an interruption only stops input until it can be restarted.
 ///
-/// While input is stopped no audio reaches the Take, so the Stems skip that stretch. (Marking it as
-/// a Dropout comes in #15.)
+/// While input is stopped no audio reaches the Take. When it comes back, the stretch it missed is written as
+/// silence with a Dropout (the recorder sees the jump in the input's host time, #317), so the Stems keep their length.
 public struct InterruptionPolicy: Sendable, Equatable {
     public enum Event: Sendable, Equatable {
         /// Another app, a call or Siri took the audio session. Input has stopped.
