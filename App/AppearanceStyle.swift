@@ -71,6 +71,21 @@ struct SecondaryText: ViewModifier {
     }
 }
 
+/// Error and warning text inside sheets and Settings: 4.5:1 or better on the sheet in every appearance (#252), where
+/// the system's red and orange are not.
+struct InlineText: ViewModifier {
+    let tone: Palette.InlineTone
+    @Environment(\.appearanceMode) private var mode
+    @Environment(\.colorScheme) private var scheme
+
+    func body(content: Content) -> some View {
+        content.foregroundStyle(Color(Palette.inlineText(tone, mode: mode, systemDark: scheme == .dark)))
+    }
+}
+
 extension View {
     func secondaryText() -> some View { modifier(SecondaryText()) }
+    func errorText() -> some View { modifier(InlineText(tone: .error)) }
+    func warningText() -> some View { modifier(InlineText(tone: .warning)) }
+    func inlineText(_ tone: Palette.InlineTone) -> some View { modifier(InlineText(tone: tone)) }
 }

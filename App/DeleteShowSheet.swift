@@ -41,18 +41,18 @@ struct DeleteShowSheet: View {
         NavigationStack {
             Form {
                 if let blocked {
-                    Section { Label(blocked, systemImage: "lock.fill").foregroundStyle(.secondary) }
+                    Section { Label(blocked, systemImage: "lock.fill").secondaryText() }
                 }
                 Section {
                     if show.deviceCopy != nil {
                         Toggle("Device copy", isOn: $fromDevice).onChange(of: fromDevice) { check = nil }
                     } else {
-                        LabeledContent("Device copy", value: "Not there").foregroundStyle(.secondary)
+                        LabeledContent("Device copy", value: "Not there").secondaryText()
                     }
                     if show.driveCopy != nil {
                         Toggle("Drive copy", isOn: $fromDrive).onChange(of: fromDrive) { check = nil }
                     } else {
-                        LabeledContent("Drive copy", value: "Not there").foregroundStyle(.secondary)
+                        LabeledContent("Drive copy", value: "Not there").secondaryText()
                     }
                 } header: {
                     Text("Delete from")
@@ -65,7 +65,7 @@ struct DeleteShowSheet: View {
                         if checking { ProgressView() }
                         switch check {
                         case .passed: Label("The Drive copy matches. The Device copy can be deleted.", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
-                        case .failed(let reasons): ForEach(reasons, id: \.self) { Text($0).foregroundStyle(.red) }
+                        case .failed(let reasons): ForEach(reasons, id: \.self) { Text($0).errorText() }
                         case nil: EmptyView()
                         }
                     } header: {
@@ -97,7 +97,7 @@ struct DeleteShowSheet: View {
                         } message: {
                             Text(footer)
                         }
-                    if let message { Text(message).foregroundStyle(.red) }
+                    if let message { Text(message).errorText() }
                 }
             }
             .navigationTitle(channel != nil ? "Delete File" : take == nil ? "Delete Show" : "Delete Take")

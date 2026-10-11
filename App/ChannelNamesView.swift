@@ -19,7 +19,7 @@ struct ChannelNamesView: View {
                         HStack {
                             Text("\(row.number)")
                                 .monospacedDigit()
-                                .foregroundStyle(.secondary)
+                                .secondaryText()
                                 .frame(minWidth: 28, alignment: .trailing)
                             TextField(row.hint, text: binding(for: row))
                                 .focused($focused, equals: row.number)
@@ -29,7 +29,7 @@ struct ChannelNamesView: View {
                                 .accessibilityLabel("Name for USB Channel \(row.number)")
                             if !(drafts[row.number] ?? "").isEmpty {
                                 Button { drafts[row.number] = nil; commit(row.number) } label: {
-                                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                                    Image(systemName: "xmark.circle.fill").secondaryText()
                                 }
                                 .buttonStyle(.borderless)
                                 .frame(minWidth: 44, minHeight: 44)
@@ -41,7 +41,7 @@ struct ChannelNamesView: View {
                 }
                 Section {
                     Button("Copy from last Show") { copyFromLastShow() }
-                    if let copyMessage { Text(copyMessage).font(.footnote).foregroundStyle(.secondary) }
+                    if let copyMessage { Text(copyMessage).font(.footnote).secondaryText() }
                 } footer: {
                     Text("The files take the names when the Take ends. A name stays for the rest of the Show.")
                 }

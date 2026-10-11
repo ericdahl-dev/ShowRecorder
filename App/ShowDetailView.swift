@@ -19,19 +19,19 @@ struct ShowDetailView: View {
             if let takes {
                 List {
                     if takes.isEmpty {
-                        Text("No Takes yet").foregroundStyle(.secondary)
+                        Text("No Takes yet").secondaryText()
                     }
                     ForEach(takes) { take in
                         Section {
                             if take.markers.isEmpty {
-                                Text("No Markers").foregroundStyle(.secondary)
+                                Text("No Markers").secondaryText()
                             }
                             ForEach(Array(take.markers.enumerated()), id: \.offset) { _, marker in row(marker, take: take.number) }
                             if !take.channels.isEmpty {
                                 DisclosureGroup("Channel files (\(take.channels.count))") {
                                     ForEach(take.channels, id: \.number) { channel in
                                         HStack {
-                                            Text("\(channel.number)").monospacedDigit().foregroundStyle(.secondary)
+                                            Text("\(channel.number)").monospacedDigit().secondaryText()
                                             Text(channel.name)
                                             Spacer()
                                             Button("Delete…", role: .destructive) { deletingFile = (take.number, channel.number) }
@@ -52,7 +52,7 @@ struct ShowDetailView: View {
                         }
                     }
                     if let message {
-                        Section { Text(message).foregroundStyle(.red) }
+                        Section { Text(message).errorText() }
                     }
                 }
             } else {
@@ -105,7 +105,7 @@ struct ShowDetailView: View {
         let content = HStack {
             Text(marker.name)
             Spacer()
-            Text(Self.clock(marker.seconds)).monospacedDigit().foregroundStyle(.secondary)
+            Text(Self.clock(marker.seconds)).monospacedDigit().secondaryText()
         }
         if marker.operatorIndex != nil {
             Button { newName = marker.name; renaming = (take, marker) } label: { content }

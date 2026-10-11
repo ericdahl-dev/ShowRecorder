@@ -54,4 +54,24 @@ struct AppearanceTests {
             if weak && mode != .system { #expect(Palette.meterOutline(mode) != nil, "\(mode)") }
         }
     }
+
+    @Test("Error and warning text inside sheets is at least 4.5:1 on the sheet's background in every appearance, System's light and dark included (#252)")
+    func inlineProblemText() {
+        let backgrounds: [(AppearanceMode, Bool, [RGB])] = [
+            (.sunlight, false, [Palette.background(.sunlight)]),
+            (.dark, true, [Palette.background(.dark)]),
+            // System: a grouped Form's rows and the gray behind them, light and dark.
+            (.system, false, [RGB(1, 1, 1), RGB(0.95, 0.95, 0.97)]),
+            (.system, true, [RGB(0, 0, 0), RGB(0.11, 0.11, 0.12)]),
+        ]
+        for (mode, systemDark, behind) in backgrounds {
+            for tone in Palette.InlineTone.allCases {
+                let text = Palette.inlineText(tone, mode: mode, systemDark: systemDark)
+                for background in behind {
+                    let ratio = text.contrast(with: background)
+                    #expect(ratio >= 4.5, "\(tone) in \(mode) (dark \(systemDark)): \(ratio)")
+                }
+            }
+        }
+    }
 }

@@ -32,7 +32,7 @@ struct PaywallSheet: View {
                     Button("Restore Purchases") { Task { await store.restore() } }
                         .disabled(store.busy)
                     if let note = store.note {
-                        Text(note).font(.footnote).foregroundStyle(.secondary)
+                        Text(note).font(.footnote).secondaryText()
                     }
                 } footer: {
                     Text(paywall.footnote)

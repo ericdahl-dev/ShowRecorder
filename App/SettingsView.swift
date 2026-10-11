@@ -29,7 +29,7 @@ struct SettingsView: View {
                 if model.recorder.isRecording {
                     Section {
                         Label("Input, Pre-roll, Drive and Mixer Link can't be changed during a Take.", systemImage: "lock.fill")
-                            .foregroundStyle(.secondary)
+                            .secondaryText()
                     }
                 }
                 Section {
@@ -53,7 +53,7 @@ struct SettingsView: View {
                     }
                     .onChange(of: model.sampleRateChoice) { model.sampleRateChanged() }
                     .disabled(locked(.input))
-                    Text(model.usbChannelSummary).foregroundStyle(.secondary).monospacedDigit()
+                    Text(model.usbChannelSummary).secondaryText().monospacedDigit()
                     Button("Channel names…") { showingChannelNames = true }
                         .disabled(model.meterModel.channelCount == 0)
                     Picker("Pre-roll", selection: $model.preRollSeconds) {
@@ -63,7 +63,7 @@ struct SettingsView: View {
                     }
                     .onChange(of: model.preRollSeconds) { model.preRollChanged() }
                     .disabled(locked(.preRoll))
-                    Text(model.preRollNote).font(.footnote).foregroundStyle(.secondary)
+                    Text(model.preRollNote).font(.footnote).secondaryText()
                     // A dropdown menu. The choice is stored the moment it is picked (in the binding's setter), so it does
                     // not depend on the screen redrawing when the appearance changes under the open menu.
                     Picker("Appearance", selection: Binding(
@@ -75,7 +75,7 @@ struct SettingsView: View {
                         }
                     }
                     .pickerStyle(.menu)
-                    Text(model.appearance.footnote).font(.footnote).foregroundStyle(.secondary)
+                    Text(model.appearance.footnote).font(.footnote).secondaryText()
                     #if os(iOS)
                     Toggle("Record button on the left in landscape", isOn: $model.transportLeading)
                         .onChange(of: model.transportLeading) { model.saveTransportSide() }
@@ -132,12 +132,12 @@ struct SettingsView: View {
         switch model.drive.status {
         case .notChosen:
             Label("No Drive folder. Takes go to this device only.", systemImage: "externaldrive.badge.questionmark")
-                .foregroundStyle(.secondary)
+                .secondaryText()
         case .available(let drive):
             Label("Drive: \(drive.name) · \(drive.availableBytes.formatted(.byteCount(style: .file))) free", systemImage: "externaldrive.fill.badge.checkmark")
         case .unavailable(let problem):
             Label(problem.message, systemImage: "externaldrive.badge.exclamationmark")
-                .foregroundStyle(.orange)
+                .warningText()
         }
     }
 
@@ -152,7 +152,7 @@ struct SettingsView: View {
             } else { nil }
             Text("Time left · This device: \(device.description)" + (drive.map { " · Drive: \($0.description)" } ?? ""))
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
+                .secondaryText()
         }
     }
 
@@ -160,15 +160,15 @@ struct SettingsView: View {
         switch model.mixerLink.status {
         case .idle:
             Label("Not connected to a mixer. Stems use USB Channel names.", systemImage: "link")
-                .foregroundStyle(.secondary)
+                .secondaryText()
         case .connecting(let host):
             Label("Connecting to \(host)…", systemImage: "antenna.radiowaves.left.and.right")
-                .foregroundStyle(.secondary)
+                .secondaryText()
         case .up(let identity, let path):
             Label("Mixer Link up · \(identity.networkName) (\(identity.model)) · \(path == .wifi ? "Wi-Fi" : "USB")", systemImage: "checkmark.circle.fill")
         case .down(let problem):
             Label(problem.message, systemImage: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
+                .warningText()
         }
     }
 }

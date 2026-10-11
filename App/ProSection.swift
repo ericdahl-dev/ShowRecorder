@@ -37,7 +37,7 @@ struct ProSection: View {
             Button("Restore Purchases") { Task { await store.restore() } }
                 .disabled(store.busy)
             if let note = store.note {
-                Text(note).font(.footnote).foregroundStyle(.secondary)
+                Text(note).font(.footnote).secondaryText()
             }
             if tier == .free {
                 freePicker
@@ -79,7 +79,7 @@ struct ProSection: View {
                 .pickerStyle(.menu)
             }
             Text("Free records 2 USB Channels. Every channel is still metered.")
-                .font(.footnote).foregroundStyle(.secondary)
+                .font(.footnote).secondaryText()
         }
     }
 }
