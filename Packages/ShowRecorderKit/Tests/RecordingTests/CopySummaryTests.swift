@@ -4,6 +4,12 @@ import Testing
 /// The record screen's line about how the last Take's Copies ended up.
 @Suite("Copy summary")
 struct CopySummaryTests {
+    @Test("Each outcome has its word: complete, has Gaps, Repaired, Repair failed")
+    func everyOutcomeWord() {
+        #expect(CopySummary(outcomes: [.device: .hasGaps, .drive: .repaired], dropoutCount: 0).text == "Device copy: has Gaps · Drive copy: Repaired")
+        #expect(CopySummary(outcomes: [.device: .complete, .drive: .repairFailed], dropoutCount: 0).text == "Device copy: complete · Drive copy: Repair failed")
+    }
+
     @Test("Two complete Copies and no Dropouts read as before")
     func twoCopies() {
         let summary = CopySummary(outcomes: [.device: .complete, .drive: .complete], dropoutCount: 0)

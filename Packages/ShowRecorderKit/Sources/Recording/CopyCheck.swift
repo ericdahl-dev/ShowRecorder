@@ -32,7 +32,7 @@ public enum CopyCheck {
             }
             let outcome = driveTake.outcome(ofCopy: .drive)
             if outcome == .hasGaps || outcome == .repairFailed {
-                problems.append("\(name) on the Drive still has Gaps.")
+                problems.append("\(name) on the \(DestinationKind.drive.name) still \(CopyOutcome.hasGaps.word).")
             }
             for channel in deviceTake.usbChannels {
                 guard let match = driveTake.usbChannels.first(where: { $0.usbChannel == channel.usbChannel }) else {

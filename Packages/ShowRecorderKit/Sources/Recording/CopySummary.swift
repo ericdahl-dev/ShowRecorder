@@ -7,16 +7,8 @@ public struct CopySummary: Equatable, Sendable {
     public let isProblem: Bool
 
     public init(outcomes: [DestinationKind: CopyOutcome], dropoutCount: Int) {
-        func word(_ outcome: CopyOutcome) -> String {
-            switch outcome {
-            case .complete: "complete"
-            case .hasGaps: "has Gaps"
-            case .repaired: "Repaired"
-            case .repairFailed: "Repair failed"
-            }
-        }
-        var parts = [(DestinationKind.device, "Device"), (.drive, "Drive")].compactMap { kind, name in
-            outcomes[kind].map { "\(name) copy: \(word($0))" }
+        var parts = DestinationKind.allCases.compactMap { kind in
+            outcomes[kind].map { "\(kind.name) copy: \($0.word)" }
         }
         if outcomes.count == 1 {
             parts[0] += outcomes[.device] == nil ? " (no device copy)" : " (no Drive)"

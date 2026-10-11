@@ -124,6 +124,14 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
             case repaired
             /// The other Copy didn't have those samples either, or they couldn't be copied.
             case failed
+
+            /// "Repaired" or "Repair failed", as the operator reads it.
+            public var word: String {
+                switch self {
+                case .repaired: "Repaired"
+                case .failed: "Repair failed"
+                }
+            }
         }
 
         public var copy: DestinationKind
@@ -220,4 +228,14 @@ public enum CopyOutcome: String, Sendable, Equatable {
     case hasGaps
     case repaired
     case repairFailed
+
+    /// The outcome as the operator reads it: "complete", "has Gaps", "Repaired" or "Repair failed".
+    public var word: String {
+        switch self {
+        case .complete: "complete"
+        case .hasGaps: "has Gaps"
+        case .repaired: TakeMetadata.Repair.Outcome.repaired.word
+        case .repairFailed: TakeMetadata.Repair.Outcome.failed.word
+        }
+    }
 }

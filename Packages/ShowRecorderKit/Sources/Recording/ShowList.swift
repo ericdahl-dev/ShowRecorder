@@ -35,19 +35,19 @@ extension ShowSummary {
     /// What to say about the Copies, or nil when both are complete (or Repaired). Words as in CONTEXT.md.
     public var copyNote: CopyNote? {
         var parts: [(String, CopyNote.Severity)] = []
-        func add(_ copy: String, _ outcome: CopyOutcome?, missing: String) {
+        func add(_ copy: DestinationKind, _ outcome: CopyOutcome?, missing: String) {
             switch outcome {
             case nil: parts.append((missing, .warning))
             case .complete, .repaired: break
-            case .hasGaps: parts.append(("\(copy) copy has Gaps", .problem))
-            case .repairFailed: parts.append(("\(copy) Repair failed", .problem))
+            case .hasGaps: parts.append(("\(copy.name) copy \(CopyOutcome.hasGaps.word)", .problem))
+            case .repairFailed: parts.append(("\(copy.name) \(CopyOutcome.repairFailed.word)", .problem))
             }
         }
-        add("Device", deviceCopy, missing: "No Device copy")
+        add(.device, deviceCopy, missing: "No Device copy")
         let driveMissing: String
         if driveCopyWritten == true { driveMissing = driveConnected ? "Drive copy missing" : "Drive not connected now" }
         else { driveMissing = "No Drive copy" }
-        add("Drive", driveCopy, missing: driveMissing)
+        add(.drive, driveCopy, missing: driveMissing)
         guard !parts.isEmpty else { return nil }
         return CopyNote(text: parts.map(\.0).joined(separator: " · "), severity: parts.contains { $0.1 == .problem } ? .problem : .warning)
     }
