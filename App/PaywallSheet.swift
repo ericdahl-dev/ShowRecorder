@@ -54,7 +54,9 @@ struct PaywallSheet: View {
 }
 
 /// A paywall due to be shown: `moment` is why, nil when opened from Settings.
-struct PaywallRequest: Identifiable {
+struct PaywallRequest: Identifiable, Equatable {
     let id = UUID()
     let moment: ProOfferMoment?
+
+    static func == (a: Self, b: Self) -> Bool { a.id == b.id }
 }

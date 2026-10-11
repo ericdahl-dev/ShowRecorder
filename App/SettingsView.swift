@@ -18,6 +18,8 @@ struct SettingsView: View {
     @State private var choosing = false
     @State private var showingChannelNames = false
     @State private var showingSoundcheck = false
+    @State private var showingTrial = false
+    @State private var showingPaywall = false
 
     /// Whether a setting can't be changed right now: some can't while a Take runs (`SettingsLock`).
     private func locked(_ item: SettingsItem) -> Bool {
@@ -119,11 +121,13 @@ struct SettingsView: View {
                     Text("A 30 s test of the Mixer Link, the USB Channels, every Copy and the files. Not during a Take.")
                 }
 
-                if ProSection.isOffered, !locked(.pro) { ProSection(model: model) }
+                if ProSection.isOffered, !locked(.pro) { ProSection(model: model, showingTrial: $showingTrial, showingPaywall: $showingPaywall) }
             }
             .formStyle(.grouped)
             .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
             .sheet(isPresented: $showingSoundcheck) { SoundcheckView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
+            .sheet(isPresented: $showingTrial) { TrialSheet(store: model.pro).modifier(AppearanceRoot(mode: model.appearance)) }
+            .sheet(isPresented: $showingPaywall) { PaywallSheet(store: model.pro, moment: nil).modifier(AppearanceRoot(mode: model.appearance)) }
             .fileImporter(isPresented: $choosing, allowedContentTypes: [.folder]) { result in
                 if case .success(let url) = result { model.drive.choose(url) }
             }

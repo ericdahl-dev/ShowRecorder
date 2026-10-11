@@ -16,8 +16,10 @@ struct ProSection: View {
     @Bindable var model: RecordScreenModel
 
     private var store: ProStore { model.pro }
-    @State private var showingTrial = false
-    @State private var showingPaywall = false
+    /// Presented by the Settings Form, not this Section: a sheet on a lazily built Form row is torn down when the row
+    /// is rebuilt, and took Settings with it (#357).
+    @Binding var showingTrial: Bool
+    @Binding var showingPaywall: Bool
 
     var body: some View {
         let tier = store.tier()
@@ -50,8 +52,6 @@ struct ProSection: View {
         } footer: {
             Text(footer)
         }
-        .sheet(isPresented: $showingTrial) { TrialSheet(store: store).modifier(AppearanceRoot(mode: model.appearance)) }
-        .sheet(isPresented: $showingPaywall) { PaywallSheet(store: store, moment: nil).modifier(AppearanceRoot(mode: model.appearance)) }
     }
 
     private var priceText: String {

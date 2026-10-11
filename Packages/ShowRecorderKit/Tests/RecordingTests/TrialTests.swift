@@ -75,6 +75,8 @@ struct TrialTests {
         #expect(!TrialOffer.shouldOffer(purchases: trial, alreadyOffered: false, recording: false, proPrice: "$19.99"))
         #expect(!TrialOffer.shouldOffer(purchases: pro, alreadyOffered: false, recording: false, proPrice: "$19.99"))
         #expect(!TrialOffer.shouldOffer(purchases: none, alreadyOffered: false, recording: false, proPrice: nil))
+        #expect(!TrialOffer.shouldOffer(purchases: none, alreadyOffered: false, recording: false, proPrice: "$19.99", anotherSheetOpen: true),
+                "never over Settings or the paywall: presenting over them closed both (#357)")
     }
 
     @Test("The record screen shows the Trial's days left in a quiet chip, and nothing on Free or Pro")
