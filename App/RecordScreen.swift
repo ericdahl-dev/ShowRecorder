@@ -448,6 +448,8 @@ final class RecordScreenModel {
     let power = PowerMonitor()
     /// Pro, the Trial and the Free channel choice (ADR 0004).
     let pro = ProStore()
+    /// The Templates on this device (#33).
+    var templates = TemplateStore()
     private(set) var setupHintDismissed = UserDefaults.standard.bool(forKey: RecordScreenModel.hintKey)
     private static let hintKey = "setupHintDismissed"
     private static let mixerAddressKey = "mixerAddress"
@@ -725,6 +727,59 @@ final class RecordScreenModel {
         } catch {
             return "The Show couldn't be created: \(error.localizedDescription)"
         }
+    }
+
+    /// Whether Templates can be used now: between Takes, and on Pro or the Trial once Pro is offered.
+    var templateAccess: TemplateAccess {
+        TemplateAccess(proOffered: ProSection.isOffered, tier: pro.tier(), isRecording: recorder.isRecording)
+    }
+
+    /// Saves this setup as a Template named `name`: the typed channel names, the open Show's venue, the Pre-roll and
+    /// the Mixer (its network name, when linked, and its address).
+    func saveTemplate(named name: String) {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        templates.save(Template(
+            name: name, venue: recorder.currentShow?.venue, channelNames: recorder.channelNames,
+            mixerNetworkName: mixerLink.identity?.networkName, mixerAddress: mixerAddress,
+            preRollSeconds: preRollSeconds))
+    }
+
+    /// Starts a Show from `template`: its name, venue and channel names, its Pre-roll, and its Mixer. The Show starts
+    /// at once; the Mixer is connected after, and looked for by its network name when the saved address doesn't
+    /// answer or another mixer is there. Returns what to tell the operator, or nil when the Show started.
+    func startShow(from template: Template) -> String? {
+        guard templateAccess == .usable else { return templateAccess.note }
+        do {
+            try recorder.startNewShow(from: template)
+        } catch RecorderError.takeRunning {
+            return "A Show can't be started during a Take."
+        } catch {
+            return "The Show couldn't be created: \(error.localizedDescription)"
+        }
+        if preRollSeconds != template.preRollSeconds {
+            preRollSeconds = template.preRollSeconds
+            preRollChanged()
+        }
+        if !template.mixerAddress.isEmpty || template.mixerNetworkName != nil {
+            Task { await connectMixer(for: template) }
+        }
+        return nil
+    }
+
+    private func connectMixer(for template: Template) async {
+        if !template.mixerAddress.isEmpty {
+            mixerAddress = template.mixerAddress
+            saveMixerAddress()
+            await mixerLink.connect(to: mixerAddress, usbChannelCount: recorder.usbChannelCount)
+        }
+        guard let name = template.mixerNetworkName, mixerLink.identity?.networkName != name,
+              let range = ScanRange.currentNetwork() else { return }
+        let address = template.connectAddress(found: await MixerScanner.scan(hosts: range.hosts))
+        guard address != mixerAddress || mixerLink.identity == nil, !address.isEmpty else { return }
+        mixerAddress = address
+        saveMixerAddress()
+        await mixerLink.connect(to: address, usbChannelCount: recorder.usbChannelCount)
     }
 
     /// Renames a Marker in the list, during the Take or after it. Returns what to tell the operator, or nil when
