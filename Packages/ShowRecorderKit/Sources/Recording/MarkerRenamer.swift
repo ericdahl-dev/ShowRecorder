@@ -66,9 +66,7 @@ public enum MarkerRenamer {
     }
 
     private static func renameMarker(at index: Int, to name: String, in folder: URL, copy: DestinationKind) throws {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        var take = try decoder.decode(TakeMetadata.self, from: Data(contentsOf: folder.appending(path: TakeMetadata.fileName)))
+        var take = try TakeMetadata.read(fromTakeFolder: folder)
         let positions = take.markers.indices.filter { take.markers[$0].origin == .operator }
         guard positions.indices.contains(index) else { throw RenameError.noSuchMarker }
         take.markers[positions[index]].name = name

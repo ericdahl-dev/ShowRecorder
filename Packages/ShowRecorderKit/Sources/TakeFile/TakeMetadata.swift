@@ -1,6 +1,5 @@
 import Destinations
 import Foundation
-import MixerLink
 
 /// What a Take's `Take.json` holds: when and how it was recorded, and each USB Channel's Stem and
 /// Source as frozen at record time. Written when the Take starts, so it survives a crash.
@@ -9,6 +8,11 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         public struct Color: Codable, Equatable, Sendable {
             public var hue: String
             public var inverted: Bool
+
+            public init(hue: String, inverted: Bool) {
+                self.hue = hue
+                self.inverted = inverted
+            }
         }
 
         public var usbChannel: Int
@@ -27,6 +31,23 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         /// levels were recorded; -80 for a silent channel.
         public var peakDbfs: Double?
         public var averageDbfs: Double?
+
+        public init(
+            usbChannel: Int, stemFile: String, name: String, hasMixerName: Bool, nameArrivedLate: Bool? = nil, color: Color,
+            muted: Bool? = nil, fader: Float? = nil, inputSource: Int? = nil, peakDbfs: Double? = nil, averageDbfs: Double? = nil
+        ) {
+            self.usbChannel = usbChannel
+            self.stemFile = stemFile
+            self.name = name
+            self.hasMixerName = hasMixerName
+            self.nameArrivedLate = nameArrivedLate
+            self.color = color
+            self.muted = muted
+            self.fader = fader
+            self.inputSource = inputSource
+            self.peakDbfs = peakDbfs
+            self.averageDbfs = averageDbfs
+        }
     }
 
     public var show: String
@@ -145,7 +166,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         }
     }
 
-    static let fileName = "Take.json"
+    public static let fileName = "Take.json"
 
     enum CodingKeys: String, CodingKey {
         case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames
@@ -167,7 +188,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         renames = try c.decodeIfPresent([Rename].self, forKey: .renames)
     }
 
-    init(show: String, take: Int, startedAt: Date, sampleRate: Int, timeReference: UInt64, usbChannels: [USBChannel], markers: [Marker] = []) {
+    public init(show: String, take: Int, startedAt: Date, sampleRate: Int, timeReference: UInt64, usbChannels: [USBChannel], markers: [Marker] = []) {
         self.show = show
         self.take = take
         self.startedAt = startedAt
@@ -177,25 +198,19 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         self.markers = markers
     }
 
-    func write(to takeFolder: URL) throws {
+    /// Writes `Take.json` into `takeFolder`, replacing any earlier one.
+    public func write(to takeFolder: URL) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
         try encoder.encode(self).write(to: takeFolder.appending(path: Self.fileName), options: .atomic)
     }
-}
 
-extension TakeMetadata.USBChannel {
-    init(usbChannel: Int, stemFile: String, source: Source) {
-        self.init(
-            usbChannel: usbChannel,
-            stemFile: stemFile,
-            name: source.name,
-            hasMixerName: source.hasMixerName,
-            color: Color(hue: source.color.hue.name, inverted: source.color.inverted),
-            muted: source.isMuted,
-            fader: source.fader,
-            inputSource: source.inputSource)
+    /// Reads `Take.json` from `takeFolder`. Throws when it is missing or can't be decoded.
+    public static func read(fromTakeFolder takeFolder: URL) throws -> TakeMetadata {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(TakeMetadata.self, from: Data(contentsOf: takeFolder.appending(path: fileName)))
     }
 }
 

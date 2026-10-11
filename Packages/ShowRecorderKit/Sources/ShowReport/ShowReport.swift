@@ -1,4 +1,7 @@
+import BroadcastWave
+import Destinations
 import Foundation
+import TakeFile
 
 /// A Show's report: every Take and each USB Channel's Stem and Source, read back from the Show folder.
 ///
@@ -34,20 +37,18 @@ public struct ShowReport: Equatable, Sendable {
         public var gaps: [Gap] = []
 
         public struct Gap: Equatable, Sendable {
-            /// "Device" or "Drive".
-            public var copy: String
+            public var copy: DestinationKind
             public var startSeconds: Double
             public var endSeconds: Double
-            /// "Repaired", "Repair failed", or "Not repaired" when Repair hasn't run for it.
-            public var result: String
+            /// What Repair did about it, or nil when Repair hasn't run for it.
+            public var repair: TakeMetadata.Repair.Outcome?
         }
 
         /// Stretches of one Copy the recorder lost because its writer couldn't keep up, held as silence.
         public var dropouts: [Dropout] = []
 
         public struct Dropout: Equatable, Sendable {
-            /// "Device" or "Drive".
-            public var copy: String
+            public var copy: DestinationKind
             public var startSeconds: Double
             public var endSeconds: Double
             public var lengthSeconds: Double { endSeconds - startSeconds }
@@ -101,54 +102,8 @@ public struct ShowReport: Equatable, Sendable {
         let folders = try fm.contentsOfDirectory(at: showFolder, includingPropertiesForKeys: nil)
         var takes: [Take] = []
         for folder in folders {
-            let json = folder.appending(path: TakeFile.fileName)
-            guard fm.fileExists(atPath: json.path) else { continue }
-            let file = try TakeFile.read(from: json)
-            takes.append(Take(
-                number: file.take,
-                folderName: folder.lastPathComponent,
-                startedAt: file.startedAt,
-                sampleRate: file.sampleRate,
-                usbChannels: file.usbChannels.map { channel in
-                    USBChannel(
-                        usbChannel: channel.usbChannel,
-                        stemFile: channel.stemFile,
-                        sourceName: channel.name,
-                        hasMixerName: channel.hasMixerName,
-                        hue: channel.color.hue,
-                        inverted: channel.color.inverted,
-                        muted: channel.muted,
-                        fader: channel.fader,
-                        inputSource: channel.inputSource,
-                        peakDbfs: channel.peakDbfs,
-                        averageDbfs: channel.averageDbfs,
-                        sampleCount: StemDuration.sampleCount(of: folder.appending(path: channel.stemFile)),
-                        sampleRate: file.sampleRate)
-                },
-                markers: (file.markers ?? []).map { marker in
-                    Take.Marker(seconds: file.sampleRate > 0 ? Double(marker.position) / Double(file.sampleRate) : 0, name: marker.name)
-                },
-                renames: (file.renames ?? []).map { rename in
-                    Take.Rename(
-                        seconds: file.sampleRate > 0 ? Double(rename.position) / Double(file.sampleRate) : 0,
-                        usbChannel: rename.usbChannel, from: rename.from, to: rename.to)
-                },
-                gaps: (file.gaps ?? []).map { gap in
-                    let rate = Double(max(file.sampleRate, 1))
-                    let repair = (file.repairs ?? []).first { $0.copy == gap.copy && $0.start == gap.start && $0.end == gap.end }
-                    let result = switch repair?.outcome {
-                    case "repaired": "Repaired"
-                    case nil: "Not repaired"
-                    default: "Repair failed"
-                    }
-                    return Take.Gap(copy: gap.copy.capitalized, startSeconds: Double(gap.start) / rate, endSeconds: Double(gap.end) / rate, result: result)
-                },
-                dropouts: (file.dropouts ?? []).map { dropout in
-                    let rate = Double(max(file.sampleRate, 1))
-                    return Take.Dropout(copy: dropout.copy.capitalized, startSeconds: Double(dropout.start) / rate, endSeconds: Double(dropout.end) / rate)
-                },
-                preRollSeconds: (file.preRollFrames ?? 0) > 0 && file.sampleRate > 0
-                    ? Double(file.preRollFrames ?? 0) / Double(file.sampleRate) : nil))
+            guard fm.fileExists(atPath: folder.appending(path: TakeMetadata.fileName).path) else { continue }
+            takes.append(Take(try TakeMetadata.read(fromTakeFolder: folder), folder: folder))
         }
         self.showName = showFolder.lastPathComponent
         self.takes = takes.sorted { $0.number < $1.number }
@@ -274,19 +229,36 @@ public struct ShowReport: Equatable, Sendable {
         if !take.gaps.isEmpty {
             out += "<h3>Gaps</h3>\n<p class=\"note\">Missing from that Copy and held as silence until repaired from the other Copy.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>Copy</th><th>From</th><th>To</th><th>Result</th></tr></thead>\n<tbody>\n"
             for gap in take.gaps {
-                out += "<tr><td>\(Self.escape(gap.copy))</td><td class=\"num\">\(Self.markerClock(gap.startSeconds))</td><td class=\"num\">\(Self.markerClock(gap.endSeconds))</td><td>\(Self.escape(gap.result))</td></tr>\n"
+                out += "<tr><td>\(Self.name(of: gap.copy))</td><td class=\"num\">\(Self.markerClock(gap.startSeconds))</td><td class=\"num\">\(Self.markerClock(gap.endSeconds))</td><td>\(Self.result(of: gap.repair))</td></tr>\n"
             }
             out += "</tbody>\n</table></div>\n"
         }
         if !take.dropouts.isEmpty {
             out += "<h3>Dropouts</h3>\n<p class=\"note\">Audio the recorder couldn't keep up with. It is silence of the right length in that Copy's Stems.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>Copy</th><th>From</th><th>To</th><th>Length</th></tr></thead>\n<tbody>\n"
             for dropout in take.dropouts {
-                out += "<tr><td>\(Self.escape(dropout.copy))</td><td class=\"num\">\(Self.markerClock(dropout.startSeconds))</td><td class=\"num\">\(Self.markerClock(dropout.endSeconds))</td><td class=\"num\">\(Self.markerClock(dropout.lengthSeconds))</td></tr>\n"
+                out += "<tr><td>\(Self.name(of: dropout.copy))</td><td class=\"num\">\(Self.markerClock(dropout.startSeconds))</td><td class=\"num\">\(Self.markerClock(dropout.endSeconds))</td><td class=\"num\">\(Self.markerClock(dropout.lengthSeconds))</td></tr>\n"
             }
             out += "</tbody>\n</table></div>\n"
         }
         out += "</section>\n"
         return out
+    }
+
+    /// "Device" or "Drive".
+    static func name(of copy: DestinationKind) -> String {
+        switch copy {
+        case .device: "Device"
+        case .drive: "Drive"
+        }
+    }
+
+    /// What Repair did about a Gap, in words.
+    static func result(of repair: TakeMetadata.Repair.Outcome?) -> String {
+        switch repair {
+        case .repaired: "Repaired"
+        case .failed: "Repair failed"
+        case nil: "Not repaired"
+        }
     }
 
     /// A level in dBFS to a tenth, with "silent" for a channel that had no signal.
@@ -377,123 +349,39 @@ extension ShowReport.USBChannel {
     var colorName: String { inverted ? "\(hue) inverted" : hue }
 }
 
-/// The parts of a Take's `Take.json` the report uses. Mirrors `TakeMetadata` in Recording.
-struct TakeFile: Decodable {
-    struct USBChannel: Decodable {
-        struct Color: Decodable {
-            var hue: String
-            var inverted: Bool
-        }
-
-        var usbChannel: Int
-        var stemFile: String
-        var name: String
-        var hasMixerName: Bool
-        var color: Color
-        var muted: Bool?
-        var fader: Float?
-        var inputSource: Int?
-        var peakDbfs: Double?
-        var averageDbfs: Double?
-    }
-
-    var take: Int
-    var startedAt: Date
-    var sampleRate: Int
-    var usbChannels: [USBChannel]
-    var markers: [Marker]?
-    var renames: [Rename]?
-    var gaps: [Gap]?
-    var dropouts: [Gap]?
-    var repairs: [Repair]?
-    var preRollFrames: Int?
-
-    struct Repair: Decodable {
-        var copy: String
-        var start: Int
-        var end: Int
-        var outcome: String
-    }
-
-    struct Gap: Decodable {
-        var copy: String
-        var start: Int
-        var end: Int
-    }
-
-    struct Rename: Decodable {
-        var position: Int
-        var usbChannel: Int
-        var from: String
-        var to: String
-    }
-
-    struct Marker: Decodable {
-        var position: Int
-        var name: String
-    }
-
-    static let fileName = "Take.json"
-
-    static func read(from url: URL) throws -> TakeFile {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(TakeFile.self, from: Data(contentsOf: url))
-    }
-}
-
-/// Reads a Stem's length from its chunk headers without loading the audio.
-enum StemDuration {
-    /// Samples in the data chunk (data size ÷ block align), capped at the bytes actually on disk.
-    /// Reads RIFF and RF64 (EBU Tech 3306), where a 32-bit size of 0xFFFFFFFF defers to `ds64`.
-    static func sampleCount(of url: URL) -> UInt64? {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? handle.close() }
-        guard let fileSize = try? handle.seekToEnd(), (try? handle.seek(toOffset: 0)) != nil,
-              let riff = try? handle.read(upToCount: 12), riff.count == 12,
-              riff.prefix(4) == Data("RIFF".utf8) || riff.prefix(4) == Data("RF64".utf8),
-              riff.suffix(4) == Data("WAVE".utf8)
-        else { return nil }
-
-        var offset: UInt64 = 12
-        var blockAlign: UInt64?
-        var ds64DataSize: UInt64?
-        while offset + 8 <= fileSize {
-            guard (try? handle.seek(toOffset: offset)) != nil,
-                  let header = try? handle.read(upToCount: 8), header.count == 8 else { return nil }
-            let id = String(decoding: header.prefix(4), as: UTF8.self)
-            let size = UInt64(header.littleEndianUInt32(at: 4))
-            let body = offset + 8
-            switch id {
-            case "ds64":
-                guard let ds64 = try? handle.read(upToCount: 16), ds64.count == 16 else { return nil }
-                ds64DataSize = ds64.littleEndianUInt64(at: 8)
-            case "fmt ":
-                guard let fmt = try? handle.read(upToCount: 16), fmt.count == 16 else { return nil }
-                blockAlign = UInt64(fmt.littleEndianUInt16(at: 12))
-            case "data":
-                guard let blockAlign, blockAlign > 0 else { return nil }
-                let dataSize = size == 0xFFFF_FFFF ? ds64DataSize ?? (fileSize - body) : size
-                return min(dataSize, fileSize - body) / blockAlign
-            default:
-                break
-            }
-            offset = body + size + (size % 2)
-        }
-        return nil
-    }
-}
-
-private extension Data {
-    func littleEndianUInt16(at offset: Int) -> UInt16 {
-        UInt16(self[startIndex + offset]) | UInt16(self[startIndex + offset + 1]) << 8
-    }
-
-    func littleEndianUInt32(at offset: Int) -> UInt32 {
-        (0..<4).reduce(UInt32(0)) { $0 | UInt32(self[startIndex + offset + $1]) << (8 * $1) }
-    }
-
-    func littleEndianUInt64(at offset: Int) -> UInt64 {
-        (0..<8).reduce(UInt64(0)) { $0 | UInt64(self[startIndex + offset + $1]) << (8 * $1) }
+extension ShowReport.Take {
+    /// The Take in `folder`, from its `Take.json`, with each Stem's length read from the Stem itself.
+    init(_ file: TakeMetadata, folder: URL) {
+        let rate = Double(max(file.sampleRate, 1))
+        func seconds(_ position: Int) -> Double { file.sampleRate > 0 ? Double(position) / Double(file.sampleRate) : 0 }
+        self.init(
+            number: file.take,
+            folderName: folder.lastPathComponent,
+            startedAt: file.startedAt,
+            sampleRate: file.sampleRate,
+            usbChannels: file.usbChannels.map { channel in
+                ShowReport.USBChannel(
+                    usbChannel: channel.usbChannel,
+                    stemFile: channel.stemFile,
+                    sourceName: channel.name,
+                    hasMixerName: channel.hasMixerName,
+                    hue: channel.color.hue,
+                    inverted: channel.color.inverted,
+                    muted: channel.muted,
+                    fader: channel.fader,
+                    inputSource: channel.inputSource,
+                    peakDbfs: channel.peakDbfs,
+                    averageDbfs: channel.averageDbfs,
+                    sampleCount: try? StemLength.frameCount(at: folder.appending(path: channel.stemFile)),
+                    sampleRate: file.sampleRate)
+            },
+            markers: file.markers.map { Marker(seconds: seconds($0.position), name: $0.name) },
+            renames: (file.renames ?? []).map { Rename(seconds: seconds($0.position), usbChannel: $0.usbChannel, from: $0.from, to: $0.to) },
+            gaps: file.gaps.map { gap in
+                let repair = file.repairs.first { $0.copy == gap.copy && $0.start == gap.start && $0.end == gap.end }
+                return Gap(copy: gap.copy, startSeconds: Double(gap.start) / rate, endSeconds: Double(gap.end) / rate, repair: repair?.outcome)
+            },
+            dropouts: file.dropouts.map { Dropout(copy: $0.copy, startSeconds: Double($0.start) / rate, endSeconds: Double($0.end) / rate) },
+            preRollSeconds: (file.preRollFrames ?? 0) > 0 && file.sampleRate > 0 ? Double(file.preRollFrames ?? 0) / Double(file.sampleRate) : nil)
     }
 }

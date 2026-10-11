@@ -176,7 +176,7 @@ struct ShowReportTests {
     func dropoutsInReport() throws {
         try recordWithADropout()
         let take = try #require(try ShowReport(showFolder: show).takes.first)
-        #expect(take.dropouts.map(\.copy) == ["Device"])
+        #expect(take.dropouts.map(\.copy) == [.device])
         #expect(take.dropouts.map(\.startSeconds) == [0.5])
         #expect(take.dropouts.map(\.endSeconds) == [6.75])
         #expect(take.dropouts.first?.lengthSeconds == 6.25)

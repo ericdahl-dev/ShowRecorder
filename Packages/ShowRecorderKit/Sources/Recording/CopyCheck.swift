@@ -20,16 +20,13 @@ public enum CopyCheck {
         let driveShow = drive.appending(path: show, directoryHint: .isDirectory)
         guard ShowDeleter.isRealFolder(driveShow) else { return .failed(["The Drive doesn't have this Show."]) }
         var problems: [String] = []
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
 
         let deviceTakes = ShowList.takeMetadata(in: deviceShow).sorted { $0.take.take < $1.take.take }
         if deviceTakes.isEmpty { return .failed(["The Device copy has no Takes to compare."]) }
         for (deviceFolder, deviceTake) in deviceTakes {
             let name = String(format: "Take %02d", deviceTake.take)
             let driveFolder = driveShow.appending(path: deviceFolder.lastPathComponent, directoryHint: .isDirectory)
-            guard let data = try? Data(contentsOf: driveFolder.appending(path: TakeMetadata.fileName)),
-                  let driveTake = try? decoder.decode(TakeMetadata.self, from: data) else {
+            guard let driveTake = try? TakeMetadata.read(fromTakeFolder: driveFolder) else {
                 problems.append("\(name) is missing on the Drive.")
                 continue
             }

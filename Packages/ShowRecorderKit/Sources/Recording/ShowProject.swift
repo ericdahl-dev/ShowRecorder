@@ -8,14 +8,10 @@ extension Show {
     /// its Stems. USB Channels are named and colored from the latest Take they appear in.
     /// Take folders without a readable `Take.json` are left out.
     public func timeline() throws -> ShowTimeline {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
         let entries = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
         let metadata = entries
             .compactMap { takeFolder -> (folder: URL, take: TakeMetadata)? in
-                guard let data = try? Data(contentsOf: takeFolder.appending(path: TakeMetadata.fileName)),
-                      let take = try? decoder.decode(TakeMetadata.self, from: data)
-                else { return nil }
+                guard let take = try? TakeMetadata.read(fromTakeFolder: takeFolder) else { return nil }
                 return (takeFolder, take)
             }
             .sorted { $0.take.take < $1.take.take }
