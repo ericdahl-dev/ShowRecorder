@@ -74,6 +74,7 @@ struct RecordScreen: View {
         .sheet(isPresented: $showingShowList) { ShowListView(model: model) }
         .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model) }
         .sheet(isPresented: $showingTrialOffer) { TrialSheet(store: model.pro) }
+        .sheet(item: $model.paywall) { request in PaywallSheet(store: model.pro, moment: request.moment) }
         // The first-launch Trial offer: once, when the Pro price has loaded, and never during a Take.
         .onChange(of: model.pro.proProduct?.displayPrice, initial: true) { _, price in
             guard ProSection.isOffered, TrialOffer.shouldOffer(
@@ -448,6 +449,10 @@ final class RecordScreenModel {
     let power = PowerMonitor()
     /// Pro, the Trial and the Free channel choice (ADR 0004).
     let pro = ProStore()
+    /// When the app offers Pro (#62); what was offered is kept on the device.
+    @ObservationIgnored private var proOffers = ProOffers()
+    /// The paywall to show, when one is due. Never during a Take.
+    var paywall: PaywallRequest?
     /// The Templates on this device (#33).
     var templates = TemplateStore()
     private(set) var setupHintDismissed = UserDefaults.standard.bool(forKey: RecordScreenModel.hintKey)
@@ -666,6 +671,26 @@ final class RecordScreenModel {
         } catch {
             recordError = "The Take didn't finish cleanly: \(error.localizedDescription)"
         }
+        offerProAfterTake()
+    }
+
+    /// After a Take: a Free Take that left channels with signal unrecorded, or the Trial's last days (#62).
+    private func offerProAfterTake() {
+        let show = recorder.currentShow?.name
+        let tier = pro.tier()
+        let moment = recorder.lastTakeSignal.flatMap { signal in
+            show.flatMap { proOffers.afterTakeStopped(show: $0, signal: signal, tier: tier, proOffered: ProSection.isOffered, isRecording: recorder.isRecording) }
+        } ?? proOffers.betweenTakes(show: show, tier: tier, proOffered: ProSection.isOffered, isRecording: recorder.isRecording)
+        if let moment { offerPro(moment) }
+    }
+
+    /// Opens the paywall for `moment` (nil: from Settings), once whatever sheet is closing has gone.
+    func offerPro(_ moment: ProOfferMoment?) {
+        Task {
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !recorder.isRecording else { return }
+            paywall = PaywallRequest(moment: moment)
+        }
     }
 
     // MARK: - Auto-disarm
@@ -708,8 +733,13 @@ final class RecordScreenModel {
 
     /// Ends the open Show. Returns what to tell the operator, or nil when it ended.
     func endShow() -> String? {
+        let ending = recorder.currentShow
         do {
             try recorder.endShow()
+            if let ending, let moment = proOffers.afterShowEnded(
+                show: ending.name, takeCount: ending.takeCount, tier: pro.tier(), proOffered: ProSection.isOffered) {
+                offerPro(moment)
+            }
             return nil
         } catch RecorderError.takeRunning {
             return "A Show can't be ended during a Take."

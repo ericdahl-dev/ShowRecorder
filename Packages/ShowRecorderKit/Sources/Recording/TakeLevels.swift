@@ -38,6 +38,11 @@ struct TakeLevels {
         }
     }
 
+    /// How many channels peaked above `thresholdDbfs` during the Take: the ones carrying signal, recorded or not.
+    func channelsWithSignal(thresholdDbfs: Double = TakeSignal.thresholdDbfs) -> Int {
+        summary.filter { $0.peakDbfs > thresholdDbfs }.count
+    }
+
     private static func dbfs(_ linear: Double) -> Double {
         linear > 0 ? max(20 * log10(linear), VUMeter.floorDbfs) : VUMeter.floorDbfs
     }
