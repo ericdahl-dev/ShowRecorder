@@ -72,6 +72,8 @@ public final class Recorder {
     @ObservationIgnored public var preRollSeconds: Double
     @ObservationIgnored private let makeStem: (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink
     @ObservationIgnored private var device: (any AudioIODevice)?
+    /// The Armed input's sample rate, whole Hz; nil when nothing is Armed (#298).
+    public private(set) var sampleRate: Int?
     @ObservationIgnored private var capture: Capture?
     /// The running Take's Copies.
     @ObservationIgnored private var session: TakeSession?
@@ -119,6 +121,7 @@ public final class Recorder {
         self.device = device
         self.capture = capture
         usbChannelCount = device.inputChannelCount
+        sampleRate = Int(device.sampleRate.rounded())
         isArmed = true
     }
 
@@ -160,6 +163,7 @@ public final class Recorder {
         device = nil
         capture = nil
         usbChannelCount = 0
+        sampleRate = nil
         clippedChannels = []
         isArmed = false
     }

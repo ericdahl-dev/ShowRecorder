@@ -524,7 +524,8 @@ final class RecordScreenModel {
             deviceAvailableBytes: drive.deviceAvailableBytes,
             drive: drive.status,
             mixer: mixerLink.status,
-            copies: recorder.isRecording ? [.device: deviceCopy, .drive: driveCopy] : [:])
+            copies: recorder.isRecording ? [.device: deviceCopy, .drive: driveCopy] : [:],
+            sampleRate: recorder.sampleRate ?? 48_000)
     }
 
     /// Everything the record screen has to say, most urgent first; it shows one and counts the rest.

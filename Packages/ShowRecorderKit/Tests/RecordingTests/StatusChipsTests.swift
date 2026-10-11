@@ -24,6 +24,19 @@ struct StatusChipsTests {
         .available(Drive(folder: URL(filePath: "/Volumes/SSD"), name: "SSD", availableBytes: bytes))
     }
 
+    @Test("Time left follows the Armed input's sample rate: the same space lasts longer at 44.1 kHz, half as long at 96 kHz (#298)")
+    func timeLeftAtInputRate() {
+        func texts(_ rate: Int) -> [String] {
+            StatusChip.make(
+                usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour), mixer: .idle,
+                copies: [:], sampleRate: rate
+            ).filter { $0.kind != .mixer }.map(\.text)
+        }
+        #expect(texts(48_000) == ["Device 1 h 00 min", "Drive 1 h 00 min"])
+        #expect(texts(44_100) == ["Device 1 h 05 min", "Drive 1 h 05 min"])
+        #expect(texts(96_000) == ["Device 30 min", "Drive 30 min"])
+    }
+
     @Test("The Device chip shows time left")
     func deviceTimeLeft() {
         let device = chips()[.device]
