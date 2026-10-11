@@ -118,6 +118,29 @@ public final class Recorder {
         // A Show left open by a crash or an earlier launch is the open Show again.
         currentShow = Show.findOpen(in: deviceFolder)
         channelNames = currentShow?.channelNames ?? [:]
+        finishCutOffTake()
+    }
+
+    /// A Take the app was killed or crashed during is finished now (#319): its Stems cover the audio on disk, a
+    /// shorter Copy is queued for Repair, and the report and Reaper project include it.
+    private func finishCutOffTake() {
+        guard var show = currentShow else { return }
+        let access = driveFolder()
+        let driveShow = access.map { $0.folder.appending(path: show.name, directoryHint: .isDirectory) }
+            .flatMap { FileManager.default.fileExists(atPath: $0.path) ? $0 : nil }
+        guard let found = CutOffTake.finish(deviceShow: show.folder, driveShow: driveShow, lastTakeEndedAt: show.lastTakeEndedAt) else {
+            access?.end()
+            return
+        }
+        if let driveShow { try? show.useDrive(driveShow.deletingLastPathComponent()) }
+        show.noteTakeEnded(at: found.endedAt)
+        currentShow = show
+        regenerateReports()
+        if found.metadata.gaps.isEmpty || found.folders.count < 2 {
+            access?.end()
+        } else {
+            repair.enqueue(found.metadata, folders: found.folders, holding: access)
+        }
     }
 
     /// Starts receiving audio from `device`. Any previously Armed device is stopped first.
