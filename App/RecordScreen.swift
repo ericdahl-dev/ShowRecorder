@@ -474,7 +474,8 @@ final class RecordScreenModel {
     /// The Drive stopped and Check Drive found nothing, until it comes back.
     private var driveCheckedAndNotFound = false
     private var driveRejoin = DriveRejoinNotice()
-    @ObservationIgnored private var wasRecording = false
+    /// The last Take end already told to the operator, so each is told once.
+    @ObservationIgnored private var toldTakeEnd: TakeEnd?
 
     /// How each Copy of the last Take stands, shown once recording has stopped.
     var copySummary: (text: String, isProblem: Bool)? {
@@ -486,21 +487,18 @@ final class RecordScreenModel {
         return (summary.text, summary.isProblem)
     }
 
-    /// Looks for a Drive that has appeared or come back, and refreshes the Copy statuses. Also notices a
-    /// Take the recorder ended on its own.
+    /// Refreshes the Copy statuses, and says why a Take the recorder ended on its own stopped.
+    /// The Recorder checks its Destinations itself while recording.
     private func refreshDestinations() {
-        if recorder.isRecording { recorder.checkDestinations() }
         deviceCopy = recorder.copyStatus(.device)
         driveCopy = recorder.copyStatus(.drive)
         if driveCopy != .interrupted { driveCheckedAndNotFound = false }
         driveRejoin.update(isRecording: recorder.isRecording, drive: driveCopy)
-        if wasRecording, !recorder.isRecording, recordError == nil {
-            recordError = recorder.endedForLackOfSpace
-                ? "Recording stopped because the last Destination was about to fill. Everything recorded was saved."
-                : "Recording stopped because no Destination could be written. Everything recorded so far was saved."
+        if let end = recorder.lastTakeEnd, end != toldTakeEnd {
+            toldTakeEnd = end
+            if recordError == nil, let message = end.reason.message { recordError = message }
         }
         if !recorder.isRecording { takeStartedAt = nil }
-        wasRecording = recorder.isRecording
     }
 
     /// Just the Armed device's name, for the one-line landscape header.
@@ -582,6 +580,7 @@ final class RecordScreenModel {
         case .checkDrive:
             // Look again now, and say so if it's still not there.
             drive.refresh()
+            recorder.checkDestinations()
             refreshDestinations()
             driveCheckedAndNotFound = driveCopy == .interrupted
         }
@@ -666,7 +665,6 @@ final class RecordScreenModel {
 
     func stop() {
         takeStartedAt = nil
-        wasRecording = false  // the operator ended it
         do {
             try recorder.stopTake()
         } catch {

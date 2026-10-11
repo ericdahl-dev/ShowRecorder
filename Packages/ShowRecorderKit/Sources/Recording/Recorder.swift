@@ -35,8 +35,8 @@ public final class Recorder {
     /// A peak at or above this (linear) counts as a clip: within about 0.01 dB of full scale
     /// (docs/adr/0005-level-meter-scale.md).
     public static let clipLevel: Float = 0.999
-    /// Whether the last Take was ended by the recorder because the last healthy Destination was about to fill.
-    public private(set) var endedForLackOfSpace = false
+    /// Which Take ended last and why. Nil until a Take has ended.
+    public private(set) var lastTakeEnd: TakeEnd?
     /// How each Copy of the last Take ended up: complete, has Gaps, Repaired or Repair failed.
     public private(set) var lastTakeOutcomes: [DestinationKind: CopyOutcome] = [:]
     /// How many USB Channels the last Take recorded and how many carried signal (#62: Free's limit, felt).
@@ -68,6 +68,9 @@ public final class Recorder {
     @ObservationIgnored private let driveFolder: () -> DestinationAccess?
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let freeSpace: (URL) -> Int64
+    /// How often a running Take's Destinations are checked (`checkDestinations()`). Nil leaves it to the caller.
+    @ObservationIgnored private let destinationCheckInterval: Duration?
+    @ObservationIgnored private var destinationChecks: Task<Void, Never>?
     /// How much audio before the record press a Take starts with, in seconds; 0 starts at the press. Read
     /// when record is pressed. The Armed buffer is sized from it when Arming, so a longer value than that
     /// gets what the buffer holds until the recorder is Armed again.
@@ -94,8 +97,10 @@ public final class Recorder {
         freeSpace: @escaping (URL) -> Int64 = { DriveFolderStore.availableBytes(at: $0) },
         preRollSeconds: Double = 0,
         makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink = { try StemWriter.open(url: $0, info: $1, resumingAt: $2) },
-        savedNames: UserDefaults = .standard
+        savedNames: UserDefaults = .standard,
+        destinationCheckInterval: Duration? = .seconds(1)
     ) {
+        self.destinationCheckInterval = destinationCheckInterval
         self.savedNames = savedNames
         savedChannelNames = SavedChannelNames.load(from: savedNames)
         self.freeSpace = freeSpace
@@ -433,7 +438,6 @@ public final class Recorder {
         markerEntries = []
         dropoutCount = 0
         clippedChannels = []
-        endedForLackOfSpace = false
         currentShow = show
         // The levels of a Take count from the press: drop what the meters gathered before it.
         _ = capture.meters.takeLevels()
@@ -441,6 +445,14 @@ public final class Recorder {
         lateMixerNames = [:]
         mixerNames = Dictionary(uniqueKeysWithValues: sources.enumerated().map { ($0.offset + 1, $0.element.name) })
         isRecording = true
+        if let destinationCheckInterval {
+            destinationChecks = Task { [weak self] in
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: destinationCheckInterval)
+                    self?.checkDestinations()
+                }
+            }
+        }
     }
 
     /// The Mixer Link came up (or its names changed) during a Take. If the Take started with no Mixer
@@ -549,7 +561,9 @@ public final class Recorder {
 
     /// Looks for a Destination that has become available since the Take started. A Drive that appears
     /// joins the running Take: its Stems start with silence up to the join point, which is recorded as
-    /// a Gap in `Take.json` on both Copies. Call it regularly while recording.
+    /// a Gap in `Take.json` on both Copies. Also ends the Take when the last healthy Destination is about to
+    /// fill. The Recorder does this on its own every `destinationCheckInterval` while recording; call it to
+    /// look straight away, as Check Drive does.
     public func checkDestinations() {
         guard isRecording, let session else { return }
         switch session.checkDestinations(drive: driveFolder) {
@@ -559,24 +573,29 @@ public final class Recorder {
             dropoutCount = session.dropoutCount
             refreshMarkers(from: session.metadata)
         case .outOfSpace:
-            endedForLackOfSpace = true
-            try? stopTake()
+            try? stopTake(because: .outOfSpace)
         }
     }
 
     /// A Copy's writer failed. Once every Copy has, there's nowhere left to record: end the Take.
     private func copyFailed(in failed: TakeSession?) {
         guard isRecording, let session, session === failed, session.allFailed else { return }
-        try? stopTake()
+        try? stopTake(because: .noDestination)
     }
 
     /// Stops the Take and waits until every Stem is written and finalized.
     /// A Copy that failed during the Take doesn't make this throw; see `copyStatus(_:)`.
     public func stopTake() throws {
+        try stopTake(because: .stopped)
+    }
+
+    private func stopTake(because reason: TakeEnd.Reason) throws {
         guard isRecording, let session else { return }
         // Not recording from here on, so a Copy that fails while draining doesn't stop the Take again.
         isRecording = false
         self.session = nil
+        destinationChecks?.cancel()
+        destinationChecks = nil
         // The last window, which the screen hasn't read yet, is still part of the Take.
         session.accumulate(capture?.meters.takeLevels() ?? [])
         let finished = session.finish()
@@ -584,6 +603,7 @@ public final class Recorder {
         lastTakeSignal = finished.signal
         dropoutCount = finished.metadata.markers.filter { $0.origin == .dropout }.count
         refreshMarkers(from: finished.metadata)
+        lastTakeEnd = TakeEnd(take: finished.metadata.take, reason: reason)
         lastTake = LastTake(
             showName: session.show.name, takeNumber: finished.metadata.take, deviceFolder: finished.folders[0],
             hadDrive: finished.folders.count > 1)

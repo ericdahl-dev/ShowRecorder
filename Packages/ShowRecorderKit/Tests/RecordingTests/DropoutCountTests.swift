@@ -26,7 +26,7 @@ struct DropoutCountTests {
     @Test("A Take that lost audio shows one Dropout once the recorder has looked")
     func countsADropout() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
-        let recorder = Recorder(deviceFolder: root)
+        let recorder = Recorder(deviceFolder: root, destinationCheckInterval: nil)
         try recorder.arm(device)
         #expect(recorder.dropoutCount == 0)
 
@@ -39,7 +39,7 @@ struct DropoutCountTests {
     @Test("The operator's Marker count doesn't include Dropout Markers")
     func markerCountIsTheOperators() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
-        let recorder = Recorder(deviceFolder: root)
+        let recorder = Recorder(deviceFolder: root, destinationCheckInterval: nil)
         try recorder.arm(device)
         try await recordWithADropout(recorder, on: device)
         try await waitUntil { recorder.checkDestinations(); return recorder.dropoutCount == 1 }
@@ -53,7 +53,7 @@ struct DropoutCountTests {
     @Test("The count stays after the Take ends and starts again at zero for the next one")
     func staysThenResets() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
-        let recorder = Recorder(deviceFolder: root)
+        let recorder = Recorder(deviceFolder: root, destinationCheckInterval: nil)
         try recorder.arm(device)
         try await recordWithADropout(recorder, on: device)
         try recorder.stopTake()

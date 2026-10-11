@@ -48,7 +48,7 @@ struct PreRollTakeTests {
         return Recorder(
             deviceFolder: device,
             driveFolder: { available?.value == true ? DestinationAccess(folder: drive) : nil },
-            now: { RecordingTakeTests.showDay }, preRollSeconds: seconds)
+            now: { RecordingTakeTests.showDay }, preRollSeconds: seconds, destinationCheckInterval: nil)
     }
 
     final class Box<T>: @unchecked Sendable {
