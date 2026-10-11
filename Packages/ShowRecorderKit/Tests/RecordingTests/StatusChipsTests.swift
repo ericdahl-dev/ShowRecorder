@@ -82,9 +82,15 @@ struct StatusChipsTests {
         #expect(chips(mixer: .idle)[.mixer]?.state == .neutral)
         #expect(chips(mixer: .connecting(host: "10.0.0.9"))[.mixer]?.text == "Mixer connecting")
 
+        // The Mixer's own network name, so two XR18s on one network can be told apart (#328); the model and path
+        // go to VoiceOver and stay as the text when the Mixer has no name.
         let up = chips(mixer: .up(MixerIdentity(networkName: "FOH", model: "XR18", firmware: "1.0"), path: .wifi))[.mixer]
-        #expect(up?.text == "XR18 · Wi-Fi")
+        #expect(up?.text == "FOH")
+        #expect(up?.detail == "XR18 · Wi-Fi")
         #expect(up?.state == .ok)
+        let unnamed = chips(mixer: .up(MixerIdentity(networkName: "  ", model: "XR18", firmware: "1.0"), path: .wifi))[.mixer]
+        #expect(unnamed?.text == "XR18 · Wi-Fi")
+        #expect(unnamed?.detail == nil)
 
         let down = chips(mixer: .down(.noReply(host: "10.0.0.9")))[.mixer]
         #expect(down?.text == "Mixer down")

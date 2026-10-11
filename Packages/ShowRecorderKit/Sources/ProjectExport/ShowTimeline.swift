@@ -82,3 +82,11 @@ public protocol ProjectExporter: Sendable {
     var fileExtension: String { get }
     func project(for show: ShowTimeline) -> [UInt8]
 }
+
+extension ShowTimeline {
+    /// How much audio the Show holds: every Take's length, each at its own sample rate (#328).
+    public var recordedSeconds: Double { takes.reduce(0) { $0 + $1.duration } }
+
+    /// The recorded time plus a Take that is running now and isn't on disk yet.
+    public func recordedSeconds(plusRunning running: Double?) -> Double { recordedSeconds + (running ?? 0) }
+}

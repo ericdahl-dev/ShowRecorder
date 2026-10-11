@@ -15,7 +15,16 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
     public var kind: Kind
     public var text: String
     public var state: State
+    /// More about it, for VoiceOver: the linked Mixer's model and path when the text is its network name.
+    public var detail: String?
     public var id: Kind { kind }
+
+    public init(kind: Kind, text: String, state: State, detail: String? = nil) {
+        self.kind = kind
+        self.text = text
+        self.state = state
+        self.detail = detail
+    }
 
     /// A shorter text for tight layouts: a time left drops the "Device" or "Drive" the chip's icon already
     /// says. Problems and "not set" keep their full words.
@@ -69,7 +78,12 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         case .connecting:
             mixerChip = StatusChip(kind: .mixer, text: "Mixer connecting", state: .neutral)
         case .up(let identity, let path):
-            mixerChip = StatusChip(kind: .mixer, text: "\(identity.model) · \(path == .wifi ? "Wi-Fi" : "USB")", state: .ok)
+            // The Mixer's network name tells two of the same model apart (#328); without one, its model and path.
+            let modelAndPath = "\(identity.model) · \(path == .wifi ? "Wi-Fi" : "USB")"
+            let name = identity.networkName.trimmingCharacters(in: .whitespaces)
+            mixerChip = name.isEmpty
+                ? StatusChip(kind: .mixer, text: modelAndPath, state: .ok)
+                : StatusChip(kind: .mixer, text: name, state: .ok, detail: modelAndPath)
         case .down:
             mixerChip = StatusChip(kind: .mixer, text: "Mixer down", state: .attention)
         }
