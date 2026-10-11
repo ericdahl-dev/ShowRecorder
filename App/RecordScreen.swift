@@ -300,7 +300,11 @@ struct RecordScreen: View {
 
     private var transport: some View {
         VStack(spacing: 12) {
-            elapsed(font: .system(size: 44, weight: .semibold))
+            // The Show's total beside the Take's time, on the same row: no height taken from the meters (#328).
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                elapsed(font: .system(size: 44, weight: .semibold))
+                showTotal(font: .subheadline)
+            }
             // One 44 pt row for the Show and its two lists (#240): big enough to hit, and no taller than the
             // two short lines it replaced, so the meters don't lose height.
             HStack(spacing: 4) {
@@ -416,6 +420,22 @@ struct RecordScreen: View {
 
     /// How long the running Take has gone, counting up each second. Blank (but the same height) when no
     /// Take is running, so nothing moves when it appears.
+    /// "Show 1:02:33": everything recorded in the open Show, counting the running Take each second. Nothing before
+    /// the Show has any audio.
+    @ViewBuilder private func showTotal(font: Font) -> some View {
+        if let recorded = model.showRecordedSeconds {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                let running = model.recorder.isRecording ? model.takeStartedAt.map { context.date.timeIntervalSince($0) } : nil
+                let text = ElapsedTime.format(seconds: Int(recorded + (running ?? 0)))
+                Text("Show \(text)")
+                    .font(font.monospacedDigit())
+                    .secondaryText()
+                    .accessibilityLabel("Show total")
+                    .accessibilityValue(text)
+            }
+        }
+    }
+
     @ViewBuilder private func elapsed(font: Font) -> some View {
         if let started = model.takeStartedAt, model.recorder.isRecording {
             TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -485,11 +505,23 @@ struct RecordScreen: View {
                 // The word carries the state; the dot's color is only a second cue.
                 Text(model.recorder.isRecording ? "Recording" : model.recorder.isArmed ? "Armed" : "Not armed")
                     .font(compact ? .subheadline.weight(.semibold) : .headline)
-                Text(compact ? model.compactInputSummary : model.inputSummary)
-                    .font(compact ? .caption : .subheadline)
+                if compact {
+                    // Landscape has no room beside the Take's time, so the Show's total joins the input line (#328).
+                    HStack(spacing: 4) {
+                        Text(model.compactInputSummary)
+                        if model.showRecordedSeconds != nil { Text("·"); showTotal(font: .caption) }
+                    }
+                    .font(.caption)
                     .secondaryText()
                     .monospacedDigit()
                     .lineLimit(1)
+                } else {
+                    Text(model.inputSummary)
+                        .font(.subheadline)
+                        .secondaryText()
+                        .monospacedDigit()
+                        .lineLimit(1)
+                }
             }
         }
     }
@@ -597,7 +629,26 @@ final class RecordScreenModel {
 
     /// Refreshes the Copy statuses, and says why a Take the recorder ended on its own stopped.
     /// The Recorder checks its Destinations itself while recording.
+    /// Everything recorded in the open Show before the running Take, from its files; nil when there is no Show or it
+    /// has no audio yet. Read only when the Show or its Take count changes, not every second (#328).
+    private(set) var showRecordedSeconds: Double?
+    @ObservationIgnored private var showRecordedKey: String?
+
+    private func refreshShowTotal() {
+        let show = recorder.currentShow
+        let key = show.map { "\($0.folder.path)|\($0.takeCount)|\(recorder.isRecording)" }
+        guard key != showRecordedKey else { return }
+        showRecordedKey = key
+        // A running Take's own files are already on disk; leave it out, the screen adds its live time.
+        guard let show, let seconds = try? show.recordedSeconds(leavingOut: recorder.isRecording ? show.takeCount : nil) else {
+            showRecordedSeconds = nil
+            return
+        }
+        showRecordedSeconds = seconds > 0 || recorder.isRecording ? seconds : nil
+    }
+
     private func refreshDestinations() {
+        refreshShowTotal()
         deviceCopy = recorder.copyStatus(.device)
         driveCopy = recorder.copyStatus(.drive)
         if driveCopy != .interrupted { driveCheckedAndNotFound = false }

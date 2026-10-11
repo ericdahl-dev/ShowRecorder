@@ -30,7 +30,7 @@ struct StatusStrip: View {
                     .background(background(chip.state), in: RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(chip.text)
+                .accessibilityLabel(chip.detail.map { "\(chip.text), \($0)" } ?? chip.text)
             }
             ForEach(extras, id: \.symbol) { chip in
                 Label(chip.shortText, systemImage: chip.symbol)

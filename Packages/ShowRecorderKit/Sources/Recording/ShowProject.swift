@@ -35,6 +35,14 @@ extension Show {
         return ShowTimeline(showName: name, usbChannels: channels.values.sorted { $0.number < $1.number }, takes: takes)
     }
 
+    /// Everything recorded in the Show, from its Stems: each Take's length at its own sample rate (#328). `take` is left
+    /// out: the running one, whose time the record screen counts live.
+    public func recordedSeconds(leavingOut take: Int?) throws -> Double {
+        let timeline = try timeline()
+        return ShowTimeline(showName: timeline.showName, usbChannels: timeline.usbChannels, takes: timeline.takes.filter { $0.number != take })
+            .recordedSeconds
+    }
+
     /// Writes every DAW project the Show folder carries (Reaper for now). Called when a Take finalizes.
     func writeProjects() throws {
         try writeProject(using: ReaperExporter())

@@ -111,6 +111,13 @@ struct TakeFileFormatTests {
         #expect(take.dropouts.map(\.copy) == [.device])
     }
 
+    @Test("The Show's recorded time is its Takes' lengths from their Stems, leaving out a Take that is still running")
+    func recordedSeconds() throws {
+        let show = Show(name: "2026-10-06 Show", folder: show, takeCount: 2)
+        #expect(try show.recordedSeconds(leavingOut: nil) == 3.0)
+        #expect(try show.recordedSeconds(leavingOut: 2) == 0)
+    }
+
     @Test("The Reaper export's timeline has the Take's length, Stems and Markers")
     func timeline() throws {
         let timeline = try Show(name: "2026-10-06 Show", folder: show, takeCount: 1).timeline()
