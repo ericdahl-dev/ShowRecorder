@@ -23,12 +23,12 @@ struct TrialSheet: View {
                         }
                         .disabled(store.trialProduct == nil || store.busy)
                         if let note = store.note {
-                            Text(note).font(.footnote).foregroundStyle(.secondary)
+                            Text(note).font(.footnote).secondaryText()
                         }
                     }
                 } else {
                     Text(store.loadingProducts ? "Loading…" : "The Trial isn't available right now.")
-                        .foregroundStyle(.secondary)
+                        .secondaryText()
                 }
             }
             .formStyle(.grouped)

@@ -13,7 +13,7 @@ struct MarkerListView: View {
         List {
             if model.recorder.markerEntries.isEmpty {
                 Text("No Markers yet. Press the flag during a Take to place one.")
-                    .foregroundStyle(.secondary)
+                    .secondaryText()
             }
             ForEach(model.recorder.markerEntries) { entry in
                 row(entry)
@@ -21,11 +21,11 @@ struct MarkerListView: View {
             if model.recorder.takePreRollSeconds > 0, !model.recorder.markerEntries.isEmpty {
                 Text("Times are from when you pressed Record. The Stems, the report and the Reaper project count from the start of the Pre-roll, \(Int(model.recorder.takePreRollSeconds.rounded())) s earlier.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .secondaryText()
             }
             if let message {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+                    .warningText()
             }
         }
         .alert("Rename Marker", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
@@ -44,14 +44,14 @@ struct MarkerListView: View {
         let label = HStack {
             Text(ElapsedTime.format(seconds: Int(entry.secondsSincePress)))
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
+                .secondaryText()
                 .frame(minWidth: 56, alignment: .leading)
             if entry.isDropout {
                 Label("Dropout: audio was lost here", systemImage: "waveform.badge.exclamationmark")
             } else {
                 Text(entry.name)
                 Spacer()
-                Image(systemName: "pencil").foregroundStyle(.secondary)
+                Image(systemName: "pencil").secondaryText()
             }
         }
         .frame(minHeight: 44)

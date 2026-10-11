@@ -68,9 +68,9 @@ struct ShowListView: View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(show.name).font(.headline)
-                Text(detail(show)).font(.subheadline).foregroundStyle(.secondary)
+                Text(detail(show)).font(.subheadline).secondaryText()
                 if let note = show.copyNote {
-                    Text(note.text).font(.caption).foregroundStyle(note.severity == .problem ? Color.red : .orange)
+                    Text(note.text).font(.caption).inlineText(note.severity == .problem ? .error : .warning)
                 }
             }
             .accessibilityElement(children: .combine)

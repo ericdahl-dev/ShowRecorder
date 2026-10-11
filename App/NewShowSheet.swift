@@ -43,7 +43,7 @@ struct NewShowSheet: View {
                     Text(sheet.startShowNote)
                 }
                 if let message {
-                    Section { Text(message).foregroundStyle(.red) }
+                    Section { Text(message).errorText() }
                 }
             }
             .navigationTitle(sheet.title)

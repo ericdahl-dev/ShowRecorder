@@ -73,6 +73,23 @@ public enum Palette {
         mode == .sunlight ? RGB(0.24, 0.24, 0.26) : RGB(0.74, 0.75, 0.78)
     }
 
+    /// Problem text inside sheets and Settings: an error ("couldn't…") or a warning.
+    public enum InlineTone: CaseIterable, Sendable {
+        case error, warning
+    }
+
+    /// Error and warning text on a sheet's background, 4.5:1 or better (#252). The system's red and orange are
+    /// under that on white, so System gets its own pair for light and dark too.
+    public static func inlineText(_ tone: InlineTone, mode: AppearanceMode, systemDark: Bool) -> RGB {
+        let dark = mode == .dark || (mode == .system && systemDark)
+        switch (tone, dark) {
+        case (.error, false): return RGB(0.70, 0.0, 0.0)
+        case (.warning, false): return RGB(0.62, 0.30, 0.0)
+        case (.error, true): return RGB(1.0, 0.45, 0.42)
+        case (.warning, true): return RGB(1.0, 0.70, 0.25)
+        }
+    }
+
     /// The colors the level meters draw with.
     public enum MeterColor: CaseIterable, Sendable {
         case green, yellow, red, low, orange
