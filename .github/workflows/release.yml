@@ -23,7 +23,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 60
     env:
-      # Secrets this workflow needs; see README "Releasing to TestFlight".
+      # Secrets this workflow needs; see docs/DEVELOPING.md "Releasing to TestFlight".
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       DEVELOPMENT_TEAM: ${{ secrets.DEVELOPMENT_TEAM }}
