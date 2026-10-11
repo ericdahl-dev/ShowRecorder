@@ -1,4 +1,4 @@
-/// Where the Marker list, Channel names and Settings open on the record screen. Stop and Marker must stay in
+/// Where the Marker list and Channel names open on the record screen (Settings is always a sheet). Stop and Marker must stay in
 /// reach while one is open during a Take, and the meters never get shorter for it (#250).
 public enum LivePanelPlacement: Equatable, Sendable {
     /// iPhone portrait: the panel takes the meters' place; the transport below stays visible.
