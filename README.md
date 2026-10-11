@@ -15,7 +15,7 @@
 ## What you get
 
 - **Every channel, its own file.** One 24-bit Broadcast WAV per USB channel: 18 tracks from an XR18, at the mixer's 48 kHz (up to 96 kHz on interfaces that offer it).
-- **Files named from the mixer.** Over Wi-Fi, ShowRecorder reads your channel names and colors, so channel 3 arrives as `03 Snare.wav`, not `USB 03`. Find mixers locates the XR18 on the network; no IP address to type.
+- **Files named from the mixer.** Over Wi-Fi, ShowRecorder reads your channel names and colors, so channel 3 arrives as `03 Snare.wav`, not `USB 03`. Find Mixers locates the XR18 on the network; no IP address to type.
 - **A second copy as you record.** Add a USB drive and every Take is written to the phone and the drive at once. If the drive drops out, the missing part is filled back in after the Take.
 - **Nothing lost to a crash.** Files are saved every 2 seconds. If the app is closed or crashes mid-Take, it finishes that Take next time it opens. A phone call or another app interrupting the input leaves silence with a Dropout marker, so the files stay in sync with video.
 - **Pre-roll.** A Take starts with the seconds before you pressed record, so the count-in isn't lost.
@@ -39,7 +39,7 @@ The rigs checked so far are on the [tested hardware](docs/tested-hardware.md) pa
 ## How a show goes
 
 1. **Plug in** the mixer. ShowRecorder arms it and the meters come alive.
-2. **Link the mixer** (Settings > Mixer Link > Find mixers) to get your channel names, or start from a Template.
+2. **Link the mixer** (Settings > Mixer Link > Find Mixers) to get your channel names, or start from a Template.
 3. **Press record.** The Take starts with the Pre-roll before your press. Drop markers as you go.
 4. **Press stop.** Your files, the report and the Reaper project are in the Show folder, in the Files app or on your drive.
 

@@ -23,7 +23,7 @@ At https://appstoreconnect.apple.com, open **Business** (older name: Agreements,
 **Apps → ShowRecorder → App Privacy**
 
 - [ ] **Privacy Policy URL:** `https://ericdahl.dev/showrecorder/privacy`
-- [ ] **Data collection:** Get Started → "**No, we do not collect data from this app**" → Save → **Publish**. ShowRecorder sends nothing anywhere; the Mixer Link and Find mixers stay on the local network.
+- [ ] **Data collection:** Get Started → "**No, we do not collect data from this app**" → Save → **Publish**. ShowRecorder sends nothing anywhere; the Mixer Link and Find Mixers stay on the local network.
 
 ## 3. In-app purchases (after step 1 is Active)
 
