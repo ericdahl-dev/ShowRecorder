@@ -51,9 +51,9 @@ public enum MixerLinkProblem: Error, Equatable, Sendable {
     public var message: String {
         switch self {
         case .noReply(let host):
-            "No mixer answered at \(host). Check the IP address, and that this device is on the same network as the mixer."
+            "No Mixer answered at \(host). Check the IP address, and that you're on the same network as the Mixer."
         case .networkUnreachable:
-            "This device isn't connected to a network that can reach the mixer. Join the mixer's Wi-Fi network."
+            "You're not on a network that can reach the Mixer. Join the Mixer's Wi-Fi network."
         case .localNetworkDenied:
             "ShowRecorder isn't allowed to use the local network. Turn on Local Network for ShowRecorder in Settings › Privacy & Security."
         case .invalidAddress(let text):

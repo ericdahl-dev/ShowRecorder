@@ -3,8 +3,8 @@ import AppKit
 import Recording
 import SwiftUI
 
-/// Closing the record window during a Take asks "Stop the Take?" first. Keep Recording leaves the window
-/// and the Take alone; Stop Recording ends the Take and closes the window. With no Take running the window
+/// Closing the record window during a Take asks "Stop the Take?" first. Keep Going leaves the window
+/// and the Take alone; Stop Take ends the Take and closes the window. With no Take running the window
 /// closes as usual (see `RecorderLifecycle.windowCloseRequested`).
 ///
 /// It sits behind the window as an invisible view and puts itself in as the window's delegate, forwarding
@@ -63,8 +63,8 @@ struct WindowCloseGuard: NSViewRepresentable {
             let alert = NSAlert()
             alert.messageText = "Stop the Take?"
             alert.informativeText = "\(model.takeTitle) is still recording. Closing the window ends it."
-            alert.addButton(withTitle: "Keep Recording")
-            alert.addButton(withTitle: "Stop Recording").hasDestructiveAction = true
+            alert.addButton(withTitle: "Keep Going")
+            alert.addButton(withTitle: "Stop Take").hasDestructiveAction = true
             alert.beginSheetModal(for: window) { [weak self, weak window] response in
                 guard response == .alertSecondButtonReturn else { return }
                 self?.model.stop()

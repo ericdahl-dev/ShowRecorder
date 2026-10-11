@@ -31,14 +31,14 @@ struct SettingsView: View {
             Form {
                 if model.recorder.isRecording {
                     Section {
-                        Label("Input, Pre-roll, Drive and Mixer Link can't be changed during a Take.", systemImage: "lock.fill")
+                        Label("The audio interface, Pre-roll, Drive and Mixer Link can't be changed during a Take.", systemImage: "lock.fill")
                             .secondaryText()
                     }
                 }
                 Section {
-                    Picker("Input", selection: $model.selectedDeviceID) {
+                    Picker("Audio interface", selection: $model.selectedDeviceID) {
                         if model.selectedDeviceID == nil {
-                            Text(model.devices.isEmpty ? "No audio input" : "Choose an input").tag(String?.none)
+                            Text(model.devices.isEmpty ? "No audio interface" : "Choose an audio interface").tag(String?.none)
                         }
                         ForEach(model.devices, id: \.id) { device in
                             Text(device.name).tag(Optional(device.id))
@@ -144,7 +144,7 @@ struct SettingsView: View {
     @ViewBuilder private var driveStatus: some View {
         switch model.drive.status {
         case .notChosen:
-            Label("No Drive folder. Takes go to this device only.", systemImage: "externaldrive.badge.questionmark")
+            Label("No Drive folder. Takes go to the Device only.", systemImage: "externaldrive.badge.questionmark")
                 .secondaryText()
         case .available(let drive):
             Label("Drive: \(drive.name) · \(drive.availableBytes.formatted(.byteCount(style: .file))) free", systemImage: "externaldrive.fill.badge.checkmark")
@@ -163,7 +163,7 @@ struct SettingsView: View {
             let drive: TimeLeft? = if case .available(let d) = model.drive.status {
                 TimeLeft(availableBytes: d.availableBytes, usbChannelCount: count, sampleRate: rate)
             } else { nil }
-            Text("Time left · This device: \(device.description)" + (drive.map { " · Drive: \($0.description)" } ?? ""))
+            Text("Time left · Device: \(device.description)" + (drive.map { " · Drive: \($0.description)" } ?? ""))
                 .monospacedDigit()
                 .secondaryText()
         }
@@ -172,7 +172,7 @@ struct SettingsView: View {
     @ViewBuilder private var mixerStatus: some View {
         switch model.mixerLink.status {
         case .idle:
-            Label("Not connected to a mixer. Stems use USB Channel names.", systemImage: "link")
+            Label("Not connected to a Mixer. Stems use USB Channel names.", systemImage: "link")
                 .secondaryText()
         case .connecting(let host):
             Label("Connecting to \(host)…", systemImage: "antenna.radiowaves.left.and.right")

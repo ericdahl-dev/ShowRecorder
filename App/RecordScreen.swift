@@ -157,14 +157,12 @@ struct RecordScreen: View {
             .modifier(AppearanceRoot(mode: model.appearance))
         }
         #endif
-        .confirmationDialog("Stop recording?", isPresented: $model.confirmingStop, titleVisibility: .visible) {
-            Button("Stop Recording", role: .destructive) { model.stop() }
-            Button("Keep Recording", role: .cancel) {}
-        } message: {
-            Text("This ends \(model.takeTitle).")
+        .confirmationDialog("Stop \(model.takeTitle)?", isPresented: $model.confirmingStop, titleVisibility: .visible) {
+            Button("Stop Take", role: .destructive) { model.stop() }
+            Button("Keep Going", role: .cancel) {}
         }
         // A Take the recorder ended by itself (out of space, no Destination) takes the question with it, so it
-        // never offers "Keep Recording" with nothing recording (#322).
+        // never offers "Keep Going" with nothing recording (#322).
         .onChange(of: model.recorder.isRecording) { _, recording in
             if !recording { model.confirmingStop = false }
         }
@@ -252,7 +250,7 @@ struct RecordScreen: View {
         }
         .buttonStyle(.plain)
         .disabled(!model.recorder.isArmed)
-        .accessibilityLabel(model.recorder.isRecording ? "Stop recording" : "Record")
+        .accessibilityLabel(model.recorder.isRecording ? "Stop \(model.takeTitle)" : "Record")
     }
 
     /// Always in place, dimmed when no Take is running, so Record never shifts under the thumb.
@@ -566,7 +564,7 @@ final class RecordScreenModel {
     private static let mixerAddressKey = "mixerAddress"
     private(set) var devices: [DeviceChoice] = []
     var selectedDeviceID: String?
-    /// Whether the "Stop recording?" question is showing. In the model so the Take menu can ask it too.
+    /// Whether the "Stop Take N?" question is showing. In the model so the Take menu can ask it too.
     var confirmingStop = false
     /// The level meters, in their own model: they change 30 times a second, and only the meter grid reads them.
     let meterModel = MeterModel()
@@ -640,13 +638,13 @@ final class RecordScreenModel {
 
     /// Just the Armed device's name, for the one-line landscape header.
     var compactInputSummary: String {
-        recorder.isArmed ? (armedDevice?.name ?? "Input") : "No input"
+        recorder.isArmed ? (armedDevice?.name ?? "Audio interface") : "No audio interface"
     }
 
     /// The Armed device's name and channel count, for the header.
     var inputSummary: String {
-        guard recorder.isArmed else { return recordBlock?.text ?? "Choose an input in Settings" }
-        let name = armedDevice?.name ?? "Input"
+        guard recorder.isArmed else { return recordBlock?.text ?? "Choose the Mixer's audio interface in Settings" }
+        let name = armedDevice?.name ?? "Audio interface"
         return "\(name) · \(usbChannelSummary)"
     }
 
@@ -694,7 +692,7 @@ final class RecordScreenModel {
             list.append(ScreenAlert(id: "copies", priority: .copyResult, tone: summary.isProblem ? .warning : .ok, text: summary.text))
         }
         if showSetupHint {
-            list.append(ScreenAlert(id: "hint", priority: .hint, tone: .info, text: "Set the input, Drive and Mixer in Settings (the gear).", action: .dismissHint))
+            list.append(ScreenAlert(id: "hint", priority: .hint, tone: .info, text: "Choose the audio interface, Drive and Mixer in Settings (the gear).", action: .dismissHint))
         }
         // Offered once, as a banner rather than a sheet, so it never stacks on another first-launch sheet (#63).
         if Soundcheck.shouldOffer(alreadyOffered: soundcheckOffered, isRecording: recorder.isRecording, setupHintShowing: showSetupHint) {
@@ -883,7 +881,7 @@ final class RecordScreenModel {
     var extraChips: [PowerStatus.Chip] {
         let dropouts = recorder.dropoutCount
         let chip = dropouts > 0
-            ? [PowerStatus.Chip(text: dropouts == 1 ? "1 dropout" : "\(dropouts) dropouts", shortText: "\(dropouts)", symbol: "waveform.badge.exclamationmark", state: .attention)]
+            ? [PowerStatus.Chip(text: dropouts == 1 ? "1 Dropout" : "\(dropouts) Dropouts", shortText: "\(dropouts)", symbol: "waveform.badge.exclamationmark", state: .attention)]
             : []
         let trial = ProSection.isOffered ? pro.tier().chip.map { [$0] } ?? [] : []
         return chip + power.status.chips + trial
@@ -1028,7 +1026,7 @@ final class RecordScreenModel {
         case .noSuchMarker: return "That Marker isn't there any more."
         case .notRecording: return "There is no Take to rename a Marker in."
         case .noCopyUpdated, .renamed:
-            let problems = outcome.failed.map { "\($0.copy == .drive ? "The Drive" : "This device") Copy still has the old name: \($0.reason)" }
+            let problems = outcome.failed.map { "\($0.copy == .drive ? "The Drive" : "The Device") Copy still has the old name: \($0.reason)" }
             if outcome.result == .noCopyUpdated { return "Couldn't rename it. " + problems.joined(separator: " ") }
             return problems.isEmpty ? nil : problems.joined(separator: " ")
         }
@@ -1401,8 +1399,8 @@ final class RecordScreenModel {
         if ports.isEmpty {
             // Nothing listed yet (the session isn't active): offer whatever iOS picks.
             choices.append(DeviceChoice(
-                info: InputDeviceInfo(id: Self.routeInputPrefix + "default", name: "Audio input", inputChannelCount: 0, sampleRate: session.sampleRate),
-                name: "Audio input",
+                info: InputDeviceInfo(id: Self.routeInputPrefix + "default", name: "Audio interface", inputChannelCount: 0, sampleRate: session.sampleRate),
+                name: "Audio interface",
                 availableSampleRates: Self.sessionSampleRates,
                 make: { chosen, capAt48k in try SessionAudioDevice.current(sampleRate: Self.sessionRate(chosen, capAt48k: capAt48k)) }))
         }

@@ -60,7 +60,7 @@ public enum Soundcheck {
     ///   - signal: what the test Take carried; nil before it ran.
     public static func judgeChannels(usbChannelCount: Int, expected: Int?, signal: TakeSignal?) -> Step {
         guard usbChannelCount > 0 else {
-            return Step(kind: .channels, passed: false, message: "No input is Armed. Choose the Mixer's USB input in Settings.")
+            return Step(kind: .channels, passed: false, message: "No audio interface is Armed. Choose the Mixer's audio interface in Settings.")
         }
         if let expected, usbChannelCount < expected {
             return Step(kind: .channels, passed: false, message: "The input sends \(usbChannelCount) USB Channels; the Mixer sends \(expected). On the Mixer, set the USB interface to \(expected)/\(expected) (X AIR Edit: Setup, Audio/Midi).")

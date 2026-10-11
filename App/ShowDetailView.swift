@@ -28,7 +28,7 @@ struct ShowDetailView: View {
                             }
                             ForEach(Array(take.markers.enumerated()), id: \.offset) { _, marker in row(marker, take: take.number) }
                             if !take.channels.isEmpty {
-                                DisclosureGroup("Channel files (\(take.channels.count))") {
+                                DisclosureGroup("Stems (\(take.channels.count))") {
                                     ForEach(take.channels, id: \.number) { channel in
                                         HStack {
                                             Text("\(channel.number)").monospacedDigit().secondaryText()

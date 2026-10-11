@@ -137,7 +137,7 @@ struct NewShowSheet: View {
         } footer: {
             if model.templates.couldNotRead {
                 // #325: the old list is kept aside on the device, not erased.
-                Text("Your saved Templates couldn't be read. They're kept aside on this device and aren't erased.")
+                Text("Your saved Templates couldn't be read. They're kept aside on the Device and aren't erased.")
                     .errorText()
             }
             Text(access.note ?? "Starting from a Template ends the open Show and brings its channel names, Pre-roll and Mixer. Tap ☆ to make a Template the default (★): it readies the next Show when the app opens with none open.")
