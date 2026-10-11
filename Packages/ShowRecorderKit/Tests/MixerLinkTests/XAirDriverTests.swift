@@ -97,15 +97,17 @@ struct XAirDriverTests {
         state.channels[0] = .init(name: "Kick", color: 1)
         state.answersMixState = false
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: .milliseconds(200))
+        // A 1 s timeout, so a loaded machine can still answer the names (#323); missing mix state still costs one
+        // timeout (under 3 s), not one per Source (18 s).
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: .seconds(1))
 
         let clock = ContinuousClock()
         var sources: [Source] = []
         let elapsed = try await clock.measure { sources = try await driver.sources(usbChannelCount: 18) }
 
-        #expect(sources[0].name == "Kick")
+        #expect(try #require(sources.first).name == "Kick")
         #expect(sources.allSatisfy { $0.isMuted == nil && $0.fader == nil && $0.inputSource == nil })
-        #expect(elapsed < .seconds(1), "one timeout, not one per Source")
+        #expect(elapsed < .seconds(3), "one timeout, not one per Source")
     }
 
     @Test("An unexpected reply for mute, fader or input source leaves that value unknown, not the Link down")

@@ -44,9 +44,6 @@ struct MarkerListTests {
         try recorder.stopTake()
     }
 
-    func waitUntil(_ condition: () -> Bool) async throws {
-        for _ in 0..<500 where !condition() { try await Task.sleep(for: .milliseconds(5)) }
-    }
 
     @Test("A Dropout Marker is listed with no operator index, and doesn't shift the operator's Markers' indices")
     func dropoutInTheList() async throws {

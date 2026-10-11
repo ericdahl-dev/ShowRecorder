@@ -60,9 +60,6 @@ struct TakeSessionTests {
         try await waitUntil { capture.rings.allSatisfy { $0.availableFrames == 0 } }
     }
 
-    func waitUntil(_ condition: () -> Bool) async throws {
-        for _ in 0..<500 where !condition() { try await Task.sleep(for: .milliseconds(5)) }
-    }
 
     @Test("A Drive that appears mid-Take joins with silence up to the join point, recorded as a Gap")
     func driveJoins() async throws {

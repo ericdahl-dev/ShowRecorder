@@ -31,9 +31,6 @@ struct PreRollTakeTests {
         }
     }
 
-    func waitUntil(_ condition: () -> Bool) async throws {
-        for _ in 0..<500 where !condition() { try await Task.sleep(for: .milliseconds(5)) }
-    }
 
     func take01(_ copy: URL) -> URL { copy.appending(path: "2026-10-06 Show/Take 01") }
 

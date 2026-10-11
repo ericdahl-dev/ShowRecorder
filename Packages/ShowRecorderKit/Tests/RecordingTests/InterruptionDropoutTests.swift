@@ -25,7 +25,7 @@ struct InterruptionDropoutTests {
         // Input stops here for 48,000 frames (1 s), then comes back.
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_960 + 48_000)
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_960 + 48_480)
-        try await Task.sleep(for: .milliseconds(200))
+        try await waitUntil { recorder.bufferedFrameCount == 0 }
         try recorder.stopTake()
         await recorder.waitForRepair()
 
@@ -47,7 +47,7 @@ struct InterruptionDropoutTests {
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_000)
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_000 + 480 + 30)  // 30 frames late
-        try await Task.sleep(for: .milliseconds(150))
+        try await waitUntil { recorder.bufferedFrameCount == 0 }
         try recorder.stopTake()
         let metadata = try TakeMetadata.read(fromTakeFolder: root.appending(path: "\(show)/Take 01"))
         #expect(metadata.dropouts.isEmpty)

@@ -44,12 +44,9 @@ struct TakeWriterDropTests {
         }
     }
 
-    func waitUntil(_ condition: () -> Bool) {
-        for _ in 0..<1_000 where !condition() { Thread.sleep(forTimeInterval: 0.002) }
-    }
 
     @Test("A dropped block becomes silence of exactly its length, between the audio before and after it")
-    func silenceWhereAudioWasLost() {
+    func silenceWhereAudioWasLost() throws {
         let ring = SampleRing(channelCount: 1, capacity: 1_000)
         let gate = DispatchSemaphore(value: 0)
         let stem = MemoryStem(gate: gate)
@@ -57,11 +54,11 @@ struct TakeWriterDropTests {
         ring.joinFrame.store(0, ordering: .releasing)
         write(ring, from: 0, count: 800)
         writer.start()
-        waitUntil { ring.availableFrames == 800 }  // the writer is holding at its first append
+        try waitUntilBlocking { ring.availableFrames == 800 }  // the writer is holding at its first append
 
         write(ring, from: 800, count: 300)  // no room: dropped
         gate.signal()
-        waitUntil { ring.availableFrames == 0 }
+        try waitUntilBlocking { ring.availableFrames == 0 }
         write(ring, from: 1_100, count: 100)  // stored after the drop
         writer.stop()
 
@@ -70,7 +67,7 @@ struct TakeWriterDropTests {
     }
 
     @Test("A drop at the very end of the Take, with nothing stored after it, is still written when the Take stops")
-    func dropAtTheEnd() {
+    func dropAtTheEnd() throws {
         let ring = SampleRing(channelCount: 1, capacity: 10_000)
         let gate = DispatchSemaphore(value: 0)
         let stem = MemoryStem(gate: gate)
@@ -78,7 +75,7 @@ struct TakeWriterDropTests {
         ring.joinFrame.store(0, ordering: .releasing)
         write(ring, from: 0, count: 8_000)
         writer.start()
-        waitUntil { ring.availableFrames == 8_000 }
+        try waitUntilBlocking { ring.availableFrames == 8_000 }
 
         write(ring, from: 8_000, count: 9_000)  // more than the 2,000 free: dropped, and it's the last thing
         gate.signal()
@@ -89,7 +86,7 @@ struct TakeWriterDropTests {
     }
 
     @Test("Drops that didn't fit in the log still become silence, at the end, so the Stem is as long as the Take")
-    func unloggedDropsBecomeSilenceAtTheEnd() {
+    func unloggedDropsBecomeSilenceAtTheEnd() throws {
         // A log with room for one drop, and the drops made before the writer starts.
         let ring = SampleRing(channelCount: 1, capacity: 1_000, dropLogCapacity: 1)
         write(ring, from: 0, count: 800)
@@ -109,19 +106,19 @@ struct TakeWriterDropTests {
     }
 
     @Test("The writer remembers where it wrote silence for dropped audio, on the Take's timeline")
-    func remembersDropouts() {
+    func remembersDropouts() throws {
         let ring = SampleRing(channelCount: 1, capacity: 1_000)
         let gate = DispatchSemaphore(value: 0)
         let writer = TakeWriter(ring: ring, stems: [MemoryStem(gate: gate)], commitInterval: 48_000)
         ring.joinFrame.store(0, ordering: .releasing)
         write(ring, from: 0, count: 800)
         writer.start()
-        waitUntil { ring.availableFrames == 800 }
+        try waitUntilBlocking { ring.availableFrames == 800 }
         #expect(writer.dropouts.isEmpty)
 
         write(ring, from: 800, count: 300)
         gate.signal()
-        waitUntil { ring.availableFrames == 0 }
+        try waitUntilBlocking { ring.availableFrames == 0 }
         write(ring, from: 1_100, count: 100)
         writer.stop()
         #expect(writer.dropouts == [800..<1_100])
