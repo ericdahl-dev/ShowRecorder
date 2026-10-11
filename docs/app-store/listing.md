@@ -96,8 +96,8 @@ First release.
 5. Ready to mix (a Show with its report and Reaper project)
 6. Sunlight for bright stages
 
-## Questions for Eric
+## Decided (Eric, 2026-10-11)
 
-- Promotional text ends with "Try everything for 14 days." Keep it, or use the space for the Show-Safe Promise?
-- Keep the trademark line at the end of the description? It is common practice and costs nothing, but it isn't required.
-- Mention the launch price ($19.99, then $29.99)? Prices aren't usually written in the description, since the store shows them and they change.
+- The promotional text ends with "Try everything for 14 days."
+- The trademark line stays at the end of the description.
+- The description doesn't mention the price; the store shows it.
