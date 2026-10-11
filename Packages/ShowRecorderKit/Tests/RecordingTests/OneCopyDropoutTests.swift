@@ -54,7 +54,7 @@ struct OneCopyDropoutTests {
             try await Task.sleep(for: .milliseconds(40))
         }
         gate.open()
-        try await Task.sleep(for: .milliseconds(200))
+        try await waitUntil { recorder.bufferedFrameCount == 0 }
         recorder.checkDestinations()
         try recorder.stopTake()
         await recorder.waitForRepair()

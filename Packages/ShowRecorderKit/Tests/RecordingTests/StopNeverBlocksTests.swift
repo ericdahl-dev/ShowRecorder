@@ -82,11 +82,11 @@ struct StopNeverBlocksTests {
         // Take 1: the Drive joins late, so the Take ends with a Gap that Repair will fill.
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.2, count: 4_800)])
-        try await Task.sleep(for: .milliseconds(100))
+        try await waitUntil { recorder.bufferedFrameCount == 0 }
         available.folder = drive
         recorder.checkDestinations()
         audio.deliver([Array(repeating: 0.2, count: 4_800)])
-        try await Task.sleep(for: .milliseconds(100))
+        try await waitUntil { recorder.bufferedFrameCount == 0 }
         try recorder.stopTake()
 
         // Take 2 starts before that Repair is done; its end must not write the report mid-Take.

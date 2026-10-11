@@ -9,9 +9,6 @@ import Testing
 struct DropoutCountTests {
     let root = FileManager.default.temporaryDirectory.appending(path: "DropoutCountTests-\(UUID().uuidString)")
 
-    func waitUntil(_ condition: () -> Bool) async throws {
-        for _ in 0..<500 where !condition() { try await Task.sleep(for: .milliseconds(5)) }
-    }
 
     /// Records a Take in which the ring drops one block: 480 frames, then 200,000 at once (more than a
     /// ring holds), then 480 more.

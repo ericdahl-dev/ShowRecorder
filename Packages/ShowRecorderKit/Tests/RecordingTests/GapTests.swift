@@ -40,9 +40,6 @@ struct GapTests {
         try FileManager.default.createDirectory(at: root.appending(path: "Drive"), withIntermediateDirectories: true)
     }
 
-    func waitUntil(_ condition: () -> Bool) async throws {
-        for _ in 0..<500 where !condition() { try await Task.sleep(for: .milliseconds(5)) }
-    }
 
     /// A recorder whose Copy on each named Destination fails after `healthyFrames`.
     func recorder(failing failing: Set<DestinationKind>, healthyFrames: Int = 480) -> Recorder {

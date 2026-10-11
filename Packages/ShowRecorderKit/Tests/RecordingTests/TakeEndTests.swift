@@ -18,9 +18,6 @@ struct TakeEndTests {
         try FileManager.default.createDirectory(at: root.appending(path: "Drive"), withIntermediateDirectories: true)
     }
 
-    func waitUntil(_ condition: () -> Bool) async throws {
-        for _ in 0..<500 where !condition() { try await Task.sleep(for: .milliseconds(5)) }
-    }
 
     func deliverBlocks(_ count: Int, to audio: FakeAudioDevice, _ recorder: Recorder) async throws {
         for _ in 0..<count {
