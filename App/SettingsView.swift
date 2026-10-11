@@ -135,9 +135,10 @@ struct SettingsView: View {
     @ViewBuilder private var timeLeft: some View {
         let count = model.recorder.usbChannelCount
         if count > 0 {
-            let device = TimeLeft(availableBytes: model.drive.deviceAvailableBytes, usbChannelCount: count, sampleRate: 48_000)
+            let rate = model.recorder.sampleRate ?? 48_000
+            let device = TimeLeft(availableBytes: model.drive.deviceAvailableBytes, usbChannelCount: count, sampleRate: rate)
             let drive: TimeLeft? = if case .available(let d) = model.drive.status {
-                TimeLeft(availableBytes: d.availableBytes, usbChannelCount: count, sampleRate: 48_000)
+                TimeLeft(availableBytes: d.availableBytes, usbChannelCount: count, sampleRate: rate)
             } else { nil }
             Text("Time left · This device: \(device.description)" + (drive.map { " · Drive: \($0.description)" } ?? ""))
                 .monospacedDigit()

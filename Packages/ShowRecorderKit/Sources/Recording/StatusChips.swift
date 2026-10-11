@@ -29,16 +29,19 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
 
     /// The chips for the current Destinations and Mixer Link, in the order they're shown.
     ///
-    /// - Parameter copies: how each Copy of the running Take is doing; empty when no Take is running.
+    /// - Parameters:
+    ///   - copies: how each Copy of the running Take is doing; empty when no Take is running.
+    ///   - sampleRate: the Armed input's rate, for the time left (#298); 48 kHz when nothing is Armed.
     public static func make(
         usbChannelCount: Int,
         deviceAvailableBytes: Int64,
         drive: DriveStatus,
         mixer: MixerLinkStatus,
-        copies: [DestinationKind: CopyStatus]
+        copies: [DestinationKind: CopyStatus],
+        sampleRate: Int = 48_000
     ) -> [StatusChip] {
         func timeLeft(_ bytes: Int64) -> TimeLeft {
-            TimeLeft(availableBytes: bytes, usbChannelCount: usbChannelCount, sampleRate: 48_000)
+            TimeLeft(availableBytes: bytes, usbChannelCount: usbChannelCount, sampleRate: sampleRate)
         }
         /// Under ten minutes of audio left.
         func isLow(_ left: TimeLeft) -> Bool { (left.seconds ?? .max) < 600 }
