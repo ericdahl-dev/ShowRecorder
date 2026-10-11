@@ -6,6 +6,8 @@ import SwiftUI
 /// typed name off again.
 struct ChannelNamesView: View {
     let model: RecordScreenModel
+    /// Closes it when it's a panel on the record screen; a sheet dismisses itself.
+    var done: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @State private var drafts: [Int: String] = [:]
     @State private var copyMessage: String?
@@ -51,7 +53,7 @@ struct ChannelNamesView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { commitAll(); dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { commitAll(); if let done { done() } else { dismiss() } } }
             }
         }
         .onAppear {

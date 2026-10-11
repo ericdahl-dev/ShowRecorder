@@ -228,6 +228,9 @@ struct SourceLabel: View {
             Text("\(number)")
                 .font(.caption2)
                 .monospacedDigit()
+                // One line always: a wrapped "10" would make that lane's meter shorter than the others.
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
                 .secondaryText()
             if let source {
                 if showsName {
