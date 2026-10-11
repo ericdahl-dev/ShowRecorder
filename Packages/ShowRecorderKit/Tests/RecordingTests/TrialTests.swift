@@ -56,6 +56,14 @@ struct TrialTests {
         #expect(text.contains("never stops"))
     }
 
+    @Test("The Trial names everything Pro adds, as the paywall does (ADR 0004 launch scope)")
+    func disclosureNamesEveryProFeature() {
+        let first = TrialDisclosure(proPrice: "$19.99").lines[0]
+        for feature in ["every USB Channel", "channel names you type", "the Show report", "Reaper export", "96 kHz", "Templates"] {
+            #expect(first.contains(feature), "\(feature)")
+        }
+    }
+
     @Test("The Trial is offered once, at launch: not again, not during a Take, not once a Trial or Pro is owned, not without a price")
     func offer() {
         let none = ProPurchases(owned: [])
