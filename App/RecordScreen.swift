@@ -835,7 +835,7 @@ final class RecordScreenModel {
     /// After a Take: a Free Take that left channels with signal unrecorded, or the Trial's last days (#62).
     private func offerProAfterTake() {
         let show = recorder.currentShow?.name
-        let tier = pro.tier()
+        guard let tier = pro.knownTier() else { return }
         let moment = recorder.lastTakeSignal.flatMap { signal in
             show.flatMap { proOffers.afterTakeStopped(show: $0, signal: signal, tier: tier, proOffered: ProSection.isOffered, isRecording: recorder.isRecording) }
         } ?? proOffers.betweenTakes(show: show, tier: tier, proOffered: ProSection.isOffered, isRecording: recorder.isRecording)
@@ -895,7 +895,7 @@ final class RecordScreenModel {
         do {
             try recorder.endShow()
             if let ending, let moment = proOffers.afterShowEnded(
-                show: ending.name, takeCount: ending.takeCount, tier: pro.tier(), proOffered: ProSection.isOffered) {
+                show: ending.name, takeCount: ending.takeCount, tier: pro.knownTier() ?? .pro, proOffered: ProSection.isOffered) {
                 offerPro(moment)
             }
             return nil
@@ -920,7 +920,7 @@ final class RecordScreenModel {
 
     /// Whether Templates can be used now: between Takes, and on Pro or the Trial once Pro is offered.
     var templateAccess: TemplateAccess {
-        TemplateAccess(proOffered: ProSection.isOffered, tier: pro.tier(), isRecording: recorder.isRecording)
+        TemplateAccess(proOffered: ProSection.isOffered, tier: pro.knownTier(), isRecording: recorder.isRecording)
     }
 
     /// Saves this setup as a Template named `name`: the typed channel names, the open Show's venue, the Pre-roll and
@@ -954,6 +954,14 @@ final class RecordScreenModel {
             Task { await connectMixer(for: template) }
         }
         return nil
+    }
+
+    /// The known tier changed (the App Store answered, a purchase, a refund): re-Arm between Takes if the rate the
+    /// input may run at changed (#316). A Take that's running keeps its rate; the change applies at the next Arm.
+    private func tierChanged() {
+        guard recorder.isArmed, !recorder.isRecording, let rate = recorder.sampleRate else { return }
+        let capped = SampleRateSetting.capAt48k(proOffered: ProSection.isOffered, tier: pro.knownTier())
+        if (capped && rate > 48_000) || (!capped && (sampleRateChoice ?? rate) > rate) { armSelectedDevice() }
     }
 
     /// At launch with no Show open: the default Template readies the next Show (its channel names now, its name when
@@ -1051,7 +1059,7 @@ final class RecordScreenModel {
     /// can be frozen at the record press.
     func currentAllowance() -> TakeAllowance? {
         Entitlement.allowanceAtPress(
-            proOffered: ProSection.isOffered, tier: pro.tier(),
+            proOffered: ProSection.isOffered, tier: pro.knownTier(),
             channelCount: recorder.usbChannelCount, freeChoice: pro.freeChoice)
     }
 
@@ -1093,6 +1101,7 @@ final class RecordScreenModel {
     func start() {
         guard loop == nil else { return }
         loop = Task { await run() }
+        pro.onTierChange = { [weak self] in self?.tierChanged() }
         applyDefaultTemplate()
         Task { await offerDemoSignalIfAvailable() }
         // `-demoRecord` starts a Take two seconds after launch, for screenshots.
@@ -1177,7 +1186,7 @@ final class RecordScreenModel {
         do {
             armedDevice = nil
             let device = try choice.make(
-                sampleRateChoice, SampleRateSetting.capAt48k(proOffered: ProSection.isOffered, tier: pro.tier()))
+                sampleRateChoice, SampleRateSetting.capAt48k(proOffered: ProSection.isOffered, tier: pro.knownTier()))
             try recorder.arm(device)
             noteOfferedChannels(of: device)
             armedDevice = choice.info

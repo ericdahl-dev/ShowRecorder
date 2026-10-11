@@ -133,7 +133,8 @@ public enum TemplateAccess: Equatable, Sendable {
     case proOnly
     case takeRunning
 
-    public init(proOffered: Bool, tier: Tier, isRecording: Bool) {
+    /// An unknown tier (nil, before the App Store has answered) can use Templates (#316).
+    public init(proOffered: Bool, tier: Tier?, isRecording: Bool) {
         if isRecording {
             self = .takeRunning
         } else if proOffered, tier == .free {

@@ -31,6 +31,26 @@ public struct ProPurchases: Equatable, Sendable {
         trialStartedAt = owned.first { $0.productID == Self.trialProductID }?.purchaseDate
     }
 
+    private static let lastKnownProKey = "proPurchases.ownsPro"
+    private static let lastKnownTrialKey = "proPurchases.trialStartedAt"
+
+    private init(ownsPro: Bool, trialStartedAt: Date?) {
+        self.ownsPro = ownsPro
+        self.trialStartedAt = trialStartedAt
+    }
+
+    /// What was owned the last time the App Store was asked, kept on the device so a launch knows the tier at once
+    /// (#316). Nil before the first answer (a fresh install or a new device).
+    public static func lastKnown(from defaults: UserDefaults = .standard) -> ProPurchases? {
+        guard defaults.object(forKey: lastKnownProKey) != nil else { return nil }
+        return ProPurchases(ownsPro: defaults.bool(forKey: lastKnownProKey), trialStartedAt: defaults.object(forKey: lastKnownTrialKey) as? Date)
+    }
+
+    public func saveAsLastKnown(to defaults: UserDefaults = .standard) {
+        defaults.set(ownsPro, forKey: Self.lastKnownProKey)
+        defaults.set(trialStartedAt, forKey: Self.lastKnownTrialKey)
+    }
+
     /// Free, Trial or Pro at `now`. Read when record is pressed, never awaited.
     public func tier(now: Date) -> Tier {
         Entitlement.tier(ownsPro: ownsPro, trialStartedAt: trialStartedAt, now: now)
