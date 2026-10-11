@@ -1074,7 +1074,8 @@ final class RecordScreenModel {
     private func moveTakeToCurrentRoute() {
         let wasStopped = interruptions.isInputStopped
         do {
-            let device = try SessionAudioDevice.current()
+            // Ask for the rate the Take runs at (#195): the default 48 kHz would end a 96 or 44.1 kHz Take.
+            let device = try SessionAudioDevice.current(sampleRate: recorder.sampleRate)
             let continued = try recorder.restartInput(on: device)
             noteOfferedChannels(of: device)
             armedDevice = devices.first { $0.id == selectedDeviceID }?.info
