@@ -74,9 +74,9 @@ First release.
 
 ## URLs
 
-- Support URL: https://ericdahl.dev/support
+- Support URL: https://ericdahl.dev/showrecorder/support
 - Marketing URL: https://showrecorder.app
-- Privacy Policy URL: https://ericdahl.dev/privacy
+- Privacy Policy URL: https://ericdahl.dev/showrecorder/privacy
 
 ## In-app purchase display text
 
