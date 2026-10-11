@@ -63,17 +63,30 @@ public struct TemplateStore {
     public static let key = "templates"
     /// The key of the default Template's id.
     public static let defaultKey = "defaultTemplate"
+    /// Where a store that couldn't be read is kept aside, so a save never erases it (#325).
+    public static let unreadableKey = "templates.unreadable"
     private let defaults: UserDefaults
     public private(set) var templates: [Template]
     public private(set) var defaultID: Template.ID?
+    /// The stored Templates couldn't be read this launch: they were kept aside and the list starts empty.
+    public private(set) var couldNotRead = false
 
     /// The Template that readies the next Show at launch when none is open (#34).
     public var defaultTemplate: Template? { templates.first { $0.id == defaultID } }
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        let stored = defaults.data(forKey: Self.key).flatMap { try? JSONDecoder().decode([Template].self, from: $0) }
-        templates = Self.sorted(stored ?? [])
+        var stored: [Template] = []
+        if let data = defaults.data(forKey: Self.key) {
+            if let decoded = try? JSONDecoder().decode([Template].self, from: data) {
+                stored = decoded
+            } else {
+                // Keep what couldn't be read aside (the first copy wins), so the next save can't erase it.
+                if defaults.data(forKey: Self.unreadableKey) == nil { defaults.set(data, forKey: Self.unreadableKey) }
+                couldNotRead = true
+            }
+        }
+        templates = Self.sorted(stored)
         defaultID = defaults.string(forKey: Self.defaultKey).flatMap(UUID.init(uuidString:))
     }
 

@@ -123,4 +123,17 @@ struct TemplateTests {
         #expect(template.mixerNetworkName == "Skeyelab XR18" && template.preRollSeconds == 5)
         #expect(Template.fromShow(folder: root.appending(path: "nope"), mixerNetworkName: nil, mixerAddress: "", preRollSeconds: 0) == nil)
     }
+
+    @Test("A Template store that can't be read is kept aside, not erased by the next save, and says it couldn't be read (#325)")
+    func unreadableStoreKept() throws {
+        let garbage = Data("not json".utf8)
+        defaults.set(garbage, forKey: TemplateStore.key)
+        var store = TemplateStore(defaults: defaults)
+        #expect(store.templates.isEmpty)
+        #expect(store.couldNotRead)
+        store.save(sunday())
+        #expect(defaults.data(forKey: TemplateStore.unreadableKey) == garbage, "the old store is kept aside")
+        #expect(TemplateStore(defaults: defaults).templates.map(\.name) == ["Sunday Service"])
+        #expect(!TemplateStore(defaults: defaults).couldNotRead)
+    }
 }
