@@ -30,6 +30,8 @@ public struct ScreenAlert: Equatable, Identifiable, Sendable {
         case checkDrive
         /// Arm the chosen input again. Arms only; never starts a Take.
         case arm
+        /// Open the Soundcheck (#63).
+        case soundcheck
     }
 
     public var id: String
