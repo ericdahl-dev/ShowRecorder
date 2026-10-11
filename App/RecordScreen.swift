@@ -47,6 +47,8 @@ struct RecordScreen: View {
         ZStack {
             if isLandscape { landscape } else { portrait }
         }
+        // Text grows with Dynamic Type up to a point: past it the meters and the transport would no longer fit (#249).
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         // The loop is the model's, started once; the screen only says when it appears and goes away.
         .task { model.start() }
         .onAppear {
@@ -581,6 +583,18 @@ final class RecordScreenModel {
         return (summary.text, summary.isProblem)
     }
 
+    /// What the record screen showed at the last check, for VoiceOver announcements.
+    @ObservationIgnored private var announced: ScreenAnnouncements.State?
+
+    /// Tells VoiceOver about a new alert, clip or Dropout, once, when it happens (#249). Checked about once a second.
+    private func announceChanges() {
+        let now = ScreenAnnouncements.State(clipped: recorder.clippedChannels, alerts: alerts.ordered, dropoutCount: recorder.dropoutCount)
+        for text in ScreenAnnouncements.changes(from: announced, to: now) {
+            AccessibilityNotification.Announcement(text).post()
+        }
+        announced = now
+    }
+
     /// Refreshes the Copy statuses, and says why a Take the recorder ended on its own stopped.
     /// The Recorder checks its Destinations itself while recording.
     private func refreshDestinations() {
@@ -1084,7 +1098,7 @@ final class RecordScreenModel {
         var lastPoll = ContinuousClock.now
         while !Task.isCancelled {
             tick += 1
-            if tick % 30 == 0 { refreshDestinations() }
+            if tick % 30 == 0 { refreshDestinations(); announceChanges() }
             if tick % 30 == 0 { disarmIfIdle() }
             // Re-check the Drive every few seconds so an unplugged one shows before record is pressed.
             if tick % 90 == 0 { drive.refresh() }

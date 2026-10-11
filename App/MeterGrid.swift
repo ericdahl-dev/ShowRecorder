@@ -68,8 +68,10 @@ struct MeterGrid: View {
                     .contentShape(Rectangle())
                     .onTapGesture { if clipped.contains(index) { clearClip(index) } }
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Level, USB Channel \(index + 1)")
-                    .accessibilityValue(Self.spokenLevel(meters[index], clipped: clipped.contains(index)))
+                    // The Source's name too, so a VoiceOver user hears "Level, USB Channel 1, Kick" (#249).
+                    .accessibilityLabel(source(at: index).map { "Level, USB Channel \(index + 1), \($0.name)" } ?? "Level, USB Channel \(index + 1)")
+                    // Coarse on purpose: the zone and any clip, not a dB number that changes every frame.
+                    .accessibilityValue(meters[index].spoken(clipped: clipped.contains(index)))
                     .accessibilityAddTraits(clipped.contains(index) ? .isButton : [])
                     .accessibilityHint(clipped.contains(index) ? "Double tap to clear the clip mark" : "")
                     SourceLabel(
@@ -113,17 +115,6 @@ struct MeterGrid: View {
     /// Maps dBFS to 0...1 on a -60...0 scale.
     static func fraction(forDbfs dbfs: Double) -> Double {
         min(max((dbfs + 60) / 60, 0), 1)
-    }
-
-    static func spokenLevel(_ meter: ChannelMeter, clipped: Bool = false) -> String {
-        let place = switch meter.zone {
-        case .low: "below the target"
-        case .onTarget: "on target"
-        case .hot: "above the target"
-        }
-        let average = meter.averageDbfs <= VUMeter.floorDbfs ? "silent" : "average \(Int(meter.averageDbfs.rounded())) dB, \(place)"
-        let described = meter.peakIsHot ? "\(average), peak near clipping" : average
-        return clipped ? "Clipped. \(described)" : described
     }
 }
 
