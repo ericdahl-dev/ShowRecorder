@@ -6,7 +6,7 @@ Each USB Channel's meter shows a VU-style Average level against a Target band of
 
 **The average.** It is a VU reading, calibrated so 0 VU is the RMS of a steady sine (the average rectified level times pi/(2*sqrt 2), about 1.11). The needle is second-order: it reaches 99% of a steady level in 300 ms with about 1% overshoot (damping 0.826, natural frequency 13.969 rad/s) and falls the same way. Because it is a filter in time, the reading does not depend on how audio is cut into windows.
 
-**The colors.** The average bar is keyed to the band (low, on target, hot) and is never red, because a high average is not a fault. The peak bar is keyed to the Peak itself: green up to -18, yellow above -18 up to -6, red above -6. The held-peak line turns red and thicker above -3 so color is not the only cue.
+**The colors.** The average bar is keyed to the band (low, on target, hot) and is never red, because a high average is not a fault. The peak bar is keyed to the Peak itself: green up to -18, yellow above -18 up to -6, red above -6. It jumps to each Peak and falls back at 20 dB a second (it was 15% per 1/30 s, about 42 dB a second, which Eric found too fast). The held-peak line turns red and thicker above -3 so color is not the only cue.
 
 **The clip mark.** It sets at a Peak of 0.999 linear, within about 0.01 dB of full scale, so -0.5 dBFS does not count. It is kept by the Recorder, not the screen, so it survives a view change and the end of a Take.
 
