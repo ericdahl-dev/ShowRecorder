@@ -213,6 +213,17 @@ public final class Recorder {
         currentShow = show
     }
 
+    /// Starts a Show from a Template (#33): named after it, at its venue, with its channel names, ending the open Show.
+    /// The names are set as if typed, so they come back as chips. Pre-roll and the Mixer are the app's to apply.
+    public func startNewShow(from template: Template) throws {
+        try startNewShow(name: template.name, venue: template.venue ?? "")
+        channelNames = [:]
+        for (channel, name) in template.channelNames.sorted(by: { $0.key < $1.key }) {
+            setChannelName(name, forChannel: channel)
+        }
+        currentShow?.setChannelNames(channelNames)
+    }
+
     /// Ends the open Show, so the next record starts a new one. Nothing happens when no Show is open.
     public func endShow() throws {
         guard !isRecording else { throw RecorderError.takeRunning }
