@@ -20,7 +20,7 @@
       "internalID" : "6753000001",
       "localizations" : [
         {
-          "description" : "Record every USB Channel, with the Show report, Reaper export, Templates and Mixer Triggers.",
+          "description" : "Record every USB Channel, with your own channel names, the Show report, Reaper export, 96 kHz and venue Templates.",
           "displayName" : "ShowRecorder Pro",
           "locale" : "en_US"
         }

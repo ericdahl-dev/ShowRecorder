@@ -31,7 +31,7 @@ The audio file for one USB Channel within a Take, named after that channel's Sou
 _Avoid_: Track file, channel file
 
 **Template**:
-A saved Show setup on one device: the Mixer address, Show name pattern, Pre-roll length and Mixer Trigger choices. One Template can be the default.
+A venue's whole setup, saved on one device, so one tap readies a different room: the typed channel names, the Mixer (found by its network name, not its address), the Show name pattern and the Pre-roll length. One Template can be the default. Not the Drive folder. A Pro feature.
 _Avoid_: Preset, profile, rig
 
 ### Storage
@@ -113,7 +113,7 @@ _Avoid_: Remote button, hotkey, GPI
 ### Licensing
 
 **Pro**:
-The one-time unlock that records every USB Channel and adds the Show report, Reaper export, Templates and Mixer Triggers.
+The one-time unlock that records every USB Channel and adds naming channels by hand, the Show report, Reaper export, 96 kHz recording and Templates. Mixer Triggers join it only once they are built.
 _Avoid_: Premium, full version, paid tier
 
 **Trial**:
@@ -121,7 +121,7 @@ A 14-day period in which everything Pro does is available. It starts when the op
 _Avoid_: Demo, free trial (in UI copy say "14-day Trial")
 
 **Free**:
-What the app does without Pro or a Trial: records 2 USB Channels of the operator's choice.
+What the app does without Pro or a Trial: records 2 USB Channels of the operator's choice, with the names and colors from the Mixer.
 _Avoid_: Lite, basic
 
 **Show-Safe Promise**:
