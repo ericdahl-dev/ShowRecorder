@@ -34,6 +34,8 @@
 | **Storage** | About 9.3 GB per hour for 18 channels at 48 kHz. The app shows the time left. A USB drive is optional. |
 | **Wi-Fi** | Optional: the phone on the mixer's network gives you channel names and colors. No internet is needed. |
 
+The rigs checked so far are on the [tested hardware](docs/tested-hardware.md) page.
+
 ## How a show goes
 
 1. **Plug in** the mixer. ShowRecorder arms it and the meters come alive.
