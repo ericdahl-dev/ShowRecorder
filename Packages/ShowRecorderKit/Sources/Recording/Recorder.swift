@@ -382,54 +382,18 @@ public final class Recorder {
         // A Show with no Take for 6 hours is over: this record starts a new one.
         endIdleShow(at: date)
 
-        let drive = driveFolder()
-        var show: Show
+        var drive = driveFolder()
+        let opened: (show: Show, session: TakeSession, folders: [URL])
         do {
-            if var open = currentShow {
-                try open.useDrive(drive?.folder)
-                show = open
-            } else {
-                show = try Show.create(in: deviceFolder, drive: drive?.folder, on: date, name: nextShow?.name, venue: nextShow?.venue)
-                nextShow = nil
-            }
-        } catch {
-            drive?.end()
-            throw error
+            opened = try openTake(sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: drive)
+        } catch where drive != nil {
+            // A Drive that fails at the press doesn't stop the Take: it records to the Device alone (#315), and the
+            // Drive's status says what's wrong. A Device that fails too throws its own error. The failed attempt
+            // already let the Drive go.
+            drive = nil
+            opened = try openTake(sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: nil)
         }
-        if show.channelNames != channelNames { show.setChannelNames(channelNames) }
-        let takeFolders = try show.createNextTakeFolder()
-
-        let sampleRate = Int(device.sampleRate.rounded())
-        // The Take starts with up to `preRollSeconds` of what the Armed recorder has heard, so its
-        // timeline, and every Stem's time reference, begin that long before the press.
-        let preRollFrames = max(0, min(
-            Int((preRollSeconds * device.sampleRate).rounded()),
-            capture.preRoll?.totalWrittenFrames ?? 0,
-            // Leave the buffer's second of margin, so the writer can't overwrite what's being read.
-            (capture.preRoll?.capacity ?? 0) - Int(device.sampleRate.rounded())))
-        let pressReference = UInt64(date.timeIntervalSince(Calendar.current.startOfDay(for: date)) * Double(sampleRate))
-        let timeReference = pressReference >= UInt64(preRollFrames) ? pressReference - UInt64(preRollFrames) : 0
-        let resolved = (0..<capture.channelCount).map { channel -> Source in
-            var source = sources.indices.contains(channel) ? sources[channel] : .fallback(usbChannel: channel + 1)
-            // Names typed by hand are a Pro extra: kept on Free, but not put on its files.
-            if allowance?.namingByHand ?? true, let typed = channelNames[channel + 1] { source.name = typed; source.hasMixerName = false }
-            return source
-        }
-        let channels = resolved.enumerated().map { index, source in
-            TakeMetadata.USBChannel(usbChannel: index + 1, stemFile: StemFileName.make(usbChannel: index + 1, sourceName: source.name), source: source)
-        }
-        let recorded = allowance?.recordedChannels ?? Set(channels.map(\.usbChannel))
-        lastAllowance = allowance
-        var metadata = TakeMetadata(
-            show: show.name, take: show.takeCount, startedAt: date, sampleRate: sampleRate,
-            timeReference: timeReference, usbChannels: channels.filter { recorded.contains($0.usbChannel) })
-        metadata.preRollFrames = preRollFrames > 0 ? preRollFrames : nil
-
-        let specs = zip(channels, resolved).map { StemSpec(file: $0.stemFile, description: $1.name, isRecorded: recorded.contains($0.usbChannel)) }
-        let info = StemWriter.Info(sampleRate: sampleRate, description: "", originator: "ShowRecorder", timeReference: timeReference, originationDate: date)
-        let session = try TakeSession(
-            show: show, folders: takeFolders, drive: takeFolders.count > 1 ? drive : nil, metadata: metadata, stems: specs,
-            info: info, capture: capture, preRollFrames: preRollFrames, makeStem: makeStem, freeSpace: freeSpace)
+        let (show, session, takeFolders) = opened
         session.onCopyFailed = { [weak self, weak session] in self?.copyFailed(in: session) }
         if takeFolders.count == 1 { drive?.end() }
         self.session = session
@@ -457,6 +421,81 @@ public final class Recorder {
 
     /// The Mixer Link came up (or its names changed) during a Take. If the Take started with no Mixer
     /// names, the first real ones are adopted, and put on its files when it finalizes. A Take that
+    /// One attempt at opening a Take: the Show (created if none is open), its Take folders and the session. A failure
+    /// leaves nothing behind (#315).
+    private func openTake(
+        sources: [Source], allowance: TakeAllowance?, date: Date,
+        device: any AudioIODevice, capture: Capture, drive: DriveAccess?
+    ) throws -> (show: Show, session: TakeSession, folders: [URL]) {
+        var show: Show
+        do {
+            if var open = currentShow {
+                try open.useDrive(drive?.folder)
+                show = open
+            } else {
+                show = try Show.create(in: deviceFolder, drive: drive?.folder, on: date, name: nextShow?.name, venue: nextShow?.venue)
+                nextShow = nil
+            }
+        } catch {
+            drive?.end()
+            throw error
+        }
+        if show.channelNames != channelNames { show.setChannelNames(channelNames) }
+        // A Show this press created stays open even if the rest fails, so the next press doesn't make another.
+        if currentShow == nil { currentShow = show }
+        // The Take folders this press would create, and which of them are already there: only new ones are ever undone.
+        let name = TakeMetadata.name(take: show.takeCount + 1)
+        let wanted = ([show.folder] + (show.driveFolder.map { [$0] } ?? [])).map { $0.appending(path: name, directoryHint: .isDirectory) }
+        let alreadyThere = Set(wanted.filter { FileManager.default.fileExists(atPath: $0.path) })
+        var takeFolders: [URL] = []
+        do {
+            takeFolders = try show.createNextTakeFolder()
+            return (show, try makeSession(), takeFolders)
+        } catch {
+            // Undo this press (#315): the Take folders it created go and the Take number isn't used, so the next
+            // press can record. A partly created press (the Device folder made, the Drive's not) is undone too.
+            for folder in wanted where !alreadyThere.contains(folder) {
+                try? FileManager.default.removeItem(at: folder)
+            }
+            drive?.end()
+            throw error
+        }
+
+        func makeSession() throws -> TakeSession {
+            let sampleRate = Int(device.sampleRate.rounded())
+            // The Take starts with up to `preRollSeconds` of what the Armed recorder has heard, so its
+            // timeline, and every Stem's time reference, begin that long before the press.
+            let preRollFrames = max(0, min(
+                Int((preRollSeconds * device.sampleRate).rounded()),
+                capture.preRoll?.totalWrittenFrames ?? 0,
+                // Leave the buffer's second of margin, so the writer can't overwrite what's being read.
+                (capture.preRoll?.capacity ?? 0) - Int(device.sampleRate.rounded())))
+            let pressReference = UInt64(date.timeIntervalSince(Calendar.current.startOfDay(for: date)) * Double(sampleRate))
+            let timeReference = pressReference >= UInt64(preRollFrames) ? pressReference - UInt64(preRollFrames) : 0
+            let resolved = (0..<capture.channelCount).map { channel -> Source in
+                var source = sources.indices.contains(channel) ? sources[channel] : .fallback(usbChannel: channel + 1)
+                // Names typed by hand are a Pro extra: kept on Free, but not put on its files.
+                if allowance?.namingByHand ?? true, let typed = channelNames[channel + 1] { source.name = typed; source.hasMixerName = false }
+                return source
+            }
+            let channels = resolved.enumerated().map { index, source in
+                TakeMetadata.USBChannel(usbChannel: index + 1, stemFile: StemFileName.make(usbChannel: index + 1, sourceName: source.name), source: source)
+            }
+            let recorded = allowance?.recordedChannels ?? Set(channels.map(\.usbChannel))
+            lastAllowance = allowance
+            var metadata = TakeMetadata(
+                show: show.name, take: show.takeCount, startedAt: date, sampleRate: sampleRate,
+                timeReference: timeReference, usbChannels: channels.filter { recorded.contains($0.usbChannel) })
+            metadata.preRollFrames = preRollFrames > 0 ? preRollFrames : nil
+
+            let specs = zip(channels, resolved).map { StemSpec(file: $0.stemFile, description: $1.name, isRecorded: recorded.contains($0.usbChannel)) }
+            let info = StemWriter.Info(sampleRate: sampleRate, description: "", originator: "ShowRecorder", timeReference: timeReference, originationDate: date)
+            return try TakeSession(
+                show: show, folders: takeFolders, drive: takeFolders.count > 1 ? drive : nil, metadata: metadata, stems: specs,
+                info: info, capture: capture, preRollFrames: preRollFrames, makeStem: makeStem, freeSpace: freeSpace)
+        }
+    }
+
     /// started with real names stays frozen. Touches no audio and no files while recording.
     public func offerSources(_ sources: [Source]) {
         guard isRecording else { return }
