@@ -5,14 +5,14 @@ import MixerLink
 @testable import Recording
 import Testing
 
-/// The Repair queue on its own: no recorder, no recorded Takes.
+/// Repair on its own: no recorder, no recorded Takes.
 @MainActor
-@Suite("Repair queue")
-struct RepairQueueTests {
+@Suite("Repair")
+struct TakeRepairTests {
     let root: URL
 
     init() throws {
-        root = FileManager.default.temporaryDirectory.appending(path: "RepairQueueTests-\(UUID().uuidString)")
+        root = FileManager.default.temporaryDirectory.appending(path: "TakeRepairTests-\(UUID().uuidString)")
     }
 
     /// What the stand-in Repair was asked, and a way to hold it until a test lets it go.
@@ -58,33 +58,33 @@ struct RepairQueueTests {
     @Test("A Take with no Gaps is complete at once, releases its access and runs nothing")
     func noGaps() throws {
         let runner = Runner()
-        let queue = RepairQueue(freeSpace: { _ in .max }, run: runner.run)
-        var released = 0
-        queue.enqueue(metadata(take: 1, gaps: []), folders: try folders("a"), holding: DriveAccess(folder: root, stop: { released += 1 }))
+        let queue = TakeRepair(freeSpace: { _ in .max }, run: runner.run)
+        let released = ReleaseCounter()
+        queue.enqueue(metadata(take: 1, gaps: []), folders: try folders("a"), holding: DriveAccess(folder: root, stop: { released.increment() }))
 
         #expect(queue.outcomes == [.device: .complete, .drive: .complete])
         #expect(!queue.isRunning)
-        #expect(released == 1)
+        #expect(released.count == 1)
         #expect(runner.takes.isEmpty)
     }
 
     @Test("A Take with Gaps shows them as unrepaired until Repair has run, then holds its access to the end")
     func repairsAndReleases() async throws {
         let runner = Runner()
-        let queue = RepairQueue(freeSpace: { _ in .max }, run: runner.run)
-        var released = 0
+        let queue = TakeRepair(freeSpace: { _ in .max }, run: runner.run)
+        let released = ReleaseCounter()
         var changes = 0
         queue.onChange = { changes += 1 }
-        queue.enqueue(metadata(take: 1, gaps: [driveGap]), folders: try folders("a", deviceFrames: 4800, driveFrames: 480), holding: DriveAccess(folder: root, stop: { released += 1 }))
+        queue.enqueue(metadata(take: 1, gaps: [driveGap]), folders: try folders("a", deviceFrames: 4800, driveFrames: 480), holding: DriveAccess(folder: root, stop: { released.increment() }))
 
         #expect(queue.outcomes == [.device: .complete, .drive: .hasGaps])
         #expect(queue.isRunning)
-        #expect(released == 0)
+        #expect(released.count == 0)
 
         await queue.wait()
         #expect(queue.outcomes == [.device: .complete, .drive: .repaired])
         #expect(!queue.isRunning)
-        #expect(released == 1)
+        #expect(released.count == 1)
         #expect(changes >= 3)
     }
 
@@ -92,7 +92,7 @@ struct RepairQueueTests {
     func latestTakeWins() async throws {
         let runner = Runner()
         runner.held = true
-        let queue = RepairQueue(freeSpace: { _ in .max }, run: runner.run)
+        let queue = TakeRepair(freeSpace: { _ in .max }, run: runner.run)
         var seenWhenFirstDone: [DestinationKind: CopyOutcome]?
         queue.jobDone = { if seenWhenFirstDone == nil { seenWhenFirstDone = queue.outcomes } }
 
@@ -115,7 +115,7 @@ struct RepairQueueTests {
         let drive = root.appending(path: "a/Drive").path
         // The Drive Copy stopped at 480 frames and would grow by 4320 frames of 24-bit audio.
         let extra = Int64(4320 * StemWriter.bytesPerSample)
-        let queue = RepairQueue(freeSpace: { $0.path == drive ? reserve.bytes + extra - 1 : .max }, run: runner.run)
+        let queue = TakeRepair(freeSpace: { $0.path == drive ? reserve.bytes + extra - 1 : .max }, run: runner.run)
 
         queue.enqueue(metadata(take: 1, gaps: [driveGap]), folders: try folders("a", deviceFrames: 4800, driveFrames: 480), holding: nil)
         await queue.wait()
@@ -123,7 +123,7 @@ struct RepairQueueTests {
         #expect(queue.outcomes[.drive] == .hasGaps)
 
         // One byte more room and it is repaired.
-        let roomy = RepairQueue(freeSpace: { $0.path == drive ? reserve.bytes + extra : .max }, run: runner.run)
+        let roomy = TakeRepair(freeSpace: { $0.path == drive ? reserve.bytes + extra : .max }, run: runner.run)
         roomy.enqueue(metadata(take: 2, gaps: [driveGap]), folders: try folders("b", deviceFrames: 4800, driveFrames: 480), holding: nil)
         await roomy.wait()
         #expect(runner.skips.last == [])

@@ -84,7 +84,7 @@ public final class Recorder {
     @ObservationIgnored private var session: TakeSession?
     @ObservationIgnored private var lastTake: LastTake?
     /// Repairs ended Takes; its result is published as `lastTakeOutcomes` and `isRepairing`.
-    @ObservationIgnored private let repairQueue: RepairQueue
+    @ObservationIgnored private let repair: TakeRepair
     @ObservationIgnored private var finishedCopies: [DestinationKind: CopyStatus] = [:]
 
     /// - Parameters:
@@ -105,16 +105,16 @@ public final class Recorder {
         savedChannelNames = SavedChannelNames.load(from: savedNames)
         self.freeSpace = freeSpace
         self.preRollSeconds = preRollSeconds
-        repairQueue = RepairQueue(freeSpace: freeSpace)
+        repair = TakeRepair(freeSpace: freeSpace)
         self.makeStem = makeStem
         self.deviceFolder = deviceFolder
         self.driveFolder = driveFolder
         self.now = now
-        repairQueue.onChange = { [unowned self] in
-            lastTakeOutcomes = repairQueue.outcomes
-            isRepairing = repairQueue.isRunning
+        repair.onChange = { [unowned self] in
+            lastTakeOutcomes = repair.outcomes
+            isRepairing = repair.isRunning
         }
-        repairQueue.jobDone = { [unowned self] in regenerateReports() }
+        repair.jobDone = { [unowned self] in regenerateReports() }
         // A Show left open by a crash or an earlier launch is the open Show again.
         currentShow = Show.findOpen(in: deviceFolder)
         channelNames = currentShow?.channelNames ?? [:]
@@ -514,7 +514,7 @@ public final class Recorder {
     /// The Drive is reached again for the rename and let go after. The outcome names any Copy that wasn't
     /// updated. Waits for Repair first, which would otherwise write the old name back.
     public func renameLastTakeMarker(at index: Int, to name: String) async -> MarkerRenamer.Outcome {
-        await repairQueue.wait()
+        await repair.wait()
         guard !isRecording, let take = lastTake else { return MarkerRenamer.Outcome(result: .notRecording, renamed: [], failed: []) }
         var copies: [DestinationKind: URL] = [.device: take.deviceFolder]
         var access: DriveAccess?
@@ -612,7 +612,7 @@ public final class Recorder {
         currentShow?.noteTakeEnded(at: now())
         // The Takes are safe either way; the report and project are regenerated next time.
         regenerateReports()
-        repairQueue.enqueue(finished.metadata, folders: finished.folders, holding: finished.access)
+        repair.enqueue(finished.metadata, folders: finished.folders, holding: finished.access)
         nameChannels(of: finished.metadata)
     }
 
@@ -630,7 +630,7 @@ public final class Recorder {
         let previous = namingTask
         namingTask = Task { @MainActor in
             await previous?.value
-            await repairQueue.wait()
+            await repair.wait()
             var copies: [DestinationKind: URL] = [.device: take.deviceFolder]
             var access: DriveAccess?
             if take.hadDrive {
@@ -654,7 +654,7 @@ public final class Recorder {
 
     /// Waits for Repair of the last Take to finish.
     public func waitForRepair() async {
-        await repairQueue.wait()
+        await repair.wait()
         await namingTask?.value
     }
 }
