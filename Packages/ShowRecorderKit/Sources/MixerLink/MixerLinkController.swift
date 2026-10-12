@@ -30,6 +30,12 @@ public final class MixerLinkController {
     /// What the identified Mixer sends over USB, while the Link is up. Nil otherwise.
     public private(set) var capabilities: MixerCapabilities?
 
+    /// The linked Mixer's gain control for auto-gain (#155), while the Link is up and its driver can set gain.
+    public var gainControl: (any GainControl)? {
+        guard identity != nil, let driver else { return nil }
+        return (driver as? DetectingMixerDriver)?.gainControl ?? driver as? any GainControl
+    }
+
     /// The identified Mixer, while the Link is up.
     public var identity: MixerIdentity? {
         if case .up(let identity, _) = status { identity } else { nil }

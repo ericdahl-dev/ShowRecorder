@@ -27,6 +27,7 @@ struct RecordScreen: View {
     @State private var namingChannel: Int?
     @State private var channelName = ""
     @State private var showingChannelNames = false
+    @State private var showingAutoGain = false
     @State private var showingShowList = launchFlag("-showList")
     @State private var settingsSection: SettingsSection?
     @State private var showingTrialOffer = false
@@ -36,7 +37,7 @@ struct RecordScreen: View {
 
     /// Whether a sheet is up, so the record screen doesn't present another over it.
     private var anotherSheetOpen: Bool {
-        showingSettings || showingMarkers || showingNewShow || showingShowList || showingChannelNames
+        showingSettings || showingMarkers || showingNewShow || showingShowList || showingChannelNames || showingAutoGain
             || showingTrialOffer || model.showingSoundcheck || shownPaywall != nil
     }
 
@@ -110,6 +111,7 @@ struct RecordScreen: View {
         .sheet(isPresented: $model.showingSoundcheck) { SoundcheckView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingShowList) { ShowListView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
+        .sheet(isPresented: $showingAutoGain) { AutoGainSheet(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingTrialOffer) { TrialSheet(store: model.pro).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(item: $shownPaywall) { request in PaywallSheet(store: model.pro, moment: request.moment).modifier(AppearanceRoot(mode: model.appearance)) }
         // The first-launch Trial offer: once, when the Pro price has loaded, never during a Take and never over another
@@ -314,6 +316,12 @@ struct RecordScreen: View {
                 Button { open(.channelNames) } label: { Text("Names").tapTarget() }
                     .buttonStyle(.plain)
                     .foregroundStyle(.tint)
+                if model.offersAutoGain {
+                    Button { showingAutoGain = true } label: { Text("Gain").tapTarget() }
+                        .padding(.leading, 12)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.tint)
+                }
             }
             .font(.subheadline)
             // Top-aligned: Marker is taller (its count sits below), so centring would drop Record.
@@ -367,6 +375,11 @@ struct RecordScreen: View {
                     Button { open(.channelNames) } label: { Text("Names").tapTarget() }
                         .buttonStyle(.plain)
                         .foregroundStyle(.tint)
+                    if model.offersAutoGain {
+                        Button { showingAutoGain = true } label: { Text("Gain").tapTarget() }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.tint)
+                    }
                 }
                 .font(.caption)
                 // One line for the Take and how long it has run, so the 44 pt rows above still fit a short screen.
@@ -595,6 +608,34 @@ final class RecordScreenModel {
     /// The Mixer's Sources while Mixer Link is offered; none otherwise, so another input's Stems never get the
     /// Mixer's names.
     var linkedSources: [Source] { offersMixerLink ? mixerLink.sources : [] }
+
+    /// Auto-gain (#155) is offered with Mixer Link, when the Mixer can set gain (the X32 today), and never during a Take.
+    var offersAutoGain: Bool { offersMixerLink && mixerLink.gainControl != nil && !recorder.isRecording }
+
+    /// A new auto-gain session on the linked Mixer, measuring with the record screen's own meters.
+    func makeAutoGainSession() -> AutoGainSession? {
+        guard let control = mixerLink.gainControl else { return nil }
+        return AutoGainSession(control: control, measure: { [weak self] usb in await self?.averageLevel(usbChannel: usb) ?? -120 })
+    }
+
+    /// A USB Channel's Average level over about 2 s, after half a second for the meter to follow a gain move.
+    private func averageLevel(usbChannel: Int) async -> Double {
+        try? await Task.sleep(for: .milliseconds(500))
+        var readings: [Double] = []
+        for _ in 0..<20 {
+            if meterModel.levels.indices.contains(usbChannel - 1) { readings.append(meterModel.levels[usbChannel - 1].averageDbfs) }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return readings.isEmpty ? -120 : readings.reduce(0, +) / Double(readings.count)
+    }
+
+    /// "Kick", or "USB 03" when the channel has no name.
+    func channelLabel(_ usbChannel: Int) -> String {
+        if let typed = recorder.channelNames[usbChannel] { return typed }
+        let sources = linkedSources
+        if sources.indices.contains(usbChannel - 1), sources[usbChannel - 1].hasMixerName { return sources[usbChannel - 1].name }
+        return String(format: "USB %02d", usbChannel)
+    }
     /// How each Copy of the running Take is doing, refreshed about once a second.
     private(set) var deviceCopy: CopyStatus = .missing
     private(set) var driveCopy: CopyStatus = .missing
