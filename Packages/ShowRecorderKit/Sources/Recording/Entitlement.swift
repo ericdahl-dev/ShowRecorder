@@ -61,15 +61,6 @@ extension Entitlement {
         }
     }
 
-    /// What a Take gets when record is pressed. Nil (nothing limited) while Pro isn't offered, so TestFlight records
-    /// every USB Channel until the Pro and Trial products exist (#60).
-    /// - Parameter tier: nil while the App Store hasn't said what's owned: then nothing is limited (#316, Show-Safe
-    ///   Promise), so a Pro user's first Take after a fresh install records everything.
-    public static func allowanceAtPress(proOffered: Bool, tier: Tier?, channelCount: Int, freeChoice: [Int]) -> TakeAllowance? {
-        guard proOffered, let tier else { return nil }
-        return allowance(for: tier, channelCount: channelCount, freeChoice: freeChoice)
-    }
-
     /// The operator's picks that exist on this input, first two only, topped up from the lowest channels.
     static func freeChannels(_ choice: [Int], channelCount: Int) -> Set<Int> {
         guard channelCount > 0 else { return [] }

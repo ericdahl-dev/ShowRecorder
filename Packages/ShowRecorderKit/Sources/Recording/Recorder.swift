@@ -596,7 +596,7 @@ public final class Recorder {
             if let access { copies[.drive] = access.folder.appending(path: take.showName).appending(path: TakeMetadata.name(take: take.takeNumber)) }
         }
         defer { access?.end() }
-        var outcome = MarkerRenamer.rename(markerAt: index, to: name, in: copies)
+        var outcome = MarkerRenamer.rename(markerAt: index, to: name, in: copies, allowsProExtras: lastAllowance?.showReport ?? true)
         if take.hadDrive, access == nil {
             outcome.failed.append(.init(copy: .drive, reason: "The Drive isn't available, so its Copy still has the old name."))
         }
@@ -698,6 +698,7 @@ public final class Recorder {
         lateMixerNames = [:]
         let names = late.merging(typedNames.filter { changes($0.key, $0.value) }) { _, typed in typed }
         guard !names.isEmpty, let take = lastTake else { return }
+        let allowsProExtras = lastAllowance?.showReport ?? true
         let previous = namingTask
         namingTask = Task { @MainActor in
             await previous?.value
@@ -709,7 +710,7 @@ public final class Recorder {
                 if let access { copies[.drive] = access.folder.appending(path: take.showName).appending(path: TakeMetadata.name(take: take.takeNumber)) }
             }
             defer { access?.end() }
-            _ = ChannelRenamer.rename(names: names, lateChannels: Set(late.keys), in: copies)
+            _ = ChannelRenamer.rename(names: names, lateChannels: Set(late.keys), in: copies, allowsProExtras: allowsProExtras)
         }
     }
 

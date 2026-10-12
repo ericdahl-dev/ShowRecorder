@@ -52,11 +52,11 @@ struct TemplateTests {
 
     @Test("Templates can be used between Takes; on Free (once Pro is offered) they are listed as Pro, and nothing saved is lost")
     func access() {
-        #expect(TemplateAccess(proOffered: false, tier: .free, isRecording: false) == .usable)
-        #expect(TemplateAccess(proOffered: true, tier: .trial(daysLeft: 5), isRecording: false) == .usable)
-        #expect(TemplateAccess(proOffered: true, tier: .pro, isRecording: false) == .usable)
-        #expect(TemplateAccess(proOffered: true, tier: .free, isRecording: false) == .proOnly)
-        #expect(TemplateAccess(proOffered: true, tier: .pro, isRecording: true) == .takeRunning)
+        #expect(License(proOffered: false, tier: .free, trialStarted: false, freeChoice: []).templateAccess(isRecording: false) == .usable)
+        #expect(License(proOffered: true, tier: .trial(daysLeft: 5), trialStarted: false, freeChoice: []).templateAccess(isRecording: false) == .usable)
+        #expect(License(proOffered: true, tier: .pro, trialStarted: false, freeChoice: []).templateAccess(isRecording: false) == .usable)
+        #expect(License(proOffered: true, tier: .free, trialStarted: false, freeChoice: []).templateAccess(isRecording: false) == .proOnly)
+        #expect(License(proOffered: true, tier: .pro, trialStarted: false, freeChoice: []).templateAccess(isRecording: true) == .takeRunning)
         #expect(TemplateAccess.proOnly.note == "Templates are part of Pro. Your saved Templates are kept.")
     }
 

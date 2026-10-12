@@ -43,7 +43,7 @@ struct ChannelRenamerTests {
         try recordTake()
         let before = try copies.values.map { try StemFile(contentsOf: $0.appending(path: "02 USB 02.wav")) }
 
-        let outcome = ChannelRenamer.rename(names: [2: "Lead Vocal"], in: copies)
+        let outcome = ChannelRenamer.rename(names: [2: "Lead Vocal"], in: copies, allowsProExtras: true)
 
         #expect(outcome.result == .renamed)
         #expect(Set(outcome.renamed) == [.device, .drive])
@@ -67,7 +67,7 @@ struct ChannelRenamerTests {
     @Test("The report and the Reaper project show the new name")
     func reportAndProject() throws {
         try recordTake()
-        _ = ChannelRenamer.rename(names: [2: "Lead Vocal"], in: copies)
+        _ = ChannelRenamer.rename(names: [2: "Lead Vocal"], in: copies, allowsProExtras: true)
         for copy in [device, drive] {
             let show = copy.appending(path: "2026-10-06 Show")
             let report = try String(contentsOf: show.appending(path: "Report.html"), encoding: .utf8)
@@ -77,14 +77,30 @@ struct ChannelRenamerTests {
         }
     }
 
+    @Test("On Free naming a channel writes no Show report or Reaper project that wasn't there (#438)")
+    func freeWritesNoExtras() throws {
+        try recordTake()
+        for copy in [device, drive] {
+            let show = copy.appending(path: "2026-10-06 Show")
+            try FileManager.default.removeItem(at: show.appending(path: "Report.html"))
+            try FileManager.default.removeItem(at: show.appending(path: "2026-10-06 Show.RPP"))
+        }
+        #expect(ChannelRenamer.rename(names: [2: "Lead Vocal"], in: copies, allowsProExtras: false).result == .renamed)
+        for copy in [device, drive] {
+            let show = copy.appending(path: "2026-10-06 Show")
+            #expect(!FileManager.default.fileExists(atPath: show.appending(path: "Report.html").path))
+            #expect(!FileManager.default.fileExists(atPath: show.appending(path: "2026-10-06 Show.RPP").path))
+        }
+    }
+
     @Test("With a Copy not reachable the others are renamed and the outcome names it; an empty name is refused")
     func oneCopyMissingAndEmptyName() throws {
         try recordTake()
-        #expect(ChannelRenamer.rename(names: [2: "  "], in: copies).result == .emptyName)
+        #expect(ChannelRenamer.rename(names: [2: "  "], in: copies, allowsProExtras: true).result == .emptyName)
         #expect(FileManager.default.fileExists(atPath: take(device).appending(path: "02 USB 02.wav").path), "nothing changed")
 
         try FileManager.default.moveItem(at: drive, to: root.appending(path: "Drive (unplugged)"))
-        let outcome = ChannelRenamer.rename(names: [1: "Kick"], in: copies)
+        let outcome = ChannelRenamer.rename(names: [1: "Kick"], in: copies, allowsProExtras: true)
 
         #expect(outcome.result == .renamed)
         #expect(outcome.renamed == [.device])

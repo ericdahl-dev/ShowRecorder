@@ -2,6 +2,7 @@ import BroadcastWave
 import Foundation
 import MixerLink
 import ProjectExport
+import ShowReport
 
 extension Show {
     /// Reads the Show folder: every Take folder's `Take.json`, with each Take's length taken from
@@ -46,6 +47,19 @@ extension Show {
     /// Writes every DAW project the Show folder carries (Reaper for now). Called when a Take finalizes.
     func writeProjects() throws {
         try writeProject(using: ReaperExporter())
+    }
+
+    /// Rewrites the Show report and Reaper project after the Show's files change, such as a rename: each when the
+    /// License allows it, or when it is already there, so a kept report never shows stale names (#438).
+    static func refreshExtras(showFolder: URL, allowed: Bool) {
+        let show = Show(name: showFolder.lastPathComponent, folder: showFolder, takeCount: 0)
+        let fm = FileManager.default
+        if allowed || fm.fileExists(atPath: showFolder.appending(path: ShowReport.htmlFileName).path) {
+            try? ShowReport.write(showFolder: showFolder)
+        }
+        if allowed || fm.fileExists(atPath: showFolder.appending(path: "\(show.name).\(ReaperExporter().fileExtension)").path) {
+            try? show.writeProjects()
+        }
     }
 
     /// Writes "<Show name>.<extension>" into the Show folder, replacing any earlier one.

@@ -4,11 +4,6 @@ import SwiftUI
 /// The Pro section of Settings: the tier, Buy Pro, Restore Purchases and, on Free, which 2 USB Channels are
 /// recorded. Calm and out of the way: no prompts, and hidden during a Take (`SettingsLock`).
 struct ProSection: View {
-    /// On in every build since the Pro and Trial products exist in App Store Connect (#371, 2026-10-11): the section,
-    /// the first-launch Trial offer, the paywall, the days-left chip and the Free limit at record. Turning it off makes
-    /// `record()` pass no allowance, so every USB Channel is recorded with every extra (#60), and hides all of those.
-    static let isOffered = true
-
     @Bindable var model: RecordScreenModel
 
     private var store: ProStore { model.pro }
@@ -18,16 +13,17 @@ struct ProSection: View {
     @Binding var showingPaywall: Bool
 
     var body: some View {
-        let tier = store.tier()
+        let license = store.license()
+        let tier = license.tier
         Section {
-            LabeledContent("Plan", value: tier.title)
-            if tier != .pro {
+            LabeledContent("Plan", value: license.planTitle)
+            if let tier, tier != .pro {
                 Button("See what Pro adds") { showingPaywall = true }
             }
-            if tier == .free, store.purchases.trialStartedAt == nil {
+            if tier == .free, !license.trialStarted {
                 Button("Start 14-day Trial…") { showingTrial = true }
             }
-            if tier != .pro {
+            if let tier, tier != .pro {
                 Button {
                     Task { await store.buyPro() }
                 } label: {
@@ -56,7 +52,11 @@ struct ProSection: View {
     }
 
     private var footer: String {
-        if store.tier() == .pro { return "Thank you. Every USB Channel is recorded." }
+        switch store.license().tier {
+        case .pro: return "Thank you. Every USB Channel is recorded."
+        case nil: return "Your plan shows here once the App Store answers. Until then, every USB Channel is recorded."
+        default: break
+        }
         return "Pro is a one-time purchase, shared with your family. It records every USB Channel and adds channel names you type, the Show report, Reaper export, 96 kHz recording and Templates for each venue."
     }
 

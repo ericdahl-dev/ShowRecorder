@@ -65,7 +65,7 @@ struct StemDeleterTests {
         #expect(exists(drive, "\(show)/Take 01/02 USB 02.wav"))
 
         let copies: [DestinationKind: URL] = [.device: device.appending(path: "\(show)/Take 01"), .drive: drive.appending(path: "\(show)/Take 01")]
-        let named = ChannelRenamer.rename(names: [2: "Bass", 3: "Keys"], in: copies)
+        let named = ChannelRenamer.rename(names: [2: "Bass", 3: "Keys"], in: copies, allowsProExtras: true)
         #expect(named.renamed == [.device, .drive] && named.failed.isEmpty)
         #expect(exists(device, "\(show)/Take 01/03 Keys.wav") && !exists(device, "\(show)/Take 01/02 Bass.wav"))
         #expect(exists(drive, "\(show)/Take 01/02 Bass.wav"))

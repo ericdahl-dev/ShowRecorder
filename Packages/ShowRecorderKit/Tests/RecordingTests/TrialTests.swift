@@ -64,21 +64,6 @@ struct TrialTests {
         }
     }
 
-    @Test("The Trial is offered once, at launch: not again, not during a Take, not once a Trial or Pro is owned, not without a price")
-    func offer() {
-        let none = ProPurchases(owned: [])
-        let trial = ProPurchases(owned: [OwnedPurchase(productID: ProPurchases.trialProductID, purchaseDate: started)])
-        let pro = ProPurchases(owned: [OwnedPurchase(productID: ProPurchases.proProductID, purchaseDate: started)])
-        #expect(TrialOffer.shouldOffer(purchases: none, alreadyOffered: false, recording: false, proPrice: "$19.99"))
-        #expect(!TrialOffer.shouldOffer(purchases: none, alreadyOffered: true, recording: false, proPrice: "$19.99"))
-        #expect(!TrialOffer.shouldOffer(purchases: none, alreadyOffered: false, recording: true, proPrice: "$19.99"))
-        #expect(!TrialOffer.shouldOffer(purchases: trial, alreadyOffered: false, recording: false, proPrice: "$19.99"))
-        #expect(!TrialOffer.shouldOffer(purchases: pro, alreadyOffered: false, recording: false, proPrice: "$19.99"))
-        #expect(!TrialOffer.shouldOffer(purchases: none, alreadyOffered: false, recording: false, proPrice: nil))
-        #expect(!TrialOffer.shouldOffer(purchases: none, alreadyOffered: false, recording: false, proPrice: "$19.99", anotherSheetOpen: true),
-                "never over Settings or the paywall: presenting over them closed both (#357)")
-    }
-
     @Test("The record screen shows the Trial's days left in a quiet chip, and nothing on Free or Pro")
     func daysLeftChip() {
         let chip = Tier.trial(daysLeft: 11).chip

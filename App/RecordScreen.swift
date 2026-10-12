@@ -30,7 +30,7 @@ struct RecordScreen: View {
     @State private var showingShowList = launchFlag("-showList")
     @State private var settingsSection: SettingsSection?
     @State private var showingTrialOffer = false
-    @AppStorage(TrialOffer.offeredKey) private var trialOffered = false
+    @AppStorage(License.trialOfferedKey) private var trialOffered = false
     /// The paywall on screen. `model.paywall` is one that came due; it waits here until no other sheet is up (#357).
     @State private var shownPaywall: PaywallRequest?
 
@@ -48,8 +48,8 @@ struct RecordScreen: View {
             shownPaywall = request
             return
         }
-        guard ProSection.isOffered, TrialOffer.shouldOffer(
-            purchases: model.pro.purchases, alreadyOffered: trialOffered, recording: model.recorder.isRecording,
+        guard model.pro.license().offersTrial(
+            alreadyOffered: trialOffered, recording: model.recorder.isRecording,
             proPrice: model.pro.proProduct?.displayPrice, anotherSheetOpen: anotherSheetOpen) else { return }
         trialOffered = true
         showingTrialOffer = true
@@ -870,10 +870,10 @@ final class RecordScreenModel {
     /// After a Take: a Free Take that left channels with signal unrecorded, or the Trial's last days (#62).
     private func offerProAfterTake() {
         let show = recorder.currentShow?.name
-        guard let tier = pro.knownTier() else { return }
+        let license = pro.license()
         let moment = recorder.lastTakeSignal.flatMap { signal in
-            show.flatMap { proOffers.afterTakeStopped(show: $0, signal: signal, tier: tier, proOffered: ProSection.isOffered, isRecording: recorder.isRecording) }
-        } ?? proOffers.betweenTakes(show: show, tier: tier, proOffered: ProSection.isOffered, isRecording: recorder.isRecording)
+            show.flatMap { proOffers.afterTakeStopped(show: $0, signal: signal, license: license, isRecording: recorder.isRecording) }
+        } ?? proOffers.betweenTakes(show: show, license: license, isRecording: recorder.isRecording)
         if let moment { offerPro(moment) }
     }
 
@@ -920,7 +920,7 @@ final class RecordScreenModel {
         let chip = dropouts > 0
             ? [PowerStatus.Chip(text: dropouts == 1 ? "1 Dropout" : "\(dropouts) Dropouts", shortText: "\(dropouts)", symbol: "waveform.badge.exclamationmark", state: .attention)]
             : []
-        let trial = ProSection.isOffered ? pro.tier().chip.map { [$0] } ?? [] : []
+        let trial = pro.license().chip.map { [$0] } ?? []
         return chip + power.status.chips + trial
     }
 
@@ -930,7 +930,7 @@ final class RecordScreenModel {
         do {
             try recorder.endShow()
             if let ending, let moment = proOffers.afterShowEnded(
-                show: ending.name, takeCount: ending.takeCount, tier: pro.knownTier() ?? .pro, proOffered: ProSection.isOffered) {
+                show: ending.name, takeCount: ending.takeCount, license: pro.license()) {
                 offerPro(moment)
             }
             return nil
@@ -955,7 +955,7 @@ final class RecordScreenModel {
 
     /// Whether Templates can be used now: between Takes, and on Pro or the Trial once Pro is offered.
     var templateAccess: TemplateAccess {
-        TemplateAccess(proOffered: ProSection.isOffered, tier: pro.knownTier(), isRecording: recorder.isRecording)
+        pro.license().templateAccess(isRecording: recorder.isRecording)
     }
 
     /// Saves this setup as a Template named `name`: the typed channel names, the open Show's venue, the Pre-roll and
@@ -995,7 +995,7 @@ final class RecordScreenModel {
     /// input may run at changed (#316). A Take that's running keeps its rate; the change applies at the next Arm.
     private func tierChanged() {
         guard recorder.isArmed, !recorder.isRecording, let rate = recorder.sampleRate else { return }
-        let capped = SampleRateSetting.capAt48k(proOffered: ProSection.isOffered, tier: pro.knownTier())
+        let capped = pro.license().capsAt48k
         if (capped && rate > 48_000) || (!capped && (sampleRateChoice ?? rate) > rate) { armSelectedDevice() }
     }
 
@@ -1095,9 +1095,7 @@ final class RecordScreenModel {
     /// (nothing limited) while Pro isn't offered. Read from cached state only, never waiting on the App Store, so it
     /// can be frozen at the record press.
     func currentAllowance() -> TakeAllowance? {
-        Entitlement.allowanceAtPress(
-            proOffered: ProSection.isOffered, tier: pro.knownTier(),
-            channelCount: recorder.usbChannelCount, freeChoice: pro.freeChoice)
+        pro.license().allowance(channelCount: recorder.usbChannelCount)
     }
 
     var usbChannelSummary: String {
@@ -1223,7 +1221,7 @@ final class RecordScreenModel {
         do {
             armedDevice = nil
             let device = try choice.make(
-                sampleRateChoice, SampleRateSetting.capAt48k(proOffered: ProSection.isOffered, tier: pro.knownTier()))
+                sampleRateChoice, pro.license().capsAt48k)
             try recorder.arm(device)
             noteOfferedChannels(of: device)
             armedDevice = choice.info

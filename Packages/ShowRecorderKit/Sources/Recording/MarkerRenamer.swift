@@ -1,7 +1,6 @@
 import BroadcastWave
 import Destinations
 import Foundation
-import ShowReport
 
 /// Renames a Marker in a Take that has already been recorded, working from the files: `Take.json` and the
 /// cue label in every Stem, in every Copy it can reach. Then it regenerates the Show's report and project
@@ -26,7 +25,9 @@ public enum MarkerRenamer {
     /// - Parameters:
     ///   - index: among the operator's Markers, in the order of `Take.json`.
     ///   - copies: each Copy's folder for this Take (`…/Show/Take 01`).
-    public static func rename(markerAt index: Int, to name: String, in copies: [DestinationKind: URL]) -> Outcome {
+    ///   - allowsProExtras: whether the Show report and Reaper project may be written (`License.allowsProExtras`);
+    ///     ones already there are rewritten either way (#438).
+    public static func rename(markerAt index: Int, to name: String, in copies: [DestinationKind: URL], allowsProExtras: Bool) -> Outcome {
         let name = NameLimit.cut(name.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !name.isEmpty else { return Outcome(result: .emptyName, renamed: [], failed: []) }
 
@@ -45,9 +46,7 @@ public enum MarkerRenamer {
             }
         }
         for kind in renamed {
-            let showFolder = copies[kind]!.deletingLastPathComponent()
-            try? ShowReport.write(showFolder: showFolder)
-            try? Show(name: showFolder.lastPathComponent, folder: showFolder, takeCount: 0).writeProjects()
+            Show.refreshExtras(showFolder: copies[kind]!.deletingLastPathComponent(), allowed: allowsProExtras)
         }
         let result: MarkerRename = !renamed.isEmpty ? .renamed : markerMissing == failed.count ? .noSuchMarker : .noCopyUpdated
         return Outcome(result: result, renamed: renamed, failed: failed)
