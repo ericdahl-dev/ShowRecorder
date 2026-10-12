@@ -1,6 +1,7 @@
 // Which mixers work today and which are planned. Shown on /features (#mixers) and summed up in the
 // home page FAQ. Planned entries carry no dates and stay off the App Store listing.
-// Sources: ericdahl-dev/ShowRecorder issues #199 (X32/M32), #364, #366, #367 (Pioneer DJM), #374 (Mac).
+// Sources: ericdahl-dev/ShowRecorder issues #199 (X32/M32), #364, #366, #367 (Pioneer DJM), #374 (Mac),
+// and #416 to #425 (the mixer families being checked).
 
 export type MixerEntry = { name: string; body: string };
 
@@ -27,6 +28,20 @@ export const planned: MixerEntry[] = [
   },
   {
     name: "ShowRecorder for Mac",
-    body: "Not a mixer, but planned right after 1.0: the same recorder on a Mac.",
+    body: "Not a mixer: the same recorder on a Mac. In the public TestFlight beta now, and on the Mac App Store after 1.0.",
   },
+];
+
+// Being checked, not promised: each needs USB audio that an iPhone or iPad accepts without a driver.
+// One issue each (#417 to #425). Move an entry up to planned only once that check passes.
+export const considering: string[] = [
+  "Behringer Wing, Wing Compact and Wing Rack",
+  "Allen & Heath Qu, SQ and CQ",
+  "PreSonus StudioLive Series III",
+  "Mackie DL16S, DL32S and DL32R",
+  "Yamaha TF and DM series",
+  "Midas HD96-24",
+  "TASCAM Sonicview",
+  "QSC TouchMix-30",
+  "Soundcraft Ui24R",
 ];

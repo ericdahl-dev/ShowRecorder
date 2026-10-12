@@ -1,5 +1,5 @@
 import { featureGroups } from "@/lib/features";
-import { planned, worksNow } from "@/lib/mixers";
+import { considering, planned, worksNow } from "@/lib/mixers";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { PAGES, pageMetadata } from "@/lib/metadata";
 
@@ -76,7 +76,7 @@ export default function FeaturesPage() {
       <section id="mixers" aria-labelledby="mixers-title" className="feature-group">
         <div className="section-head">
           <h2 id="mixers-title">Supported mixers</h2>
-          <p>What works today, and what is planned next. Planned support has no dates yet.</p>
+          <p>What works today, what is planned next, and what is being looked at. Planned support has no dates yet.</p>
         </div>
         <h3 className="mixers-sub">Works now</h3>
         <ul className="cards cards--3">
@@ -96,6 +96,16 @@ export default function FeaturesPage() {
             </li>
           ))}
         </ol>
+        <h3 className="mixers-sub">Being looked at</h3>
+        <p className="mixers-note">
+          Not promised. Each one needs USB audio that an iPhone or iPad accepts without a driver, and that is
+          being checked mixer by mixer.
+        </p>
+        <ul className="mixers-considering">
+          {considering.map((name) => (
+            <li key={name}>{name}</li>
+          ))}
+        </ul>
         <p className="mixers-ask">
           Using another mixer? Tell us which at <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. It
           helps decide what comes next.

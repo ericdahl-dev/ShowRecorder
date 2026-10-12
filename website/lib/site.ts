@@ -40,4 +40,4 @@ export const NAV: readonly { label: string; href: string }[] = [
 ];
 
 export const TRADEMARK_LINE =
-  "ShowRecorder is not affiliated with or endorsed by Behringer or Music Tribe. Behringer, X Air, XR18 and MR18 are trademarks of their owners and are named only to describe compatibility.";
+  "ShowRecorder is not affiliated with or endorsed by Behringer, Music Tribe or any other mixer maker. Behringer, X Air, XR18, MR18 and the other mixer names on this site are trademarks of their owners and are named only to describe compatibility.";
