@@ -71,9 +71,11 @@ jobs:
       - name: Check the tag
         if: env.SKIP != '1'
         run: |
-          # Only releases from main, so a stray tag on a branch can't ship.
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "::error::Tag ${GITHUB_REF_NAME} is not on main. Tag a commit that has been merged."
+          # Only releases from main, or from a release branch (release/1.0) for a fix to a version in
+          # App Review, so a stray tag on a feature branch can't ship.
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main \
+            && ! git branch -r --contains "$GITHUB_SHA" | grep -q '^ *origin/release/'; then
+            echo "::error::Tag ${GITHUB_REF_NAME} is not on main or a release/ branch. Tag a commit that has been merged."
             exit 1
           fi
           # The build number is the run number plus the attempt, so re-running a tag
