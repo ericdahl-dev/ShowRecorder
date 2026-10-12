@@ -125,7 +125,7 @@ final class TakeSession {
     @discardableResult
     func addMarker(named name: String? = nil) -> TakeMetadata.Marker {
         let marker = TakeMetadata.Marker(
-            position: capture.takeFrameCount, name: name.map { NameLimit.cut($0) } ?? "Marker \(metadata.markers.filter { $0.origin == .operator }.count + 1)", origin: .operator)
+            position: capture.takeFrameCount, name: name.map { NameLimit.cut($0) } ?? metadata.nextMarkerName, origin: .operator)
         metadata.markers.append(marker)
         // Take.json first: it's written whole and atomically, so a Marker survives even if the Stems'
         // next header commit never happens.
@@ -146,9 +146,8 @@ final class TakeSession {
     func renameMarker(at index: Int, to name: String) -> MarkerRename {
         let name = NameLimit.cut(name.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !name.isEmpty else { return .emptyName }
-        let positions = metadata.markers.indices.filter { metadata.markers[$0].origin == .operator }
-        guard positions.indices.contains(index) else { return .noSuchMarker }
-        metadata.markers[positions[index]].name = name
+        guard let place = metadata.place(ofOperatorMarker: index) else { return .noSuchMarker }
+        metadata.markers[place].name = name
         writeMetadata()
         for copy in copies { copy.writer.setMarkers(stemMarkers) }
         return .renamed
@@ -161,7 +160,7 @@ final class TakeSession {
     }
 
     /// How many places in the Take lost audio (one Dropout Marker each).
-    var dropoutCount: Int { metadata.markers.filter { $0.origin == .dropout }.count }
+    var dropoutCount: Int { metadata.dropoutCount }
 
     /// Whether every Copy's writer has failed, so there is nowhere left to record.
     var allFailed: Bool { !copies.isEmpty && copies.allSatisfy { $0.writer.hasFailed } }
@@ -329,7 +328,7 @@ final class TakeSession {
 
     /// The operator's Markers, for the Stems. Each writer adds its own Dropout Markers.
     private var stemMarkers: [StemMarker] {
-        metadata.markers.filter { $0.origin == .operator }.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
+        metadata.operatorMarkers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
     }
 
     private func writeMetadata() {
@@ -342,7 +341,7 @@ final class TakeSession {
         // Only audio every Copy lacks; a stretch another Copy has is a Gap (see `gaps(takeEnd:)`).
         let found = dropoutSplit().dropouts
         guard found != metadata.dropouts else { return }
-        let marked = Set(metadata.markers.filter { $0.origin == .dropout }.map(\.position))
+        let marked = Set(metadata.dropoutMarkers.map(\.position))
         for position in Set(found.map(\.start)).subtracting(marked).sorted() {
             metadata.markers.append(.init(position: position, name: "Dropout", origin: .dropout))
         }

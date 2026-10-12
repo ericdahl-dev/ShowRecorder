@@ -67,13 +67,12 @@ public enum MarkerRenamer {
 
     private static func renameMarker(at index: Int, to name: String, in folder: URL, copy: DestinationKind) throws {
         var take = try TakeMetadata.read(fromTakeFolder: folder)
-        let positions = take.markers.indices.filter { take.markers[$0].origin == .operator }
-        guard positions.indices.contains(index) else { throw RenameError.noSuchMarker }
-        take.markers[positions[index]].name = name
+        guard let place = take.place(ofOperatorMarker: index) else { throw RenameError.noSuchMarker }
+        take.markers[place].name = name
         try take.write(to: folder)
 
         // The cue points a Copy's Stems carry: the operator's Markers and a Dropout cue where this Copy lost audio.
-        let cues = (take.markers.filter { $0.origin == .operator }.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
+        let cues = (take.operatorMarkers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
             + take.dropouts.filter { $0.copy == copy }.map { StemMarker(position: UInt32(clamping: $0.start), label: "Dropout") })
             .sorted { $0.position < $1.position }
         // Every Stem is tried, so one bad file doesn't leave the others with the old name.

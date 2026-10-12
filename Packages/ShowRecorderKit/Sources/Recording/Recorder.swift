@@ -610,15 +610,13 @@ public final class Recorder {
 
     /// Updates `takeMarkers` and `markerEntries` from the Take's metadata.
     private func refreshMarkers(from metadata: TakeMetadata) {
-        takeMarkers = metadata.markers.filter { $0.origin == .operator }
+        takeMarkers = metadata.operatorMarkers
         let preRoll = metadata.sampleRate > 0 ? Double(metadata.preRollFrames ?? 0) / Double(metadata.sampleRate) : 0
         takePreRollSeconds = preRoll
-        var operatorIndex = 0
         markerEntries = metadata.markers.enumerated().map { place, marker in
-            defer { if marker.origin == .operator { operatorIndex += 1 } }
-            return MarkerEntry(
+            MarkerEntry(
                 id: place,
-                operatorIndex: marker.origin == .operator ? operatorIndex : nil,
+                operatorIndex: metadata.operatorIndex(ofMarkerAt: place),
                 seconds: metadata.sampleRate > 0 ? Double(marker.position) / Double(metadata.sampleRate) : 0,
                 secondsSincePress: metadata.sampleRate > 0
                     ? Double(max(marker.position - (metadata.preRollFrames ?? 0), 0)) / Double(metadata.sampleRate) : 0,
@@ -674,7 +672,7 @@ public final class Recorder {
         let finished = session.finish()
         finishedCopies = finished.statuses
         lastTakeSignal = finished.signal
-        dropoutCount = finished.metadata.markers.filter { $0.origin == .dropout }.count
+        dropoutCount = finished.metadata.dropoutCount
         refreshMarkers(from: finished.metadata)
         lastTakeEnd = TakeEnd(take: finished.metadata.take, reason: reason)
         lastTake = LastTake(
