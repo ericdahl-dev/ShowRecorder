@@ -6,7 +6,7 @@ import { Screenshot } from "@/components/Screenshot";
 import { PAGES, pageMetadata } from "@/lib/metadata";
 import { SHOTS } from "@/lib/screenshots";
 import { CONTACT_EMAIL } from "@/lib/site";
-import { softwareApplicationJsonLd } from "@/lib/structuredData";
+import { faqPageJsonLd, jsonLdScript, softwareApplicationJsonLd } from "@/lib/structuredData";
 
 export const metadata = pageMetadata(PAGES.home);
 
@@ -206,11 +206,8 @@ function Section({
 export default function Home() {
   return (
     <>
-      <script
-        type="application/ld+json"
-        // "<" is escaped so the JSON can never close the script tag early.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationJsonLd()).replace(/</g, "\\u003c") }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(softwareApplicationJsonLd()) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(faqPageJsonLd(faqs)) }} />
       <section id="top" aria-labelledby="hero-title" className="hero">
         <div className="wrap hero-grid">
           <div>

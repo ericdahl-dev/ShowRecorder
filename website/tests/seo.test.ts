@@ -1,7 +1,7 @@
 import { GET as llmsTxt } from "@/app/llms.txt/route";
 import { PAGES, pageMetadata } from "@/lib/metadata";
 import { DOCS } from "@/lib/docs";
-import { softwareApplicationJsonLd } from "@/lib/structuredData";
+import { faqPageJsonLd, jsonLdScript, softwareApplicationJsonLd } from "@/lib/structuredData";
 import { APP_STORE_URL, SITE_URL } from "@/lib/site";
 
 describe("structured data", () => {
@@ -41,5 +41,20 @@ describe("home page share card", () => {
     const meta = pageMetadata(PAGES.home);
     expect(meta.openGraph?.title).toBe(PAGES.home.title);
     expect(meta.twitter?.title).toBe(PAGES.home.title);
+  });
+});
+
+describe("FAQ structured data", () => {
+  it("turns each question and answer into a schema.org Question", () => {
+    const data = faqPageJsonLd([{ q: "Do I need the internet?", a: "No." }]);
+    expect(data).toEqual({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: [{ "@type": "Question", name: "Do I need the internet?", acceptedAnswer: { "@type": "Answer", text: "No." } }],
+    });
+  });
+
+  it("escapes < so the JSON cannot close its script tag", () => {
+    expect(jsonLdScript({ text: "</script>" })).not.toContain("<");
   });
 });
