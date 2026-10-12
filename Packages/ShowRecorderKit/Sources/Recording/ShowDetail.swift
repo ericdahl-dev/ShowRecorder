@@ -33,11 +33,10 @@ public enum ShowDetail {
         ShowList.takeMetadata(in: showFolder)
             .sorted { $0.take.take < $1.take.take }
             .map { folder, take in
-                var operatorCount = 0
-                let markers = take.markers.map { marker -> MarkerDetail in
-                    var index: Int?
-                    if marker.origin == .operator { index = operatorCount; operatorCount += 1 }
-                    return MarkerDetail(name: marker.name, seconds: Double(marker.position) / Double(max(take.sampleRate, 1)), operatorIndex: index)
+                let markers = take.markers.enumerated().map { place, marker in
+                    MarkerDetail(
+                        name: marker.name, seconds: Double(marker.position) / Double(max(take.sampleRate, 1)),
+                        operatorIndex: take.operatorIndex(ofMarkerAt: place))
                 }
                 return TakeDetail(
                     number: take.take, folderName: folder.lastPathComponent, markers: markers,

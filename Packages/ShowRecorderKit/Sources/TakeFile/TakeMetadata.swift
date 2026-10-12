@@ -174,6 +174,31 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         }
     }
 
+    /// The operator's Markers, in the order they were placed. A Dropout Marker isn't one.
+    public var operatorMarkers: [Marker] { markers.filter { $0.origin == .operator } }
+
+    /// The Dropout Markers, one at each place in the Take that lost audio.
+    public var dropoutMarkers: [Marker] { markers.filter { $0.origin == .dropout } }
+
+    /// How many places in the Take lost audio (one Dropout Marker each).
+    public var dropoutCount: Int { dropoutMarkers.count }
+
+    /// The name an operator Marker gets when it isn't given one: "Marker 3" for the third.
+    public var nextMarkerName: String { "Marker \(operatorMarkers.count + 1)" }
+
+    /// The index among the operator's Markers of `markers[place]`, which is how a rename names it; nil for
+    /// a Dropout Marker, which can't be renamed, or a place past the end.
+    public func operatorIndex(ofMarkerAt place: Int) -> Int? {
+        guard markers.indices.contains(place), markers[place].origin == .operator else { return nil }
+        return markers[..<place].count { $0.origin == .operator }
+    }
+
+    /// Where in `markers` the operator Marker at `operatorIndex` is; nil when there are fewer operator Markers.
+    public func place(ofOperatorMarker operatorIndex: Int) -> Int? {
+        let places = markers.indices.filter { markers[$0].origin == .operator }
+        return places.indices.contains(operatorIndex) ? places[operatorIndex] : nil
+    }
+
     public static let fileName = "Take.json"
 
     /// "Take 01": a Take's name, and the name of its folder in every Copy.
