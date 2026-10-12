@@ -43,9 +43,15 @@ struct X32Values: Sendable {
         toDb(Double(max(0, min(steps, Int((Double(value) * Double(steps)).rounded())))) / Double(steps))
     }
 
-    /// The step nearest to `db`, 0…steps.
-    func step(_ db: Double) -> Int {
-        max(0, min(steps, Int((toFloat(db) * Double(steps)).rounded())))
+    /// The step nearest to `db` (or the one below, with `.down`), 0…steps.
+    func step(_ db: Double, rounding: FloatingPointRoundingRule = .toNearestOrAwayFromZero) -> Int {
+        max(0, min(steps, Int((toFloat(db) * Double(steps) + (rounding == .down ? 1e-9 : 0)).rounded(rounding))))
+    }
+
+    /// The OSC float for the step at or below `db`: a ramp's in-between values use it so a level never rounds up.
+    func oscFloatBelow(_ db: Double) -> Float {
+        let step = step(db, rounding: .down)
+        return step == steps ? 1 : Float((Double(step) + 0.001) / Double(steps))
     }
 
     static func levelDb(_ f: Double) -> Double {
