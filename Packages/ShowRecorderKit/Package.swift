@@ -31,7 +31,7 @@ let package = Package(
         // Open Sound Control messages and bundles. Pure encoding, no networking.
         .target(name: "OSC"),
         // The Mixer Link: mixer drivers (X-Air first) over UDP.
-        .target(name: "MixerLink", dependencies: ["OSC"]),
+        .target(name: "MixerLink", dependencies: ["OSC", "AutoGain"]),
         // The Show report (Report.html and Channels.csv) built from a Show folder's Take.json files and Stems.
         .target(name: "ShowReport", dependencies: ["TakeFile", "Destinations", "BroadcastWave"]),
         // DAW projects (Reaper first) from a Show's Takes. Pure rendering, no file access.
@@ -48,7 +48,7 @@ let package = Package(
         .testTarget(name: "TakeActivityTests", dependencies: ["TakeActivity"]),
         .testTarget(name: "AutoGainTests", dependencies: ["AutoGain"]),
         .testTarget(name: "OSCTests", dependencies: ["OSC"]),
-        .testTarget(name: "MixerLinkTests", dependencies: ["MixerLink", "OSC"]),
+        .testTarget(name: "MixerLinkTests", dependencies: ["MixerLink", "OSC", "AutoGain"]),
         .testTarget(name: "RecordingTests", dependencies: ["Recording", "AudioIO", "MixerLink", "Destinations"]),
         .testTarget(name: "BroadcastWaveTests", dependencies: ["BroadcastWave"]),
         .testTarget(name: "ShowReportTests", dependencies: ["ShowReport", "Recording", "AudioIO", "MixerLink", "BroadcastWave", "ProjectExport"]),
