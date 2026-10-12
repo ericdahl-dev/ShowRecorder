@@ -76,7 +76,7 @@ if [ $mac = 1 ]; then
   [ -n "$(read_key LSApplicationCategoryType)" ] && ok "LSApplicationCategoryType = $(read_key LSApplicationCategoryType)" \
     || bad "LSApplicationCategoryType is missing (the Mac App Store needs it)"
   # An unsigned build is still ad hoc (linker) signed on Apple silicon, with no entitlements.
-  if codesign -dv "$app" 2>&1 | grep -q '^Authority='; then
+  if codesign -dvv "$app" 2>&1 | grep -q '^Authority='; then
     codesign -d --entitlements - --xml "$app" 2>/dev/null | grep -q 'com.apple.security.app-sandbox</key><true/>' \
       && ok "signed with the App Sandbox" || bad "signed without com.apple.security.app-sandbox"
   else
