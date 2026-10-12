@@ -20,7 +20,7 @@ Record every channel of your mixer on your iPhone or iPad. One file per channel,
 
 ## Keywords (100)
 
-live,stems,wav,gig,band,church,concert,sound engineer,multichannel,usb audio,daw,rehearsal,tracks
+live,stems,wav,gig,band,church,worship,concert,rehearsal,multichannel,usb,audio,daw,reaper,sound
 
 ## Description (4000)
 
@@ -76,9 +76,9 @@ First release.
 
 ## URLs
 
-- Support URL: https://ericdahl.dev/showrecorder/support
+- Support URL: https://showrecorder.app/support
 - Marketing URL: https://showrecorder.app
-- Privacy Policy URL: https://ericdahl.dev/showrecorder/privacy
+- Privacy Policy URL: https://showrecorder.app/privacy
 
 ## In-app purchase display text
 
