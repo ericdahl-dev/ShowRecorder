@@ -3,8 +3,8 @@ import Synchronization
 
 /// The X32 driver (X32, X32 Compact, Producer and Rack; M32, M32R and M32C) over OSC on UDP port 10023 (#199).
 public final class X32Driver: MixerDriver {
-    private let client: OSCUDPClient
-    private let queries: MixerQueries
+    let client: OSCUDPClient
+    let queries: MixerQueries
     /// The routing and Sources last read, so pushed changes reach the right USB Channels.
     private let linked = Mutex<(routing: X32Routing?, sources: [Source])>((nil, []))
 

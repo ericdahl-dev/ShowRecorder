@@ -13,6 +13,15 @@ final class FakeXAirMixer: Sendable {
         var on: Int32 = 1
         var fader: Float = 0.75
         var inputSource: Int32 = 0
+        /// X32 Re-Gain settings, as OSC floats (0…1) and ints.
+        var gateThreshold: Float = 0.5
+        var compressorThreshold: Float = 0.5
+        var monoLevel: Float = 0
+        var sendLevels: [Float] = Array(repeating: 0, count: 16)
+        /// One per odd send (1, 3 … 15): 0–3 pre-fader (IN/LC, <-EQ, EQ->, PRE), 4 POST, 5 GRP.
+        var sendTypes: [Int32] = Array(repeating: 4, count: 8)
+        var gateKey: Int32 = 0
+        var compressorKey: Int32 = 0
     }
 
     struct State: Sendable {
@@ -38,6 +47,14 @@ final class FakeXAirMixer: Sendable {
         /// X32 only: `/config/routing/CARD/…` and `/config/routing/IN/…`, one number per block of 8 (nil: no answer).
         var cardBlocks: [Int32]?
         var inputBlocks: [Int32]?
+        /// X32 only: `/-ha/NN/index`, the preamp behind each channel (-1: none). Default: channel n on preamp n-1.
+        var headampOfChannel: [Int32] = Array(0..<32)
+        /// X32 only: `/headamp/NNN/gain` as OSC floats.
+        var headampGains: [Float] = Array(repeating: 0, count: 128)
+        /// Every value set (an address with one argument), in order, so tests can see what the driver wrote.
+        var writes: [(address: String, value: OSCArgument)] = []
+        /// Values set by a client: a later query of that address answers with it.
+        var set: [String: OSCArgument] = [:]
 
         /// An X32 (or, with another `model`, an M32) as Maillot's X32 emulator answers it.
         static func x32(model: String = "X32") -> State {
@@ -104,6 +121,8 @@ final class FakeXAirMixer: Sendable {
     func update(_ change: @Sendable (inout State) -> Void) { responder.state.withLock { change(&$0) } }
 
     var queries: [String] { responder.state.withLock { $0.queries } }
+
+    var writes: [(address: String, value: OSCArgument)] { responder.state.withLock { $0.writes } }
 
     /// Renames input channel `number` (1...16, or 1...32 on an X32) on the Mixer, as the operator would at its surface, and
     /// pushes the change to every client whose /xremote is still running.
@@ -177,6 +196,9 @@ final class FakeXAirMixer: Sendable {
                 if let data, let query = try? OSCMessage(decoding: Array(data)), query.address == "/xremote" {
                     if state.withLock({ $0.answers }) { subscribe(connection) }
                     state.withLock { $0.queries.append("/xremote") }
+                } else if let data, let message = try? OSCMessage(decoding: Array(data)), let value = message.arguments.first {
+                    // A set: remember it, answer nothing (as the X32 does).
+                    state.withLock { $0.writes.append((message.address, value)); $0.set[message.address] = value }
                 } else if let data, let query = try? OSCMessage(decoding: Array(data)), let reply = reply(to: query) {
                     connection.send(content: Data(reply.encoded()), completion: .contentProcessed { _ in })
                 }
@@ -188,6 +210,7 @@ final class FakeXAirMixer: Sendable {
             state.withLock { state in
                 state.queries.append(query.address)
                 guard state.answers else { return nil }
+                if let value = state.set[query.address] { return OSCMessage(query.address, [value]) }
                 let parts = query.address.split(separator: "/").map(String.init)
                 switch parts {
                 case ["xinfo"]:
@@ -197,6 +220,20 @@ final class FakeXAirMixer: Sendable {
                     guard state.answersMixState || (p[2] == "config" && p[3] != state.inputSourceField) else { return nil }
                     if state.reportsFaderAsInt, p[2] == "mix", p[3] == "fader" { return OSCMessage(query.address, [.int(1)]) }
                     return Self.answer(query.address, section: p[2], field: p[3], channel: state.channels[number - 1], inputSourceField: state.inputSourceField)
+                case let p where p.count == 3 && p[0] == "headamp" && p[2] == "gain":
+                    guard let index = Int(p[1]), state.headampGains.indices.contains(index) else { return nil }
+                    return OSCMessage(query.address, [.float(state.headampGains[index])])
+                case let p where p.count == 5 && p[0] == "ch" && p[2] == "mix":
+                    guard let number = Int(p[1]), state.channels.indices.contains(number - 1), let send = Int(p[3]), (1...16).contains(send) else { return nil }
+                    let channel = state.channels[number - 1]
+                    switch p[4] {
+                    case "level": return OSCMessage(query.address, [.float(channel.sendLevels[send - 1])])
+                    case "type" where send % 2 == 1: return OSCMessage(query.address, [.int(channel.sendTypes[send / 2])])
+                    default: return nil
+                    }
+                case let p where p.count == 3 && p[0] == "-ha" && p[2] == "index" && state.inputSourceField == "source":
+                    guard let index = Int(p[1]), state.headampOfChannel.indices.contains(index) else { return nil }
+                    return OSCMessage(query.address, [.int(state.headampOfChannel[index])])
                 case let p where p.count == 4 && p[0] == "config" && p[1] == "routing" && (p[2] == "CARD" || p[2] == "IN"):
                     guard let blocks = p[2] == "CARD" ? state.cardBlocks : state.inputBlocks,
                           let index = FakeXAirMixer.blockNames.firstIndex(of: p[3]) else { return nil }
@@ -217,6 +254,11 @@ final class FakeXAirMixer: Sendable {
             case ("config", let f) where f == inputSourceField: OSCMessage(address, [.int(channel.inputSource)])
             case ("mix", "on"): OSCMessage(address, [.int(channel.on)])
             case ("mix", "fader"): OSCMessage(address, [.float(channel.fader)])
+            case ("mix", "mlevel"): OSCMessage(address, [.float(channel.monoLevel)])
+            case ("gate", "thr"): OSCMessage(address, [.float(channel.gateThreshold)])
+            case ("dyn", "thr"): OSCMessage(address, [.float(channel.compressorThreshold)])
+            case ("gate", "keysrc"): OSCMessage(address, [.int(channel.gateKey)])
+            case ("dyn", "keysrc"): OSCMessage(address, [.int(channel.compressorKey)])
             default: nil
             }
         }

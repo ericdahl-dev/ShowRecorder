@@ -46,6 +46,8 @@ public enum MixerLinkProblem: Error, Equatable, Sendable {
     case localNetworkDenied
     /// The address typed in isn't a valid host.
     case invalidAddress(String)
+    /// Gain can't be set: input channel `channel` has no preamp (its source is digital, such as a card or USB input).
+    case noPreamp(channel: Int)
     case other(String)
 
     public var message: String {
@@ -58,6 +60,8 @@ public enum MixerLinkProblem: Error, Equatable, Sendable {
             "ShowRecorder isn't allowed to use the local network. Turn on Local Network for ShowRecorder in Settings › Privacy & Security."
         case .invalidAddress(let text):
             "\"\(text)\" isn't a valid IP address."
+        case .noPreamp(let channel):
+            "Channel \(channel) on the Mixer has no preamp (its input is digital), so its gain can't be set."
         case .other(let description):
             "The mixer connection failed: \(description)"
         }
