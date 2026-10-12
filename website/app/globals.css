@@ -1532,3 +1532,21 @@ ol.cards {
   color: var(--muted);
   font-size: 0.9375rem;
 }
+
+/* "Being looked at" mixers: a plain two-column list, lighter than the cards above it. */
+.mixers-note {
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.mixers-considering {
+  columns: 2 240px;
+  column-gap: 32px;
+  padding-left: 1.2em;
+  list-style: disc;
+}
+
+.mixers-considering li {
+  break-inside: avoid;
+  margin-bottom: 6px;
+}

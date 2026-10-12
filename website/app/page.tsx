@@ -145,7 +145,7 @@ const faqs = [
   },
   {
     q: "Which mixers work?",
-    a: "The Behringer X Air XR18 and MR18 record 18 USB Channels with names and colors. Other class-compliant USB audio interfaces record every channel they send, without names from the mixer; you can type names with Pro. Planned next: the Behringer X32 and Midas M32, then Pioneer DJM mixers. The list is under Supported mixers on the Features page.",
+    a: "The Behringer X Air XR18 and MR18 record 18 USB Channels with names and colors. Other class-compliant USB audio interfaces record every channel they send, without names from the mixer; you can type names with Pro. Planned next: the Behringer X32 and Midas M32, then Pioneer DJM mixers. Others, such as the Behringer Wing and Allen & Heath Qu and SQ, are being looked at. The list is under Supported mixers on the Features page.",
   },
   {
     q: "Can I record an XR18 without a computer?",
@@ -173,7 +173,7 @@ const faqs = [
   },
   {
     q: "Is there a Mac version?",
-    a: "Not in 1.0, which is for iPhone and iPad. It follows right after.",
+    a: "Yes, in the public TestFlight beta now. The App Store release of 1.0 is for iPhone and iPad; the Mac follows on the Mac App Store.",
   },
   {
     q: "What if the Drive is unplugged during a Take?",
