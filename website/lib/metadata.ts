@@ -23,7 +23,7 @@ export const PAGES = {
     path: "/",
     title: "ShowRecorder: XR18 multitrack recorder for iPhone and iPad",
     description:
-      "Record every channel of a Behringer XR18 or MR18 on your iPhone or iPad, with no laptop. One 24-bit WAV per channel, named from the mixer.",
+      "Record every channel of your mixer over USB on your iPhone or iPad, no laptop needed. With a Behringer XR18 or MR18, files are named from the mixer.",
   },
   features: {
     path: "/features",
