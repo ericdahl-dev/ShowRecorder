@@ -63,7 +63,7 @@ extension X32Driver {
     /// The gain stops at the preamp's range (-12…+60 dB) and at what Re-Gain can compensate (`plan.limitedBy`), and
     /// every value is written on one of the X32's own steps: `held` is what the X32 holds afterwards, which can differ
     /// from the plan by up to half a step. Never call it during a Take (#155 doesn't offer it then).
-    public func applyReGain(channel: Int, gainChangeDb: Double, scopes: ReGain.Scopes = .all) async throws(MixerLinkProblem) -> X32ReGain {
+    public func applyReGain(channel: Int, gainChangeDb: Double, scopes: ReGain.Scopes = .all) async throws(MixerLinkProblem) -> GainStep {
         guard let headamp = try await headamp(ofChannel: channel) else { throw .noPreamp(channel: channel) }
         let from = try await gainDb(ofHeadamp: headamp)
         let reachable = X32Values.headampGain.snap(from + gainChangeDb) - from
@@ -86,11 +86,12 @@ extension X32Driver {
             await client.send(OSCMessage(Self.address(of: setting), [.float(scale.oscFloat(db))]))
             held[setting] = scale.snap(db)
         }
-        return X32ReGain(channel: channel, headamp: headamp, fromGainDb: from, toGainDb: to, plan: plan, held: held, restore: restore)
+        return GainStep(channel: channel, headamp: headamp, fromGainDb: from, toGainDb: to, changes: plan.changes, held: held,
+                        limitedBy: plan.limitedBy, restore: restore)
     }
 
     /// Puts back every value `result` changed, exactly as it was read before.
-    public func undo(_ result: X32ReGain) async throws(MixerLinkProblem) {
+    public func undo(_ result: GainStep) async throws(MixerLinkProblem) {
         for (address, value) in result.restore {
             await client.send(OSCMessage(address, [.float(value)]))
         }
@@ -120,16 +121,45 @@ extension X32Driver {
     }
 }
 
-/// What `X32Driver.applyReGain` did: the gain it set and what the X32 holds now, with what undo needs.
-public struct X32ReGain: Sendable {
+/// What a mixer can do for auto-gain (#155): say which input channel a USB Channel carries, move that channel's
+/// preamp with Re-Gain, and undo it. The X32 driver does it; the X-Air's comes with #153.
+public protocol GainControl: Sendable {
+    /// The input channel USB Channel `usbChannel` carries, from the routing read on connect; nil when none.
+    func channel(forUSBChannel usbChannel: Int) -> Int?
+    func applyReGain(channel: Int, gainChangeDb: Double, scopes: ReGain.Scopes) async throws(MixerLinkProblem) -> GainStep
+    func undo(_ step: GainStep) async throws(MixerLinkProblem)
+}
+
+/// One gain move with Re-Gain: the gain set, what the mixer holds now, and what undo needs.
+public struct GainStep: Equatable, Sendable {
     public var channel: Int
     public var headamp: Int
     public var fromGainDb: Double
     public var toGainDb: Double
-    /// Re-Gain's plan, including what limited the step (`limitedBy`).
-    public var plan: ReGain.Plan
-    /// Each compensated setting as the X32 holds it now: the plan's value on the X32's nearest step.
+    /// What Re-Gain moved, from and to (the plan's values).
+    public var changes: [ReGain.Change]
+    /// Each compensated setting as the mixer holds it now: the planned value on the mixer's nearest step.
     public var held: [ReGain.Setting: Double]
+    /// Why the gain moved less than asked, if it did (`ReGain.Plan.limitedBy`).
+    public var limitedBy: ReGain.Limit?
     /// Each changed address's raw value before, for `undo`.
-    var restore: [String: Float]
+    public var restore: [String: Float]
+
+    public init(channel: Int, headamp: Int, fromGainDb: Double, toGainDb: Double, changes: [ReGain.Change] = [],
+                held: [ReGain.Setting: Double], limitedBy: ReGain.Limit?, restore: [String: Float]) {
+        self.channel = channel
+        self.headamp = headamp
+        self.fromGainDb = fromGainDb
+        self.toGainDb = toGainDb
+        self.changes = changes
+        self.held = held
+        self.limitedBy = limitedBy
+        self.restore = restore
+    }
+}
+
+extension X32Driver: GainControl {
+    public func channel(forUSBChannel usbChannel: Int) -> Int? {
+        linked.withLock { $0.routing?.channel(forUSBChannel: usbChannel) }
+    }
 }
