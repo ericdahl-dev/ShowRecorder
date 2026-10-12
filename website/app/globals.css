@@ -1479,3 +1479,56 @@ ol.cards {
 .docs-nav-mobile[open] summary::after {
   transform: translateY(2px) rotate(-135deg);
 }
+
+/* Android signup (#404): one email field and a button, stacked on phones. */
+.signup {
+  max-width: 560px;
+  margin-top: 16px;
+}
+
+.signup label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.signup-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.signup input[type="email"] {
+  flex: 1 1 240px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  background: var(--bg-raised);
+  color: var(--ink);
+  font: inherit;
+}
+
+.signup button {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--button-bg);
+  color: var(--button-ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.signup input:focus-visible,
+.signup button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.signup-note {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
