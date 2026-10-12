@@ -64,7 +64,9 @@ public struct AutoGainRule: Sendable {
     ///   - adjust: moves the gain by about the given dB and returns how far it actually moved, which can be less
     ///     at the end of its range, or rounded to the steps it takes.
     ///   - settle: waits for the level to follow a move before measuring again (friture waited 150 ms).
+    ///   - isolation: where the closures run: the caller's actor, so a screen on the main actor can use its own state.
     public func run(
+        isolation: isolated (any Actor)? = #isolation,
         measure: () async throws -> Double,
         adjust: (Double) async throws -> Double,
         settle: () async throws -> Void

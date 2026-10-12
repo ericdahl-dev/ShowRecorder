@@ -165,4 +165,18 @@ struct AutoGainRuleTests {
         let outcome = try await preamp.run(AutoGainRule(targetDbfs: -20, toleranceDb: 1))
         #expect(outcome == .onTarget(levelDbfs: -20, changeDb: -4, passes: 1))
     }
+
+    @MainActor
+    @Test("A caller on the main actor, like the record screen, can pass closures that use its own state")
+    func runsInTheCallersIsolation() async throws {
+        var level = -30.0
+        var moves: [Double] = []
+        let outcome = try await AutoGainRule().run(
+            measure: { level },
+            adjust: { db in moves.append(db); level += db; return db },
+            settle: {}
+        )
+        #expect(outcome == .onTarget(levelDbfs: -18, changeDb: 12, passes: 1))
+        #expect(moves == [12])
+    }
 }
