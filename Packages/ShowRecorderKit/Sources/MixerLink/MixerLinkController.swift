@@ -4,6 +4,13 @@ import Observation
 /// How the Mixer Link reaches the Mixer. USB (SysEx-wrapped OSC) comes in #24.
 public enum MixerLinkPath: Equatable, Sendable {
     case wifi
+
+    /// The path as the operator reads it, in the status strip and Settings: "Wi-Fi".
+    public var name: String {
+        switch self {
+        case .wifi: "Wi-Fi"
+        }
+    }
 }
 
 public enum MixerLinkStatus: Equatable, Sendable {

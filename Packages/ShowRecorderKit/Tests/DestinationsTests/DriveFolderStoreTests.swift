@@ -89,4 +89,13 @@ struct DriveFolderStoreTests {
         try FileManager.default.removeItem(at: folder)
         #expect(store.beginAccess() == nil)
     }
+
+    @Test("Free space for a folder not made yet is read where it will be, not reported as none")
+    func freeSpaceForFolderNotMadeYet() {
+        let shows = folder.appending(path: "Shows", directoryHint: .isDirectory)
+        #expect(DriveFolderStore.availableBytes(at: shows) == 0, "a missing folder has no volume to ask")
+
+        #expect(DriveFolderStore.availableBytes(forFolder: shows) > 0)
+        #expect(DriveFolderStore.availableBytes(forFolder: folder) > 0)
+    }
 }

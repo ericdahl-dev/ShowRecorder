@@ -26,14 +26,12 @@ struct MarkerRenamerTests {
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
         try recorder.startTake()
-        func deliver(_ frames: Int) {
-            audio.deliver((0..<2).map { channel in (0..<frames).map { Float($0 % 1000 + channel * 1000) / 8_388_608 } })
-        }
-        deliver(4_800)
+        let sample = { (frame: Int, channel: Int) in RecordingTakeTests.sample(Int32(frame % 1000 + channel * 1000)) }
+        deliver(4_800, to: audio, sample: sample)
         recorder.addMarker()
-        deliver(2_400)
+        deliver(2_400, to: audio, sample: sample)
         recorder.addMarker()
-        deliver(480)
+        deliver(480, to: audio, sample: sample)
         try recorder.stopTake()
     }
 

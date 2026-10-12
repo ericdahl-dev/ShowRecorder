@@ -203,6 +203,16 @@ public struct DriveFolderStore: Sendable {
         if let important = values?.volumeAvailableCapacityForImportantUsage, important > 0 { return important }
         return Int64(values?.volumeAvailableCapacity ?? 0)
     }
+
+    /// Free space where `folder` is, or will be once it's made: until then, read at its nearest existing parent.
+    /// For the Device's Documents/Shows, which the first Show creates.
+    public static func availableBytes(forFolder folder: URL) -> Int64 {
+        var url = folder
+        while !FileManager.default.fileExists(atPath: url.path), url.pathComponents.count > 1 {
+            url = url.deletingLastPathComponent()
+        }
+        return availableBytes(at: url)
+    }
 }
 
 /// The Drive folder opened for one Take, held until the Take is finalized and Repaired. `end()` lets it go

@@ -14,7 +14,8 @@ final class DriveFolderModel {
 
     func refresh() {
         status = store.status()
-        deviceAvailableBytes = DriveFolderStore.availableBytes(at: URL.documentsDirectory)
+        // Where the Device Copy is written, so the two can't drift apart.
+        deviceAvailableBytes = DriveFolderStore.availableBytes(forFolder: Recorder.defaultDeviceFolder)
     }
 
     func choose(_ url: URL) {
