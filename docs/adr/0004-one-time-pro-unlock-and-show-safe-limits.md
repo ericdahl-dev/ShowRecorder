@@ -30,7 +30,8 @@ With X32 support coming (#199), the second family is here, so the single-family 
 - A pack unlocks **everything Pro does** while that family's USB interface is the Armed input. Any other input stays Free (2 USB Channels).
 - **DJM at $6.99** is under Pioneer's DJM-REC ($9.99 unlock after a 30-day trial), which answers #367's "better than DJM-REC, for less". The X Air and X32 packs are above Mixing Station's $5.99–6.99, because they record rather than only control.
 - **Show-Safe:** a pack is judged only when record is pressed, from the Armed input, like Pro.
-- **Still open (#412):** where generic interfaces belong (Pro only, or their own pack), what the Trial covers, and whether pack owners get an offer code toward Pro, since the App Store has no upgrade pricing.
+- **Generic interfaces need full Pro** (an EVO 4, or anything without a family): there is no pack for them, because their channel count can't be assumed.
+- **Still open (#412):** what the Trial covers, and whether pack owners get an offer code toward Pro, since the App Store has no upgrade pricing.
 
 ## Consequences
 
