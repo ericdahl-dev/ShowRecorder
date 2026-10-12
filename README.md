@@ -2,9 +2,9 @@
 
 # ShowRecorder
 
-**Record every channel of your mixer on your phone.** Plug a Behringer X Air XR18 or MR18 into an iPhone, iPad or Mac, press record, and get one file per channel, named after what's on it, ready for your DAW. No recording laptop at the gig.
+**Record every channel of your mixer on your phone.** Plug a Behringer X Air XR18 or MR18 into an iPhone or iPad, press record, and get one file per channel, named after what's on it, ready for your DAW. No recording laptop at the gig.
 
-> **In TestFlight beta, coming to the App Store.** Website: [showrecorder.app](https://showrecorder.app). Questions: [showrecorder@ericdahl.dev](mailto:showrecorder@ericdahl.dev).
+> **1.0 for iPhone and iPad is in App Review.** Until it's out, the [public beta on TestFlight](https://testflight.apple.com/join/sSessST8) is open. The Mac app comes to the TestFlight beta first. Website: [showrecorder.app](https://showrecorder.app). Questions: [showrecorder@ericdahl.dev](mailto:showrecorder@ericdahl.dev).
 
 <p align="center">
   <img src="docs/images/recording-dark.jpg" width="230" alt="The record screen during a Take: 18 level meters named Kick to Room R, a large Take timer and the Show's total time">
@@ -29,7 +29,7 @@
 | | |
 |---|---|
 | **A mixer** | Behringer X Air **XR18** or **MR18**: 18 channels over USB, names and colors over Wi-Fi. Other class-compliant USB interfaces record too, without names. |
-| **A device** | A USB-C iPhone (15 or later), an iPad, or a Mac, on iOS, iPadOS or macOS 26. |
+| **A device** | A USB-C iPhone (15 or later) or an iPad, on iOS or iPadOS 26. The Mac app (macOS 26) is coming through the TestFlight beta. |
 | **A hub or cable** | A powered USB-C hub lets the phone charge while the mixer and a drive are plugged in. A Mac just needs the USB cable. |
 | **Storage** | About 9.3 GB per hour for 18 channels at 48 kHz. The app shows the time left. A USB drive is optional. |
 | **Wi-Fi** | Optional: the phone on the mixer's network gives you channel names and colors. No internet is needed. |
@@ -58,11 +58,11 @@ In the TestFlight beta, the Trial and Pro use sandbox purchases, which cost test
 
 ## Privacy
 
-ShowRecorder collects no data. Your recordings stay on your device and your drive, and the app only talks to your mixer on your local network. [Privacy policy](https://ericdahl.dev/showrecorder/privacy).
+ShowRecorder collects no data. Your recordings stay on your device and your drive, and the app only talks to your mixer on your local network. [Privacy policy](https://showrecorder.app/privacy).
 
 ## Help
 
-[Support](https://ericdahl.dev/showrecorder/support) · [showrecorder@ericdahl.dev](mailto:showrecorder@ericdahl.dev) · [Report a problem](https://github.com/ericdahl-dev/ShowRecorder/issues)
+[Support](https://showrecorder.app/support) · [showrecorder@ericdahl.dev](mailto:showrecorder@ericdahl.dev) · [Report a problem](https://github.com/ericdahl-dev/ShowRecorder/issues)
 
 ---
 
