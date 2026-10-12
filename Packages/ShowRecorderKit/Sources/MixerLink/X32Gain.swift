@@ -79,23 +79,68 @@ extension X32Driver {
         var restore: [String: Float] = [:]
         for address in addresses { restore[address] = try await queries.float(at: address) }
 
-        await client.send(OSCMessage(Self.gainAddress(headamp), [.float(X32Values.headampGain.oscFloat(to))]))
         var held: [ReGain.Setting: Double] = [:]
-        for (setting, db) in plan.values {
-            let scale = Self.scale(of: setting.parameter)
-            await client.send(OSCMessage(Self.address(of: setting), [.float(scale.oscFloat(db))]))
-            held[setting] = scale.snap(db)
-        }
+        for (setting, db) in plan.values { held[setting] = Self.scale(of: setting.parameter).snap(db) }
+        try await ramp(gainAddress: Self.gainAddress(headamp), gainFrom: from, gainTo: to,
+                       moves: plan.changes.map { Move(setting: $0.setting, fromDb: $0.fromDb, toDb: $0.toDb) })
         return GainStep(channel: channel, headamp: headamp, fromGainDb: from, toGainDb: to, changes: plan.changes, held: held,
                         limitedBy: plan.limitedBy, restore: restore)
     }
 
-    /// Puts back every value `result` changed, exactly as it was read before.
+    /// Puts back every value `result` changed: ramps back the way it came, then writes the exact values read before.
     public func undo(_ result: GainStep) async throws(MixerLinkProblem) {
-        for (address, value) in result.restore {
-            await client.send(OSCMessage(address, [.float(value)]))
-        }
+        let gainAddress = Self.gainAddress(result.headamp)
+        try await ramp(gainAddress: gainAddress, gainFrom: result.toGainDb, gainTo: result.fromGainDb,
+                       moves: result.changes.map { Move(setting: $0.setting, fromDb: result.held[$0.setting] ?? $0.toDb, toDb: $0.fromDb) })
+        // The exact raw values, in the same safe order: when the gain went back down, it goes first.
+        let others = result.restore.filter { $0.key != gainAddress }
+        let lowering = result.toGainDb > result.fromGainDb
+        if lowering, let gain = result.restore[gainAddress] { await client.send(OSCMessage(gainAddress, [.float(gain)])) }
+        for (address, value) in others { await client.send(OSCMessage(address, [.float(value)])) }
+        if !lowering, let gain = result.restore[gainAddress] { await client.send(OSCMessage(gainAddress, [.float(gain)])) }
         _ = try await identify()   // the X32 answers, so the writes reached it
+    }
+
+    /// One compensated setting moving from one value to another.
+    struct Move {
+        var setting: ReGain.Setting
+        var fromDb: Double
+        var toDb: Double
+    }
+
+    /// The most the gain moves in one ramp step, in dB.
+    static let rampStepDb = 1.0
+
+    /// Moves the gain and its compensations together in steps of at most `rampStepDb`, so the mix changes smoothly
+    /// and never gets louder, even for a moment. Within a step, raising the gain turns everything else first and the
+    /// gain last; lowering it does the gain first. A query between the two halves makes the X32 apply the first half
+    /// before the second arrives. In-between values round down (a level never rounds up); the last step lands exactly
+    /// on the plan's values.
+    private func ramp(gainAddress: String, gainFrom: Double, gainTo: Double, moves: [Move]) async throws(MixerLinkProblem) {
+        let count = max(1, Int((abs(gainTo - gainFrom) / Self.rampStepDb).rounded(.up)))
+        let raising = gainTo > gainFrom
+        for index in 1...count {
+            let fraction = Double(index) / Double(count)
+            let last = index == count
+            let gainDb = gainFrom + (gainTo - gainFrom) * fraction
+            let gain = last ? X32Values.headampGain.oscFloat(gainDb) : X32Values.headampGain.oscFloatBelow(gainDb)
+            let others = moves.map { move -> OSCMessage in
+                let db = move.fromDb + (move.toDb - move.fromDb) * fraction
+                let scale = Self.scale(of: move.setting.parameter)
+                let level = move.setting.parameter.isLevel
+                return OSCMessage(Self.address(of: move.setting), [.float(last || !level ? scale.oscFloat(db) : scale.oscFloatBelow(db))])
+            }
+            if raising {
+                for message in others { await client.send(message) }
+                _ = try await identify()
+                await client.send(OSCMessage(gainAddress, [.float(gain)]))
+            } else {
+                await client.send(OSCMessage(gainAddress, [.float(gain)]))
+                _ = try await identify()
+                for message in others { await client.send(message) }
+            }
+        }
+        _ = try await identify()   // the X32 answers, so every write reached it
     }
 
     static func gainAddress(_ headamp: Int) -> String { String(format: "/headamp/%03d/gain", headamp) }
@@ -161,5 +206,15 @@ public struct GainStep: Equatable, Sendable {
 extension X32Driver: GainControl {
     public func channel(forUSBChannel usbChannel: Int) -> Int? {
         linked.withLock { $0.routing?.channel(forUSBChannel: usbChannel) }
+    }
+}
+
+extension ReGain.Parameter {
+    /// A fader or send: a level the channel reaches the mix at, as opposed to a threshold.
+    var isLevel: Bool {
+        switch self {
+        case .mainFader, .otherMain, .send: true
+        case .gateThreshold, .compressorThreshold: false
+        }
     }
 }

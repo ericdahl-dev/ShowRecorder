@@ -151,4 +151,84 @@ struct X32GainTests {
         #expect(result.toGainDb == 60)
         #expect(result.held[ReGain.Setting(channel: 1, parameter: .gateThreshold)] == -34, "-37 + 3, not + 6")
     }
+
+    /// Replays the writes in order and returns the loudest the channel got in the mix along the way, against where it
+    /// started: gain + fader, and gain + each pre-fader send, in dB. Re-Gain must never make it louder, even for a
+    /// moment, so this is at most a hair above 0.
+    static func loudestRise(_ writes: [(address: String, value: OSCArgument)], start: [String: Double]) -> Double {
+        var now = start
+        func level(_ to: String) -> Double { (now["/headamp/000/gain"] ?? 0) + (now[to] ?? 0) }
+        let paths = ["/ch/01/mix/fader", "/ch/01/mix/01/level", "/ch/01/mix/02/level"]
+        let base = paths.map { level($0) }
+        var worst = -Double.infinity
+        for write in writes {
+            guard case .float(let f) = write.value else { continue }
+            switch write.address {
+            case "/headamp/000/gain": now[write.address] = X32Values.headampGain.toDb(Double(f))
+            case "/ch/01/mix/fader": now[write.address] = X32Values.fader.toDb(Double(f))
+            case let a where a.hasPrefix("/ch/01/mix/") && a.hasSuffix("/level"): now[a] = X32Values.level.toDb(Double(f))
+            default: continue
+            }
+            worst = max(worst, zip(paths, base).map { level($0) - $1 }.max()!)
+        }
+        return worst
+    }
+
+    static let kickStart = ["/headamp/000/gain": -12.0, "/ch/01/mix/fader": X32Values.fader.toDb(0.6461),
+                            "/ch/01/mix/01/level": -20.0, "/ch/01/mix/02/level": -8.75]
+
+    /// Waits until the fake has received `count` writes (sends are fire-and-forget).
+    static func writes(of mixer: FakeXAirMixer, atLeast count: Int) async throws -> [(address: String, value: OSCArgument)] {
+        for _ in 0..<200 where mixer.writes.count < count { try await Task.sleep(for: .milliseconds(10)) }
+        return mixer.writes
+    }
+
+    @Test("Raising the gain by 25 dB ramps in steps of at most 1 dB, and the channel never gets louder in the mix")
+    func raiseRampsWithoutGettingLouder() async throws {
+        let mixer = try await FakeXAirMixer(Self.kickDesk())
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+
+        let step = try await driver.applyReGain(channel: 1, gainChangeDb: 25)
+
+        let writes = mixer.writes
+        let gainWrites = writes.filter { $0.address == "/headamp/000/gain" }
+        #expect(gainWrites.count >= 25, "about 1 dB a step")
+        #expect(Self.loudestRise(writes, start: Self.kickStart) <= 0.3, "never louder than at the start")
+        #expect(step.toGainDb == 13)
+        #expect(try await driver.gainDb(ofHeadamp: 0) == 13, "ends exactly where planned")
+    }
+
+    @Test("Lowering the gain ramps too, and never gets louder")
+    func lowerRampsWithoutGettingLouder() async throws {
+        var state = Self.kickDesk()
+        state.headampGains[0] = Float(X32Values.headampGain.toFloat(10))
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        var start = Self.kickStart
+        start["/headamp/000/gain"] = 10
+
+        _ = try await driver.applyReGain(channel: 1, gainChangeDb: -6)
+
+        #expect(Self.loudestRise(mixer.writes, start: start) <= 0.3)
+    }
+
+    @Test("Undo ramps back the same way and ends on the exact values from before")
+    func undoRampsBack() async throws {
+        let mixer = try await FakeXAirMixer(Self.kickDesk())
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let before = try await driver.reGainState(ofChannel: 1)
+        let step = try await driver.applyReGain(channel: 1, gainChangeDb: 25)
+        let applied = mixer.writes.count
+        var start = Self.kickStart
+        start["/headamp/000/gain"] = 13
+        start["/ch/01/mix/fader"] = (start["/ch/01/mix/fader"] ?? 0) - 25
+        start["/ch/01/mix/01/level"] = -45
+        start["/ch/01/mix/02/level"] = -33.75
+
+        try await driver.undo(step)
+
+        #expect(Self.loudestRise(Array(mixer.writes.dropFirst(applied)), start: start) <= 0.6)
+        #expect(try await driver.reGainState(ofChannel: 1) == before)
+        #expect(try await driver.gainDb(ofHeadamp: 0) == -12)
+    }
 }
