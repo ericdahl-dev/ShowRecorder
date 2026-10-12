@@ -124,4 +124,61 @@ struct XAirDriverTests {
         #expect(sources[0].isMuted == true)
         #expect(sources[0].fader == nil)
     }
+
+    static let defaultRouting: [[Int32]] = (0..<18).map { [Int32($0), 0] }
+
+    @Test("A re-patched XR18: each USB Channel is named after what's on it; a bus on USB gets its USB Channel name (#20)")
+    func repatched() async throws {
+        var state = FakeXAirMixer.State()
+        state.usbRouting = Self.defaultRouting
+        state.usbRouting?[0] = [4, 0]          // USB 1 carries Ch05
+        state.usbRouting?[17] = [26, 10]       // USB 18 carries Bus1, POST
+        state.channels[4] = .init(name: "Tom", color: 4)
+        state.channels[0] = .init(name: "Kick", color: 1)
+        state.auxReturn = .init(name: "Playback", color: 4)
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+
+        let sources = try await driver.sources(usbChannelCount: 18)
+
+        #expect(sources[safe: 0]?.name == "Tom")
+        #expect(sources[safe: 4]?.name == "Tom", "USB 5 still carries Ch05")
+        #expect(sources[safe: 16]?.name == "Playback")
+        #expect(sources[safe: 17]?.name == "USB 18")
+        #expect(sources[safe: 17]?.hasMixerName == false)
+        #expect(!sources.contains { $0.name == "Kick" })
+    }
+
+    @Test("Firmware that doesn't answer the USB routing keeps the default: USB 1-16 channels 1-16, 17-18 the aux return")
+    func routingUnanswered() async throws {
+        var state = FakeXAirMixer.State()
+        state.channels[0] = .init(name: "Kick", color: 1)
+        let mixer = try await FakeXAirMixer(state)   // usbRouting nil: no answer
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: .milliseconds(500))
+
+        let sources = try await driver.sources(usbChannelCount: 18)
+
+        #expect(sources[safe: 0]?.name == "Kick")
+    }
+
+    @Test("On a re-patched XR18 a rename reaches the USB Channel the channel is on; a re-patch renames what moved")
+    func liveFollowsRouting() async throws {
+        var state = FakeXAirMixer.State()
+        state.usbRouting = Self.defaultRouting
+        state.usbRouting?[0] = [4, 0]          // USB 1 carries Ch05
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        _ = try await driver.sources(usbChannelCount: 18)
+        var changes = driver.sourceChanges().makeAsyncIterator()
+        try await driver.renewLiveUpdates()
+
+        mixer.rename(channel: 5, to: "Tom")
+        #expect(await changes.next() == SourceChange(usbChannel: 1, name: "Tom"))
+        #expect(await changes.next() == SourceChange(usbChannel: 5, name: "Tom"))
+
+        mixer.rename(channel: 2, to: "Snare")
+        mixer.repatchUSB(1, to: 1)             // USB 1 now carries Ch02
+        #expect(await changes.next() == SourceChange(usbChannel: 2, name: "Snare"))
+        #expect(await changes.next() == SourceChange(usbChannel: 1, name: "Snare"))
+    }
 }

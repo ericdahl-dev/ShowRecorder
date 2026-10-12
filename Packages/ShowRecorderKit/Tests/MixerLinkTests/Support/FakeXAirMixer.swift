@@ -44,6 +44,8 @@ final class FakeXAirMixer: Sendable {
         var inputSourceField = "insrc"
         /// Whether `/rtn/aux` answers (the X-Air's aux return; the X32 has none).
         var hasAuxReturn = true
+        /// X-Air only: `/routing/usb/01…18` as [source, tap] (nil: no answer, as older firmware may not know it).
+        var usbRouting: [[Int32]]?
         /// X32 only: `/config/routing/CARD/…` and `/config/routing/IN/…`, one number per block of 8 (nil: no answer).
         var cardBlocks: [Int32]?
         var inputBlocks: [Int32]?
@@ -151,6 +153,13 @@ final class FakeXAirMixer: Sendable {
 
     static let blockNames = ["1-8", "9-16", "17-24", "25-32"]
 
+    /// X-Air: repatches USB Channel `usb` to `source` (tap kept), pushing the change.
+    func repatchUSB(_ usb: Int, to source: Int32) {
+        let tap = responder.state.withLock { $0.usbRouting?[usb - 1][1] ?? 0 }
+        update { $0.usbRouting?[usb - 1] = [source, tap] }
+        responder.push(OSCMessage(String(format: "/routing/usb/%02d", usb), [.int(source), .int(tap)]))
+    }
+
     /// Renames the aux return (USB Channels 17 and 18).
     func renameAuxReturn(to name: String) {
         update { $0.auxReturn.name = name }
@@ -231,6 +240,9 @@ final class FakeXAirMixer: Sendable {
                     case "type" where send % 2 == 1: return OSCMessage(query.address, [.int(channel.sendTypes[send / 2])])
                     default: return nil
                     }
+                case let p where p.count == 3 && p[0] == "routing" && p[1] == "usb":
+                    guard let routing = state.usbRouting, let n = Int(p[2]), routing.indices.contains(n - 1) else { return nil }
+                    return OSCMessage(query.address, routing[n - 1].map { .int($0) })
                 case let p where p.count == 3 && p[0] == "-ha" && p[2] == "index" && state.inputSourceField == "source":
                     guard let index = Int(p[1]), state.headampOfChannel.indices.contains(index) else { return nil }
                     return OSCMessage(query.address, [.int(state.headampOfChannel[index])])
