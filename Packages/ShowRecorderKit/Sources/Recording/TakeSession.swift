@@ -165,34 +165,20 @@ final class TakeSession {
     /// Whether every Copy's writer has failed, so there is nowhere left to record.
     var allFailed: Bool { !copies.isEmpty && copies.allSatisfy { $0.writer.hasFailed } }
 
-    /// Stretches written as silence in any Copy, as `Take.json` records them.
-    /// With `takeEnd`, a Copy that is still interrupted, or was asked to join but never got to, is missing
-    /// everything from where it stopped to there.
-    /// What the writers dropped, split into audio every Copy lacks (Dropouts) and audio another Copy has (Gaps that
-    /// Repair fills, #318). A Copy that failed or hasn't joined lacks everything past where it got to.
-    private func dropoutSplit() -> DropoutSplit {
-        var dropped: [DestinationKind: [Range<Int>]] = [:]
-        var notRecording: [DestinationKind: [Range<Int>]] = [:]
-        for copy in copies {
-            dropped[copy.kind] = copy.writer.dropouts
-            var lacking = copy.writer.gaps
-            if copy.writer.hasFailed || copy.writer.neverJoined { lacking.append(copy.writer.framesWritten..<Int.max) }
-            notRecording[copy.kind] = lacking
-        }
-        return DropoutSplit(dropped: dropped, notRecording: notRecording)
+    /// What each Copy holds so far, from its writer: the one source of Gaps and Dropouts (#441). A Copy that failed,
+    /// retired or never joined stopped early, so it lacks everything past where it got to.
+    private var coverage: CopyCoverage {
+        CopyCoverage(copies.map { copy in
+            CopyCoverage.Copy(
+                kind: copy.kind, written: copy.writer.framesWritten, dropped: copy.writer.dropouts,
+                silence: copy.writer.gaps, stoppedEarly: copy.writer.hasFailed || copy.writer.neverJoined)
+        })
     }
 
+    /// Stretches written as silence in any Copy, as `Take.json` records them. With `takeEnd`, a Copy that stopped
+    /// early is missing everything from where it stopped to there.
     func gaps(takeEnd: Int? = nil) -> [TakeMetadata.Gap] {
-        var gaps: [TakeMetadata.Gap] = dropoutSplit().gaps
-        for copy in copies {
-            for range in copy.writer.gaps {
-                gaps.append(.init(copy: copy.kind, start: range.lowerBound, end: range.upperBound))
-            }
-            if let takeEnd, copy.writer.hasFailed || copy.writer.neverJoined, copy.writer.framesWritten < takeEnd {
-                gaps.append(.init(copy: copy.kind, start: copy.writer.framesWritten, end: takeEnd))
-            }
-        }
-        return gaps.sorted { ($0.start, $0.end) < ($1.start, $1.end) }
+        coverage.gaps(takeEnd: takeEnd)
     }
 
     /// Looks for a Destination that has become available since the Take started. A Drive that appears
@@ -339,7 +325,7 @@ final class TakeSession {
     /// one Dropout Marker at each position where any Copy lost audio.
     private func collectDropouts() {
         // Only audio every Copy lacks; a stretch another Copy has is a Gap (see `gaps(takeEnd:)`).
-        let found = dropoutSplit().dropouts
+        let found = coverage.dropouts
         guard found != metadata.dropouts else { return }
         let marked = Set(metadata.dropoutMarkers.map(\.position))
         for position in Set(found.map(\.start)).subtracting(marked).sorted() {
