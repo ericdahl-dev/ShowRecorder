@@ -20,6 +20,8 @@ final class FakeXAirMixer: Sendable {
         var sendLevels: [Float] = Array(repeating: 0, count: 16)
         /// One per odd send (1, 3 … 15): 0–3 pre-fader (IN/LC, <-EQ, EQ->, PRE), 4 POST, 5 GRP.
         var sendTypes: [Int32] = Array(repeating: 4, count: 8)
+        /// X-Air: one tap per send (`/ch/NN/mix/MM/tap`): 0 IN, 1 PREEQ, 2 POSTEQ, 3 PRE, 4 POST, 5 GRP.
+        var sendTaps: [Int32] = Array(repeating: 4, count: 16)
         var gateKey: Int32 = 0
         var compressorKey: Int32 = 0
     }
@@ -57,6 +59,8 @@ final class FakeXAirMixer: Sendable {
         var writes: [(address: String, value: OSCArgument)] = []
         /// Values set by a client: a later query of that address answers with it.
         var set: [String: OSCArgument] = [:]
+        /// Like the real XR18 (firmware 1.26): every set is echoed back to its sender, with no arguments.
+        var echoesSets = false
 
         /// An X32 (or, with another `model`, an M32) as Maillot's X32 emulator answers it.
         static func x32(model: String = "X32") -> State {
@@ -206,8 +210,12 @@ final class FakeXAirMixer: Sendable {
                     if state.withLock({ $0.answers }) { subscribe(connection) }
                     state.withLock { $0.queries.append("/xremote") }
                 } else if let data, let message = try? OSCMessage(decoding: Array(data)), let value = message.arguments.first {
-                    // A set: remember it, answer nothing (as the X32 does).
-                    state.withLock { $0.writes.append((message.address, value)); $0.set[message.address] = value }
+                    // A set: remember it; the X32 answers nothing, the XR18 echoes the address with no arguments.
+                    let echo = state.withLock { state -> Bool in
+                        state.writes.append((message.address, value)); state.set[message.address] = value
+                        return state.echoesSets
+                    }
+                    if echo { connection.send(content: Data(OSCMessage(message.address).encoded()), completion: .contentProcessed { _ in }) }
                 } else if let data, let query = try? OSCMessage(decoding: Array(data)), let reply = reply(to: query) {
                     connection.send(content: Data(reply.encoded()), completion: .contentProcessed { _ in })
                 }
@@ -237,7 +245,8 @@ final class FakeXAirMixer: Sendable {
                     let channel = state.channels[number - 1]
                     switch p[4] {
                     case "level": return OSCMessage(query.address, [.float(channel.sendLevels[send - 1])])
-                    case "type" where send % 2 == 1: return OSCMessage(query.address, [.int(channel.sendTypes[send / 2])])
+                    case "type" where send % 2 == 1 && state.inputSourceField == "source": return OSCMessage(query.address, [.int(channel.sendTypes[send / 2])])
+                    case "tap" where state.inputSourceField == "insrc": return OSCMessage(query.address, [.int(channel.sendTaps[send - 1])])
                     default: return nil
                     }
                 case let p where p.count == 3 && p[0] == "routing" && p[1] == "usb":
