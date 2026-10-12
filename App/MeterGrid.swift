@@ -234,9 +234,8 @@ struct SourceLabel: View {
                 .secondaryText()
             if let source {
                 if showsName {
-                    Text(source.hasMixerName ? source.name : "–")
+                    name(source.hasMixerName ? source.name : "–")
                         .font(.caption2.weight(.semibold))
-                        .lineLimit(compact ? 1 : 2)
                         .minimumScaleFactor(0.6)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 2)
@@ -257,6 +256,28 @@ struct SourceLabel: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(source.map { "USB Channel \(number), \($0.name)" } ?? "USB Channel \(number)")
     }
+
+    /// Whole words only: one line if it fits, else a word per line, else those lines shrunk or cut short.
+    /// A two-line Text would break inside a word in a narrow lane ("Sna / re", #378).
+    @ViewBuilder
+    private func name(_ name: String) -> some View {
+        if compact {
+            Text(name).lineLimit(1)
+        } else {
+            ViewThatFits(in: .horizontal) {
+                Text(name).lineLimit(1)
+                lines(name)
+            }
+        }
+    }
+
+    private func lines(_ name: String) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(SourceNameLines.split(name).enumerated()), id: \.offset) { _, line in
+                Text(line).lineLimit(1)
+            }
+        }
+    }
 }
 
 extension MixerColor {
@@ -272,4 +293,19 @@ extension MixerColor {
         case .white: .primary
         }
     }
+}
+
+#Preview("Name chips in narrow lanes") {
+    let names = ["Snare", "Bass", "Keys 1", "Overhead 1", "Kick", "Lead Vox Left"]
+    VStack(spacing: 24) {
+        ForEach([22.0, 30.0, 44.0], id: \.self) { width in
+            HStack(spacing: 2) {
+                ForEach(Array(names.enumerated()), id: \.offset) { index, name in
+                    SourceLabel(number: index + 1, source: Source(name: name, color: MixerColor(hue: .cyan, inverted: index.isMultiple(of: 2))))
+                        .frame(width: width)
+                }
+            }
+        }
+    }
+    .padding()
 }
