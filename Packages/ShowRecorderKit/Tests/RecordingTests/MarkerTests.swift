@@ -16,10 +16,6 @@ struct MarkerTests {
         try FileManager.default.createDirectory(at: root.appending(path: "Drive"), withIntermediateDirectories: true)
     }
 
-    func deliver(_ audio: FakeAudioDevice, frames: Int, channels: Int) {
-        audio.deliver(Array(repeating: Array(repeating: 0, count: frames), count: channels))
-    }
-
     @Test("A Marker lands at the Take's current sample position in every Stem of both Copies and in Take.json")
     func markerAtCurrentPosition() throws {
         let audio = FakeAudioDevice(inputChannelCount: 3)
@@ -28,11 +24,11 @@ struct MarkerTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        deliver(audio, frames: 4_800, channels: 3)
+        deliver(4_800, to: audio)
         recorder.addMarker()
-        deliver(audio, frames: 2_400, channels: 3)
+        deliver(2_400, to: audio)
         recorder.addMarker(named: "Bridge")
-        deliver(audio, frames: 100, channels: 3)
+        deliver(100, to: audio)
         try recorder.stopTake()
 
         let expected = [CuePoint(position: 4_800, label: "Marker 1"), CuePoint(position: 7_200, label: "Bridge")]
@@ -72,7 +68,7 @@ struct MarkerTests {
         try recorder.stopTake()
 
         try recorder.startTake()
-        deliver(audio, frames: 10, channels: 1)
+        deliver(10, to: audio)
         recorder.addMarker()
         try recorder.stopTake()
 
@@ -87,12 +83,12 @@ extension MarkerTests {
         let recorder = Recorder(deviceFolder: device, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
         try recorder.startTake()
-        deliver(audio, frames: 48_000, channels: 1)
+        deliver(48_000, to: audio)
         try recorder.stopTake()
         try recorder.startTake()
-        deliver(audio, frames: 24_000, channels: 1)
+        deliver(24_000, to: audio)
         recorder.addMarker(named: name)
-        deliver(audio, frames: 24_000, channels: 1)
+        deliver(24_000, to: audio)
         try recorder.stopTake()
         return device.appending(path: "2026-10-06 Show")
     }

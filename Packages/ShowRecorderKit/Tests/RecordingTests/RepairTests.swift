@@ -21,10 +21,10 @@ extension GapTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        try await deliverBlocks(10, to: audio, recorder)
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
         recorder.checkDestinations()
-        try await deliverBlocks(5, to: audio, recorder)
+        try await deliverBlocks(5, to: audio, recorder, sample: counting())
         try recorder.stopTake()
         await recorder.waitForRepair()
 
@@ -53,10 +53,7 @@ extension GapTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        for block in 0..<10 {
-            audio.deliver((0..<2).map { channel in (0..<480).map { RecordingTakeTests.sample(Int32(channel * 100_000 + block * 480 + $0)) } })
-            try await waitUntil { recorder.bufferedFrameCount == 0 }
-        }
+        try await deliverBlocks(10, to: audio, recorder, sample: counting(channelStep: 100_000))
         try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
         try recorder.stopTake()
         await recorder.waitForRepair()
@@ -76,11 +73,11 @@ extension GapTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        try await deliverBlocks(10, to: audio, recorder)
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
         recorder.addMarker(named: "Verse")
         available.folder = drive
         recorder.checkDestinations()
-        try await deliverBlocks(5, to: audio, recorder)
+        try await deliverBlocks(5, to: audio, recorder, sample: counting())
         try recorder.stopTake()
         await recorder.waitForRepair()
 
@@ -97,7 +94,7 @@ extension GapTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        try await deliverBlocks(3, to: audio, recorder)
+        try await deliverBlocks(3, to: audio, recorder, sample: counting())
         try await waitUntil { !recorder.isRecording }
         await recorder.waitForRepair()
 
@@ -113,7 +110,7 @@ extension GapTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        try await deliverBlocks(3, to: audio, recorder)
+        try await deliverBlocks(3, to: audio, recorder, sample: counting())
         try recorder.stopTake()
         await recorder.waitForRepair()
 
@@ -134,10 +131,10 @@ extension GapTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        try await deliverBlocks(4, to: audio, recorder)
+        try await deliverBlocks(4, to: audio, recorder, sample: counting())
         free.device = 5_000_000  // under the 60 s reserve: the Device Copy stops here
         recorder.checkDestinations()
-        try await deliverBlocks(2, to: audio, recorder)
+        try await deliverBlocks(2, to: audio, recorder, sample: counting())
         try recorder.stopTake()
         await recorder.waitForRepair()
 
@@ -153,7 +150,7 @@ extension GapTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        try await deliverBlocks(10, to: audio, recorder)
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
         try recorder.stopTake()  // Take 1 has a Gap: Repair starts
         try recorder.startTake()

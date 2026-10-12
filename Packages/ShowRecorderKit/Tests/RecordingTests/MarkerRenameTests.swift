@@ -16,10 +16,6 @@ struct MarkerRenameTests {
         try FileManager.default.createDirectory(at: root.appending(path: "Drive"), withIntermediateDirectories: true)
     }
 
-    func deliver(_ audio: FakeAudioDevice, _ frames: Int) {
-        audio.deliver(Array(repeating: Array(repeating: 0, count: frames), count: 2))
-    }
-
     func recorder() -> Recorder {
         let drive = drive
         return Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
@@ -38,15 +34,15 @@ struct MarkerRenameTests {
         let recorder = recorder()
         try recorder.arm(audio)
         try recorder.startTake()
-        deliver(audio, 4_800)
+        deliver(4_800, to: audio)
         recorder.addMarker()
-        deliver(audio, 2_400)
+        deliver(2_400, to: audio)
         recorder.addMarker()
-        deliver(audio, 480)
+        deliver(480, to: audio)
 
         #expect(recorder.renameMarker(at: 1, to: "Chorus") == .renamed)
         #expect(recorder.takeMarkers.map(\.name) == ["Marker 1", "Chorus"])
-        deliver(audio, 480)
+        deliver(480, to: audio)
         recorder.addMarker()
         #expect(recorder.takeMarkers.map(\.name) == ["Marker 1", "Chorus", "Marker 3"], "numbering carries on from the operator's Markers")
         try recorder.stopTake()
@@ -70,7 +66,7 @@ struct MarkerRenameTests {
         #expect(recorder.renameMarker(at: 0, to: "Chorus") == .notRecording)
 
         try recorder.startTake()
-        deliver(audio, 480)
+        deliver(480, to: audio)
         recorder.addMarker()
         #expect(recorder.renameMarker(at: 1, to: "Chorus") == .noSuchMarker)
         #expect(recorder.renameMarker(at: -1, to: "Chorus") == .noSuchMarker)

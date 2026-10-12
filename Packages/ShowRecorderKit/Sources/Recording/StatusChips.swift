@@ -79,7 +79,7 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
             mixerChip = StatusChip(kind: .mixer, text: "Mixer connecting", state: .neutral)
         case .up(let identity, let path):
             // The Mixer's network name tells two of the same model apart (#328); without one, its model and path.
-            let modelAndPath = "\(identity.model) · \(path == .wifi ? "Wi-Fi" : "USB")"
+            let modelAndPath = "\(identity.model) · \(path.name)"
             let name = identity.networkName.trimmingCharacters(in: .whitespaces)
             mixerChip = name.isEmpty
                 ? StatusChip(kind: .mixer, text: modelAndPath, state: .ok)

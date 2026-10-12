@@ -178,7 +178,7 @@ struct SettingsView: View {
             Label("Connecting to \(host)…", systemImage: "antenna.radiowaves.left.and.right")
                 .secondaryText()
         case .up(let identity, let path):
-            Label("Mixer Link up · \(identity.networkName) (\(identity.model)) · \(path == .wifi ? "Wi-Fi" : "USB")", systemImage: "checkmark.circle.fill")
+            Label("Mixer Link up · \(identity.networkName) (\(identity.model)) · \(path.name)", systemImage: "checkmark.circle.fill")
         case .down(let problem):
             Label(problem.message, systemImage: "exclamationmark.triangle.fill")
                 .warningText()

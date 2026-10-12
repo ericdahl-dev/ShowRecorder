@@ -19,13 +19,6 @@ struct TakeEndTests {
     }
 
 
-    func deliverBlocks(_ count: Int, to audio: FakeAudioDevice, _ recorder: Recorder) async throws {
-        for _ in 0..<count {
-            audio.deliver([[Float](repeating: 0, count: 480)])
-            try await waitUntil { recorder.bufferedFrameCount == 0 }
-        }
-    }
-
     @Test("A Take whose last Destination is about to fill ends by itself, and says so")
     func outOfSpace() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
