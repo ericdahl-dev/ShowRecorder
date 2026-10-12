@@ -22,6 +22,11 @@ export function Footer() {
               </a>
             </li>
             <li>
+              <a href="/changelog" data-current-match="">
+                What&apos;s new
+              </a>
+            </li>
+            <li>
               <a href="/support" data-current-match="">
                 Support
               </a>

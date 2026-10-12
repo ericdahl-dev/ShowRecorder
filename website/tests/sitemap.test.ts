@@ -15,6 +15,7 @@ describe("sitemap", () => {
       "https://showrecorder.app/features",
       "https://showrecorder.app/docs",
       ...DOCS.map((d) => `https://showrecorder.app/docs/${d.slug}`),
+      "https://showrecorder.app/changelog",
       "https://showrecorder.app/support",
       "https://showrecorder.app/privacy",
     ]);

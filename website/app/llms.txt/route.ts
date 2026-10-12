@@ -21,6 +21,7 @@ export function GET() {
     "",
     link("Home", PAGES.home.path, "What ShowRecorder does, what you need, pricing and the FAQ."),
     link("Features", PAGES.features.path, PAGES.features.description),
+    link("What's new", PAGES.changelog.path, PAGES.changelog.description),
     link("Support", PAGES.support.path, PAGES.support.description),
     link("Privacy policy", PAGES.privacy.path, PAGES.privacy.description),
     "",

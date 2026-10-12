@@ -25,6 +25,7 @@ export const ROUTES: readonly string[] = [
   "/features",
   "/docs",
   ...DOCS.map((d) => docHref(d.slug)),
+  "/changelog",
   "/support",
   "/privacy",
 ];
