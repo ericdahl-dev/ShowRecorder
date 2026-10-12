@@ -25,11 +25,19 @@ actor OSCUDPClient {
     /// Messages nobody asked for, such as the changes a Mixer pushes after /xremote.
     nonisolated let unsolicited: AsyncStream<OSCMessage>
     private let unsolicitedContinuation: AsyncStream<OSCMessage>.Continuation
+    /// Every received packet, in arrival order. One task hands them on, so two pushes in a row are never swapped (a
+    /// task per packet could run them in either order, and two quick renames could end on the older name).
+    private nonisolated let received: AsyncStream<[OSCMessage]>.Continuation
 
     init(endpoint: MixerEndpoint) {
         self.endpoint = endpoint
         (unsolicited, unsolicitedContinuation) = AsyncStream.makeStream()
         connection = Self.makeConnection(to: endpoint)
+        let (packets, received) = AsyncStream<[OSCMessage]>.makeStream()
+        self.received = received
+        Task { [weak self] in
+            for await messages in packets { await self?.deliver(messages) }
+        }
     }
 
     private static func makeConnection(to endpoint: MixerEndpoint) -> NWConnection {
@@ -37,6 +45,7 @@ actor OSCUDPClient {
     }
 
     deinit {
+        received.finish()
         unsolicitedContinuation.finish()
         connection.cancel()
     }
@@ -99,7 +108,7 @@ actor OSCUDPClient {
         connection.receiveMessage { [weak self] data, _, _, error in
             guard let self else { return }
             if let data, let packet = try? OSCPacket(decoding: Array(data)) {
-                Task { await self.deliver(packet.messages) }
+                self.received.yield(packet.messages)
             }
             if error == nil {
                 self.receive(on: connection, generation: generation)
