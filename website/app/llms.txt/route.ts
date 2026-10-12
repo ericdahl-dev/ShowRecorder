@@ -1,6 +1,6 @@
 import { DOCS, docHref } from "@/lib/docs";
 import { PAGES } from "@/lib/metadata";
-import { SITE_NAME, SITE_URL, TRADEMARK_LINE } from "@/lib/site";
+import { REPO_URL, SITE_NAME, SITE_URL, TRADEMARK_LINE } from "@/lib/site";
 
 // /llms.txt (llmstxt.org): a plain-text map of the site for AI assistants and AI search. Built from
 // the same lists as the sitemap, so a new docs page shows up here without editing this file.
@@ -31,7 +31,7 @@ export function GET() {
     "",
     "## Optional",
     "",
-    "- [Source and issues](https://github.com/ericdahl-dev/ShowRecorder)",
+    `- [Source and issues](${REPO_URL})`,
     "",
     TRADEMARK_LINE,
     "",

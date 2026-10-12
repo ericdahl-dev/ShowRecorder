@@ -7,7 +7,9 @@ export const SITE_URL = "https://showrecorder.app";
 export const SITE_DESCRIPTION =
   "Record every channel of your mixer on your iPhone or iPad. One WAV file per channel, named from the mixer, with a second copy on a USB drive.";
 export const CONTACT_EMAIL = "showrecorder@ericdahl.dev";
-export const ISSUES_URL = "https://github.com/ericdahl-dev/ShowRecorder/issues";
+// The app's source code (FSL-1.1-MIT: public to read, MIT two years after each release).
+export const REPO_URL = "https://github.com/ericdahl-dev/ShowRecorder";
+export const ISSUES_URL = `${REPO_URL}/issues`;
 
 // Fill in with the App Store link when the app is live. While it is null, the badge slots
 // (AppStoreBadge) show a "Coming soon to the App Store" placeholder that is not a link.
