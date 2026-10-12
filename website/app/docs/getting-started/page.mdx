@@ -1,0 +1,46 @@
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata({
+  path: "/docs/getting-started",
+  title: "Getting started - ShowRecorder",
+  description: "What you need to record a show with ShowRecorder, how to plug in your mixer, and how to record, mark and stop your first Take.",
+});
+
+# Getting started
+
+After this guide you'll have recorded a Take with one file per USB Channel on your iPhone or iPad.
+
+## What you need
+
+- **A mixer.** A Behringer X Air XR18 or MR18 gives you 18 USB Channels with names and colors. Other class-compliant USB audio interfaces record too, without names.
+- **An iPhone or iPad.** A USB-C iPhone (iPhone 15 or later) or an iPad, on iOS or iPadOS 26.
+- **A powered USB-C hub** (recommended), so the phone charges while the mixer and a drive are plugged in.
+- **Storage.** About 9.3 GB per hour for 18 channels at 48 kHz. A USB drive is optional.
+
+## Plug in
+
+1. Connect the mixer's USB cable to your iPhone or iPad, directly or through the hub.
+2. Open ShowRecorder. Allow microphone access when asked: the app needs it to record the USB audio.
+3. The meters come alive. ShowRecorder is Armed on the mixer and ready to record.
+
+The first time you open the app, it offers the [14-day Trial](/docs/pricing). Tap **Not now** to skip it; it stays available in **Settings > Pro**.
+
+If the meters stay empty, see [Connecting an XR18 or MR18](/docs/connecting-xr18).
+
+## Record your first Take
+
+1. Press the red **Record** button. The Take starts with the [Pre-roll](/docs/markers-and-pre-roll), the seconds before your press.
+2. Tap the flag to add a Marker at a song or a moment.
+3. Press the square to stop. ShowRecorder asks first: tap **Stop Take** to end it, or **Keep Going** to carry on.
+
+Your first press of record starts a Show, named with today's date. Each press after that adds the next Take to the same Show. To name a Show or start a new one, tap the Show line above the Record button.
+
+## Find your files
+
+Tap **Shows** on the record screen to see each Show, its Takes and its Markers. The same folders are in the Files app under **On My iPhone > ShowRecorder > Shows** (or **On My iPad**). See [Opening a Show in your DAW](/docs/daw).
+
+## Before the next show
+
+- Link the mixer to get channel names on your files: [Mixer Link](/docs/mixer-link).
+- Add a USB drive for a second Copy: [Recording to a USB drive](/docs/usb-drive).
+- Check the whole rig in 30 seconds with **Settings > Run Soundcheck**. It tests the Mixer Link, the USB Channels, every Copy and the files.

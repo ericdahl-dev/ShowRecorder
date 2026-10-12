@@ -1,0 +1,38 @@
+import { PAGES, pageMetadata } from "@/lib/metadata";
+import { CONTACT_EMAIL } from "@/lib/site";
+
+export const metadata = pageMetadata(PAGES.privacy);
+
+# Privacy policy
+
+<p className="updated">Last updated: <time dateTime="2026-10-11">October 11, 2026</time></p>
+
+ShowRecorder is an app by Eric Dahl for recording your mixer's channels on iPhone and iPad. This page explains what it does with your information. In short: nothing leaves your device.
+
+## What ShowRecorder collects
+
+Nothing. ShowRecorder has no accounts, no analytics, no advertising and no tracking, and it sends no data to the developer or to anyone else.
+
+## Your recordings
+
+Recordings, Markers, channel names and Show reports are stored only on your iPhone or iPad and on the Drive folder you choose. They are shared only when you share them yourself, for example with AirDrop or the Files app.
+
+## Microphone
+
+ShowRecorder asks for microphone access because that is how iOS and iPadOS let an app record from any audio interface, including your mixer or another USB audio interface. Audio is used only to make your recordings and to show the level meters.
+
+## Local network
+
+ShowRecorder can connect to your mixer on the local network to read its channel names and colors. Find Mixers looks for it on your local network, and the app talks only to your mixer, only on your local network.
+
+## In-app purchases
+
+Purchases are handled by Apple. The developer does not receive your name, payment details or Apple Account information.
+
+## Children
+
+ShowRecorder does not knowingly collect information from anyone, including children.
+
+## Changes and contact
+
+If this policy changes, the new version will be posted here with a new date. Questions: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.

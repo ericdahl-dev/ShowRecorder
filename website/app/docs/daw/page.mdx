@@ -1,0 +1,60 @@
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata({
+  path: "/docs/daw",
+  title: "Opening a Show in Reaper or your DAW - ShowRecorder",
+  description: "How a ShowRecorder Show folder is laid out, how Stems are named, what the Reaper project holds, and how to get the files onto your computer.",
+});
+
+# Opening a Show in Reaper or your DAW
+
+Every Show is a plain folder of WAV files. Open its Reaper project, or drag the Stems into any DAW.
+
+## The Show folder
+
+Each Show folder is named with its date and name, such as `2026-10-12 Sunday Service`. A Show you didn't name gets the date and "Show", such as `2026-10-12 Show`. Inside:
+
+```
+2026-10-12 Sunday Service/
+  2026-10-12 Sunday Service.RPP
+  Report.html
+  Channels.csv
+  Show.json
+  Take 01/
+    01 Kick.wav
+    02 Snare.wav
+    ...
+    Take.json
+  Take 02/
+    ...
+```
+
+- **One folder per Take**: `Take 01`, `Take 02` and so on.
+- **One Stem per USB Channel** in each Take folder, named with the two-digit channel number and the channel's name: `03 Snare.wav`. Without the [Mixer Link](/docs/mixer-link), Stems are named by USB Channel number.
+- `Take.json` and `Show.json` are ShowRecorder's own notes on the Take and the Show. Leave them in place.
+
+On Free, each Take folder holds the 2 USB Channels you chose. The Show report and the Reaper project are written for Takes recorded with Pro or the 14-day Trial.
+
+## The Stems
+
+Each Stem is a mono, 24-bit Broadcast WAV at the Take's sample rate. Every Stem in a Take starts at the same sample and has the same length, so they line up when you drop them in at the same point. Each one also carries:
+
+- **A time stamp**: the date and time of day the Take's audio starts, counting its Pre-roll.
+- **The channel's name** in its description.
+- **Your Markers** as cue points.
+
+## The Reaper project
+
+Open the `.RPP` file in Reaper. It has one track per USB Channel, named and colored from the mixer, with every Take placed one after another. Each Take's start and each of your Markers is a marker on the timeline.
+
+The project finds its Stems relative to the Show folder, so you can move or copy the whole folder and it still opens.
+
+## The Show report
+
+`Report.html` lists the Show's Takes, levels and any Gaps. Open it in any web browser. `Channels.csv` has one row per Take and USB Channel (Stem file, name, color, length and more) for a spreadsheet.
+
+## Getting the files off
+
+- **Files app**: Shows are under **On My iPhone > ShowRecorder > Shows** (or **On My iPad**).
+- **AirDrop or another app**: tap **Shows**, then tap **Share** on a Show to send the whole folder.
+- **The Drive**: if you record to a [USB drive](/docs/usb-drive), plug it into your computer. The Drive Copy has the same layout.

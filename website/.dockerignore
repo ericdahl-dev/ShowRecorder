@@ -1,0 +1,8 @@
+node_modules
+.next
+out
+.yarn/install-state.gz
+*.tsbuildinfo
+next-env.d.ts
+Dockerfile
+.dockerignore

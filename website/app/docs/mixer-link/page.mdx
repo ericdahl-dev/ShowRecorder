@@ -1,0 +1,52 @@
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata({
+  path: "/docs/mixer-link",
+  title: "Mixer Link and Find Mixers - ShowRecorder",
+  description: "Link ShowRecorder to your mixer over Wi-Fi to name every Stem after its channel, with its color. No internet needed, and recording never depends on it.",
+});
+
+# Mixer Link and Find Mixers
+
+The Mixer Link reads your channel names and colors from the mixer, so channel 3 arrives as `03 Snare.wav`, not "USB 03". It is separate from the USB audio.
+
+## What you need
+
+- Your iPhone or iPad on the **same Wi-Fi network as the mixer**.
+- **Local Network** access for ShowRecorder. iOS asks the first time you use Find Mixers.
+
+No internet connection is needed. ShowRecorder talks only to the mixer on your local network.
+
+## Link the mixer
+
+1. Tap the gear to open **Settings**.
+2. Under **Mixer Link**, tap **Find Mixers**.
+3. Tap your mixer in the list. It shows the mixer's network name, its model and its address.
+
+When the link is up, the section reads **Mixer Link up**, with the mixer's name and model. The record screen's mixer chip shows the mixer's name.
+
+If iOS asked about Local Network during your first search, the replies may have been lost while it asked. Tap **Find Mixers** again.
+
+You can also type the address into **Mixer IP address** and tap **Connect**. ShowRecorder remembers the address and links again the next time it opens.
+
+## Recording never depends on it
+
+The audio comes over USB. If the Mixer Link is down, or you never set it up, every Take still records. Without the link, each Stem is named by its USB Channel number.
+
+If the link comes up during a Take, the Stems take the mixer's names when the Take ends.
+
+## The mixer chip
+
+The record screen shows the link's state:
+
+- **Mixer not linked**: no mixer set up. Stems use USB Channel names.
+- **Mixer connecting**: linking now.
+- **Mixer down**: the mixer stopped answering.
+
+Outside a Take, tapping the chip opens the Mixer Link part of Settings. During a Take, tapping it tries the link again.
+
+## Your own names
+
+To name a channel yourself, tap **Names** on the record screen and type a name for any USB Channel. Typed Channel names are part of [Pro](/docs/pricing). On Free, Stems use the names and colors from the mixer.
+
+If Find Mixers finds nothing, see [Troubleshooting](/docs/troubleshooting).
