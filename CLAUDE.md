@@ -14,6 +14,7 @@
 
 - Do not push a release tag unless Eric asks for it in this conversation; a tag uploads a build to his testers.
 - CI must be green on `main` before a tag. Tag a commit that is on `main`.
+- **Release branches** (since 2026-10-12): `release/1.0` was cut from `v1.0.1`, the build in App Review. A fix for a version in review goes to main first, then is cherry-picked onto `release/X.Y` and tagged there (`v1.0.2`, …), with CI green on that branch. New features go only to main and ship as the next minor version (`v1.1.0`). Never merge main into a release branch.
 - Eric tests on a real iPhone through TestFlight. Say plainly when something has only been checked in the Simulator or by tests.
 - Open pull requests with `gh pr merge --auto --squash`.
 - `./scripts/verify.sh` must pass before a PR.
