@@ -7,7 +7,9 @@ Uses the App Store Connect API with the same key the upload uses (Python standar
 one, and installs it where Xcode looks.
 
 Environment: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_PATH, BUNDLE_ID, CERT_SERIAL (hex, from the certificate in
-the keychain), PROFILE_NAME, and PROFILE_TYPE (IOS_APP_STORE, the default, or MAC_APP_STORE). Prints "name=<profile name>" and "uuid=<profile uuid>" lines, for $GITHUB_OUTPUT.
+the keychain), PROFILE_NAME, and PROFILE_TYPE (IOS_APP_STORE, the default, or MAC_APP_STORE). With
+CREATE_BUNDLE_ID=1 a missing iOS bundle ID is registered (named BUNDLE_NAME), as the Live Activity
+extension's is on its first release. Prints "name=<profile name>" and "uuid=<profile uuid>" lines, for $GITHUB_OUTPUT.
 Never prints the key or a token.
 """
 import base64, json, os, plistlib, subprocess, sys, time, urllib.error, urllib.parse, urllib.request
@@ -64,7 +66,17 @@ def main():
     profile_type = os.environ.get("PROFILE_TYPE", "IOS_APP_STORE")
 
     bundles = call("GET", "/bundleIds", query={"filter[identifier]": bundle_id, "limit": 200})["data"]
-    bundle = next((b for b in bundles if b["attributes"]["identifier"] == bundle_id), None) or sys.exit(f"No bundle ID {bundle_id}.")
+    bundle = next((b for b in bundles if b["attributes"]["identifier"] == bundle_id), None)
+    if bundle is None and os.environ.get("CREATE_BUNDLE_ID") and os.environ.get("DRY_RUN"):
+        print(f"dry run: would register bundle ID {bundle_id}")
+        return
+    if bundle is None and os.environ.get("CREATE_BUNDLE_ID"):
+        bundle = call("POST", "/bundleIds", body={"data": {
+            "type": "bundleIds",
+            "attributes": {"identifier": bundle_id, "name": os.environ.get("BUNDLE_NAME", bundle_id), "platform": "IOS"},
+        }})["data"]
+    if bundle is None:
+        sys.exit(f"No bundle ID {bundle_id}.")
 
     certs = call("GET", "/certificates", query={"filter[certificateType]": "DISTRIBUTION", "limit": 200})["data"]
     cert = next((c for c in certs if c["attributes"].get("serialNumber", "").upper().lstrip("0") == serial), None)

@@ -4,6 +4,7 @@ import CoreAudioIO
 import Destinations
 import MixerLink
 import SwiftUI
+import TakeActivity
 #if os(iOS)
 import AVFAudio
 #endif
@@ -257,6 +258,7 @@ struct RecordScreen: View {
     private func markerButton(size: CGFloat) -> some View {
         Button {
             model.recorder.addMarker()
+            model.followLiveActivity()
         } label: {
             MarkerButtonLabel(count: model.recorder.takeMarkers.count, size: size)
         }
@@ -542,6 +544,10 @@ final class RecordScreenModel {
     private(set) var micDenied = false
     /// When the running Take started, for the elapsed time.
     private(set) var takeStartedAt: Date?
+    #if os(iOS)
+    /// The running Take in the Dynamic Island and on the Lock Screen.
+    @ObservationIgnored private let liveActivity = TakeLiveActivity()
+    #endif
     /// Landscape: the transport column on the leading edge instead of the trailing one (left-handed).
     var transportLeading: Bool = UserDefaults.standard.bool(forKey: RecordScreenModel.transportLeadingKey)
     private static let transportLeadingKey = "transportLeading"
@@ -634,6 +640,18 @@ final class RecordScreenModel {
             if recordError == nil, let message = end.reason.message { recordError = message }
         }
         if !recorder.isRecording { takeStartedAt = nil }
+        followLiveActivity()
+    }
+
+    /// Starts, updates or ends the Live Activity to match the running Take: a Take that ends on its own
+    /// is caught here too, within a second.
+    func followLiveActivity() {
+        #if os(iOS)
+        let take = recorder.isRecording ? takeStartedAt.flatMap { started in
+            recorder.currentShow.map { TakeActivityContent(showName: $0.name, takeTitle: takeTitle, startedAt: started, markerCount: recorder.takeMarkers.count) }
+        } : nil
+        liveActivity.follow(take)
+        #endif
     }
 
     /// Just the Armed device's name, for the one-line landscape header.
@@ -809,6 +827,7 @@ final class RecordScreenModel {
             takeStartedAt = Date()
             recordError = nil
             handle(.takeStarted)
+            followLiveActivity()
         } catch {
             recordError = "Couldn't start recording: \(error.localizedDescription)"
         }
@@ -827,6 +846,7 @@ final class RecordScreenModel {
         } catch {
             recordError = "The Take didn't finish cleanly: \(error.localizedDescription)"
         }
+        followLiveActivity()
         offerProAfterTake()
     }
 
