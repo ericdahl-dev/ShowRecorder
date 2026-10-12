@@ -1,0 +1,47 @@
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata({
+  path: "/docs/markers-and-pre-roll",
+  title: "Markers and Pre-roll - ShowRecorder",
+  description: "Keep the count-in with Pre-roll, and tap the flag to mark songs and moments. Markers go into every Stem, the Show report and the Reaper project.",
+});
+
+# Markers and Pre-roll
+
+## Pre-roll
+
+While ShowRecorder is Armed, it keeps the last few seconds of audio in memory. When you press record, the Take starts with that audio, so a count-in or the first note before your press isn't lost.
+
+To set the length:
+
+1. Tap the gear to open **Settings**.
+2. Under **Recording**, choose **Pre-roll**: **Off**, **5 s**, **10 s** or **20 s**. The default is 10 s.
+
+The note under the setting says how much memory the Pre-roll uses while Armed. With **Off**, a Take starts when you press record. Pre-roll can't be changed during a Take.
+
+## Add a Marker
+
+During a Take, tap the flag next to the Record button. A Marker is placed at that moment and the line under the buttons confirms it, for example "Marker 1 placed". The flag is dimmed when no Take is running.
+
+Markers are numbered **Marker 1**, **Marker 2** and so on. Each one is saved straight away, so it survives even if the app is closed mid-Take.
+
+## Rename a Marker
+
+- **During the Take:** tap the list icon at the top of the record screen to open **Markers**, then tap a Marker and type a name, such as the song title.
+- **After the show:** open **Shows**, tap the Show, then tap a Marker under its Take.
+
+The new name is written into the files on the Device, and on the Drive when it's plugged in.
+
+## Dropout Markers
+
+If audio is lost during a Take, for example when a phone call takes the input, ShowRecorder keeps silence of the exact length and adds a Marker named **Dropout** at that point. Every file stays in sync. Dropout Markers can't be renamed.
+
+## Where Markers end up
+
+- In every Stem, as Broadcast WAV cue points.
+- In the [Reaper project](/docs/daw), on the timeline with each Take's start.
+- In the Show's list of Markers under **Shows**.
+
+## A note on times
+
+The **Markers** list counts from when you pressed record. The Stems, the Show report and the Reaper project count from the start of the Pre-roll, a few seconds earlier. Both point at the same moment in the audio.

@@ -1,0 +1,58 @@
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata({
+  path: "/docs/troubleshooting",
+  title: "Troubleshooting - ShowRecorder",
+  description: "Fixes for empty meters, missing USB Channels, a mixer Find Mixers can't see, a Drive that can't be written, storage time left, battery and heat.",
+});
+
+# Troubleshooting
+
+## The meters are empty and Record is dimmed
+
+The record screen says why:
+
+- **"No audio interface. Plug in the Mixer's USB cable."** Connect the mixer's USB cable, or check the hub. See [Connecting an XR18 or MR18](/docs/connecting-xr18).
+- **"Choose the audio interface in Settings."** Open **Settings** and choose the mixer under **Recording > Audio interface**.
+- **"Microphone access is off."** Tap **Open Settings** and allow microphone access for ShowRecorder.
+- **"Disarmed after 30 minutes idle."** or **"The input didn't start."** Tap **Arm**.
+
+## Fewer USB Channels than expected
+
+**Settings > Recording** shows the count under **Sample rate**. An XR18 or MR18 sends 18. If a banner says only some channels are coming in, choose the mixer under **Audio interface**.
+
+On Free, only 2 USB Channels are recorded, though every channel is metered. See [Free, 14-day Trial and Pro](/docs/pricing).
+
+## Find Mixers doesn't find the mixer
+
+- **"Not on a Wi-Fi or Ethernet network."** Join the mixer's Wi-Fi.
+- **"No Mixer answered."** Check that your iPhone or iPad is on the same network as the mixer, and that Local Network is on for ShowRecorder in the iOS Settings app, under **Privacy & Security > Local Network**. If iOS just asked about Local Network, tap **Find Mixers** again.
+- If you typed an address and see **"No Mixer answered at…"**, check the address and that the mixer is on.
+
+Recording doesn't need the [Mixer Link](/docs/mixer-link); without it, Stems are named by USB Channel number.
+
+## The Drive can't be written
+
+- **"ShowRecorder can't write to…"** The folder is read-only. Tap **Change Drive Folder…** in **Settings > Storage** and choose a folder on a drive that isn't read-only.
+- **"The Drive folder … isn't available."** Connect the drive, or choose the folder again.
+
+## How much recording time is left
+
+18 channels at 48 kHz use about 9.3 GB per hour. **Settings > Storage** and the chips on the record screen show the time left on the Device and the Drive.
+
+ShowRecorder keeps 60 seconds of space free on each Copy. If one Copy runs short, it stops cleanly and the other keeps going. If the last Copy runs short, the Take ends and is saved.
+
+## Battery or heat warnings
+
+- **"Battery at … and not charging."** Plug in through a powered USB-C hub.
+- **"The device is running hot"** or **"very hot"**. Move it into the shade, let air reach it and take it out of any case.
+
+## A call or another app took the input
+
+The Take stays open, but nothing is recorded until input comes back. The missing stretch is kept as silence of the exact length, so every file stays in sync.
+
+## A setting is dimmed
+
+The Audio interface, Pre-roll, Drive and Mixer Link can't be changed during a Take.
+
+Still stuck? Contact [Support](/support).

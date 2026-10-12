@@ -1,0 +1,49 @@
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata({
+  path: "/docs/usb-drive",
+  title: "Recording to a USB drive - ShowRecorder",
+  description: "Write every Take to your iPhone or iPad and a USB drive at once. Choose the Drive folder, see what happens if the drive is unplugged, and how Repair works.",
+});
+
+# Recording to a USB drive
+
+With a USB drive plugged in, every Take is written twice at the same time: the **Device** Copy on your iPhone or iPad, and the **Drive** Copy on the drive. Neither one is the primary. If one stops, the other keeps recording.
+
+## Choose the Drive folder
+
+1. Plug the drive into your hub.
+2. Tap the gear to open **Settings**.
+3. Under **Storage**, tap **Choose Drive Folder…** and pick a folder on the drive.
+
+Settings now shows the drive's name and free space, and the time left on the Device and the Drive. To use a different folder, tap **Change Drive Folder…**. The Drive folder can't be changed during a Take.
+
+Each Show gets its own folder inside the Drive folder, laid out the same way as on the Device. See [Opening a Show in your DAW](/docs/daw).
+
+## On the record screen
+
+The Drive chip shows the recording time left on the drive. Other states:
+
+- **Drive not set**: no Drive folder chosen. Takes go to the Device only.
+- **Drive missing**: the Drive folder isn't available. Connect the drive, or choose the folder again.
+- **Drive stopped**: the drive stopped during a Take.
+
+If the drive isn't there when you press record, the Take records to the Device only and the screen says so.
+
+## If the drive is unplugged during a Take
+
+The Take keeps recording on the Device. The screen says the Drive stopped and the Gap will be Repaired when it comes back. Tap **Check Drive** after you plug it back in.
+
+When the drive is back, ShowRecorder starts writing to it again. The part it missed is a **Gap** in the Drive Copy, held as silence so every file stays the same length.
+
+## Repair
+
+After the Take ends, ShowRecorder fills each Gap from the other Copy. This is **Repair**, and it happens on its own. The record screen then tells you how each Copy ended up, for example "Drive copy: Repaired".
+
+Repair works both ways: if the Device stopped writing and the Drive kept going, the Device Copy is filled from the Drive.
+
+## Freeing space on the Device
+
+To keep a Show only on the drive, open **Shows**, swipe the Show and tap **Delete…**, then under **Delete from** turn on **Device copy** only. ShowRecorder deletes the Device copy only after **Check the Drive copy** confirms every Take and channel is on the drive with the same audio and no Gaps.
+
+If the folder can't be written to, see [Troubleshooting](/docs/troubleshooting).
