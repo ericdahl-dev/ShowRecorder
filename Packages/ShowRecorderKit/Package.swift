@@ -13,6 +13,7 @@ let package = Package(
         .library(name: "MixerLink", targets: ["MixerLink"]),
         .library(name: "Destinations", targets: ["Destinations"]),
         .library(name: "ShowReport", targets: ["ShowReport"]),
+        .library(name: "TakeActivity", targets: ["TakeActivity"]),
     ],
     targets: [
         // The audio I/O boundary and a fake device. No platform audio frameworks.
@@ -36,7 +37,11 @@ let package = Package(
         .target(name: "ProjectExport", dependencies: ["MixerLink"]),
         // Where Takes are written: the Drive folder chosen by the operator.
         .target(name: "Destinations"),
+        // The running Take as a Live Activity: what it shows and when it starts, updates and ends. Shared by the
+        // app and its widget extension, so it depends on nothing else here.
+        .target(name: "TakeActivity"),
         .testTarget(name: "DestinationsTests", dependencies: ["Destinations"]),
+        .testTarget(name: "TakeActivityTests", dependencies: ["TakeActivity"]),
         .testTarget(name: "OSCTests", dependencies: ["OSC"]),
         .testTarget(name: "MixerLinkTests", dependencies: ["MixerLink", "OSC"]),
         .testTarget(name: "RecordingTests", dependencies: ["Recording", "AudioIO", "MixerLink", "Destinations"]),

@@ -40,6 +40,11 @@ targets:
         product: MixerLink
       - package: ShowRecorderKit
         product: Destinations
+      - package: ShowRecorderKit
+        product: TakeActivity
+      # The Live Activity (#136): iPhone only, so the Mac app embeds no extension and needs no profile for it.
+      - target: ShowRecorderLiveActivity
+        destinationFilters: [iOS]
     entitlements:
       path: App/ShowRecorder.entitlements
       properties:
@@ -64,6 +69,7 @@ targets:
         LSSupportsOpeningDocumentsInPlace: true
         UIBackgroundModes:
           - audio
+        NSSupportsLiveActivities: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
@@ -76,8 +82,38 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.ericdahl.ShowRecorder
+        # Set by the release workflow, which signs each target with its own App Store profile; empty locally.
+        PROVISIONING_PROFILE_SPECIFIER: $(APP_PROFILE_NAME)
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: false
         CODE_SIGN_STYLE: Automatic
         ENABLE_HARDENED_RUNTIME: true
+
+  # The running Take's Live Activity in the Dynamic Island and on the Lock Screen (#136).
+  ShowRecorderLiveActivity:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: LiveActivity
+    dependencies:
+      - package: ShowRecorderKit
+        product: TakeActivity
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    info:
+      path: LiveActivity/Info.plist
+      properties:
+        CFBundleDisplayName: ShowRecorder
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.ericdahl.ShowRecorder.LiveActivity
+        PROVISIONING_PROFILE_SPECIFIER: $(EXTENSION_PROFILE_NAME)
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: false
+        CODE_SIGN_STYLE: Automatic
+        SKIP_INSTALL: true
