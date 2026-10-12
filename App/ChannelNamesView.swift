@@ -106,7 +106,7 @@ struct ChannelNamesView: View {
     }
 
     private var rows: [ChannelNameRow] {
-        let sources = model.mixerLink.sources
+        let sources = model.linkedSources
         let mixerNames = Dictionary(uniqueKeysWithValues: sources.indices.filter { sources[$0].hasMixerName }.map { ($0, sources[$0].name) })
         return ChannelNameList.rows(channelCount: model.meterModel.channelCount, mixerNames: mixerNames, typed: drafts)
     }
