@@ -46,12 +46,19 @@ jobs:
           echo "app=$app site=$site"
 
   app:
-    name: App
+    name: App (${{ matrix.check }})
     needs: changes
     if: needs.changes.outputs.app == 'true'
     # Standard GitHub-hosted runner: free for public repositories. Avoid -large/-xlarge (always billed).
     runs-on: macos-26
     timeout-minutes: 40
+    # The three checks run side by side on their own runners. Each compiles from scratch anyway (a fresh
+    # checkout defeats incremental builds, and Xcode's compilation cache saved only about 10% when measured),
+    # so splitting them cuts the wait from the sum of the three to the longest one.
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [package tests, macOS build, iOS Simulator build]
     steps:
       - uses: actions/checkout@v4
 
@@ -61,21 +68,25 @@ jobs:
           swift --version
 
       - name: Vocabulary (CONTEXT.md)
+        if: matrix.check == 'package tests'
         run: |
           command -v rg >/dev/null || brew install ripgrep
           ./scripts/vocab-check.sh
 
       - name: Package tests
+        if: matrix.check == 'package tests'
         working-directory: Packages/ShowRecorderKit
         run: swift test
 
       - name: Build for macOS
+        if: matrix.check == 'macOS build'
         run: >
           xcodebuild -project ShowRecorder.xcodeproj -scheme ShowRecorder
           -destination 'platform=macOS' -derivedDataPath build/dd
           CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build
 
       - name: Build for iOS Simulator
+        if: matrix.check == 'iOS Simulator build'
         run: >
           xcodebuild -project ShowRecorder.xcodeproj -scheme ShowRecorder
           -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd
@@ -97,10 +108,28 @@ jobs:
         with:
           node-version-file: website/.nvmrc
 
-      - name: Install
+      - name: Find the Yarn cache
+        id: yarn
         run: |
           corepack enable
-          yarn install --immutable
+          echo "cache=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
+
+      # Package archives, keyed on the lockfile. A pull request reads main's cache.
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.yarn.outputs.cache }}
+          key: yarn-${{ runner.os }}-${{ hashFiles('website/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-
+
+      # Next's build cache: a page that didn't change isn't compiled again.
+      - uses: actions/cache@v4
+        with:
+          path: website/.next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('website/yarn.lock') }}-${{ hashFiles('website/app/**', 'website/components/**', 'website/lib/**') }}
+          restore-keys: next-${{ runner.os }}-${{ hashFiles('website/yarn.lock') }}-
+
+      - name: Install
+        run: yarn install --immutable
 
       - name: Lint
         run: yarn lint
