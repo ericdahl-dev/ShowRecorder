@@ -134,7 +134,8 @@ const plans = [
   },
 ];
 
-const faqs = [
+// `a` is the plain answer (also used for the FAQ structured data); `node`, when set, is how it renders.
+const faqs: { q: string; a: string; node?: ReactNode }[] = [
   {
     q: "How much space does a Show take?",
     a: "About 9.3 GB per hour for 18 channels at 48 kHz, on each place it is written to. Fewer channels take less: 2 channels take about 1 GB per hour. The record screen shows the time left on the Device and the Drive.",
@@ -170,6 +171,12 @@ const faqs = [
   {
     q: "Is there an Android version?",
     a: "Not yet. An Android version is being considered, not promised: it needs its own app and testing on Android phones. Leave your email under Android below to hear if it happens.",
+    node: (
+      <>
+        Not yet. An Android version is being considered, not promised: it needs its own app and testing on Android
+        phones. <a href="#android">Leave your email under Android</a> to hear if it happens.
+      </>
+    ),
   },
   {
     q: "Is there a Mac version?",
@@ -358,7 +365,7 @@ export default function Home() {
                 <h3>{f.q}</h3>
                 <span className="sign" aria-hidden="true" />
               </summary>
-              <p>{f.a}</p>
+              <p>{f.node ?? f.a}</p>
             </details>
           ))}
         </div>

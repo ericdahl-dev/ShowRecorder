@@ -36,6 +36,8 @@ describe("website analytics", () => {
     expect(privacy).toMatch(/## This website/);
     expect(privacy).toMatch(/PostHog/);
     expect(privacy).toMatch(/no cookies/i);
+    // "Owned Sites" keeps client IPs (anonymize_ips off), so the page must say so.
+    expect(privacy).toMatch(/stores your IP address/);
   });
 });
 
