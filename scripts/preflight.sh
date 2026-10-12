@@ -2,7 +2,8 @@
 # Checks what App Store Connect rejects a build for, before any upload: icon, privacy manifest,
 # export compliance, usage strings and version numbers.
 #   scripts/preflight.sh                  builds an unsigned iOS Release app, then checks it
-#   scripts/preflight.sh Some.xcarchive   checks an archive (or a .app) you already have
+#   PLATFORM=macos scripts/preflight.sh   the same for the Mac app
+#   scripts/preflight.sh Some.xcarchive   checks an archive (or a .app) you already have, iOS or Mac
 # BUILD_NUMBER sets CURRENT_PROJECT_VERSION for the build, so no file is edited.
 set -eu
 cd "$(dirname "$0")/.."
@@ -14,11 +15,16 @@ ok() { echo "ok:   $1"; }
 target="${1:-}"
 if [ -z "$target" ]; then
   DD="${DERIVED_DATA:-build/dd-preflight}"
-  echo "== Building iOS Release (unsigned)"
+  if [ "${PLATFORM:-ios}" = macos ]; then
+    destination='generic/platform=macOS'; products=Release
+  else
+    destination='generic/platform=iOS'; products=Release-iphoneos
+  fi
+  echo "== Building $destination Release (unsigned)"
   xcodebuild -quiet -project ShowRecorder.xcodeproj -scheme ShowRecorder -configuration Release \
-    -destination 'generic/platform=iOS' -derivedDataPath "$DD" CODE_SIGNING_ALLOWED=NO \
+    -destination "$destination" -derivedDataPath "$DD" CODE_SIGNING_ALLOWED=NO \
     ${BUILD_NUMBER:+CURRENT_PROJECT_VERSION="$BUILD_NUMBER"} build
-  target="$DD/Build/Products/Release-iphoneos/ShowRecorder.app"
+  target="$DD/Build/Products/$products/ShowRecorder.app"
 fi
 case "$target" in
   *.xcarchive) app=$(ls -d "$target"/Products/Applications/*.app | head -n 1) ;;
@@ -27,7 +33,12 @@ esac
 [ -d "$app" ] || { echo "No app found at $target"; exit 2; }
 echo "== Checking $app"
 
-plist="$app/Info.plist"
+# A Mac app keeps its Info.plist and resources under Contents/.
+if [ -f "$app/Contents/Info.plist" ]; then
+  mac=1; plist="$app/Contents/Info.plist"; resources="$app/Contents/Resources"
+else
+  mac=0; plist="$app/Info.plist"; resources="$app"
+fi
 read_key() { /usr/libexec/PlistBuddy -c "Print :$1" "$plist" 2>/dev/null || true; }
 
 version=$(read_key CFBundleShortVersionString)
@@ -46,7 +57,7 @@ for key in NSMicrophoneUsageDescription NSLocalNetworkUsageDescription; do
   [ -n "$(read_key $key)" ] && ok "$key present" || bad "$key is missing"
 done
 
-manifest="$app/PrivacyInfo.xcprivacy"
+manifest="$resources/PrivacyInfo.xcprivacy"
 if [ -f "$manifest" ]; then
   plutil -lint "$manifest" >/dev/null && ok "privacy manifest is valid" || bad "privacy manifest is not a valid plist"
   [ "$(/usr/libexec/PlistBuddy -c 'Print :NSPrivacyAccessedAPITypes' "$manifest" 2>/dev/null | grep -c NSPrivacyAccessedAPIType)" -gt 0 ] \
@@ -55,7 +66,23 @@ else
   bad "PrivacyInfo.xcprivacy is not in the app bundle"
 fi
 
-if /usr/libexec/PlistBuddy -c 'Print :CFBundleIcons:CFBundlePrimaryIcon' "$plist" >/dev/null 2>&1 && [ -f "$app/Assets.car" ]; then
+if [ $mac = 1 ]; then
+  if [ -n "$(read_key CFBundleIconName)" ] && [ -f "$resources/Assets.car" ]; then
+    ok "Mac app icon compiled into Assets.car"
+  else
+    bad "no compiled Mac app icon (CFBundleIconName or Assets.car missing)"
+  fi
+  # The Mac App Store refuses an upload without a category or without the App Sandbox.
+  [ -n "$(read_key LSApplicationCategoryType)" ] && ok "LSApplicationCategoryType = $(read_key LSApplicationCategoryType)" \
+    || bad "LSApplicationCategoryType is missing (the Mac App Store needs it)"
+  # An unsigned build is still ad hoc (linker) signed on Apple silicon, with no entitlements.
+  if codesign -dv "$app" 2>&1 | grep -q '^Authority='; then
+    codesign -d --entitlements - --xml "$app" 2>/dev/null | grep -q 'com.apple.security.app-sandbox</key><true/>' \
+      && ok "signed with the App Sandbox" || bad "signed without com.apple.security.app-sandbox"
+  else
+    echo "skip: App Sandbox check (the app is not signed)"
+  fi
+elif /usr/libexec/PlistBuddy -c 'Print :CFBundleIcons:CFBundlePrimaryIcon' "$plist" >/dev/null 2>&1 && [ -f "$app/Assets.car" ]; then
   ok "app icon compiled into Assets.car"
 else
   bad "no compiled app icon (CFBundleIcons or Assets.car missing)"

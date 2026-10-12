@@ -14,3 +14,9 @@ Packages/*/Package.resolved
 
 # Claude Code agent worktrees and local settings
 .claude/
+
+# Signing certificates and keys never go in the repo.
+*.p12
+*.p8
+*.mobileprovision
+*.provisionprofile

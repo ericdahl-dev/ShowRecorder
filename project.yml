@@ -55,6 +55,8 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
+        # Required for a Mac App Store upload; iOS ignores it.
+        LSApplicationCategoryType: public.app-category.music
         NSMicrophoneUsageDescription: ShowRecorder records every channel from your mixer.
         NSLocalNetworkUsageDescription: ShowRecorder reads channel names and colors from your mixer over the local network.
         UILaunchScreen: {}
