@@ -2,7 +2,7 @@
 /// (https://mixingstation.app/ms-docs/re-gain/). What is recorded is the preamp output, so the preamp has to move;
 /// everything after it moves the other way, so only the recorded level changes. For a gain change of +g dB:
 ///
-/// - the gate and compressor thresholds rise g dB;
+/// - the gate and compressor thresholds rise g dB, and so do those on other channels keyed from this one;
 /// - the main LR fader and any other mains (the X32's mono/center) fall g dB;
 /// - pre-fader sends fall g dB, counting only sends above `Ranges.offDb` (-90 dB), as Re-Gain does;
 /// - post-fader sends and DCAs need nothing, since they follow the fader.
@@ -132,9 +132,6 @@ public enum ReGain {
         public var limitedBy: Limit?
         /// What undoes this plan: the gain move and every setting's value before it.
         public var undo: UndoSet
-        /// Gates and compressors on channels this change doesn't move, keyed from one it does. Their behavior shifts
-        /// with the gain; they are reported, never changed.
-        public var keyedElsewhere: [KeyedDynamics]
 
         /// Each compensated setting's new value, to write with the gain.
         public var values: [Setting: Double] {
@@ -172,8 +169,6 @@ public enum ReGain {
         public private(set) var undo = UndoSet()
         /// Why the latest step was limited; nil when it wasn't.
         public private(set) var limitedBy: Limit?
-        /// Every gate and compressor elsewhere keyed from a moved channel, across the run.
-        public private(set) var keyedElsewhere: Set<KeyedDynamics> = []
 
         public init(ranges: Ranges, scopes: Scopes = .all) {
             self.ranges = ranges
@@ -185,7 +180,6 @@ public enum ReGain {
             let plan = ReGain.plan(headamp: headamp, gainChangeDb: gainChangeDb, channels: channels, ranges: ranges, scopes: scopes, keyed: keyed)
             undo.merge(plan.undo)
             limitedBy = plan.limitedBy
-            keyedElsewhere.formUnion(plan.keyedElsewhere)
             return plan
         }
     }
@@ -211,7 +205,8 @@ public enum ReGain {
     /// The compensation for moving `headamp` by `gainChangeDb`, limited to the compensable range.
     /// - Parameters:
     ///   - channels: every channel the headamp moves (see `channels(movedByHeadamp:sources:)`), read fresh.
-    ///   - keyed: gates and compressors keyed from another channel, to report the ones this change affects.
+    ///   - keyed: gates and compressors whose sidechain key is another channel, read fresh. Those keyed from a moved
+    ///     channel, on a channel that isn't moved, have their threshold moved +g like the moved channels' own.
     public static func plan(
         headamp: Int,
         gainChangeDb: Double,
@@ -220,7 +215,7 @@ public enum ReGain {
         scopes: Scopes = .all,
         keyed: [KeyedDynamics] = []
     ) -> Plan {
-        let items = compensated(channels, ranges: ranges, scopes: scopes)
+        let items = compensated(channels, keyed: keyed, ranges: ranges, scopes: scopes)
         let range = compensableRange(items)
         var g = gainChangeDb
         var limit: Limit?
@@ -236,10 +231,7 @@ public enum ReGain {
             gainMovedDb: [headamp: g],
             beforeDb: Dictionary(changes.map { ($0.setting, $0.fromDb) }, uniquingKeysWith: { first, _ in first })
         )
-        let moved = Set(channels.map(\.channel))
-        let keyedElsewhere = keyed.filter { moved.contains($0.keyChannel) && !moved.contains($0.channel) }
-        return Plan(requestedDb: gainChangeDb, gainChangeDb: g, changes: changes, limitedBy: limit, undo: undo,
-                    keyedElsewhere: keyedElsewhere)
+        return Plan(requestedDb: gainChangeDb, gainChangeDb: g, changes: changes, limitedBy: limit, undo: undo)
     }
 
     /// How far the gain can move each way before a compensated setting reaches its end stop: Re-Gain's red lines.
@@ -253,8 +245,9 @@ public enum ReGain {
         public var upperLimit: Limit?
     }
 
-    public static func compensableRange(channels: [ChannelState], ranges: Ranges, scopes: Scopes = .all) -> CompensableRange {
-        compensableRange(compensated(channels, ranges: ranges, scopes: scopes))
+    public static func compensableRange(channels: [ChannelState], keyed: [KeyedDynamics] = [], ranges: Ranges,
+                                        scopes: Scopes = .all) -> CompensableRange {
+        compensableRange(compensated(channels, keyed: keyed, ranges: ranges, scopes: scopes))
     }
 
     static func compensableRange(_ items: [Item]) -> CompensableRange {
@@ -277,7 +270,8 @@ public enum ReGain {
         return result
     }
 
-    /// A gate or compressor whose sidechain key is another channel.
+    /// A gate or compressor whose sidechain key is another channel, with its threshold now. When the key channel's
+    /// gain moves, so does what the threshold sees, so Re-Gain moves the threshold too (Eric, 2026-10-12).
     public struct KeyedDynamics: Hashable, Sendable {
         public enum Dynamics: Hashable, Sendable {
             case gate
@@ -286,10 +280,12 @@ public enum ReGain {
 
         public var channel: Int
         public var dynamics: Dynamics
+        public var thresholdDb: Double
         public var keyChannel: Int
-        public init(channel: Int, dynamics: Dynamics, keyChannel: Int) {
+        public init(channel: Int, dynamics: Dynamics, thresholdDb: Double, keyChannel: Int) {
             self.channel = channel
             self.dynamics = dynamics
+            self.thresholdDb = thresholdDb
             self.keyChannel = keyChannel
         }
     }
@@ -329,7 +325,7 @@ public enum ReGain {
         var range: ClosedRange<Double>
     }
 
-    static func compensated(_ channels: [ChannelState], ranges: Ranges, scopes: Scopes) -> [Item] {
+    static func compensated(_ channels: [ChannelState], keyed: [KeyedDynamics] = [], ranges: Ranges, scopes: Scopes) -> [Item] {
         var items: [Item] = []
         for state in channels {
             func add(_ parameter: Parameter, _ value: Double?, _ direction: Double, _ range: ClosedRange<Double>) {
@@ -346,6 +342,14 @@ public enum ReGain {
             for send in state.sends where send.preFader {
                 add(.send(send.bus), send.levelDb, -1, ranges.send)
             }
+        }
+        let moved = Set(channels.map(\.channel))
+        for dynamics in keyed where moved.contains(dynamics.keyChannel) && !moved.contains(dynamics.channel) {
+            let parameter: Parameter = dynamics.dynamics == .gate ? .gateThreshold : .compressorThreshold
+            guard scopes.contains(scope(of: parameter)) else { continue }
+            let range = dynamics.dynamics == .gate ? ranges.gateThreshold : ranges.compressorThreshold
+            items.append(Item(setting: Setting(channel: dynamics.channel, parameter: parameter), valueDb: dynamics.thresholdDb,
+                              direction: 1, range: range))
         }
         return items
     }

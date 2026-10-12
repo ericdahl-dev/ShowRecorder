@@ -183,17 +183,52 @@ struct ReGainTests {
         #expect(run.gainMovedDb == [1: 4, 2: 3])
     }
 
-    @Test("Dynamics on other channels keyed from a moved channel are reported, not changed")
-    func sidechainReported() {
+    @Test("A threshold on another channel keyed from a moved channel moves +g too, with an undo before-value")
+    func sidechainCompensated() {
         let keyed = [
-            ReGain.KeyedDynamics(channel: 5, dynamics: .compressor, keyChannel: 1),
-            ReGain.KeyedDynamics(channel: 6, dynamics: .gate, keyChannel: 2),
-            // Keyed from itself: compensated as its own threshold, so nothing to report.
-            ReGain.KeyedDynamics(channel: 1, dynamics: .gate, keyChannel: 1),
+            ReGain.KeyedDynamics(channel: 5, dynamics: .compressor, thresholdDb: -25, keyChannel: 1),
+            // Keyed from a channel that isn't moving: untouched.
+            ReGain.KeyedDynamics(channel: 6, dynamics: .gate, thresholdDb: -40, keyChannel: 2),
         ]
         let plan = ReGain.plan(headamp: 1, gainChangeDb: 3, channels: [channel(1)], ranges: x32Ranges, keyed: keyed)
-        #expect(plan.keyedElsewhere == [ReGain.KeyedDynamics(channel: 5, dynamics: .compressor, keyChannel: 1)])
-        #expect(!plan.changes.contains { $0.setting.channel == 5 })
+        let setting = ReGain.Setting(channel: 5, parameter: .compressorThreshold)
+        #expect(plan.changes.contains(ReGain.Change(setting: setting, fromDb: -25, toDb: -22)))
+        #expect(plan.values[setting] == -22)
+        #expect(plan.undo.beforeDb[setting] == -25)
+        #expect(!plan.changes.contains { $0.setting.channel == 6 })
+    }
+
+    @Test("A keyed threshold near its top limits the compensable range, and the limit names it")
+    func sidechainLimits() {
+        let keyed = [ReGain.KeyedDynamics(channel: 5, dynamics: .gate, thresholdDb: -1, keyChannel: 1)]
+        let setting = ReGain.Setting(channel: 5, parameter: .gateThreshold)
+        let range = ReGain.compensableRange(channels: [channel(1)], keyed: keyed, ranges: x32Ranges)
+        #expect(range.highestDb == 1)
+        #expect(range.upperLimit == ReGain.Limit(setting: setting, endDb: 0))
+
+        let plan = ReGain.plan(headamp: 1, gainChangeDb: 4, channels: [channel(1)], ranges: x32Ranges, keyed: keyed)
+        #expect(plan.gainChangeDb == 1)
+        #expect(plan.limitedBy == ReGain.Limit(setting: setting, endDb: 0))
+    }
+
+    @Test("Keyed thresholds follow the Gate and Compressor switches")
+    func sidechainScoped() {
+        let keyed = [
+            ReGain.KeyedDynamics(channel: 5, dynamics: .gate, thresholdDb: -40, keyChannel: 1),
+            ReGain.KeyedDynamics(channel: 6, dynamics: .compressor, thresholdDb: -25, keyChannel: 1),
+        ]
+        let noGate = ReGain.plan(headamp: 1, gainChangeDb: 3, channels: [channel(1)], ranges: x32Ranges, scopes: [.compressor], keyed: keyed)
+        #expect(noGate.changes.map(\.setting) == [.init(channel: 1, parameter: .compressorThreshold), .init(channel: 6, parameter: .compressorThreshold)])
+        let noCompressor = ReGain.plan(headamp: 1, gainChangeDb: 3, channels: [channel(1)], ranges: x32Ranges, scopes: [.gate], keyed: keyed)
+        #expect(noCompressor.changes.map(\.setting) == [.init(channel: 1, parameter: .gateThreshold), .init(channel: 5, parameter: .gateThreshold)])
+    }
+
+    @Test("Dynamics keyed within the moved channels are compensated once, as those channels' own thresholds")
+    func sidechainWithinGroup() {
+        // Channel 2 is linked with channel 1, and its gate is keyed from channel 1.
+        let keyed = [ReGain.KeyedDynamics(channel: 2, dynamics: .gate, thresholdDb: -20, keyChannel: 1)]
+        let plan = ReGain.plan(headamp: 1, gainChangeDb: 3, channels: [channel(1), channel(2)], ranges: x32Ranges, keyed: keyed)
+        #expect(plan.changes.filter { $0.setting == .init(channel: 2, parameter: .gateThreshold) }.count == 1)
     }
 }
 
