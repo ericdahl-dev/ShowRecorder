@@ -6,10 +6,10 @@ import Testing
 struct WaitTests {
     @Test("A condition that comes true ends the wait")
     func comesTrue() async throws {
-        let start = ContinuousClock.now
         var calls = 0
         try await waitUntil { calls += 1; return calls >= 3 }
-        #expect(ContinuousClock.now - start < .seconds(1))
+        // Counted, not timed: a loaded CI runner made a 1-second wall-clock bound flake (1.46 s on #390).
+        #expect(calls == 3)
     }
 
     @Test("A condition that never comes true fails the test at the timeout")
