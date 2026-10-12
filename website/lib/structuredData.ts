@@ -1,5 +1,5 @@
 import { PAGES } from "@/lib/metadata";
-import { APP_STORE_URL, SITE_NAME, SITE_URL } from "@/lib/site";
+import { APP_STORE_URL, REPO_URL, SITE_NAME, SITE_URL } from "@/lib/site";
 
 // schema.org data for the home page, as JSON-LD. Search engines read it to show ShowRecorder as an
 // app (name, platform, price) rather than a plain web page. The price is the download price; Pro is
@@ -16,7 +16,7 @@ export function softwareApplicationJsonLd() {
     image: `${SITE_URL}/og-image.png`,
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     publisher: { "@type": "Person", name: "Eric Dahl", url: "https://ericdahl.dev" },
-    sameAs: ["https://github.com/ericdahl-dev/ShowRecorder"],
+    sameAs: [REPO_URL],
     featureList: [
       "One 24-bit WAV file per USB Channel",
       "Channel names and colors from a Behringer XR18 or MR18",
