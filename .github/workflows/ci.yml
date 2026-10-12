@@ -13,8 +13,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Test and build
+  # Which parts changed: the app (anything outside website/) and the site (website/).
+  # A change to this workflow runs both.
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.diff.outputs.app }}
+      site: ${{ steps.diff.outputs.site }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: diff
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "No usable base; running everything."
+            site=true; [ -f website/package.json ] || site=false
+            echo "app=true" >> "$GITHUB_OUTPUT"; echo "site=$site" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          files=$(git diff --name-only "$BASE"...HEAD)
+          printf '%s\n' "$files"
+          app=false; site=false
+          if printf '%s\n' "$files" | grep -qvE '^website/|^$'; then app=true; fi
+          if printf '%s\n' "$files" | grep -qE '^website/|^\.github/workflows/ci\.yml$'; then site=true; fi
+          # Nothing to build until the site is on this branch.
+          if [ ! -f website/package.json ]; then site=false; fi
+          echo "app=$app" >> "$GITHUB_OUTPUT"; echo "site=$site" >> "$GITHUB_OUTPUT"
+          echo "app=$app site=$site"
+
+  app:
+    name: App
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     # Standard GitHub-hosted runner: free for public repositories. Avoid -large/-xlarge (always billed).
     runs-on: macos-26
     timeout-minutes: 40
@@ -25,6 +59,11 @@ jobs:
         run: |
           xcodebuild -version
           swift --version
+
+      - name: Vocabulary (CONTEXT.md)
+        run: |
+          command -v rg >/dev/null || brew install ripgrep
+          ./scripts/vocab-check.sh
 
       - name: Package tests
         working-directory: Packages/ShowRecorderKit
@@ -41,3 +80,56 @@ jobs:
           xcodebuild -project ShowRecorder.xcodeproj -scheme ShowRecorder
           -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd
           CODE_SIGNING_ALLOWED=NO build
+
+  site:
+    name: Website
+    needs: changes
+    if: needs.changes.outputs.site == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: website/.nvmrc
+
+      - name: Install
+        run: |
+          corepack enable
+          yarn install --immutable
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Tests
+        run: yarn test:run
+
+      - name: Build (static export)
+        run: yarn build
+
+      # The image Coolify deploys: catches a broken Dockerfile or nginx.conf before it reaches main.
+      - name: Docker image
+        run: docker build -t showrecorder-site:ci .
+
+  # The required check. It passes when every job that ran passed; skipped jobs are fine.
+  gate:
+    name: Test and build
+    needs: [changes, app, site]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          APP: ${{ needs.app.result }}
+          SITE: ${{ needs.site.result }}
+        run: |
+          echo "changes=$CHANGES app=$APP site=$SITE"
+          [ "$CHANGES" = success ] || exit 1
+          for r in "$APP" "$SITE"; do
+            case "$r" in success|skipped) ;; *) exit 1 ;; esac
+          done
