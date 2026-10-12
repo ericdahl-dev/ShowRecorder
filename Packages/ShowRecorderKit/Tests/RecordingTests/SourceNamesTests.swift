@@ -32,8 +32,8 @@ struct SourceNamesTests {
             Source(name: "Lead Vocal", color: MixerColor(hue: .yellow, inverted: true)),
         ])
 
-        #expect(try StemFile(contentsOf: take.appending(path: "01 Kick.wav")).description == "Kick")
-        #expect(try StemFile(contentsOf: take.appending(path: "02 Lead Vocal.wav")).description == "Lead Vocal")
+        #expect(try ParsedStem(contentsOf: take.appending(path: "01 Kick.wav")).description == "Kick")
+        #expect(try ParsedStem(contentsOf: take.appending(path: "02 Lead Vocal.wav")).description == "Lead Vocal")
     }
 
     @Test("Names unsafe for file systems are cleaned in the file name but kept in bext", arguments: [
@@ -46,7 +46,7 @@ struct SourceNamesTests {
     func unsafeNamesCleaned(name: String, file: String) throws {
         try record(channels: 1, sources: [Source(name: name, color: .off)])
 
-        #expect(try StemFile(contentsOf: take.appending(path: file)).description == name)
+        #expect(try ParsedStem(contentsOf: take.appending(path: file)).description == name)
     }
 
     @Test("Take.json records each USB Channel's Stem and Source state")

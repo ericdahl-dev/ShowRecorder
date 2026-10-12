@@ -38,7 +38,7 @@ struct TrialTests {
         let stems = try FileManager.default.contentsOfDirectory(atPath: take.path).filter { $0.hasSuffix(".wav") }.sorted()
         #expect(stems == ["01 USB 01.wav", "02 USB 02.wav", "03 USB 03.wav", "04 USB 04.wav"])
         for stem in stems {
-            #expect(try StemFile(contentsOf: take.appending(path: stem)).samples.count == 960)
+            #expect(try ParsedStem(contentsOf: take.appending(path: stem)).samples.count == 960)
         }
     }
 

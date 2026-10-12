@@ -98,7 +98,12 @@ final class TakeRepair {
         let stems = metadata.usbChannels.map(\.stemFile)
         return max(
             metadata.gaps.map(\.end).max() ?? 0,
-            copies.flatMap { copy in stems.map { Int(StemWriter.frameCount(of: copy.folder.appending(path: $0)) ?? 0) } }.max() ?? 0)
+            copies.flatMap { copy in stems.map { framesOnDisk(copy.folder.appending(path: $0)) } }.max() ?? 0)
+    }
+
+    /// Every whole sample in a Stem, whatever its header says (Repair works on Stems that may not be finalized), or 0.
+    nonisolated private static func framesOnDisk(_ url: URL) -> Int {
+        Int((try? StemFile.inspect(url))?.framesOnDisk ?? 0)
     }
 
     /// Bytes Repair would add to `copy`'s Stems to bring them to the Take's length. Filling a Gap in the
@@ -106,7 +111,7 @@ final class TakeRepair {
     nonisolated private static func bytesToExtend(_ copy: Copy, in copies: [Copy], metadata: TakeMetadata) -> Int64 {
         let length = length(copies: copies, metadata: metadata)
         return metadata.usbChannels.reduce(into: Int64(0)) { total, channel in
-            let frames = Int(StemWriter.frameCount(of: copy.folder.appending(path: channel.stemFile)) ?? 0)
+            let frames = framesOnDisk(copy.folder.appending(path: channel.stemFile))
             total += Int64(max(length - frames, 0) * StemWriter.bytesPerSample)
         }
     }

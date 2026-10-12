@@ -83,7 +83,7 @@ struct CopyCheckTests {
 
         // Same length, one sample changed.
         let handle = try FileHandle(forUpdating: stem1)
-        let region = try #require(StemLength.audioRegion(at: stem1))
+        let region = try #require((try? StemFile.inspect(stem1))?.audioRegion)
         try handle.seek(toOffset: region.offset + 6)
         try handle.write(contentsOf: Data([0x7F]))
         try handle.close()
@@ -91,7 +91,7 @@ struct CopyCheckTests {
 
         // Shorter.
         let cut = try FileHandle(forUpdating: stem2)
-        try cut.truncate(atOffset: try #require(StemLength.audioRegion(at: stem2)).offset + 300)
+        try cut.truncate(atOffset: try #require((try? StemFile.inspect(stem2))?.audioRegion).offset + 300)
         try cut.close()
         #expect(failures(verify()).contains("Take 01, channel 2 is a different length on the Drive."))
 

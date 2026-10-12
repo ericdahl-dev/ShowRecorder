@@ -149,7 +149,7 @@ public final class StemWriter: StemSink {
     /// Reopens the Stem at `url` to write into it again: `overwrite` over its Gaps, `append` after its
     /// last whole sample. The header is kept as it is; only the sizes are rewritten at `finalize`.
     public static func reopen(url: URL) throws -> StemWriter {
-        guard let frames = frameCount(of: url) else { throw CocoaError(.fileReadCorruptFile, userInfo: [NSFilePathErrorKey: url.path]) }
+        let frames = try StemFile.inspect(url).framesOnDisk
         // A resumed Stem keeps its own header, so this Info is only used to find where the sizes and
         // Marker region are, and is the same for every Stem.
         let info = Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: Date(timeIntervalSince1970: 0))
@@ -160,14 +160,12 @@ public final class StemWriter: StemSink {
     /// -1...1. Frames past the end of the Stem read as silence. Works on plain RIFF and RF64 Stems alike.
     public static func readSamples(url: URL, frames: Range<Int>) throws -> [Float] {
         var out = [Float](repeating: 0, count: frames.count)
-        let available = frames.clamped(to: 0..<Int(frameCount(of: url) ?? 0))
-        guard !available.isEmpty else {
-            if frameCount(of: url) == nil { throw CocoaError(.fileReadCorruptFile, userInfo: [NSFilePathErrorKey: url.path]) }
-            return out
-        }
+        let stem = try StemFile.inspect(url)
+        let available = frames.clamped(to: 0..<Int(stem.framesOnDisk))
+        guard !available.isEmpty else { return out }
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
-        try handle.seek(toOffset: UInt64(dataStart + available.lowerBound * bytesPerSample))
+        try handle.seek(toOffset: stem.dataStart + UInt64(available.lowerBound * bytesPerSample))
         let data = [UInt8](try handle.read(upToCount: available.count * bytesPerSample) ?? Data())
         for index in 0..<min(available.count, data.count / bytesPerSample) {
             let base = index * bytesPerSample
@@ -175,13 +173,6 @@ public final class StemWriter: StemSink {
             out[available.lowerBound - frames.lowerBound + index] = Float((raw << 8) >> 8) / 8_388_608  // sign-extend 24 bits
         }
         return out
-    }
-
-    /// Samples in the Stem file at `url`, from its size, or nil if it can't be read. Counts only whole
-    /// samples, so a half-written one or the padding byte after an odd count is ignored.
-    public static func frameCount(of url: URL) -> UInt64? {
-        guard let size = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? UInt64, size >= UInt64(dataStart) else { return nil }
-        return (size - UInt64(dataStart)) / UInt64(bytesPerSample)
     }
 
     /// Bytes in one 24-bit sample: the one place that figure lives.

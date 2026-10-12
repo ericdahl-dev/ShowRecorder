@@ -6,7 +6,7 @@ public enum StemRepair {
     /// from `source` if it ended early. Frames `source` doesn't have are written as silence. Then writes
     /// `markers` and finalizes `target`, so the two Stems end byte-identical.
     public static func fill(target: URL, from source: URL, ranges: [Range<Int>], length: Int, markers: [StemMarker]) throws {
-        guard let targetFrames = StemWriter.frameCount(of: target) else { throw CocoaError(.fileReadCorruptFile) }
+        let targetFrames = try StemFile.inspect(target).framesOnDisk
         let writer = try StemWriter.reopen(url: target)
         let chunk = 48_000
 

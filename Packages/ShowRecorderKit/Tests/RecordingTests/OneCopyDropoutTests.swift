@@ -65,7 +65,7 @@ struct OneCopyDropoutTests {
         #expect(!metadata.markers.contains { $0.origin == .dropout })
         let deviceStem = device.appending(path: "\(show)/Take 01/01 USB 01.wav")
         let driveStem = drive.appending(path: "\(show)/Take 01/01 USB 01.wav")
-        #expect(try StemLength.frameCount(at: driveStem) == StemLength.frameCount(at: deviceStem))
+        #expect(try StemFile.inspect(driveStem).frameCount == (try StemFile.inspect(deviceStem).frameCount))
         #expect(try Data(contentsOf: driveStem) == Data(contentsOf: deviceStem), "Repair filled the Drive from the Device")
     }
 }

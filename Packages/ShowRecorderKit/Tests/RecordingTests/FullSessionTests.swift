@@ -37,7 +37,7 @@ struct FullSessionTests {
         let total = blocks * blockFrames
         for channel in 0..<18 {
             let number = String(format: "%02d", channel + 1)
-            let stem = try StemFile(contentsOf: take.appending(path: "\(number) USB \(number).wav"))
+            let stem = try ParsedStem(contentsOf: take.appending(path: "\(number) USB \(number).wav"))
             #expect(stem.samples.count == total, "channel \(channel + 1) length")
             #expect(stem.samples == (0..<total).map { value(channel, $0) }, "channel \(channel + 1) content")
         }

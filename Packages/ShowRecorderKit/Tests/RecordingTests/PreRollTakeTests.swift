@@ -53,7 +53,7 @@ struct PreRollTakeTests {
         try recorder.stopTake()
 
         for (index, name) in ["01 USB 01.wav", "02 USB 02.wav"].enumerated() {
-            let stem = try StemFile(contentsOf: take01(device).appending(path: name))
+            let stem = try ParsedStem(contentsOf: take01(device).appending(path: name))
             #expect(stem.samples == (96_000..<145_000).map { Int32($0 + index * 1_000_000) }, "\(name)")
         }
     }
@@ -69,7 +69,7 @@ struct PreRollTakeTests {
         try await deliver(1_000, from: 24_000, to: audio, recorder, sample: counting())
         try recorder.stopTake()
 
-        let stem = try StemFile(contentsOf: take01(device).appending(path: "01 USB 01.wav"))
+        let stem = try ParsedStem(contentsOf: take01(device).appending(path: "01 USB 01.wav"))
         #expect(stem.samples == (0..<25_000).map { Int32($0) })
     }
 
@@ -83,7 +83,7 @@ struct PreRollTakeTests {
         try await deliver(1_000, from: 24_000, to: audio, recorder, sample: counting())
         try recorder.stopTake()
 
-        let stem = try StemFile(contentsOf: take01(device).appending(path: "01 USB 01.wav"))
+        let stem = try ParsedStem(contentsOf: take01(device).appending(path: "01 USB 01.wav"))
         #expect(stem.samples == (24_000..<25_000).map { Int32($0) })
         #expect(try decodedTake(device).preRollFrames == nil)
     }
@@ -104,7 +104,7 @@ struct PreRollTakeTests {
         #expect(take.timeReference == atPress - 48_000)
         #expect(take.preRollFrames == 48_000)
         for name in ["01 USB 01.wav", "02 USB 02.wav"] {
-            #expect(try StemFile(contentsOf: take01(device).appending(path: name)).timeReference == atPress - 48_000)
+            #expect(try ParsedStem(contentsOf: take01(device).appending(path: name)).timeReference == atPress - 48_000)
         }
     }
 
@@ -134,7 +134,7 @@ struct PreRollTakeTests {
         try recorder.startTake()
         try await deliver(480, from: 96_000, to: audio, recorder, sample: counting())
         try recorder.stopTake()
-        let shorter = try StemFile(contentsOf: take01(device).appending(path: "01 USB 01.wav"))
+        let shorter = try ParsedStem(contentsOf: take01(device).appending(path: "01 USB 01.wav"))
         #expect(shorter.samples == (72_000..<96_480).map { Int32($0) })
         #expect(try decodedTake(device).preRollFrames == 24_000)
     }
@@ -165,7 +165,7 @@ struct PreRollTakeTests {
         try await deliver(480, from: 48_000, to: audio, recorder, sample: counting())
         try recorder.stopTake()
         #expect(try decodedTake(device).preRollFrames == nil)
-        #expect(try StemFile(contentsOf: take01(device).appending(path: "01 USB 01.wav")).samples == (48_000..<48_480).map { Int32($0) })
+        #expect(try ParsedStem(contentsOf: take01(device).appending(path: "01 USB 01.wav")).samples == (48_000..<48_480).map { Int32($0) })
     }
 
     @Test("A Drive that joins mid-Take is missing the Pre-roll as a Gap, and Repair fills it from the Device")
@@ -187,7 +187,7 @@ struct PreRollTakeTests {
         let deviceStem = try Data(contentsOf: take01(device).appending(path: "01 USB 01.wav"))
         let driveStem = try Data(contentsOf: take01(drive).appending(path: "01 USB 01.wav"))
         #expect(deviceStem == driveStem)
-        let samples = try StemFile(contentsOf: take01(drive).appending(path: "01 USB 01.wav")).samples
+        let samples = try ParsedStem(contentsOf: take01(drive).appending(path: "01 USB 01.wav")).samples
         #expect(samples == (0..<52_800).map { Int32($0) })
         #expect(try decodedTake(device).gaps.first?.start == 0)
     }
