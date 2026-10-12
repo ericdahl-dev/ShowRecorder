@@ -14,6 +14,10 @@ export const ISSUES_URL = "https://github.com/ericdahl-dev/ShowRecorder/issues";
 export const APP_STORE_ID = "6820213310";
 export const APP_STORE_URL = `https://apps.apple.com/app/id${APP_STORE_ID}` as string | null;
 
+// The public TestFlight beta, open while 1.0 is in App Review. With no APP_STORE_URL, the badge
+// slots link here instead of showing the placeholder. Set it to null to go back to "Coming soon".
+export const TESTFLIGHT_URL = "https://testflight.apple.com/join/sSessST8" as string | null;
+
 // The routes the site exports. sitemap.ts reads this list.
 export const ROUTES: readonly string[] = [
   "/",

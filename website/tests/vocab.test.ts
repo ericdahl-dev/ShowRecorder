@@ -21,7 +21,9 @@ const MIXER_CAPITAL = /\bMixer\b(?! Link)|(?<!Find )\bMixers\b/;
 const BANNED: { pattern: RegExp; instead: string; skipUiStrings?: boolean }[] = [
   { pattern: /(?<!no )subscription/i, instead: 'Pro (only "No subscription" is allowed)' },
   { pattern: /Find mixers/, instead: '"Find Mixers"' },
-  { pattern: /TestFlight/, instead: "nothing: the site describes the App Store app" },
+  // TestFlight is allowed while the public beta is linked (TESTFLIGHT_URL, before 1.0 is released).
+  // Put this back when the App Store badge replaces it:
+  // { pattern: /TestFlight/, instead: "nothing: the site describes the App Store app" },
   { pattern: /free trial/i, instead: '"14-day Trial"' },
   { pattern: /Premium/, instead: '"Pro"' },
   { pattern: /—/, instead: 'a spaced hyphen " - " or a new sentence (no em dash)' },

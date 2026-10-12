@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element -- a static SVG; next/image adds nothing for it in a static export */
-import { APP_STORE_URL } from "@/lib/site";
+import { APP_STORE_URL, TESTFLIGHT_URL } from "@/lib/site";
 
 // The App Store slot used in the hero and the closing call. Driven by APP_STORE_URL in lib/site.ts.
 //
@@ -16,6 +16,14 @@ export function AppStoreBadge({ id }: { id: "app-store-link" | "app-store-link-f
         {/* Apple's official badge from developer.apple.com Marketing Resources, unmodified. The black
             badge has its own grey border, so it reads on the Dark and light themes alike. */}
         <img src="/images/app-store-badge.svg" alt="Download on the App Store" width={156} height={52} />
+      </a>
+    );
+  }
+  // Before release: the public beta. A plain button, not an App Store lookalike.
+  if (TESTFLIGHT_URL) {
+    return (
+      <a id={id} className="store-slot is-live" href={TESTFLIGHT_URL}>
+        Join the public beta on TestFlight
       </a>
     );
   }
