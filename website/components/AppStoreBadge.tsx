@@ -14,7 +14,7 @@ export function AppStoreBadge({ id }: { id: "app-store-link" | "app-store-link-f
     return (
       <a id={id} className="store-badge" href={APP_STORE_URL}>
         {/* Apple's official badge from developer.apple.com Marketing Resources, unmodified. The black
-            badge has its own grey border, so it reads on the Dark and light themes alike. */}
+            badge has its own gray border, so it reads on the Dark and light themes alike. */}
         <img src="/images/app-store-badge.svg" alt="Download on the App Store" width={156} height={52} />
       </a>
     );
