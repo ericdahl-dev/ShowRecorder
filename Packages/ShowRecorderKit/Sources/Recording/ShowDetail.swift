@@ -47,8 +47,9 @@ public enum ShowDetail {
     /// Renames the operator Marker at `index` (see `MarkerDetail.operatorIndex`) in Take `take` of the
     /// Show named `show`, in the Device Copy and, when `drive` is given and has the Show, the Drive Copy.
     /// This is the after-the-Take rename: `Take.json` and every Stem's cue label, then the report and project.
+    /// - Parameter allowsProExtras: whether the Show report and Reaper project may be written (`License.allowsProExtras`).
     public static func renameMarker(
-        at index: Int, to name: String, inTake take: Int, ofShow show: String, device: URL, drive: URL?
+        at index: Int, to name: String, inTake take: Int, ofShow show: String, device: URL, drive: URL?, allowsProExtras: Bool
     ) -> MarkerRenamer.Outcome {
         let takeFolder = TakeMetadata.name(take: take)
         var copies: [DestinationKind: URL] = [.device: device.appending(path: show).appending(path: takeFolder)]
@@ -56,6 +57,6 @@ public enum ShowDetail {
             let folder = drive.appending(path: show).appending(path: takeFolder)
             if FileManager.default.fileExists(atPath: folder.path) { copies[.drive] = folder }
         }
-        return MarkerRenamer.rename(markerAt: index, to: name, in: copies)
+        return MarkerRenamer.rename(markerAt: index, to: name, in: copies, allowsProExtras: allowsProExtras)
     }
 }

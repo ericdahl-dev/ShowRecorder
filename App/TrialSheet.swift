@@ -18,7 +18,7 @@ struct TrialSheet: View {
                         Button("Start 14-day Trial") {
                             Task {
                                 await store.startTrial()
-                                if case .trial = store.tier() { dismiss() }
+                                if case .trial = store.license().tier { dismiss() }
                             }
                         }
                         .disabled(store.trialProduct == nil || store.busy)

@@ -20,12 +20,12 @@ struct MarkerRenamerTests {
     }
 
     /// Records a Take in both Copies: audio, Marker 1 at 4,800 and Marker 2 at 7,200.
-    func recordTake() throws {
+    func recordTake(allowance: TakeAllowance? = nil) throws {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
-        try recorder.startTake()
+        try recorder.startTake(allowance: allowance)
         let sample = { (frame: Int, channel: Int) in RecordingTakeTests.sample(Int32(frame % 1000 + channel * 1000)) }
         deliver(4_800, to: audio, sample: sample)
         recorder.addMarker()
@@ -47,7 +47,7 @@ struct MarkerRenamerTests {
         let stems = ["01 USB 01.wav", "02 USB 02.wav"]
         let before = try copies.values.flatMap { copy in try stems.map { try StemFile(contentsOf: copy.appending(path: $0)) } }
 
-        let outcome = MarkerRenamer.rename(markerAt: 1, to: "Chorus", in: copies)
+        let outcome = MarkerRenamer.rename(markerAt: 1, to: "Chorus", in: copies, allowsProExtras: true)
 
         #expect(outcome.result == .renamed)
         #expect(Set(outcome.renamed) == [.device, .drive])
@@ -67,7 +67,7 @@ struct MarkerRenamerTests {
         try recordTake()
         try FileManager.default.moveItem(at: drive, to: root.appending(path: "Drive (unplugged)"))
 
-        let outcome = MarkerRenamer.rename(markerAt: 0, to: "Intro", in: copies)
+        let outcome = MarkerRenamer.rename(markerAt: 0, to: "Intro", in: copies, allowsProExtras: true)
 
         #expect(outcome.result == .renamed)
         #expect(outcome.renamed == [.device])
@@ -87,7 +87,7 @@ struct MarkerRenamerTests {
             #expect(html.contains("Marker 2"))
         }
 
-        _ = MarkerRenamer.rename(markerAt: 1, to: "Chorus", in: copies)
+        _ = MarkerRenamer.rename(markerAt: 1, to: "Chorus", in: copies, allowsProExtras: true)
 
         for copy in [device, drive] {
             let html = try String(contentsOf: copy.appending(path: "\(show)/Report.html"), encoding: .utf8)
@@ -97,13 +97,35 @@ struct MarkerRenamerTests {
         }
     }
 
+    @Test("On Free a rename writes no Show report or Reaper project that wasn't there (#438)")
+    func freeWritesNoExtras() throws {
+        try recordTake(allowance: Entitlement.allowance(for: .free, channelCount: 2, freeChoice: [1, 2]))
+        let show = "2026-10-06 Show"
+        #expect(MarkerRenamer.rename(markerAt: 1, to: "Chorus", in: copies, allowsProExtras: false).result == .renamed)
+        for copy in [device, drive] {
+            #expect(!FileManager.default.fileExists(atPath: copy.appending(path: "\(show)/Report.html").path))
+            #expect(!FileManager.default.fileExists(atPath: copy.appending(path: "\(show)/\(show).RPP").path))
+        }
+    }
+
+    @Test("On Free a report and project already there (from a Trial) still get the new name (#438)")
+    func freeKeepsExistingExtrasCurrent() throws {
+        try recordTake()
+        let show = "2026-10-06 Show"
+        _ = MarkerRenamer.rename(markerAt: 1, to: "Chorus", in: copies, allowsProExtras: false)
+        for copy in [device, drive] {
+            #expect(try String(contentsOf: copy.appending(path: "\(show)/Report.html"), encoding: .utf8).contains("Chorus"))
+            #expect(try String(contentsOf: copy.appending(path: "\(show)/\(show).RPP"), encoding: .utf8).contains("Chorus"))
+        }
+    }
+
     @Test("An empty name or a Marker that isn't there changes nothing, and says which")
     func refusals() throws {
         try recordTake()
         let before = try Data(contentsOf: take(device).appending(path: "Take.json"))
 
-        #expect(MarkerRenamer.rename(markerAt: 0, to: "   ", in: copies).result == .emptyName)
-        let missing = MarkerRenamer.rename(markerAt: 5, to: "Chorus", in: copies)
+        #expect(MarkerRenamer.rename(markerAt: 0, to: "   ", in: copies, allowsProExtras: true).result == .emptyName)
+        let missing = MarkerRenamer.rename(markerAt: 5, to: "Chorus", in: copies, allowsProExtras: true)
         #expect(missing.result == .noSuchMarker)
         #expect(missing.renamed.isEmpty)
         #expect(try Data(contentsOf: take(device).appending(path: "Take.json")) == before)
@@ -115,7 +137,7 @@ struct MarkerRenamerTests {
         let gone = ["Device", "Drive"].map { root.appending(path: $0) }
         for folder in gone { try FileManager.default.moveItem(at: folder, to: root.appending(path: "\(folder.lastPathComponent) away")) }
 
-        let outcome = MarkerRenamer.rename(markerAt: 0, to: "Intro", in: copies)
+        let outcome = MarkerRenamer.rename(markerAt: 0, to: "Intro", in: copies, allowsProExtras: true)
         #expect(outcome.result == .noCopyUpdated)
         #expect(outcome.failed.count == 2)
     }
@@ -135,7 +157,7 @@ struct MarkerRenamerTests {
         let before = try cuePoints(take(device).appending(path: "01 USB 01.wav"))
         #expect(before.map(\.label).sorted() == ["Dropout", "Marker 1"])
 
-        #expect(MarkerRenamer.rename(markerAt: 0, to: "Verse", in: copies).result == .renamed)
+        #expect(MarkerRenamer.rename(markerAt: 0, to: "Verse", in: copies, allowsProExtras: true).result == .renamed)
 
         for copy in copies.values {
             let cues = try cuePoints(copy.appending(path: "01 USB 01.wav"))
@@ -149,7 +171,7 @@ struct MarkerRenamerTests {
         try recordTake()
         try Data("not a stem".utf8).write(to: take(device).appending(path: "01 USB 01.wav"))
 
-        let outcome = MarkerRenamer.rename(markerAt: 0, to: "Intro", in: copies)
+        let outcome = MarkerRenamer.rename(markerAt: 0, to: "Intro", in: copies, allowsProExtras: true)
 
         #expect(outcome.result == .renamed, "the Drive Copy was renamed")
         #expect(outcome.renamed == [.drive])
@@ -163,9 +185,9 @@ struct MarkerRenamerTests {
     @Test("Renaming the same Marker again, or to the name it already has, works")
     func renameAgain() throws {
         try recordTake()
-        #expect(MarkerRenamer.rename(markerAt: 0, to: "Intro", in: copies).result == .renamed)
-        #expect(MarkerRenamer.rename(markerAt: 0, to: "Intro", in: copies).result == .renamed)
-        #expect(MarkerRenamer.rename(markerAt: 0, to: "Verse", in: copies).result == .renamed)
+        #expect(MarkerRenamer.rename(markerAt: 0, to: "Intro", in: copies, allowsProExtras: true).result == .renamed)
+        #expect(MarkerRenamer.rename(markerAt: 0, to: "Intro", in: copies, allowsProExtras: true).result == .renamed)
+        #expect(MarkerRenamer.rename(markerAt: 0, to: "Verse", in: copies, allowsProExtras: true).result == .renamed)
         #expect(try markerNames(take(drive)) == ["Verse", "Marker 2"])
     }
 }

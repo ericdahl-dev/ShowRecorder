@@ -36,7 +36,7 @@ public enum ProOfferMoment: Equatable, Sendable {
     case trialEndingSoon(daysLeft: Int)
 }
 
-/// When to offer Pro (#62, ADR 0004). Never while Pro isn't offered, never on Pro, never during a Take, and at most
+/// When to offer Pro (#62, ADR 0004). Never while Pro isn't offered or the tier is unknown, never on Pro, never during a Take, and at most
 /// once per Show; the first-Show offer and the Trial note come once ever. What was offered is kept on the device.
 public struct ProOffers {
     private static let firstShowKey = "proOffer.firstShow"
@@ -51,32 +51,34 @@ public struct ProOffers {
         self.defaults = defaults
     }
 
-    public mutating func afterTakeStopped(show: String, signal: TakeSignal, tier: Tier, proOffered: Bool, isRecording: Bool) -> ProOfferMoment? {
-        guard canOffer(in: show, tier: tier, proOffered: proOffered, isRecording: isRecording), tier == .free,
+    public mutating func afterTakeStopped(show: String, signal: TakeSignal, license: License, isRecording: Bool) -> ProOfferMoment? {
+        guard canOffer(in: show, license: license, isRecording: isRecording), license.tier == .free,
               signal.withSignal > signal.recorded else { return nil }
         offered(in: show)
         return .limitedTake(recorded: signal.recorded, withSignal: signal.withSignal)
     }
 
-    public mutating func afterShowEnded(show: String, takeCount: Int, tier: Tier, proOffered: Bool) -> ProOfferMoment? {
-        guard canOffer(in: show, tier: tier, proOffered: proOffered, isRecording: false), takeCount > 0,
+    public mutating func afterShowEnded(show: String, takeCount: Int, license: License) -> ProOfferMoment? {
+        guard canOffer(in: show, license: license, isRecording: false), takeCount > 0,
               !defaults.bool(forKey: Self.firstShowKey) else { return nil }
         defaults.set(true, forKey: Self.firstShowKey)
         offered(in: show)
         return .firstShowEnded
     }
 
-    public mutating func betweenTakes(show: String?, tier: Tier, proOffered: Bool, isRecording: Bool) -> ProOfferMoment? {
-        guard case .trial(let daysLeft) = tier, daysLeft <= Self.trialNoteDays,
-              canOffer(in: show, tier: tier, proOffered: proOffered, isRecording: isRecording),
+    public mutating func betweenTakes(show: String?, license: License, isRecording: Bool) -> ProOfferMoment? {
+        guard case .trial(let daysLeft) = license.tier, daysLeft <= Self.trialNoteDays,
+              canOffer(in: show, license: license, isRecording: isRecording),
               !defaults.bool(forKey: Self.trialNoteKey) else { return nil }
         defaults.set(true, forKey: Self.trialNoteKey)
         if let show { offered(in: show) }
         return .trialEndingSoon(daysLeft: daysLeft)
     }
 
-    private func canOffer(in show: String?, tier: Tier, proOffered: Bool, isRecording: Bool) -> Bool {
-        proOffered && tier != .pro && !isRecording && (show == nil || defaults.string(forKey: Self.showKey) != show)
+    /// Never while Pro isn't offered, before the App Store has answered, on Pro, during a Take, or twice in a Show.
+    private func canOffer(in show: String?, license: License, isRecording: Bool) -> Bool {
+        guard license.proOffered, let tier = license.tier else { return false }
+        return tier != .pro && !isRecording && (show == nil || defaults.string(forKey: Self.showKey) != show)
     }
 
     private func offered(in show: String) {

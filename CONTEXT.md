@@ -132,6 +132,10 @@ _Avoid_: Demo, free trial (in UI copy say "14-day Trial")
 What the app does without Pro or a Trial: records 2 USB Channels of the operator's choice, with the names and colors from the Mixer.
 _Avoid_: Lite, basic
 
+**License**:
+What the operator may do right now, from the tier (Free, Trial or Pro) and whether Pro is offered. Before the App Store has said what's owned, the tier isn't known and nothing is limited. Every limit, offer and Pro extra is decided from it, and a Take's limits are taken from it when record is pressed.
+_Avoid_: Entitlement, plan, permissions
+
 **Show-Safe Promise**:
 The rule that a Take never stops, and audio is never withheld, because of a Trial, limit or license; limits are checked only when record is pressed.
 _Avoid_: Recording guarantee

@@ -68,10 +68,10 @@ struct EntitlementTests {
 
     @Test("At record press: while Pro isn't offered nothing is limited (TestFlight records every USB Channel); once offered, the tier decides (#60)")
     func atPress() throws {
-        #expect(Entitlement.allowanceAtPress(proOffered: false, tier: .free, channelCount: 18, freeChoice: [7, 3]) == nil)
-        let free = try #require(Entitlement.allowanceAtPress(proOffered: true, tier: .free, channelCount: 18, freeChoice: [7, 3]))
+        #expect(License(proOffered: false, tier: .free, trialStarted: false, freeChoice: [7, 3]).allowance(channelCount: 18) == nil)
+        let free = try #require(License(proOffered: true, tier: .free, trialStarted: false, freeChoice: [7, 3]).allowance(channelCount: 18))
         #expect(free.recordedChannels == [3, 7])
-        let trial = try #require(Entitlement.allowanceAtPress(proOffered: true, tier: .trial(daysLeft: 3), channelCount: 18, freeChoice: [7, 3]))
+        let trial = try #require(License(proOffered: true, tier: .trial(daysLeft: 3), trialStarted: true, freeChoice: [7, 3]).allowance(channelCount: 18))
         #expect(trial.recordedChannels.count == 18)
     }
 }

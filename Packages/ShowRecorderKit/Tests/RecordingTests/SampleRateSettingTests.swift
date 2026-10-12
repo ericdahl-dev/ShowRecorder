@@ -33,9 +33,9 @@ struct SampleRateSettingTests {
         #expect(SampleRateSetting.rateToSet(chosen: 96_000, available: rates, current: 96_000, capAt48k: true) == 48_000)
         #expect(SampleRateSetting.rateToSet(chosen: nil, available: rates, current: 96_000, capAt48k: true) == 48_000)
         #expect(SampleRateSetting.rateToSet(chosen: nil, available: [96_000], current: 96_000, capAt48k: true) == nil, "no 48 kHz on offer: record what there is")
-        #expect(SampleRateSetting.capAt48k(proOffered: true, tier: .free))
-        #expect(!SampleRateSetting.capAt48k(proOffered: false, tier: .free))
-        #expect(!SampleRateSetting.capAt48k(proOffered: true, tier: .trial(daysLeft: 3)))
+        #expect(License(proOffered: true, tier: .free, trialStarted: false, freeChoice: []).capsAt48k)
+        #expect(!License(proOffered: false, tier: .free, trialStarted: false, freeChoice: []).capsAt48k)
+        #expect(!License(proOffered: true, tier: .trial(daysLeft: 3), trialStarted: true, freeChoice: []).capsAt48k)
     }
 
     @Test("The picker's labels")

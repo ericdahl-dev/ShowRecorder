@@ -133,11 +133,11 @@ public enum TemplateAccess: Equatable, Sendable {
     case proOnly
     case takeRunning
 
-    /// An unknown tier (nil, before the App Store has answered) can use Templates (#316).
-    public init(proOffered: Bool, tier: Tier?, isRecording: Bool) {
+    /// Built by `License.templateAccess(isRecording:)`.
+    init(limits: Bool, isRecording: Bool) {
         if isRecording {
             self = .takeRunning
-        } else if proOffered, tier == .free {
+        } else if limits {
             self = .proOnly
         } else {
             self = .usable

@@ -122,7 +122,7 @@ struct SettingsView: View {
                     Text("A 30 s test of the Mixer Link, the USB Channels, every Copy and the files. Not during a Take.")
                 }
 
-                if ProSection.isOffered, !locked(.pro) { ProSection(model: model, showingTrial: $showingTrial, showingPaywall: $showingPaywall) }
+                if ProStore.isOffered, !locked(.pro) { ProSection(model: model, showingTrial: $showingTrial, showingPaywall: $showingPaywall) }
             }
             .formStyle(.grouped)
             .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }

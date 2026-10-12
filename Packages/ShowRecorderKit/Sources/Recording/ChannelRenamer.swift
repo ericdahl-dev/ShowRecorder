@@ -1,7 +1,6 @@
 import BroadcastWave
 import Destinations
 import Foundation
-import ShowReport
 
 /// Names USB Channels by hand in a Take that has been recorded, working from the files: each named
 /// channel's Stem is renamed ("07 Lead Vocal.wav"), its bext description is updated, and `Take.json`
@@ -21,7 +20,9 @@ public enum ChannelRenamer {
     ///   - names: the new name for each USB Channel (1-based) to rename.
     ///   - lateChannels: the channels whose name is the Mixer's, which only arrived during the Take.
     ///   - copies: each Copy's folder for this Take (`…/Show/Take 01`).
-    public static func rename(names: [Int: String], lateChannels: Set<Int> = [], in copies: [DestinationKind: URL]) -> Outcome {
+    ///   - allowsProExtras: whether the Show report and Reaper project may be written (`License.allowsProExtras`);
+    ///     ones already there are rewritten either way (#438).
+    public static func rename(names: [Int: String], lateChannels: Set<Int> = [], in copies: [DestinationKind: URL], allowsProExtras: Bool) -> Outcome {
         let names = names.compactMapValues { name -> String? in
             let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed.isEmpty ? nil : trimmed
@@ -39,9 +40,7 @@ public enum ChannelRenamer {
             }
         }
         for kind in renamed {
-            let showFolder = copies[kind]!.deletingLastPathComponent()
-            try? ShowReport.write(showFolder: showFolder)
-            try? Show(name: showFolder.lastPathComponent, folder: showFolder, takeCount: 0).writeProjects()
+            Show.refreshExtras(showFolder: copies[kind]!.deletingLastPathComponent(), allowed: allowsProExtras)
         }
         return Outcome(result: renamed.isEmpty ? .noCopyUpdated : .renamed, renamed: renamed, failed: failed)
     }

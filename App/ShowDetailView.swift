@@ -132,10 +132,11 @@ struct ShowDetailView: View {
         guard let index = marker.operatorIndex else { return }
         let store = model.drive.store
         let device = show.folder.deletingLastPathComponent(), name = show.name, newName = newName
+        let allowsProExtras = model.pro.license().allowsProExtras
         let outcome = await Task.detached { () -> MarkerRenamer.Outcome in
             let access = store.beginAccess()
             defer { access?.end() }
-            return ShowDetail.renameMarker(at: index, to: newName, inTake: take, ofShow: name, device: device, drive: access?.folder)
+            return ShowDetail.renameMarker(at: index, to: newName, inTake: take, ofShow: name, device: device, drive: access?.folder, allowsProExtras: allowsProExtras)
         }.value
         switch outcome.result {
         case .emptyName: message = "A Marker needs a name."
