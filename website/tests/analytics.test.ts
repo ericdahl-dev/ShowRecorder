@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { POSTHOG_ASSETS_HOST, POSTHOG_HOST, POSTHOG_OPTIONS, posthogInitScript } from "@/lib/analytics";
+import { INTERNAL_KEY, POSTHOG_ASSETS_HOST, POSTHOG_HOST, POSTHOG_OPTIONS, internalGuard, posthogInitScript } from "@/lib/analytics";
 
 const ROOT = path.resolve(__dirname, "..");
 
@@ -36,5 +36,40 @@ describe("website analytics", () => {
     expect(privacy).toMatch(/## This website/);
     expect(privacy).toMatch(/PostHog/);
     expect(privacy).toMatch(/no cookies/i);
+  });
+});
+
+describe("the owner's own visits", () => {
+  // Runs the init script's guard in a fake browser and reports whether PostHog would load.
+  function loads(search: string, stored: string | null): { loaded: boolean; stored: string | null } {
+    const store = new Map<string, string>(stored === null ? [] : [[INTERNAL_KEY, stored]]);
+    const window = {
+      location: { search },
+      localStorage: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => void store.set(k, v),
+        removeItem: (k: string) => void store.delete(k),
+      },
+    };
+    let loaded = false;
+    new Function("window", "__load", internalGuard("__load()"))(window, () => (loaded = true));
+    return { loaded, stored: store.get(INTERNAL_KEY) ?? null };
+  }
+
+  it("loads for ordinary visitors and stores nothing", () => {
+    expect(loads("", null)).toEqual({ loaded: true, stored: null });
+  });
+
+  it("?internal=1 marks this browser and skips PostHog from then on", () => {
+    expect(loads("?internal=1", null)).toEqual({ loaded: false, stored: "1" });
+    expect(loads("", "1")).toEqual({ loaded: false, stored: "1" });
+  });
+
+  it("?internal=0 clears the mark", () => {
+    expect(loads("?internal=0", "1")).toEqual({ loaded: true, stored: null });
+  });
+
+  it("the init script uses the guard", () => {
+    expect(posthogInitScript()).toContain(INTERNAL_KEY);
   });
 });
