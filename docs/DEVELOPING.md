@@ -23,7 +23,7 @@ xcodebuild -project ShowRecorder.xcodeproj -scheme ShowRecorder \
   CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build
 ```
 
-`scripts/verify.sh` runs the same checks as CI (package tests, macOS and iOS Simulator builds); set `DEVICE_ID` and `DEVELOPMENT_TEAM` to also build for a device. CI runs on every pull request on GitHub's free hosted `macos-26` runner and must pass before a PR merges.
+`scripts/verify.sh` runs the checks CI runs, but only those the branch's changes need: the vocabulary check, package tests, macOS and iOS Simulator builds, and the website's lint, tests and build. It prints its plan first; a docs-only change needs none, and a change to `verify.sh`, CI or an unlisted path runs everything. `VERIFY_ALL=1` runs everything, `VERIFY_PLAN_ONLY=1` prints the plan and stops, and the header of `verify.sh` lists which paths pick which checks. Set `DEVICE_ID` and `DEVELOPMENT_TEAM` to also build for a device. CI runs on every pull request on GitHub's free hosted `macos-26` runner and must pass before a PR merges.
 
 `scripts/preflight.sh` builds an unsigned iOS Release app and checks what App Store Connect rejects a build for (icon, privacy manifest, export compliance, usage strings, version numbers); pass an `.xcarchive` to check one you already have. Set `BUILD_NUMBER` to override `CURRENT_PROJECT_VERSION` at build time. The marketing version stays in `project.yml`.
 
