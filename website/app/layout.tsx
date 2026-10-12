@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { OG_IMAGE, PAGES } from "@/lib/metadata";
-import { SITE_NAME, SITE_URL } from "@/lib/site";
+import { APP_STORE_ID, SITE_NAME, SITE_URL } from "@/lib/site";
 import { THEME_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
@@ -31,7 +31,8 @@ export const metadata: Metadata = {
     description: PAGES.home.description,
     images: [{ url: OG_IMAGE.url, alt: OG_IMAGE.alt }],
   },
-  // Add the apple-itunes-app meta (itunes: { appId }) when the App Store ID is known.
+  // Safari on iPhone and iPad shows a "Get the app" banner.
+  itunes: { appId: APP_STORE_ID },
 };
 
 export const viewport: Viewport = {

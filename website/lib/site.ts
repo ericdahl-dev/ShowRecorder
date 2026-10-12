@@ -9,9 +9,10 @@ export const SITE_DESCRIPTION =
 export const CONTACT_EMAIL = "showrecorder@ericdahl.dev";
 export const ISSUES_URL = "https://github.com/ericdahl-dev/ShowRecorder/issues";
 
-// Fill in with the App Store link when the app is live. While it is null, the badge slots
+// The App Store listing (App Store Connect app 6820213310). While it is null, the badge slots
 // (AppStoreBadge) show a "Coming soon to the App Store" placeholder that is not a link.
-export const APP_STORE_URL = null as string | null;
+export const APP_STORE_ID = "6820213310";
+export const APP_STORE_URL = `https://apps.apple.com/app/id${APP_STORE_ID}` as string | null;
 
 // The routes the site exports. sitemap.ts reads this list.
 export const ROUTES: readonly string[] = [
