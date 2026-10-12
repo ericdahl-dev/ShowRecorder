@@ -96,7 +96,8 @@ struct SettingsView: View {
                     Text("Storage").id(SettingsSection.storage)
                 }
 
-                Section {
+                // Only for an X Air or X32 as the input (#365).
+                if model.offersMixerLink { Section {
                     TextField("Mixer IP address", text: $model.mixerAddress)
                         .autocorrectionDisabled()
                         #if os(iOS)
@@ -112,7 +113,7 @@ struct SettingsView: View {
                     FindMixersRow(model: model, disabled: locked(.mixerLink))
                 } header: {
                     Text("Mixer Link").id(SettingsSection.mixer)
-                }
+                } }
 
                 Section {
                     Button("Run Soundcheck") { showingSoundcheck = true }

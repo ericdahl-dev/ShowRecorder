@@ -144,6 +144,25 @@ struct SoundcheckTests {
         try recorder.stopTake()
     }
 
+    @MainActor
+    @Test("With an input that isn't an X Air or X32, the Mixer Link step is skipped, not failed (#365)")
+    func mixerLinkStepSkipped() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "SoundcheckNoMixer-\(UUID().uuidString)")
+        let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        var progressed: [Soundcheck.Step.Kind] = []
+        let steps = await Soundcheck.run(recorder: recorder, mixer: nil, sources: [], expectedUSBChannels: nil, driveChosen: false,
+                                         progress: { progressed.append($0) })
+        #expect(!steps.contains { $0.kind == .mixer })
+        #expect(!progressed.contains(.mixer))
+        #expect(steps.map(\.kind) == [.channels])
+    }
+
+    @Test("The status strip has no Mixer chip for an input that isn't an X Air or X32 (#365)")
+    func noMixerChip() {
+        let chips = StatusChip.make(usbChannelCount: 2, deviceAvailableBytes: 1 << 34, drive: .notChosen, mixer: nil, copies: [:])
+        #expect(chips.map(\.kind) == [.device, .drive])
+    }
+
     @Test("The Soundcheck is offered once, never during a Take, and not over the first-run setup hint")
     func offer() {
         #expect(Soundcheck.shouldOffer(alreadyOffered: false, isRecording: false, setupHintShowing: false))

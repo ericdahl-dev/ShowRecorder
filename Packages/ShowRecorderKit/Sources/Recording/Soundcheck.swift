@@ -119,23 +119,28 @@ public enum Soundcheck {
     /// Never during a Take. `progress` is told which step is being worked on, in the order they run; `result` gets
     /// each step's result as soon as it is judged, so the Mixer's shows before the 30 s Take, not after it.
     ///
-    /// Starting the Soundcheck Show ends any open Show first, as a new Show always does.
+    /// Starting the Soundcheck Show ends any open Show first, as a new Show always does. `mixer` is nil when the input
+    /// isn't an X Air or X32: Mixer Link isn't offered, so its step is skipped rather than failed (#365).
     @MainActor
     public static func run(
-        recorder: Recorder, mixer: MixerLinkStatus, sources: [Source], expectedUSBChannels: Int?, driveChosen: Bool,
+        recorder: Recorder, mixer: MixerLinkStatus?, sources: [Source], expectedUSBChannels: Int?, driveChosen: Bool,
         takeLength: Duration = Soundcheck.takeLength, progress: (Step.Kind) -> Void = { _ in },
         result: (Step) -> Void = { _ in }
     ) async -> [Step] {
         guard !recorder.isRecording else {
             return [Step(kind: .take, passed: false, message: "A Take is running. Stop it before the Soundcheck.")]
         }
-        progress(.mixer)
-        let mixerStep = judgeMixer(status: mixer, sources: sources)
-        result(mixerStep)
+        var mixerSteps: [Step] = []
+        if let mixer {
+            progress(.mixer)
+            let mixerStep = judgeMixer(status: mixer, sources: sources)
+            result(mixerStep)
+            mixerSteps = [mixerStep]
+        }
         guard recorder.isArmed else {
             let channels = judgeChannels(usbChannelCount: 0, expected: expectedUSBChannels, signal: nil)
             result(channels)
-            return [mixerStep, channels]
+            return mixerSteps + [channels]
         }
 
         progress(.take)
@@ -170,7 +175,7 @@ public enum Soundcheck {
         }
         result(filesStep)
         try? recorder.endShow()
-        return [mixerStep, channelsStep, takeStep, filesStep]
+        return mixerSteps + [channelsStep, takeStep, filesStep]
     }
 
     /// Whether the record screen offers the Soundcheck (a banner, once): not during a Take, and not while the

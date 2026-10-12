@@ -41,11 +41,12 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
     /// - Parameters:
     ///   - copies: how each Copy of the running Take is doing; empty when no Take is running.
     ///   - sampleRate: the Armed input's rate, for the time left (#298); 48 kHz when nothing is Armed.
+    ///   - mixer: nil when the input isn't an X Air or X32: Mixer Link isn't offered, so there's no Mixer chip (#365).
     public static func make(
         usbChannelCount: Int,
         deviceAvailableBytes: Int64,
         drive: DriveStatus,
-        mixer: MixerLinkStatus,
+        mixer: MixerLinkStatus?,
         copies: [DestinationKind: CopyStatus],
         sampleRate: Int = 48_000
     ) -> [StatusChip] {
@@ -71,6 +72,7 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         }
         if copies[.drive] == .interrupted { driveChip = StatusChip(kind: .drive, text: "Drive stopped", state: .failed) }
 
+        guard let mixer else { return [device, driveChip] }
         let mixerChip: StatusChip
         switch mixer {
         case .idle:

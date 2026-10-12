@@ -125,7 +125,11 @@ struct RecordScreen: View {
             await model.mixerLink.refreshSources(usbChannelCount: model.recorder.usbChannelCount)
         }
         // A Mixer Link that comes up during a Take names its Stems when the Take ends.
-        .onChange(of: model.mixerLink.sources) { _, sources in model.recorder.offerSources(sources) }
+        .onChange(of: model.linkedSources) { _, sources in model.recorder.offerSources(sources) }
+        // A remembered Mixer links when an X Air or X32 is Armed (#365).
+        .onChange(of: model.offersMixerLink) { _, offered in
+            if offered, !model.mixerAddress.isEmpty, model.mixerLink.status == .idle { model.connectMixer() }
+        }
         // Locking the screen or leaving the app never ends a Take; becoming active retries input
         // that an interruption left stopped.
         .onChange(of: scenePhase) { _, phase in
@@ -203,7 +207,7 @@ struct RecordScreen: View {
             header
             StatusStrip(chips: model.chips, extras: model.extraChips, tap: chipTapped)
             AlertSlot(queue: model.alerts, perform: model.perform)
-            MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources, typedNames: model.recorder.channelNames, nameChannel: nameChannel)
+            MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.linkedSources, typedNames: model.recorder.channelNames, nameChannel: nameChannel)
                 .overlay { if let block = model.recordBlock { DisarmedNotice(block: block, perform: model.perform) } }
             transport
         }
@@ -223,7 +227,7 @@ struct RecordScreen: View {
             }
             HStack(alignment: .top, spacing: 12) {
                 if model.transportLeading { transportColumn }
-                MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.mixerLink.sources, typedNames: model.recorder.channelNames, nameChannel: nameChannel, compact: true)
+                MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.linkedSources, typedNames: model.recorder.channelNames, nameChannel: nameChannel, compact: true)
                     .overlay { if let block = model.recordBlock { DisarmedNotice(block: block, perform: model.perform) } }
                     // Urgent alerts sit over the top of the meters, which aren't tappable and don't move,
                     // so the chips and the gear stay reachable (the Drive's Reconnect is one of them).
@@ -273,7 +277,7 @@ struct RecordScreen: View {
     }
 
     private func nameChannel(_ number: Int) {
-        channelName = model.recorder.channelNames[number] ?? (model.mixerLink.sources.indices.contains(number - 1) && model.mixerLink.sources[number - 1].hasMixerName ? model.mixerLink.sources[number - 1].name : "")
+        channelName = model.recorder.channelNames[number] ?? (model.linkedSources.indices.contains(number - 1) && model.linkedSources[number - 1].hasMixerName ? model.linkedSources[number - 1].name : "")
         namingChannel = number
     }
 
@@ -577,7 +581,20 @@ final class RecordScreenModel {
     private(set) var armError: String?
     private(set) var recordError: String?
     /// The device as it was when last Armed, to tell a format change from a new device.
-    @ObservationIgnored private var armedDevice: InputDeviceInfo?
+    @ObservationIgnored private var armedDevice: InputDeviceInfo? {
+        didSet { armedFamily = armedDevice.flatMap { MixerFamily(audioInterfaceName: $0.name) } }
+    }
+    /// The Armed interface's mixer family: X Air or X32, or nil for anything else (#365).
+    private(set) var armedFamily: MixerFamily?
+
+    /// Mixer Link is offered only while an X Air or X32 is the Armed input (#365). Any other input (a built-in mic,
+    /// the Demo signal, an EVO 4, a DJM) has no Mixer Link: Settings hides it, the strip has no Mixer chip and the
+    /// Soundcheck skips it. A remembered Mixer stays saved and links again when an X Air or X32 is Armed.
+    var offersMixerLink: Bool { recorder.isArmed && armedFamily != nil }
+
+    /// The Mixer's Sources while Mixer Link is offered; none otherwise, so another input's Stems never get the
+    /// Mixer's names.
+    var linkedSources: [Source] { offersMixerLink ? mixerLink.sources : [] }
     /// How each Copy of the running Take is doing, refreshed about once a second.
     private(set) var deviceCopy: CopyStatus = .missing
     private(set) var driveCopy: CopyStatus = .missing
@@ -679,7 +696,7 @@ final class RecordScreenModel {
             usbChannelCount: recorder.usbChannelCount,
             deviceAvailableBytes: drive.deviceAvailableBytes,
             drive: drive.status,
-            mixer: mixerLink.status,
+            mixer: offersMixerLink ? mixerLink.status : nil,
             copies: recorder.isRecording ? [.device: deviceCopy, .drive: driveCopy] : [:],
             sampleRate: recorder.sampleRate ?? 48_000)
     }
@@ -710,7 +727,7 @@ final class RecordScreenModel {
             list.append(ScreenAlert(id: "copies", priority: .copyResult, tone: summary.isProblem ? .warning : .ok, text: summary.text))
         }
         if showSetupHint {
-            list.append(ScreenAlert(id: "hint", priority: .hint, tone: .info, text: "Choose the audio interface, Drive and Mixer in Settings (the gear).", action: .dismissHint))
+            list.append(ScreenAlert(id: "hint", priority: .hint, tone: .info, text: offersMixerLink ? "Choose the audio interface, Drive and Mixer in Settings (the gear)." : "Choose the audio interface and Drive in Settings (the gear).", action: .dismissHint))
         }
         // Offered once, as a banner rather than a sheet, so it never stacks on another first-launch sheet (#63).
         if Soundcheck.shouldOffer(alreadyOffered: soundcheckOffered, isRecording: recorder.isRecording, setupHintShowing: showSetupHint) {
@@ -730,7 +747,7 @@ final class RecordScreenModel {
     /// Runs the Soundcheck with what the Mixer Link and the Drive know right now.
     func runSoundcheck(progress: (Soundcheck.Step.Kind) -> Void, result: (Soundcheck.Step) -> Void) async -> [Soundcheck.Step] {
         await Soundcheck.run(
-            recorder: recorder, mixer: mixerLink.status, sources: mixerLink.sources,
+            recorder: recorder, mixer: offersMixerLink ? mixerLink.status : nil, sources: linkedSources,
             expectedUSBChannels: mixerLink.capabilities?.usbChannelCount, driveChosen: drive.status != .notChosen,
             progress: progress, result: result)
     }
@@ -823,7 +840,7 @@ final class RecordScreenModel {
         do {
             // Freeze whatever the Mixer Link knows right now, and what the tier allows, into the Take (Show-Safe
             // Promise: judged only here, never during the Take).
-            try recorder.startTake(sources: mixerLink.sources, allowance: currentAllowance())
+            try recorder.startTake(sources: linkedSources, allowance: currentAllowance())
             takeStartedAt = Date()
             recordError = nil
             handle(.takeStarted)
@@ -1014,6 +1031,8 @@ final class RecordScreenModel {
     }
 
     private func connectMixer(for template: Template) async {
+        // A Template's Mixer stays in it; it links only when the input is an X Air or X32 (#365).
+        guard offersMixerLink else { return }
         if !template.mixerAddress.isEmpty {
             mixerAddress = template.mixerAddress
             saveMixerAddress()
@@ -1161,7 +1180,7 @@ final class RecordScreenModel {
         if RecorderLifecycle.screenAppeared(isArmed: recorder.isArmed) == .arm { armSelectedDevice() }
         didStart = true
         // Reconnect to the remembered Mixer. This runs here, not in Settings, so it happens without Settings open.
-        if !mixerAddress.isEmpty, mixerLink.status == .idle { connectMixer() }
+        if offersMixerLink, !mixerAddress.isEmpty, mixerLink.status == .idle { connectMixer() }
         #if os(iOS)
         let routeWatcher = Task { await watchRouteChanges() }
         defer { routeWatcher.cancel() }
