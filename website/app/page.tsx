@@ -143,7 +143,7 @@ const faqs = [
   },
   {
     q: "Which mixers work?",
-    a: "The Behringer X Air XR18 and MR18 record 18 USB Channels with names and colors. Other class-compliant USB audio interfaces record every channel they send, without names from the mixer; you can type names with Pro.",
+    a: "The Behringer X Air XR18 and MR18 record 18 USB Channels with names and colors. Other class-compliant USB audio interfaces record every channel they send, without names from the mixer; you can type names with Pro. Planned next: the Behringer X32 and Midas M32, then Pioneer DJM mixers. The list is under Supported mixers on the Features page.",
   },
   {
     q: "Where do the files go?",
