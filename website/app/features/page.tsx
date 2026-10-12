@@ -16,7 +16,7 @@ export default function FeaturesPage() {
   return (
     <div className="wrap features-page">
       <header className="features-head">
-        <h1>Features</h1>
+        <h1>Features and supported mixers</h1>
         <p className="lede">
           Everything ShowRecorder does on your iPhone or iPad, grouped by what it is for. Each feature says
           whether it is in Free or comes with Pro.

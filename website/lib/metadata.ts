@@ -21,15 +21,15 @@ export type PageInfo = {
 export const PAGES = {
   home: {
     path: "/",
-    title: "ShowRecorder: multitrack recorder for mixers",
+    title: "ShowRecorder: XR18 multitrack recorder for iPhone and iPad",
     description:
-      "Record every channel of your mixer on your iPhone or iPad. One WAV file per channel, named from the mixer, with a second copy on a USB drive.",
+      "Record every channel of a Behringer XR18 or MR18 on your iPhone or iPad, with no laptop. One 24-bit WAV per channel, named from the mixer.",
   },
   features: {
     path: "/features",
-    title: `Features - ${SITE_NAME}`,
+    title: `Features and supported mixers - ${SITE_NAME}`,
     description:
-      "Every ShowRecorder feature for iPhone and iPad, grouped by what it does, with what Free includes and what Pro adds. One WAV file per channel of your mixer.",
+      "Every ShowRecorder feature, marked Free or Pro, and which mixers work: Behringer XR18 and MR18 now, other USB audio interfaces too, X32 and M32 planned.",
   },
   privacy: {
     path: "/privacy",
