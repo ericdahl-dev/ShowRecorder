@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { AppIcon } from "@/components/AppIcon";
 import { AppStoreBadge } from "@/components/AppStoreBadge";
@@ -253,7 +252,7 @@ export default function Home() {
           </figure>
         </div>
         <p className="more-link">
-          <Link href="/features">See every feature</Link>
+          <a href="/features">See every feature</a>
         </p>
       </Section>
 
@@ -348,7 +347,7 @@ export default function Home() {
           ))}
         </div>
         <p className="more-link">
-          More answers, step by step, are in the <Link href="/docs">docs</Link>.
+          More answers, step by step, are in the <a href="/docs">docs</a>.
         </p>
       </Section>
 

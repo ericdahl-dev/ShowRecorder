@@ -7,9 +7,12 @@
 // - html[data-theme="light"] selects the light tokens in globals.css; no attribute means Dark.
 // - html[data-js] shows the toggle, which is hidden when scripts do not run.
 // - The toggle (#theme-toggle) is a button with aria-pressed="true" while the light theme is on.
-// - Links marked data-current-match (the brand and the footer's page links) get
-//   aria-current="page" when they point at the page being shown. The layout is shared and static,
-//   so it cannot know the current path at build time.
+// - Links marked data-current-match (the brand, the header and footer page links, the docs list)
+//   get aria-current="page" when they point at the page being shown. data-current-match="prefix"
+//   also matches the pages below the link (the header's Docs on /docs/<slug>). The header, footer
+//   and docs list are shared static layouts, so they cannot know the path at build time. Every
+//   internal link is a plain <a> (no client-side navigation), so each page is a full load and
+//   this runs on every page.
 
 export const THEME_STORAGE_KEY = "showrecorder-theme";
 
@@ -20,7 +23,7 @@ d.setAttribute("data-js","");
 function sync(){var b=document.getElementById("theme-toggle");if(b)b.setAttribute("aria-pressed",d.getAttribute("data-theme")==="light"?"true":"false")}
 document.addEventListener("DOMContentLoaded",function(){sync();
 var p=location.pathname.replace(/\.html$/,"").replace(/(.)\/$/,"$1")||"/";
-document.querySelectorAll("[data-current-match]").forEach(function(a){if(a.getAttribute("href")===p)a.setAttribute("aria-current","page")})});
+document.querySelectorAll("[data-current-match]").forEach(function(a){var h=a.getAttribute("href");if(h===p||(a.getAttribute("data-current-match")==="prefix"&&p.indexOf(h+"/")===0))a.setAttribute("aria-current","page")})});
 document.addEventListener("click",function(e){
 var t=e.target;if(!t||!t.closest||!t.closest("#theme-toggle"))return;
 var light=d.getAttribute("data-theme")!=="light";

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { AppIcon } from "@/components/AppIcon";
 import { CONTACT_EMAIL, ISSUES_URL, SITE_NAME, TRADEMARK_LINE } from "@/lib/site";
 
@@ -13,24 +12,24 @@ export function Footer() {
         <nav aria-label="Footer">
           <ul className="footer-links">
             <li>
-              <Link href="/features" data-current-match="">
+              <a href="/features" data-current-match="">
                 Features
-              </Link>
+              </a>
             </li>
             <li>
-              <Link href="/docs" data-current-match="">
+              <a href="/docs" data-current-match="">
                 Docs
-              </Link>
+              </a>
             </li>
             <li>
-              <Link href="/support" data-current-match="">
+              <a href="/support" data-current-match="">
                 Support
-              </Link>
+              </a>
             </li>
             <li>
-              <Link href="/privacy" data-current-match="">
+              <a href="/privacy" data-current-match="">
                 Privacy
-              </Link>
+              </a>
             </li>
             <li>
               <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>

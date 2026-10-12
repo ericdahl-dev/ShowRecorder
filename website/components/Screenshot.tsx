@@ -9,8 +9,10 @@ type Props = {
 };
 
 // A screenshot in a CSS device frame, matched to the theme. When the Dark and light images differ,
-// both frames are in the HTML and CSS (.only-dark / .only-light) shows one. The light image is
-// always loading="lazy", so on the Dark site its display:none copy is never downloaded.
+// both frames are in the HTML and CSS (.only-dark / .only-light) shows one. Below the fold the
+// light one is loading="lazy", so on the Dark site its display:none copy is never downloaded. In
+// the hero (priority) both load eagerly, so the light hero does not pop in late; only the Dark one,
+// the default, gets fetchpriority="high".
 //
 // Plain <img> rather than next/image: the export is unoptimized anyway, and this keeps the
 // explicit 1x/2x srcset for the pre-sized files.
@@ -20,7 +22,7 @@ export function Screenshot({ shot, sizes, priority = false }: Props) {
   return (
     <>
       <Frame shot={shot.dark} sizes={sizes} eager={priority} className="only-dark" />
-      <Frame shot={shot.light} sizes={sizes} eager={false} className="only-light" />
+      <Frame shot={shot.light} sizes={sizes} eager={priority} high={false} className="only-light" />
     </>
   );
 }
@@ -29,11 +31,14 @@ function Frame({
   shot,
   sizes,
   eager,
+  high = eager,
   className = "",
 }: {
   shot: Shot;
   sizes: string;
   eager: boolean;
+  // fetchpriority="high"; defaults to eager.
+  high?: boolean;
   className?: string;
 }) {
   const srcSet = shot.src2x ? `${shot.src} ${shot.width}w, ${shot.src2x} ${shot.width * 2}w` : undefined;
@@ -48,7 +53,7 @@ function Frame({
         height={shot.height}
         alt={shot.alt}
         loading={eager ? "eager" : "lazy"}
-        fetchPriority={eager ? "high" : undefined}
+        fetchPriority={high ? "high" : undefined}
         decoding="async"
       />
     </div>

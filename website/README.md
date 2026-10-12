@@ -124,10 +124,14 @@ The `Dockerfile` builds the export with Node 22 and serves `out/` from nginx 1.2
 Coolify's proxy terminates TLS. nginx then:
 
 - serves clean URLs: `/privacy` from `privacy.html`
-- redirects `/privacy/` and `/privacy.html` to `/privacy` (301; the same for support and any other
-  trailing slash)
+- redirects any trailing slash and any `.html` address to the clean URL (301): `/privacy/` and
+  `/privacy.html` to `/privacy`, `/docs/usb-drive.html` to `/docs/usb-drive`, `/index.html` to `/`
 - redirects `www.showrecorder.app` to `https://showrecorder.app` with the same path (301)
 - caches `/_next/static/` for a year (immutable, hashed file names) and everything else for
   5 minutes
 - gzips text, serves `404.html` for unknown paths, and sends HSTS, CSP, nosniff,
-  Referrer-Policy and X-Frame-Options on every response
+  Referrer-Policy and X-Frame-Options on every response, with no nginx version in the `Server`
+  header (`server_tokens off`)
+
+Internal links are plain `<a>`, not `next/link`: every click is a full page load (nothing is
+prefetched), so the inline script marks the current page's links on every page.

@@ -311,6 +311,19 @@ main:focus {
   text-decoration-thickness: 2px;
 }
 
+/* Below 360 px the five links at 8 px padding and 4 px gaps are wider than the row (333 px at
+   320). Tighter padding, no gap: the row fits down to 320 px and keeps its 44 px tap height. */
+@media (max-width: 359.98px) {
+  .site-nav ul {
+    gap: 0;
+    margin-inline: -6px;
+  }
+
+  .site-nav a {
+    padding-inline: 6px;
+  }
+}
+
 .theme-toggle {
   grid-area: toggle;
   display: inline-flex;
@@ -497,7 +510,8 @@ html:not([data-js]) .theme-toggle {
 }
 
 /* Theme-matched screenshots: both are in the HTML; CSS shows the one for the current theme.
-   The hidden one is loading="lazy", so a display:none image is never downloaded. */
+   Below the fold the light one is loading="lazy", so on the Dark site its display:none copy is
+   never downloaded. The hero's light pair loads eagerly too, so the light hero never pops in late. */
 .only-light {
   display: none;
 }
@@ -776,12 +790,20 @@ html:not([data-js]) .theme-toggle {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
   column-gap: 16px;
+  align-content: start;
 }
 
 @media (min-width: 1024px) {
   .steps li {
     grid-template-columns: 1fr;
     row-gap: 16px;
+    /* The four items stretch to the tallest one. Without this the spare height of a shorter item
+       was shared out among its rows, pushing its title down (14 px at 1280). */
+    align-content: start;
+  }
+
+  .steps li::before {
+    grid-row: auto;
   }
 }
 
@@ -1341,14 +1363,23 @@ html:not([data-js]) .theme-toggle {
   text-decoration: none;
 }
 
+/* Hover only underlines; the current page is bold with the accent bar and a raised background
+   (the bar and the weight carry it inside the mobile list, which is already raised). */
 .docs-links a:hover {
-  background: var(--bg-raised);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 
 .docs-links a[aria-current="page"] {
-  font-weight: 600;
+  font-weight: 700;
   background: var(--bg-raised);
-  box-shadow: inset 3px 0 0 var(--accent);
+  box-shadow: inset 4px 0 0 var(--accent);
+  padding-inline-start: 14px;
+}
+
+.docs-nav-mobile .docs-links a[aria-current="page"] {
+  background: var(--bg);
 }
 
 .docs-main {

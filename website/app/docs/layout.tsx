@@ -1,23 +1,23 @@
-import Link from "next/link";
 import { DOCS, docHref } from "@/lib/docs";
 
 // Docs shell: the list of doc pages beside the article at 1024 px and up, and a <details>
 // disclosure above it on smaller screens (no scripts). The MDX pages render inside .doc via
 // mdx-components.tsx. The current page's link gets aria-current from the inline script
-// (data-current-match), because this layout is shared by every doc page.
+// (data-current-match, lib/theme.ts), because this layout is shared by every doc page. The links
+// are plain <a>, so moving between doc pages is a full page load and the marking is redone.
 function DocLinks() {
   return (
     <ul className="docs-links">
       <li>
-        <Link href={docHref("")} data-current-match="">
+        <a href={docHref("")} data-current-match="">
           Overview
-        </Link>
+        </a>
       </li>
       {DOCS.map((d) => (
         <li key={d.slug}>
-          <Link href={docHref(d.slug)} data-current-match="">
+          <a href={docHref(d.slug)} data-current-match="">
             {d.title}
-          </Link>
+          </a>
         </li>
       ))}
     </ul>

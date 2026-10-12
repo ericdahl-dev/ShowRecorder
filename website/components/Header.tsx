@@ -1,24 +1,24 @@
-import Link from "next/link";
 import { AppIcon } from "@/components/AppIcon";
 import { NAV, SITE_NAME } from "@/lib/site";
 
 // Phones: the wordmark and the theme toggle on one row, the nav on a second row (no hamburger).
-// 768 px and up: one sticky row.
+// 768 px and up: one sticky row. Internal links are plain <a> on purpose: every click is a full
+// page load, so the inline script in lib/theme.ts marks the current link on each page.
 export function Header() {
   return (
     <header className="site-header">
       <div className="wrap header-inner">
-        <Link href="/" className="brand" data-current-match="">
+        <a href="/" className="brand" data-current-match="">
           <AppIcon size={32} priority />
           <span>{SITE_NAME}</span>
-        </Link>
+        </a>
         <nav aria-label="Main" className="site-nav">
           <ul>
             {NAV.map((item) => (
               <li key={item.href}>
-                <Link href={item.href} data-current-match="">
+                <a href={item.href} data-current-match={item.href === "/docs" ? "prefix" : ""}>
                   {item.label}
-                </Link>
+                </a>
               </li>
             ))}
           </ul>

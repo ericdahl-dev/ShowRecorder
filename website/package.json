@@ -29,7 +29,6 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",
-    "@tailwindcss/typography": "0.5.20",
     "@types/mdx": "2.0.14",
     "@types/node": "22.20.5",
     "@types/react": "19.2.18",
