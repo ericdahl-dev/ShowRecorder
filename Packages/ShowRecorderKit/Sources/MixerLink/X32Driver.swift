@@ -6,7 +6,7 @@ public final class X32Driver: MixerDriver {
     let client: OSCUDPClient
     let queries: MixerQueries
     /// The routing and Sources last read, so pushed changes reach the right USB Channels.
-    private let linked = Mutex<(routing: X32Routing?, sources: [Source])>((nil, []))
+    let linked = Mutex<(routing: X32Routing?, sources: [Source])>((nil, []))
 
     public init(endpoint: MixerEndpoint, timeout: Duration = .seconds(1.5)) {
         client = OSCUDPClient(endpoint: endpoint)
