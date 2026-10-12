@@ -1,4 +1,4 @@
-/// Where a Mixer listens for OSC. X-Air mixers use UDP port 10024.
+/// Where a Mixer listens for OSC. X-Air mixers use UDP port 10024, the X32 and M32 10023.
 public struct MixerEndpoint: Equatable, Sendable {
     public var host: String
     public var port: UInt16
@@ -64,7 +64,7 @@ public enum MixerLinkProblem: Error, Equatable, Sendable {
     }
 }
 
-/// Talks to one kind of Mixer. X-Air first; X32/M32 can follow with the same shape.
+/// Talks to one kind of Mixer: `XAirDriver` and `X32Driver`, with `DetectingMixerDriver` choosing between them.
 public protocol MixerDriver: Sendable {
     func identify() async throws(MixerLinkProblem) -> MixerIdentity
     /// What the identified model sends over USB and how many of its USB Channels this driver can name.

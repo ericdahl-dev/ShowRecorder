@@ -3,7 +3,8 @@ import Network
 import OSC
 import Synchronization
 
-/// A fake X-Air mixer: answers OSC queries on a loopback UDP port from in-memory state.
+/// A fake X-Air mixer: answers OSC queries on a loopback UDP port from in-memory state. `State.x32()` makes it an
+/// X32 instead: 32 input channels, each with `config/source` in place of the X-Air's `config/insrc`, and no aux return.
 final class FakeXAirMixer: Sendable {
     struct Channel: Sendable {
         var name: String
@@ -30,6 +31,22 @@ final class FakeXAirMixer: Sendable {
         var xremoteLifetime: TimeInterval = 10
         /// Every address queried, in order.
         var queries: [String] = []
+        /// The input-source field of an input channel: the X-Air's "insrc", the X32's "source".
+        var inputSourceField = "insrc"
+        /// Whether `/rtn/aux` answers (the X-Air's aux return; the X32 has none).
+        var hasAuxReturn = true
+
+        /// An X32 (or, with another `model`, an M32) as Maillot's X32 emulator answers it.
+        static func x32(model: String = "X32") -> State {
+            var state = State()
+            state.networkName = "FOH-X32"
+            state.model = model
+            state.firmware = "4.06"
+            state.channels = (1...32).map { _ in Channel(name: "", color: 0) }
+            state.inputSourceField = "source"
+            state.hasAuxReturn = false
+            return state
+        }
     }
 
     private let responder: Responder
@@ -82,14 +99,14 @@ final class FakeXAirMixer: Sendable {
 
     var queries: [String] { responder.state.withLock { $0.queries } }
 
-    /// Renames input channel `number` (1...16) on the Mixer, as the operator would at its surface, and
+    /// Renames input channel `number` (1...16, or 1...32 on an X32) on the Mixer, as the operator would at its surface, and
     /// pushes the change to every client whose /xremote is still running.
     func rename(channel number: Int, to name: String) {
         update { $0.channels[number - 1].name = name }
         responder.push(OSCMessage(String(format: "/ch/%02d/config/name", number), [.string(name)]))
     }
 
-    /// Recolors input channel `number` (1...16), pushing the change like `rename`.
+    /// Recolors input channel `number` (1...16, or 1...32 on an X32), pushing the change like `rename`.
     func recolor(channel number: Int, to color: Int32) {
         update { $0.channels[number - 1].color = color }
         responder.push(OSCMessage(String(format: "/ch/%02d/config/color", number), [.int(color)]))
@@ -156,24 +173,24 @@ final class FakeXAirMixer: Sendable {
                 case ["xinfo"]:
                     return OSCMessage("/xinfo", ["127.0.0.1", .string(state.networkName), .string(state.model), .string(state.firmware)])
                 case let p where p.count == 4 && p[0] == "ch":
-                    guard let number = Int(p[1]), (1...16).contains(number) else { return nil }
-                    guard state.answersMixState || (p[2] == "config" && p[3] != "insrc") else { return nil }
+                    guard let number = Int(p[1]), state.channels.indices.contains(number - 1) else { return nil }
+                    guard state.answersMixState || (p[2] == "config" && p[3] != state.inputSourceField) else { return nil }
                     if state.reportsFaderAsInt, p[2] == "mix", p[3] == "fader" { return OSCMessage(query.address, [.int(1)]) }
-                    return Self.answer(query.address, section: p[2], field: p[3], channel: state.channels[number - 1], hasInputSource: true)
-                case let p where p.count == 4 && p[0] == "rtn" && p[1] == "aux":
+                    return Self.answer(query.address, section: p[2], field: p[3], channel: state.channels[number - 1], inputSourceField: state.inputSourceField)
+                case let p where p.count == 4 && p[0] == "rtn" && p[1] == "aux" && state.hasAuxReturn:
                     guard state.answersMixState || p[2] == "config" else { return nil }
-                    return Self.answer(query.address, section: p[2], field: p[3], channel: state.auxReturn, hasInputSource: false)
+                    return Self.answer(query.address, section: p[2], field: p[3], channel: state.auxReturn, inputSourceField: nil)
                 default:
                     return nil
                 }
             }
         }
 
-        private static func answer(_ address: String, section: String, field: String, channel: Channel, hasInputSource: Bool) -> OSCMessage? {
+        private static func answer(_ address: String, section: String, field: String, channel: Channel, inputSourceField: String?) -> OSCMessage? {
             switch (section, field) {
             case ("config", "name"): OSCMessage(address, [.string(channel.name)])
             case ("config", "color"): OSCMessage(address, [.int(channel.color)])
-            case ("config", "insrc") where hasInputSource: OSCMessage(address, [.int(channel.inputSource)])
+            case ("config", let f) where f == inputSourceField: OSCMessage(address, [.int(channel.inputSource)])
             case ("mix", "on"): OSCMessage(address, [.int(channel.on)])
             case ("mix", "fader"): OSCMessage(address, [.float(channel.fader)])
             default: nil

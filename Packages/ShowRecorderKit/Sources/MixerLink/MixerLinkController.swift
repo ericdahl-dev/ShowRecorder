@@ -43,14 +43,16 @@ public final class MixerLinkController {
     public init(
         timeout: Duration = .seconds(1.5),
         renewEvery: Duration = .seconds(5),
-        makeDriver: @escaping @Sendable (MixerEndpoint, Duration) -> any MixerDriver = { XAirDriver(endpoint: $0, timeout: $1) }
+        // X-Air or X32: whichever answers at the address (#199).
+        makeDriver: @escaping @Sendable (MixerEndpoint, Duration) -> any MixerDriver = { DetectingMixerDriver(endpoint: $0, timeout: $1) }
     ) {
         self.timeout = timeout
         self.renewEvery = renewEvery
         self.makeDriver = makeDriver
     }
 
-    /// Connects to the Mixer at `address` ("10.0.0.20" or "10.0.0.20:10024") and reads its Sources.
+    /// Connects to the Mixer at `address` ("10.0.0.20" or "10.0.0.20:10024") and reads its Sources. With no port,
+    /// the default driver tries the X-Air's and the X32's.
     ///
     /// `usbChannelCount` is what the Armed device sends. With nothing Armed (0), as many Sources
     /// are read as the identified Mixer sends over USB, if its driver knows.

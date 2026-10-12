@@ -27,7 +27,7 @@ struct MixerScanTests {
     @Test("The scan finds a mixer that answers /xinfo, with its name, model and address, and only asks /xinfo")
     func findsMixer() async throws {
         let mixer = try await FakeXAirMixer()
-        let found = await MixerScanner.scan(hosts: ["127.0.0.1"], port: mixer.port, timeout: .seconds(1))
+        let found = await MixerScanner.scan(hosts: ["127.0.0.1"], ports: [mixer.port], timeout: .seconds(1))
         #expect(found == [FoundMixer(host: "127.0.0.1", identity: MixerIdentity(networkName: "FOH-XR18", model: "XR18", firmware: "1.22"))])
         #expect(mixer.queries == ["/xinfo"])
     }
@@ -38,8 +38,23 @@ struct MixerScanTests {
         state.answers = false
         let mixer = try await FakeXAirMixer(state)
         let started = ContinuousClock.now
-        let found = await MixerScanner.scan(hosts: ["127.0.0.1"], port: mixer.port, timeout: .milliseconds(300))
+        let found = await MixerScanner.scan(hosts: ["127.0.0.1"], ports: [mixer.port], timeout: .milliseconds(300))
         #expect(found.isEmpty)
         #expect(ContinuousClock.now - started < .seconds(2))
+    }
+
+    @Test("An X32 answering on its own port (10023, not the X-Air's 10024) is found too, from the same scan")
+    func findsAnX32OnItsPort() async throws {
+        var silent = FakeXAirMixer.State()
+        silent.answers = false
+        let xAirPort = try await FakeXAirMixer(silent)
+        let x32 = try await FakeXAirMixer(.x32())
+        let found = await MixerScanner.scan(hosts: ["127.0.0.1"], ports: [xAirPort.port, x32.port], timeout: .seconds(1))
+        #expect(found == [FoundMixer(host: "127.0.0.1", identity: MixerIdentity(networkName: "FOH-X32", model: "X32", firmware: "4.06"))])
+    }
+
+    @Test("Find Mixers asks the X-Air's port and the X32's by default")
+    func defaultPorts() {
+        #expect(MixerScanner.defaultPorts == [10024, 10023])
     }
 }

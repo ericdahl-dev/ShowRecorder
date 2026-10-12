@@ -45,18 +45,21 @@ public struct FoundMixer: Equatable, Sendable {
     }
 }
 
-/// Asks many addresses for `/xinfo` at once and lists the X-Air mixers that answer (#289). Unicast only, from one UDP
-/// socket, paced, then listens for `timeout` after the last query. It sends nothing but `/xinfo`.
+/// Asks many addresses for `/xinfo` at once and lists the X-Air and X32 mixers that answer (#289, #199). Unicast only,
+/// from one UDP socket, paced, then listens for `timeout` after the last query. It sends nothing but `/xinfo`.
 public enum MixerScanner {
-    public static func scan(hosts: [String], port: UInt16 = 10024, timeout: Duration = .seconds(1)) async -> [FoundMixer] {
+    /// The X-Air's port and the X32's: each address is asked on both.
+    public static let defaultPorts: [UInt16] = [10024, 10023]
+
+    public static func scan(hosts: [String], ports: [UInt16] = defaultPorts, timeout: Duration = .seconds(1)) async -> [FoundMixer] {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                continuation.resume(returning: scanBlocking(hosts: hosts, port: port, timeout: timeout))
+                continuation.resume(returning: scanBlocking(hosts: hosts, ports: ports, timeout: timeout))
             }
         }
     }
 
-    private static func scanBlocking(hosts: [String], port: UInt16, timeout: Duration) -> [FoundMixer] {
+    private static func scanBlocking(hosts: [String], ports: [UInt16], timeout: Duration) -> [FoundMixer] {
         let fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
         guard fd >= 0 else { return [] }
         defer { close(fd) }
@@ -67,7 +70,7 @@ public enum MixerScanner {
         // Paced, about 2 ms an address: each query to a new address also makes the system look the address up (ARP),
         // and a burst of a thousand lookups is dropped on Wi-Fi, so a cold scan finds nothing (seen on the XR18).
         for host in hosts {
-            send(query, to: host, port: port, on: fd)
+            for port in ports { send(query, to: host, port: port, on: fd) }
             collect(on: fd, into: &found, until: ContinuousClock.now + .milliseconds(2))
         }
         collect(on: fd, into: &found, until: ContinuousClock.now + timeout)
