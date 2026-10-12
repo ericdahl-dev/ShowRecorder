@@ -7,7 +7,7 @@ Uses the App Store Connect API with the same key the upload uses (Python standar
 one, and installs it where Xcode looks.
 
 Environment: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_PATH, BUNDLE_ID, CERT_SERIAL (hex, from the certificate in
-the keychain), PROFILE_NAME. Prints "name=<profile name>" and "uuid=<profile uuid>" lines, for $GITHUB_OUTPUT.
+the keychain), PROFILE_NAME, and PROFILE_TYPE (IOS_APP_STORE, the default, or MAC_APP_STORE). Prints "name=<profile name>" and "uuid=<profile uuid>" lines, for $GITHUB_OUTPUT.
 Never prints the key or a token.
 """
 import base64, json, os, plistlib, subprocess, sys, time, urllib.error, urllib.parse, urllib.request
@@ -61,6 +61,7 @@ def main():
     bundle_id = os.environ["BUNDLE_ID"]
     serial = os.environ["CERT_SERIAL"].upper().lstrip("0")
     name = os.environ["PROFILE_NAME"]
+    profile_type = os.environ.get("PROFILE_TYPE", "IOS_APP_STORE")
 
     bundles = call("GET", "/bundleIds", query={"filter[identifier]": bundle_id, "limit": 200})["data"]
     bundle = next((b for b in bundles if b["attributes"]["identifier"] == bundle_id), None) or sys.exit(f"No bundle ID {bundle_id}.")
@@ -70,7 +71,7 @@ def main():
     if cert is None:
         sys.exit("The Apple Distribution certificate in the keychain isn't one App Store Connect knows (serial mismatch). Was it revoked?")
 
-    profiles = call("GET", "/profiles", query={"filter[name]": name, "filter[profileType]": "IOS_APP_STORE", "include": "certificates", "limit": 50})
+    profiles = call("GET", "/profiles", query={"filter[name]": name, "filter[profileType]": profile_type, "include": "certificates", "limit": 50})
     profile = None
     for p in profiles["data"]:
         linked = [c["id"] for c in p["relationships"]["certificates"]["data"]]
@@ -87,7 +88,7 @@ def main():
                 call("DELETE", f"/profiles/{p['id']}")
         profile = call("POST", "/profiles", body={"data": {
             "type": "profiles",
-            "attributes": {"name": name, "profileType": "IOS_APP_STORE"},
+            "attributes": {"name": name, "profileType": profile_type},
             "relationships": {
                 "bundleId": {"data": {"type": "bundleIds", "id": bundle["id"]}},
                 "certificates": {"data": [{"type": "certificates", "id": cert["id"]}]},
@@ -96,10 +97,13 @@ def main():
 
     content = base64.b64decode(profile["attributes"]["profileContent"])
     uuid = profile["attributes"]["uuid"]
-    folder = os.path.expanduser("~/Library/MobileDevice/Provisioning Profiles")
-    os.makedirs(folder, exist_ok=True)
-    with open(f"{folder}/{uuid}.mobileprovision", "wb") as f:
-        f.write(content)
+    # A Mac profile is a .provisionprofile. Xcode 16 and later read UserData; older ones MobileDevice.
+    extension = "provisionprofile" if profile_type.startswith("MAC") else "mobileprovision"
+    for folder in ("~/Library/Developer/Xcode/UserData/Provisioning Profiles", "~/Library/MobileDevice/Provisioning Profiles"):
+        folder = os.path.expanduser(folder)
+        os.makedirs(folder, exist_ok=True)
+        with open(f"{folder}/{uuid}.{extension}", "wb") as f:
+            f.write(content)
     print(f"name={name}")
     print(f"uuid={uuid}")
 
