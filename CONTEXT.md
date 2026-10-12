@@ -139,3 +139,10 @@ _Avoid_: Entitlement, plan, permissions
 **Show-Safe Promise**:
 The rule that a Take never stops, and audio is never withheld, because of a Trial, limit or license; limits are checked only when record is pressed.
 _Avoid_: Recording guarantee
+
+## Code terms
+
+Names used in the code, not shown to the operator.
+
+**Copy coverage**:
+What each Copy of a Take holds: the one place Gaps and Dropouts are worked out from, for a running Take, one that ended and one cut off by a crash.

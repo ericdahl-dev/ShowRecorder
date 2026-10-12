@@ -45,12 +45,10 @@ enum CutOffTake {
                 .compactMap { finishStem(at: copy.folder.appending(path: $0.stemFile), info: info) }
                 .max() ?? 0
         }
-        let longest = lengths.values.max() ?? 0
-        for copy in copies {
-            let length = lengths[copy.kind] ?? 0
-            guard length < longest else { continue }
-            let gap = TakeMetadata.Gap(copy: copy.kind, start: Int(length), end: Int(longest))
-            if !metadata.gaps.contains(gap) { metadata.gaps.append(gap) }
+        let coverage = CopyCoverage(stemLengths: lengths.mapValues { Int($0) })
+        let longest = UInt64(coverage.end)
+        for gap in coverage.gaps(takeEnd: coverage.end) where !metadata.gaps.contains(gap) {
+            metadata.gaps.append(gap)
         }
         for copy in copies { try? metadata.write(to: copy.folder) }
         let seconds = metadata.sampleRate > 0 ? Double(longest) / Double(metadata.sampleRate) : 0
