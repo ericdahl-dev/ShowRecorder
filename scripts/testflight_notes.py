@@ -5,7 +5,8 @@ for Beta App Review, through the App Store Connect API (same key as the upload, 
 Never fails the release: the upload already happened, so any problem is printed as a warning and the exit
 code stays 0. Prints no secret.
 
-Environment: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_PATH, BUNDLE_ID, MARKETING_VERSION, BUILD_NUMBER, TAG (e.g. v0.1.12).
+Environment: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_PATH, BUNDLE_ID, MARKETING_VERSION, BUILD_NUMBER, TAG (e.g. v0.1.12),
+and PLATFORM (IOS, the default, or MAC_OS: the iPhone and Mac builds of a tag share a version and number).
 Notes text: docs/release-notes/<TAG>.md when it exists (written in plain words), else the titles of the pull
 requests merged since the previous tag, else a fixed line.
 """
@@ -38,7 +39,8 @@ def find_build(app_id: str, version: str, number: str):
     """The processed build, waiting up to 40 minutes for Apple to finish."""
     for _ in range(80):
         found = asc.call("GET", "/builds", query={
-            "filter[app]": app_id, "filter[version]": number, "filter[preReleaseVersion.version]": version, "limit": 5})["data"]
+            "filter[app]": app_id, "filter[version]": number, "filter[preReleaseVersion.version]": version,
+            "filter[preReleaseVersion.platform]": os.environ.get("PLATFORM", "IOS"), "limit": 5})["data"]
         if found and found[0]["attributes"]["processingState"] == "VALID":
             return found[0]
         if found and found[0]["attributes"]["processingState"] in ("FAILED", "INVALID"):

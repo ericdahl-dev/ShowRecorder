@@ -1,8 +1,10 @@
 name: Release
 
-# Tag a version (for example v0.1.0) to archive the iOS app, sign it and upload it to TestFlight.
-# Signs with one fixed Apple Distribution certificate (secrets DIST_CERT_P12_BASE64 and DIST_CERT_PASSWORD),
-# so no run creates a certificate and Apple's certificate limit is never reached.
+# Tag a version (for example v0.1.0) to archive the app for iOS and for macOS, sign both and upload them
+# to TestFlight. Signs with one fixed Apple Distribution certificate (secrets DIST_CERT_P12_BASE64 and
+# DIST_CERT_PASSWORD), so no run creates a certificate and Apple's certificate limit is never reached.
+# The Mac upload also needs a Mac Installer Distribution certificate (MAC_INSTALLER_CERT_P12_BASE64 and
+# MAC_INSTALLER_CERT_PASSWORD); without those secrets the Mac job says so and stops, and iOS still ships.
 # Pull requests and forks never run this: it only fires on a tag pushed to this repository.
 on:
   push:
@@ -17,8 +19,23 @@ concurrency:
 
 jobs:
   testflight:
-    name: Archive and upload to TestFlight
+    name: TestFlight (${{ matrix.platform }})
     if: github.repository == 'ericdahl-dev/ShowRecorder'
+    strategy:
+      # A Mac problem never stops the iPhone and iPad build, and the other way round.
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ios
+            destination: generic/platform=iOS
+            profile_type: IOS_APP_STORE
+            profile_name: ShowRecorder CI App Store
+            asc_platform: IOS
+          - platform: macos
+            destination: generic/platform=macOS
+            profile_type: MAC_APP_STORE
+            profile_name: ShowRecorder CI Mac App Store
+            asc_platform: MAC_OS
     # Standard GitHub-hosted runner, as in ci.yml. Avoid -large/-xlarge (always billed).
     runs-on: macos-26
     timeout-minutes: 60
@@ -28,13 +45,24 @@ jobs:
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       DEVELOPMENT_TEAM: ${{ secrets.DEVELOPMENT_TEAM }}
       BUNDLE_ID: dev.ericdahl.ShowRecorder
-      PROFILE_NAME: ShowRecorder CI App Store
+      PROFILE_NAME: ${{ matrix.profile_name }}
+      PROFILE_TYPE: ${{ matrix.profile_type }}
+      PLATFORM: ${{ matrix.asc_platform }}
+      HAS_MAC_INSTALLER_CERT: ${{ secrets.MAC_INSTALLER_CERT_P12_BASE64 != '' }}
     steps:
+      - name: Check the Mac installer certificate
+        if: matrix.platform == 'macos' && env.HAS_MAC_INSTALLER_CERT != 'true'
+        run: |
+          echo "::warning::No Mac upload: add MAC_INSTALLER_CERT_P12_BASE64 and MAC_INSTALLER_CERT_PASSWORD (see docs/DEVELOPING.md)."
+          echo "SKIP=1" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v4
+        if: env.SKIP != '1'
         with:
           fetch-depth: 0
 
       - name: Check the tag
+        if: env.SKIP != '1'
         run: |
           # Only releases from main, so a stray tag on a branch can't ship.
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
@@ -47,12 +75,14 @@ jobs:
           echo "BUILD_NUMBER=${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
 
       - name: Show toolchain
+        if: env.SKIP != '1'
         run: |
           xcodebuild -version
           swift --version
           echo "Version ${MARKETING_VERSION} (${BUILD_NUMBER})"
 
       - name: Write the App Store Connect key
+        if: env.SKIP != '1'
         env:
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
         run: |
@@ -63,9 +93,12 @@ jobs:
           echo "ASC_KEY_PATH=$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
 
       - name: Import the Apple Distribution certificate
+        if: env.SKIP != '1'
         env:
           DIST_CERT_P12_BASE64: ${{ secrets.DIST_CERT_P12_BASE64 }}
           DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
+          MAC_INSTALLER_CERT_P12_BASE64: ${{ secrets.MAC_INSTALLER_CERT_P12_BASE64 }}
+          MAC_INSTALLER_CERT_PASSWORD: ${{ secrets.MAC_INSTALLER_CERT_PASSWORD }}
         run: |
           set +x
           umask 077
@@ -76,6 +109,12 @@ jobs:
           security set-keychain-settings -lut 3600 "$KEYCHAIN"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
           security import "$RUNNER_TEMP/dist.p12" -k "$KEYCHAIN" -P "$DIST_CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          if [ "${{ matrix.platform }}" = macos ]; then
+            # The Mac upload is a signed installer package.
+            printf '%s' "$MAC_INSTALLER_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/installer.p12"
+            security import "$RUNNER_TEMP/installer.p12" -k "$KEYCHAIN" -P "$MAC_INSTALLER_CERT_PASSWORD" -T /usr/bin/productbuild -T /usr/bin/security
+            rm -f "$RUNNER_TEMP/installer.p12"
+          fi
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
           rm -f "$RUNNER_TEMP/dist.p12"
@@ -85,18 +124,20 @@ jobs:
           echo "CERT_SERIAL=$SERIAL" >> "$GITHUB_ENV"
           security find-identity -v -p codesigning "$KEYCHAIN" | sed -E 's/[0-9A-F]{40}/<hash>/'
 
-      - name: Get the App Store provisioning profile
+      - name: Get the App Store provisioning profile (${{ matrix.profile_type }})
+        if: env.SKIP != '1'
         run: |
           set +x
           python3 scripts/ci_profile.py | tee "$RUNNER_TEMP/profile.txt"
           echo "PROFILE_UUID=$(sed -n 's/^uuid=//p' "$RUNNER_TEMP/profile.txt")" >> "$GITHUB_ENV"
 
       - name: Archive
+        if: env.SKIP != '1'
         run: |
           set -o pipefail
           xcodebuild archive \
             -project ShowRecorder.xcodeproj -scheme ShowRecorder -configuration Release \
-            -destination 'generic/platform=iOS' \
+            -destination '${{ matrix.destination }}' \
             -archivePath "$RUNNER_TEMP/ShowRecorder.xcarchive" \
             DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
@@ -105,11 +146,17 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/archive.log"
 
       - name: Check the archive before uploading
+        if: env.SKIP != '1'
         run: ./scripts/preflight.sh "$RUNNER_TEMP/ShowRecorder.xcarchive"
 
       - name: Upload to TestFlight
+        if: env.SKIP != '1'
         run: |
           set -o pipefail
+          INSTALLER=""
+          if [ "${{ matrix.platform }}" = macos ]; then
+            INSTALLER="<key>installerSigningCertificate</key><string>3rd Party Mac Developer Installer</string>"
+          fi
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -119,6 +166,7 @@ jobs:
             <key>destination</key><string>upload</string>
             <key>signingStyle</key><string>manual</string>
             <key>signingCertificate</key><string>Apple Distribution</string>
+            ${INSTALLER}
             <key>provisioningProfiles</key>
             <dict><key>${BUNDLE_ID}</key><string>${PROFILE_NAME}</string></dict>
             <key>teamID</key><string>${DEVELOPMENT_TEAM}</string>
@@ -137,6 +185,7 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/upload.log"
 
       - name: Set What to Test and send the build to external testers
+        if: env.SKIP != '1'
         # The upload has happened; a failure here prints a warning and never fails the release.
         continue-on-error: true
         env:
@@ -146,15 +195,16 @@ jobs:
       - name: Remove the keys and the keychain
         if: always()
         run: |
-          rm -rf "$RUNNER_TEMP/asc" "$RUNNER_TEMP/dist.p12"
+          rm -rf "$RUNNER_TEMP/asc" "$RUNNER_TEMP/dist.p12" "$RUNNER_TEMP/installer.p12"
           [ -n "$KEYCHAIN" ] && security delete-keychain "$KEYCHAIN" || true
-          rm -f ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision || true
+          rm -f ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/*.provisionprofile || true
+          rm -f ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/*.mobileprovision ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/*.provisionprofile || true
 
       - name: Keep the logs when something failed
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: release-logs
+          name: release-logs-${{ matrix.platform }}
           path: |
             ${{ runner.temp }}/archive.log
             ${{ runner.temp }}/upload.log
