@@ -3,11 +3,11 @@ import Synchronization
 
 /// The X-Air driver (XR12/XR16/XR18, MR18) over OSC on UDP port 10024.
 public final class XAirDriver: MixerDriver {
-    private let client: OSCUDPClient
-    private let queries: MixerQueries
+    let client: OSCUDPClient
+    let queries: MixerQueries
     /// What each USB Channel carries, and the Sources last read, so pushed changes reach the right USB Channels.
     /// Until the routing is read, the XR18's default.
-    private let linked = Mutex<(targets: [XAirRouting.Target?], sources: [Source])>((XAirDriver.defaultTargets, []))
+    let linked = Mutex<(targets: [XAirRouting.Target?], sources: [Source])>((XAirDriver.defaultTargets, []))
 
     /// The XR18's default USB routing: USB 1-16 input channels 1-16, 17-18 the aux return.
     static let defaultTargets: [XAirRouting.Target?] = (1...16).map { .channel($0) } + [.auxReturn, .auxReturn]

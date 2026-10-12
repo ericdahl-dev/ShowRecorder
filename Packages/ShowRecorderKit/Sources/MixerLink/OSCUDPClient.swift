@@ -131,7 +131,8 @@ actor OSCUDPClient {
 
     private func deliver(_ messages: [OSCMessage]) {
         for message in messages {
-            guard let index = pending.firstIndex(where: { $0.address == message.address }) else {
+            // An XR18 echoes each set back with no arguments: that's never the reply to a query.
+            guard !message.arguments.isEmpty, let index = pending.firstIndex(where: { $0.address == message.address }) else {
                 unsolicitedContinuation.yield(message)
                 continue
             }
