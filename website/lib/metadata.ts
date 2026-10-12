@@ -51,7 +51,7 @@ export function pageMetadata(page: PageInfo): Metadata {
     description: page.description,
     alternates: { canonical: page.path },
     openGraph: {
-      title: page.path === "/" ? SITE_NAME : page.title,
+      title: page.title,
       description: page.description,
       url: page.path,
       siteName: SITE_NAME,
@@ -61,7 +61,7 @@ export function pageMetadata(page: PageInfo): Metadata {
     },
     twitter: {
       card: "summary_large_image",
-      title: page.path === "/" ? SITE_NAME : page.title,
+      title: page.title,
       description: page.description,
       images: [{ url: OG_IMAGE.url, alt: OG_IMAGE.alt }],
     },
