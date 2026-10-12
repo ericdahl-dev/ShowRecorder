@@ -35,6 +35,9 @@ final class FakeXAirMixer: Sendable {
         var inputSourceField = "insrc"
         /// Whether `/rtn/aux` answers (the X-Air's aux return; the X32 has none).
         var hasAuxReturn = true
+        /// X32 only: `/config/routing/CARD/…` and `/config/routing/IN/…`, one number per block of 8 (nil: no answer).
+        var cardBlocks: [Int32]?
+        var inputBlocks: [Int32]?
 
         /// An X32 (or, with another `model`, an M32) as Maillot's X32 emulator answers it.
         static func x32(model: String = "X32") -> State {
@@ -42,9 +45,12 @@ final class FakeXAirMixer: Sendable {
             state.networkName = "FOH-X32"
             state.model = model
             state.firmware = "4.06"
-            state.channels = (1...32).map { _ in Channel(name: "", color: 0) }
+            // A real X32's defaults: channel n on In n, and the card and inputs on AN1-8 … AN25-32.
+            state.channels = (1...32).map { Channel(name: "", color: 0, inputSource: Int32($0)) }
             state.inputSourceField = "source"
             state.hasAuxReturn = false
+            state.cardBlocks = [0, 1, 2, 3]
+            state.inputBlocks = [0, 1, 2, 3]
             return state
         }
     }
@@ -112,6 +118,20 @@ final class FakeXAirMixer: Sendable {
         responder.push(OSCMessage(String(format: "/ch/%02d/config/color", number), [.int(color)]))
     }
 
+    /// X32: patches USB card block `block` (0 = USB 1-8 … 3 = USB 25-32) to `bank`, pushing the change.
+    func repatchCard(block: Int, to bank: Int32) {
+        update { $0.cardBlocks?[block] = bank }
+        responder.push(OSCMessage("/config/routing/CARD/" + Self.blockNames[block], [.int(bank)]))
+    }
+
+    /// X32: moves input channel `number` to source `source` (1-32 for In01-In32), pushing the change.
+    func setSource(channel number: Int, to source: Int32) {
+        update { $0.channels[number - 1].inputSource = source }
+        responder.push(OSCMessage(String(format: "/ch/%02d/config/source", number), [.int(source)]))
+    }
+
+    static let blockNames = ["1-8", "9-16", "17-24", "25-32"]
+
     /// Renames the aux return (USB Channels 17 and 18).
     func renameAuxReturn(to name: String) {
         update { $0.auxReturn.name = name }
@@ -177,6 +197,10 @@ final class FakeXAirMixer: Sendable {
                     guard state.answersMixState || (p[2] == "config" && p[3] != state.inputSourceField) else { return nil }
                     if state.reportsFaderAsInt, p[2] == "mix", p[3] == "fader" { return OSCMessage(query.address, [.int(1)]) }
                     return Self.answer(query.address, section: p[2], field: p[3], channel: state.channels[number - 1], inputSourceField: state.inputSourceField)
+                case let p where p.count == 4 && p[0] == "config" && p[1] == "routing" && (p[2] == "CARD" || p[2] == "IN"):
+                    guard let blocks = p[2] == "CARD" ? state.cardBlocks : state.inputBlocks,
+                          let index = FakeXAirMixer.blockNames.firstIndex(of: p[3]) else { return nil }
+                    return OSCMessage(query.address, [.int(blocks[index])])
                 case let p where p.count == 4 && p[0] == "rtn" && p[1] == "aux" && state.hasAuxReturn:
                     guard state.answersMixState || p[2] == "config" else { return nil }
                     return Self.answer(query.address, section: p[2], field: p[3], channel: state.auxReturn, inputSourceField: nil)

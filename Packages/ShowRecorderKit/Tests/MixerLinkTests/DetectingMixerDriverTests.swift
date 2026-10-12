@@ -10,7 +10,7 @@ struct DetectingMixerDriverTests {
         silent.answers = false
         let xAirPort = try await FakeXAirMixer(silent)
         var state = FakeXAirMixer.State.x32()
-        state.channels[31] = .init(name: "Audience R", color: 6)
+        state.channels[31] = .init(name: "Audience R", color: 6, inputSource: 32)
         let x32 = try await FakeXAirMixer(state)
         let driver = DetectingMixerDriver(host: "127.0.0.1", ports: [xAirPort.port, x32.port], timeout: .seconds(1))
 
