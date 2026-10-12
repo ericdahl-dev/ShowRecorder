@@ -31,6 +31,12 @@ export const PAGES = {
     description:
       "Every ShowRecorder feature, marked Free or Pro, and which mixers work: Behringer XR18 and MR18 now, other USB audio interfaces too, X32 and M32 planned.",
   },
+  changelog: {
+    path: "/changelog",
+    title: `What's new - ${SITE_NAME}`,
+    description:
+      "Every ShowRecorder version for iPhone and iPad, newest first: what changed, when, and whether it's in the App Store or the TestFlight beta.",
+  },
   privacy: {
     path: "/privacy",
     title: `Privacy policy - ${SITE_NAME}`,
