@@ -6,6 +6,7 @@ import { Screenshot } from "@/components/Screenshot";
 import { PAGES, pageMetadata } from "@/lib/metadata";
 import { SHOTS } from "@/lib/screenshots";
 import { CONTACT_EMAIL } from "@/lib/site";
+import { faqPageJsonLd, jsonLdScript, softwareApplicationJsonLd } from "@/lib/structuredData";
 
 export const metadata = pageMetadata(PAGES.home);
 
@@ -146,6 +147,14 @@ const faqs = [
     a: "The Behringer X Air XR18 and MR18 record 18 USB Channels with names and colors. Other class-compliant USB audio interfaces record every channel they send, without names from the mixer; you can type names with Pro. Planned next: the Behringer X32 and Midas M32, then Pioneer DJM mixers. The list is under Supported mixers on the Features page.",
   },
   {
+    q: "Can I record an XR18 without a computer?",
+    a: "Yes. The XR18 and MR18 send all 18 channels over USB to whatever is plugged in, and ShowRecorder makes that your iPhone or iPad. You only need a computer later, to mix the Stems.",
+  },
+  {
+    q: "Can I record a church service or a rehearsal?",
+    a: "Yes. Save a Template for each room with its channel names and Pre-roll, start a Show from it in one tap, and tap the flag at each song or part of the service.",
+  },
+  {
     q: "Where do the files go?",
     a: "Each Show has a folder for each Take, with one WAV file per channel, a report and a Reaper project. Open them from Shows in the app, in the Files app (On My iPhone or On My iPad, ShowRecorder), or on your Drive, and share them with AirDrop.",
   },
@@ -197,6 +206,8 @@ function Section({
 export default function Home() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(softwareApplicationJsonLd()) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(faqPageJsonLd(faqs)) }} />
       <section id="top" aria-labelledby="hero-title" className="hero">
         <div className="wrap hero-grid">
           <div>
@@ -226,7 +237,7 @@ export default function Home() {
 
       <Section
         id="features"
-        title="Every channel, its own file"
+        title="Multitrack recording, one file per channel"
         intro="ShowRecorder turns the USB audio from your mixer into one file per channel, written as you play, with nothing to set up on a laptop."
       >
         <ul className="cards cards--4">
@@ -334,7 +345,7 @@ export default function Home() {
         </div>
       </Section>
 
-      <Section id="faq" title="Questions">
+      <Section id="faq" title="Frequently asked questions">
         <div className="faq">
           {faqs.map((f) => (
             <details key={f.q}>
