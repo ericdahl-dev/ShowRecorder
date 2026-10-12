@@ -14,6 +14,7 @@ let package = Package(
         .library(name: "Destinations", targets: ["Destinations"]),
         .library(name: "ShowReport", targets: ["ShowReport"]),
         .library(name: "TakeActivity", targets: ["TakeActivity"]),
+        .library(name: "AutoGain", targets: ["AutoGain"]),
     ],
     targets: [
         // The audio I/O boundary and a fake device. No platform audio frameworks.
@@ -40,8 +41,12 @@ let package = Package(
         // The running Take as a Live Activity: what it shows and when it starts, updates and ends. Shared by the
         // app and its widget extension, so it depends on nothing else here.
         .target(name: "TakeActivity"),
+        // Auto-gain (#151): the closed-loop rule that steps a channel's preamp to a target Average level. Pure logic
+        // with no dependencies, so the Mixer drivers that move the preamp and the recorder that runs it can both use it.
+        .target(name: "AutoGain"),
         .testTarget(name: "DestinationsTests", dependencies: ["Destinations"]),
         .testTarget(name: "TakeActivityTests", dependencies: ["TakeActivity"]),
+        .testTarget(name: "AutoGainTests", dependencies: ["AutoGain"]),
         .testTarget(name: "OSCTests", dependencies: ["OSC"]),
         .testTarget(name: "MixerLinkTests", dependencies: ["MixerLink", "OSC"]),
         .testTarget(name: "RecordingTests", dependencies: ["Recording", "AudioIO", "MixerLink", "Destinations"]),
