@@ -1,4 +1,6 @@
 import { featureGroups } from "@/lib/features";
+import { planned, worksNow } from "@/lib/mixers";
+import { CONTACT_EMAIL } from "@/lib/site";
 import { PAGES, pageMetadata } from "@/lib/metadata";
 
 export const metadata = pageMetadata(PAGES.features);
@@ -44,6 +46,9 @@ export default function FeaturesPage() {
                 <a href={`#${g.id}`}>{g.title}</a>
               </li>
             ))}
+            <li>
+              <a href="#mixers">Supported mixers</a>
+            </li>
           </ul>
         </nav>
       </header>
@@ -67,6 +72,35 @@ export default function FeaturesPage() {
           </ul>
         </section>
       ))}
+
+      <section id="mixers" aria-labelledby="mixers-title" className="feature-group">
+        <div className="section-head">
+          <h2 id="mixers-title">Supported mixers</h2>
+          <p>What works today, and what is planned next. Planned support has no dates yet.</p>
+        </div>
+        <h3 className="mixers-sub">Works now</h3>
+        <ul className="cards cards--3">
+          {worksNow.map((m) => (
+            <li key={m.name} className="card">
+              <h3>{m.name}</h3>
+              <p>{m.body}</p>
+            </li>
+          ))}
+        </ul>
+        <h3 className="mixers-sub">Planned</h3>
+        <ol className="cards cards--3">
+          {planned.map((m) => (
+            <li key={m.name} className="card">
+              <h3>{m.name}</h3>
+              <p>{m.body}</p>
+            </li>
+          ))}
+        </ol>
+        <p className="mixers-ask">
+          Using another mixer? Tell us which at <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. It
+          helps decide what comes next.
+        </p>
+      </section>
     </div>
   );
 }
