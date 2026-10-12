@@ -357,8 +357,8 @@ export default function Home() {
             <AppIcon size={96} />
             <h2 id="get-title">Record your next Show</h2>
             <p>
-              ShowRecorder is coming soon to the App Store for iPhone and iPad. Free to download, with a 14-day
-              Trial of everything.
+              ShowRecorder is coming soon to the App Store for iPhone and iPad. Until then, the public beta is
+              open on TestFlight. Free to download, with a 14-day Trial of everything.
             </p>
             <AppStoreBadge id="app-store-link-footer" />
             <p className="ask">

@@ -1,4 +1,4 @@
-import { APP_STORE_URL } from "@/lib/site";
+import { APP_STORE_URL, TESTFLIGHT_URL } from "@/lib/site";
 
 // The App Store slot used in the hero and the closing call. Driven by APP_STORE_URL in lib/site.ts.
 //
@@ -18,6 +18,14 @@ export function AppStoreBadge({ id }: { id: "app-store-link" | "app-store-link-f
     return (
       <a id={id} className="store-slot is-live" href={APP_STORE_URL}>
         Download on the App Store
+      </a>
+    );
+  }
+  // Before release: the public beta. A plain button, not an App Store lookalike.
+  if (TESTFLIGHT_URL) {
+    return (
+      <a id={id} className="store-slot is-live" href={TESTFLIGHT_URL}>
+        Join the public beta on TestFlight
       </a>
     );
   }
