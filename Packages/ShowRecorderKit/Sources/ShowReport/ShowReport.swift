@@ -360,7 +360,7 @@ extension ShowReport.Take {
                     inputSource: channel.inputSource,
                     peakDbfs: channel.peakDbfs,
                     averageDbfs: channel.averageDbfs,
-                    sampleCount: try? StemLength.frameCount(at: folder.appending(path: channel.stemFile)),
+                    sampleCount: try? StemFile.inspect(folder.appending(path: channel.stemFile)).frameCount,
                     sampleRate: file.sampleRate)
             },
             markers: file.markers.map { Marker(seconds: seconds($0.position), name: $0.name) },

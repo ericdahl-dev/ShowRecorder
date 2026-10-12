@@ -25,7 +25,7 @@ extension Show {
             for channel in entry.take.usbChannels {
                 channels[channel.usbChannel] = ShowTimeline.USBChannel(
                     number: channel.usbChannel, name: channel.name, color: channel.color.mixerColor)
-                guard let frames = try? StemLength.frameCount(at: entry.folder.appending(path: channel.stemFile)) else { continue }
+                guard let frames = try? StemFile.inspect(entry.folder.appending(path: channel.stemFile)).frameCount else { continue }
                 frameCount = max(frameCount, frames)
                 stems.append(.init(usbChannel: channel.usbChannel, path: "\(folderName)/\(channel.stemFile)", name: channel.name))
             }

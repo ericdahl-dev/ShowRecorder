@@ -60,17 +60,15 @@ enum CutOffTake {
     /// Rewrites the Stem's header to cover its whole samples on disk, unless it already does. Returns its frames,
     /// or nil when it isn't there or isn't a Stem this writer made.
     static func finishStem(at url: URL, info: StemWriter.Info) -> UInt64? {
-        guard let region = StemLength.audioRegion(at: url),
-              let size = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? UInt64 else { return nil }
-        let bytesPerSample = UInt64(StemWriter.bytesPerSample)
+        guard let stem = try? StemFile.inspect(url) else { return nil }
         // Resuming truncates at this writer's header size plus the frames: a different header would lose audio.
-        guard region.offset == UInt64(StemWriter.dataStart), size >= region.offset else { return region.length / bytesPerSample }
-        let onDisk = (size - region.offset) / bytesPerSample
-        let dataBytes = onDisk * bytesPerSample
-        let finished = region.length == dataBytes && size == region.offset + dataBytes + dataBytes % 2
+        guard stem.dataStart == UInt64(StemWriter.dataStart) else { return stem.frameCount }
+        let onDisk = stem.framesOnDisk
+        let dataBytes = onDisk * UInt64(StemWriter.bytesPerSample)
+        let finished = stem.declaredBytes == dataBytes && stem.bytesOnDisk == dataBytes + dataBytes % 2
         guard !finished else { return onDisk }
         guard let writer = try? StemWriter.open(url: url, info: info, resumingAt: onDisk), (try? writer.finalize()) != nil else {
-            return region.length / bytesPerSample
+            return stem.frameCount
         }
         return onDisk
     }

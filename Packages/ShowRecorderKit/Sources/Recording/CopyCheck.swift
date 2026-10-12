@@ -41,11 +41,11 @@ public enum CopyCheck {
                 }
                 let deviceStem = deviceFolder.appending(path: channel.stemFile)
                 let driveStem = driveFolder.appending(path: match.stemFile)
-                guard let a = StemLength.audioRegion(at: deviceStem) else {
+                guard let a = (try? StemFile.inspect(deviceStem))?.audioRegion else {
                     problems.append("\(name), channel \(channel.usbChannel) can't be read on the Device.")
                     continue
                 }
-                guard let b = StemLength.audioRegion(at: driveStem) else {
+                guard let b = (try? StemFile.inspect(driveStem))?.audioRegion else {
                     problems.append("\(name), channel \(channel.usbChannel) can't be read on the Drive.")
                     continue
                 }

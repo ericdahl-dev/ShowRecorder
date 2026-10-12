@@ -41,7 +41,7 @@ struct ChannelRenamerTests {
     @Test("Naming a channel renames its Stem, bext description and Take.json in every Copy, and leaves the audio and the other channels as they were")
     func renameOnDisk() throws {
         try recordTake()
-        let before = try copies.values.map { try StemFile(contentsOf: $0.appending(path: "02 USB 02.wav")) }
+        let before = try copies.values.map { try ParsedStem(contentsOf: $0.appending(path: "02 USB 02.wav")) }
 
         let outcome = ChannelRenamer.rename(names: [2: "Lead Vocal"], in: copies, allowsProExtras: true)
 
@@ -50,7 +50,7 @@ struct ChannelRenamerTests {
         #expect(outcome.failed.isEmpty)
         for copy in copies.values {
             #expect(!FileManager.default.fileExists(atPath: copy.appending(path: "02 USB 02.wav").path))
-            let stem = try StemFile(contentsOf: copy.appending(path: "02 Lead Vocal.wav"))
+            let stem = try ParsedStem(contentsOf: copy.appending(path: "02 Lead Vocal.wav"))
             #expect(stem.description == "Lead Vocal")
             #expect(stem.samples == before[0].samples, "the audio is untouched")
             #expect(stem.timeReference == before[0].timeReference)
@@ -60,7 +60,7 @@ struct ChannelRenamerTests {
             #expect(channels[1].stemFile == "02 Lead Vocal.wav")
             #expect(channels[1].hasMixerName == false)
             #expect(channels[0].stemFile == "01 USB 01.wav", "the other channel is untouched")
-            #expect(try StemFile(contentsOf: copy.appending(path: "01 USB 01.wav")).description == "USB 01")
+            #expect(try ParsedStem(contentsOf: copy.appending(path: "01 USB 01.wav")).description == "USB 01")
         }
     }
 

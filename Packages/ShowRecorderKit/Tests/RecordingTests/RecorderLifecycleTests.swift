@@ -43,7 +43,7 @@ struct RecorderLifecycleTests {
         device.deliver([[sample(3), sample(4)]])
         try recorder.stopTake()
 
-        let stem = try StemFile(contentsOf: try #require(recorder.currentShow).folder.appending(path: "Take 01/01 USB 01.wav"))
+        let stem = try ParsedStem(contentsOf: try #require(recorder.currentShow).folder.appending(path: "Take 01/01 USB 01.wav"))
         #expect(stem.samples == [1, 2, 3, 4])
     }
 

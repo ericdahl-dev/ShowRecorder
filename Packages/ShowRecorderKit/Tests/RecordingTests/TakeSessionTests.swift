@@ -76,7 +76,7 @@ struct TakeSessionTests {
 
         #expect(finished.metadata.gaps == [.init(copy: .drive, start: 0, end: 480)])
         #expect(finished.folders.count == 2)
-        let stem = try StemFile(contentsOf: finished.folders[1].appending(path: "01 USB 01.wav"))
+        let stem = try ParsedStem(contentsOf: finished.folders[1].appending(path: "01 USB 01.wav"))
         #expect(stem.samples.count == 960)
         #expect(session.show.driveFolder != nil)
     }
@@ -248,7 +248,7 @@ struct TakeSessionTests {
         #expect(finished.metadata.markers == [.init(position: 480, name: "Dropout", origin: .dropout)])
         // The Stem is as long as the Take: the silence is in it, and the Marker is in its cue points.
         let stemURL = finished.folders[0].appending(path: "01 USB 01.wav")
-        #expect(try StemFile(contentsOf: stemURL).samples.count == 200_960)
+        #expect(try ParsedStem(contentsOf: stemURL).samples.count == 200_960)
         #expect(try cuePoints(stemURL) == [CuePoint(position: 480, label: "Dropout")])
     }
 

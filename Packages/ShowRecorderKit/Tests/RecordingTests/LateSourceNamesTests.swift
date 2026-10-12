@@ -39,8 +39,8 @@ struct LateSourceNamesTests {
     func adoptsLateNames() async throws {
         try await record { $0.offerSources(Self.real) }
 
-        #expect(try StemFile(contentsOf: take.appending(path: "01 Kick.wav")).description == "Kick")
-        #expect(try StemFile(contentsOf: take.appending(path: "02 Lead Vocal.wav")).description == "Lead Vocal")
+        #expect(try ParsedStem(contentsOf: take.appending(path: "01 Kick.wav")).description == "Kick")
+        #expect(try ParsedStem(contentsOf: take.appending(path: "02 Lead Vocal.wav")).description == "Lead Vocal")
         let channels = try metadata().usbChannels
         #expect(channels.map(\.name) == ["Kick", "Lead Vocal"])
         #expect(channels.map(\.hasMixerName) == [true, true])

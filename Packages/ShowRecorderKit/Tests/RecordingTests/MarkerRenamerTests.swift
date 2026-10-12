@@ -45,7 +45,7 @@ struct MarkerRenamerTests {
     func renameOnDisk() throws {
         try recordTake()
         let stems = ["01 USB 01.wav", "02 USB 02.wav"]
-        let before = try copies.values.flatMap { copy in try stems.map { try StemFile(contentsOf: copy.appending(path: $0)) } }
+        let before = try copies.values.flatMap { copy in try stems.map { try ParsedStem(contentsOf: copy.appending(path: $0)) } }
 
         let outcome = MarkerRenamer.rename(markerAt: 1, to: "Chorus", in: copies, allowsProExtras: true)
 
@@ -57,7 +57,7 @@ struct MarkerRenamerTests {
             #expect(try markerNames(copy) == ["Marker 1", "Chorus"])
             for stem in stems { #expect(try cuePoints(copy.appending(path: stem)) == expected, "\(stem)") }
         }
-        let after = try copies.values.flatMap { copy in try stems.map { try StemFile(contentsOf: copy.appending(path: $0)) } }
+        let after = try copies.values.flatMap { copy in try stems.map { try ParsedStem(contentsOf: copy.appending(path: $0)) } }
         #expect(after.map(\.samples) == before.map(\.samples), "the audio is untouched")
         #expect(after.map(\.timeReference) == before.map(\.timeReference))
     }

@@ -41,8 +41,8 @@ struct SampleRateTakeTests {
         for parent in [device, drive] {
             let take = parent.appending(path: "\(show)/Take 01")
             let stem = take.appending(path: "01 USB 01.wav")
-            #expect(try StemFile(contentsOf: stem).sampleRate == rate, "\(parent.lastPathComponent) header rate")
-            #expect(try StemLength.frameCount(at: stem) == UInt64(2 * half), "\(parent.lastPathComponent) length")
+            #expect(try ParsedStem(contentsOf: stem).sampleRate == rate, "\(parent.lastPathComponent) header rate")
+            #expect(try StemFile.inspect(stem).frameCount == UInt64(2 * half), "\(parent.lastPathComponent) length")
         }
         let metadata = try TakeMetadata.read(fromTakeFolder: device.appending(path: "\(show)/Take 01"))
         #expect(metadata.sampleRate == rate)

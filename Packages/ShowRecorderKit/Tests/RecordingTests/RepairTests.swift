@@ -61,7 +61,7 @@ extension GapTests {
         let deviceFiles = try takeFiles(in: device)
         let driveFiles = try takeFiles(in: drive)
         for (name, data) in deviceFiles { #expect(driveFiles[name] == data, "\(name) differs between the Copies") }
-        #expect(try StemFile(contentsOf: drive.appending(path: "2026-10-06 Show/Take 01/02 USB 02.wav")).samples.count == 4800)
+        #expect(try ParsedStem(contentsOf: drive.appending(path: "2026-10-06 Show/Take 01/02 USB 02.wav")).samples.count == 4800)
         #expect(recorder.lastTakeOutcomes[.drive] == .repaired)
     }
 
@@ -139,7 +139,7 @@ extension GapTests {
         await recorder.waitForRepair()
 
         let take = "2026-10-06 Show/Take 01"
-        #expect(try StemFile(contentsOf: device.appending(path: "\(take)/01 USB 01.wav")).samples.count == 4 * 480)
+        #expect(try ParsedStem(contentsOf: device.appending(path: "\(take)/01 USB 01.wav")).samples.count == 4 * 480)
         #expect(recorder.lastTakeOutcomes[.device] == .hasGaps)
     }
 

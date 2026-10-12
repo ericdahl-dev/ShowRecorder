@@ -119,7 +119,7 @@ public enum ShowList {
     /// When each Take of a Show started and ended.
     private static func takeFolders(in showFolder: URL) -> [(start: Date, end: Date)] {
         takeMetadata(in: showFolder).map { folder, take in
-            let frames = take.usbChannels.compactMap { try? StemLength.frameCount(at: folder.appending(path: $0.stemFile)) }.max() ?? 0
+            let frames = take.usbChannels.compactMap { try? StemFile.inspect(folder.appending(path: $0.stemFile)).frameCount }.max() ?? 0
             let seconds = Double(frames) / Double(max(take.sampleRate, 1))
             return (take.startedAt, take.startedAt.addingTimeInterval(seconds))
         }

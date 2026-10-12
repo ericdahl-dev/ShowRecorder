@@ -1,7 +1,7 @@
 import Foundation
 
 /// A minimal Broadcast WAV reader for tests: format, bext fields and 24-bit samples.
-struct StemFile {
+struct ParsedStem {
     var channelCount: Int
     var sampleRate: Int
     var bitsPerSample: Int

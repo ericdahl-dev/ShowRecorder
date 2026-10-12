@@ -56,15 +56,15 @@ struct StopNeverBlocksTests {
         #expect(!recorder.isRecording)
         #expect(recorder.copyStatus(.drive) == .interrupted)
         let deviceStem = device.appending(path: "\(show)/Take 01/01 USB 01.wav")
-        #expect(try StemLength.frameCount(at: deviceStem) == 4_800)
+        #expect(try StemFile.inspect(deviceStem).frameCount == 4_800)
 
         // The Drive wakes up later. The write it was stuck in can't be taken back, but the abandoned Copy starts no
         // new one: no header commit, no Markers, no finalize, so its declared length doesn't move.
         let driveStem = drive.appending(path: "\(show)/Take 01/01 USB 01.wav")
-        let before = try StemLength.frameCount(at: driveStem)
+        let before = try StemFile.inspect(driveStem).frameCount
         gate.open()
         try await Task.sleep(for: .milliseconds(300))
-        #expect(try StemLength.frameCount(at: driveStem) == before)
+        #expect(try StemFile.inspect(driveStem).frameCount == before)
         await recorder.waitForRepair()
     }
 
