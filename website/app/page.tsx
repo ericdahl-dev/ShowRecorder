@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AppIcon } from "@/components/AppIcon";
+import { AndroidSignup } from "@/components/AndroidSignup";
 import { AppStoreBadge } from "@/components/AppStoreBadge";
 import { Mark } from "@/components/Mark";
 import { Screenshot } from "@/components/Screenshot";
@@ -165,6 +166,10 @@ const faqs = [
   {
     q: "Can my family use Pro?",
     a: "Yes. Pro is a one-time purchase, shared with Family Sharing and across your iPhone and iPad.",
+  },
+  {
+    q: "Is there an Android version?",
+    a: "Not yet. An Android version is being considered, not promised: it needs its own app and testing on Android phones. Leave your email under Android below to hear if it happens.",
   },
   {
     q: "Is there a Mac version?",
@@ -360,6 +365,14 @@ export default function Home() {
         <p className="more-link">
           More answers, step by step, are in the <a href="/docs">docs</a>.
         </p>
+      </Section>
+
+      <Section
+        id="android"
+        title="Android?"
+        intro="An Android version is being considered, not promised. Leave your email and you'll hear once, if it happens."
+      >
+        <AndroidSignup />
       </Section>
 
       <section id="get" aria-labelledby="get-title" className="section closing">
