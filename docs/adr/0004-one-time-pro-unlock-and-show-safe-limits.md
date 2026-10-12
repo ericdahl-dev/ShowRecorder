@@ -26,4 +26,5 @@ Considered: pricing like Mixing Station, a one-time unlock per mixer family (X A
 
 - Family Sharing can't be turned off for an in-app purchase once enabled; a church team on one family plan shares one unlock.
 - Apple's volume purchasing doesn't cover in-app purchases. If organizations need purchase orders, that needs a paid-upfront option later (a separate listing risks Guideline 4.3).
-- Future paid features (X32/M32 support, virtual soundcheck, AAF/Logic export) are separate add-ons or an optional subscription, never taken away from Pro.
+- Future paid features (virtual soundcheck, AAF/Logic export) are separate add-ons or an optional subscription, never taken away from Pro.
+- **Update 2026-10-12 (Eric, #199):** X32/M32 support is **part of Pro**, not an add-on. It ships in 1.1.x. Free still records 2 USB Channels, so an X32 user needs Pro (or the Trial) for all 32. Whether single-family unlocks come later is still open.
