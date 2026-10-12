@@ -229,8 +229,9 @@ export default function Home() {
             </p>
             <h1 id="hero-title">Record every channel of your mixer on your iPhone or iPad.</h1>
             <p className="lede">
-              Plug in a Behringer X Air XR18 or MR18, press record, and get one 24-bit WAV file per channel,
-              named after what&apos;s on it and ready for your DAW. No recording laptop at the gig.
+              Plug your mixer into your iPhone or iPad over USB, press record, and get one 24-bit WAV file per
+              channel, ready for your DAW. With a Behringer XR18 or MR18, every file is named from the mixer. No
+              recording laptop at the gig.
             </p>
             <div className="hero-actions">
               <AppStoreBadge id="app-store-link" />
