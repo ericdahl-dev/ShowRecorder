@@ -37,7 +37,7 @@ _Avoid_: Preset, profile, rig
 ### Storage
 
 **Destination**:
-A place a Take is written to. There are two, written at the same time, and neither is the primary.
+A place a Take is written to. There are two, written at the same time, and neither is the primary (unless Drive only is on).
 _Avoid_: Backup, primary, target
 
 **Drive**:
@@ -59,6 +59,10 @@ _Avoid_: Dropout, hole
 **Repair**:
 Filling a Copy's Gaps from the other Copy after the Take ends.
 _Avoid_: Sync, heal, restore
+
+**Drive only**:
+A setting that writes a Take to the Drive alone. The Device stands in only while the Drive can't take the audio (no Drive at record, or a Drive lost mid-Take); Repair then moves that stretch to the Drive and removes it from the Device. See [ADR 0006](docs/adr/0006-drive-only-recording.md).
+_Avoid_: Single copy, external only
 
 **Dropout**:
 A stretch of a Take whose samples reached neither Copy because the recorder couldn't keep up. It is held as silence of the exact length and marked.
