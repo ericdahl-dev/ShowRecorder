@@ -20,4 +20,5 @@ Every Take is written to two Destinations at once, the Device and the Drive, and
 - With one Copy there is no second Copy to Repair from if the Drive itself is damaged after the Take. Operators who want that net leave Drive only off.
 - Time left is the Drive's while it is connected, and the Device's during a fallback.
 - Hardware check (Eric, with the rig): pull the Drive mid-Take, plug it back, and check the Take ends complete on the Drive and empty on the Device.
+- Offered in Debug and TestFlight builds only (`DriveOnlyAvailability`), never the App Store build until that check passes. The first build that carries it is internal-only and promoted after Eric's Take on a real device.
 - Decided with Eric, 2026-10-13 (#196).
