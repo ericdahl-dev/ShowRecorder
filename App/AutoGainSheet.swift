@@ -30,7 +30,8 @@ struct AutoGainSheet: View {
                 undoAll: { Task { await autoGain.undoAll() } },
                 canUndo: { isDemo ? AutoGainList.demoUndoable.contains($0) : autoGain.canUndo($0) },
                 canUndoAll: isDemo || autoGain.canUndoAll,
-                compensation: { isDemo ? AutoGainList.demoCompensation[$0] : autoGain.compensationSummary($0) })
+                compensation: { isDemo ? AutoGainList.demoCompensation[$0] : autoGain.compensationSummary($0) },
+                unavailable: isDemo ? nil : model.autoGainUnavailable)
                 .navigationTitle("Auto-gain")
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
@@ -68,9 +69,17 @@ struct AutoGainList: View {
     let compensation: (Int) -> String?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Why it can't run right now, said at the top; everything is locked meanwhile.
+    var unavailable: AutoGainAvailability.Unavailable? = nil
 
     var body: some View {
-        List {
+        let locked = self.locked || unavailable != nil
+        return List {
+            if let unavailable {
+                Section {
+                    Label(unavailable.message, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+                }
+            }
             Section {
                 // While a run of several channels goes, its progress takes the place of the button that started it.
                 // One channel's own run says where it is on its row.
@@ -205,4 +214,11 @@ extension AutoGainList {
         running: [5], phases: AutoGainList.demoPhases, progress: AutoGainPanel.Progress(done: 4, total: 6), locked: true, runAll: {}, runOne: { _ in }, undoOne: { _ in }, undoAll: {},
         canUndo: { AutoGainList.demoUndoable.contains($0) }, canUndoAll: true,
         compensation: { AutoGainList.demoCompensation[$0] })
+}
+
+#Preview("Auto-gain during a Take") {
+    AutoGainList(
+        channels: AutoGainList.demoChannels, results: [:], running: [], phases: [:], progress: nil, locked: false,
+        runAll: {}, runOne: { _ in }, undoOne: { _ in }, undoAll: {}, canUndo: { _ in false }, canUndoAll: false,
+        compensation: { _ in nil }, unavailable: .takeRunning)
 }

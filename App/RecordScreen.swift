@@ -622,12 +622,17 @@ final class RecordScreenModel {
     /// Mixer's names.
     var linkedSources: [Source] { offersMixerLink ? mixerLink.sources : [] }
 
-    /// Auto-gain (#155) is offered with Mixer Link, when the Mixer can set gain (the X32 today), and never during a Take.
-    /// Debug builds only for now (`AutoGainAvailability`).
+    /// The Gain button (#155) shows while an X Air or X32 is Armed; when auto-gain can't run (a Take, no Mixer Link, a
+    /// Mixer whose gain can't be set) its sheet says why instead of the button disappearing. Debug builds only for now
+    /// (`AutoGainAvailability`).
     var offersAutoGain: Bool {
-        AutoGainAvailability.isOffered(
-            available: AutoGainAvailability.isAvailable(), mixerLinkOffered: offersMixerLink,
-            canSetGain: mixerLink.gainControl != nil, isRecording: recorder.isRecording)
+        AutoGainAvailability.isOffered(available: AutoGainAvailability.isAvailable(), mixerLinkOffered: offersMixerLink)
+    }
+
+    /// Why auto-gain can't run right now; nil when it can.
+    var autoGainUnavailable: AutoGainAvailability.Unavailable? {
+        AutoGainAvailability.whyNot(hasMixerLink: mixerLink.identity != nil, canSetGain: mixerLink.gainControl != nil,
+                                    isRecording: recorder.isRecording)
     }
 
     /// Auto-gain's state (#155): kept here, not in the sheet, so Undo survives closing it; locked during a Take.
