@@ -92,6 +92,22 @@ struct AutoGainRuleTests {
         #expect(preamp.settles == 0)
     }
 
+    @Test("A level only just above silence is a noise floor, not a signal: no move (Eric's XR18 kick, -67 dBFS, 2026-10-12)",
+          arguments: [-79.5, -67.2, -60.5])
+    func noiseFloorIsNoSignal(level: Double) async throws {
+        let preamp = FakePreamp(gainDb: 32, sourceDbfs: level - 32)
+        let outcome = try await preamp.run()
+        #expect(outcome == .failed(.noSignal, changeDb: 0))
+        #expect(preamp.moves.isEmpty)
+    }
+
+    @Test("A quiet but real signal, above -60 dBFS, is still brought up")
+    func quietSignalMoves() async throws {
+        let preamp = FakePreamp(gainDb: 0, sourceDbfs: -55)
+        let outcome = try await preamp.run()
+        #expect(outcome == .onTarget(levelDbfs: -18, changeDb: 37, passes: 1))
+    }
+
     @Test("A signal that disappears mid-way fails, reporting how far the preamp has already moved")
     func signalLost() async throws {
         let preamp = FakePreamp(gainDb: 35, sourceDbfs: -20)
@@ -130,10 +146,10 @@ struct AutoGainRuleTests {
 
     @Test("A preamp at the end of its range with the level still off target fails at once, without spending the passes")
     func rangeReached() async throws {
-        let preamp = FakePreamp(gainDb: 10, range: -12...60, sourceDbfs: -85)
+        let preamp = FakePreamp(gainDb: 0, range: -12...30, sourceDbfs: -58)
         let outcome = try await preamp.run()
-        #expect(outcome == .failed(.rangeReached(levelDbfs: -25), changeDb: 50))
-        #expect(preamp.moves == [50, 0])
+        #expect(outcome == .failed(.rangeReached(levelDbfs: -28), changeDb: 30))
+        #expect(preamp.moves == [30, 0])
     }
 
     @Test("A level between -30 and -3 dBFS but outside the tolerance after the last pass is off target, not a success")

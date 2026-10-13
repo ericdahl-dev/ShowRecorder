@@ -15,7 +15,8 @@ public struct AutoGainRule: Sendable {
     }
 
     public enum Failure: Equatable, Sendable {
-        /// Silence before the first step, so there was nothing to measure. The gain is untouched.
+        /// Silence or only a noise floor before the first step (at or below `signalFloorDbfs`), so there was nothing to
+        /// measure. The gain is untouched.
         case noSignal
         /// The signal went silent after a step.
         case signalLost
@@ -38,6 +39,10 @@ public struct AutoGainRule: Sendable {
     public var maxPasses: Int
     /// A level at or below this is no signal (the meters read -80 for silence).
     public var silenceDbfs: Double
+    /// Before the first step, a level at or below this is a noise floor rather than a source, so nothing moves. On
+    /// Eric's XR18 (2026-10-12) a quiet kick channel read -67 dBFS between hits; boosting that pushed the preamp and
+    /// pinned the gate threshold for nothing. A real source to set gain on plays well above it.
+    public var signalFloorDbfs: Double
     /// Above this after the last pass, the channel is still clipping.
     public var clippingDbfs: Double
     /// Below this after the last pass, the channel is still too quiet.
@@ -48,6 +53,7 @@ public struct AutoGainRule: Sendable {
         toleranceDb: Double = 3,
         maxPasses: Int = 4,
         silenceDbfs: Double = -80,
+        signalFloorDbfs: Double = -60,
         clippingDbfs: Double = -3,
         tooQuietDbfs: Double = -30
     ) {
@@ -55,6 +61,7 @@ public struct AutoGainRule: Sendable {
         self.toleranceDb = toleranceDb
         self.maxPasses = maxPasses
         self.silenceDbfs = silenceDbfs
+        self.signalFloorDbfs = signalFloorDbfs
         self.clippingDbfs = clippingDbfs
         self.tooQuietDbfs = tooQuietDbfs
     }
@@ -72,7 +79,7 @@ public struct AutoGainRule: Sendable {
         settle: () async throws -> Void
     ) async throws -> Outcome {
         var level = try await measure()
-        guard level > silenceDbfs else { return .failed(.noSignal, changeDb: 0) }
+        guard level > max(silenceDbfs, signalFloorDbfs) else { return .failed(.noSignal, changeDb: 0) }
         var change = 0.0
         var passes = 0
         while passes < maxPasses, !isOnTarget(level) {
