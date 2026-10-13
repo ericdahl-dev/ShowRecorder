@@ -13,8 +13,11 @@ import { APP_STORE_URL, TESTFLIGHT_URL } from "@/lib/site";
 //      the Dark site and the white one in the light theme (two <img>s with the only-dark and
 //      only-light classes). Do not draw a lookalike badge.
 //   3. Add the apple-itunes-app meta tag in app/layout.tsx once the App Store ID is known.
-export function AppStoreBadge({ id }: { id: "app-store-link" | "app-store-link-footer" }) {
-  if (APP_STORE_URL) {
+//
+// `beta` keeps it on the public beta even once the App Store link is set: for a mixer only the beta records (the
+// X32 page, #482), the App Store build would be the wrong download.
+export function AppStoreBadge({ id, beta = false }: { id: "app-store-link" | "app-store-link-footer"; beta?: boolean }) {
+  if (APP_STORE_URL && !(beta && TESTFLIGHT_URL)) {
     return (
       <a id={id} className="store-slot is-live" href={APP_STORE_URL}>
         Download on the App Store

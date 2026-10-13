@@ -89,11 +89,22 @@ describe("mixer page structure", () => {
     expect(hero).toMatch(/className="lede"/);
   });
 
-  it("the home page and both mixer pages share one closing band", () => {
+  it("the home page uses the same closing band as the mixer pages", () => {
     expect(read("app", "page.tsx")).toMatch(/<GetBand/);
   });
 
   it("both pages have the same sections in the same order", () => {
     expect(headings(x32Page)).toEqual(headings(xr18Page));
+  });
+});
+
+describe("the X32 page's call to action", () => {
+  const read = (...p: string[]) => readFileSync(path.join(ROOT, ...p), "utf8");
+
+  it("always points at the public beta, even once 1.0 is in the App Store (1.0 can't record an X32)", () => {
+    const page = read("app", "mixers", "x32", "page.tsx");
+    expect(page).toMatch(/<MixerHero[^>]*\sbeta[\s>]/);
+    expect(page).toMatch(/<GetBand[^>]*\sbeta[\s>]/);
+    expect(read("components", "AppStoreBadge.tsx")).toMatch(/beta/);
   });
 });

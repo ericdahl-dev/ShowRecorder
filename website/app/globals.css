@@ -611,6 +611,26 @@ html:not([data-js]) .theme-toggle {
 
 .mixer-hero {
   padding-block: 32px 40px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.mixer-hero h1 {
+  font-size: clamp(34px, 2vw + 26px, 48px);
+}
+
+/* The body right under the hero: the hairline marks the break, so less space above it. */
+.mixer-hero + .wrap > .doc {
+  padding-top: 40px;
+}
+
+@media (min-width: 1024px) {
+  .mixer-hero {
+    padding-block: 56px 48px;
+  }
+
+  .mixer-hero + .wrap > .doc {
+    padding-top: 56px;
+  }
 }
 
 .hero-actions .price {
