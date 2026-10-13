@@ -1,12 +1,13 @@
-/// Tells the operator the Drive is back after it stopped mid-Take. Feed it the Drive's status as it changes.
+/// Tells the operator the Drive is back after it stopped mid-Take. Feed it the Take's Copies as they change.
 public struct DriveRejoinNotice: Equatable, Sendable {
     private var wasInterrupted = false
     private var showing = false
 
     public init() {}
 
-    public mutating func update(isRecording: Bool, drive: CopyStatus) {
-        guard isRecording else {
+    public mutating func update(copies: TakeCopies) {
+        let drive = copies[.drive]
+        guard copies.isRunning else {
             wasInterrupted = false
             showing = false
             return
@@ -18,6 +19,11 @@ public struct DriveRejoinNotice: Equatable, Sendable {
             wasInterrupted = false
             showing = true
         }
+    }
+
+    /// Today's call with the Drive's running word, until the record screen reads `TakeCopies` itself (#550).
+    public mutating func update(isRecording: Bool, drive: CopyStatus) {
+        update(copies: TakeCopies(isRunning: isRecording) { $0 == .drive ? CopyState(drive) : .recording })
     }
 
     public var alert: ScreenAlert? {

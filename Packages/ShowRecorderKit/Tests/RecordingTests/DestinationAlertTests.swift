@@ -74,21 +74,42 @@ struct DriveRejoinNoticeTests {
     @Test("The notice appears when the Drive comes back during a Take, stays until the Take ends, and is not made up for a Drive that was never lost")
     func rejoinNotice() throws {
         var notice = DriveRejoinNotice()
-        notice.update(isRecording: true, drive: .recording)
+        notice.update(copies: takeCopies(device: .recording, drive: .recording))
         #expect(notice.alert == nil, "never lost")
 
-        notice.update(isRecording: true, drive: .interrupted)
+        notice.update(copies: takeCopies(device: .recording, drive: .interrupted))
         #expect(notice.alert == nil, "still lost")
 
-        notice.update(isRecording: true, drive: .recording)
+        notice.update(copies: takeCopies(device: .recording, drive: .recording))
         let alert = try #require(notice.alert)
         #expect(alert.id == "drive-back" && alert.tone == .ok && alert.priority == .destination)
         #expect(alert.text == "The Drive is back. The Gap will be Repaired after the Take.")
 
-        notice.update(isRecording: true, drive: .recording)
+        notice.update(copies: takeCopies(device: .recording, drive: .recording))
         #expect(notice.alert != nil, "stays while the Take runs")
 
-        notice.update(isRecording: false, drive: .recording)
+        notice.update(copies: takeCopies(running: false, device: .recording, drive: .recording))
         #expect(notice.alert == nil, "gone once the Take ends")
+    }
+
+    @Test("The rejoin notice fed the Drive's running word says the same as one fed the Take's Copies (until the screen moves over)")
+    func rejoinAdapterSaysTheSame() {
+        var old = DriveRejoinNotice(), new = DriveRejoinNotice()
+        let steps: [(Bool, CopyStatus)] = [(true, .recording), (true, .interrupted), (true, .missing), (true, .recording),
+                                          (true, .recording), (false, .recording), (true, .interrupted), (false, .interrupted)]
+        for (recording, drive) in steps {
+            old.update(isRecording: recording, drive: drive)
+            new.update(copies: takeCopies(running: recording, device: .recording, drive: CopyState(drive)))
+            #expect(old.alert == new.alert)
+        }
+    }
+
+    @Test("A Drive lost in one Take doesn't make the next Take say it's back")
+    func rejoinResetsAtTakeEnd() {
+        var notice = DriveRejoinNotice()
+        notice.update(copies: takeCopies(device: .recording, drive: .interrupted))
+        notice.update(copies: takeCopies(running: false, device: .complete, drive: .repaired))
+        notice.update(copies: takeCopies(device: .recording, drive: .recording))
+        #expect(notice.alert == nil)
     }
 }
