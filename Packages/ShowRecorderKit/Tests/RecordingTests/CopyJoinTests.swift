@@ -28,15 +28,15 @@ struct CopyJoinTests {
         capture.startCapturing(copies: 1)
         receive(capture)
         capture.requestJoin(copy: 1)
-        #expect(capture.rings[1].joinFrame.load(ordering: .acquiring) == -1, "nothing before the real-time thread picks it up")
-        #expect(capture.rings[1].availableFrames == 0)
+        #expect(capture.feeds[1].joinedAt == nil, "nothing before the real-time thread picks it up")
+        #expect(capture.feeds[1].ring.availableFrames == 0)
 
         receive(capture)
 
-        #expect(capture.rings[1].joinFrame.load(ordering: .acquiring) == 480)
-        #expect(capture.rings[1].availableFrames == 480)
-        #expect(capture.rings[0].availableFrames == 960)
-        #expect(capture.rings[0].joinFrame.load(ordering: .acquiring) == -1, "the other Copy's join frame is left alone")
+        #expect(capture.feeds[1].joinedAt == 480)
+        #expect(capture.feeds[1].ring.availableFrames == 480)
+        #expect(capture.feeds[0].ring.availableFrames == 960)
+        #expect(capture.feeds[0].joinedAt == nil, "the other Copy's join frame is left alone")
         #expect(capture.takeFrameCount == 960)
     }
 
@@ -47,8 +47,8 @@ struct CopyJoinTests {
         receive(capture)
         capture.disable(copy: 0)
         receive(capture)
-        #expect(capture.rings[0].availableFrames == 480)
-        #expect(capture.rings[1].availableFrames == 960)
+        #expect(capture.feeds[0].ring.availableFrames == 480)
+        #expect(capture.feeds[1].ring.availableFrames == 960)
     }
 
     @Test("With Pre-roll, both Copies join on the same block, at the Pre-roll's length, and the Pre-roll start is set there")
@@ -58,14 +58,14 @@ struct CopyJoinTests {
         receive(capture)                                     // Armed: the Pre-roll holds 960 frames
         capture.startCapturing(copies: 2, preRollFrames: 960)
         #expect(capture.awaitingFirstBlock)
-        #expect(capture.rings.allSatisfy { $0.joinFrame.load(ordering: .acquiring) == -1 })
+        #expect(capture.feeds.allSatisfy { $0.joinedAt == nil })
 
         receive(capture)
 
         #expect(!capture.awaitingFirstBlock)
-        #expect(capture.rings.map { $0.joinFrame.load(ordering: .acquiring) } == [960, 960])
+        #expect(capture.feeds.map(\.joinedAt) == [960, 960])
         #expect(capture.preRollStart.load(ordering: .acquiring) == 960)
-        #expect(capture.rings.map(\.availableFrames) == [480, 480])
+        #expect(capture.feeds.map(\.ring.availableFrames) == [480, 480])
         #expect(capture.takeFrameCount == 1_440)
     }
 
@@ -78,8 +78,8 @@ struct CopyJoinTests {
 
         receive(capture, at: 1 + 480 + 4_800)               // 4,800 frames of input lost
 
-        #expect(capture.rings[1].joinFrame.load(ordering: .acquiring) == 480)
-        #expect(capture.rings[1].nextDrop(final: true) == .init(storedFrames: 0, length: 4_800))
+        #expect(capture.feeds[1].joinedAt == 480)
+        #expect(capture.feeds[1].ring.nextDrop(final: true) == .init(storedFrames: 0, length: 4_800))
         #expect(capture.takeFrameCount == 480 + 4_800 + 480)
     }
 
@@ -87,8 +87,7 @@ struct CopyJoinTests {
     func lostPreRollHeadIsAGap() throws {
         let ring = SampleRing(channelCount: 1, capacity: 1_000)
         let stem = TakeWriterDropTests.MemoryStem()
-        let writer = TakeWriter(ring: ring, stems: [stem], commitInterval: 48_000, head: { nil })
-        ring.joinFrame.store(480, ordering: .releasing)
+        let writer = TakeWriter(feed: CopyFeed(ring: ring, joinedAt: 480), stems: [stem], commitInterval: 48_000, head: { nil })
         TakeWriterDropTests().write(ring, from: 1, count: 100)
         writer.start()
         writer.stop()

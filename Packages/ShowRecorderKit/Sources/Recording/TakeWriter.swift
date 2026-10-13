@@ -4,6 +4,7 @@ import Synchronization
 
 /// Drains the ring into one Stem per USB Channel on a dedicated thread, until stopped.
 final class TakeWriter: @unchecked Sendable {
+    private let feed: CopyFeed
     private let ring: SampleRing
     private let stems: [any StemSink]
     private let running = Atomic<Bool>(true)
@@ -36,13 +37,14 @@ final class TakeWriter: @unchecked Sendable {
     private let head: (() -> [[Float]]?)?
 
     init(
-        ring: SampleRing, stems: [any StemSink], commitInterval: Int, onFailure: @escaping @Sendable () -> Void = {},
+        feed: CopyFeed, stems: [any StemSink], commitInterval: Int, onFailure: @escaping @Sendable () -> Void = {},
         priorGaps: [Range<Int>] = [], head: (() -> [[Float]]?)? = nil
     ) {
         self.head = head
         gapRanges = Mutex(priorGaps)
         self.onFailure = onFailure
-        self.ring = ring
+        self.feed = feed
+        ring = feed.ring
         self.stems = stems
         self.commitInterval = commitInterval
     }
@@ -165,11 +167,7 @@ final class TakeWriter: @unchecked Sendable {
     /// A Copy that joins mid-Take waits for the real-time thread to say which Take frame it starts at,
     /// then writes silence up to it. Returns false if the Take stopped first.
     private func waitForJoin() throws -> Bool {
-        while ring.joinFrame.load(ordering: .acquiring) < 0 {
-            if !running.load(ordering: .acquiring) { return false }
-            Thread.sleep(forTimeInterval: 0.002)
-        }
-        let join = ring.joinFrame.load(ordering: .acquiring)
+        guard let join = feed.waitForJoin(while: { running.load(ordering: .acquiring) }) else { return false }
         joined.store(true, ordering: .releasing)
         if let head, join > 0, framesWritten == 0, let samples = head(), samples.count == stems.count,
            samples.allSatisfy({ $0.count == join }) {

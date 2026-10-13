@@ -1,13 +1,64 @@
 import AudioIO
 import Darwin
+import Foundation
 import Synchronization
+
+/// One Copy's feed from the real-time thread: its ring and the Take frame it joined at.
+final class CopyFeed: Sendable {
+    let ring: SampleRing
+    /// This Copy's bit in Capture's masks; -1 for a feed no Capture owns.
+    fileprivate let slot: Int
+    /// The Take frame this Copy starts at: 0 for a Copy there from the start, later for one that joined
+    /// mid-Take, -1 until the real-time thread has set it.
+    private let joinFrame = Atomic<Int>(-1)
+
+    fileprivate init(ring: SampleRing, slot: Int) {
+        self.ring = ring
+        self.slot = slot
+    }
+
+    /// A feed no Capture owns, already joined at `joinedAt`, for driving a writer by hand.
+    convenience init(ring: SampleRing, joinedAt: Int) {
+        self.init(ring: ring, slot: -1)
+        joinFrame.store(joinedAt, ordering: .releasing)
+    }
+
+    /// The Take frame this Copy starts at, or nil until the real-time thread has said.
+    var joinedAt: Int? {
+        let frame = joinFrame.load(ordering: .acquiring)
+        return frame < 0 ? nil : frame
+    }
+
+    /// Waits until the real-time thread says which Take frame this Copy starts at, calling `pause` between looks.
+    /// Returns nil if `running` turns false first.
+    func waitForJoin(while running: () -> Bool, pause: () -> Void = { Thread.sleep(forTimeInterval: 0.002) }) -> Int? {
+        while true {
+            if let joinedAt { return joinedAt }
+            if !running() { return nil }
+            pause()
+        }
+    }
+
+    /// Empties the ring and says which Take frame this Copy starts at: nil until the real-time thread picks one.
+    fileprivate func reset(joinedAt: Int?) {
+        ring.discardAll()
+        joinFrame.store(joinedAt ?? -1, ordering: .releasing)
+    }
+
+    /// Real-time: this Copy starts at Take frame `frame`. Real-time safe.
+    @inline(__always) fileprivate func markJoined(at frame: Int) {
+        joinFrame.store(frame, ordering: .releasing)
+    }
+}
 
 /// Everything the real-time callback touches, allocated when the recorder is Armed.
 final class Capture: Sendable {
     let meters: PeakMeters
     /// The last seconds of every channel while Armed, for Pre-roll. Nil when Pre-roll is off.
     let preRoll: PreRollBuffer?
-    /// One ring per Copy: the Device, then the Drive.
+    /// One feed per Copy: the Device, then the Drive.
+    let feeds: [CopyFeed]
+    /// The feeds' rings, slot for slot, for the real-time thread.
     let rings: [SampleRing]
     /// Which Copies are being captured, one bit per ring (bit 0 the Device, bit 1 the Drive); 0 when not recording.
     private let capturing = Atomic<Int>(0)
@@ -54,7 +105,14 @@ final class Capture: Sendable {
             ? PreRollBuffer(channelCount: channelCount, capacity: Int((preRollSeconds + 1) * max(sampleRate, 1)))
             : nil
         // Four seconds of headroom for each writer thread.
-        rings = (0..<2).map { _ in SampleRing(channelCount: channelCount, capacity: Int(max(sampleRate, 1) * 4)) }
+        let feeds = (0..<2).map { CopyFeed(ring: SampleRing(channelCount: channelCount, capacity: Int(max(sampleRate, 1) * 4)), slot: $0) }
+        self.feeds = feeds
+        rings = feeds.map(\.ring)
+    }
+
+    /// Empties `feed`'s ring and says which Take frame its Copy starts at: nil until the real-time thread picks one.
+    func begin(_ feed: CopyFeed, joinedAt: Int?) {
+        feed.reset(joinedAt: joinedAt)
     }
 
     /// Starts feeding the Copies' rings. With `preRollFrames`, the Take's timeline starts at that many
@@ -79,7 +137,7 @@ final class Capture: Sendable {
     var takeFrameCount: Int { takeFrames.load(ordering: .acquiring) }
 
     /// Asks the real-time thread to start feeding one Copy's ring from its next block, and to record
-    /// the Take frame it starts at in the ring's `joinFrame`.
+    /// the Take frame it starts at in its feed.
     func requestJoin(copy: Int) {
         joinRequests.bitwiseOr(1 << copy, ordering: .acquiringAndReleasing)
     }
@@ -125,7 +183,7 @@ final class Capture: Sendable {
                 preRollStart.store((preRoll?.totalWrittenFrames ?? block.frameCount) - block.frameCount, ordering: .releasing)
             }
             for copy in 0..<rings.count where requested & (1 << copy) != 0 {
-                rings[copy].joinFrame.store(frame, ordering: .releasing)
+                feeds[copy].markJoined(at: frame)
             }
             capturing.bitwiseOr(requested, ordering: .acquiringAndReleasing)
             joinRequests.bitwiseAnd(~requested, ordering: .acquiringAndReleasing)

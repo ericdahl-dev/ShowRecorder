@@ -26,7 +26,7 @@ final class DiscardingSink: StemSink {
     func setMarkers(_ markers: [StemMarker]) throws -> Int { markers.count }
 }
 
-/// The running Take's Copies. Owns one record per Copy (its folder, ring, writer and, for the Drive,
+/// The running Take's Copies. Owns one record per Copy (its folder, feed, writer and, for the Drive,
 /// the access held for the Take) and everything that changes while the Take runs: Markers, Gaps,
 /// a Drive joining or rejoining, a Copy retiring for lack of space. `Recorder` keeps Armed state and
 /// decides when a Take starts and stops.
@@ -36,7 +36,7 @@ final class TakeSession {
     struct CopyRecord {
         let kind: DestinationKind
         var folder: URL
-        let ring: SampleRing
+        let feed: CopyFeed
         var writer: TakeWriter
         /// Held until the Take is finished and Repaired. Only the Drive has one.
         var access: DriveAccess?
@@ -127,8 +127,8 @@ final class TakeSession {
             let held = Int(Double(info.sampleRate) * Self.standbySeconds)
             // An unrecorded USB Channel is never stood in for, so it holds nothing.
             let sinks = stems.map { StandInSink(heldFrames: $0.isRecorded ? held : 1) }
-            let ring = capture.rings[DestinationKind.device.index]
-            let writer = TakeWriter(ring: ring, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] in
+            let feed = capture.feeds[DestinationKind.device.index]
+            let writer = TakeWriter(feed: feed, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] in
                 capture.disable(copy: DestinationKind.device.index)
                 Task { @MainActor in self?.onCopyFailed() }
             }, head: head)
@@ -141,12 +141,12 @@ final class TakeSession {
             }
             try metadata.write(to: folder)
             records.append(CopyRecord(
-                kind: kind, folder: folder, ring: capture.rings[kind.index],
-                writer: makeWriter(ring: capture.rings[kind.index], kind: kind, stems: sinks, head: head),
+                kind: kind, folder: folder, feed: capture.feeds[kind.index],
+                writer: makeWriter(feed: capture.feeds[kind.index], kind: kind, stems: sinks, head: head),
                 access: kind == .drive ? drive : nil))
         }
-        for record in records { begin(record.writer, on: record.ring, joinFrame: head == nil ? 0 : -1) }
-        if let standby { begin(standby.writer, on: capture.rings[DestinationKind.device.index], joinFrame: head == nil ? 0 : -1) }
+        for record in records { begin(record.writer, on: record.feed, joinedAt: head == nil ? 0 : nil) }
+        if let standby { begin(standby.writer, on: capture.feeds[DestinationKind.device.index], joinedAt: head == nil ? 0 : nil) }
         copies = records
         capture.startCapturing(copies: folders.count, preRollFrames: head == nil ? 0 : preRollFrames)
     }
@@ -399,13 +399,13 @@ final class TakeSession {
             // A Take folder that was rejoined already has its Take.json.
             if old == nil { try metadata.write(to: folder) }
 
-            let ring = capture.rings[DestinationKind.drive.index]
-            let writer = makeWriter(ring: ring, kind: .drive, stems: sinks, priorGaps: old?.writer.gaps ?? [])
-            begin(writer, on: ring, joinFrame: -1)
+            let feed = capture.feeds[DestinationKind.drive.index]
+            let writer = makeWriter(feed: feed, kind: .drive, stems: sinks, priorGaps: old?.writer.gaps ?? [])
+            begin(writer, on: feed, joinedAt: nil)
             if !stemMarkers.isEmpty { writer.setMarkers(stemMarkers) }
             capture.requestJoin(copy: DestinationKind.drive.index)
 
-            let record = CopyRecord(kind: .drive, folder: folder, ring: ring, writer: writer, access: access)
+            let record = CopyRecord(kind: .drive, folder: folder, feed: feed, writer: writer, access: access)
             if old == nil { copies.append(record) } else { copies[copies.firstIndex { $0.kind == .drive }!] = record }
             old?.access?.end()
             self.show = show
@@ -417,20 +417,19 @@ final class TakeSession {
     // MARK: - Helpers
 
     private func makeWriter(
-        ring: SampleRing, kind: DestinationKind, stems sinks: [any StemSink], priorGaps: [Range<Int>] = [],
+        feed: CopyFeed, kind: DestinationKind, stems sinks: [any StemSink], priorGaps: [Range<Int>] = [],
         head: (() -> [[Float]]?)? = nil
     ) -> TakeWriter {
-        TakeWriter(ring: ring, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] in
+        TakeWriter(feed: feed, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] in
             capture.disable(copy: kind.index)
             Task { @MainActor in self?.onCopyFailed() }
         }, priorGaps: priorGaps, head: head)
     }
 
-    /// Empties `ring`, says which Take frame its Copy starts at (-1 until the real-time thread picks
+    /// Empties `feed`'s ring, says which Take frame its Copy starts at (nil until the real-time thread picks
     /// one for a Copy that joins mid-Take) and starts its writer.
-    private func begin(_ writer: TakeWriter, on ring: SampleRing, joinFrame: Int) {
-        ring.discardAll()
-        ring.joinFrame.store(joinFrame, ordering: .releasing)
+    private func begin(_ writer: TakeWriter, on feed: CopyFeed, joinedAt: Int?) {
+        capture.begin(feed, joinedAt: joinedAt)
         writer.start()
     }
 

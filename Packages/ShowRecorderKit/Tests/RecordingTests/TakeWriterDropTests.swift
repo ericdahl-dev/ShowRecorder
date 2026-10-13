@@ -50,8 +50,7 @@ struct TakeWriterDropTests {
         let ring = SampleRing(channelCount: 1, capacity: 1_000)
         let gate = DispatchSemaphore(value: 0)
         let stem = MemoryStem(gate: gate)
-        let writer = TakeWriter(ring: ring, stems: [stem], commitInterval: 48_000)
-        ring.joinFrame.store(0, ordering: .releasing)
+        let writer = TakeWriter(feed: CopyFeed(ring: ring, joinedAt: 0), stems: [stem], commitInterval: 48_000)
         write(ring, from: 0, count: 800)
         writer.start()
         try waitUntilBlocking { ring.availableFrames == 800 }  // the writer is holding at its first append
@@ -71,8 +70,7 @@ struct TakeWriterDropTests {
         let ring = SampleRing(channelCount: 1, capacity: 10_000)
         let gate = DispatchSemaphore(value: 0)
         let stem = MemoryStem(gate: gate)
-        let writer = TakeWriter(ring: ring, stems: [stem], commitInterval: 48_000)
-        ring.joinFrame.store(0, ordering: .releasing)
+        let writer = TakeWriter(feed: CopyFeed(ring: ring, joinedAt: 0), stems: [stem], commitInterval: 48_000)
         write(ring, from: 0, count: 8_000)
         writer.start()
         try waitUntilBlocking { ring.availableFrames == 8_000 }
@@ -97,8 +95,7 @@ struct TakeWriterDropTests {
         #expect(ring.overflowedFrames.load(ordering: .relaxed) == 600)
 
         let stem = MemoryStem()
-        let writer = TakeWriter(ring: ring, stems: [stem], commitInterval: 48_000)
-        ring.joinFrame.store(0, ordering: .releasing)
+        let writer = TakeWriter(feed: CopyFeed(ring: ring, joinedAt: 0), stems: [stem], commitInterval: 48_000)
         writer.start()
         writer.stop()
 
@@ -109,8 +106,7 @@ struct TakeWriterDropTests {
     func remembersDropouts() throws {
         let ring = SampleRing(channelCount: 1, capacity: 1_000)
         let gate = DispatchSemaphore(value: 0)
-        let writer = TakeWriter(ring: ring, stems: [MemoryStem(gate: gate)], commitInterval: 48_000)
-        ring.joinFrame.store(0, ordering: .releasing)
+        let writer = TakeWriter(feed: CopyFeed(ring: ring, joinedAt: 0), stems: [MemoryStem(gate: gate)], commitInterval: 48_000)
         write(ring, from: 0, count: 800)
         writer.start()
         try waitUntilBlocking { ring.availableFrames == 800 }
