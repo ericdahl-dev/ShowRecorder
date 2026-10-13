@@ -278,7 +278,6 @@ struct RecordScreen: View {
     private func markerButton(size: CGFloat) -> some View {
         Button {
             model.sequencer.addMarker()
-            model.followLiveActivity()
         } label: {
             MarkerButtonLabel(count: model.recorder.takeMarkers.count, size: size)
         }
@@ -706,6 +705,11 @@ final class RecordScreenModel {
                 // An interruption's restart reuses the input without `didArm`; the output unit iOS stopped needs a restart.
                 if case .inputRestarted = event { MonitorExperiment.shared.inputRestarted() }
                 #endif
+                // Whoever started or ended the Take: Stop, the watch, or the recorder itself (#551).
+                guard let self else { return }
+                let followUp = TakeFollowUp(event)
+                if followUp.contains(.liveActivity) { followLiveActivity() }
+                if followUp.contains(.proOffer) { offerProAfterTake() }
             }
         }
     }
@@ -793,8 +797,8 @@ final class RecordScreenModel {
         followLiveActivity()
     }
 
-    /// Starts, updates or ends the Live Activity to match the running Take: a Take that ends on its own
-    /// is caught here too, within a second.
+    /// Starts, updates or ends the Live Activity to match the running Take. The sequencer's events call it at each start,
+    /// Marker and end (#551); the per-second refresh keeps its problems current.
     func followLiveActivity() {
         #if os(iOS)
         let take = recorder.isRecording ? takeStartedAt.flatMap { started in
@@ -1038,8 +1042,6 @@ final class RecordScreenModel {
 
     func stop() {
         sequencer.stop()
-        followLiveActivity()
-        offerProAfterTake()
     }
 
     /// After a Take: a Free Take that left channels with signal unrecorded, or the Trial's last days (#62).
