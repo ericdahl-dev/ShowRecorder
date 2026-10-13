@@ -48,6 +48,10 @@ public enum TakeEvent: Equatable, Sendable {
     case inputStopped
     /// Input is back after being stopped.
     case inputRestarted
+    /// A Marker was placed in the running Take: how many it has now (#551).
+    case markerPlaced(count: Int)
+    /// The open Show was ended: its name and how many Takes it has (#551).
+    case showEnded(name: String, takeCount: Int)
 
     public enum DisarmReason: Equatable, Sendable {
         /// The screen showing the recorder went away with no Take running.
@@ -220,6 +224,46 @@ public final class TakeSequencer {
         }
     }
 
+    /// Places a Marker in the running Take and tells it. Does nothing with no Take running.
+    public func addMarker(named name: String? = nil) {
+        guard recorder.isRecording else { return }
+        recorder.addMarker(named: name)
+        emit.yield(.markerPlaced(count: recorder.takeMarkers.count))
+    }
+
+    /// Starts a Show on purpose, ending the open one (see `Recorder.startNewShow`). Never during a Take.
+    public func startNewShow(name: String, venue: String) throws {
+        try endingShow { try recorder.startNewShow(name: name, venue: venue) }
+    }
+
+    /// Starts a Show from a Template, ending the open one (see `Recorder.startNewShow(from:)`). Never during a Take.
+    public func startNewShow(from template: Template) throws {
+        try endingShow { try recorder.startNewShow(from: template) }
+    }
+
+    /// Readies the next Show from the default Template (see `Recorder.prepareNextShow`); returns whether it did.
+    @discardableResult
+    public func prepareNextShow(from template: Template) -> Bool {
+        // It ends a Show idle for 6 hours first; that end is told like any other.
+        var ready = false
+        try? endingShow { ready = recorder.prepareNextShow(from: template) }
+        return ready
+    }
+
+    /// Ends the open Show, so the next record starts a new one. Never during a Take.
+    public func endShow() throws {
+        try endingShow { try recorder.endShow() }
+    }
+
+    /// Does `change`, then tells the Show that was open if it ended.
+    private func endingShow(_ change: () throws -> Void) throws {
+        let open = recorder.currentShow
+        try change()
+        if let open, recorder.currentShow?.folder != open.folder {
+            emit.yield(.showEnded(name: open.name, takeCount: open.takeCount))
+        }
+    }
+
     /// About once a second: tells a Take started elsewhere (the Soundcheck).
     public func tick() {
         if recorder.isRecording { tellTakeStart() }
@@ -388,6 +432,9 @@ public final class TakeSequencer {
     /// ended before a tick saw it is told as started first.
     private func takeEnded(_ end: TakeEnd) {
         takeStartedAt = nil
+        // A Take the recorder ended (out of space, no Destination) says why (#551). An input change is told by whoever
+        // noticed it (a device-list or route change sets its own message, a media reset its notice), never twice.
+        if end.reason != .inputChanged, let message = end.reason.message { recordError = message }
         if !toldTakeStarted { emit.yield(.takeStarted(take: end.take)) }
         toldTakeStarted = false
         emit.yield(.takeEnded(end))
