@@ -137,10 +137,6 @@ public protocol GainControl: Sendable {
     func undo(_ step: GainStep) async throws(MixerLinkProblem)
 }
 
-extension GainControl {
-    public func lane(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? { nil }
-}
-
 /// One gain move with Mix Hold: the gain set, what the mixer holds now, and what undo needs.
 public struct GainStep: Equatable, Sendable {
     public var channel: Int

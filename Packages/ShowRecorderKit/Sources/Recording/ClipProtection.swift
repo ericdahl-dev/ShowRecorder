@@ -181,18 +181,20 @@ public final class ClipProtection {
         }
         // The wait for the Mixer can outlast the Take.
         guard !stopped else { return }
-        var moves: [(usbChannel: Int, channel: Int, preamp: Int, lane: String, gainChangeDb: Double)] = []
+        var moves: [(usbChannel: Int, channel: Int, preamp: Int, lane: Lane, gainChangeDb: Double)] = []
         for (index, target) in targets.enumerated() {
             let preamp = preamps[index]
             guard lastMove[preamp].map({ clock - $0 >= Self.restSeconds }) ?? true else { continue }
             let left = Self.mostPerTakeDb - (turnedDown[preamp] ?? 0)
             guard left > 0 else { continue }
             lastMove[preamp] = clock
-            let lane = lanes[index].map { "lane \($0)" } ?? "preamp \(preamp)"
+            let lane = lanes[index].map(Lane.pair) ?? .preamp(preamp)
             moves.append((target.usbChannel, target.channel, preamp, lane, max(-left, Self.stepDb(peakDbfs: target.peak))))
         }
         // Moves in one lane go one after the other, in USB Channel order (#554): the Mixer mirrors fader and sends between
         // the strips of a linked pair, so two moves at once could both rewrite one setting. Lanes move at once.
+        // Known gap: on an X32 a move also compensates the other channels on its headamp (#473), so a channel sharing a
+        // headamp with one strip of a linked pair can still move alongside that pair. Rare; left for now.
         await withTaskGroup(of: Void.self) { group in
             for lane in Dictionary(grouping: moves, by: { $0.lane }).values {
                 group.addTask {
@@ -202,6 +204,12 @@ public final class ClipProtection {
                 }
             }
         }
+    }
+
+    /// Moves in one lane go one after the other: a strip-linked pair (by its first channel), or else one preamp.
+    private enum Lane: Hashable {
+        case pair(Int)
+        case preamp(Int)
     }
 
     /// The lane Mixer channel `channel` moves in, or nil for its own preamp's, as when the Mixer doesn't answer.
@@ -217,6 +225,8 @@ public final class ClipProtection {
 
     /// Turns `channel`'s preamp down by `gainChangeDb` (negative) with Mix Hold, and logs what moved.
     private func turnDown(_ usbChannel: Int, channel: Int, preamp: Int, by gainChangeDb: Double) async {
+        // A lane's earlier move can outlast the Take.
+        guard !stopped else { return }
         let step: GainStep
         do throws(MixerLinkProblem) {
             step = try await control.applyMixHold(channel: channel, gainChangeDb: gainChangeDb, scopes: .all)

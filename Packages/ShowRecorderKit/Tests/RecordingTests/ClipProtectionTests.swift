@@ -163,9 +163,32 @@ struct ClipProtectionTests {
         for _ in 0..<10 { await Task.yield() }
         #expect(control.moveStarts == 1, "the second waits for the first: the Mixer mirrors their faders and sends")
         release.yield()
+        #expect(await Self.next(entered), "the second move reaches the Mixer")
+        #expect(control.gainDb == [1: 26, 2: 30], "USB Channel 1 moved first")
         release.yield()
         await moving.value
         #expect(control.gainDb == [1: 26, 2: 26])
+    }
+
+    @Test("Stopped while a strip-linked pair's first move is on the Mixer, the second doesn't start (#554)")
+    func linkedPairStopped() async {
+        control.laneOf = [1: 1, 2: 1]
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        control.answer = {
+            enter.yield()
+            for await _ in released { return }
+        }
+        let protection = ClipProtection(control: control, sampleRate: 48_000)
+
+        let moving = Task { await Self.feed(protection, Self.hot, on: [1, 2]) }
+        #expect(await Self.next(entered), "a move reaches the Mixer")
+        protection.stop()                                   // the Take ended mid-ramp
+        release.yield()
+        release.yield()                                     // so a second move, if it starts, can't hang the test
+        await moving.value
+        #expect(control.moveStarts == 1)
+        #expect(control.gainDb[2] == 30)
     }
 
     @Test("Reconnected to the same Mixer mid-Take, turn-downs go through the new link (#554)")
