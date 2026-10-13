@@ -892,7 +892,7 @@ final class RecordScreenModel {
     /// Runs the Soundcheck with what the Mixer Link and the Drive know right now.
     func runSoundcheck(progress: (Soundcheck.Step.Kind) -> Void, result: (Soundcheck.Step) -> Void) async -> [Soundcheck.Step] {
         await Soundcheck.run(
-            recorder: recorder, mixer: offersMixerLink ? mixerLink.status : nil, sources: linkedSources,
+            sequencer: sequencer, mixer: offersMixerLink ? mixerLink.status : nil, sources: linkedSources,
             expectedUSBChannels: mixerLink.capabilities?.usbChannelCount, driveChosen: drive.status != .notChosen,
             allowance: currentAllowance(), progress: progress, result: result)
     }
