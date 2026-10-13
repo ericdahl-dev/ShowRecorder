@@ -9,6 +9,7 @@ export type MixerEntry = { name: string; body: string; href?: string };
 export const worksNow: MixerEntry[] = [
   {
     name: "Behringer X Air XR18 and MR18",
+    href: "/mixers/xr18",
     body: "18 USB Channels over USB, with channel names and colors read from the mixer over Wi-Fi (Mixer Link).",
   },
   {

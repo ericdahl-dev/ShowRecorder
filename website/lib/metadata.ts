@@ -37,6 +37,12 @@ export const PAGES = {
     description:
       "Every ShowRecorder version for iPhone and iPad, newest first: what changed, when, and whether it's in the App Store or the TestFlight beta.",
   },
+  mixersXR18: {
+    path: "/mixers/xr18",
+    title: "XR18 and MR18 multitrack recording on iPhone - ShowRecorder",
+    description:
+      "Multitrack all 18 USB Channels of a Behringer XR18 or MR18 to iPhone or iPad, each file named from the mixer over its Wi-Fi. No laptop needed.",
+  },
   mixersX32: {
     path: "/mixers/x32",
     title: "Record a Behringer X32 or Midas M32 on iPhone - ShowRecorder",
