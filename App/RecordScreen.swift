@@ -625,7 +625,9 @@ final class RecordScreenModel {
     /// Auto-gain (#155) is offered with Mixer Link, when the Mixer can set gain (the X32 today), and never during a Take.
     /// Debug builds only for now (`AutoGainAvailability`).
     var offersAutoGain: Bool {
-        AutoGainAvailability.isAvailable() && offersMixerLink && mixerLink.gainControl != nil && !recorder.isRecording
+        AutoGainAvailability.isOffered(
+            available: AutoGainAvailability.isAvailable(), mixerLinkOffered: offersMixerLink,
+            canSetGain: mixerLink.gainControl != nil, isRecording: recorder.isRecording)
     }
 
     /// Auto-gain's state (#155): kept here, not in the sheet, so Undo survives closing it; locked during a Take.
