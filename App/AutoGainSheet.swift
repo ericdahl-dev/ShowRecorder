@@ -8,9 +8,8 @@ import SwiftUI
 struct AutoGainSheet: View {
     let model: RecordScreenModel
     @Environment(\.dismiss) private var dismiss
-    @State private var session: AutoGainSession?
-    @State private var results: [Int: AutoGainSession.Result] = launchFlag("-autoGainDemo") ? AutoGainList.demoResults : [:]
-    @State private var running: Set<Int> = launchFlag("-autoGainDemo") ? [5] : []
+    /// Kept by the record screen, so closing the sheet loses nothing and Undo is still offered when it opens again.
+    private var autoGain: AutoGainPanel { model.autoGain }
     /// The `-autoGainDemo` screenshot flag shows sample results with no Mixer: there's nothing to Undo for real.
     private let isDemo = launchFlag("-autoGainDemo")
 
@@ -18,13 +17,15 @@ struct AutoGainSheet: View {
         NavigationStack {
             AutoGainList(
                 channels: isDemo ? AutoGainList.demoChannels : (1...max(1, model.meterModel.channelCount)).map { ($0, model.channelLabel($0)) },
-                results: results, running: running, locked: model.recorder.isRecording || !running.isEmpty,
-                runAll: { Task { await run(Array(1...model.meterModel.channelCount)) } },
-                runOne: { usb in Task { await run([usb]) } },
-                undoOne: { usb in Task { await undo(usb) } },
-                undoAll: { Task { await undoAll() } },
-                canUndo: { isDemo ? AutoGainList.demoUndoable.contains($0) : session?.steps[$0]?.isEmpty == false },
-                canUndoAll: isDemo || session?.steps.values.contains { !$0.isEmpty } == true)
+                results: isDemo ? AutoGainList.demoResults : autoGain.results,
+                running: isDemo ? [5] : autoGain.running,
+                locked: isDemo || autoGain.isLocked,
+                runAll: { Task { await autoGain.run(Array(1...model.meterModel.channelCount)) } },
+                runOne: { usb in Task { await autoGain.run([usb]) } },
+                undoOne: { usb in Task { await autoGain.undo(usb) } },
+                undoAll: { Task { await autoGain.undoAll() } },
+                canUndo: { isDemo ? AutoGainList.demoUndoable.contains($0) : autoGain.canUndo($0) },
+                canUndoAll: isDemo || autoGain.canUndoAll)
                 .navigationTitle("Auto-gain")
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
@@ -33,37 +34,7 @@ struct AutoGainSheet: View {
         }
         // A List has no size of its own; without this a Mac sheet shows it empty.
         .frame(minWidth: 480, minHeight: 560)
-        .interactiveDismissDisabled(!running.isEmpty)
-    }
-
-    private func run(_ usbChannels: [Int]) async {
-        guard let session = session ?? model.makeAutoGainSession() else { return }
-        self.session = session
-        running.formUnion(usbChannels)
-        for result in await session.run(usbChannels: usbChannels) { results[result.usbChannel] = result }
-        running.subtract(usbChannels)
-    }
-
-    /// Locked like a run while it waits on the Mixer. If the Mixer stops answering, the row says so and Undo stays
-    /// offered for what's left.
-    private func undo(_ usb: Int) async {
-        guard let session else { return }
-        let channel = session.steps[usb]?.first?.channel ?? usb
-        running.insert(usb)
-        defer { running.remove(usb) }
-        do throws(MixerLinkProblem) {
-            try await session.undo(usbChannel: usb)
-            results[usb] = nil
-        } catch {
-            results[usb] = .error(usbChannel: usb, channel: channel, problem: error)
-        }
-    }
-
-    private func undoAll() async {
-        guard let session else { return }
-        for usb in session.steps.keys.sorted().reversed() where session.steps[usb]?.isEmpty == false {
-            await undo(usb)
-        }
+        .interactiveDismissDisabled(isDemo || !autoGain.running.isEmpty)
     }
 }
 
@@ -120,12 +91,6 @@ struct AutoGainList: View {
 }
 
 extension AutoGainSession.Result {
-    var usbChannel: Int {
-        switch self {
-        case .set(let usb, _, _, _, _), .skipped(let usb, _), .failed(let usb, _, _, _), .stopped(let usb, _), .error(let usb, _, _), .haltedForTake(let usb, _): usb
-        }
-    }
-
     var isProblem: Bool {
         switch self {
         case .set, .skipped: false

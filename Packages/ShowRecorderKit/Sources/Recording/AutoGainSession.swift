@@ -199,10 +199,12 @@ public final class AutoGainSession {
     /// Each step is dropped as soon as it is undone, so when the Mixer stops answering partway the rest stay for
     /// another Undo, and none is undone twice. An Undo asked for while one is under way on the same USB Channel does
     /// nothing: the first one takes back every step.
+    /// `stop()` ends it before its next step (a Take started); the steps left stay for another Undo.
     public func undo(usbChannel: Int) async throws(MixerLinkProblem) {
         guard undoing.insert(usbChannel).inserted else { return }
         defer { undoing.remove(usbChannel) }
-        while let step = steps[usbChannel]?.last {
+        stopRequested = false
+        while !stopRequested, let step = steps[usbChannel]?.last {
             try await control.undo(step)
             if steps[usbChannel]?.last == step { steps[usbChannel]?.removeLast() }
             log(Self.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
