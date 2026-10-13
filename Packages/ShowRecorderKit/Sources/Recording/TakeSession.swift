@@ -149,6 +149,32 @@ final class TakeSession {
         metadata.usbChannels.first { $0.usbChannel == usbChannel }?.name
     }
 
+    /// Logs that the Mixer re-patched a USB Channel (#21), at the Take's current sample position, with a Marker in
+    /// `Take.json` and in every Stem's cue points. Touches no audio: the Stem goes on with the new Source.
+    ///
+    /// A re-patch of the same USB Channel within a second of the last one (stepping the desk's source selector) only
+    /// moves that change on to the new Source, so a sweep is one change and one Marker.
+    func logRoutingChange(usbChannel: Int, from: String, to: String) {
+        let position = capture.takeFrameCount
+        var changes = metadata.routingChanges ?? []
+        if let last = changes.lastIndex(where: { $0.usbChannel == usbChannel }),
+           position - changes[last].position < metadata.sampleRate,
+           let marker = metadata.markers.lastIndex(where: {
+               $0.origin == .routing && $0.position == changes[last].position
+                   && $0.name == RoutingChangeNotice.markerName(usbChannel: usbChannel, from: changes[last].from, to: changes[last].to)
+           }) {
+            changes[last].to = to
+            metadata.markers[marker].name = RoutingChangeNotice.markerName(usbChannel: usbChannel, from: changes[last].from, to: to)
+        } else {
+            changes.append(.init(position: position, usbChannel: usbChannel, from: from, to: to))
+            metadata.markers.append(.init(position: position, name: RoutingChangeNotice.markerName(usbChannel: usbChannel, from: from, to: to),
+                                          origin: .routing))
+        }
+        metadata.routingChanges = changes
+        writeMetadata()
+        for copy in copies { copy.writer.setMarkers(stemMarkers) }
+    }
+
     /// Logs that a Mixer renamed a Source, at the Take's current sample position, in `Take.json` of every
     /// Copy. Touches no audio and no Stem.
     func logRename(usbChannel: Int, from: String, to: String) {
@@ -327,9 +353,9 @@ final class TakeSession {
         writer.start()
     }
 
-    /// The operator's Markers, for the Stems. Each writer adds its own Dropout Markers.
+    /// The Markers the Stems carry as cue points. Each writer adds its own Dropout Markers.
     private var stemMarkers: [StemMarker] {
-        metadata.operatorMarkers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
+        metadata.stemCueMarkers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
     }
 
     private func writeMetadata() {

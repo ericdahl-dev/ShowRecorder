@@ -105,6 +105,10 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     /// Takes made before the gain log existed.
     public var gainChanges: [GainChange]?
 
+    /// Every change to what the Mixer routes to a USB Channel during this Take (#21): the Stem keeps its name and goes
+    /// on recording the new Source. Nil when there were none, and in Takes made before this log existed.
+    public var routingChanges: [RoutingChange]?
+
     /// One preamp gain change on the Mixer, by auto-gain, clip protection or Undo, with what Mix Hold moved to keep
     /// the mix the same. Logged in the Take during a Take (with `position`) and in the Show between Takes.
     public struct GainChange: Codable, Equatable, Sendable {
@@ -163,6 +167,22 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
             self.toGainDb = toGainDb
             self.reason = reason
             self.compensations = compensations
+        }
+    }
+
+    /// A USB Channel re-patched on the Mixer at a point in the Take, in samples from its start: from then on it carries
+    /// `to` (a Source's name) instead of `from`.
+    public struct RoutingChange: Codable, Equatable, Sendable {
+        public var position: Int
+        public var usbChannel: Int
+        public var from: String
+        public var to: String
+
+        public init(position: Int, usbChannel: Int, from: String, to: String) {
+            self.position = position
+            self.usbChannel = usbChannel
+            self.from = from
+            self.to = to
         }
     }
 
@@ -228,6 +248,8 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
             case dropout
             /// Placed where ShowRecorder changed a preamp's gain on the Mixer (#450).
             case gain
+            /// Placed where the Mixer's USB routing changed during the Take (#21).
+            case routing
         }
 
         public var position: Int
@@ -243,6 +265,10 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
 
     /// The operator's Markers, in the order they were placed. A Dropout Marker isn't one.
     public var operatorMarkers: [Marker] { markers.filter { $0.origin == .operator } }
+
+    /// The Markers every Stem carries as a cue point: the operator's and the routing changes (#21). A Copy's Stems
+    /// also carry a Dropout cue where that Copy lost audio.
+    public var stemCueMarkers: [Marker] { markers.filter { $0.origin == .operator || $0.origin == .routing } }
 
     /// The Dropout Markers, one at each place in the Take that lost audio.
     public var dropoutMarkers: [Marker] { markers.filter { $0.origin == .dropout } }
@@ -274,7 +300,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames, gainChanges
+        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames, gainChanges, routingChanges
     }
 
     public init(from decoder: any Decoder) throws {
@@ -292,6 +318,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         dropouts = try c.decodeIfPresent([Dropout].self, forKey: .dropouts) ?? []  // Takes recorded before Dropouts existed
         renames = try c.decodeIfPresent([Rename].self, forKey: .renames)
         gainChanges = try c.decodeIfPresent([GainChange].self, forKey: .gainChanges)
+        routingChanges = try c.decodeIfPresent([RoutingChange].self, forKey: .routingChanges)
     }
 
     public init(show: String, take: Int, startedAt: Date, sampleRate: Int, timeReference: UInt64, usbChannels: [USBChannel], markers: [Marker] = []) {

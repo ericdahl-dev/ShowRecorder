@@ -175,7 +175,8 @@ struct XAirDriverTests {
         state.usbRouting?[0] = [4, 0]          // USB 1 carries Ch05
         let mixer = try await FakeXAirMixer(state)
         let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
-        _ = try await driver.sources(usbChannelCount: 18)
+        let sources = try await driver.sources(usbChannelCount: 18)
+        #expect(sources[0].routedFrom == "ch:5" && sources[1].routedFrom == "ch:2" && sources[16].routedFrom == "aux")
         var changes = driver.sourceChanges().makeAsyncIterator()
         try await driver.renewLiveUpdates()
 
@@ -186,7 +187,7 @@ struct XAirDriverTests {
         mixer.rename(channel: 2, to: "Snare")
         mixer.repatchUSB(1, to: 1)             // USB 1 now carries Ch02
         #expect(await changes.next() == SourceChange(usbChannel: 2, name: "Snare"))
-        #expect(await changes.next() == SourceChange(usbChannel: 1, name: "Snare"))
+        #expect(await changes.next() == SourceChange(usbChannel: 1, name: "Snare", routedFrom: .some("ch:2")), "a re-patch says what the USB Channel carries now (#21)")
     }
 
     @Test("Pushed changes: a color reaches its USB Channel, a cleared name comes through empty, an aux return rename reaches USB 17 and 18")

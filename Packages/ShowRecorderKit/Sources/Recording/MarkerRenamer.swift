@@ -70,8 +70,9 @@ public enum MarkerRenamer {
         take.markers[place].name = name
         try take.write(to: folder)
 
-        // The cue points a Copy's Stems carry: the operator's Markers and a Dropout cue where this Copy lost audio.
-        let cues = (take.operatorMarkers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
+        // The cue points a Copy's Stems carry: the operator's Markers, routing changes, and a Dropout cue where this
+        // Copy lost audio.
+        let cues = (take.stemCueMarkers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
             + take.dropouts.filter { $0.copy == copy }.map { StemMarker(position: UInt32(clamping: $0.start), label: "Dropout") })
             .sorted { $0.position < $1.position }
         // Every Stem is tried, so one bad file doesn't leave the others with the old name.

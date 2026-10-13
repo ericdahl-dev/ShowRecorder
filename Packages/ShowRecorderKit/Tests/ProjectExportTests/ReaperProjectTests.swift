@@ -59,6 +59,25 @@ struct ReaperProjectTests {
         #expect(rpp.children("TRACK").map { $0.value("NAME") } == ["Kick", "Snare", "Lead Vocal"])
     }
 
+    @Test("A USB Channel re-patched mid-Take is split in the project: one item per Source, reading the same Stem from the change (#21)")
+    func routingChangeSplitsTheItem() throws {
+        func source(_ name: String, _ routedFrom: String) -> Source { var s = Source(name: name, color: .off); s.routedFrom = routedFrom; return s }
+        let start = [source("Kick", "ch:1"), source("Snare", "ch:2"), source("Vox", "ch:3")]
+        try recorder.startTake(sources: start)
+        for _ in 0..<50 { device.deliver(Array(repeating: Array(repeating: 0, count: 480), count: 3)) }   // 0.5 s
+        recorder.offerSources([source("Tom", "ch:4"), start[1], start[2]])
+        for _ in 0..<50 { device.deliver(Array(repeating: Array(repeating: 0, count: 480), count: 3)) }
+        try recorder.stopTake()
+
+        let items = try #require(try project().children("TRACK").first).children("ITEM")
+        #expect(items.map { $0.value("NAME") } == ["Kick", "Tom"])
+        #expect(items.map { $0.double("POSITION") } == [0, 0.5])
+        #expect(items.map { $0.double("LENGTH") } == [0.5, 0.5])
+        #expect(items.map { $0.double("SOFFS") ?? 0 } == [0, 0.5])
+        #expect(items.map { $0.child("SOURCE")?.value("FILE") } == ["Take 01/01 Kick.wav", "Take 01/01 Kick.wav"])
+        #expect(try project().children("TRACK")[1].children("ITEM").count == 1, "a channel not re-patched stays one item")
+    }
+
     @Test("Tracks are named and colored from the latest Take")
     func namesAndColorsFromLatestTake() throws {
         try recordTake(frames: 4_800, sources: [

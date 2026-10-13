@@ -444,6 +444,9 @@ public final class Recorder {
         _ = capture.meters.takeLevels()
         naming.takeStarted(with: sources)
         mixerNames = Dictionary(uniqueKeysWithValues: sources.enumerated().map { ($0.offset + 1, $0.element.name) })
+        takeRouting = Dictionary(uniqueKeysWithValues: sources.enumerated().map { ($0.offset + 1, $0.element.routedFrom) })
+            .compactMapValues { $0 }
+        routingChanges = []
         isRecording = true
         if let destinationCheckInterval {
             destinationChecks = Task { [weak self] in
@@ -544,6 +547,7 @@ public final class Recorder {
     /// started with real names stays frozen. Touches no audio and no files while recording.
     public func offerSources(_ sources: [Source]) {
         guard isRecording else { return }
+        logRoutingChanges(in: sources)
         logRenames(in: sources)
         naming.mixerOffered(sources)
     }
@@ -551,6 +555,42 @@ public final class Recorder {
     /// The name the Mixer last gave each USB Channel during this Take (or, from the start, the Source the
     /// Take began with), to tell a rename from a repeat.
     private var mixerNames: [Int: String] = [:]
+
+    /// The USB routing changes of the running Take, for the record screen's warning (#21). Cleared when a Take starts.
+    public private(set) var routingChanges: [TakeMetadata.RoutingChange] = []
+    /// What the Mixer routed to each USB Channel: from the Take's start, or from when the routing was first known
+    /// (a Mixer Link that arrived after the press), and after each re-patch.
+    private var takeRouting: [Int: String] = [:]
+
+    /// What the record screen says about the running Take's routing changes (#21), naming each Stem as it was
+    /// named at the start. Nil when there are none.
+    public var routingNotice: String? {
+        guard let session else { return nil }
+        var stems: [Int: String] = [:]
+        for change in routingChanges { stems[change.usbChannel] = session.channelName(change.usbChannel) }
+        return RoutingChangeNotice.message(for: routingChanges, stemNames: stems)
+    }
+
+    /// A USB Channel whose routing changed (#21) is logged as a routing change with a Marker, not as a rename: from
+    /// here on its Stem holds another Source. The first routing known for a USB Channel is only noted. A re-patch to
+    /// something the Mixer Link can't name (no `routedFrom`) isn't told apart from not knowing: it stays a rename.
+    private func logRoutingChanges(in sources: [Source]) {
+        guard let session else { return }
+        var logged = false
+        for (index, source) in sources.enumerated() {
+            let number = index + 1
+            guard let now = source.routedFrom else { continue }
+            guard let known = takeRouting[number] else { takeRouting[number] = now; continue }
+            guard now != known else { continue }
+            let from = mixerNames[number] ?? Source.fallback(usbChannel: number).name
+            session.logRoutingChange(usbChannel: number, from: from, to: source.name)
+            routingChanges = session.metadata.routingChanges ?? []
+            takeRouting[number] = now
+            mixerNames[number] = source.name
+            logged = true
+        }
+        if logged { refreshMarkers(from: session.metadata) }
+    }
 
     private func logRenames(in sources: [Source]) {
         guard let session else { return }

@@ -40,14 +40,28 @@ public struct ReaperExporter: ProjectExporter {
             out += "    PEAKCOL \(Self.peakColor(track.color))\n"
             for (index, take) in show.takes.enumerated() {
                 guard let stem = take.stems.first(where: { $0.usbChannel == track.number }) else { continue }
-                out += "    <ITEM\n"
-                out += "      POSITION \(Self.seconds(starts[index]))\n"
-                out += "      LENGTH \(Self.seconds(take.duration))\n"
-                out += "      NAME \(Self.quote(stem.name))\n"
-                out += "      <SOURCE WAVE\n"
-                out += "        FILE \(Self.quote(stem.path))\n"
-                out += "      >\n"
-                out += "    >\n"
+                // A USB Channel re-patched during the Take (#21) is cut at each change into one item per Source,
+                // each reading the same Stem from its own start (SOFFS), so the parts line up where they were recorded.
+                var parts: [(from: Double, name: String)] = [(0, stem.name)]
+                if take.sampleRate > 0 {
+                    for change in take.routingChanges.filter({ $0.usbChannel == track.number }).sorted(by: { $0.position < $1.position }) {
+                        let from = Double(change.position) / Double(take.sampleRate)
+                        guard from > (parts.last?.from ?? 0), from < take.duration else { continue }
+                        parts.append((from, change.name))
+                    }
+                }
+                for (part, piece) in parts.enumerated() {
+                    let end = part + 1 < parts.count ? parts[part + 1].from : take.duration
+                    out += "    <ITEM\n"
+                    out += "      POSITION \(Self.seconds(starts[index] + piece.from))\n"
+                    out += "      LENGTH \(Self.seconds(end - piece.from))\n"
+                    if piece.from > 0 { out += "      SOFFS \(Self.seconds(piece.from))\n" }
+                    out += "      NAME \(Self.quote(piece.name))\n"
+                    out += "      <SOURCE WAVE\n"
+                    out += "        FILE \(Self.quote(stem.path))\n"
+                    out += "      >\n"
+                    out += "    >\n"
+                }
             }
             out += "  >\n"
         }
