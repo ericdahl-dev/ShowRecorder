@@ -204,4 +204,28 @@ struct XAirGainTests {
         #expect(abs(fader.fromDb) < 0.05)
         #expect(abs(fader.toDb - -2) < 0.05)
     }
+    @Test("Reads what each gate and compressor listens to: its own signal, another channel, or a bus (#497)")
+    func readsKeys() async throws {
+        var state = Self.kickDesk()       // channel 2's compressor keyed from channel 1
+        state.channels[2].gateKey = 17    // channel 3's gate keyed from a bus
+        state.channels[3].gateKey = 4     // channel 4's gate keyed from channel 4: its own signal
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        #expect(try await driver.mixHoldState(ofChannel: 1).gateKey == .own)
+        #expect(try await driver.mixHoldState(ofChannel: 2).compressorKey == .channel(1))
+        #expect(try await driver.mixHoldState(ofChannel: 3).gateKey == .elsewhere)
+        #expect(try await driver.mixHoldState(ofChannel: 4).gateKey == .own)
+    }
+
+    @Test("Moving channel 2's preamp leaves its compressor keyed from channel 1 where it is: it doesn't hear that preamp (#497)")
+    func keyedFromAnotherChannelStays() async throws {
+        let mixer = try await FakeXAirMixer(Self.kickDesk())
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        let step = try await driver.applyMixHold(channel: 2, gainChangeDb: 6)
+
+        #expect(!step.changes.contains { $0.setting == MixHold.Setting(channel: 2, parameter: .compressorThreshold) })
+        #expect(try await driver.mixHoldState(ofChannel: 2).compressorThresholdDb == -30)
+    }
 }

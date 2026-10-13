@@ -78,11 +78,25 @@ public enum MixHold {
         }
     }
 
+    /// What a gate or compressor listens to (its sidechain key).
+    public enum Key: Equatable, Sendable {
+        /// The channel's own signal: its threshold follows this channel's preamp.
+        case own
+        /// Another channel's signal: its threshold follows that channel's preamp.
+        case channel(Int)
+        /// Something no preamp feeds directly, such as a bus or an FX return.
+        case elsewhere
+    }
+
     /// What Mix Hold needs of a channel, read from the Mixer. Nil, or no entry, is a setting the Mixer doesn't have.
     public struct ChannelState: Equatable, Sendable {
         public var channel: Int
         public var gateThresholdDb: Double?
         public var compressorThresholdDb: Double?
+        /// What the gate and the compressor listen to. A threshold moves with this channel's preamp only when it hears
+        /// that preamp: its own signal, or a channel moving with it (#497).
+        public var gateKey: Key = .own
+        public var compressorKey: Key = .own
         public var mainFaderDb: Double?
         public var otherMainsDb: [Int: Double]
         public var sends: [Send]
@@ -327,14 +341,24 @@ public enum MixHold {
 
     static func compensated(_ channels: [ChannelState], keyed: [KeyedDynamics] = [], ranges: Ranges, scopes: Scopes) -> [Item] {
         var items: [Item] = []
+        let moved = Set(channels.map(\.channel))
         for state in channels {
             func add(_ parameter: Parameter, _ value: Double?, _ direction: Double, _ range: ClosedRange<Double>) {
                 guard let value, scopes.contains(scope(of: parameter)) else { return }
                 if direction < 0, value <= ranges.offDb { return }
                 items.append(Item(setting: Setting(channel: state.channel, parameter: parameter), valueDb: value, direction: direction, range: range))
             }
-            add(.gateThreshold, state.gateThresholdDb, 1, ranges.gateThreshold)
-            add(.compressorThreshold, state.compressorThresholdDb, 1, ranges.compressorThreshold)
+            // A gate or compressor keyed from elsewhere doesn't hear this preamp: moving its threshold would change how
+            // hard it works, and so the mix. One keyed from another channel moves with that channel (`keyed`).
+            func hears(_ key: Key) -> Bool {
+                switch key {
+                case .own: true
+                case .channel(let other): moved.contains(other)
+                case .elsewhere: false
+                }
+            }
+            if hears(state.gateKey) { add(.gateThreshold, state.gateThresholdDb, 1, ranges.gateThreshold) }
+            if hears(state.compressorKey) { add(.compressorThreshold, state.compressorThresholdDb, 1, ranges.compressorThreshold) }
             add(.mainFader, state.mainFaderDb, -1, ranges.fader)
             for (main, level) in state.otherMainsDb.sorted(by: { $0.key < $1.key }) {
                 add(.otherMain(main), level, -1, ranges.fader)
@@ -343,7 +367,6 @@ public enum MixHold {
                 add(.send(send.bus), send.levelDb, -1, ranges.send)
             }
         }
-        let moved = Set(channels.map(\.channel))
         for dynamics in keyed where moved.contains(dynamics.keyChannel) && !moved.contains(dynamics.channel) {
             let parameter: Parameter = dynamics.dynamics == .gate ? .gateThreshold : .compressorThreshold
             guard scopes.contains(scope(of: parameter)) else { continue }

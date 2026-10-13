@@ -336,4 +336,19 @@ struct X32GainTests {
         #expect(step.changes.contains { $0.setting == MixHold.Setting(channel: 4, parameter: .mainFader) })
         #expect(!step.changes.contains { $0.setting.channel == 5 })
     }
+    @Test("Reads what each gate and compressor listens to: its own input, its linked partner's, or another source (#497)")
+    func readsKeys() async throws {
+        var state = Self.kickDesk()                  // channel 2's compressor keyed from In01: channel 1's input
+        state.channels[4].gateKey = 5                // channel 5's gate keyed from In05: its own input
+        state.channels[3].compressorKey = 3          // channel 4's compressor keyed from In03: its linked partner's
+        state.set["/config/chlink/3-4"] = .int(1)
+        state.set["/config/linkcfg/hadly"] = .int(1)
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        #expect(try await driver.mixHoldState(ofChannel: 1).gateKey == .own)
+        #expect(try await driver.mixHoldState(ofChannel: 2).compressorKey == .elsewhere)
+        #expect(try await driver.mixHoldState(ofChannel: 5).gateKey == .own)
+        #expect(try await driver.mixHoldState(ofChannel: 4).compressorKey == .channel(3))
+    }
 }

@@ -27,8 +27,25 @@ extension X32Driver {
             let level = X32Values.level.db(ofOSC: try await queries.float(at: address + "/level"))
             sends.append(MixHold.Send(bus: bus, levelDb: level, preFader: preFader))
         }
-        return MixHold.ChannelState(channel: channel, gateThresholdDb: gate, compressorThresholdDb: compressor,
-                                   mainFaderDb: fader, otherMainsDb: [1: mono], sends: sends)
+        var state = MixHold.ChannelState(channel: channel, gateThresholdDb: gate, compressorThresholdDb: compressor,
+                                         mainFaderDb: fader, otherMainsDb: [1: mono], sends: sends)
+        state.gateKey = try await key(Int(try await queries.int(at: base + "/gate/keysrc")), of: channel)
+        state.compressorKey = try await key(Int(try await queries.int(at: base + "/dyn/keysrc")), of: channel)
+        return state
+    }
+
+    /// What an X32 key source means for `channel`. The X32 keys from a source, not a channel: 0 is the channel's own
+    /// signal, and so is its own input (two channels on one headamp share it). The input of its stereo-linked partner,
+    /// which moves with it, is that channel. Anything else (another input, a bus, an FX return) no preamp moved
+    /// with this one feeds. From the X32 OSC docs and the emulator; not yet checked on a real X32.
+    func key(_ source: Int, of channel: Int) async throws(MixerLinkProblem) -> MixHold.Key {
+        if source == 0 { return .own }
+        let sourceAddress = { (channel: Int) in String(format: "/ch/%02d/config/source", channel) }
+        if Int(try await queries.int(at: sourceAddress(channel))) == source { return .own }
+        if let partner = try await linkedPartner(of: channel), Int(try await queries.int(at: sourceAddress(partner))) == source {
+            return .channel(partner)
+        }
+        return .elsewhere
     }
 
     /// Gates and compressors on other channels whose key source is `channel`'s input, read fresh. The X32 keys from a
