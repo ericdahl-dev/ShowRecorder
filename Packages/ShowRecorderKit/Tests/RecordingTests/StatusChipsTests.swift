@@ -170,4 +170,33 @@ struct StatusChipsTests {
                                     copies: takeCopies(driveOnly: true, device: .recording, drive: .missing))
         #expect(shown.map(\.text) == ["Device 1 h 00 min"])
     }
+
+    @Test("A Drive that joins a Drive-only Take takes the audio: one chip, the Drive's (#550)")
+    func driveOnlyTakeDriveJoined() {
+        let shown = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour * 2),
+                                    mixer: nil, copies: takeCopies(driveOnly: true, device: .recording, drive: .recording))
+        #expect(shown.map(\.text) == ["Drive 2 h 00 min"])
+    }
+
+    @Test("The Device standing in for a stalled Drive that still reads recording: one chip, the Device's (#550)")
+    func driveOnlyTakeStandingInStall() {
+        let shown = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour * 2),
+                                    mixer: nil, copies: takeCopies(driveOnly: true, device: .standingIn, drive: .recording))
+        #expect(shown.map(\.text) == ["Device 1 h 00 min"])
+    }
+
+    @Test("A stand-in that failed, with the Drive stopped too: one chip, the Drive's, saying it stopped (#550)")
+    func driveOnlyTakeStandInFailed() {
+        let shown = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour * 2),
+                                    mixer: nil, copies: takeCopies(driveOnly: true, device: .interrupted, drive: .interrupted))
+        #expect(shown.map(\.text) == ["Drive stopped"])
+        #expect(shown.first?.state == .failed)
+    }
+
+    @Test("A Drive-only Take with a Mixer: one of the Device and Drive chips, then the Mixer's (#550)")
+    func driveOnlyTakeWithMixer() {
+        let shown = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour * 2),
+                                    mixer: .idle, copies: takeCopies(driveOnly: true, device: .standingBy, drive: .recording))
+        #expect(shown.map(\.text) == ["Drive 2 h 00 min", "Mixer not linked"])
+    }
 }

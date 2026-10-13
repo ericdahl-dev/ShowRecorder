@@ -79,7 +79,9 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         var chips = [device, driveChip]
         if driveOnly || copies.isDriveOnly {
             var driveAvailable: Bool { if case .available = drive { true } else { false } }
-            let deviceWrites = copies.isRunning ? [.standingIn, .recording].contains(copies[.device]) : !driveAvailable
+            let deviceWrites = copies.isRunning
+                ? copies[.device] == .standingIn || (copies[.device] == .recording && copies[.drive] != .recording)
+                : !driveAvailable
             chips = [deviceWrites ? device : driveChip]
         }
 
