@@ -122,14 +122,14 @@ struct AutoGainList: View {
 extension AutoGainSession.Result {
     var usbChannel: Int {
         switch self {
-        case .set(let usb, _, _, _, _), .skipped(let usb, _), .failed(let usb, _, _, _), .stopped(let usb, _), .error(let usb, _, _): usb
+        case .set(let usb, _, _, _, _), .skipped(let usb, _), .failed(let usb, _, _, _), .stopped(let usb, _), .error(let usb, _, _), .haltedForTake(let usb, _): usb
         }
     }
 
     var isProblem: Bool {
         switch self {
         case .set, .skipped: false
-        case .failed, .stopped, .error: true
+        case .failed, .stopped, .error, .haltedForTake: true
         }
     }
 
@@ -164,6 +164,8 @@ extension AutoGainSession.Result {
             return "No signal, left alone"
         case .stopped:
             return "Stopped: the level didn't follow the gain. Check the Mixer's USB routing. The gain was put back."
+        case .haltedForTake:
+            return "Stopped because a Take started. The gain stays where it got to; Undo puts it back."
         case .error(_, _, let problem):
             return problem.message
         }
