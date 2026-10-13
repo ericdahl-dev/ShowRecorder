@@ -667,9 +667,13 @@ final class RecordScreenModel {
     /// Why auto-gain can't run right now; nil when it can.
     var autoGainUnavailable: AutoGainAvailability.Unavailable? {
         let isConnecting = if case .connecting = mixerLink.status { true } else { false }
-        return AutoGainAvailability.whyNot(hasMixerLink: mixerLink.identity != nil, isConnecting: isConnecting,
-                                           canSetGain: mixerLink.gainControl != nil, isRecording: recorder.isRecording)
+        return AutoGainAvailability.whyNot(hasMixerLink: offersMixerLink && mixerLink.identity != nil, isConnecting: isConnecting,
+                                           canSetGain: offeredGainControl != nil, isRecording: recorder.isRecording)
     }
+
+    /// The linked Mixer's gain control, only while Mixer Link is offered: a stale Link from an earlier input never moves
+    /// a Mixer's gain (#556).
+    private var offeredGainControl: (any GainControl)? { offersMixerLink ? mixerLink.gainControl : nil }
 
     /// Auto-gain's state (#155): kept here, not in the sheet, so Undo survives closing it; locked during a Take.
     let autoGain = AutoGainPanel()
@@ -686,9 +690,10 @@ final class RecordScreenModel {
     /// Clip protection on the linked Mixer, at the rate the input runs at, logging each move in the Take with a
     /// Marker (#450). Nil when the Mixer can't set gain.
     private func makeClipProtection() -> ClipProtection? {
-        guard mixerLink.gainControl != nil, let rate = recorder.sampleRate else { return nil }
-        // The Mixer Link's gain control at each move, as long as it is the Mixer the Take started on (#554, as #508).
-        return ClipProtection(currentControl: { [weak self] in self?.mixerLink.gainControl }, mixer: { [weak self] in self?.linkedMixer },
+        guard offeredGainControl != nil, let rate = recorder.sampleRate else { return nil }
+        // The gain control at each move, only while Mixer Link is offered and on the Mixer the Take started on
+        // (#554, as #508): a new input mid-Take means nothing is written to the old Mixer (#589).
+        return ClipProtection(currentControl: { [weak self] in self?.offeredGainControl }, mixer: { [weak self] in self?.linkedMixer },
                               sampleRate: Double(rate), log: { [weak self] change in self?.recorder.logGainChange(change) })
     }
 
@@ -723,9 +728,9 @@ final class RecordScreenModel {
     }
 
     func makeAutoGainSession() -> AutoGainSession? {
-        guard mixerLink.gainControl != nil else { return nil }
+        guard offeredGainControl != nil else { return nil }
         // The Mixer Link's gain control at each step, so a reconnect's new driver is used, Undo included (#508).
-        return AutoGainSession(currentControl: { [weak self] in self?.mixerLink.gainControl },
+        return AutoGainSession(currentControl: { [weak self] in self?.offeredGainControl },
                                mixer: { [weak self] in self?.linkedMixer }, measure: { [weak self] usb in await self?.averageLevel(usbChannel: usb) ?? -120 },
                                log: { [weak self] change in self?.recorder.logGainChange(change) })
     }
@@ -1273,7 +1278,7 @@ final class RecordScreenModel {
         USBChannelShortfall.check(
             usbChannelCount: recorder.isArmed ? recorder.usbChannelCount : 0,
             offeredChannelCount: offeredChannelCount,
-            mixer: mixerLink.identity, capabilities: mixerLink.capabilities)
+            mixer: offersMixerLink ? mixerLink.identity : nil, capabilities: offersMixerLink ? mixerLink.capabilities : nil)
     }
 
     /// Notes what the system offered for `device`, after it was Armed or took over input.
