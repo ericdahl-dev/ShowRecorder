@@ -14,7 +14,7 @@ public enum MixerFamily: Sendable, Equatable, CaseIterable {
         let name = name.uppercased()
         if ["XR18", "MR18", "X18"].contains(where: name.contains) {
             self = .xAir
-        } else if ["X-USB", "X32", "M32", "DN32"].contains(where: name.contains) {
+        } else if ["X-USB", "X-LIVE", "X32", "M32", "DN32"].contains(where: name.contains) {  // DN32 covers DN32-USB and DN32-LIVE (#503)
             self = .x32
         } else {
             return nil

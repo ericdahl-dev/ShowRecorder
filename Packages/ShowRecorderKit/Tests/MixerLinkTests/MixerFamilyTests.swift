@@ -70,4 +70,13 @@ struct MixerFamilyTests {
         let driver = family.makeDriver(endpoint: MixerEndpoint(host: "10.0.0.20"), timeout: .seconds(1))
         #expect(driver.gainControl != nil)
     }
+
+    @Test("The LIVE cards count as an X32 or M32 interface too (#503): X-LIVE and DN32-LIVE, under any name around them")
+    func liveCards() {
+        #expect(MixerFamily(audioInterfaceName: "X-LIVE") == .x32)
+        #expect(MixerFamily(audioInterfaceName: "BEHRINGER X-LIVE") == .x32)
+        #expect(MixerFamily(audioInterfaceName: "DN32-LIVE") == .x32)
+        #expect(MixerFamily(audioInterfaceName: "Live Audio Interface") == nil, "a bare LIVE isn't a mixer")
+    }
 }
+

@@ -47,6 +47,11 @@ describe("the X32 and M32 page", () => {
     expect(x32Page).toMatch(/X-LIVE and DN32-LIVE cards haven't been tested/);
   });
 
+  // #503: no X32 USB card's name has been seen yet; if one isn't recognized, the names never appear.
+  it("asks testers whose channel names don't appear for the USB name their card shows", () => {
+    expect(x32Page).toMatch(/If the channel names don't appear, tell us the name ShowRecorder shows for the mixer under \*\*Settings › Audio interface\*\*/);
+  });
+
   it("is linked from the X32 entry in Supported mixers", () => {
     expect(inBeta.find((m) => /X32/.test(m.name))?.href).toBe("/mixers/x32");
   });
