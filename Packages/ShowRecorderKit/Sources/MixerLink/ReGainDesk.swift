@@ -31,7 +31,19 @@ struct ReGainMove {
 
 extension ReGainDesk {
     public func channels(onHeadamp headamp: Int, movedWith channel: Int) async throws(MixerLinkProblem) -> [Int] {
-        [channel]
+        guard let partner = try await linkedPartner(of: channel) else { return [channel] }
+        return [channel, partner]
+    }
+
+    /// The other channel of `channel`'s stereo-linked pair, when the pair's preamps are linked too, so a gain move on
+    /// one moves the other's preamp (#393). Re-Gain then compensates both strips; writing the partner as well is
+    /// harmless where the Mixer mirrors a linked strip, and needed where it doesn't.
+    func linkedPartner(of channel: Int) async throws(MixerLinkProblem) -> Int? {
+        let first = channel % 2 == 0 ? channel - 1 : channel
+        guard try await queries.int(at: String(format: "/config/chlink/%d-%d", first, first + 1)) != 0,
+              try await queries.int(at: Self.preampLinkAddress) != 0
+        else { return nil }
+        return channel == first ? first + 1 : first
     }
 
     /// The most the gain moves in one ramp step, in dB.

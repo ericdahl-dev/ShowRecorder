@@ -69,10 +69,17 @@ struct ReGainTests {
         (.otherMains, .otherMain(1)),
     ])
     func scopeOff(scope: ReGain.Scopes, parameter: ReGain.Parameter) {
+        for gain in [3.0, -3.0] {   // both ways (#393)
+            scopeOff(scope: scope, parameter: parameter, gainChangeDb: gain)
+        }
+    }
+
+    func scopeOff(scope: ReGain.Scopes, parameter: ReGain.Parameter, gainChangeDb: Double) {
         var state = channel()
         state.otherMainsDb = [1: -12]
-        let all = ReGain.plan(headamp: 1, gainChangeDb: 3, channels: [state], ranges: x32Ranges)
-        let without = ReGain.plan(headamp: 1, gainChangeDb: 3, channels: [state], ranges: x32Ranges, scopes: ReGain.Scopes.all.subtracting(scope))
+        let all = ReGain.plan(headamp: 1, gainChangeDb: gainChangeDb, channels: [state], ranges: x32Ranges)
+        let without = ReGain.plan(headamp: 1, gainChangeDb: gainChangeDb, channels: [state], ranges: x32Ranges,
+                                  scopes: ReGain.Scopes.all.subtracting(scope))
         #expect(all.changes.contains { $0.setting.parameter == parameter })
         #expect(!without.changes.contains { $0.setting.parameter == parameter })
         #expect(without.changes.count == all.changes.count - 1)
@@ -318,5 +325,25 @@ struct ReGainLoopTests {
         let plan = ReGain.plan(headamp: 0, gainChangeDb: 6, channels: [ReGain.ChannelState(channel: 1), ReGain.ChannelState(channel: 17)],
                                ranges: ranges, keyed: keyed)
         #expect(plan.changes == [ReGain.Change(setting: ReGain.Setting(channel: 5, parameter: .gateThreshold), fromDb: -40, toDb: -34)])
+    }
+
+    @Test("Each end stop limits the gain the way it runs out: compressor top on a boost, gate and compressor bottoms on a cut, a send near off on a boost (#393)",
+          arguments: [
+            (ReGain.Parameter.compressorThreshold, -2.0, 5.0, 2.0, 0.0),
+            (.gateThreshold, -78.0, -5.0, -2.0, -80.0),
+            (.compressorThreshold, -58.0, -5.0, -2.0, -60.0),
+            (.send(1), -86.0, 5.0, 4.0, -90.0),
+          ])
+    func endStops(parameter: ReGain.Parameter, valueDb: Double, requestDb: Double, allowedDb: Double, endDb: Double) {
+        var state = channel()
+        switch parameter {
+        case .gateThreshold: state.gateThresholdDb = valueDb
+        case .compressorThreshold: state.compressorThresholdDb = valueDb
+        case .send(let bus): state.sends = [ReGain.Send(bus: bus, levelDb: valueDb, preFader: true)]
+        default: Issue.record("not covered")
+        }
+        let plan = ReGain.plan(headamp: 1, gainChangeDb: requestDb, channels: [state], ranges: x32Ranges)
+        #expect(plan.gainChangeDb == allowedDb)
+        #expect(plan.limitedBy == ReGain.Limit(setting: .init(channel: 1, parameter: parameter), endDb: endDb))
     }
 }
