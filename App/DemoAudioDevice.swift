@@ -26,6 +26,9 @@ final class DemoAudioDevice: AudioIODevice, @unchecked Sendable {
             let overflows = launchFlag("-demoDropout")
             // `-demoClip`: every 3 s, one full-scale sample on channel 3, so the clip mark can be checked.
             let clips = launchFlag("-demoClip")
+            // `-demoCalm` (screenshots): levels a mixed band would show, mostly green and yellow (peaks to about
+            // -12 dBFS), with one hot channel (channel 2) near -4 dBFS.
+            let calm = launchFlag("-demoCalm")
             var blocks = 0
             while !Task.isCancelled {
                 phase += 0.05
@@ -33,7 +36,9 @@ final class DemoAudioDevice: AudioIODevice, @unchecked Sendable {
                 if overflows, blocks % 1_500 == 0 { fake.deliver(Array(repeating: Array(repeating: 0, count: 250_000), count: count)) }
                 let channels = (0..<count).map { channel -> [Float] in
                     // The last channel stays silent, so the meters show an unused USB Channel.
-                    let level = Float(0.02 + 0.3 * (1 + sin(phase + Double(channel) * 0.6))) * (channel == count - 1 ? 0 : 1)
+                    let swing = sin(phase + Double(channel) * 0.6)
+                    let loud = calm ? (channel == 1 ? 0.6 : 0.03 + 0.11 * (1 + swing)) : 0.02 + 0.3 * (1 + swing)
+                    let level = Float(loud) * (channel == count - 1 ? 0 : 1)
                     return (0..<480).map { _ in Float.random(in: -level...level) }
                 }
                 var delivered = channels

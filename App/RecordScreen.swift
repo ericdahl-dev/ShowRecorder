@@ -209,7 +209,10 @@ struct RecordScreen: View {
         VStack(alignment: .leading, spacing: 12) {
             header
             StatusStrip(chips: model.chips, extras: model.extraChips, tap: chipTapped)
-            AlertSlot(queue: model.alerts, perform: model.perform)
+            // `-screenshotWindow` (Debug only): no empty alert band above the meters in a screenshot; the meters take it.
+            if !(launchFlag("-screenshotWindow") && model.alerts.top == nil) {
+                AlertSlot(queue: model.alerts, perform: model.perform)
+            }
             MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.linkedSources, typedNames: model.recorder.channelNames, nameChannel: nameChannel)
                 .overlay { if let block = model.recordBlock { DisarmedNotice(block: block, perform: model.perform) } }
             transport
@@ -1277,11 +1280,17 @@ final class RecordScreenModel {
                 for (index, name) in Self.demoChannelNames.enumerated() { recorder.setChannelName(name, forChannel: index + 1) }
             }
         }
-        // `-demoRecord` starts a Take two seconds after launch, for screenshots.
+        // `-demoRecord` starts a Take once Armed, for screenshots. With `-demoSignal` only on the Demo signal, never the
+        // built-in microphone a slow launch may Arm first; if the Demo signal never Arms, nothing is recorded.
         if launchFlag("-demoRecord") {
             Task {
-                try? await Task.sleep(for: .seconds(2))
-                if recorder.isArmed, !recorder.isRecording { record() }
+                for _ in 0..<60 {
+                    try? await Task.sleep(for: .milliseconds(500))
+                    guard recorder.isArmed, !recorder.isRecording else { continue }
+                    if launchFlag("-demoSignal"), armedDevice?.id != "demo" { continue }
+                    record()
+                    return
+                }
             }
         }
     }
@@ -1293,9 +1302,16 @@ final class RecordScreenModel {
     /// The Demo signal needs StoreKit's answer (TestFlight or not), which arrives later; the input list
     /// starts without it and gets it here. Only adds an input: the selection and an armed device stay.
     private func offerDemoSignalIfAvailable() async {
-        await DemoSignalAvailability.resolveEnvironment()
+        // A Debug build offers it without StoreKit's answer, which can come late on a busy Mac.
+        if !DemoSignalAvailability.isAvailableInThisBuild { await DemoSignalAvailability.resolveEnvironment() }
         guard DemoSignalAvailability.isAvailableInThisBuild, !devices.contains(where: { $0.id == "demo" }) else { return }
         devices = Self.availableDevices()
+        // `-demoSignal` (Debug, screenshots): when StoreKit answered after the first Arm, switch to the Demo signal now,
+        // so a slow launch doesn't leave the built-in microphone Armed.
+        if launchFlag("-demoSignal"), selectedDeviceID != "demo", !recorder.isRecording {
+            selectedDeviceID = "demo"
+            selectionDidChange()
+        }
     }
 
     /// The screen appeared again: Arm if nothing is, never over a running Take.
