@@ -40,6 +40,8 @@ public enum TakeEvent: Equatable, Sendable {
     public enum DisarmReason: Equatable, Sendable {
         /// The screen showing the recorder went away with no Take running.
         case screenGone
+        /// The app sat in the background for 30 minutes with no Take (`IdleDisarm`).
+        case idle
     }
 }
 
@@ -56,6 +58,7 @@ public final class TakeSequencer {
     @ObservationIgnored private var toldTakeStarted = false
     /// Set once the first Arm has been tried, so a screen appearing before that doesn't Arm early.
     @ObservationIgnored private var didStart = false
+    @ObservationIgnored private var idle = IdleDisarm()
 
     public var devices: [DeviceChoice]
     public var selectedDeviceID: String?
@@ -69,6 +72,8 @@ public final class TakeSequencer {
     public var recordError: String?
     /// When the running Take started, for the elapsed time.
     public private(set) var takeStartedAt: Date?
+    /// Whether the recorder was disarmed for sitting idle, so coming back should Arm it again.
+    public private(set) var disarmedForIdle = false
 
     /// Called after each attempt to Arm an interface: with the device when it worked, nil when it failed. The App
     /// resets its meters and reads what the system offered here.
@@ -193,6 +198,36 @@ public final class TakeSequencer {
         tellTakeEnd()
         if recorder.isRecording { tellTakeStart() }
         if !recorder.isRecording { takeStartedAt = nil }
+        disarmIfIdle()
+    }
+
+    /// The screen locked or the app left the front: start counting idle time.
+    public func appMovedToBackground() {
+        idle.becameIdle(at: now())
+    }
+
+    /// The operator asked to Arm again (the alert's button). Arms only: never starts a Take.
+    public func armAgain() {
+        disarmedForIdle = false
+        arm()
+    }
+
+    /// The app is in front again: stop counting, and Arm again if it was disarmed for being idle.
+    public func appBecameActive() {
+        idle.becameActive()
+        if disarmedForIdle {
+            disarmedForIdle = false
+            arm()
+        }
+    }
+
+    /// Disarms an unused recorder that has been idle for 30 minutes. Never during a Take.
+    private func disarmIfIdle() {
+        guard recorder.isArmed, idle.shouldDisarm(at: now(), isRecording: recorder.isRecording) else { return }
+        recorder.disarm()
+        armedDevice = nil
+        disarmedForIdle = true
+        emit.yield(.disarmed(reason: .idle))
     }
 
     private func tellTakeStart() {

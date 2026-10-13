@@ -34,6 +34,14 @@ final class FakeInputDevices: InputDeviceSource {
     func devices() -> [DeviceChoice] { choices }
 }
 
+/// A clock the test moves by hand.
+@MainActor
+final class TestClock {
+    var date: Date
+    init(_ date: Date) { self.date = date }
+    func minutes(_ minutes: Double, after start: Date) { date = start.addingTimeInterval(minutes * 60) }
+}
+
 @MainActor
 @Suite("Take sequencer")
 struct TakeSequencerTests {
@@ -350,5 +358,94 @@ struct TakeSequencerTests {
 
         let stem = try ParsedStem(contentsOf: try #require(recorder.currentShow).folder.appending(path: "Take 01/01 USB 01.wav"))
         #expect(stem.samples == [1, 2, 3, 4])
+    }
+
+    @Test("An Armed recorder left in the background disarms after 30 minutes with no Take, not before")
+    func idleDisarm() {
+        let clock = TestClock(start)
+        let (sequencer, recorder) = makeSequencer(now: { clock.date })
+        sequencer.start()
+        sequencer.appMovedToBackground()
+
+        clock.minutes(29.99, after: start)
+        sequencer.tick()
+        #expect(recorder.isArmed)
+
+        clock.minutes(IdleDisarm.limit / 60, after: start)
+        sequencer.tick()
+        #expect(!recorder.isArmed)
+        #expect(sequencer.disarmedForIdle)
+        #expect(sequencer.armedDevice == nil)
+    }
+
+    @Test("A Take never disarms, and counts as use: the 30 minutes start again after it")
+    func takeResetsIdle() {
+        let clock = TestClock(start)
+        let (sequencer, recorder) = makeSequencer(now: { clock.date })
+        sequencer.start()
+        sequencer.appMovedToBackground()
+        clock.minutes(10, after: start)
+        sequencer.record(sources: [], allowance: nil)
+
+        clock.minutes(45, after: start)
+        sequencer.tick()
+        #expect(recorder.isRecording)
+        sequencer.stop()
+
+        clock.minutes(74, after: start)
+        sequencer.tick()
+        #expect(recorder.isArmed)
+
+        clock.minutes(75, after: start)
+        sequencer.tick()
+        #expect(!recorder.isArmed)
+    }
+
+    @Test("Coming back to the app after an idle disarm Arms again")
+    func comingBackArmsAgain() {
+        let clock = TestClock(start)
+        let source = FakeInputDevices()
+        let (sequencer, recorder) = makeSequencer(source, now: { clock.date })
+        sequencer.start()
+        sequencer.appMovedToBackground()
+        clock.minutes(30, after: start)
+        sequencer.tick()
+
+        sequencer.appBecameActive()
+
+        #expect(recorder.isArmed)
+        #expect(!sequencer.disarmedForIdle)
+        #expect(source.opened.count == 2)
+    }
+
+    @Test("Arm again from the alert Arms and clears the idle disarm, without starting a Take")
+    func armAgain() {
+        let clock = TestClock(start)
+        let (sequencer, recorder) = makeSequencer(now: { clock.date })
+        sequencer.start()
+        sequencer.appMovedToBackground()
+        clock.minutes(30, after: start)
+        sequencer.tick()
+
+        sequencer.armAgain()
+
+        #expect(recorder.isArmed)
+        #expect(!recorder.isRecording)
+        #expect(!sequencer.disarmedForIdle)
+    }
+
+    @Test("An idle disarm tells the events stream why")
+    func idleEvent() async {
+        let clock = TestClock(start)
+        let (sequencer, _) = makeSequencer(now: { clock.date })
+        sequencer.start()
+        var events = sequencer.events.makeAsyncIterator()
+        _ = await events.next()  // .armed
+        sequencer.appMovedToBackground()
+        clock.minutes(30, after: start)
+
+        sequencer.tick()
+
+        #expect(await events.next() == .disarmed(reason: .idle))
     }
 }
