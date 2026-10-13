@@ -20,6 +20,7 @@ export function softwareApplicationJsonLd() {
     featureList: [
       "One 24-bit WAV file per USB Channel",
       "Channel names and colors from a Behringer XR18 or MR18",
+      "32 USB Channels with names and colors from a Behringer X32 or Midas M32 in the public beta",
       "A second copy on a USB drive as you record",
       "Crash-safe Takes, saved every 2 seconds",
       "Pre-roll and Markers",

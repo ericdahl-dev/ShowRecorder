@@ -8,7 +8,7 @@ export const OG_IMAGE = {
   url: "/og-image.png",
   width: 1200,
   height: 630,
-  alt: "ShowRecorder: record every channel of your mixer, on iPhone and iPad.",
+  alt: "ShowRecorder: record every channel of your mixer on iPhone and iPad.",
 } as const;
 
 export type PageInfo = {
@@ -21,15 +21,15 @@ export type PageInfo = {
 export const PAGES = {
   home: {
     path: "/",
-    title: "ShowRecorder: XR18 multitrack recorder for iPhone and iPad",
+    title: "ShowRecorder: record every mixer channel on iPhone and iPad",
     description:
-      "Record every channel of your mixer over USB on your iPhone or iPad, no laptop needed. With a Behringer XR18 or MR18, files are named from the mixer.",
+      "Record every USB Channel of your mixer to iPhone or iPad, no laptop needed. XR18 and MR18 now; X32 and M32 in the public beta. Free to download.",
   },
   features: {
     path: "/features",
     title: `Features and supported mixers - ${SITE_NAME}`,
     description:
-      "Every ShowRecorder feature, marked Free or Pro, and which mixers work: Behringer XR18 and MR18 now, other USB audio interfaces too, X32 and M32 planned.",
+      "Every feature, marked Free or Pro, and which mixers work: XR18 and MR18 now, any class-compliant USB interface, X32 and M32 in the public beta.",
   },
   changelog: {
     path: "/changelog",

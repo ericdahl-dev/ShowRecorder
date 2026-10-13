@@ -1,4 +1,4 @@
-// Which mixers work today and which are planned. Shown on /features (#mixers) and summed up in the
+// Which mixers work today, which are in the public beta and which are planned. Shown on /features (#mixers) and summed up in the
 // home page FAQ. Planned entries carry no dates and stay off the App Store listing.
 // Sources: ericdahl-dev/ShowRecorder issues #199 (X32/M32), #364, #366, #367 (Pioneer DJM), #374 (Mac),
 // and #416 to #425 (the mixer families being checked).
@@ -16,12 +16,17 @@ export const worksNow: MixerEntry[] = [
   },
 ];
 
-// In the order they are being worked on.
-export const planned: MixerEntry[] = [
+// In the public beta (TestFlight) now, coming to the App Store in a later update. The App Store 1.0 is the
+// XR18 and MR18 only, so nothing here may suggest the App Store version records these.
+export const inBeta: MixerEntry[] = [
   {
     name: "Behringer X32 and Midas M32",
-    body: "Next. Recording over USB with names and colors from the mixer, as on the XR18.",
+    body: "In the public beta: all 32 USB Channels from the X-USB card, names and colors from the mixer over Mixer Link, and each file named after what is patched to that USB Channel. Coming to the App Store in a later update.",
   },
+];
+
+// In the order they are being worked on.
+export const planned: MixerEntry[] = [
   {
     name: "Pioneer DJM mixers",
     body: "Stems named from each model's own USB layout (Deck 1, Deck 2, Mic, Master and so on). Later, Markers where the track changes.",
