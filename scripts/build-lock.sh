@@ -4,6 +4,8 @@
 # Sourced by verify.sh and the scripts/bin shims. A build that finds the lock taken waits, and says so.
 #   SHOWRECORDER_BUILD_LOCK=<file>   use this lock file instead (scripts/test-build-lock.sh)
 #   SHOWRECORDER_BUILD_LOCK_HELD=1   set while the lock is held: builds started inside it don't take it again
+# Stop a locked build with Ctrl-C, or by signalling its whole process group (kill -- -PGID): lockf holds the lock and
+# runs the build as its child, so a signal to lockf alone frees the lock while the build goes on.
 
 # The lock file: one per repo, in the git folder every worktree shares.
 build_lock_path() {

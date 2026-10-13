@@ -56,7 +56,9 @@ timed() {
 : > "$log"
 "$repo/scripts/bin/swift" build > "$work/first.out" 2>&1 &
 first=$!
-sleep 0.3
+# Until the first build's tool has started, so it holds the lock (a fixed sleep isn't enough on a busy Mac).
+i=0
+until grep -q start "$log" 2>/dev/null || [ $i -ge 600 ]; do i=$((i + 1)); sleep 0.1; done
 out=$("$repo/scripts/bin/xcodebuild" -scheme ShowRecorder build 2>&1) || true
 wait $first || true
 expect "a second build says it is waiting" has "Waiting for another build"
@@ -73,7 +75,8 @@ release_lock
 
 # 3. Light commands don't wait.
 hold_lock
-for cmd in "swift --version" "swift package describe" "swift package resolve" "xcodebuild -list" \
+for cmd in "swift --version" "swift package describe" "swift package resolve" \
+           "swift package --package-path Packages/ShowRecorderKit describe" "xcodebuild -list" \
            "xcodebuild -version" "xcodebuild -showdestinations -scheme ShowRecorder" "xcodebuild -showsdks"; do
   set -- $cmd
   tool=$1; shift
