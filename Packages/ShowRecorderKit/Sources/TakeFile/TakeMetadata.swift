@@ -116,7 +116,8 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
             case autoGain
             case clipProtection
             case undo
-            /// A reason from a newer ShowRecorder, kept as written so the Take still opens and saves it unchanged.
+            /// A reason from a newer ShowRecorder, kept as written so the Take still opens and saves it unchanged. Only
+            /// for text this version doesn't know: make a Reason from text with `init(rawValue:)`.
             case other(String)
 
             /// "auto-gain", "clip protection" or "undo", as the operator reads it.
@@ -277,7 +278,8 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
             /// Placed where the Mixer's USB routing changed during the Take (#21).
             case routing
             /// A kind from a newer ShowRecorder, kept as written: the Take still opens, and saving it keeps the kind.
-            /// Not the operator's, so it can't be renamed here.
+            /// Not the operator's, so it can't be renamed here. Only for text this version doesn't know: make an Origin from
+            /// text with `init(rawValue:)`.
             case other(String)
 
             /// What `Take.json` stores.
@@ -353,7 +355,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     }
 
     /// Fields from a newer ShowRecorder, kept from `read` to `write`. Nil in a Take this version wrote.
-    var unknownFields: UnknownFields?
+    public private(set) var unknownFields: UnknownFields?
 
     enum CodingKeys: String, CodingKey, CaseIterable {
         case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames, gainChanges, routingChanges

@@ -65,15 +65,49 @@ struct NewerFileTests {
         #expect(try TakeMetadata.read(fromTakeFolder: folder).markers.map(\.origin) == [.operator, .gain, .routing, .other("sparkle")])
     }
 
-    @Test("A Take this version wrote itself is saved exactly as before")
+    @Test("A Marker of an unknown kind is neither the operator's nor a Dropout, and no Stem carries it")
+    func unknownKindIsLeftAlone() throws {
+        try writeTake()
+        let take = try TakeMetadata.read(fromTakeFolder: folder)
+        #expect(take.operatorIndex(ofMarkerAt: 3) == nil)
+        #expect(take.dropoutCount == 0)
+        #expect(!take.stemCueMarkers.contains { $0.origin == .other("sparkle") })
+    }
+
+    @Test("A Take this version wrote, read, renamed and saved again is written exactly as JSONEncoder writes it")
     func ownTakeUnchanged() throws {
         let take = TakeMetadata(show: "Friday", take: 1, startedAt: Date(timeIntervalSince1970: 0), sampleRate: 48_000, timeReference: 0,
                                 usbChannels: [], markers: [.init(position: 1, name: "Marker 1", origin: .operator)])
         try take.write(to: folder)
+        var read = try TakeMetadata.read(fromTakeFolder: folder)
+        #expect(read.unknownFields == nil)
+        read.markers[0].name = "Intro"
+        try read.write(to: folder)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        #expect(try Data(contentsOf: folder.appending(path: "Take.json")) == (try encoder.encode(take)))
+        #expect(try Data(contentsOf: folder.appending(path: "Take.json")) == (try encoder.encode(read)))
+    }
+
+    @Test("An open Show from a newer version, resumed here, keeps its unknown fields when a Take ends and on the Drive")
+    func resumedShowKeepsWhatIsUnknown() throws {
+        let device = folder.appending(path: "Device"), drive = folder.appending(path: "Drive")
+        let showFolder = device.appending(path: "2026-10-06 Friday")
+        try FileManager.default.createDirectory(at: showFolder, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
+        try Data("""
+        {"name": "2026-10-06 Friday", "startedAt": "2026-10-06T20:00:00Z", "futureSetting": {"level": 3}}
+        """.utf8).write(to: showFolder.appending(path: "Show.json"))
+
+        var show = try #require(Show.findOpen(in: device))
+        show.noteTakeEnded(at: Date(timeIntervalSince1970: 1_791_000_000))
+        try show.useDrive(drive)
+
+        for copy in [showFolder, drive.appending(path: "2026-10-06 Friday")] {
+            let saved = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: copy.appending(path: "Show.json"))) as? [String: Any])
+            #expect((saved["futureSetting"] as? [String: Any])?["level"] as? Int == 3, "\(copy.lastPathComponent)")
+            #expect(saved["lastTakeEndedAt"] != nil)
+        }
     }
 
     @Test("A Show.json with fields this version doesn't know opens, and saving it keeps them")
