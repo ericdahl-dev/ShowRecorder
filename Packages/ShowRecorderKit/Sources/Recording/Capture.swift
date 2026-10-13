@@ -1,6 +1,5 @@
 import AudioIO
 import Darwin
-import Foundation
 import Synchronization
 
 /// One Copy's feed from the real-time thread: its ring and the Take frame it joined at.
@@ -31,7 +30,7 @@ final class CopyFeed: Sendable {
 
     /// Waits until the real-time thread says which Take frame this Copy starts at, calling `pause` between looks.
     /// Returns nil if `running` turns false first.
-    func waitForJoin(while running: () -> Bool, pause: () -> Void = { Thread.sleep(forTimeInterval: 0.002) }) -> Int? {
+    func waitForJoin(while running: () -> Bool, pause: () -> Void) -> Int? {
         while true {
             if let joinedAt { return joinedAt }
             if !running() { return nil }
@@ -45,7 +44,7 @@ final class CopyFeed: Sendable {
         joinFrame.store(joinedAt ?? -1, ordering: .releasing)
     }
 
-    /// Real-time: this Copy starts at Take frame `frame`. Real-time safe.
+    /// Real-time safe: this Copy starts at Take frame `frame`.
     @inline(__always) fileprivate func markJoined(at frame: Int) {
         joinFrame.store(frame, ordering: .releasing)
     }
