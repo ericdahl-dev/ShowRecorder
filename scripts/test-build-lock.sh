@@ -15,6 +15,10 @@ expect() {
 has() { printf '%s\n' "$out" | grep -q -- "$1"; }
 
 work=$(mktemp -d)
+# Stand-ins that hang sleep for a length only this run uses, matched exactly (^sleep N$), so two runs at once (agents
+# in other worktrees) never see, or stop, each other's processes, and no shell whose command line mentions it matches.
+hang=$((600 + $$ % 1000))
+timer=$((1700 + $$ % 1000))
 old="$work/old-worktree"
 # The temporary worktree check 5 makes goes too, even if the test is stopped partway.
 trap '[ -d "$old" ] && git worktree remove --force "$old" 2>/dev/null; rm -rf "$work"' EXIT
@@ -27,6 +31,8 @@ for tool in swift xcodebuild; do
   cat > "$work/real-$tool" <<STUB
 #!/bin/sh
 echo "start \$\$ \$(date +%s)" >> "$log"
+# Stopped, it takes STUB_CLEANUP seconds to clean up (a build writing its last files), then says so.
+trap 'sleep \${STUB_CLEANUP:-0}; echo "cleaned \$\$" >> "$log"; exit 143' TERM
 sleep \${STUB_SLEEP:-1}
 echo "end \$\$ \$(date +%s)" >> "$log"
 echo "ran $tool \$*"
@@ -154,6 +160,63 @@ done
 out=$(VERIFY_QUICK=0 SHOWRECORDER_BUILD_JOBS=6 VERIFY_FILES="Packages/ShowRecorderKit/Sources/Recording/AutoGainSession.swift" ./scripts/verify.sh 2>&1) || true
 expect "verify.sh's package tests get N/3 (args: $(cat "$work/args"))" grep -q "^swift test -j 2 --parallel\$" "$work/args"
 expect "verify.sh's app builds get N/3 each" [ "$(grep -c -- "-jobs 2\$" "$work/args")" = 2 ]
+
+# 7. A build that holds the lock past the time limit (#578) is stopped, its whole process group, says why, and the
+#    lock is free again. SHOWRECORDER_BUILD_TIMEOUT is minutes; 0.05 is 3 s.
+: > "$log"
+t0=$(date +%s)
+STUB_SLEEP=$hang SHOWRECORDER_BUILD_TIMEOUT=0.05 "$repo/scripts/bin/swift" test > "$work/limit.out" 2>&1 &
+limited=$!
+# This test stops waiting after 20 s itself, so a missing limit fails fast instead of hanging for 10 minutes.
+i=0
+while kill -0 "$limited" 2>/dev/null && [ $i -lt 200 ]; do i=$((i + 1)); sleep 0.1; done
+still=0
+if kill -0 "$limited" 2>/dev/null; then
+  still=1
+  pkill -f "^sleep $hang\$" 2>/dev/null || true
+fi
+status=0
+wait "$limited" || status=$?
+out=$(cat "$work/limit.out")
+elapsed=$(( $(date +%s) - t0 ))
+expect "a build past the limit is stopped (took ${elapsed}s)" [ "$still" = 0 ]
+expect "it fails (status $status)" [ "$status" != 0 ]
+expect "it says why (output: $out)" has "held the build lock for more than"
+expect "the lock is free again" lockf -k -t 0 "$SHOWRECORDER_BUILD_LOCK" true
+stub=$(awk '/^start/ { print $2 }' "$log")
+expect "the stand-in was started" [ -n "$stub" ]
+expect "the stand-in is gone" sh -c "! kill -0 '$stub' 2>/dev/null"
+expect "its own child (sleep $hang) is gone too: the whole process group" sh -c "! kill -0 -- -'$stub' 2>/dev/null"
+
+# 8. Stopping a build (Ctrl-C at a terminal, or TERM as a harness sends) holds the lock until the build has finished
+#    cleaning up, so the next build never starts beside it (#578). TERM here: a script's background jobs start with
+#    SIGINT ignored, which no shell can trap, while at a terminal Ctrl-C takes the same path.
+: > "$log"
+# A limit whose timer is `sleep $timer`, a length only this run uses.
+STUB_SLEEP=$hang STUB_CLEANUP=2 SHOWRECORDER_BUILD_TIMEOUT=$(awk -v s="$timer" 'BEGIN { printf "%.6f", s / 60 }') \
+  "$repo/scripts/bin/swift" test > "$work/stop.out" 2>&1 &
+shim=$!
+i=0
+until grep -q start "$log" 2>/dev/null || [ $i -ge 600 ]; do i=$((i + 1)); sleep 0.1; done
+# The shim became lockf; its child is build-limit.sh.
+wrapper=$(pgrep -P "$shim" | head -1)
+expect "build-limit.sh runs under lockf" [ -n "$wrapper" ]
+[ -n "$wrapper" ] && kill -TERM "$wrapper"
+i=0
+until lockf -k -t 0 "$SHOWRECORDER_BUILD_LOCK" true 2>/dev/null || [ $i -ge 200 ]; do i=$((i + 1)); sleep 0.1; done
+expect "a stopped build frees the lock only once it has cleaned up (log: $(tr '\n' ' ' < "$log"))" grep -q cleaned "$log"
+pkill -f "^sleep $hang\$" 2>/dev/null || true
+i=0
+while kill -0 "$shim" 2>/dev/null && [ $i -lt 100 ]; do i=$((i + 1)); sleep 0.1; done
+kill "$shim" 2>/dev/null || true
+expect "a stopped build leaves no timer behind" sh -c "! pgrep -f '^sleep $timer\$' >/dev/null"
+pkill -f "^sleep $timer\$" 2>/dev/null || true
+expect "a normal build prints nothing about the time limit (output: $(cat "$work/first.out"))" sh -c "! grep -q 'Terminated' '$work/first.out'"
+
+# 9. Input piped into a locked command still reaches it (`swift run Tool < input`); only a terminal is cut off, so a
+#    build can't stop on reading it.
+out=$(echo piped | "$repo/scripts/build-limit.sh" cat 2>&1) || true
+expect "piped input reaches the command (output: $out)" has "^piped\$"
 
 [ $fail = 0 ] && echo "build lock: all checks passed"
 exit $fail
