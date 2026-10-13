@@ -57,19 +57,19 @@ jobs:
       PLATFORM: ${{ matrix.asc_platform }}
       HAS_MAC_INSTALLER_CERT: ${{ secrets.MAC_INSTALLER_CERT_P12_BASE64 != '' }}
     steps:
+      # The Mac ships in the Mac App Store from 1.1 (#374): a missing installer certificate fails the Mac job
+      # (the iPhone and iPad build still uploads, fail-fast is off) instead of skipping it quietly.
       - name: Check the Mac installer certificate
         if: matrix.platform == 'macos' && env.HAS_MAC_INSTALLER_CERT != 'true'
         run: |
-          echo "::warning::No Mac upload: add MAC_INSTALLER_CERT_P12_BASE64 and MAC_INSTALLER_CERT_PASSWORD (see docs/DEVELOPING.md)."
-          echo "SKIP=1" >> "$GITHUB_ENV"
+          echo "::error::No Mac upload: add MAC_INSTALLER_CERT_P12_BASE64 and MAC_INSTALLER_CERT_PASSWORD (see docs/DEVELOPING.md)."
+          exit 1
 
       - uses: actions/checkout@v4
-        if: env.SKIP != '1'
         with:
           fetch-depth: 0
 
       - name: Check the tag
-        if: env.SKIP != '1'
         run: |
           # Only releases from main, or from a release branch (release/1.0) for a fix to a version in
           # App Review, so a stray tag on a feature branch can't ship.
@@ -84,14 +84,12 @@ jobs:
           echo "BUILD_NUMBER=${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
 
       - name: Show toolchain
-        if: env.SKIP != '1'
         run: |
           xcodebuild -version
           swift --version
           echo "Version ${MARKETING_VERSION} (${BUILD_NUMBER})"
 
       - name: Write the App Store Connect key
-        if: env.SKIP != '1'
         env:
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
         run: |
@@ -102,7 +100,6 @@ jobs:
           echo "ASC_KEY_PATH=$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
 
       - name: Import the Apple Distribution certificate
-        if: env.SKIP != '1'
         env:
           DIST_CERT_P12_BASE64: ${{ secrets.DIST_CERT_P12_BASE64 }}
           DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
@@ -123,6 +120,9 @@ jobs:
             printf '%s' "$MAC_INSTALLER_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/installer.p12"
             security import "$RUNNER_TEMP/installer.p12" -k "$KEYCHAIN" -P "$MAC_INSTALLER_CERT_PASSWORD" -T /usr/bin/productbuild -T /usr/bin/security
             rm -f "$RUNNER_TEMP/installer.p12"
+            # When the installer certificate expires (it lasts a year); an expired one stops the Mac upload.
+            security find-certificate -c "3rd Party Mac Developer Installer" -p "$KEYCHAIN" | openssl x509 -noout -enddate \
+              | sed 's/^notAfter=/Mac installer certificate expires: /' || echo "::warning::Couldn't read the Mac installer certificate's expiry"
           fi
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
@@ -134,7 +134,6 @@ jobs:
           security find-identity -v -p codesigning "$KEYCHAIN" | sed -E 's/[0-9A-F]{40}/<hash>/'
 
       - name: Get the App Store provisioning profile (${{ matrix.profile_type }})
-        if: env.SKIP != '1'
         run: |
           set +x
           python3 scripts/ci_profile.py | tee "$RUNNER_TEMP/profile.txt"
@@ -146,7 +145,6 @@ jobs:
           fi
 
       - name: Archive
-        if: env.SKIP != '1'
         run: |
           set -o pipefail
           xcodebuild archive \
@@ -161,11 +159,9 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/archive.log"
 
       - name: Check the archive before uploading
-        if: env.SKIP != '1'
         run: ./scripts/preflight.sh "$RUNNER_TEMP/ShowRecorder.xcarchive"
 
       - name: Upload to TestFlight
-        if: env.SKIP != '1'
         run: |
           set -o pipefail
           INSTALLER=""
@@ -204,7 +200,6 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/upload.log"
 
       - name: Set What to Test and send the build to external testers
-        if: env.SKIP != '1'
         # The upload has happened; a failure here prints a warning and never fails the release.
         continue-on-error: true
         env:
