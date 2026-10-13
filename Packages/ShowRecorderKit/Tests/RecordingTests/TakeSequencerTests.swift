@@ -775,4 +775,21 @@ struct TakeSequencerTests {
         #expect(recorder.sampleRate == 48_000)
         #expect(source.asked.last?.capAt48k == true)
     }
+
+    @Test("A media reset that comes back in another format tells the new Arm")
+    func mediaResetOtherFormatTellsTheArm() async {
+        let source = FakeInputDevices()
+        let (sequencer, _) = makeSequencer(source)
+        sequencer.start()
+        sequencer.record(sources: [], allowance: nil)
+        var events = sequencer.events.makeAsyncIterator()
+        source.reopensWith["xr18"] = 2
+
+        sequencer.handle(.mediaServicesReset)
+        sequencer.stop()  // nothing to stop: a known last event to read up to
+        sequencer.screenDisappeared()
+
+        let told = await told(&events, through: .disarmed(reason: .screenGone))
+        #expect(told.filter { if case .armed = $0 { true } else { false } }.count == 2, "the first Arm, then the one on the new format")
+    }
 }

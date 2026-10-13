@@ -97,8 +97,8 @@ public final class TakeSequencer {
     @ObservationIgnored public var log: (String) -> Void = { _ in }
     /// Everything that happens, in order. One listener. With no one listening only the newest
     /// `eventBufferSize` are kept, so a stream nobody reads never grows. It ends when the sequencer goes away.
-    /// Every Take start and end is told. Arm and disarm are told for the sequencer's own Arming; a device-list,
-    /// route or media-reset change still re-Arms from the App and isn't told yet (#301 slices 5-7).
+    /// Every Take start and end is told, every Arm, each input stop and restart, and a disarm when the screen goes,
+    /// the app sits idle or the Armed interface is lost. Arming with no interface selected disarms without telling.
     public let events: AsyncStream<TakeEvent>
     @ObservationIgnored private let source: any InputDeviceSource
     public static let eventBufferSize = 32
@@ -312,6 +312,7 @@ public final class TakeSequencer {
             let device = try source.currentRouteDevice(sampleRate: recorder.sampleRate)
             let continued = try recorder.restartInput(on: device)
             armedDevice = devices.first { $0.id == selectedDeviceID }?.info
+            if !continued, let armedDevice { emit.yield(.armed(armedDevice)) }
             didArm(device)
             log("Input route changed during a Take; \(continued ? "the Take continues" : "the format changed, so the Take was stopped and saved")")
             if !continued { recordError = TakeEnd.Reason.inputChanged.message }
@@ -355,6 +356,11 @@ public final class TakeSequencer {
                 // The replacement keeps the rate the recorder runs at, uncapped, so a running Take can continue.
                 let device = try choice.make(recorder.sampleRate ?? sampleRateChoice, false)
                 let continued = try recorder.restartInput(on: device)
+                if !continued {
+                    // A new format re-Armed the recorder on the new device.
+                    armedDevice = choice.info
+                    emit.yield(.armed(choice.info))
+                }
                 didArm(device)
                 handle(wasRecording && !continued ? .takeEndedByReset : .restarted)
             } catch {
