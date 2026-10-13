@@ -3,7 +3,7 @@ import MixerLink
 import Recording
 import SwiftUI
 
-/// Auto-gain (#155): brings each USB Channel to the target level by moving its preamp on the Mixer, with Re-Gain
+/// Auto-gain (#155): brings each USB Channel to the target level by moving its preamp on the Mixer, with Mix Hold
 /// keeping the mix the same. All channels at once or one at a time, a result for each, and Undo. Never during a Take.
 struct AutoGainSheet: View {
     let model: RecordScreenModel

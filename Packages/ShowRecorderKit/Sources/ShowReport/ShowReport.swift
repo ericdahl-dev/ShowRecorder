@@ -101,7 +101,7 @@ public struct ShowReport: Equatable, Sendable {
     /// Preamp gains ShowRecorder changed on the Mixer between Takes, from `Show.json` (#450).
     public var gainChangesBetweenTakes: [GainChange] = []
 
-    /// One preamp gain change on the Mixer and what Re-Gain moved with it. `seconds` is from the Take's audio start,
+    /// One preamp gain change on the Mixer and what Mix Hold moved with it. `seconds` is from the Take's audio start,
     /// for a change during a Take; between Takes it is nil and `at` says when.
     public struct GainChange: Equatable, Sendable {
         public var seconds: Double?
@@ -290,9 +290,9 @@ public struct ShowReport: Equatable, Sendable {
         return out
     }
 
-    /// The gain changes as a table: when, USB Channel, gain from and to, why, and what Re-Gain moved.
+    /// The gain changes as a table: when, USB Channel, gain from and to, why, and what Mix Hold moved.
     static func gainTable(_ changes: [GainChange], betweenTakes: Bool) -> String {
-        var out = "<p class=\"note\">Preamp gain ShowRecorder changed on the Mixer. Re-Gain moved the thresholds, fader and sends to keep the mix the same.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>Time</th><th>USB Channel</th><th>Gain</th><th>Why</th><th>Re-Gain</th></tr></thead>\n<tbody>\n"
+        var out = "<p class=\"note\">Preamp gain ShowRecorder changed on the Mixer. Mix Hold moved the thresholds, fader and sends to keep the mix the same.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>Time</th><th>USB Channel</th><th>Gain</th><th>Why</th><th>Mix Hold</th></tr></thead>\n<tbody>\n"
         let clock = DateFormatter()
         clock.dateFormat = "HH:mm:ss"
         for change in changes {

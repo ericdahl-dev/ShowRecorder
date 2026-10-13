@@ -240,6 +240,25 @@ struct ShowReportTests {
         #expect(html.contains("<h2>Gain changes between Takes</h2>"))
     }
 
+    @Test("A Show saved before the Mix Hold rename (v1.1.x) still lists its between-Takes gain changes (#496)")
+    func showSavedBeforeTheRenameListsItsGainChanges() async throws {
+        try await record(channels: 1, sources: [], takes: [480])
+        // The gain log as v1.1.x writes it in Show.json, spliced into this Show's file.
+        let logged = """
+        [{"at": "2026-10-07T01:30:00Z", "channel": 1, "compensations": [{"channel": 1, "fromDb": -6.2, "setting": "fader", "toDb": -9.2}],
+          "fromGainDb": 14.5, "headamp": 1, "reason": "autoGain", "toGainDb": 17.5, "usbChannel": 1}]
+        """
+        let file = show.appending(path: "Show.json")
+        var json = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        json["gainChanges"] = try JSONSerialization.jsonObject(with: Data(logged.utf8))
+        try JSONSerialization.data(withJSONObject: json).write(to: file)
+
+        let report = try ShowReport(showFolder: show)
+
+        #expect(report.gainChangesBetweenTakes.count == 1)
+        #expect(report.html.contains("fader -6.2 → -9.2 dB"))
+    }
+
     @Test("A Take with no renames has no renames section")
     func noRenamesSection() async throws {
         try await record(channels: 1, sources: [], takes: [480])

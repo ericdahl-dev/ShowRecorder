@@ -63,4 +63,85 @@ struct GainLogTests {
         #expect(logged.toGainDb == 17.5)
         #expect(logged.position == nil)
     }
+
+    /// A Take.json written before #496 renamed Re-Gain to Mix Hold (the format v1.1.x saves), as recorded then.
+    static let takeJSONBeforeMixHold = """
+{
+  "dropouts" : [
+
+  ],
+  "gainChanges" : [
+    {
+      "at" : "2026-10-07T01:30:00Z",
+      "channel" : 1,
+      "compensations" : [
+        {
+          "channel" : 1,
+          "fromDb" : -6.2,
+          "setting" : "fader",
+          "toDb" : -9.2
+        }
+      ],
+      "fromGainDb" : 14.5,
+      "headamp" : 1,
+      "position" : 12,
+      "reason" : "autoGain",
+      "toGainDb" : 17.5,
+      "usbChannel" : 1
+    }
+  ],
+  "gaps" : [
+
+  ],
+  "markers" : [
+    {
+      "name" : "Kick: gain +3.0 dB (auto-gain)",
+      "origin" : "gain",
+      "position" : 12
+    }
+  ],
+  "repairs" : [
+
+  ],
+  "sampleRate" : 48000,
+  "show" : "2026-10-06 Show",
+  "startedAt" : "2026-10-07T01:30:00Z",
+  "take" : 1,
+  "timeReference" : 3715200000,
+  "usbChannels" : [
+    {
+      "averageDbfs" : -80,
+      "color" : {
+        "hue" : "off",
+        "inverted" : false
+      },
+      "hasMixerName" : true,
+      "name" : "Kick",
+      "peakDbfs" : -80,
+      "stemFile" : "01 Kick.wav",
+      "usbChannel" : 1
+    },
+    {
+      "averageDbfs" : -80,
+      "color" : {
+        "hue" : "off",
+        "inverted" : false
+      },
+      "hasMixerName" : true,
+      "name" : "Snare",
+      "peakDbfs" : -80,
+      "stemFile" : "02 Snare.wav",
+      "usbChannel" : 2
+    }
+  ]
+}
+"""
+
+    @Test("A Take saved before the Mix Hold rename (v1.1.x) still opens, with its gain log and what was compensated")
+    func takeSavedBeforeTheRenameOpens() throws {
+        let metadata = try Self.decoder().decode(TakeMetadata.self, from: Data(Self.takeJSONBeforeMixHold.utf8))
+        let logged = try #require(metadata.gainChanges?.first)
+        #expect(logged.reason == .autoGain && logged.fromGainDb == 14.5 && logged.toGainDb == 17.5)
+        #expect(logged.compensations == [.init(channel: 1, setting: "fader", fromDb: -6.2, toDb: -9.2)])
+    }
 }

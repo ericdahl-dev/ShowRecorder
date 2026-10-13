@@ -80,7 +80,7 @@ final class FakeMixerDriver: MixerDriver {
 struct StubGainControl: GainControl {
     func channel(forUSBChannel usbChannel: Int) -> Int? { usbChannel }
     func preamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? { channel }
-    func applyReGain(channel: Int, gainChangeDb: Double, scopes: ReGain.Scopes) async throws(MixerLinkProblem) -> GainStep {
+    func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes) async throws(MixerLinkProblem) -> GainStep {
         GainStep(channel: channel, headamp: channel, fromGainDb: 0, toGainDb: gainChangeDb, held: [:], limitedBy: nil, restore: [:])
     }
     func undo(_ step: GainStep) async throws(MixerLinkProblem) {}

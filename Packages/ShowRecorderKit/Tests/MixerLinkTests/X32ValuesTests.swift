@@ -56,10 +56,10 @@ struct X32ValuesTests {
         #expect(X32Values.compressorThreshold.dbRange == -60...0)
     }
 
-    @Test("Re-Gain's limits on the X32 and the X-Air come from the same scales the drivers write with (#442)")
-    func reGainRanges() {
-        let expected = ReGain.Ranges(fader: -90...10, send: -90...10, gateThreshold: -80...0, compressorThreshold: -60...0, offDb: -90)
-        #expect(X32Driver.reGainRanges == expected)
-        #expect(XAirDriver.reGainRanges == expected)
+    @Test("Mix Hold's limits on the X32 and the X-Air come from the same scales the drivers write with (#442)")
+    func mixHoldRanges() {
+        let expected = MixHold.Ranges(fader: -90...10, send: -90...10, gateThreshold: -80...0, compressorThreshold: -60...0, offDb: -90)
+        #expect(X32Driver.mixHoldRanges == expected)
+        #expect(XAirDriver.mixHoldRanges == expected)
     }
 }

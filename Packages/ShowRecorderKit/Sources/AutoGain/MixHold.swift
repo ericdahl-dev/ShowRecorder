@@ -1,17 +1,17 @@
-/// Re-Gain (#393): keeps the mix the same when a preamp's gain changes, the way Mixing Station's Re-Gain does
-/// (https://mixingstation.app/ms-docs/re-gain/). What is recorded is the preamp output, so the preamp has to move;
-/// everything after it moves the other way, so only the recorded level changes. For a gain change of +g dB:
+/// Mix Hold (#393): keeps the mix the same when a preamp's gain changes. What is recorded is the preamp output, so the
+/// preamp has to move; everything after it moves the other way, so only the recorded level changes. For a gain change
+/// of +g dB:
 ///
 /// - the gate and compressor thresholds rise g dB, and so do those on other channels keyed from this one;
 /// - the main LR fader and any other mains (the X32's mono/center) fall g dB;
-/// - pre-fader sends fall g dB, counting only sends above `Ranges.offDb` (-90 dB), as Re-Gain does;
+/// - pre-fader sends fall g dB, counting only sends above `Ranges.offDb` (-90 dB), as Mix Hold does;
 /// - post-fader sends and DCAs need nothing, since they follow the fader.
 ///
-/// The gain change is limited so that no compensated setting passes its end stop (Re-Gain's red lines), and the plan
+/// The gain change is limited so that no compensated setting passes its end stop (Mix Hold's red lines), and the plan
 /// says which setting limited it. Pure: the state comes in, read fresh from the Mixer just before each step, and the
 /// changes go out for the Mixer driver to write with the gain. Ranges are data from the driver, not per-model code.
-public enum ReGain {
-    /// What Re-Gain compensates, matching Re-Gain's Sends, Gate, Compressor, LR and Other mains switches.
+public enum MixHold {
+    /// What Mix Hold compensates, matching Mix Hold's Sends, Gate, Compressor, LR and Other mains switches.
     public struct Scopes: OptionSet, Hashable, Sendable {
         public let rawValue: Int
         public init(rawValue: Int) { self.rawValue = rawValue }
@@ -32,7 +32,7 @@ public enum ReGain {
         public var gateThreshold: ClosedRange<Double>
         public var compressorThreshold: ClosedRange<Double>
         /// A fader or send at or below this is off: it is left alone and doesn't limit the range, since lowering the
-        /// gain would otherwise open it. Mixing Station documents the rule for sends; faders get the same rule here.
+        /// gain would otherwise open it. The same rule holds for sends and faders.
         public var offDb: Double
 
         public init(fader: ClosedRange<Double>, send: ClosedRange<Double>, gateThreshold: ClosedRange<Double>,
@@ -45,7 +45,7 @@ public enum ReGain {
         }
     }
 
-    /// One setting on a channel that Re-Gain can move.
+    /// One setting on a channel that Mix Hold can move.
     public enum Parameter: Hashable, Sendable {
         case gateThreshold
         case compressorThreshold
@@ -78,7 +78,7 @@ public enum ReGain {
         }
     }
 
-    /// What Re-Gain needs of a channel, read from the Mixer. Nil, or no entry, is a setting the Mixer doesn't have.
+    /// What Mix Hold needs of a channel, read from the Mixer. Nil, or no entry, is a setting the Mixer doesn't have.
     public struct ChannelState: Equatable, Sendable {
         public var channel: Int
         public var gateThresholdDb: Double?
@@ -139,7 +139,7 @@ public enum ReGain {
         }
     }
 
-    /// What restores a channel after Re-Gain: how far each headamp moved, to move it back (the gain itself is never
+    /// What restores a channel after Mix Hold: how far each headamp moved, to move it back (the gain itself is never
     /// read back), and each compensated setting's value before the first change, to write back exactly.
     public struct UndoSet: Equatable, Sendable {
         public var gainMovedDb: [Int: Double]
@@ -158,7 +158,7 @@ public enum ReGain {
         }
     }
 
-    /// Re-Gain over a whole auto-gain run: one channel's steps, or every channel's when the run covers them all. An
+    /// Mix Hold over a whole auto-gain run: one channel's steps, or every channel's when the run covers them all. An
     /// actuator plans each step from the state it has just read from the Mixer, writes the gain move with the plan's
     /// values, and gives the loop `gainChangeDb` as how far it moved. So the loop's steps stay within the compensable
     /// range, and stop with range reached when it runs out.
@@ -177,7 +177,7 @@ public enum ReGain {
 
         /// Plans one step and keeps its undo set and limit. `channels` must be read fresh, just before the step.
         public mutating func step(headamp: Int, gainChangeDb: Double, channels: [ChannelState], keyed: [KeyedDynamics] = []) -> Plan {
-            let plan = ReGain.plan(headamp: headamp, gainChangeDb: gainChangeDb, channels: channels, ranges: ranges, scopes: scopes, keyed: keyed)
+            let plan = MixHold.plan(headamp: headamp, gainChangeDb: gainChangeDb, channels: channels, ranges: ranges, scopes: scopes, keyed: keyed)
             undo.merge(plan.undo)
             limitedBy = plan.limitedBy
             return plan
@@ -234,7 +234,7 @@ public enum ReGain {
         return Plan(requestedDb: gainChangeDb, gainChangeDb: g, changes: changes, limitedBy: limit, undo: undo)
     }
 
-    /// How far the gain can move each way before a compensated setting reaches its end stop: Re-Gain's red lines.
+    /// How far the gain can move each way before a compensated setting reaches its end stop: Mix Hold's red lines.
     public struct CompensableRange: Equatable, Sendable {
         /// The largest cut, in dB (zero or below); -infinity when nothing limits it.
         public var lowestDb: Double
@@ -271,7 +271,7 @@ public enum ReGain {
     }
 
     /// A gate or compressor whose sidechain key is another channel, with its threshold now. When the key channel's
-    /// gain moves, so does what the threshold sees, so Re-Gain moves the threshold too (Eric, 2026-10-12).
+    /// gain moves, so does what the threshold sees, so Mix Hold moves the threshold too (Eric, 2026-10-12).
     public struct KeyedDynamics: Hashable, Sendable {
         public enum Dynamics: Hashable, Sendable {
             case gate
@@ -317,7 +317,7 @@ public enum ReGain {
         return moved.sorted()
     }
 
-    /// A setting Re-Gain moves: +1 with the gain (thresholds), -1 against it (faders and sends).
+    /// A setting Mix Hold moves: +1 with the gain (thresholds), -1 against it (faders and sends).
     struct Item {
         var setting: Setting
         var valueDb: Double

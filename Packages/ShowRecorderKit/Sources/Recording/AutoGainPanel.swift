@@ -111,14 +111,14 @@ public final class AutoGainPanel {
 
     public var canUndoAll: Bool { session?.steps.values.contains { !$0.isEmpty } == true }
 
-    /// What Re-Gain moved to keep the mix the same on `usbChannel`, in plain words; nil when nothing did, or once Undo
+    /// What Mix Hold moved to keep the mix the same on `usbChannel`, in plain words; nil when nothing did, or once Undo
     /// has put it back.
     public func compensationSummary(_ usbChannel: Int) -> String? {
         guard let session, let channel = session.steps[usbChannel]?.first?.channel else { return nil }
         return Self.compensationSummary(session.compensated(usbChannel: usbChannel), channel: channel)
     }
 
-    /// In plain words. Re-Gain moves every setting by the same amount, so that's one line: "To keep the mix: fader,
+    /// In plain words. Mix Hold moves every setting by the same amount, so that's one line: "To keep the mix: fader,
     /// 6 sends and 2 thresholds moved -25.0 dB". When the amounts differ (a setting reached its end), each is listed:
     /// "fader -80.0 to -90.0 dB, send 3 +5.0 to -20.0 dB". A setting on another channel (one keyed from this one)
     /// names its channel.

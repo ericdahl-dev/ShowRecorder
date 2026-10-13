@@ -13,7 +13,7 @@ final class FakeXAirMixer: Sendable {
         var on: Int32 = 1
         var fader: Float = 0.75
         var inputSource: Int32 = 0
-        /// X32 Re-Gain settings, as OSC floats (0…1) and ints.
+        /// X32 Mix Hold settings, as OSC floats (0…1) and ints.
         var gateThreshold: Float = 0.5
         var compressorThreshold: Float = 0.5
         var monoLevel: Float = 0
