@@ -13,7 +13,7 @@ extension RecordScreenModel {
         let driveAvailable = if case .available = drive.status { true } else { false }
         return WatchStatusMaker.make(
             isArmed: recorder.isArmed, take: take, chips: chips, driveAvailable: driveAvailable,
-            copies: recorder.isRecording ? [.device: deviceCopy, .drive: driveCopy] : [:],
+            copies: copies,
             dropoutCount: recorder.isRecording ? recorder.dropoutCount : 0, mixerDown: mixerDown)
     }
 

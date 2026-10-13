@@ -6,6 +6,12 @@ public struct CopySummary: Equatable, Sendable {
     public let text: String
     public let isProblem: Bool
 
+    /// The summary of the last Take, or nil while a Take runs or when no Copy of it ended (there was no Take).
+    public static func ofLastTake(_ copies: TakeCopies, dropoutCount: Int) -> CopySummary? {
+        guard !copies.isRunning, DestinationKind.allCases.contains(where: { copies[$0].outcome != nil }) else { return nil }
+        return CopySummary(copies: copies, dropoutCount: dropoutCount)
+    }
+
     /// How each Copy of the last Take ended (#550); a Copy with no ended state (it never started) isn't counted.
     public init(copies: TakeCopies, dropoutCount: Int) {
         self.init(outcomes: Dictionary(uniqueKeysWithValues: DestinationKind.allCases.compactMap { kind in

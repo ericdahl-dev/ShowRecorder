@@ -82,4 +82,21 @@ extension GapTests {
         #expect(recorder.copies[.drive] == .recording)
         try recorder.stopTake()
     }
+
+    @Test("Before any Take: none running, every Copy missing, none stopped")
+    func noTake() {
+        #expect(!TakeCopies.none.isRunning)
+        #expect(DestinationKind.allCases.allSatisfy { TakeCopies.none[$0] == .missing })
+        #expect(TakeCopies.none.stopped.isEmpty)
+    }
+
+    @Test("A refreshed snapshot holds while the Take is as it was; once one has started or stopped, the Recorder's own")
+    func snapshotUntilTheTakeChanges() {
+        let running = takeCopies(running: true, device: .recording, drive: .interrupted)
+        let fresh = takeCopies(running: true, device: .recording, drive: .recording)
+        #expect(running.current(isRecording: true, fresh) == running)
+        #expect(TakeCopies.none.current(isRecording: true, fresh) == fresh, "a Take started since: no stale words")
+        let ended = takeCopies(running: false, device: .complete, drive: .hasGaps)
+        #expect(running.current(isRecording: false, ended) == ended, "the Take stopped since")
+    }
 }
