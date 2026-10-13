@@ -814,8 +814,7 @@ final class RecordScreenModel {
             UserDefaults.standard.set(true, forKey: Self.hintKey)
         case .arm:
             // Arm only: never starts a Take.
-            disarmedForIdle = false
-            armSelectedDevice()
+            sequencer.armAgain()
         case .soundcheck:
             showingSoundcheck = true
         case .checkDrive:
@@ -946,30 +945,17 @@ final class RecordScreenModel {
 
     // MARK: - Auto-disarm
 
-    @ObservationIgnored private var idle = IdleDisarm()
     /// Whether the recorder was disarmed for sitting idle, so coming back should Arm it again.
-    private(set) var disarmedForIdle = false
+    var disarmedForIdle: Bool { sequencer.disarmedForIdle }
 
     /// The screen locked or the app left the front: start counting idle time.
     func screenBecameIdle() {
-        idle.becameIdle(at: Date())
+        sequencer.appMovedToBackground()
     }
 
     /// The app is in front again: stop counting, and Arm again if it was disarmed for being idle.
     func screenBecameActive() {
-        idle.becameActive()
-        if disarmedForIdle {
-            disarmedForIdle = false
-            armSelectedDevice()
-        }
-    }
-
-    /// Disarms an unused recorder that has been idle for 30 minutes. Never during a Take.
-    private func disarmIfIdle() {
-        guard recorder.isArmed, idle.shouldDisarm(at: Date(), isRecording: recorder.isRecording) else { return }
-        recorder.disarm()
-        armedDevice = nil
-        disarmedForIdle = true
+        sequencer.appBecameActive()
     }
 
     /// Chips after the Destination and Mixer ones: a Dropout count when the Take has lost audio, then battery and heat.
@@ -1248,7 +1234,6 @@ final class RecordScreenModel {
         while !Task.isCancelled {
             tick += 1
             if tick % 30 == 0 { sequencer.tick(); refreshDestinations(); announceChanges() }
-            if tick % 30 == 0 { disarmIfIdle() }
             // Re-check the Drive every few seconds so an unplugged one shows before record is pressed.
             if tick % 90 == 0 { drive.refresh() }
             let now = ContinuousClock.now
