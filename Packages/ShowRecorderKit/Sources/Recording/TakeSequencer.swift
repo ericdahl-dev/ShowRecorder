@@ -77,7 +77,9 @@ public final class TakeSequencer {
     /// resets its meters and reads what the system offered here.
     @ObservationIgnored public var didArm: (_ device: (any AudioIODevice)?) -> Void = { _ in }
     /// Everything that happens, in order. One listener. With no one listening only the newest
-    /// `eventBufferSize` are kept, so a stream nobody reads never grows.
+    /// `eventBufferSize` are kept, so a stream nobody reads never grows. It ends when the sequencer goes away.
+    /// Every Take start and end is told. Arm and disarm are told for the sequencer's own Arming; a device-list,
+    /// route or media-reset change still re-Arms from the App and isn't told yet (#301 slices 5-7).
     public let events: AsyncStream<TakeEvent>
     public static let eventBufferSize = 32
     @ObservationIgnored private let emit: AsyncStream<TakeEvent>.Continuation
@@ -90,6 +92,10 @@ public final class TakeSequencer {
         self.devices = devices.devices()
         selectedDeviceID = self.devices.first?.id
         recorder.onTakeEnded = { [weak self] end in self?.takeEnded(end) }
+    }
+
+    deinit {
+        emit.finish()
     }
 
     /// What to do when the operator closes the window the recorder is shown in (the Mac).

@@ -49,8 +49,8 @@ struct TakeSequencerTests {
 
     let start = Date(timeIntervalSince1970: 1_800_000_000)
 
-    /// The events told up to and including `last`, so an event that never comes fails the test instead of
-    /// waiting for it.
+    /// The events told up to and including `last`. An event that never comes waits until the suite's time limit
+    /// fails the test.
     func told(_ events: inout AsyncStream<TakeEvent>.Iterator, through last: TakeEvent) async -> [TakeEvent] {
         var seen: [TakeEvent] = []
         while let event = await events.next(isolation: #isolation) {
@@ -63,6 +63,17 @@ struct TakeSequencerTests {
     func makeSequencer(_ source: FakeInputDevices = FakeInputDevices(), capsAt48k: Bool = false, now: @escaping () -> Date = Date.init) -> (TakeSequencer, Recorder) {
         let recorder = Recorder(deviceFolder: root, destinationCheckInterval: nil)
         return (TakeSequencer(recorder: recorder, devices: source, capsAt48k: { capsAt48k }, now: now), recorder)
+    }
+
+    @Test("When the sequencer goes away its events stream ends, so a listener's loop finishes")
+    func streamEndsWithTheSequencer() async {
+        var events: AsyncStream<TakeEvent>.Iterator
+        do {
+            let (sequencer, _) = makeSequencer()
+            events = sequencer.events.makeAsyncIterator()
+        }
+        let next = await events.next(isolation: #isolation)
+        #expect(next == nil)
     }
 
     @Test("Arming opens the selected Audio interface and Arms the recorder on it")

@@ -1,6 +1,6 @@
 import AudioIO
 import Foundation
-import Recording
+@testable import Recording
 import Testing
 
 /// Whoever follows Takes hears each end as it happens, not on the next poll.
@@ -14,9 +14,9 @@ struct TakeEndHookTests {
         let recorder = Recorder(deviceFolder: root, destinationCheckInterval: nil)
         var heard: [TakeEnd] = []
         var lastTakeEndWhenTold: [TakeEnd?] = []
-        recorder.onTakeEnded = { end in
+        recorder.onTakeEnded = { [weak recorder] end in
             heard.append(end)
-            lastTakeEndWhenTold.append(recorder.lastTakeEnd)
+            lastTakeEndWhenTold.append(recorder?.lastTakeEnd)
         }
         try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
 

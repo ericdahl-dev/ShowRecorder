@@ -38,8 +38,9 @@ public final class Recorder {
     /// Which Take ended last and why. Nil until a Take has ended.
     public private(set) var lastTakeEnd: TakeEnd?
     /// Told each Take end as it happens, whoever ended it (record stopped, a full or failed Destination, an input
-    /// change), once `lastTakeEnd` says so.
-    @ObservationIgnored public var onTakeEnded: (TakeEnd) -> Void = { _ in }
+    /// change), once `lastTakeEnd` says so. One listener, the `TakeSequencer`, so it stays inside the module;
+    /// others follow Take ends through the sequencer's events.
+    @ObservationIgnored var onTakeEnded: (TakeEnd) -> Void = { _ in }
     /// How each Copy of the last Take ended up: complete, has Gaps, Repaired or Repair failed.
     public private(set) var lastTakeOutcomes: [DestinationKind: CopyOutcome] = [:]
     /// How many USB Channels the last Take recorded and how many carried signal (#62: Free's limit, felt).
