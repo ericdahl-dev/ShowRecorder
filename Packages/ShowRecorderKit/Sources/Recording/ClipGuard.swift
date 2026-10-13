@@ -37,9 +37,17 @@ public final class ClipGuard {
         active = nil
     }
 
-    /// One meter read, every USB Channel's window (USB Channel 1 first). Nothing between Takes.
+    /// One meter read, every USB Channel's window (USB Channel 1 first), waiting for any turn-down it starts. Nothing
+    /// between Takes. Only tests use it; the record screen calls `meters(_:)`.
     public func observe(_ levels: [ChannelLevel]) async {
         guard isRecording() else { return }
         await active?.observe(levels)
+    }
+
+    /// The same, at once (#554): a turn-down it starts runs on its own, so the meters never wait on the Mixer.
+    @discardableResult
+    public func meters(_ levels: [ChannelLevel]) -> Task<Void, Never>? {
+        guard let active, isRecording() else { return nil }
+        return active.meters(levels)
     }
 }

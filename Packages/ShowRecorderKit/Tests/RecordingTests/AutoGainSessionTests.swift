@@ -21,6 +21,8 @@ final class FakeGainControl: GainControl {
     private(set) var moveStarts = 0
     /// When set, each gain move waits on it first, as a slow Mixer does.
     var answer: (@Sendable () async -> Void)?
+    /// When set, each gain move waits on it with the Mixer channel moving, so a test can hold one channel's move.
+    var channelAnswer: (@Sendable (Int) async -> Void)?
     let gainRange: ClosedRange<Double> = -12...60
     /// When set, every gain move stops halfway: the mixer has the half it was sent, and the move throws
     /// `.gainMoveInterrupted` with that half (#450).
@@ -64,6 +66,7 @@ final class FakeGainControl: GainControl {
         await MainActor.run { moveStarts += 1 }
         if let problem = await MainActor.run(body: { problem }) { throw problem }
         if let answer = await MainActor.run(body: { answer }) { await answer() }
+        if let channelAnswer = await MainActor.run(body: { channelAnswer }) { await channelAnswer(channel) }
         if let read = await MainActor.run(body: { sharedThresholdDb }) {
             for _ in 0..<5 { await Task.yield() }   // the ramp
             await MainActor.run { sharedThresholdDb = read - gainChangeDb }

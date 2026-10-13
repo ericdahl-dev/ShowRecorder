@@ -141,10 +141,20 @@ public final class ClipProtection {
         stopped = true
     }
 
-    /// Takes one meter read, every USB Channel's window (USB Channel 1 first), and turns down any preamp whose
-    /// channel runs hot.
+    /// Mixer channels with a turn-down started and not yet done: one that runs hot again meanwhile is skipped, so a slow
+    /// Mixer holds at most one pending turn-down per Mixer channel (#554).
+    private var pending: Set<Int> = []
+
+    /// Takes one meter read and waits for any turn-down it starts.
     public func observe(_ levels: [ChannelLevel]) async {
-        guard !stopped else { return }
+        await meters(levels)?.value
+    }
+
+    /// Takes one meter read, every USB Channel's window (USB Channel 1 first), at once (#554): every trigger takes its
+    /// window now, and a read where a channel runs hot starts one task turning its preamp down. Returns that task.
+    @discardableResult
+    public func meters(_ levels: [ChannelLevel]) -> Task<Void, Never>? {
+        guard !stopped else { return nil }
         if triggers.count != levels.count { triggers = Array(repeating: ClipTrigger(sampleRate: sampleRate), count: levels.count) }
         clock += Double(levels.map(\.frames).max() ?? 0) / sampleRate
         // Every trigger takes its window before any move waits on the Mixer: the next read can arrive during that
@@ -153,17 +163,31 @@ public final class ClipProtection {
         // Every preamp behind a channel that fired is read at once, then which ones move is settled in USB Channel
         // order (so of two channels on one preamp the lower moves it, as before), then they all move at once (#554):
         // a second hot preamp doesn't wait for the first's ramp.
-        guard !fired.isEmpty else { return }
-        if let refusedAt, clock - refusedAt < Self.restSeconds { return }
+        guard !fired.isEmpty else { return nil }
+        if let refusedAt, clock - refusedAt < Self.restSeconds { return nil }
         // Nothing is written to, or logged for, another Mixer, or with the Link down (#554, as #508).
         if link.isRefusing {
             refusedAt = clock
-            return
+            return nil
         }
         var targets: [(usbChannel: Int, channel: Int, peak: Double)] = []
         for (usbChannel, peak) in fired {
-            if let channel = control.channel(forUSBChannel: usbChannel) { targets.append((usbChannel, channel, peak)) }
+            if let channel = control.channel(forUSBChannel: usbChannel), !pending.contains(channel) {
+                targets.append((usbChannel, channel, peak))
+            }
         }
+        guard !targets.isEmpty else { return nil }
+        pending.formUnion(targets.map(\.channel))
+        return Task { await turnDown(targets) }
+    }
+
+    /// Mixer channels whose turn-down is done, or was never made: they may turn down again.
+    private func release(_ channels: Set<Int>) {
+        pending.subtract(channels)
+    }
+
+    /// Reads the preamp and lane behind each channel that fired, settles which move, and moves them.
+    private func turnDown(_ targets: [(usbChannel: Int, channel: Int, peak: Double)]) async {
         var preamps = [Int](repeating: 0, count: targets.count)
         var lanes = [Int?](repeating: nil, count: targets.count)
         await withTaskGroup(of: (Int, Int, Int?).self) { group in
@@ -180,7 +204,10 @@ public final class ClipProtection {
             }
         }
         // The wait for the Mixer can outlast the Take.
-        guard !stopped else { return }
+        guard !stopped else {
+            release(Set(targets.map(\.channel)))
+            return
+        }
         var moves: [(usbChannel: Int, channel: Int, preamp: Int, lane: Lane, gainChangeDb: Double)] = []
         for (index, target) in targets.enumerated() {
             let preamp = preamps[index]
@@ -191,19 +218,25 @@ public final class ClipProtection {
             let lane = lanes[index].map(Lane.pair) ?? .preamp(preamp)
             moves.append((target.usbChannel, target.channel, preamp, lane, max(-left, Self.stepDb(peakDbfs: target.peak))))
         }
+        release(Set(targets.map(\.channel)).subtracting(moves.map(\.channel)))
         // Moves in one lane go one after the other, in USB Channel order (#554): the Mixer mirrors fader and sends between
         // the strips of a linked pair, so two moves at once could both rewrite one setting. Lanes move at once.
         // Known gap: on an X32 a move also compensates the other channels on its headamp (#473), so a channel sharing a
         // headamp with one strip of a linked pair can still move alongside that pair. Rare; left for now.
         await withTaskGroup(of: Void.self) { group in
             for lane in Dictionary(grouping: moves, by: { $0.lane }).values {
-                group.addTask {
-                    for move in lane {
-                        await self.turnDown(move.usbChannel, channel: move.channel, preamp: move.preamp, by: move.gainChangeDb)
-                    }
-                }
+                group.addTask { await self.move(lane) }
             }
         }
+    }
+
+    /// Moves one lane's turn-downs one after the other. A lane done frees its channels, though another lane from the same
+    /// read still waits on the Mixer.
+    private func move(_ lane: [(usbChannel: Int, channel: Int, preamp: Int, lane: Lane, gainChangeDb: Double)]) async {
+        for move in lane {
+            await turnDown(move.usbChannel, channel: move.channel, preamp: move.preamp, by: move.gainChangeDb)
+        }
+        release(Set(lane.map(\.channel)))
     }
 
     /// Moves in one lane go one after the other: a strip-linked pair (by its first channel), or else one preamp.

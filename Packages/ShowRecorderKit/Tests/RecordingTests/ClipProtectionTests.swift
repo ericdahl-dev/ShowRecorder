@@ -139,12 +139,113 @@ struct ClipProtectionTests {
 
         let moving = Task { await Self.feed(protection, Self.hot, on: [1, 2]) }
         #expect(await Self.next(entered), "a move reaches the Mixer")
-        for _ in 0..<10 { await Task.yield() }
-        #expect(control.moveStarts == 2, "both moves are on the Mixer before either answers")
+        #expect(await Self.next(entered), "the other reaches the Mixer before either answers")
+        #expect(control.moveStarts == 2)
         release.yield()
         release.yield()
         await moving.value
         #expect(control.gainDb == [1: 26, 2: 26])
+    }
+
+    @Test("Two hundred meter reads while the Mixer is held return at once and start one turn-down per channel (#554)")
+    func metersWhileHeld() async {
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        control.answer = {
+            enter.yield()
+            for await _ in released { return }
+        }
+        let protection = ClipProtection(control: control, sampleRate: 48_000)
+        let quiet = Windows.at(-30)
+
+        let hot = [Windows.at(-2), quiet, quiet]
+        let first = (0..<10).compactMap { _ in protection.meters(hot) }
+        #expect(control.moveStarts == 0, "every read returned before any move reached the Mixer")
+        #expect(await Self.next(entered), "a move reaches the Mixer")
+        // 6 s more of a hot channel while that move waits: past the 5 s rest, so only the pending turn-down keeps a
+        // second one from starting.
+        let later = (0..<190).compactMap { _ in protection.meters(hot) }
+        #expect(later.isEmpty, "no read starts a second turn-down while the first is pending")
+        #expect(control.moveStarts == 1)
+        release.yield()
+        for task in first { await task.value }
+        #expect(control.gainDb == [1: 26, 2: 30])
+        #expect(control.moveStarts == 1)
+    }
+
+    @Test("A channel whose move is done may move again while another lane from the same read still waits on the Mixer (#554)")
+    func laneReleasedWhenDone() async {
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        control.channelAnswer = { channel in
+            guard channel == 2 else { return }
+            enter.yield()
+            for await _ in released { return }
+        }
+        let (logged, log) = AsyncStream<Void>.makeStream()
+        let protection = ClipProtection(control: control, sampleRate: 48_000, log: { _ in log.yield() })
+        let quiet = Windows.at(-30)
+
+        let both = (0..<10).compactMap { _ in protection.meters([Windows.at(-2), Windows.at(-2), quiet]) }
+        #expect(await Self.next(entered), "channel 2's move reaches the Mixer")
+        #expect(await Self.next(logged), "channel 1's lane is done")
+        #expect(control.gainDb[1] == 26)
+        // 6 s more of channel 1 hot while channel 2 still waits: past the 5 s rest, so channel 1 moves again. Each
+        // turn-down is awaited before the next read, so it decides at its own read's time.
+        for _ in 0..<180 { if let task = protection.meters([Windows.at(-2), quiet, quiet]) { await task.value } }
+        #expect(control.gainDb[1] == 22)
+        release.yield()
+        for task in both { await task.value }
+        #expect(control.gainDb[2] == 26)
+    }
+
+    @Test("A read's last lane finishing never frees a channel a later turn-down holds (#554)")
+    func laneDoneKeepsLaterTurnDown() async {
+        let (entered2, enter2) = AsyncStream<Void>.makeStream()
+        let (released2, release2) = AsyncStream<Void>.makeStream()
+        let (stepped, step) = AsyncStream<Void>.makeStream()
+        let (released1, release1) = AsyncStream<Void>.makeStream()
+        var movesOn1 = 0
+        control.channelAnswer = { @MainActor channel in
+            if channel == 2 {
+                enter2.yield()
+                for await _ in released2 { return }
+            }
+            guard channel == 1 else { return }
+            movesOn1 += 1
+            guard movesOn1 > 1 else { return }
+            step.yield()
+            for await _ in released1 { return }
+        }
+        let (logged, log) = AsyncStream<Void>.makeStream()
+        let protection = ClipProtection(control: control, sampleRate: 48_000, log: { _ in log.yield() })
+        let quiet = Windows.at(-30), hot1 = [Windows.at(-2), quiet, quiet]
+
+        // Task A turns down channels 1 and 2; channel 2's move waits on the Mixer, channel 1's is done.
+        let a = (0..<10).compactMap { _ in protection.meters([Windows.at(-2), Windows.at(-2), quiet]) }
+        #expect(await Self.next(entered2), "channel 2's move reaches the Mixer")
+        #expect(await Self.next(logged), "channel 1's lane is done")
+        // Channel 1 runs hot until, past the 5 s rest, task B turns it down again and that move waits on the Mixer.
+        // Each turn-down started meanwhile either finishes (still within the rest) or is B's, at the Mixer.
+        var b: Task<Void, Never>?
+        for _ in 0..<300 where movesOn1 < 2 {
+            guard let task = protection.meters(hot1) else { continue }
+            b = task
+            Task { await task.value; step.yield() }
+            #expect(await Self.next(stepped), "the turn-down finishes or reaches the Mixer")
+        }
+        #expect(movesOn1 == 2, "channel 1's second move reaches the Mixer")
+        // Task A's last lane finishes while B still holds channel 1.
+        release2.yield()
+        for task in a { await task.value }
+        // 6 s more of channel 1 hot: past the rest after B's move, so only B's pending turn-down keeps a third from starting.
+        let c = (0..<180).compactMap { _ in protection.meters(hot1) }
+        #expect(c.isEmpty, "no turn-down starts on channel 1 while B's waits on the Mixer")
+        release1.yield()
+        release1.yield()                                    // so a third move, if it started, can't hang the test
+        await b?.value
+        for task in c { await task.value }
+        #expect(movesOn1 == 2)
     }
 
     @Test("Two channels of a strip-linked pair, both hot, turn down one after the other (#554)")
@@ -277,9 +378,13 @@ struct ClipProtectionTests {
     func sameChannelInOrder() async {
         let (asked, ask) = AsyncStream<Void>.makeStream()
         let (answered, answer) = AsyncStream<Void>.makeStream()
+        let (secondAsked, askSecond) = AsyncStream<Void>.makeStream()
         var first = true
         control.preampAnswer = { @MainActor in
-            guard first else { return }
+            guard first else {
+                askSecond.yield()
+                return
+            }
             first = false
             ask.yield()
             for await _ in answered { return }
@@ -290,7 +395,7 @@ struct ClipProtectionTests {
         // The first preamp read is slow, so the other channel's answer comes back first.
         let moving = Task { await Self.feed(protection, Self.hot, on: [1, 3]) }
         #expect(await Self.next(asked), "a preamp read reaches the Mixer")
-        for _ in 0..<10 { await Task.yield() }
+        #expect(await Self.next(secondAsked), "the other channel's preamp read reaches the Mixer")
         answer.yield()
         await moving.value
 
