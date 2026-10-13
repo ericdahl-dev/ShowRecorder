@@ -106,4 +106,27 @@ struct AutoGainPanelTests {
         #expect(control.gainDb[1] == 0)
         #expect(panel.isLocked)
     }
+    @Test("Each result can say in plain words what moved to keep the mix, until Undo puts it back (#155, #393)")
+    func compensationSummary() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
+        control.alsoMoves = ReGain.Change(setting: ReGain.Setting(channel: 1, parameter: .mainFader), fromDb: 0, toDb: -22)
+        let panel = makePanel(control, source: [1: -40])
+
+        await panel.run([1, 2])
+
+        #expect(panel.compensationSummary(1) == "To keep the mix: fader 0.0 to -22.0 dB")
+        #expect(panel.compensationSummary(2) == nil)
+        await panel.undo(1)
+        #expect(panel.compensationSummary(1) == nil)
+    }
+
+    @Test("A setting on another channel (one keyed from this one) names its channel")
+    func compensationOnAnotherChannel() {
+        let moved: [TakeMetadata.GainChange.Compensation] = [
+            .init(channel: 1, setting: "fader", fromDb: -5, toDb: -11),
+            .init(channel: 2, setting: "gate threshold", fromDb: -40, toDb: -46),
+        ]
+        #expect(AutoGainPanel.compensationSummary(moved, channel: 1)
+                == "To keep the mix: fader -5.0 to -11.0 dB, channel 2's gate threshold -40.0 to -46.0 dB")
+    }
 }

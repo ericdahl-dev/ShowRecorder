@@ -1,5 +1,7 @@
+import Foundation
 import MixerLink
 import Observation
+import TakeFile
 
 /// Auto-gain's state on the record screen (#155): what each USB Channel's run did, which are running, and the steps to
 /// Undo. The record screen keeps it, so closing the sheet loses nothing and Undo is still there when it opens again.
@@ -77,6 +79,24 @@ public final class AutoGainPanel {
     public func canUndo(_ usbChannel: Int) -> Bool { session?.steps[usbChannel]?.isEmpty == false }
 
     public var canUndoAll: Bool { session?.steps.values.contains { !$0.isEmpty } == true }
+
+    /// What Re-Gain moved to keep the mix the same on `usbChannel`, in plain words; nil when nothing did, or once Undo
+    /// has put it back.
+    public func compensationSummary(_ usbChannel: Int) -> String? {
+        guard let session, let channel = session.steps[usbChannel]?.first?.channel else { return nil }
+        return Self.compensationSummary(session.compensated(usbChannel: usbChannel), channel: channel)
+    }
+
+    /// "To keep the mix: fader -5.0 to -11.0 dB, channel 2's gate threshold -40.0 to -46.0 dB". A setting on another
+    /// channel (one keyed from this one) names its channel.
+    static func compensationSummary(_ moved: [TakeMetadata.GainChange.Compensation], channel: Int) -> String? {
+        guard !moved.isEmpty else { return nil }
+        let parts = moved.map { change in
+            let name = change.channel == channel ? change.setting : "channel \(change.channel)'s \(change.setting)"
+            return String(format: "%@ %.1f to %.1f dB", name, change.fromDb, change.toDb)
+        }
+        return "To keep the mix: " + parts.joined(separator: ", ")
+    }
 }
 
 extension AutoGainSession.Result {
