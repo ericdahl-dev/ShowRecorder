@@ -274,7 +274,7 @@ struct X32GainTests {
         var state = FakeXAirMixer.State.x32()
         state.stopsAnsweringAfterWrites = 9   // a few ramp steps into a +6 dB move
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: .milliseconds(300))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
         let before = try await driver.reGainState(ofChannel: 1)
         let gainBefore = try await driver.gainDb(ofHeadamp: 0)
 
