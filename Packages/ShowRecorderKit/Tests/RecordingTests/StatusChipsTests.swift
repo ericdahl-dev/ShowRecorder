@@ -78,6 +78,19 @@ struct StatusChipsTests {
         #expect(result[.device]?.state == .ok)
     }
 
+    @Test("Drive only: the Device chip shows time left while the Device stands by or stands in (#196)")
+    func driveOnlyDeviceChip() {
+        for device in [CopyState.standingBy, .standingIn] {
+            let chip = StatusChip.make(
+                usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour), mixer: nil,
+                copies: takeCopies(device: device, drive: .recording)
+            ).first { $0.kind == .device }
+
+            #expect(chip?.text == "Device 1 h 00 min")
+            #expect(chip?.state == .ok)
+        }
+    }
+
     @Test("Mixer chip: not linked, connecting, up and down")
     func mixerStates() {
         #expect(chips(mixer: .idle)[.mixer]?.text == "Mixer not linked")

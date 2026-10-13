@@ -52,6 +52,38 @@ struct DriveOnlyTakeTests {
         #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "no Take folder on the Device")
     }
 
+    @Test("With its Drive, a Drive only Take's Copies say Drive only: the Device is standing by, the Drive recording")
+    func copiesStandingBy() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder()
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(2, to: audio, recorder, sample: counting())
+
+        #expect(recorder.copies.isDriveOnly)
+        #expect(recorder.copies[.device] == .standingBy)
+        #expect(recorder.copies[.drive] == .recording)
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+    }
+
+    @Test("Once the Drive fails, a Drive only Take's Copies say the Device is standing in and the Drive interrupted")
+    func copiesStandingIn() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder { FailingStem($0, healthyFrames: 480) }
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        recorder.checkDestinations()
+
+        #expect(recorder.copies.isDriveOnly)
+        #expect(recorder.copies[.device] == .standingIn)
+        #expect(recorder.copies[.drive] == .interrupted)
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+    }
+
     @Test("A Drive that fails mid-Take: the Device stands in for the rest, and Repair moves it to the Drive and off the Device")
     func driveFails() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)

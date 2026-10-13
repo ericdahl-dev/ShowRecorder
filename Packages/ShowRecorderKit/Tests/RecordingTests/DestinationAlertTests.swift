@@ -29,6 +29,16 @@ struct DestinationAlertTests {
         #expect(alert.text.contains("Gap"))
     }
 
+    @Test("Drive only: the Device standing by or standing in says what it said as missing or recording (#196)")
+    func driveOnlyStatesSayTheSame() throws {
+        #expect(DestinationAlert.make(copies: takeCopies(device: .standingBy, drive: .recording)) == nil)
+        #expect(DestinationAlert.make(copies: takeCopies(device: .standingIn, drive: .recording)) == nil)
+        let stopped = try #require(DestinationAlert.make(copies: takeCopies(device: .standingIn, drive: .interrupted)))
+        #expect(stopped.id == "drive-stopped")
+        #expect(stopped.tone == .critical)
+        #expect(stopped.text == "The Drive stopped. Recording continues on the Device; the Gap is Repaired when the Drive comes back.")
+    }
+
     @Test("No Drive at the start of a Take is the quiet warning, not the critical one")
     func noDriveIsAWarning() throws {
         let alert = try #require(DestinationAlert.make(copies: takeCopies(device: .recording, drive: .missing)))

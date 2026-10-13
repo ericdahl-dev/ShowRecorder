@@ -9,6 +9,10 @@ public enum CopyState: Equatable, Sendable {
     case interrupted
     /// It never started: no Destination.
     case missing
+    /// Drive only (#196, ADR 0006): the Device writes nothing while the Drive takes the audio.
+    case standingBy
+    /// Drive only (#196, ADR 0006): the Device writes the stretch the Drive can't take.
+    case standingIn
     // Once the Take has ended.
     case complete
     /// Its Gaps are still silence: Repair couldn't fill them (the Copy ran short of space, say).
@@ -23,11 +27,14 @@ public enum CopyState: Equatable, Sendable {
 /// The one answer every screen reads; its Gaps come from Copy coverage.
 public struct TakeCopies: Equatable, Sendable {
     public let isRunning: Bool
+    /// Drive only (#196, ADR 0006): the Device is a Stand-in for the Drive, not a Copy of its own.
+    public let isDriveOnly: Bool
     /// Every Destination has a state, so two snapshots that read the same are equal.
     private let states: [DestinationKind: CopyState]
 
-    init(isRunning: Bool, state: (DestinationKind) -> CopyState) {
+    init(isRunning: Bool, isDriveOnly: Bool = false, state: (DestinationKind) -> CopyState) {
         self.isRunning = isRunning
+        self.isDriveOnly = isDriveOnly
         states = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.map { ($0, state($0)) })
     }
 
@@ -56,7 +63,7 @@ extension CopyState {
         case .hasGaps: .hasGaps
         case .repaired: .repaired
         case .repairFailed: .repairFailed
-        case .recording, .interrupted, .missing: nil
+        case .recording, .interrupted, .missing, .standingBy, .standingIn: nil
         }
     }
 }
