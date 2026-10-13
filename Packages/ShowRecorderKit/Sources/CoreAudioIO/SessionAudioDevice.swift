@@ -39,13 +39,15 @@ public final class SessionAudioDevice: AudioIODevice, @unchecked Sendable {
     ///
     /// `plan` is `.recording` for every normal Take: record only, exactly as before. The headphone monitor experiment
     /// (#233) passes `.monitorExperiment`: play and record, with Bluetooth headphones allowed for output only (A2DP,
-    /// never the headset's HFP mic) and never the phone's speaker. The chosen input is still asked for either way.
+    /// never the headset's HFP mic) and never the phone's speaker; it doesn't ask for the chosen input (see
+    /// `AudioSessionPlan.pinsPreferredInput`).
     public static func current(
         preferredInputUID: String? = nil, sampleRate: Int? = 48_000, plan: AudioSessionPlan = .recording
     ) throws -> SessionAudioDevice {
         let audioSession = AVAudioSession.sharedInstance()
         try audioSession.setCategory(Self.category(for: plan), mode: .measurement, options: Self.options(for: plan))
-        if let preferredInputUID, let port = audioSession.availableInputs?.first(where: { $0.uid == preferredInputUID }) {
+        if plan.pinsPreferredInput, let preferredInputUID,
+           let port = audioSession.availableInputs?.first(where: { $0.uid == preferredInputUID }) {
             try audioSession.setPreferredInput(port)
         }
         // The Marker button's haptic: iOS mutes haptics and system sounds while recording unless allowed.
