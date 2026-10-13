@@ -37,6 +37,12 @@ export const PAGES = {
     description:
       "Every ShowRecorder version for iPhone and iPad, newest first: what changed, when, and whether it's in the App Store or the TestFlight beta.",
   },
+  mixersX32: {
+    path: "/mixers/x32",
+    title: "Record a Behringer X32 or Midas M32 on iPhone - ShowRecorder",
+    description:
+      "Multitrack all 32 USB Channels of an X32 or M32 to iPhone or iPad, each file named from the mixer. In the public beta now; the App Store later.",
+  },
   privacy: {
     path: "/privacy",
     title: `Privacy policy - ${SITE_NAME}`,

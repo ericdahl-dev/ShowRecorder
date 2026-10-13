@@ -91,7 +91,7 @@ export default function FeaturesPage() {
         <ul className="cards cards--3">
           {inBeta.map((m) => (
             <li key={m.name} className="card">
-              <h3>{m.name}</h3>
+              <h3>{m.href ? <a href={m.href}>{m.name}</a> : m.name}</h3>
               <p>{m.body}</p>
             </li>
           ))}
