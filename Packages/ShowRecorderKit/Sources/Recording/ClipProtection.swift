@@ -141,10 +141,20 @@ public final class ClipProtection {
         stopped = true
     }
 
-    /// Takes one meter read, every USB Channel's window (USB Channel 1 first), and turns down any preamp whose
-    /// channel runs hot.
+    /// Mixer channels with a turn-down started and not yet done: one that runs hot again meanwhile is skipped, so a slow
+    /// Mixer holds at most one pending turn-down per Mixer channel (#554).
+    private var pending: Set<Int> = []
+
+    /// Takes one meter read and waits for any turn-down it starts.
     public func observe(_ levels: [ChannelLevel]) async {
-        guard !stopped else { return }
+        await meters(levels)?.value
+    }
+
+    /// Takes one meter read, every USB Channel's window (USB Channel 1 first), at once (#554): every trigger takes its
+    /// window now, and a read where a channel runs hot starts one task turning its preamp down. Returns that task.
+    @discardableResult
+    public func meters(_ levels: [ChannelLevel]) -> Task<Void, Never>? {
+        guard !stopped else { return nil }
         if triggers.count != levels.count { triggers = Array(repeating: ClipTrigger(sampleRate: sampleRate), count: levels.count) }
         clock += Double(levels.map(\.frames).max() ?? 0) / sampleRate
         // Every trigger takes its window before any move waits on the Mixer: the next read can arrive during that
@@ -153,17 +163,30 @@ public final class ClipProtection {
         // Every preamp behind a channel that fired is read at once, then which ones move is settled in USB Channel
         // order (so of two channels on one preamp the lower moves it, as before), then they all move at once (#554):
         // a second hot preamp doesn't wait for the first's ramp.
-        guard !fired.isEmpty else { return }
-        if let refusedAt, clock - refusedAt < Self.restSeconds { return }
+        guard !fired.isEmpty else { return nil }
+        if let refusedAt, clock - refusedAt < Self.restSeconds { return nil }
         // Nothing is written to, or logged for, another Mixer, or with the Link down (#554, as #508).
         if link.isRefusing {
             refusedAt = clock
-            return
+            return nil
         }
         var targets: [(usbChannel: Int, channel: Int, peak: Double)] = []
         for (usbChannel, peak) in fired {
-            if let channel = control.channel(forUSBChannel: usbChannel) { targets.append((usbChannel, channel, peak)) }
+            if let channel = control.channel(forUSBChannel: usbChannel), !pending.contains(channel) {
+                targets.append((usbChannel, channel, peak))
+            }
         }
+        guard !targets.isEmpty else { return nil }
+        let channels = Set(targets.map(\.channel))
+        pending.formUnion(channels)
+        return Task {
+            await turnDown(targets)
+            pending.subtract(channels)
+        }
+    }
+
+    /// Reads the preamp and lane behind each channel that fired, settles which move, and moves them.
+    private func turnDown(_ targets: [(usbChannel: Int, channel: Int, peak: Double)]) async {
         var preamps = [Int](repeating: 0, count: targets.count)
         var lanes = [Int?](repeating: nil, count: targets.count)
         await withTaskGroup(of: (Int, Int, Int?).self) { group in

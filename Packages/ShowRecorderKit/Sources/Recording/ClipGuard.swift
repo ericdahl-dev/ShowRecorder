@@ -42,4 +42,10 @@ public final class ClipGuard {
         guard isRecording() else { return }
         await active?.observe(levels)
     }
+
+    /// The same, at once (#554): a turn-down it starts runs on its own, so the meters never wait on the Mixer.
+    public func meters(_ levels: [ChannelLevel]) {
+        guard isRecording() else { return }
+        active?.meters(levels)
+    }
 }

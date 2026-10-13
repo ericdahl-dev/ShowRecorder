@@ -27,12 +27,13 @@ struct MixerGainCharacterizationTests {
         let hot = Windows.at(-2), quiet = Windows.at(-30)
 
         // Channel 1 runs hot until its move starts and waits on the Mixer.
-        let moving = Task { for _ in 0..<10 { await protection.observe([hot, quiet]) } }
-        for await _ in entered { break }
+        for _ in 0..<10 { protection.meters([hot, quiet]) }
+        #expect(await ClipProtectionTests.next(entered), "channel 1's move reaches the Mixer")
         // Meanwhile channel 2 runs hot for 300 ms, read by read, as the meters go on.
-        for _ in 0..<10 { await protection.observe([quiet, hot]) }
+        for _ in 0..<10 { protection.meters([quiet, hot]) }
+        for _ in 0..<100 where control.gainDb[2] != 26 { await Task.yield() }
         release.yield()
-        await moving.value
+        for _ in 0..<100 where control.gainDb[1] != 26 { await Task.yield() }
 
         #expect(control.gainDb == [1: 26, 2: 26])
     }

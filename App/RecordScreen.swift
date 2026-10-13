@@ -1406,8 +1406,8 @@ final class RecordScreenModel {
             lastPoll = now
             let fresh = recorder.takeChannelLevels()
             meterModel.update(from: fresh, seconds: seconds)
-            // Clip protection reads the same windows; a move waits on the Mixer, so it never holds up the meters.
-            if clipGuard.active != nil { Task { await clipGuard.observe(fresh) } }
+            // Clip protection reads the same windows at once; a move runs on its own, so it never holds up the meters.
+            clipGuard.meters(fresh)
             try? await Task.sleep(for: .milliseconds(33))
         }
     }

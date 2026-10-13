@@ -70,7 +70,8 @@ struct ClipGuardTests {
         clipGuard.handle(.takeStarted(take: 1))
         recording = false
 
-        await feedHot(clipGuard)
+        for window in ClipProtectionTests.hot { clipGuard.meters([window]) }
+        for _ in 0..<100 { await Task.yield() }
 
         #expect(control.gainDb[1] == 30)
     }

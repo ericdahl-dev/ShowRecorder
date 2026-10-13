@@ -147,6 +147,32 @@ struct ClipProtectionTests {
         #expect(control.gainDb == [1: 26, 2: 26])
     }
 
+    @Test("Two hundred meter reads while the Mixer is held return at once and start one turn-down per channel (#554)")
+    func metersWhileHeld() async {
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        control.answer = {
+            enter.yield()
+            for await _ in released { return }
+        }
+        let protection = ClipProtection(control: control, sampleRate: 48_000)
+        let quiet = Windows.at(-30)
+
+        let hot = [Windows.at(-2), quiet, quiet]
+        for _ in 0..<10 { protection.meters(hot) }
+        #expect(control.moveStarts == 0, "every read returned before any move reached the Mixer")
+        #expect(await Self.next(entered), "a move reaches the Mixer")
+        // 6 s more of a hot channel while that move waits: past the 5 s rest, so only the pending turn-down keeps a
+        // second one from starting.
+        for _ in 0..<190 { protection.meters(hot) }
+        for _ in 0..<100 { await Task.yield() }
+        #expect(control.moveStarts == 1)
+        release.yield()
+        for _ in 0..<100 where control.gainDb[1] != 26 { await Task.yield() }
+        #expect(control.gainDb == [1: 26, 2: 30])
+        #expect(control.moveStarts == 1)
+    }
+
     @Test("Two channels of a strip-linked pair, both hot, turn down one after the other (#554)")
     func linkedPairOneAfterTheOther() async {
         control.laneOf = [1: 1, 2: 1]
