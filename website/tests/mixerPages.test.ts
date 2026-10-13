@@ -7,7 +7,7 @@ import { inBeta, worksNow } from "@/lib/mixers";
 // The X32 and M32 are in the public beta, so their page never suggests the App Store version records them.
 
 const ROOT = path.resolve(__dirname, "..");
-const x32Page = readFileSync(path.join(ROOT, "app", "mixers", "x32", "page.mdx"), "utf8");
+const x32Page = readFileSync(path.join(ROOT, "app", "mixers", "x32", "content.mdx"), "utf8");
 
 describe("the X32 and M32 page", () => {
   it("has a title that fits a share card and names both mixers", () => {
@@ -34,7 +34,7 @@ describe("the X32 and M32 page", () => {
   });
 });
 
-const xr18Page = readFileSync(path.join(ROOT, "app", "mixers", "xr18", "page.mdx"), "utf8");
+const xr18Page = readFileSync(path.join(ROOT, "app", "mixers", "xr18", "content.mdx"), "utf8");
 
 describe("the XR18 and MR18 page", () => {
   it("has a title that fits a share card and names both mixers", () => {
@@ -56,5 +56,44 @@ describe("the XR18 and MR18 page", () => {
 
   it("is linked from the XR18 entry in Supported mixers", () => {
     expect(worksNow.find((m) => /XR18/.test(m.name))?.href).toBe("/mixers/xr18");
+  });
+});
+
+// #482 A: both mixer pages are product pages: a hero with the call to action at the top, the page body, and the
+// shared closing band, with the same sections in the same order.
+describe("mixer page structure", () => {
+  const read = (...p: string[]) => readFileSync(path.join(ROOT, ...p), "utf8");
+  const headings = (mdx: string) => [...mdx.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
+
+  for (const slug of ["x32", "xr18"]) {
+    it(`/mixers/${slug} opens with the mixer hero and closes with the get band`, () => {
+      const page = read("app", "mixers", slug, "page.tsx");
+      const hero = page.indexOf("<MixerHero");
+      const body = page.indexOf("<Content");
+      const band = page.indexOf("<GetBand");
+      expect(hero).toBeGreaterThan(-1);
+      expect(body).toBeGreaterThan(hero);
+      expect(band).toBeGreaterThan(body);
+    });
+
+    it(`/mixers/${slug} has its h1 in the hero only, not in the body`, () => {
+      expect(read("app", "mixers", slug, "content.mdx")).not.toMatch(/^# /m);
+    });
+  }
+
+  it("the hero puts the call to action and the price line together", () => {
+    const hero = read("components", "MixerHero.tsx");
+    expect(hero).toMatch(/<AppStoreBadge/);
+    expect(hero).toMatch(/className="price"/);
+    expect(hero).toMatch(/<Mark/);
+    expect(hero).toMatch(/className="lede"/);
+  });
+
+  it("the home page and both mixer pages share one closing band", () => {
+    expect(read("app", "page.tsx")).toMatch(/<GetBand/);
+  });
+
+  it("both pages have the same sections in the same order", () => {
+    expect(headings(x32Page)).toEqual(headings(xr18Page));
   });
 });

@@ -1,12 +1,11 @@
 import type { ReactNode } from "react";
-import { AppIcon } from "@/components/AppIcon";
 import { AndroidSignup } from "@/components/AndroidSignup";
 import { AppStoreBadge } from "@/components/AppStoreBadge";
+import { GetBand } from "@/components/GetBand";
 import { Mark } from "@/components/Mark";
 import { Screenshot } from "@/components/Screenshot";
 import { PAGES, pageMetadata } from "@/lib/metadata";
 import { SHOTS } from "@/lib/screenshots";
-import { CONTACT_EMAIL } from "@/lib/site";
 import { faqPageJsonLd, jsonLdScript, softwareApplicationJsonLd } from "@/lib/structuredData";
 
 export const metadata = pageMetadata(PAGES.home);
@@ -383,22 +382,7 @@ export default function Home() {
         <AndroidSignup />
       </Section>
 
-      <section id="get" aria-labelledby="get-title" className="section closing">
-        <div className="wrap">
-          <div className="inner">
-            <AppIcon size={96} />
-            <h2 id="get-title">Record your next Show</h2>
-            <p>
-              ShowRecorder is coming soon to the App Store for iPhone and iPad. Until then, the public beta is
-              open on TestFlight. Free to download, with a 14-day Trial of everything.
-            </p>
-            <AppStoreBadge id="app-store-link-footer" />
-            <p className="ask">
-              Questions before then? Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
-            </p>
-          </div>
-        </div>
-      </section>
+      <GetBand />
     </>
   );
 }
