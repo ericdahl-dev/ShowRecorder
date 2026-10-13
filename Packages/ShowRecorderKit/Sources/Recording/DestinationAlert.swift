@@ -2,9 +2,9 @@
 /// has its own id; having no Drive from the start is a quiet warning.
 public enum DestinationAlert {
     /// - Parameter checkedAndNotFound: the operator tapped Check Drive and the Drive was still not there.
-    public static func make(isRecording: Bool, device: CopyStatus, drive: CopyStatus, checkedAndNotFound: Bool = false) -> ScreenAlert? {
-        guard isRecording else { return nil }
-        switch (device, drive) {
+    public static func make(copies: TakeCopies, checkedAndNotFound: Bool = false) -> ScreenAlert? {
+        guard copies.isRunning else { return nil }
+        switch (copies[.device], copies[.drive]) {
         case (.interrupted, .interrupted):
             return ScreenAlert(id: "both-stopped", priority: .destination, tone: .critical, text: "Both Copies stopped writing.")
         case (.interrupted, _):
@@ -22,5 +22,11 @@ public enum DestinationAlert {
         default:
             return nil
         }
+    }
+
+    /// Today's call with the two running words, until the record screen reads `TakeCopies` itself (#550).
+    public static func make(isRecording: Bool, device: CopyStatus, drive: CopyStatus, checkedAndNotFound: Bool = false) -> ScreenAlert? {
+        make(copies: TakeCopies(isRunning: isRecording) { CopyState($0 == .device ? device : drive) },
+             checkedAndNotFound: checkedAndNotFound)
     }
 }

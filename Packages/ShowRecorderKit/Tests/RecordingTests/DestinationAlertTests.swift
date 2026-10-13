@@ -1,12 +1,27 @@
+import Destinations
 @testable import Recording
 import Testing
+
+/// A running (or ended) Take's Copies, for the screens' tests (#550).
+func copies(running: Bool = true, device: CopyState, drive: CopyState) -> TakeCopies {
+    TakeCopies(isRunning: running) { $0 == .device ? device : drive }
+}
 
 /// What the record screen says about the Copies of a running Take.
 @Suite("Destination alert")
 struct DestinationAlertTests {
+    @Test("Today's call with two running words says the same as one with the Take's Copies (until the screen moves over)")
+    func adapterSaysTheSame() {
+        for (device, drive) in [(CopyStatus.recording, CopyStatus.interrupted), (.interrupted, .recording), (.interrupted, .interrupted),
+                                (.recording, .missing), (.recording, .recording)] {
+            #expect(DestinationAlert.make(isRecording: true, device: device, drive: drive)
+                    == DestinationAlert.make(copies: copies(device: CopyState(device), drive: CopyState(drive))))
+        }
+    }
+
     @Test("A Drive that stops mid-Take is critical, with its own id, so it is not mistaken for the quiet 'No Drive' notice")
     func driveStoppedIsCritical() throws {
-        let alert = try #require(DestinationAlert.make(isRecording: true, device: .recording, drive: .interrupted))
+        let alert = try #require(DestinationAlert.make(copies: copies(device: .recording, drive: .interrupted)))
 
         #expect(alert.id == "drive-stopped")
         #expect(alert.tone == .critical)
@@ -17,7 +32,7 @@ struct DestinationAlertTests {
 
     @Test("No Drive at the start of a Take is the quiet warning, not the critical one")
     func noDriveIsAWarning() throws {
-        let alert = try #require(DestinationAlert.make(isRecording: true, device: .recording, drive: .missing))
+        let alert = try #require(DestinationAlert.make(copies: copies(device: .recording, drive: .missing)))
 
         #expect(alert.id == "no-drive")
         #expect(alert.tone == .warning)
@@ -26,20 +41,20 @@ struct DestinationAlertTests {
 
     @Test("Losing the Device Copy, or both, is critical too")
     func deviceOrBothLost() throws {
-        let device = try #require(DestinationAlert.make(isRecording: true, device: .interrupted, drive: .recording))
+        let device = try #require(DestinationAlert.make(copies: copies(device: .interrupted, drive: .recording)))
         #expect(device.id == "device-stopped" && device.tone == .critical)
         #expect(device.text == "The Device stopped writing. Recording continues on the Drive.")
 
-        let both = try #require(DestinationAlert.make(isRecording: true, device: .interrupted, drive: .interrupted))
+        let both = try #require(DestinationAlert.make(copies: copies(device: .interrupted, drive: .interrupted)))
         #expect(both.id == "both-stopped" && both.tone == .critical)
         #expect(both.text == "Both Copies stopped writing.")
     }
 
     @Test("Nothing when both Copies are recording, or when no Take is running")
     func quietWhenFine() {
-        #expect(DestinationAlert.make(isRecording: true, device: .recording, drive: .recording) == nil)
-        #expect(DestinationAlert.make(isRecording: false, device: .interrupted, drive: .interrupted) == nil)
-        #expect(DestinationAlert.make(isRecording: false, device: .recording, drive: .missing) == nil)
+        #expect(DestinationAlert.make(copies: copies(device: .recording, drive: .recording)) == nil)
+        #expect(DestinationAlert.make(copies: copies(running: false, device: .interrupted, drive: .interrupted)) == nil)
+        #expect(DestinationAlert.make(copies: copies(running: false, device: .recording, drive: .missing)) == nil)
     }
 }
 
@@ -48,11 +63,11 @@ struct DestinationAlertTests {
 struct DriveRejoinNoticeTests {
     @Test("The Drive stopped alert offers Check Drive, and says so when the check found nothing")
     func checkDriveAction() throws {
-        let stopped = try #require(DestinationAlert.make(isRecording: true, device: .recording, drive: .interrupted))
+        let stopped = try #require(DestinationAlert.make(copies: copies(device: .recording, drive: .interrupted)))
         #expect(stopped.action == .checkDrive)
         #expect(stopped.text.hasPrefix("The Drive stopped."))
 
-        let again = try #require(DestinationAlert.make(isRecording: true, device: .recording, drive: .interrupted, checkedAndNotFound: true))
+        let again = try #require(DestinationAlert.make(copies: copies(device: .recording, drive: .interrupted), checkedAndNotFound: true))
         #expect(again.text.hasPrefix("Still not found. The Drive stopped."))
         #expect(again.action == .checkDrive)
     }
