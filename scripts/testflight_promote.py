@@ -18,11 +18,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 PLATFORMS = ("IOS", "MAC_OS")
 
 
-def newest_valid(api, app_id: str, version: str, platform: str):
+def newest(api, app_id: str, version: str, platform: str):
+    """The version's newest build on the platform (a re-run tag makes several), or None."""
     found = api.call("GET", "/builds", query={
         "filter[app]": app_id, "filter[preReleaseVersion.version]": version,
-        "filter[preReleaseVersion.platform]": platform, "sort": "-uploadedDate", "limit": 10})["data"]
-    return next((b for b in found if b["attributes"]["processingState"] == "VALID"), None)
+        "filter[preReleaseVersion.platform]": platform, "sort": "-uploadedDate", "limit": 1})["data"]
+    return found[0] if found else None
 
 
 def promote(api, tag: str) -> dict:
@@ -35,12 +36,20 @@ def promote(api, tag: str) -> dict:
                 if g["attributes"].get("isInternalGroup") is False]
     report = {}
     for platform in PLATFORMS:
-        build = newest_valid(api, app_id, version, platform)
+        build = newest(api, app_id, version, platform)
         if not build:
-            report[platform] = f"no build of {version} is processed; skipped"
+            report[platform] = f"no build of {version}; skipped"
+            continue
+        state = build["attributes"]["processingState"]
+        # The newest only: an older run of the tag is not what Eric checked.
+        if state != "VALID":
+            report[platform] = f"the newest build of {version} is {state}; skipped, try again once it's processed"
+            continue
+        if build["attributes"].get("expired"):
+            report[platform] = f"the newest build of {version} has expired; skipped"
             continue
         build_id = build["id"]
-        already = {g["id"] for g in api.call("GET", f"/builds/{build_id}/betaGroups")["data"]}
+        already = {g["id"] for g in api.call("GET", "/betaGroups", query={"filter[builds]": build_id, "limit": 50})["data"]}
         added = [g for g in external if g["id"] not in already]
         for group in added:
             api.call("POST", f"/betaGroups/{group['id']}/relationships/builds", body={"data": [{"type": "builds", "id": build_id}]})
@@ -48,8 +57,13 @@ def promote(api, tag: str) -> dict:
         if not submitted:
             api.call("POST", "/betaAppReviewSubmissions", body={"data": {
                 "type": "betaAppReviewSubmissions", "relationships": {"build": {"data": {"type": "builds", "id": build_id}}}}})
-        report[platform] = (f"added to {', '.join(g['attributes']['name'] for g in added) or 'no new group'}; "
-                            + ("already submitted for Beta App Review" if submitted else "submitted for Beta App Review"))
+            review = "submitted for Beta App Review"
+        else:
+            review_state = (submitted.get("attributes") or {}).get("betaReviewState", "")
+            review = ("Beta App Review rejected it: fix and tag again" if review_state == "REJECTED"
+                      else f"already submitted for Beta App Review ({review_state.lower().replace('_', ' ') or 'state unknown'})")
+        groups = ", ".join(g["attributes"]["name"] for g in added) or "no new group"
+        report[platform] = f"added to {groups}; {review}"
     return report
 
 

@@ -22,7 +22,7 @@ class FakeAPI:
         ]
         self.builds = builds or {}          # (platform, version) -> [build, newest first]
         self.build_groups = {}              # build id -> set of group ids
-        self.submitted = set()              # build ids submitted for Beta App Review
+        self.submitted = {}                 # build id -> beta review state
 
     def call(self, method, path, body=None, query=None):
         self.calls.append((method, path))
@@ -33,25 +33,28 @@ class FakeAPI:
         if method == "GET" and path == "/builds":
             key = (query["filter[preReleaseVersion.platform]"], query["filter[preReleaseVersion.version]"])
             return {"data": self.builds.get(key, [])}
-        if method == "GET" and path.endswith("/betaGroups") and path.startswith("/builds/"):
-            build = path.split("/")[2]
+        if method == "GET" and path == "/betaGroups":
+            build = query["filter[builds]"]
             return {"data": [{"id": g} for g in sorted(self.build_groups.get(build, set()))]}
         if method == "GET" and path.endswith("/betaAppReviewSubmission"):
             build = path.split("/")[2]
-            return {"data": {"id": "s-" + build} if build in self.submitted else None}
+            state = self.submitted.get(build)
+            return {"data": {"id": "s-" + build, "attributes": {"betaReviewState": state}} if state else None}
         if method == "POST" and path.startswith("/betaGroups/") and path.endswith("/relationships/builds"):
             group = path.split("/")[2]
+            if any(g["id"] == group and g["attributes"].get("hasAccessToAllBuilds") for g in self.groups):
+                raise AssertionError(f"Apple refuses adding a build to {group}: it already gets every build")
             for item in body["data"]:
                 self.build_groups.setdefault(item["id"], set()).add(group)
             return {}
         if method == "POST" and path == "/betaAppReviewSubmissions":
-            self.submitted.add(body["data"]["relationships"]["build"]["data"]["id"])
+            self.submitted[body["data"]["relationships"]["build"]["data"]["id"]] = "WAITING_FOR_REVIEW"
             return {}
         return {"data": []}
 
 
-def build(build_id, state="VALID"):
-    return {"id": build_id, "attributes": {"processingState": state}}
+def build(build_id, state="VALID", expired=False):
+    return {"id": build_id, "attributes": {"processingState": state, "expired": expired}}
 
 
 class InternalTagTests(unittest.TestCase):
@@ -65,24 +68,34 @@ class InternalTagTests(unittest.TestCase):
         api = FakeAPI()
         notes.distribute(api, "app", "b1", internal=True)
         self.assertEqual(api.build_groups, {"b1": {"team"}})
-        self.assertEqual(api.submitted, set(), "no Beta App Review for an internal-only tag")
+        self.assertEqual(api.submitted, {}, "no Beta App Review for an internal-only tag")
 
     def test_normal_build_goes_to_external_and_review_as_before(self):
         api = FakeAPI()
         notes.distribute(api, "app", "b1", internal=False)
         self.assertEqual(api.build_groups, {"b1": {"ext"}})
-        self.assertEqual(api.submitted, {"b1"})
+        self.assertEqual(set(api.submitted), {"b1"})
+
+
+class InternalGroupsTests(unittest.TestCase):
+    def test_a_group_that_gets_every_build_is_left_alone(self):
+        api = FakeAPI(groups=[
+            {"id": "all", "attributes": {"name": "Everyone", "isInternalGroup": True, "hasAccessToAllBuilds": True}},
+            {"id": "team", "attributes": {"name": "Team", "isInternalGroup": True}},
+        ])
+        notes.distribute(api, "app", "b1", internal=True)
+        self.assertEqual(api.build_groups, {"b1": {"team"}})
 
 
 class PromoteTests(unittest.TestCase):
     def test_promotes_the_newest_valid_build_on_each_platform(self):
         api = FakeAPI(builds={
             ("IOS", "1.1.3"): [build("ios-new"), build("ios-old")],
-            ("MAC_OS", "1.1.3"): [build("mac-processing", "PROCESSING"), build("mac-ok")],
+            ("MAC_OS", "1.1.3"): [build("mac-ok")],
         })
         promote.promote(api, "v1.1.3")
         self.assertEqual(api.build_groups, {"ios-new": {"ext"}, "mac-ok": {"ext"}})
-        self.assertEqual(api.submitted, {"ios-new", "mac-ok"})
+        self.assertEqual(set(api.submitted), {"ios-new", "mac-ok"})
 
     def test_running_it_again_changes_nothing(self):
         api = FakeAPI(builds={("IOS", "1.1.3"): [build("ios")]})
@@ -96,7 +109,25 @@ class PromoteTests(unittest.TestCase):
         api = FakeAPI(builds={("IOS", "1.1.3"): [build("ios")]})
         report = promote.promote(api, "v1.1.3")
         self.assertIn("no build", report["MAC_OS"])
-        self.assertEqual(api.submitted, {"ios"})
+        self.assertEqual(set(api.submitted), {"ios"})
+
+    def test_the_newest_build_still_processing_is_not_swapped_for_an_older_one(self):
+        api = FakeAPI(builds={("IOS", "1.1.3"): [build("ios-rerun", "PROCESSING"), build("ios-first")]})
+        report = promote.promote(api, "v1.1.3")
+        self.assertIn("PROCESSING", report["IOS"])
+        self.assertEqual(api.submitted, {})
+
+    def test_an_expired_build_is_not_promoted(self):
+        api = FakeAPI(builds={("IOS", "1.1.3"): [build("ios", expired=True)]})
+        report = promote.promote(api, "v1.1.3")
+        self.assertIn("expired", report["IOS"])
+        self.assertEqual(api.submitted, {})
+
+    def test_a_rejected_review_says_so(self):
+        api = FakeAPI(builds={("IOS", "1.1.3"): [build("ios")]})
+        api.submitted["ios"] = "REJECTED"
+        report = promote.promote(api, "v1.1.3")
+        self.assertIn("rejected", report["IOS"])
 
     def test_a_tag_that_isnt_a_version_is_refused(self):
         with self.assertRaises(ValueError):

@@ -65,7 +65,7 @@ git tag v0.1.0 && git push origin v0.1.0
 git tag -a v1.1.3 -m "v1.1.3 [internal]: the watch app and the rebuilt Arm, record and stop" && git push origin v1.1.3
 ```
 
-The release runs as usual (upload, What to Test), but `scripts/testflight_notes.py` adds the builds to the internal group(s) only, with no external group and no Beta App Review. A lightweight tag, or one without `[internal]`, goes to external testers as before. An internal group that already gets every build gets it either way.
+The release runs as usual (upload, What to Test), but `scripts/testflight_notes.py` adds the builds to the internal group(s) only, with no external group and no Beta App Review. A lightweight tag, or one without `[internal]`, goes to external testers as before. If the workflow can't read the tag's message, it sends the build to internal testers only, to be safe. An internal group that already gets every build gets it anyway and is left alone.
 
 After Eric's Take, send the tag on to external testers:
 
@@ -73,7 +73,7 @@ After Eric's Take, send the tag on to external testers:
 ASC_KEY_ID=… ASC_ISSUER_ID=… ASC_KEY_PATH=path/to/AuthKey.p8 python3 scripts/testflight_promote.py v1.1.3
 ```
 
-It finds the newest processed iPhone and Mac builds of that version, adds them to the external group(s) and submits them for Beta App Review, and says what it did on each platform. A platform with no processed build is skipped. Running it again changes nothing. It uses the release's App Store Connect key and prints no secret. `scripts/test_testflight.py` tests both scripts against a fake API.
+It takes the newest iPhone and Mac builds of that version (the run Eric checked, not an older one), adds them to the external group(s) and submits them for Beta App Review, and says what it did on each platform. It skips a platform whose newest build is missing, still processing, failed or expired, and says when Beta App Review rejected a build. Running it again changes nothing. It uses the release's App Store Connect key and prints no secret. `scripts/test_testflight.py` tests both scripts against a fake API.
 
 **Release branches.** While a version is in App Review, its fixes are kept apart from new work. `release/1.0` was cut from `v1.0.1`. A fix for 1.0 is merged to `main` first, then cherry-picked onto `release/1.0` (in a pull request to that branch, so CI runs) and tagged there, for example `v1.0.2`. New features merge only to `main` and ship in 1.1.x tags (`v1.1.1`, `v1.1.2`, …), which TestFlight lists apart from 1.0.x. When 1.1 goes to App Review, cut `release/1.1` from its tag the same way and move `main` to 1.2. Never merge `main` into a release branch. A tag runs the `release.yml` of the commit it points to, so a fix to that workflow must be cherry-picked to the release branch too.
 

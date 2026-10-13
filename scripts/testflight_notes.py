@@ -48,7 +48,9 @@ def internal_tag(message: str) -> bool:
 def distribute(api, app_id: str, build_id: str, internal: bool):
     """Internal-only: the internal group(s). Otherwise the external group(s) and Beta App Review, as before."""
     groups = api.call("GET", f"/apps/{app_id}/betaGroups", query={"limit": 50})["data"]
-    for group in (g for g in groups if g["attributes"].get("isInternalGroup") is internal):
+    # A group that already gets every build gets this one too; Apple refuses adding it there.
+    for group in (g for g in groups if g["attributes"].get("isInternalGroup") is internal
+                  and not g["attributes"].get("hasAccessToAllBuilds")):
         api.call("POST", f"/betaGroups/{group['id']}/relationships/builds", body={"data": [{"type": "builds", "id": build_id}]})
         print(f"Added to the group {group['attributes']['name']}.")
     if internal:
