@@ -56,7 +56,8 @@ extension X32Driver {
     /// such as two channels on local input 1 (#473). Read fresh, one query a channel.
     public func channels(onHeadamp headamp: Int, movedWith channel: Int) async throws(MixerLinkProblem) -> [Int] {
         var channels = [channel]
-        for other in 1...Self.channelCount where other != channel {
+        if let partner = try await linkedPartner(of: channel) { channels.append(partner) }
+        for other in 1...Self.channelCount where !channels.contains(other) {
             if Int(try await queries.int(at: String(format: "/-ha/%02d/index", other - 1))) == headamp { channels.append(other) }
         }
         return channels

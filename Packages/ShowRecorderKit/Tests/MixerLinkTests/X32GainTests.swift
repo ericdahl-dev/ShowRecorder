@@ -267,6 +267,7 @@ struct X32GainTests {
 
         try await driver.undo(step)
         #expect(mixer.writes.last { $0.address == "/ch/17/mix/fader" }?.value == .float(0.75), "Undo puts channel 17 back too")
+        #expect(mixer.writes.last { $0.address == "/ch/17/gate/thr" }?.value == .float(0.5), "and its gate threshold")
     }
 
     @Test("A gain move the mixer stops answering partway says what it wrote, and Undo puts that back exactly (#450)")
@@ -294,5 +295,45 @@ struct X32GainTests {
         try await driver.undo(step)
         #expect(try await driver.reGainState(ofChannel: 1) == before)
         #expect(try await driver.gainDb(ofHeadamp: 0) == gainBefore)
+    }
+
+    @Test("A raise the mixer stops answering before the gain was written reports no gain move, and Undo puts the compensations back (#481)")
+    func interruptedBeforeTheGain() async throws {
+        var state = FakeXAirMixer.State.x32()
+        state.stopsAnsweringAfterWrites = 1   // only the first compensation of the first ramp step lands
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let before = try await driver.reGainState(ofChannel: 1)
+        let gainBefore = try await driver.gainDb(ofHeadamp: 0)
+
+        var interrupted: GainStep?
+        do {
+            _ = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
+        } catch {
+            if case .gainMoveInterrupted(let step) = error { interrupted = step }
+        }
+
+        let step = try #require(interrupted)
+        #expect(step.toGainDb == gainBefore)
+        #expect(!step.changes.isEmpty)
+        mixer.update { $0.answers = true; $0.stopsAnsweringAfterWrites = nil }
+        try await driver.undo(step)
+        #expect(try await driver.reGainState(ofChannel: 1) == before)
+        #expect(try await driver.gainDb(ofHeadamp: 0) == gainBefore)
+    }
+
+    @Test("An X32 preamp-linked pair: Re-Gain asked on channel 4 compensates channel 3's strip too (#393)")
+    func linkedPartnerCompensated() async throws {
+        var state = FakeXAirMixer.State.x32()
+        state.set["/config/chlink/3-4"] = .int(1)
+        state.set["/config/linkcfg/hadly"] = .int(1)
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+
+        let step = try await driver.applyReGain(channel: 4, gainChangeDb: 6)
+
+        #expect(step.changes.contains { $0.setting == ReGain.Setting(channel: 3, parameter: .mainFader) })
+        #expect(step.changes.contains { $0.setting == ReGain.Setting(channel: 4, parameter: .mainFader) })
+        #expect(!step.changes.contains { $0.setting.channel == 5 })
     }
 }
