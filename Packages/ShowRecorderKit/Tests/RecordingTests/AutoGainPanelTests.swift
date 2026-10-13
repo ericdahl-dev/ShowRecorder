@@ -196,4 +196,34 @@ struct AutoGainPanelTests {
         #expect(panel.progress == nil)
         #expect(control.gainDb == [1: 0, 2: 0])
     }
+
+    @Test("Undo belongs to the mixer it was made on: linked to another one, it's dropped with a note and nothing is written (#508)")
+    func undoIsForItsOwnMixer() async {
+        let foh = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
+        let mon = FakeGainControl(gainDb: [1: 5], channelOfUSB: [1: 1])
+        var control = foh, mixer: String? = "XR18-FOH"
+        let panel = AutoGainPanel(makeSession: {
+            AutoGainSession(currentControl: { control }, measure: { usb in -40 + (control.gainDb[usb] ?? 0) })
+        })
+        panel.mixerName = { mixer }
+        await panel.run([1])
+        #expect(panel.canUndo(1))
+
+        // The Mixer Link drops and comes back on the same mixer: Undo still there.
+        mixer = nil
+        #expect(panel.canUndo(1) && panel.notice == nil)
+        mixer = "XR18-FOH"
+        #expect(panel.canUndo(1))
+
+        // Linked to another mixer: Undo is gone, the sheet says why, and Undo writes nothing to it.
+        control = mon; mixer = "XR18-MON"
+        #expect(!panel.canUndo(1) && !panel.canUndoAll)
+        #expect(panel.notice == "Undo was for another mixer (XR18-FOH), so it's gone.")
+        await panel.undo(1)
+        #expect(mon.gainDb[1] == 5)
+
+        // A new run there starts fresh.
+        await panel.run([1])
+        #expect(panel.notice == nil && panel.canUndo(1))
+    }
 }

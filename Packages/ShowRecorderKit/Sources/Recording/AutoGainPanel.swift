@@ -41,6 +41,11 @@ public final class AutoGainPanel {
     /// Whether the recorder is recording now. Read on every run and Undo, so a Take that has started is respected
     /// before its event arrives.
     @ObservationIgnored public var isRecording: () -> Bool = { false }
+    /// The linked Mixer's network name now, nil while the Mixer Link is down. Undo belongs to the Mixer it was made on
+    /// (#508): its steps are that Mixer's values, so on another Mixer it is dropped, never written.
+    @ObservationIgnored public var mixerName: () -> String? = { nil }
+    /// The Mixer the session's Undo steps were made on.
+    @ObservationIgnored private var sessionMixer: String?
     /// A new session on the linked Mixer, or nil when there is none. Set by whoever owns the panel.
     @ObservationIgnored public var makeSession: () -> AutoGainSession?
 
@@ -53,7 +58,9 @@ public final class AutoGainPanel {
 
     /// Runs auto-gain on `usbChannels`. Not during a Take, and not while another run or Undo is under way.
     public func run(_ usbChannels: [Int]) async {
+        dropUndoForAnotherMixer()
         guard !isLocked, let session = session ?? makeSession() else { return }
+        if self.session == nil { sessionMixer = mixerName() }
         self.session = session
         running.formUnion(usbChannels)
         for usb in usbChannels { phases[usb] = .waiting }
@@ -73,6 +80,7 @@ public final class AutoGainPanel {
     /// Puts `usbChannel`'s gain back. Locked like a run while it waits on the Mixer; if the Mixer stops answering, the
     /// row says so and Undo stays offered for what's left. Not during a Take.
     public func undo(_ usbChannel: Int) async {
+        dropUndoForAnotherMixer()
         guard !isLocked, let session else { return }
         let channel = session.steps[usbChannel]?.first?.channel ?? usbChannel
         running.insert(usbChannel)
@@ -107,9 +115,32 @@ public final class AutoGainPanel {
         }
     }
 
-    public func canUndo(_ usbChannel: Int) -> Bool { session?.steps[usbChannel]?.isEmpty == false }
+    public func canUndo(_ usbChannel: Int) -> Bool {
+        !isLinkedToAnotherMixer && session?.steps[usbChannel]?.isEmpty == false
+    }
 
-    public var canUndoAll: Bool { session?.steps.values.contains { !$0.isEmpty } == true }
+    public var canUndoAll: Bool { !isLinkedToAnotherMixer && session?.steps.values.contains { !$0.isEmpty } == true }
+
+    /// What the sheet says when Undo was made on a Mixer that isn't the one linked now.
+    public var notice: String? {
+        guard isLinkedToAnotherMixer, let sessionMixer else { return nil }
+        return "Undo was for another mixer (\(sessionMixer)), so it's gone."
+    }
+
+    /// The Mixer Link is up on a Mixer other than the one the Undo steps were made on. Down, it isn't: the same Mixer
+    /// may come back.
+    private var isLinkedToAnotherMixer: Bool {
+        guard session != nil, let made = sessionMixer, let now = mixerName() else { return false }
+        return now != made
+    }
+
+    /// Drops the session, its results and Undo when they belong to another Mixer, so a run starts fresh here.
+    private func dropUndoForAnotherMixer() {
+        guard isLinkedToAnotherMixer else { return }
+        session = nil
+        results = [:]
+        sessionMixer = nil
+    }
 
     /// What Mix Hold moved to keep the mix the same on `usbChannel`, in plain words; nil when nothing did, or once Undo
     /// has put it back.

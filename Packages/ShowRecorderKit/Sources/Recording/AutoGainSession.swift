@@ -54,7 +54,18 @@ public final class AutoGainSession {
     /// Told each time a USB Channel in a run moves to another phase.
     public var onPhase: ((Int, Phase) -> Void)?
 
-    private let control: any GainControl
+    /// The Mixer's gain control now, asked for at every step: after the Mixer Link reconnects, the new driver (#508).
+    private let currentControl: () -> (any GainControl)?
+    /// Which Mixer is linked now ("FOH · XR18": its network name and model); nil while the Link is down.
+    private let mixer: () -> String?
+    /// The Mixer this session's moves, and so its Undo steps, were made on.
+    private let madeOn: String?
+    /// The linked Mixer's control, or a stand-in that refuses while the Link is down or on another Mixer: Undo steps
+    /// are the first Mixer's values, so nothing of this session is ever written to another one (#508).
+    private var control: any GainControl {
+        if let madeOn, let now = mixer(), now != madeOn { return NoMixerLink(problem: NoMixerLink.anotherMixer) }
+        return currentControl() ?? NoMixerLink()
+    }
     private let rule: AutoGainRule
     private let measure: (Int) async -> Double
     private let settle: () async -> Void
@@ -79,9 +90,22 @@ public final class AutoGainSession {
     /// - Parameters:
     ///   - measure: a USB Channel's Average level now, in dBFS, from the meters.
     ///   - settle: waits for the meters to follow a gain move before measuring again.
-    public init(control: any GainControl, rule: AutoGainRule = AutoGainRule(), measure: @escaping (Int) async -> Double,
+    public convenience init(control: any GainControl, rule: AutoGainRule = AutoGainRule(), measure: @escaping (Int) async -> Double,
+                            settle: @escaping () async -> Void = {}, log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }) {
+        self.init(currentControl: { control }, rule: rule, measure: measure, settle: settle, log: log)
+    }
+
+    /// - Parameter currentControl: the linked Mixer's gain control now, or nil while the Mixer Link is down. Runs and
+    ///   Undo use whatever it gives at each step, so a reconnect's new driver is used, and Undo steps (the Mixer's own
+    ///   values) still put the gain back through it.
+    ///   - mixer: which Mixer is linked now, its network name and model; the session keeps to the one linked when it
+    ///     was made.
+    public init(currentControl: @escaping () -> (any GainControl)?, mixer: @escaping () -> String? = { nil },
+                rule: AutoGainRule = AutoGainRule(), measure: @escaping (Int) async -> Double,
                 settle: @escaping () async -> Void = {}, log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }) {
-        self.control = control
+        self.currentControl = currentControl
+        self.mixer = mixer
+        madeOn = mixer()
         self.log = log
         self.rule = rule
         self.measure = measure
@@ -336,4 +360,17 @@ extension MixHold.Parameter {
         case .send(let bus): "send \(bus)"
         }
     }
+}
+
+/// Stands in while the Mixer Link is down: nothing can move a preamp, and Undo says why and stays offered.
+private struct NoMixerLink: GainControl {
+    static let linkDown = MixerLinkProblem.other("The Mixer Link isn't connected.")
+    static let anotherMixer = MixerLinkProblem.other("The Mixer Link is on another mixer now, so nothing was written.")
+    var problem = Self.linkDown
+    func channel(forUSBChannel usbChannel: Int) -> Int? { nil }
+    func preamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? { throw problem }
+    func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes) async throws(MixerLinkProblem) -> GainStep {
+        throw problem
+    }
+    func undo(_ step: GainStep) async throws(MixerLinkProblem) { throw problem }
 }
