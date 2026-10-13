@@ -417,6 +417,9 @@ final class TakeSession {
                 }
                 try show.useDrive(access.folder)
             }
+            // Each Stem resumes at its last commit (#595): what was written after it may never have reached the Drive,
+            // so it is cut off and left to Repair. A Drive that failed but stayed mounted loses that stretch too, until
+            // resuming at the frames really on disk (#602).
             let counts = old?.writer.stemFramesKept
             let sinks: [any StemSink] = try stems.enumerated().map { index, spec in
                 spec.isRecorded
