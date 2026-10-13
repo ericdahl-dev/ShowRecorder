@@ -94,6 +94,8 @@ struct InputRestartTests {
 
         #expect(!continued)
         #expect(!recorder.isRecording)
+        #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .inputChanged), "the Take ended because the input changed, not by the operator (#301)")
+        #expect(TakeEnd.Reason.inputChanged.message != nil)
         #expect(recorder.isArmed)
         #expect(recorder.usbChannelCount == 1)
         #expect(replacement.isRunning)

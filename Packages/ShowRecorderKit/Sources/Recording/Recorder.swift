@@ -37,6 +37,10 @@ public final class Recorder {
     nonisolated public static let clipLevel: Float = 0.999
     /// Which Take ended last and why. Nil until a Take has ended.
     public private(set) var lastTakeEnd: TakeEnd?
+    /// Told each Take end as it happens, whoever ended it (record stopped, a full or failed Destination, an input
+    /// change), once `lastTakeEnd` says so. One listener, the `TakeSequencer`, so it stays inside the module;
+    /// others follow Take ends through the sequencer's events.
+    @ObservationIgnored var onTakeEnded: (TakeEnd) -> Void = { _ in }
     /// How each Copy of the last Take ended up: complete, has Gaps, Repaired or Repair failed.
     public private(set) var lastTakeOutcomes: [DestinationKind: CopyOutcome] = [:]
     /// How many USB Channels the last Take recorded and how many carried signal (#62: Free's limit, felt).
@@ -177,14 +181,15 @@ public final class Recorder {
     /// reset its media services).
     ///
     /// When `replacement` has the same USB Channel count and sample rate, the running Take carries
-    /// on into the same Stems and this returns `true`. Otherwise the Take is stopped and finalized,
-    /// the recorder Arms on `replacement`, and this returns `false`.
+    /// on into the same Stems and this returns `true`. Otherwise the Take is stopped and finalized
+    /// (its end's reason is `.inputChanged`), the recorder Arms on `replacement`, and this returns `false`.
     @discardableResult
     public func restartInput(on replacement: any AudioIODevice) throws -> Bool {
         guard let device, let capture,
               replacement.inputChannelCount == capture.channelCount,
               replacement.sampleRate == device.sampleRate
         else {
+            if isRecording { try stopTake(because: .inputChanged) }
             try arm(replacement)
             return false
         }
@@ -687,6 +692,7 @@ public final class Recorder {
         regenerateReports(skipping: finished.abandoned)
         repair.enqueue(finished.metadata, folders: finished.folders, holding: finished.access, abandoned: finished.abandoned)
         nameChannels(of: finished.metadata)
+        onTakeEnded(TakeEnd(take: finished.metadata.take, reason: reason))
     }
 
     /// Puts the names typed during the Take on its files. Waits for Repair first, which works on the Stems
