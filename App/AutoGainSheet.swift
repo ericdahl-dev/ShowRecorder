@@ -42,14 +42,26 @@ struct AutoGainSheet: View {
         running.subtract(usbChannels)
     }
 
+    /// Locked like a run while it waits on the Mixer. If the Mixer stops answering, the row says so and Undo stays
+    /// offered for what's left.
     private func undo(_ usb: Int) async {
-        try? await session?.undo(usbChannel: usb)
-        results[usb] = nil
+        guard let session else { return }
+        let channel = session.steps[usb]?.first?.channel ?? usb
+        running.insert(usb)
+        defer { running.remove(usb) }
+        do throws(MixerLinkProblem) {
+            try await session.undo(usbChannel: usb)
+            results[usb] = nil
+        } catch {
+            results[usb] = .error(usbChannel: usb, channel: channel, problem: error)
+        }
     }
 
     private func undoAll() async {
-        try? await session?.undoAll()
-        results = [:]
+        guard let session else { return }
+        for usb in session.steps.keys.sorted().reversed() where session.steps[usb]?.isEmpty == false {
+            await undo(usb)
+        }
     }
 }
 
