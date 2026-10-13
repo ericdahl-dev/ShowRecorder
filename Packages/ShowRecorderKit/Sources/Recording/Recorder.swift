@@ -771,7 +771,9 @@ public final class Recorder {
     private func regenerateReports(skipping skipped: Set<DestinationKind> = []) {
         guard !isRecording else { return }
         let allowance = lastAllowance
-        for (index, copy) in (currentShow?.copies ?? []).enumerated() where !skipped.contains(DestinationKind(index: index)) {
+        let copies = currentShow?.copies ?? [:]
+        for kind in DestinationKind.allCases where !skipped.contains(kind) {
+            guard let copy = copies[kind] else { continue }
             if allowance?.showReport ?? true { try? ShowReport.write(showFolder: copy.folder) }
             if allowance?.reaperExport ?? true { try? copy.writeProjects() }
         }

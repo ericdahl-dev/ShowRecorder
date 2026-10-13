@@ -1,3 +1,4 @@
+import Destinations
 import Foundation
 
 /// One event being recorded. Holds one or more Takes, each in its own folder, with a Copy on the
@@ -46,10 +47,11 @@ public struct Show: Sendable, Equatable {
         self.endedAt = endedAt
     }
 
-    /// Every Copy of the Show folder, the Device first.
-    public var copies: [Show] {
-        [Show(name: name, folder: folder, takeCount: takeCount, startedAt: startedAt, endedAt: endedAt)]
-            + (driveFolder.map { [Show(name: name, folder: $0, takeCount: takeCount, startedAt: startedAt, endedAt: endedAt)] } ?? [])
+    /// Every Copy of the Show folder, by Destination.
+    public var copies: [DestinationKind: Show] {
+        var copies: [DestinationKind: Show] = [.device: Show(name: name, folder: folder, takeCount: takeCount, startedAt: startedAt, endedAt: endedAt)]
+        copies[.drive] = driveFolder.map { Show(name: name, folder: $0, takeCount: takeCount, startedAt: startedAt, endedAt: endedAt) }
+        return copies
     }
 
     /// Creates the Show folder on the Device (and on the Drive, if given), named "YYYY-MM-DD Show"
