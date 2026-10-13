@@ -23,7 +23,7 @@ final class FakeTextMixer: Sendable {
         listener.stateUpdateHandler = { [listener] update in
             switch update {
             case .ready: if let port = listener.port?.rawValue { ready.continuation.yield(port) }
-            case .failed, .cancelled: ready.continuation.finish()
+            case .failed: ready.continuation.finish()
             default: break
             }
         }
