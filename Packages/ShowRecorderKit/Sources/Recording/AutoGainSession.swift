@@ -109,7 +109,7 @@ public final class AutoGainSession {
             toRun.append((results.count, usbChannel, channel))
             results.append(nil)
         }
-        // Then every channel at once, each in its own Task on the main actor; cancelling the run cancels them all.
+        // Then every channel at once, each in its own Task on the main actor; canceling the run cancels them all.
         // (Stopped during the first pass, nothing has moved yet and none of them runs.)
         let running = stopRequested ? [] : toRun.map { item in
             (item.index, Task { await self.runOne(usbChannel: item.usbChannel, channel: item.channel) })
