@@ -79,6 +79,8 @@ final class TakeSession {
     /// Drive only (#196, ADR 0006): the Device's standby, which holds the last seconds of the Take in memory and stands
     /// in for the Drive once it is lost. Nil for a Take with two Copies.
     private var standby: Standby?
+    /// Drive only (#196, ADR 0006): the Take was started to be written to the Drive alone.
+    private let driveOnly: Bool
     /// How long the Drive's writer may go without writing while audio arrives before it counts as lost (a pulled
     /// Drive can hang rather than fail).
     var driveStallLimit: Duration = .seconds(2)
@@ -116,6 +118,7 @@ final class TakeSession {
         self.capture = capture
         self.makeStem = makeStem
         self.freeSpace = freeSpace
+        self.driveOnly = driveOnly
 
         // One writer per Copy, each draining its own ring, so a slow Drive never holds up the Device.
         // With Pre-roll each Copy waits for the real-time thread's first block, then writes the Pre-roll
@@ -256,7 +259,13 @@ final class TakeSession {
 
     /// Copies of the running Take (#550), from each Copy's status.
     var takeCopies: TakeCopies {
-        TakeCopies(isRunning: true) { CopyState(status($0)) }
+        TakeCopies(isRunning: true, isDriveOnly: driveOnly) { kind in
+            if kind == .device, let standby {
+                if standby.start == nil { return .standingBy }
+                return standby.writer.hasFailed ? .interrupted : .standingIn
+            }
+            return CopyState(status(kind))
+        }
     }
 
     /// How many places in the Take lost audio (one Dropout Marker each).
