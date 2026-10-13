@@ -154,7 +154,7 @@ public final class ClipProtection {
             // At its lowest gain, or Mix Hold out of range: nothing moved, so nothing to log or Mark.
             guard step.toGainDb < step.fromGainDb else { continue }
             turnedDown[preamp, default: 0] += step.fromGainDb - step.toGainDb
-            log(AutoGainSession.change(step, usbChannel: usbChannel, reason: .clipProtection))
+            log(GainLog.change(step, usbChannel: usbChannel, reason: .clipProtection))
         }
     }
 }

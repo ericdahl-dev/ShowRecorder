@@ -10,6 +10,14 @@ import Testing
 @MainActor
 @Suite("Gain log")
 struct GainLogTests {
+    @Test("The gain log shapes the Marker's name from the USB Channel's name, the change and why")
+    func gainLogMarkerName() {
+        let down = TakeMetadata.GainChange(usbChannel: 1, channel: 1, headamp: 1, fromGainDb: 30, toGainDb: 26, reason: .clipProtection, compensations: [])
+        let up = TakeMetadata.GainChange(usbChannel: 2, channel: 2, headamp: 2, fromGainDb: 10, toGainDb: 13.5, reason: .autoGain, compensations: [])
+        #expect(GainLog.markerName(for: down, channelName: "Kick") == "Kick: gain -4.0 dB (clip protection)")
+        #expect(GainLog.markerName(for: up, channelName: "Snare") == "Snare: gain +3.5 dB (auto-gain)")
+    }
+
     let root = FileManager.default.temporaryDirectory.appending(path: "GainLogTests-\(UUID().uuidString)")
     var show: URL { root.appending(path: "2026-10-06 Show") }
 
