@@ -89,6 +89,11 @@ public final class Recorder {
     @ObservationIgnored private let repair: TakeRepair
     /// How long Stop waits on a Copy's writer before giving that Copy up (#320).
     @ObservationIgnored private let writerStopTimeout: Duration
+    @ObservationIgnored private let driveStallLimit: Duration
+
+    /// Drive only (#196, ADR 0006): a Take with a Drive is written to the Drive alone, and the Device stands in only for
+    /// what the Drive can't take. Read at each record press. Offered where `DriveOnlyAvailability` allows.
+    public var recordsToDriveOnly = false
     /// The host clock's ticks per second, for spotting a stop in the input (#317). Tests set it.
     @ObservationIgnored private let hostTicksPerSecond: Double
     @ObservationIgnored private var finishedCopies: [DestinationKind: CopyStatus] = [:]
@@ -106,9 +111,11 @@ public final class Recorder {
         savedNames: UserDefaults = .standard,
         destinationCheckInterval: Duration? = .seconds(1),
         hostTicksPerSecond: Double? = nil,
-        writerStopTimeout: Duration = .seconds(5)
+        writerStopTimeout: Duration = .seconds(5),
+        driveStallLimit: Duration = .seconds(2)
     ) {
         self.destinationCheckInterval = destinationCheckInterval
+        self.driveStallLimit = driveStallLimit
         self.hostTicksPerSecond = hostTicksPerSecond ?? Capture.machTicksPerSecond
         self.writerStopTimeout = writerStopTimeout
         self.savedNames = savedNames
@@ -432,6 +439,7 @@ public final class Recorder {
         let (show, session, takeFolders) = opened
         session.onCopyFailed = { [weak self, weak session] in self?.copyFailed(in: session) }
         session.stopTimeout = writerStopTimeout
+        session.driveStallLimit = driveStallLimit
         if takeFolders.count == 1 { drive?.end() }
         self.session = session
         finishedCopies = [:]
@@ -526,7 +534,8 @@ public final class Recorder {
             let info = StemWriter.Info(sampleRate: sampleRate, description: "", originator: "ShowRecorder", timeReference: timeReference, originationDate: date)
             return try TakeSession(
                 show: show, folders: takeFolders, drive: takeFolders.count > 1 ? drive : nil, metadata: metadata, stems: specs,
-                info: info, capture: capture, preRollFrames: preRollFrames, makeStem: makeStem, freeSpace: freeSpace)
+                info: info, capture: capture, preRollFrames: preRollFrames, makeStem: makeStem, freeSpace: freeSpace,
+                driveOnly: recordsToDriveOnly)
         }
     }
 

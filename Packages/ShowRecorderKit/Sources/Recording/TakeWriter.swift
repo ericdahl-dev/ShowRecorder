@@ -91,11 +91,19 @@ final class TakeWriter: @unchecked Sendable {
         stop()
     }
 
+    /// Gives this Copy up now, without waiting (a Drive only Take's Drive that hangs, #196): it counts as failed, Stop
+    /// doesn't wait for it, and when a stuck write returns the writer starts no new one. The caller stops feeding the ring.
+    func giveUp() {
+        abandoned.store(true, ordering: .releasing)
+        failed.store(true, ordering: .releasing)
+        running.store(false, ordering: .releasing)
+    }
+
     /// Drains whatever is left, finalizes every Stem and waits for the thread to finish.
     /// A failed Copy doesn't throw: it's reported through `hasFailed`.
     func stop(timeout: Duration? = nil) {
         running.store(false, ordering: .releasing)
-        if done.load(ordering: .acquiring) { return }  // already stopped
+        if done.load(ordering: .acquiring) || abandoned.load(ordering: .acquiring) { return }  // already stopped, or given up
         guard let timeout else {
             finished.wait()
             return
