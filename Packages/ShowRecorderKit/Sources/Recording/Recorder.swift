@@ -34,7 +34,7 @@ public final class Recorder {
     public private(set) var clippedChannels: Set<Int> = []
     /// A peak at or above this (linear) counts as a clip: within about 0.01 dB of full scale
     /// (docs/adr/0005-level-meter-scale.md).
-    public static let clipLevel: Float = 0.999
+    nonisolated public static let clipLevel: Float = 0.999
     /// Which Take ended last and why. Nil until a Take has ended.
     public private(set) var lastTakeEnd: TakeEnd?
     /// How each Copy of the last Take ended up: complete, has Gaps, Repaired or Repair failed.
