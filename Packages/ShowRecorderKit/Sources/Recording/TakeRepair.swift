@@ -67,7 +67,15 @@ final class TakeRepair {
             let repairs = await Task.detached { run(copies, metadata, skip) }.value
             var done = metadata
             done.repairs = repairs
-            for folder in folders { try? done.write(to: folder) }
+            // Drive only: once the Drive Copy has everything, nothing of the Take stays on the Device.
+            let moved = metadata.standIns != nil && done.outcome(ofCopy: .drive) == .repaired
+            for (index, folder) in folders.enumerated() {
+                if moved, DestinationKind(index: index) == .device {
+                    try? FileManager.default.removeItem(at: folder)
+                } else {
+                    try? done.write(to: folder)
+                }
+            }
             guard let self else {
                 access?.end()
                 return
@@ -133,12 +141,24 @@ final class TakeRepair {
             let sourceGaps = metadata.gaps.filter { $0.copy != target.kind }.map { $0.start..<$0.end }
 
             var copied = source != nil
+            // Drive only: the Device holds stand-ins, each starting at its own Take frame, instead of a Copy.
+            let standIns = target.kind == .drive ? metadata.standIns : nil
             if let source {
                 do {
                     for stem in stems {
-                        try StemRepair.fill(
-                            target: target.folder.appending(path: stem), from: source.folder.appending(path: stem),
-                            ranges: gaps.map { $0.start..<$0.end }, length: length, markers: markers)
+                        if let standIns {
+                            for standIn in standIns {
+                                let ranges = gaps.map { $0.start..<$0.end }.map { $0.clamped(to: standIn.start..<standIn.end) }.filter { !$0.isEmpty }
+                                try StemRepair.fill(
+                                    target: target.folder.appending(path: stem),
+                                    from: source.folder.appending(path: standIn.folderName).appending(path: stem),
+                                    sourceStart: standIn.start, ranges: ranges, length: length, markers: markers)
+                            }
+                        } else {
+                            try StemRepair.fill(
+                                target: target.folder.appending(path: stem), from: source.folder.appending(path: stem),
+                                ranges: gaps.map { $0.start..<$0.end }, length: length, markers: markers)
+                        }
                     }
                 } catch {
                     copied = false
@@ -146,7 +166,10 @@ final class TakeRepair {
             }
             for gap in gaps {
                 let range = gap.start..<gap.end
-                let sourceHasIt = !sourceGaps.contains { $0.overlaps(range) }
+                let sourceHasIt = standIns.map { standIns in
+                    // Every frame of the Gap is in some stand-in.
+                    standIns.reduce(into: range.count) { left, standIn in left -= range.clamped(to: standIn.start..<standIn.end).count } == 0
+                } ?? !sourceGaps.contains { $0.overlaps(range) }
                 repairs.append(.init(copy: gap.copy, start: gap.start, end: gap.end, outcome: copied && sourceHasIt ? .repaired : .failed))
             }
         }

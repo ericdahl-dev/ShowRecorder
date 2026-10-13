@@ -80,6 +80,25 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         }
     }
 
+    /// Drive only (#196, ADR 0006): the stretches the Device recorded because the Drive couldn't take them, in
+    /// order. Each is its own folder of Stems in the Device's Take folder, whose first frame is the stretch's
+    /// start; Repair moves them into the Drive Copy and removes the Take from the Device. Nil for a Take with
+    /// two Copies.
+    public var standIns: [StandIn]?
+
+    public struct StandIn: Codable, Equatable, Sendable {
+        public var start: Int
+        public var end: Int
+
+        public init(start: Int, end: Int) {
+            self.start = start
+            self.end = end
+        }
+
+        /// The folder, in the Device's Take folder, holding this stretch's Stems.
+        public var folderName: String { "Stand-in \(start)" }
+    }
+
     /// Stretches of one Copy that were lost because its writer couldn't keep up, written as silence of the
     /// exact length so the Stems stay as long as the Take. Unlike a Gap, Repair doesn't fill them (yet).
     public var dropouts: [Dropout] = []

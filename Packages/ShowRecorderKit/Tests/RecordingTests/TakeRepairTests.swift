@@ -128,4 +128,67 @@ struct TakeRepairTests {
         await roomy.wait()
         #expect(runner.skips.last == [])
     }
+
+    // MARK: - Drive only (#196, ADR 0006)
+
+    @Test("Drive only: Repair fills the Drive's Gap from the Device stand-in, then removes the Take from the Device")
+    func standInMovedToDrive() async throws {
+        let take = (0..<10_000).map { Float($0 % 100) / 200 }
+        let stem = "01 USB 01.wav"
+        let info = StemWriter.Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: RecordingTakeTests.showDay)
+        func write(_ samples: [Float], to url: URL) throws {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let writer = try StemWriter.open(url: url, info: info, resumingAt: nil)
+            try samples.withUnsafeBufferPointer { try writer.append($0) }
+            try writer.finalize()
+        }
+        let device = root.appending(path: "Device/Take 01")
+        let drive = root.appending(path: "Drive/Take 01")
+        // The Drive was lost for Take frames 3,000 to 7,000: silence there on the Drive, and only those frames on the Device.
+        try write(Array(take[0..<3_000]) + [Float](repeating: 0, count: 4_000) + Array(take[7_000...]), to: drive.appending(path: stem))
+        var metadata = metadata(take: 1, gaps: [.init(copy: .drive, start: 3_000, end: 7_000)])
+        metadata.standIns = [.init(start: 3_000, end: 7_000)]
+        let standIn = device.appending(path: metadata.standIns![0].folderName)
+        try write(Array(take[3_000..<7_000]), to: standIn.appending(path: stem))
+        try metadata.write(to: device)
+        try metadata.write(to: drive)
+
+        let queue = TakeRepair(freeSpace: { _ in .max })
+        queue.enqueue(metadata, folders: [device, drive], holding: nil)
+        await queue.wait()
+
+        let whole = root.appending(path: "whole.wav")
+        try write(take, to: whole)
+        #expect(try StemWriter.readSamples(url: drive.appending(path: stem), frames: 0..<10_000) == StemWriter.readSamples(url: whole, frames: 0..<10_000))
+        #expect(queue.outcomes[.drive] == .repaired)
+        #expect(!FileManager.default.fileExists(atPath: device.path), "nothing of the Take is left on the Device")
+        #expect(try TakeMetadata.read(fromTakeFolder: drive).outcome(ofCopy: .drive) == .repaired)
+    }
+
+    @Test("Drive only: a Gap the stand-ins don't fully cover is Repair failed, and the stand-in stays on the Device")
+    func standInKeptWhenIncomplete() async throws {
+        let stem = "01 USB 01.wav"
+        let info = StemWriter.Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: RecordingTakeTests.showDay)
+        func write(_ frames: Int, to url: URL) throws {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let writer = try StemWriter.open(url: url, info: info, resumingAt: nil)
+            try [Float](repeating: 0.1, count: frames).withUnsafeBufferPointer { try writer.append($0) }
+            try writer.finalize()
+        }
+        let device = root.appending(path: "Device/Take 01")
+        let drive = root.appending(path: "Drive/Take 01")
+        try write(10_000, to: drive.appending(path: stem))
+        // The Drive missed 3,000 to 7,000, but the Device only got 3,000 to 5,000 (it filled up).
+        var metadata = metadata(take: 1, gaps: [.init(copy: .drive, start: 3_000, end: 7_000)])
+        metadata.standIns = [.init(start: 3_000, end: 5_000)]
+        try write(2_000, to: device.appending(path: metadata.standIns![0].folderName).appending(path: stem))
+        try metadata.write(to: device)
+
+        let queue = TakeRepair(freeSpace: { _ in .max })
+        queue.enqueue(metadata, folders: [device, drive], holding: nil)
+        await queue.wait()
+
+        #expect(queue.outcomes[.drive] == .repairFailed)
+        #expect(FileManager.default.fileExists(atPath: device.appending(path: metadata.standIns![0].folderName).appending(path: stem).path))
+    }
 }
