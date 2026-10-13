@@ -13,26 +13,26 @@ expect() {
   fi
 }
 
-ALL="vocab package app site"
-expect "website/app/page.tsx" "site"
-expect "docs/app-store/listing.md" "none"
+ALL="spelling vocab package app site"
+expect "website/app/page.tsx" "spelling site"
+expect "docs/app-store/listing.md" "spelling"
 expect "README.md
 design/notes.md
-LICENSE.md" "none"
-expect "App/RecordView.swift" "vocab app"
-expect "project.yml" "app"
-expect "ShowRecorder.xcodeproj/project.pbxproj" "app"
-expect "Packages/ShowRecorderKit/Sources/Kit/Take.swift" "vocab package app"
-expect "Packages/ShowRecorderKit/Package.swift" "package app"
-expect "scripts/vocab-avoid.txt" "vocab"
-expect "CONTEXT.md" "vocab"
+LICENSE.md" "spelling"
+expect "App/RecordView.swift" "spelling vocab app"
+expect "project.yml" "spelling app"
+expect "ShowRecorder.xcodeproj/project.pbxproj" "spelling app"
+expect "Packages/ShowRecorderKit/Sources/Kit/Take.swift" "spelling vocab package app"
+expect "Packages/ShowRecorderKit/Package.swift" "spelling package app"
+expect "scripts/vocab-avoid.txt" "spelling vocab"
+expect "CONTEXT.md" "spelling vocab"
 expect "App/RecordView.swift
-website/lib/site.ts" "vocab app site"
+website/lib/site.ts" "spelling vocab app site"
 expect "scripts/verify.sh" "$ALL"
 expect ".github/workflows/ci.yml" "$ALL"
 expect "something/new.txt" "$ALL"
 # The site's changelog test reads the release notes, so they pick the site check (#466 turned main red).
-expect "docs/release-notes/v1.1.2.md" "site"
+expect "docs/release-notes/v1.1.2.md" "spelling site"
 # Nothing changed: run everything, as a plain "is main green?" check.
 expect "" "$ALL"
 
