@@ -100,7 +100,7 @@ struct AutoGainList: View {
 extension AutoGainSession.Result {
     var usbChannel: Int {
         switch self {
-        case .set(let usb, _, _, _, _), .skipped(let usb, _), .failed(let usb, _, _), .stopped(let usb, _), .error(let usb, _, _): usb
+        case .set(let usb, _, _, _, _), .skipped(let usb, _), .failed(let usb, _, _, _), .stopped(let usb, _), .error(let usb, _, _): usb
         }
     }
 
@@ -124,17 +124,19 @@ extension AutoGainSession.Result {
             return "No Mixer channel on this USB Channel"
         case .skipped(_, .sameChannel(let earlier)):
             return "Same Mixer channel as USB \(earlier)"
-        case .failed(_, _, .stillClipping(let level)):
+        case .failed(_, _, .stillClipping(let level), _):
             return "Still too loud at the lowest gain (\(dbfs(level)))"
-        case .failed(_, _, .stillTooQuiet(let level)):
+        case .failed(_, _, .stillTooQuiet(let level), _):
             return "Still too quiet at the highest gain (\(dbfs(level)))"
-        case .failed(_, _, .rangeReached(let level)):
+        case .failed(_, _, .rangeReached(let level), let limit?):
+            return "\(limit.explanation), so the gain can't move further without changing the mix (\(dbfs(level)))"
+        case .failed(_, _, .rangeReached(let level), nil):
             return "The preamp is at the end of its range (\(dbfs(level)))"
-        case .failed(_, _, .offTarget(let level)):
+        case .failed(_, _, .offTarget(let level), _):
             return String(format: "Ended at %@, %.1f dB from -18", dbfs(level), abs(level + 18))
-        case .failed(_, _, .signalLost):
+        case .failed(_, _, .signalLost, _):
             return "The signal stopped while measuring"
-        case .failed(_, _, .noSignal):
+        case .failed(_, _, .noSignal, _):
             return "No signal, left alone"
         case .stopped:
             return "Stopped: the level didn't follow the gain. Check the Mixer's USB routing. The gain was put back."

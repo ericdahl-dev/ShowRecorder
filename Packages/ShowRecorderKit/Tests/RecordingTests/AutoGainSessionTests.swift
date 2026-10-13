@@ -17,6 +17,9 @@ final class FakeGainControl: GainControl {
     /// When set, each gain move waits on it first, as a slow Mixer does.
     var answer: (@Sendable () async -> Void)?
     let gainRange: ClosedRange<Double> = -12...60
+    /// When set, Re-Gain can't raise a gain past this, as when a threshold reaches its top: it stops there and says so.
+    var reGainCeilingDb: Double?
+    static let gateAtTop = ReGain.Limit(setting: ReGain.Setting(channel: 1, parameter: .gateThreshold), endDb: 0)
 
     init(gainDb: [Int: Double], channelOfUSB: [Int: Int]) {
         self.gainDb = gainDb
@@ -33,9 +36,14 @@ final class FakeGainControl: GainControl {
         return await MainActor.run {
             let target = movesInstead[channel] ?? channel
             let from = gainDb[target] ?? 0
-            let to = min(gainRange.upperBound, max(gainRange.lowerBound, from + gainChangeDb))
+            var to = min(gainRange.upperBound, max(gainRange.lowerBound, from + gainChangeDb))
+            var limit: ReGain.Limit?
+            if let ceiling = reGainCeilingDb, to > max(from, ceiling) {
+                to = max(from, ceiling)
+                limit = Self.gateAtTop
+            }
             gainDb[target] = to
-            return GainStep(channel: channel, headamp: target, fromGainDb: from, toGainDb: to, held: [:], limitedBy: nil, restore: ["gain/\(target)": Float(from)])
+            return GainStep(channel: channel, headamp: target, fromGainDb: from, toGainDb: to, held: [:], limitedBy: limit, restore: ["gain/\(target)": Float(from)])
         }
     }
 
@@ -103,7 +111,7 @@ struct AutoGainSessionTests {
 
         let results = await session.run(usbChannels: [1])
 
-        guard case .failed(usbChannel: 1, channel: 1, failure: let failure)? = results.first else {
+        guard case .failed(usbChannel: 1, channel: 1, failure: let failure, _)? = results.first else {
             Issue.record("expected a failure, got \(results)"); return
         }
         #expect([.rangeReached(levelDbfs: -2), .stillClipping(levelDbfs: -2)].contains(failure), "the preamp is at its -12 dB end")
@@ -160,5 +168,41 @@ struct AutoGainSessionTests {
         _ = await session.run(usbChannels: [1])
 
         #expect(logged.map(\.reason) == [.autoGain, .undo])
+    }
+
+    @Test("Running a USB Channel again keeps the earlier run's moves for Undo, so Undo puts the gain back where it started")
+    func undoAfterRerun() async throws {
+        let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
+        control.reGainCeilingDb = 10
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]))
+
+        _ = await session.run(usbChannels: [1])
+        _ = await session.run(usbChannels: [1])
+        #expect(control.gainDb[1] == 10)
+        try await session.undo(usbChannel: 1)
+
+        #expect(control.gainDb[1] == 0)
+    }
+
+    @Test("When Re-Gain can't go further, the result says which setting stopped it, not that the preamp ran out")
+    func limitNamed() async throws {
+        let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
+        control.reGainCeilingDb = 10
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]))
+
+        let results = await session.run(usbChannels: [1])
+
+        #expect(results == [.failed(usbChannel: 1, channel: 1, failure: .rangeReached(levelDbfs: -30), limitedBy: FakeGainControl.gateAtTop)])
+    }
+
+    @Test("A Re-Gain limit reads as the setting that stopped it and its end stop",
+          arguments: [(ReGain.Limit(setting: .init(channel: 1, parameter: .gateThreshold), endDb: 0),
+                       "Channel 1's gate threshold is at its end stop (0 dB)"),
+                      (ReGain.Limit(setting: .init(channel: 3, parameter: .mainFader), endDb: -90),
+                       "Channel 3's fader is at its end stop (-90 dB)"),
+                      (ReGain.Limit(setting: .init(channel: 2, parameter: .send(4)), endDb: 10),
+                       "Channel 2's send 4 is at its end stop (+10 dB)")])
+    func limitText(limit: ReGain.Limit, text: String) {
+        #expect(limit.explanation == text)
     }
 }
