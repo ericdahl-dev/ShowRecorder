@@ -10,4 +10,27 @@ struct AutoGainAvailabilityTests {
         #expect(AutoGainAvailability.isAvailable(isDebugBuild: true))
         #expect(!AutoGainAvailability.isAvailable(isDebugBuild: false))
     }
+
+    @Test("Auto-gain says why it can't run: a Take running first, then no Mixer Link, then a Mixer whose gain can't be set")
+    func whyNot() {
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: true, canSetGain: true, isRecording: false) == nil)
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: true, canSetGain: true, isRecording: true) == .takeRunning)
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: false, canSetGain: false, isRecording: true) == .takeRunning)
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: false, canSetGain: false, isRecording: false) == .noMixerLink)
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: true, canSetGain: false, isRecording: false) == .cantSetGain)
+    }
+
+    @Test("Each reason says what to do, in plain words")
+    func messages() {
+        #expect(AutoGainAvailability.Unavailable.takeRunning.message.contains("Stop the Take"))
+        #expect(AutoGainAvailability.Unavailable.noMixerLink.message.contains("Settings › Mixer Link"))
+        #expect(!AutoGainAvailability.Unavailable.cantSetGain.message.isEmpty)
+    }
+
+    @Test("While Mixer Link is still connecting, it says so instead of asking to connect")
+    func connecting() {
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: false, isConnecting: true, canSetGain: false, isRecording: false) == .connecting)
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: false, isConnecting: true, canSetGain: false, isRecording: true) == .takeRunning)
+        #expect(AutoGainAvailability.Unavailable.connecting.message.contains("Connecting"))
+    }
 }

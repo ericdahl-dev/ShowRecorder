@@ -1,20 +1,20 @@
 @testable import Recording
 import Testing
 
-/// When the record screen offers auto-gain (#155, #393): never during a Take, since the recorded level would jump
-/// even with the mix kept the same.
+/// When the record screen shows the Gain button (#155): with an X Air or X32 Armed, even when auto-gain can't run, so
+/// its sheet can say why (Eric, 2026-10-13). It never runs during a Take (#393): `whyNot` says `.takeRunning`.
 @Suite("Auto-gain offer")
 struct AutoGainOfferTests {
-    @Test("Offered with Mixer Link on a mixer that can set gain, between Takes; never during a Take")
-    func notDuringATake() {
-        #expect(AutoGainAvailability.isOffered(available: true, mixerLinkOffered: true, canSetGain: true, isRecording: false))
-        #expect(!AutoGainAvailability.isOffered(available: true, mixerLinkOffered: true, canSetGain: true, isRecording: true))
+    @Test("The Gain button shows where auto-gain is available with an X Air or X32 Armed")
+    func shown() {
+        #expect(AutoGainAvailability.isOffered(available: true, mixerLinkOffered: true))
+        #expect(!AutoGainAvailability.isOffered(available: false, mixerLinkOffered: true))
+        #expect(!AutoGainAvailability.isOffered(available: true, mixerLinkOffered: false))
     }
 
-    @Test("Not offered where it isn't available, without Mixer Link, or on a mixer that can't set gain")
-    func needsEverything() {
-        #expect(!AutoGainAvailability.isOffered(available: false, mixerLinkOffered: true, canSetGain: true, isRecording: false))
-        #expect(!AutoGainAvailability.isOffered(available: true, mixerLinkOffered: false, canSetGain: true, isRecording: false))
-        #expect(!AutoGainAvailability.isOffered(available: true, mixerLinkOffered: true, canSetGain: false, isRecording: false))
+    @Test("Shown during a Take, but it can't run then: the sheet says why")
+    func duringATakeShownNotRun() {
+        #expect(AutoGainAvailability.isOffered(available: true, mixerLinkOffered: true))
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: true, canSetGain: true, isRecording: true) == .takeRunning)
     }
 }
