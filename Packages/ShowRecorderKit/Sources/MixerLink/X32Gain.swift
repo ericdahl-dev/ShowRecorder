@@ -72,6 +72,9 @@ extension X32Driver {
 
     static func gainAddress(_ headamp: Int) -> String { String(format: "/headamp/%03d/gain", headamp) }
 
+    /// Whether a channel link also links the headamps ("HA" in the link setup).
+    static let preampLinkAddress = "/config/linkcfg/hadly"
+
     static func address(of setting: ReGain.Setting) -> String {
         let base = String(format: "/ch/%02d", setting.channel)
         return switch setting.parameter {

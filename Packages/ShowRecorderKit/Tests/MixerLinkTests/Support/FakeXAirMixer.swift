@@ -259,8 +259,9 @@ final class FakeXAirMixer: Sendable {
                     guard let blocks = p[2] == "CARD" ? state.cardBlocks : state.inputBlocks,
                           let index = FakeXAirMixer.blockNames.firstIndex(of: p[3]) else { return nil }
                     return OSCMessage(query.address, [.int(blocks[index])])
-                case let p where p.count == 3 && p[0] == "config" && p[1] == "chlink":
-                    // Stereo links: off unless a test sets `/config/chlink/1-2` (as both families name them).
+                case let p where p.count == 3 && p[0] == "config" && (p[1] == "chlink" || p[1] == "linkcfg"):
+                    // Stereo links and what they link (`/config/linkcfg/preamp` on the X-Air, `hadly` on the X32): off
+                    // unless a test sets them.
                     return OSCMessage(query.address, [.int(0)])
                 case let p where p.count == 4 && p[0] == "rtn" && p[1] == "aux" && state.hasAuxReturn:
                     guard state.answersMixState || p[2] == "config" else { return nil }

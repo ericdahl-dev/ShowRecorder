@@ -242,6 +242,8 @@ struct X32GainTests {
         #expect(try await driver.preamp(ofChannel: 17) == driver.preamp(ofChannel: 1))
         #expect(try await driver.preamp(ofChannel: 4) != driver.preamp(ofChannel: 3))
         mixer.update { $0.set["/config/chlink/3-4"] = .int(1) }
+        #expect(try await driver.preamp(ofChannel: 4) != driver.preamp(ofChannel: 3), "linked strips, preamps not linked")
+        mixer.update { $0.set["/config/linkcfg/hadly"] = .int(1) }
         #expect(try await driver.preamp(ofChannel: 4) == driver.preamp(ofChannel: 3))
     }
 }

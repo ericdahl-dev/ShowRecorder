@@ -137,7 +137,7 @@ extension AutoGainSession.Result {
         case .skipped(_, .sameChannel(let earlier)):
             return "Same Mixer channel as USB \(earlier)"
         case .skipped(_, .samePreamp(let earlier)):
-            return "Same preamp as USB \(earlier) (linked or shared)"
+            return "Same preamp as USB \(earlier) (stereo-linked, or on the same input)"
         case .failed(_, _, .stillClipping(let level), _):
             return "Still too loud at the lowest gain (\(dbfs(level)))"
         case .failed(_, _, .stillTooQuiet(let level), _):
