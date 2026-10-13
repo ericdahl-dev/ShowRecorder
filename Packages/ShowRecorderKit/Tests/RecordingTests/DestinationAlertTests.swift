@@ -103,4 +103,13 @@ struct DriveRejoinNoticeTests {
             #expect(old.alert == new.alert)
         }
     }
+
+    @Test("A Drive lost in one Take doesn't make the next Take say it's back")
+    func rejoinResetsAtTakeEnd() {
+        var notice = DriveRejoinNotice()
+        notice.update(copies: takeCopies(device: .recording, drive: .interrupted))
+        notice.update(copies: takeCopies(running: false, device: .complete, drive: .repaired))
+        notice.update(copies: takeCopies(device: .recording, drive: .recording))
+        #expect(notice.alert == nil)
+    }
 }
