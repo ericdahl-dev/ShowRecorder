@@ -28,6 +28,14 @@ public struct DeviceChoice: Identifiable {
 @MainActor
 public protocol InputDeviceSource {
     func devices() -> [DeviceChoice]
+    /// iOS: the input the current route provides, opened at `sampleRate` (nil: the route's own).
+    func currentRouteDevice(sampleRate: Int?) throws -> any AudioIODevice
+}
+
+extension InputDeviceSource {
+    public func currentRouteDevice(sampleRate: Int?) throws -> any AudioIODevice {
+        throw CocoaError(.featureUnsupported)
+    }
 }
 
 /// What happened to the recorder, for whoever follows Takes.
@@ -272,10 +280,33 @@ public final class TakeSequencer {
         }
     }
 
-    /// The iOS input route really changed: what to do with the input (`InterruptionPolicy.routeChanged`). The App
-    /// still carries a move out until it moves here too.
-    public func routeChanged() -> InterruptionPolicy.RouteAction {
-        interruptions.routeChanged(isRecording: recorder.isRecording)
+    /// The iOS input route really changed (the App filters out its own changes and selects the route's input first):
+    /// re-Arm between Takes, move a running Take onto the new route, as `InterruptionPolicy.routeChanged` decides.
+    public func routeChanged() {
+        switch interruptions.routeChanged(isRecording: recorder.isRecording) {
+        case .none: break
+        case .rearm: arm()
+        case .moveInput: moveTakeToCurrentRoute()
+        }
+    }
+
+    /// Moves a running Take onto the current route, keeping it if the format still matches (#10). It asks for the
+    /// Take's rate (#195): the default 48 kHz would end a 96 or 44.1 kHz Take.
+    private func moveTakeToCurrentRoute() {
+        let wasStopped = interruptions.isInputStopped
+        do {
+            let device = try source.currentRouteDevice(sampleRate: recorder.sampleRate)
+            let continued = try recorder.restartInput(on: device)
+            armedDevice = devices.first { $0.id == selectedDeviceID }?.info
+            didArm(device)
+            log("Input route changed during a Take; \(continued ? "the Take continues" : "the format changed, so the Take was stopped and saved")")
+            if !continued { recordError = TakeEnd.Reason.inputChanged.message }
+            // A retry that works ends the "input is stopped" state the failed move left behind.
+            if wasStopped { handle(.restarted) }
+        } catch {
+            // The policy says what's missing and tries again on the next route change or foreground.
+            handle(.moveFailed(String(describing: error)))
+        }
     }
 
     /// An audio session interruption, a media services reset or a change of app state: `InterruptionPolicy` decides,

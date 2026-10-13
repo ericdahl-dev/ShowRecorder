@@ -535,6 +535,12 @@ extension StatusChip.Kind {
 /// The Audio interfaces this device offers: Core Audio on the Mac, the audio session on iOS, and the Demo signal.
 struct AppInputDevices: InputDeviceSource {
     func devices() -> [DeviceChoice] { RecordScreenModel.availableDevices() }
+
+    #if os(iOS)
+    func currentRouteDevice(sampleRate: Int?) throws -> any AudioIODevice {
+        try SessionAudioDevice.current(sampleRate: sampleRate)
+    }
+    #endif
 }
 
 @MainActor
@@ -1275,33 +1281,7 @@ final class RecordScreenModel {
             guard Self.isRouteInput(selectedDeviceID) else { continue }
             // Whatever iOS just routed to is now the selection; re-arming must not pull it back.
             selectCurrentRouteInput()
-            switch sequencer.routeChanged() {
-            case .none: break
-            case .rearm: armSelectedDevice()
-            case .moveInput: moveTakeToCurrentRoute()
-            }
-        }
-    }
-
-    /// Moves a running Take onto the new route, keeping it if the format still matches (#10).
-    private func moveTakeToCurrentRoute() {
-        let wasStopped = interruptions.isInputStopped
-        do {
-            // Ask for the rate the Take runs at (#195): the default 48 kHz would end a 96 or 44.1 kHz Take.
-            let device = try SessionAudioDevice.current(sampleRate: recorder.sampleRate)
-            let continued = try recorder.restartInput(on: device)
-            noteOfferedChannels(of: device)
-            armedDevice = devices.first { $0.id == selectedDeviceID }?.info
-            meterModel.reset(channelCount: recorder.usbChannelCount)
-            Self.sessionLog.notice("Input route changed during a Take; \(continued ? "the Take continues" : "the format changed, so the Take was stopped and saved", privacy: .public)")
-            if !continued {
-                recordError = TakeEnd.Reason.inputChanged.message
-            }
-            // A retry that works ends the "input is stopped" state the failed move left behind.
-            if wasStopped { handle(.restarted) }
-        } catch {
-            // The policy says what's missing and tries again on the next route change or foreground.
-            handle(.moveFailed(String(describing: error)))
+            sequencer.routeChanged()
         }
     }
 

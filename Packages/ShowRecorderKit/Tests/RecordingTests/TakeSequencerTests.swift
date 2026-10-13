@@ -34,6 +34,18 @@ final class FakeInputDevices: InputDeviceSource {
     }
 
     func devices() -> [DeviceChoice] { choices }
+
+    /// What the current iOS route opens as; nil makes it fail.
+    var route: (channels: Int, sampleRate: Double)? = (18, 48_000)
+    var routeOpened: [FakeAudioDevice] = []
+
+    func currentRouteDevice(sampleRate: Int?) throws -> any AudioIODevice {
+        struct NoRoute: Error {}
+        guard let route else { throw NoRoute() }
+        let device = FakeAudioDevice(name: "route", inputChannelCount: route.channels, sampleRate: route.sampleRate)
+        routeOpened.append(device)
+        return device
+    }
 }
 
 /// A clock the test moves by hand.
@@ -588,13 +600,55 @@ struct TakeSequencerTests {
         #expect(sequencer.interruptions.notice == nil)
     }
 
-    @Test("A new iOS route re-Arms between Takes and moves a running Take")
-    func routeChangeAction() {
-        let (sequencer, _) = makeSequencer()
+    @Test("A new iOS route between Takes re-Arms on the selected interface")
+    func routeChangeBetweenTakes() {
+        let source = FakeInputDevices()
+        let (sequencer, recorder) = makeSequencer(source)
         sequencer.start()
-        #expect(sequencer.routeChanged() == .rearm)
+        #expect(source.opened.count == 1)
+
+        sequencer.routeChanged()
+
+        #expect(source.opened.count == 2)
+        #expect(recorder.isArmed && !recorder.isRecording)
+    }
+
+    @Test("A new iOS route during a Take moves the Take onto it: same format goes on, another ends as an input change")
+    func routeChangeDuringATake() throws {
+        let source = FakeInputDevices()
+        let (sequencer, recorder) = makeSequencer(source)
+        sequencer.start()
         sequencer.record(sources: [], allowance: nil)
-        #expect(sequencer.routeChanged() == .moveInput)
+
+        sequencer.routeChanged()
+        #expect(recorder.isRecording)
+        #expect(try #require(source.routeOpened.last).isRunning)
+        #expect(sequencer.recordError == nil)
+
+        source.route = (2, 48_000)
+        sequencer.routeChanged()
+        #expect(!recorder.isRecording)
+        #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .inputChanged))
+        #expect(sequencer.recordError == TakeEnd.Reason.inputChanged.message)
+    }
+
+    @Test("A move that fails leaves input stopped, and the next route change tries again and brings it back")
+    func failedRouteMoveRetries() throws {
+        let source = FakeInputDevices()
+        let (sequencer, recorder) = makeSequencer(source)
+        sequencer.start()
+        sequencer.record(sources: [], allowance: nil)
+
+        source.route = nil
+        sequencer.routeChanged()
+        #expect(sequencer.interruptions.isInputStopped)
+        #expect(recorder.isRecording)
+
+        source.route = (18, 48_000)
+        sequencer.routeChanged()
+        #expect(!sequencer.interruptions.isInputStopped)
+        #expect(recorder.isRecording)
+        #expect(try #require(source.routeOpened.last).isRunning)
     }
 
     @Test("A restart that fails leaves input stopped and says so in the notice")
