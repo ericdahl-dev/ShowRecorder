@@ -64,6 +64,13 @@ _Avoid_: Sync, heal, restore
 A setting that writes a Take to the Drive alone. The Device stands in only while the Drive can't take the audio (no Drive at record, or a Drive lost mid-Take); Repair then moves that stretch to the Drive and removes it from the Device. See [ADR 0006](docs/adr/0006-drive-only-recording.md).
 _Avoid_: Single copy, external only
 
+**Stand-in**:
+What the Device writes while Drive only is on and the Drive can't take the audio: from the frame the Drive was lost, or the Take started without one, until the Drive takes the audio again. It counts as the Device's Copy for those frames, and it is never the primary one.
+_Avoid_: Fallback copy, backup
+
+**Moved**:
+A Stand-in whose audio Repair has put on the Drive and then removed from the Device.
+
 **Dropout**:
 A stretch of a Take whose samples reached neither Copy because the recorder couldn't keep up. It is held as silence of the exact length and marked.
 _Avoid_: Gap, glitch, overrun (in user-facing text)
@@ -154,6 +161,15 @@ Names used in the code, not shown to the operator.
 
 **Copy coverage**:
 What each Copy of a Take holds: the one place Gaps and Dropouts are worked out from, for a running Take, one that ended and one cut off by a crash.
+
+**Copies of a Take**:
+What each Destination's Copy of one Take is doing, or ended as, keyed by Destination: the one answer every screen reads (#550). Its Gaps come from Copy coverage.
+
+**Given up**:
+A Drive Copy stopped mid-Take because the Drive hung, without waiting for it (planned with Drive only, #196). Unlike a failed Copy, the Drive may come back.
+
+**Abandoned**:
+A Copy that Stop couldn't finish writing in time: the Take ends without waiting for it. Not the same as Given up, which happens mid-Take.
 
 **Mixer family**:
 Mixers one driver reads, such as the X Air (XR18, MR18) or the X32 (X32, M32). The family is recognized from the Audio interface's name (for Mixer packs) and from the Mixer's own model (for the Mixer Link), and each family knows the port it is asked on and makes its driver.
