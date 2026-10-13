@@ -66,6 +66,7 @@ struct RemoteView: View {
                 .foregroundStyle(.black)
                 .handGestureShortcut(.primaryAction)
                 HoldToStopButton { model.send(.stop) }
+                    .padding(.trailing, 6)   // clear of the screen's rounded edge
             }
         case .armed:
             Button { model.send(.start) } label: {
