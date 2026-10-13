@@ -1336,6 +1336,19 @@ ol.cards {
   white-space: pre;
 }
 
+/* A short callout (a Markdown blockquote), such as the X32 page's "tested only against an emulator". */
+.doc blockquote {
+  margin: 20px 0 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--meter-yellow);
+  background: var(--bg-raised);
+  border-radius: 8px;
+}
+
+.doc blockquote p {
+  margin-top: 0;
+}
+
 /* No docs page has a table yet; keep any that is added narrow enough for 375 px. */
 .doc table {
   margin-top: 14px;

@@ -29,6 +29,24 @@ describe("the X32 and M32 page", () => {
     expect(x32Page).toMatch(/Ethernet/);
   });
 
+  // #482 B: said plainly, near the top, as its own callout: only an emulator so far.
+  it("says near the top that it was tested only against an emulator, and to try it first at a rehearsal or beside the usual recorder", () => {
+    const callout = x32Page.match(/^> .+$/m)?.[0] ?? "";
+    expect(x32Page.indexOf(callout)).toBeLessThan(x32Page.indexOf("## What you get"));
+    expect(callout).toMatch(/emulator/);
+    expect(callout).toMatch(/rehearsal/);
+    expect(callout).toMatch(/usual recorder/);
+  });
+
+  it("says setup should show 32 USB Channels, and to tell us if it doesn't", () => {
+    expect(x32Page).toMatch(/should show \*\*32 USB Channels\*\*/);
+    expect(x32Page).toMatch(/If it doesn't, tell us/);
+  });
+
+  it("says the X-LIVE and DN32-LIVE cards are untested", () => {
+    expect(x32Page).toMatch(/X-LIVE and DN32-LIVE cards haven't been tested/);
+  });
+
   it("is linked from the X32 entry in Supported mixers", () => {
     expect(inBeta.find((m) => /X32/.test(m.name))?.href).toBe("/mixers/x32");
   });
