@@ -87,15 +87,32 @@ public final class AutoGainPanel {
         return Self.compensationSummary(session.compensated(usbChannel: usbChannel), channel: channel)
     }
 
-    /// "To keep the mix: fader -5.0 to -11.0 dB, channel 2's gate threshold -40.0 to -46.0 dB". A setting on another
-    /// channel (one keyed from this one) names its channel.
+    /// In plain words. Re-Gain moves every setting by the same amount, so that's one line: "To keep the mix: fader,
+    /// 6 sends and 2 thresholds moved -25.0 dB". When the amounts differ (a setting reached its end), each is listed:
+    /// "fader -80.0 to -90.0 dB, send 3 +5.0 to -20.0 dB". A setting on another channel (one keyed from this one)
+    /// names its channel.
     static func compensationSummary(_ moved: [TakeMetadata.GainChange.Compensation], channel: Int) -> String? {
-        guard !moved.isEmpty else { return nil }
-        let parts = moved.map { change in
-            let name = change.channel == channel ? change.setting : "channel \(change.channel)'s \(change.setting)"
-            return String(format: "%@ %.1f to %.1f dB", name, change.fromDb, change.toDb)
+        guard let first = moved.first else { return nil }
+        func name(_ change: TakeMetadata.GainChange.Compensation) -> String {
+            change.channel == channel ? change.setting : "channel \(change.channel)'s \(change.setting)"
         }
-        return "To keep the mix: " + parts.joined(separator: ", ")
+        let amount = first.toDb - first.fromDb
+        guard moved.allSatisfy({ abs(($0.toDb - $0.fromDb) - amount) < 0.05 }) else {
+            let parts = moved.map { String(format: "%@ %+.1f to %+.1f dB", name($0), $0.fromDb, $0.toDb) }
+            return "To keep the mix: " + parts.joined(separator: ", ")
+        }
+        let own = moved.filter { $0.channel == channel }
+        let sends = own.filter { $0.setting.hasPrefix("send ") }
+        let thresholds = own.filter { $0.setting.hasSuffix("threshold") }
+        func counted(_ group: [TakeMetadata.GainChange.Compensation], _ plural: String) -> [String] {
+            group.count > 1 ? ["\(group.count) \(plural)"] : group.map(\.setting)
+        }
+        let parts = own.filter { $0.setting == "fader" }.map(\.setting)
+            + own.filter { $0.setting != "fader" && !sends.contains($0) && !thresholds.contains($0) }.map(\.setting)
+            + counted(sends, "sends") + counted(thresholds, "thresholds")
+            + moved.filter { $0.channel != channel }.map(name)
+        let list = parts.count > 1 ? parts.dropLast().joined(separator: ", ") + " and " + parts.last! : parts[0]
+        return "To keep the mix: " + list + String(format: " moved %+.1f dB", amount)
     }
 }
 

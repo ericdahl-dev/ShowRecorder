@@ -80,10 +80,12 @@ struct AutoGainList: View {
                             } else if let result = results[channel.number] {
                                 Text(result.summary).font(.caption).foregroundStyle(result.isProblem ? .orange : .secondary)
                                 if let moved = compensation(channel.number) {
-                                    Text(moved).font(.caption).foregroundStyle(.secondary)
+                                    Text(moved).font(.caption).foregroundStyle(.tertiary)
                                 }
                             }
                         }
+                        // One VoiceOver stop: the channel, its result and what moved to keep the mix.
+                        .accessibilityElement(children: .combine)
                         Spacer()
                         if canUndo(channel.number), !running.contains(channel.number) {
                             Button("Undo") { undoOne(channel.number) }.disabled(locked).buttonStyle(.borderless)
@@ -155,7 +157,7 @@ extension AutoGainList {
     ]
     static let demoUndoable: Set<Int> = [1, 4]
     static let demoCompensation: [Int: String] = [
-        1: "To keep the mix: fader -5.0 to -30.0 dB, gate threshold -40.0 to -65.0 dB, send 3 -10.0 to -35.0 dB",
+        1: "To keep the mix: fader, 6 sends and 2 thresholds moved -25.0 dB",
     ]
 }
 
