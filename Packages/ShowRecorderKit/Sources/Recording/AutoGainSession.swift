@@ -199,7 +199,7 @@ public final class AutoGainSession {
                         // Stopped partway: what was written is logged and kept for Undo (#450), then the run ends.
                         if case .gainMoveInterrupted(let partial) = error {
                             taken.append(partial)
-                            log(Self.change(partial, usbChannel: usbChannel, reason: .autoGain))
+                            log(GainLog.change(partial, usbChannel: usbChannel, reason: .autoGain))
                         }
                         throw error
                     }
@@ -210,7 +210,7 @@ public final class AutoGainSession {
                     // while the gain snaps back to where it was, so that counts as a move.
                     if applied != 0 || step.changes.contains(where: { step.held[$0.setting] ?? $0.toDb != $0.fromDb }) {
                         taken.append(step)
-                        log(Self.change(step, usbChannel: usbChannel, reason: .autoGain))
+                        log(GainLog.change(step, usbChannel: usbChannel, reason: .autoGain))
                     }
                     expected = lastLevel + applied
                     return applied
@@ -228,7 +228,7 @@ public final class AutoGainSession {
                 do throws(MixerLinkProblem) {
                     try await onMixer { () throws(MixerLinkProblem) in try await control.undo(step) }
                     taken.removeLast()
-                    log(Self.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
+                    log(GainLog.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
                 } catch {
                     undoProblem = error
                 }
@@ -300,7 +300,7 @@ public final class AutoGainSession {
             }
             guard undone else { return }
             if steps[usbChannel]?.last == step { steps[usbChannel]?.removeLast() }
-            log(Self.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
+            log(GainLog.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
         }
     }
 
@@ -325,41 +325,6 @@ public final class AutoGainSession {
             .sorted { ($0.channel, $0.setting) < ($1.channel, $1.setting) }
     }
 
-    /// A gain step as the log records it: the gain and every compensated setting from and to (reversed for an undo).
-    static func change(_ step: GainStep, usbChannel: Int, reason: TakeMetadata.GainChange.Reason, undoing: Bool = false) -> TakeMetadata.GainChange {
-        let compensations = step.changes.map { change in
-            let held = step.held[change.setting] ?? change.toDb
-            return TakeMetadata.GainChange.Compensation(
-                channel: change.setting.channel, setting: change.setting.parameter.logName,
-                fromDb: undoing ? held : change.fromDb, toDb: undoing ? change.fromDb : held)
-        }
-        return TakeMetadata.GainChange(
-            usbChannel: usbChannel, channel: step.channel, headamp: step.headamp,
-            fromGainDb: undoing ? step.toGainDb : step.fromGainDb, toGainDb: undoing ? step.fromGainDb : step.toGainDb,
-            reason: reason, compensations: compensations)
-    }
-}
-
-extension MixHold.Limit {
-    /// The setting that stopped Mix Hold and its end stop, as the auto-gain sheet says it: "Channel 1's gate threshold
-    /// is at its end stop (0 dB)".
-    public var explanation: String {
-        let db = endDb > 0 ? String(format: "+%g", endDb) : String(format: "%g", endDb)
-        return "Channel \(setting.channel)'s \(setting.parameter.logName) is at its end stop (\(db) dB)"
-    }
-}
-
-extension MixHold.Parameter {
-    /// "gate threshold", "fader", "send 3", as the gain log names it.
-    var logName: String {
-        switch self {
-        case .gateThreshold: "gate threshold"
-        case .compressorThreshold: "compressor threshold"
-        case .mainFader: "fader"
-        case .otherMain(let main): main == 1 ? "mono" : "main \(main)"
-        case .send(let bus): "send \(bus)"
-        }
-    }
 }
 
 /// Stands in while the Mixer Link is down: nothing can move a preamp, and Undo says why and stays offered.
