@@ -364,8 +364,6 @@ extension FixedWidthInteger {
 public protocol StemSink: AnyObject {
     /// Samples written so far.
     var frameCount: UInt64 { get }
-    /// Samples made durable by the last header commit: all a Destination that went away is sure to have kept (#595).
-    var committedFrameCount: UInt64 { get }
     func append(_ samples: UnsafeBufferPointer<Float>) throws
     func commitHeader() throws
     func finalize() throws

@@ -137,11 +137,13 @@ struct TakeSessionTests {
         // It joined at 480 and failed on its first audio: it has the silence and nothing more.
         let failedAt = Int(session.copies[1].writer.stemFrameCounts[0])
         #expect(failedAt == 480)
+        // None of it was committed after the opening commit, so the Stems resume from the start (#595).
+        let committed = 0
 
         let check = session.checkDestinations(drive: { DriveAccess(folder: drive, stop: { secondReleased.increment() }) })
 
         #expect(check == .carryOn)
-        #expect(opened.resumes.last == UInt64(failedAt))
+        #expect(opened.resumes.last == UInt64(committed))
         #expect(session.status(.drive) == .recording)
         #expect(session.copies.count == 2)
         // The earlier access is let go; the new one is held to the end.
@@ -152,7 +154,7 @@ struct TakeSessionTests {
         try await deliver(480)
         let finished = session.finish()
 
-        #expect(finished.metadata.gaps == [.init(copy: .drive, start: 0, end: 480), .init(copy: .drive, start: failedAt, end: rejoinFrame)])
+        #expect(finished.metadata.gaps == [.init(copy: .drive, start: committed, end: rejoinFrame)])
         #expect(finished.statuses[.drive] == .recording)
         #expect(secondReleased.count == 0)
     }
@@ -261,13 +263,13 @@ struct TakeSessionTests {
         _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
         for _ in 0..<4 { try await deliver(480) }
         try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
-        let failedAt = Int(session.copies[1].writer.stemFrameCounts[0])
 
         _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
         let takeEnd = capture.takeFrameCount
         let finished = session.finish()
 
-        #expect(finished.metadata.gaps == [.init(copy: .drive, start: 0, end: 480), .init(copy: .drive, start: failedAt, end: takeEnd)])
+        // Nothing past the opening commit was kept, so the Gap runs from the start (#595).
+        #expect(finished.metadata.gaps == [.init(copy: .drive, start: 0, end: takeEnd)])
     }
 
     @Test("A Marker lands in Take.json and in the Copy that joins after it")

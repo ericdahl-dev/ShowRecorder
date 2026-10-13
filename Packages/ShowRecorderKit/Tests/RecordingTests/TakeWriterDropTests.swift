@@ -21,7 +21,6 @@ struct TakeWriterDropTests {
         }
         var samples: [Float] { lock.withLock { _samples } }
         var frameCount: UInt64 { UInt64(samples.count) }
-        var committedFrameCount: UInt64 { frameCount }
         func append(_ new: UnsafeBufferPointer<Float>) throws {
             if gated {
                 gated = false

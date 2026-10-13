@@ -130,7 +130,6 @@ struct DriveOnlyTakeTests {
             self.healthyFrames = healthyFrames
         }
         var frameCount: UInt64 { inner.frameCount }
-        var committedFrameCount: UInt64 { inner.committedFrameCount }
         func append(_ samples: UnsafeBufferPointer<Float>) throws {
             if Int(inner.frameCount) + samples.count > healthyFrames { gate.wait() }
             try inner.append(samples)
@@ -206,7 +205,6 @@ struct DriveOnlyTakeTests {
             self.gate = gate
         }
         var frameCount: UInt64 { inner.frameCount }
-        var committedFrameCount: UInt64 { inner.committedFrameCount }
         func append(_ samples: UnsafeBufferPointer<Float>) throws {
             if !paused, Int(inner.frameCount) + samples.count > healthyFrames {
                 paused = true

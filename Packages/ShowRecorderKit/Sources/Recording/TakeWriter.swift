@@ -23,6 +23,8 @@ final class TakeWriter: @unchecked Sendable {
     /// Frames between header commits, so a crash loses at most this much (#6).
     private let commitInterval: Int
     private var framesSinceCommit = 0
+    /// Samples in each Stem as of its last header commit, set by the writer thread (#595).
+    private let committedCounts: Mutex<[UInt64]>
     /// The stretch written as silence because this Copy joined late, as Take frames.
     private let leadGapRange = Mutex<Range<Int>?>(nil)
     /// Stretches written as silence because the ring dropped that audio, as Take frames.
@@ -51,6 +53,7 @@ final class TakeWriter: @unchecked Sendable {
         self.feed = feed
         ring = feed.ring
         self.stems = stems
+        committedCounts = Mutex(stems.map(\.frameCount))
         self.commitInterval = commitInterval
     }
 
@@ -80,7 +83,7 @@ final class TakeWriter: @unchecked Sendable {
 
     /// Samples in each Stem that are sure to be there: for a Copy whose write failed, only what the last header
     /// commit made durable, since the rest may have gone with the Destination (#595); otherwise all of them.
-    var stemFramesKept: [UInt64] { failed.load(ordering: .acquiring) ? stems.map(\.committedFrameCount) : stemFrameCounts }
+    var stemFramesKept: [UInt64] { failed.load(ordering: .acquiring) ? committedCounts.withLock { $0 } : stemFrameCounts }
 
     /// Frames every Stem is sure to have, as `stemFramesKept` counts them.
     var framesKept: Int { Int(stemFramesKept.min() ?? 0) }
@@ -134,7 +137,7 @@ final class TakeWriter: @unchecked Sendable {
     private func run() {
         do {
             // Commit once up front so even a Take that dies early leaves files that open.
-            for stem in stems { try stem.commitHeader() }
+            try commitHeaders()
             let join = feed.waitForJoin(while: { running.load(ordering: .acquiring) }, pause: joinPause)
             if let join {
                 joined.store(true, ordering: .releasing)
@@ -153,7 +156,7 @@ final class TakeWriter: @unchecked Sendable {
                 if dropoutRanges.withLock({ $0.count }) != dropoutsBefore { try writeMarkers() }
                 framesSinceCommit += drained
                 if framesSinceCommit >= commitInterval {
-                    for stem in stems { try stem.commitHeader() }
+                    try commitHeaders()
                     framesSinceCommit = 0
                 }
                 if drained == 0 {
@@ -180,6 +183,16 @@ final class TakeWriter: @unchecked Sendable {
         }
         done.store(true, ordering: .releasing)
         finished.signal()
+    }
+
+    /// Commits every Stem's header, noting how much of each is now on disk.
+    private func commitHeaders() throws {
+        for (index, stem) in stems.enumerated() {
+            try checkAbandoned()
+            try stem.commitHeader()
+            let count = stem.frameCount
+            committedCounts.withLock { $0[index] = count }
+        }
     }
 
     /// Once the real-time thread has said which Take frame this Copy starts at, writes what comes before it:

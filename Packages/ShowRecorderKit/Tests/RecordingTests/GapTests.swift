@@ -12,8 +12,6 @@ final class FailingStem: StemSink, @unchecked Sendable {
     private let healthyFrames: Int
     private var frames = 0
     var frameCount: UInt64 { real.frameCount }
-    /// Its Destination fails but loses nothing: what was appended is all on disk (`LossyStem` loses the rest).
-    var committedFrameCount: UInt64 { real.frameCount }
 
     init(_ real: StemWriter, healthyFrames: Int) {
         self.real = real
@@ -116,11 +114,12 @@ struct GapTests {
         let deviceStem = try ParsedStem(contentsOf: device.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
         #expect(deviceStem.samples.count == 4800)
 
-        // The Drive Copy is missing everything after the failure; the Device's Take.json says so.
+        // The Drive Copy is missing everything after its last commit (the one at the start, #595); the Device's
+        // Take.json says so.
         let json = try Data(contentsOf: device.appending(path: "2026-10-06 Show/Take 01/Take.json"))
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == [.init(copy: .drive, start: 480, end: 4800)])
+        #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == [.init(copy: .drive, start: 0, end: 4800)])
     }
 
     @Test("With no Drive at record the Take starts on the Device and the Drive Copy is missing")
@@ -192,14 +191,14 @@ struct GapTests {
         let deviceStem = try ParsedStem(contentsOf: device.appending(path: "\(take)/01 USB 01.wav"))
         let driveStem = try ParsedStem(contentsOf: drive.appending(path: "\(take)/01 USB 01.wav"))
         #expect(driveStem.samples.count == 7200)
-        #expect(Array(driveStem.samples[..<480]) == Array(deviceStem.samples[..<480]))
-        #expect(driveStem.samples[480..<4800].allSatisfy { $0 == 0 })
+        // It resumes at its last commit, the one at the start (#595).
+        #expect(driveStem.samples[..<4800].allSatisfy { $0 == 0 })
         #expect(Array(driveStem.samples[4800...]) == Array(deviceStem.samples[4800...]))
         for folder in [device, drive] {
             let json = try Data(contentsOf: folder.appending(path: "\(take)/Take.json"))
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
-            #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == [.init(copy: .drive, start: 480, end: 4800)])
+            #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == [.init(copy: .drive, start: 0, end: 4800)])
         }
     }
 

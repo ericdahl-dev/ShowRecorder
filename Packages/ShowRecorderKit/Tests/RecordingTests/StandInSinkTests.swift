@@ -10,7 +10,6 @@ struct StandInSinkTests {
         var samples: [Float] = []
         var markers: [StemMarker] = []
         var frameCount: UInt64 { UInt64(samples.count) }
-        var committedFrameCount: UInt64 { frameCount }
         func append(_ samples: UnsafeBufferPointer<Float>) throws { self.samples += samples }
         func commitHeader() throws {}
         func finalize() throws {}
