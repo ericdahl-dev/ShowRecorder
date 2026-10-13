@@ -102,6 +102,18 @@ struct ClipProtectionTests {
 
     static let hot = Windows.repeating(Windows.at(-2), 10)
 
+    /// Waits for `stream`'s next value, or gives up after `seconds`, so a gate the code never reaches fails the test
+    /// instead of hanging the run (and the shared build lock with it).
+    static func next(_ stream: AsyncStream<Void>, within seconds: Double = 30) async -> Bool {
+        await withTaskGroup(of: Bool.self) { group in
+            group.addTask { for await _ in stream { return true }; return false }
+            group.addTask { try? await Task.sleep(for: .seconds(seconds)); return false }
+            let first = await group.next() ?? false
+            group.cancelAll()
+            return first
+        }
+    }
+
     @Test("A held hot Peak turns that channel's preamp down to put the Peak at -6, and logs it as clip protection")
     func turnsDown() async {
         var logged: [TakeMetadata.GainChange] = []
@@ -113,6 +125,26 @@ struct ClipProtectionTests {
         #expect(logged.map(\.reason) == [.clipProtection])
         #expect(logged.first?.usbChannel == 1)
         #expect(logged.first?.toGainDb == 26)
+    }
+
+    @Test("Two preamps hot in one read are turned down at the same time, not one after the other (#554)")
+    func twoPreampsAtOnce() async {
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        control.answer = {
+            enter.yield()
+            for await _ in released { return }
+        }
+        let protection = ClipProtection(control: control, sampleRate: 48_000)
+
+        let moving = Task { await Self.feed(protection, Self.hot, on: [1, 2]) }
+        #expect(await Self.next(entered), "a move reaches the Mixer")
+        for _ in 0..<10 { await Task.yield() }
+        #expect(control.moveStarts == 2, "both moves are on the Mixer before either answers")
+        release.yield()
+        release.yield()
+        await moving.value
+        #expect(control.gainDb == [1: 26, 2: 26])
     }
 
     @Test("After a move the channel is left alone for 5 s, then may move again")
@@ -145,6 +177,31 @@ struct ClipProtectionTests {
         let protection = ClipProtection(control: control, sampleRate: 48_000, log: { logged.append($0) })
 
         await Self.feed(protection, Self.hot, on: [1, 3])
+
+        #expect(control.gainDb == [1: 26, 2: 30])
+        #expect(logged.map(\.usbChannel) == [1])
+    }
+
+    @Test("Two USB Channels on one Mixer channel, both hot: the lower USB Channel moves it, however the Mixer's answers arrive (#554)")
+    func sameChannelInOrder() async {
+        let (asked, ask) = AsyncStream<Void>.makeStream()
+        let (answered, answer) = AsyncStream<Void>.makeStream()
+        var first = true
+        control.preampAnswer = { @MainActor in
+            guard first else { return }
+            first = false
+            ask.yield()
+            for await _ in answered { return }
+        }
+        var logged: [TakeMetadata.GainChange] = []
+        let protection = ClipProtection(control: control, sampleRate: 48_000, log: { logged.append($0) })
+
+        // The first preamp read is slow, so the other channel's answer comes back first.
+        let moving = Task { await Self.feed(protection, Self.hot, on: [1, 3]) }
+        #expect(await Self.next(asked), "a preamp read reaches the Mixer")
+        for _ in 0..<10 { await Task.yield() }
+        answer.yield()
+        await moving.value
 
         #expect(control.gainDb == [1: 26, 2: 30])
         #expect(logged.map(\.usbChannel) == [1])
