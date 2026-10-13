@@ -46,6 +46,19 @@ Several agents often work on this Mac at once, in their own worktrees. Builds ru
 - Stop a build with Ctrl-C, or with `kill` (TERM) to its `build-limit.sh`, `lockf`'s child. The build runs in a process group of its own; `build-limit.sh` stops all of it and waits for it, then `lockf` frees the lock. A signal to `lockf` alone, or a `kill -9` to `build-limit.sh`, frees the lock while the build goes on, and the next build starts beside it.
 - `scripts/build-lock.sh` has the details; `scripts/test-verify-lock.sh` and `scripts/test-build-lock.sh` test it with stand-in tools and a lock of their own, so they never wait on a real build.
 
+### Code coverage
+
+CI's package-tests leg runs `swift test --enable-code-coverage` and puts a coverage table in the job's summary on GitHub: lines and functions per Kit module, a total, and the ten files with the least line coverage. It is a report only: nothing is uploaded, and no number fails a build.
+
+To see it on this Mac, from a clean build so no earlier run's profiles count:
+
+```sh
+cd Packages/ShowRecorderKit && rm -rf .build/out/Products/Debug/codecov && swift test --enable-code-coverage && cd ../..
+./scripts/coverage.sh
+```
+
+`scripts/coverage.sh` merges what every test bundle recorded (`swift test --show-codecov-path` covers only the last one), and `scripts/coverage_table.py` turns it into the table; `scripts/test_coverage.py` tests that. Only the Kit is measured: `App/` and `CoreAudioIO` have no test target (#552).
+
 `scripts/preflight.sh` builds an unsigned iOS Release app and checks what App Store Connect rejects a build for (icon, privacy manifest, export compliance, usage strings, version numbers); pass an `.xcarchive` to check one you already have. Set `BUILD_NUMBER` to override `CURRENT_PROJECT_VERSION` at build time. The marketing version stays in `project.yml`.
 
 To run on a device, pick your own team in Xcode. After editing `project.yml`, run `xcodegen generate` and commit both files.

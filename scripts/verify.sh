@@ -109,6 +109,7 @@ if [ $everything = 1 ]; then
   ./scripts/test-verify-lock.sh
   ./scripts/test-build-lock.sh
   python3 scripts/test_testflight.py
+  python3 scripts/test_coverage.py
 fi
 
 echo "== American spelling (CI's check)"

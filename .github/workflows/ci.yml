@@ -77,7 +77,13 @@ jobs:
       - name: Package tests
         if: matrix.check == 'package tests'
         working-directory: Packages/ShowRecorderKit
-        run: swift test
+        run: swift test --enable-code-coverage
+
+      # Kit code coverage (#576), in the job summary only: our own script, no upload, no floor.
+      - name: Coverage
+        if: matrix.check == 'package tests'
+        run: |
+          { echo "## Kit code coverage"; echo; ./scripts/coverage.sh; } >> "$GITHUB_STEP_SUMMARY"
 
       # TestFlight builds are Release. Mixer detection once worked in Debug but opened port 0 in Release (v1.1.1,
       # EINVAL on the iPhone), so every package test also runs optimized, in its own leg so CI doesn't take longer.
