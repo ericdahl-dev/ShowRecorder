@@ -3,7 +3,8 @@
 // Sources: ericdahl-dev/ShowRecorder issues #199 (X32/M32), #364, #366, #367 (Pioneer DJM), #374 (Mac),
 // and #416 to #425 (the mixer families being checked).
 
-export type MixerEntry = { name: string; body: string };
+// `href`, when set, is the mixer's own page.
+export type MixerEntry = { name: string; body: string; href?: string };
 
 export const worksNow: MixerEntry[] = [
   {
@@ -21,6 +22,7 @@ export const worksNow: MixerEntry[] = [
 export const inBeta: MixerEntry[] = [
   {
     name: "Behringer X32 and Midas M32",
+    href: "/mixers/x32",
     body: "In the public beta: all 32 USB Channels from the X-USB card, names and colors from the mixer over Mixer Link, and each file named after what is patched to that USB Channel. Coming to the App Store in a later update.",
   },
 ];
