@@ -6,15 +6,15 @@ import OSC
 public enum MixerFamily: Sendable, Equatable, CaseIterable {
     /// XR18, MR18 (and the XR12 and XR16, which send no multichannel USB). Seen on the Mac as "X18/XR18".
     case xAir
-    /// X32 and M32 with a USB card. The names are what Behringer and Midas call their cards ("X-USB", "DN32-USB");
-    /// not yet seen on a real card.
+    /// X32 and M32 with a USB card. The names are what Behringer and Midas call their cards ("X-USB", "X-LIVE",
+    /// "DN32-USB", "DN32-LIVE"); not yet seen on a real card (#503).
     case x32
 
     public init?(audioInterfaceName name: String) {
         let name = name.uppercased()
         if ["XR18", "MR18", "X18"].contains(where: name.contains) {
             self = .xAir
-        } else if ["X-USB", "X32", "M32", "DN32"].contains(where: name.contains) {
+        } else if ["X-USB", "X-LIVE", "X32", "M32", "DN32"].contains(where: name.contains) {  // DN32 covers DN32-USB and DN32-LIVE (#503)
             self = .x32
         } else {
             return nil
