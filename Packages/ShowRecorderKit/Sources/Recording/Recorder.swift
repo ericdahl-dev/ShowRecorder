@@ -47,12 +47,10 @@ public final class Recorder {
     /// Names the operator typed for USB Channels (counted from 1). They win over the Mixer's names: a Take
     /// started with them is named so from the start, and a name typed during a Take is put on its files
     /// when it ends.
-    public private(set) var channelNames: [Int: String] = [:]
+    public var channelNames: [Int: String] { naming.typed }
+    /// Who names each USB Channel: typed names, and the Mixer's that arrive late in a Take (#443).
+    public private(set) var naming = ChannelNaming()
     /// Names typed before on this device, newest first, offered as chips (`SavedChannelNames`).
-    /// True while a Take that started with no real Source names is running: the first real names
-    /// offered (see `offerSources`) are kept for the end of the Take.
-    private var takeAcceptsLateNames = false
-    private var lateMixerNames: [Int: String] = [:]
     public private(set) var savedChannelNames: [String] = []
     @ObservationIgnored private let savedNames: UserDefaults
     /// What the current or last Take was allowed, frozen at its record press. Nil: everything (no allowance given).
@@ -125,7 +123,7 @@ public final class Recorder {
         repair.jobDone = { [unowned self] in regenerateReports() }
         // A Show left open by a crash or an earlier launch is the open Show again.
         currentShow = Show.findOpen(in: deviceFolder)
-        channelNames = currentShow?.channelNames ?? [:]
+        naming = ChannelNaming(typed: currentShow?.channelNames ?? [:])
         finishCutOffTake()
     }
 
@@ -253,7 +251,7 @@ public final class Recorder {
         nextShow = nil
         var show = try Show.create(in: deviceFolder, drive: nil, on: date, name: name, venue: venue)
         // Names belong to a Show: the one being replaced keeps its own; names typed before any Show carry over.
-        if currentShow != nil { channelNames = [:] } else if !channelNames.isEmpty { show.setChannelNames(channelNames) }
+        if currentShow != nil { naming.replace(with: [:]) } else if !channelNames.isEmpty { show.setChannelNames(channelNames) }
         currentShow?.end(at: date)
         currentShow = show
     }
@@ -262,7 +260,7 @@ public final class Recorder {
     /// The names are set as if typed, so they come back as chips. Pre-roll and the Mixer are the app's to apply.
     public func startNewShow(from template: Template) throws {
         try startNewShow(name: template.name, venue: template.venue ?? "")
-        channelNames = [:]
+        naming.replace(with: [:])
         for (channel, name) in template.channelNames.sorted(by: { $0.key < $1.key }) {
             setChannelName(name, forChannel: channel)
         }
@@ -280,7 +278,7 @@ public final class Recorder {
         guard !isRecording else { return false }
         endIdleShow(at: now())
         guard currentShow == nil else { return false }
-        channelNames = [:]
+        naming.replace(with: [:])
         for (channel, name) in template.channelNames.sorted(by: { $0.key < $1.key }) {
             setChannelName(name, forChannel: channel)
         }
@@ -291,7 +289,7 @@ public final class Recorder {
     /// Ends the open Show, so the next record starts a new one. Nothing happens when no Show is open.
     public func endShow() throws {
         guard !isRecording else { throw RecorderError.takeRunning }
-        if currentShow != nil { channelNames = [:] }
+        if currentShow != nil { naming.replace(with: [:]) }
         currentShow?.end(at: now())
         currentShow = nil
     }
@@ -301,7 +299,7 @@ public final class Recorder {
         guard let open = currentShow, open.isIdle(at: date) else { return }
         currentShow?.end(at: date)
         currentShow = nil
-        channelNames = [:]
+        naming.replace(with: [:])
     }
 
     /// Names USB Channel `usbChannel` (from 1). Works Armed or during a Take; nothing on disk changes until the
@@ -311,7 +309,7 @@ public final class Recorder {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return false }
         if !isRecording { endIdleShow(at: now()) }
-        channelNames[usbChannel] = name
+        naming.type(name, for: usbChannel)
         currentShow?.setChannelNames(channelNames)
         savedChannelNames = SavedChannelNames.adding(name, to: savedChannelNames)
         SavedChannelNames.save(savedChannelNames, to: savedNames)
@@ -324,7 +322,7 @@ public final class Recorder {
     public func copyChannelNamesFromLastShow() -> Int? {
         guard let current = currentShow, let previous = Show.lastShow(before: current, in: deviceFolder),
               !previous.channelNames.isEmpty else { return nil }
-        channelNames = previous.channelNames
+        naming.replace(with: previous.channelNames)
         currentShow?.setChannelNames(channelNames)
         for name in previous.channelNames.sorted(by: { $0.key > $1.key }).map(\.value) {
             savedChannelNames = SavedChannelNames.adding(name, to: savedChannelNames)
@@ -346,7 +344,7 @@ public final class Recorder {
     /// Takes the typed name off USB Channel `usbChannel` (from 1), so the Show's later Takes use the Mixer's name
     /// again. A Take that is running keeps the name it started with.
     public func clearChannelName(forChannel usbChannel: Int) {
-        guard channelNames.removeValue(forKey: usbChannel) != nil else { return }
+        guard naming.clear(usbChannel) else { return }
         currentShow?.setChannelNames(channelNames)
     }
 
@@ -439,8 +437,7 @@ public final class Recorder {
         currentShow = show
         // The levels of a Take count from the press: drop what the meters gathered before it.
         _ = capture.meters.takeLevels()
-        takeAcceptsLateNames = !sources.contains { $0.hasMixerName }
-        lateMixerNames = [:]
+        naming.takeStarted(with: sources)
         mixerNames = Dictionary(uniqueKeysWithValues: sources.enumerated().map { ($0.offset + 1, $0.element.name) })
         isRecording = true
         if let destinationCheckInterval {
@@ -506,12 +503,7 @@ public final class Recorder {
                 (capture.preRoll?.capacity ?? 0) - Int(device.sampleRate.rounded())))
             let pressReference = UInt64(date.timeIntervalSince(Calendar.current.startOfDay(for: date)) * Double(sampleRate))
             let timeReference = pressReference >= UInt64(preRollFrames) ? pressReference - UInt64(preRollFrames) : 0
-            let resolved = (0..<capture.channelCount).map { channel -> Source in
-                var source = sources.indices.contains(channel) ? sources[channel] : .fallback(usbChannel: channel + 1)
-                // Names typed by hand are a Pro extra: kept on Free, but not put on its files.
-                if allowance?.namingByHand ?? true, let typed = channelNames[channel + 1] { source.name = typed; source.hasMixerName = false }
-                return source
-            }
+            let resolved = naming.sources(for: sources, channelCount: capture.channelCount, allowance: allowance)
             let channels = resolved.enumerated().map { index, source in
                 TakeMetadata.USBChannel(usbChannel: index + 1, stemFile: StemFileName.make(usbChannel: index + 1, sourceName: source.name), source: source)
             }
@@ -534,11 +526,7 @@ public final class Recorder {
     public func offerSources(_ sources: [Source]) {
         guard isRecording else { return }
         logRenames(in: sources)
-        guard takeAcceptsLateNames else { return }
-        let names = Dictionary(uniqueKeysWithValues: sources.enumerated().filter { $0.element.hasMixerName }.map { ($0.offset + 1, $0.element.name) })
-        guard !names.isEmpty else { return }
-        lateMixerNames = names
-        takeAcceptsLateNames = false
+        naming.mixerOffered(sources)
     }
 
     /// The name the Mixer last gave each USB Channel during this Take (or, from the start, the Source the
@@ -690,13 +678,8 @@ public final class Recorder {
     /// Puts the names typed during the Take on its files. Waits for Repair first, which works on the Stems
     /// by their file names.
     private func nameChannels(of metadata: TakeMetadata) {
-        takeAcceptsLateNames = false
-        func changes(_ number: Int, _ name: String) -> Bool { metadata.usbChannels.first { $0.usbChannel == number }.map { $0.name != name } ?? false }
-        // Names typed by hand win over the Mixer's, when the Take may use them (Pro or Trial).
-        let typedNames = lastAllowance?.namingByHand ?? true ? channelNames : [:]
-        let late = lateMixerNames.filter { typedNames[$0.key] == nil && changes($0.key, $0.value) }
-        lateMixerNames = [:]
-        let names = late.merging(typedNames.filter { changes($0.key, $0.value) }) { _, typed in typed }
+        let onFiles = Dictionary(metadata.usbChannels.map { ($0.usbChannel, $0.name) }) { first, _ in first }
+        let (names, late) = naming.takeEnded(allowance: lastAllowance, onFiles: onFiles)
         guard !names.isEmpty, let take = lastTake else { return }
         let allowsProExtras = lastAllowance?.showReport ?? true
         let previous = namingTask
@@ -710,7 +693,7 @@ public final class Recorder {
                 if let access { copies[.drive] = access.folder.appending(path: take.showName).appending(path: TakeMetadata.name(take: take.takeNumber)) }
             }
             defer { access?.end() }
-            _ = ChannelRenamer.rename(names: names, lateChannels: Set(late.keys), in: copies, allowsProExtras: allowsProExtras)
+            _ = ChannelRenamer.rename(names: names, lateChannels: late, in: copies, allowsProExtras: allowsProExtras)
         }
     }
 

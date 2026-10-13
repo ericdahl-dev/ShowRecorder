@@ -279,7 +279,7 @@ struct RecordScreen: View {
     }
 
     private func nameChannel(_ number: Int) {
-        channelName = model.recorder.channelNames[number] ?? (model.linkedSources.indices.contains(number - 1) && model.linkedSources[number - 1].hasMixerName ? model.linkedSources[number - 1].name : "")
+        channelName = model.recorder.naming.editText(number, sources: model.linkedSources)
         namingChannel = number
     }
 
@@ -631,10 +631,7 @@ final class RecordScreenModel {
 
     /// "Kick", or "USB 03" when the channel has no name.
     func channelLabel(_ usbChannel: Int) -> String {
-        if let typed = recorder.channelNames[usbChannel] { return typed }
-        let sources = linkedSources
-        if sources.indices.contains(usbChannel - 1), sources[usbChannel - 1].hasMixerName { return sources[usbChannel - 1].name }
-        return String(format: "USB %02d", usbChannel)
+        recorder.naming.displayName(usbChannel, sources: linkedSources)
     }
     /// How each Copy of the running Take is doing, refreshed about once a second.
     private(set) var deviceCopy: CopyStatus = .missing
