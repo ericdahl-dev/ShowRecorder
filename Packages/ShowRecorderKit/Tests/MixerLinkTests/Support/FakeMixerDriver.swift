@@ -14,11 +14,14 @@ final class FakeMixerDriver: MixerDriver {
         var renewals = 0
         /// Every count `sources(usbChannelCount:)` was asked for.
         var sourceReads: [Int] = []
+        /// When set, `identify()` waits for `releaseIdentify()`, as a Mixer slow to answer does.
+        var holdsIdentify = false
     }
 
     let state: Mutex<State>
     let control: (any GainControl)?
     private let changes = AsyncStream<SourceChange>.makeStream()
+    private let identifyReleases = AsyncStream<Void>.makeStream()
 
     init(_ state: State = State(), gainControl: (any GainControl)? = nil) {
         self.state = Mutex(state)
@@ -28,6 +31,9 @@ final class FakeMixerDriver: MixerDriver {
     var gainControl: (any GainControl)? { control }
 
     func identify() async throws(MixerLinkProblem) -> MixerIdentity {
+        if state.withLock({ $0.holdsIdentify }) {
+            for await _ in identifyReleases.stream { break }
+        }
         let (identity, problem) = state.withLock { ($0.identity, $0.problem) }
         if let problem { throw problem }
         return identity
@@ -57,6 +63,12 @@ final class FakeMixerDriver: MixerDriver {
     }
 
     func sourceChanges() -> AsyncStream<SourceChange> { changes.stream }
+
+    /// The held `identify()` answers (see `State.holdsIdentify`).
+    func releaseIdentify() {
+        state.withLock { $0.holdsIdentify = false }
+        identifyReleases.continuation.yield()
+    }
 
     /// The Mixer pushes `change`, as it does when a name or color changes on the desk.
     func push(_ change: SourceChange) {
