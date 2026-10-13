@@ -4,6 +4,7 @@ import Synchronization
 
 /// Drains the ring into one Stem per USB Channel on a dedicated thread, until stopped.
 final class TakeWriter: @unchecked Sendable {
+    private let feed: CopyFeed
     private let ring: SampleRing
     private let stems: [any StemSink]
     private let running = Atomic<Bool>(true)
@@ -22,27 +23,33 @@ final class TakeWriter: @unchecked Sendable {
     /// Frames between header commits, so a crash loses at most this much (#6).
     private let commitInterval: Int
     private var framesSinceCommit = 0
-    /// Stretches written as silence because this Copy joined late, as Take frames.
-    private let gapRanges: Mutex<[Range<Int>]>
+    /// The stretch written as silence because this Copy joined late, as Take frames.
+    private let leadGapRange = Mutex<Range<Int>?>(nil)
     /// Stretches written as silence because the ring dropped that audio, as Take frames.
     private let dropoutRanges = Mutex<[Range<Int>]>([])
     /// The operator's Markers, last set by `setMarkers`. Only the writer thread uses it.
     private var operatorMarkers: [StemMarker] = []
     /// Markers waiting to be written into the Stems by the writer thread.
-    private let pendingMarkers = Mutex<[StemMarker]?>(nil)
+    private let pendingMarkers: Mutex<[StemMarker]?>
     /// Where the Copy's first frames come from, when it starts with Pre-roll: asked once, after the
     /// real-time thread has said which Take frame the live audio starts at. Returns one array of samples
     /// per channel, as long as the frames before that point, or nil if they are no longer there.
     private let head: (() -> [[Float]]?)?
+    /// What the writer thread does between looks while it waits for its join frame.
+    private let joinPause: () -> Void
 
     init(
-        ring: SampleRing, stems: [any StemSink], commitInterval: Int, onFailure: @escaping @Sendable () -> Void = {},
-        priorGaps: [Range<Int>] = [], head: (() -> [[Float]]?)? = nil
+        feed: CopyFeed, stems: [any StemSink], commitInterval: Int, onFailure: @escaping @Sendable () -> Void = {},
+        head: (() -> [[Float]]?)? = nil, markers: [StemMarker] = [],
+        joinPause: @escaping () -> Void = { Thread.sleep(forTimeInterval: 0.002) }
     ) {
         self.head = head
-        gapRanges = Mutex(priorGaps)
+        // Markers given here are waiting before the writer starts, so they are in the Stems before its first audio.
+        pendingMarkers = Mutex(markers.isEmpty ? nil : markers)
+        self.joinPause = joinPause
         self.onFailure = onFailure
-        self.ring = ring
+        self.feed = feed
+        ring = feed.ring
         self.stems = stems
         self.commitInterval = commitInterval
     }
@@ -61,8 +68,9 @@ final class TakeWriter: @unchecked Sendable {
         thread.start()
     }
 
-    /// Stretches written as silence because this Copy joined after the Take began.
-    var gaps: [Range<Int>] { gapRanges.withLock { $0 } }
+    /// The stretch written as silence before this Copy's first audio, because it joined after the Take began
+    /// (after any Pre-roll head). Nil when it joined where its Stems already were.
+    var leadGap: Range<Int>? { leadGapRange.withLock { $0 } }
 
     /// Frames every Stem has: the Copy's length so far. Read once the writer has stopped.
     var framesWritten: Int { Int(stems.map(\.frameCount).min() ?? 0) }
@@ -120,7 +128,12 @@ final class TakeWriter: @unchecked Sendable {
         do {
             // Commit once up front so even a Take that dies early leaves files that open.
             for stem in stems { try stem.commitHeader() }
-            let didJoin = try waitForJoin()
+            let join = feed.waitForJoin(while: { running.load(ordering: .acquiring) }, pause: joinPause)
+            if let join {
+                joined.store(true, ordering: .releasing)
+                try writeLeadIn(join: join)
+            }
+            let didJoin = join != nil
             while didJoin {
                 let stillRunning = running.load(ordering: .acquiring)
                 if let markers = pendingMarkers.withLock({ pending in defer { pending = nil }; return pending }) {
@@ -162,15 +175,9 @@ final class TakeWriter: @unchecked Sendable {
         finished.signal()
     }
 
-    /// A Copy that joins mid-Take waits for the real-time thread to say which Take frame it starts at,
-    /// then writes silence up to it. Returns false if the Take stopped first.
-    private func waitForJoin() throws -> Bool {
-        while ring.joinFrame.load(ordering: .acquiring) < 0 {
-            if !running.load(ordering: .acquiring) { return false }
-            Thread.sleep(forTimeInterval: 0.002)
-        }
-        let join = ring.joinFrame.load(ordering: .acquiring)
-        joined.store(true, ordering: .releasing)
+    /// Once the real-time thread has said which Take frame this Copy starts at, writes what comes before it:
+    /// the Pre-roll head when there is one, then silence up to the join.
+    private func writeLeadIn(join: Int) throws {
         if let head, join > 0, framesWritten == 0, let samples = head(), samples.count == stems.count,
            samples.allSatisfy({ $0.count == join }) {
             for (index, stem) in stems.enumerated() {
@@ -178,7 +185,7 @@ final class TakeWriter: @unchecked Sendable {
             }
         }
         let start = framesWritten
-        if join > start { gapRanges.withLock { $0.append(start..<join) } }
+        if join > start { leadGapRange.withLock { $0 = start..<join } }
         let silence = [Float](repeating: 0, count: 4096)
         for stem in stems {
             var remaining = join - Int(stem.frameCount)
@@ -188,7 +195,6 @@ final class TakeWriter: @unchecked Sendable {
                 remaining -= count
             }
         }
-        return true
     }
 
     /// Writes what the ring holds. Where the ring had to drop audio, writes silence of the lost length
