@@ -15,7 +15,7 @@ export function GET() {
     "",
     `> ${PAGES.home.description}`,
     "",
-    "ShowRecorder is an app for iPhone and iPad. It works best with a Behringer X Air XR18 or MR18, which gives 18 channels with names and colors read from the mixer over its Wi-Fi. Other class-compliant USB audio interfaces record too, without names. It is free to download with a 14-day Trial of everything; Pro is a one-time purchase. No account, and no data is collected.",
+    "ShowRecorder is an app for iPhone and iPad. It works best with a Behringer X Air XR18 or MR18, which gives 18 channels with names and colors read from the mixer over its Wi-Fi. Other class-compliant USB audio interfaces record too, without names. The Behringer X32 and Midas M32 work in the public beta: 32 USB Channels with names and colors from the mixer, each file named after what is patched to it. They come to the App Store in a later update. It is free to download with a 14-day Trial of everything; Pro is a one-time purchase. No account, and no data is collected.",
     "",
     "## Pages",
     "",

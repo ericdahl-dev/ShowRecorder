@@ -1,5 +1,5 @@
 import { featureGroups } from "@/lib/features";
-import { considering, planned, worksNow } from "@/lib/mixers";
+import { considering, inBeta, planned, worksNow } from "@/lib/mixers";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { PAGES, pageMetadata } from "@/lib/metadata";
 
@@ -76,11 +76,20 @@ export default function FeaturesPage() {
       <section id="mixers" aria-labelledby="mixers-title" className="feature-group">
         <div className="section-head">
           <h2 id="mixers-title">Supported mixers</h2>
-          <p>What works today, what is planned next, and what is being looked at. Planned support has no dates yet.</p>
+          <p>What works in the App Store version, what is in the public beta, what is planned next, and what is being looked at. Planned support has no dates yet.</p>
         </div>
         <h3 className="mixers-sub">Works now</h3>
         <ul className="cards cards--3">
           {worksNow.map((m) => (
+            <li key={m.name} className="card">
+              <h3>{m.name}</h3>
+              <p>{m.body}</p>
+            </li>
+          ))}
+        </ul>
+        <h3 className="mixers-sub">In the public beta</h3>
+        <ul className="cards cards--3">
+          {inBeta.map((m) => (
             <li key={m.name} className="card">
               <h3>{m.name}</h3>
               <p>{m.body}</p>
