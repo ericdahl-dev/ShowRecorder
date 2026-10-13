@@ -102,7 +102,7 @@ final class TakeWriter: @unchecked Sendable {
         }
         let seconds = Double(timeout.components.seconds) + Double(timeout.components.attoseconds) / 1e18
         if finished.wait(timeout: .now() + seconds) == .timedOut {
-            // A Destination that hangs (a Drive pulled mid-write) doesn't hold up Stop (#320): the Copy is given up and
+            // A Destination that hangs (a Drive pulled mid-write) doesn't hold up Stop (#320): the Copy is abandoned and
             // failed. A write already under way can't be taken back, but the writer starts no new one when it wakes.
             abandoned.store(true, ordering: .releasing)
             failed.store(true, ordering: .releasing)

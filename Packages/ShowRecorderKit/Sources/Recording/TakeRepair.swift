@@ -47,6 +47,13 @@ final class TakeRepair {
         self.outcomes = outcomes(metadata)
         onChange()
         guard !metadata.gaps.isEmpty else {
+            // Drive only: a Drive that faltered but then caught up has the whole Take, so its stand-in is a spare.
+            if metadata.standIns != nil, folders.count > 1, !abandoned.contains(.drive) {
+                try? FileManager.default.removeItem(at: folders[DestinationKind.device.index])
+                var done = metadata
+                done.standIns = nil
+                try? done.write(to: folders[DestinationKind.drive.index])
+            }
             access?.end()
             return
         }

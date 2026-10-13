@@ -107,7 +107,7 @@ public struct Show: Sendable, Equatable {
             name: name, startedAt: startedAt, endedAt: endedAt, venue: venue, lastTakeEndedAt: lastTakeEndedAt,
             channelNames: channelNames.isEmpty ? nil : Dictionary(uniqueKeysWithValues: channelNames.map { (String($0.key), $0.value) }),
             driveCopyWritten: driveCopyWritten ? true : nil,
-            gainChanges: gainChanges.isEmpty ? nil : gainChanges, unknownFields: newerFields)
+            gainChanges: gainChanges.isEmpty ? nil : gainChanges, takes: takeCount > 0 ? takeCount : nil, unknownFields: newerFields)
     }
 
     /// Logs a gain change made between Takes, in every Copy's `Show.json`.
@@ -163,7 +163,7 @@ public struct Show: Sendable, Equatable {
         }
         let takes = ((try? fm.contentsOfDirectory(atPath: newest.folder.path)) ?? [])
             .compactMap { $0.hasPrefix("Take ") ? Int($0.dropFirst(5)) : nil }
-        var show = Show(name: newest.file.name, folder: newest.folder, takeCount: takes.max() ?? 0, startedAt: newest.file.startedAt,
+        var show = Show(name: newest.file.name, folder: newest.folder, takeCount: max(takes.max() ?? 0, newest.file.takes ?? 0), startedAt: newest.file.startedAt,
                     venue: newest.file.venue, lastTakeEndedAt: newest.file.lastTakeEndedAt,
                     channelNames: newest.file.channelNames?.reduce(into: [:]) { if let number = Int($1.key) { $0[number] = $1.value } } ?? [:],
                     driveCopyWritten: newest.file.driveCopyWritten ?? false, gainChanges: newest.file.gainChanges ?? [])
@@ -198,11 +198,14 @@ public struct Show: Sendable, Equatable {
     mutating func createNextTakeFolder() throws -> [URL] {
         takeCount += 1
         let takeName = TakeMetadata.name(take: takeCount)
-        return try ([folder] + (driveFolder.map { [$0] } ?? [])).map { showFolder in
+        let folders = try ([folder] + (driveFolder.map { [$0] } ?? [])).map { showFolder in
             let takeFolder = showFolder.appending(path: takeName, directoryHint: .isDirectory)
             try FileManager.default.createDirectory(at: takeFolder, withIntermediateDirectories: false)
             return takeFolder
         }
+        // The number is kept in Show.json, so it survives a relaunch even when the Device keeps no folder for it.
+        try? file.write(to: folder)
+        return folders
     }
 }
 
@@ -224,11 +227,14 @@ struct ShowFile: Codable, Equatable {
     var driveCopyWritten: Bool?
     /// Gain changes made on the Mixer between Takes (#450). Nil when there are none, and in Shows from before this.
     var gainChanges: [TakeMetadata.GainChange]?
+    /// The number of the last Take started. A Drive only Take (#196) leaves no folder on the Device to count, so the
+    /// next number comes from here too. Nil while the Show has none, and in Shows from before this.
+    var takes: Int?
     /// Fields from a newer ShowRecorder, kept from `read` to `write`. Nil in a Show this version wrote.
     var unknownFields: UnknownFields?
 
     enum CodingKeys: String, CodingKey, CaseIterable {
-        case name, startedAt, endedAt, venue, lastTakeEndedAt, channelNames, driveCopyWritten, gainChanges
+        case name, startedAt, endedAt, venue, lastTakeEndedAt, channelNames, driveCopyWritten, gainChanges, takes
     }
 
     func write(to showFolder: URL) throws {
