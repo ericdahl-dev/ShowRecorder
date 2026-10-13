@@ -215,12 +215,26 @@ jobs:
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             2>&1 | tee "$RUNNER_TEMP/upload.log"
 
-      - name: Set What to Test and send the build to external testers
+      - name: Set What to Test and send the build to testers
         # The upload has happened; a failure here prints a warning and never fails the release.
+        # A tag whose message contains [internal] goes to internal testers only, until
+        # scripts/testflight_promote.py sends it on (docs/DEVELOPING.md, "Internal-only tags").
         continue-on-error: true
         env:
           TAG: ${{ github.ref_name }}
-        run: python3 scripts/testflight_notes.py
+        run: |
+          # The checkout can leave the tag lightweight, without its message: fetch the tag itself. Only an annotated
+          # tag has a message of its own (a lightweight one would read its commit's). If the fetch fails, nobody
+          # can tell whether the tag was meant to be internal, so it is treated as internal: it never reaches
+          # external testers by mistake, and testflight_promote.py sends it on.
+          TAG_MESSAGE=""
+          if ! git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"; then
+            echo "::warning::Couldn't read the tag's message; sending this build to internal testers only."
+            TAG_MESSAGE="[internal] (the tag's message couldn't be read)"
+          elif [ "$(git for-each-ref --format='%(objecttype)' "refs/tags/$TAG")" = tag ]; then
+            TAG_MESSAGE="$(git for-each-ref --format='%(contents)' "refs/tags/$TAG")"
+          fi
+          TAG_MESSAGE="$TAG_MESSAGE" python3 scripts/testflight_notes.py
 
       - name: Remove the keys and the keychain
         if: always()
