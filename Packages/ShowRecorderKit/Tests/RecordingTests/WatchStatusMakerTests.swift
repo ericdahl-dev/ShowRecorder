@@ -28,7 +28,7 @@ struct WatchStatusMakerTests {
         let status = WatchStatusMaker.make(
             isArmed: true, take: take,
             chips: [Self.chip(.device, .attention), Self.chip(.drive, .attention), Self.chip(.mixer, .attention)],
-            driveAvailable: true, copies: [.device: .recording, .drive: .interrupted], dropoutCount: 2, mixerDown: true)
+            driveAvailable: true, copies: takeCopies(device: .recording, drive: .interrupted), dropoutCount: 2, mixerDown: true)
         #expect(status.problems == [.deviceLowSpace, .driveLowSpace, .copyStopped, .gapOrDropout, .mixerLinkLost])
     }
 
@@ -36,7 +36,7 @@ struct WatchStatusMakerTests {
     func quiet() {
         let status = WatchStatusMaker.make(
             isArmed: true, take: nil, chips: [Self.chip(.device, .ok), Self.chip(.drive, .attention)],
-            driveAvailable: false, copies: [.drive: .missing], dropoutCount: 0, mixerDown: false)
+            driveAvailable: false, copies: takeCopies(device: .recording, drive: .missing), dropoutCount: 0, mixerDown: false)
         #expect(status.problems.isEmpty)
     }
     @Test("A chip for a Copy that stopped (failed) isn't low space: it's a Copy stopped")
@@ -44,7 +44,13 @@ struct WatchStatusMakerTests {
         let take = WatchStatusMaker.Take(startedAt: Self.started, title: "Take 02", markerCount: 0)
         let status = WatchStatusMaker.make(
             isArmed: true, take: take, chips: [Self.chip(.device, .failed), Self.chip(.drive, .failed)],
-            driveAvailable: true, copies: [.device: .interrupted, .drive: .interrupted])
+            driveAvailable: true, copies: takeCopies(device: .interrupted, drive: .interrupted))
         #expect(status.problems == [.copyStopped])
+    }
+
+    @Test("After a Take, a Copy that stopped during it is no longer a problem on the wrist")
+    func stoppedOnlyWhileRunning() {
+        let status = WatchStatusMaker.make(isArmed: true, take: nil, copies: takeCopies(running: false, device: .interrupted, drive: .interrupted))
+        #expect(status.problems.isEmpty)
     }
 }

@@ -31,4 +31,10 @@ public struct TakeCopies: Equatable, Sendable {
     }
 
     public subscript(_ kind: DestinationKind) -> CopyState { states[kind] ?? .missing }
+
+    /// The Copies that stopped mid-Take, while it runs; none once it has ended.
+    public var stopped: Set<DestinationKind> {
+        guard isRunning else { return [] }
+        return Set(DestinationKind.allCases.filter { states[$0] == .interrupted })
+    }
 }
