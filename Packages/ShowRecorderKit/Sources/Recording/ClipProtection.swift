@@ -132,30 +132,39 @@ public final class ClipProtection {
         // Every trigger takes its window before any move waits on the Mixer: the next read can arrive during that
         // wait (and a disarm can leave no channels), so nothing below touches `triggers`.
         let fired = levels.indices.compactMap { index in triggers[index].observe(levels[index]).map { (usbChannel: index + 1, peak: $0) } }
-        for (usbChannel, peak) in fired {
-            guard let channel = control.channel(forUSBChannel: usbChannel) else { continue }
-            // The Mixer not answering here is no reason to skip protecting: the channel then stands for its own preamp,
-            // negative so it can't be mistaken for a preamp number.
-            let preamp = ((try? await control.preamp(ofChannel: channel)) ?? nil) ?? -channel
-            // The wait for the Mixer can outlast the Take.
-            guard !stopped else { return }
-            guard lastMove[preamp].map({ clock - $0 >= Self.restSeconds }) ?? true else { continue }
-            let left = Self.mostPerTakeDb - (turnedDown[preamp] ?? 0)
-            guard left > 0 else { continue }
-            lastMove[preamp] = clock
-            let step: GainStep
-            do throws(MixerLinkProblem) {
-                step = try await control.applyMixHold(channel: channel, gainChangeDb: max(-left, Self.stepDb(peakDbfs: peak)), scopes: .all)
-            } catch {
-                // Stopped partway: whatever was written still counts and is logged (#450); otherwise nothing moved.
-                guard case .gainMoveInterrupted(let partial) = error else { continue }
-                step = partial
+        // Every channel that fired is turned down at once, each its own preamp (#554): a second hot preamp doesn't
+        // wait for the first's ramp.
+        await withTaskGroup(of: Void.self) { group in
+            for (usbChannel, peak) in fired {
+                group.addTask { await self.turnDown(usbChannel: usbChannel, peak: peak) }
             }
-            // At its lowest gain, or Mix Hold out of range: nothing moved, so nothing to log or Mark.
-            guard step.toGainDb < step.fromGainDb else { continue }
-            turnedDown[preamp, default: 0] += step.fromGainDb - step.toGainDb
-            log(GainLog.change(step, usbChannel: usbChannel, reason: .clipProtection))
         }
+    }
+
+    /// Turns down the preamp behind `usbChannel`, which read `peak`, unless it moved too recently or has had its 12 dB.
+    private func turnDown(usbChannel: Int, peak: Double) async {
+        guard let channel = control.channel(forUSBChannel: usbChannel) else { return }
+        // The Mixer not answering here is no reason to skip protecting: the channel then stands for its own preamp,
+        // negative so it can't be mistaken for a preamp number.
+        let preamp = ((try? await control.preamp(ofChannel: channel)) ?? nil) ?? -channel
+        // The wait for the Mixer can outlast the Take.
+        guard !stopped else { return }
+        guard lastMove[preamp].map({ clock - $0 >= Self.restSeconds }) ?? true else { return }
+        let left = Self.mostPerTakeDb - (turnedDown[preamp] ?? 0)
+        guard left > 0 else { return }
+        lastMove[preamp] = clock
+        let step: GainStep
+        do throws(MixerLinkProblem) {
+            step = try await control.applyMixHold(channel: channel, gainChangeDb: max(-left, Self.stepDb(peakDbfs: peak)), scopes: .all)
+        } catch {
+            // Stopped partway: whatever was written still counts and is logged (#450); otherwise nothing moved.
+            guard case .gainMoveInterrupted(let partial) = error else { return }
+            step = partial
+        }
+        // At its lowest gain, or Mix Hold out of range: nothing moved, so nothing to log or Mark.
+        guard step.toGainDb < step.fromGainDb else { return }
+        turnedDown[preamp, default: 0] += step.fromGainDb - step.toGainDb
+        log(GainLog.change(step, usbChannel: usbChannel, reason: .clipProtection))
     }
 }
 
