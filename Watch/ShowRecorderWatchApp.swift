@@ -6,12 +6,16 @@ import WatchRemote
 /// wrist. It holds no audio, no Takes and no setup: a view of the recorder plus three commands.
 @main
 struct ShowRecorderWatchApp: App {
-    @State private var link = WatchSessionLink()
+    @State private var model: WatchRemoteModel = DemoLink.isOn ? DemoLink().model : WatchSessionLink().model
+    @Environment(\.scenePhase) private var phase
 
     var body: some Scene {
         WindowGroup {
-            RemoteView(model: link.model)
-                .onAppear { link.start() }
+            RemoteView(model: model)
+        }
+        .onChange(of: phase) { _, phase in
+            // A raised wrist: the link comes back now the app is in front.
+            if phase == .active { model.appBecameActive() }
         }
     }
 }

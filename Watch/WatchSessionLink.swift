@@ -19,9 +19,11 @@ final class WatchSessionLink: NSObject, WatchLinkTransport {
             case .problem: WKInterfaceDevice.current().play(.notification)
             }
         }
+        start()
     }
 
-    func start() {
+    /// At launch, before the first screen, so the iPhone's last status is there as early as it can be.
+    private func start() {
         guard let session, session.delegate == nil else { return }
         session.delegate = self
         session.activate()

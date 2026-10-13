@@ -127,12 +127,14 @@ elif [ -d "$app/Contents/Watch" ]; then
   bad "the Mac app embeds a watch app (it's iPhone only)"
 fi
 
-# The 1024 px App Store icon must be square and have no transparency.
-icon=App/Assets.xcassets/AppIcon.appiconset/icon-ios-1024.png
-w=$(sips -g pixelWidth "$icon" | awk '/pixelWidth/ {print $2}')
-h=$(sips -g pixelHeight "$icon" | awk '/pixelHeight/ {print $2}')
-alpha=$(sips -g hasAlpha "$icon" | awk '/hasAlpha/ {print $2}')
-[ "$w" = 1024 ] && [ "$h" = 1024 ] && ok "App Store icon is 1024x1024" || bad "App Store icon is ${w}x${h}, needs 1024x1024"
-[ "$alpha" = "no" ] && ok "App Store icon has no transparency" || bad "App Store icon has an alpha channel"
+# The 1024 px App Store icons (the app's, and the watch app's) must be square and have no transparency.
+for icon in App/Assets.xcassets/AppIcon.appiconset/icon-ios-1024.png Watch/Assets.xcassets/AppIcon.appiconset/icon-watch-1024.png; do
+  name=$(basename "$icon")
+  w=$(sips -g pixelWidth "$icon" | awk '/pixelWidth/ {print $2}')
+  h=$(sips -g pixelHeight "$icon" | awk '/pixelHeight/ {print $2}')
+  alpha=$(sips -g hasAlpha "$icon" | awk '/hasAlpha/ {print $2}')
+  [ "$w" = 1024 ] && [ "$h" = 1024 ] && ok "$name is 1024x1024" || bad "$name is ${w}x${h}, needs 1024x1024"
+  [ "$alpha" = "no" ] && ok "$name has no transparency" || bad "$name has an alpha channel"
+done
 
 [ "$fail" = 0 ] && echo "== Preflight passed" || { echo "== Preflight failed"; exit 1; }

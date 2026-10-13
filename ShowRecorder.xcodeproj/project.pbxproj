@@ -22,6 +22,7 @@
 		32D2E536D45006ECF7CCDB6E /* Recording in Frameworks */ = {isa = PBXBuildFile; productRef = E4B425D454C0ADEC5187ABCF /* Recording */; };
 		3B133367222FC5F3F5EBDBC3 /* PaywallSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01380066EBAE4A3580E3B80B /* PaywallSheet.swift */; };
 		3F72BDB1F6F5F7C117C7A4DF /* ChannelNamesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F37D396FDE04128489306DC3 /* ChannelNamesView.swift */; };
+		425C1B6F2EF14106616C0F7C /* DemoLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BA48054FA4738E31732A40E /* DemoLink.swift */; };
 		42E521FCCC800B2B20D0B69B /* WindowCloseGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DFAA5CBF9186C8638F0BDDD /* WindowCloseGuard.swift */; };
 		47525D0C9DECC739535A5E15 /* DemoAudioDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */; };
 		4B1D83A876DD31D7B6E31F73 /* AppearanceStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F1B5EEDD8FA484B7416BB0B /* AppearanceStyle.swift */; };
@@ -107,6 +108,7 @@
 		034579A5DCE44DCC61521CA4 /* ShowListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowListView.swift; sourceTree = "<group>"; };
 		078720CF89E26EE2F4248B22 /* MarkerListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkerListView.swift; sourceTree = "<group>"; };
 		132D4E144CE66237000078F5 /* DeleteShowSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteShowSheet.swift; sourceTree = "<group>"; };
+		1BA48054FA4738E31732A40E /* DemoLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoLink.swift; sourceTree = "<group>"; };
 		1D92CE73B1DEF77200CB6705 /* DemoStemsDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoStemsDevice.swift; sourceTree = "<group>"; };
 		2220CC601D180E6771D03197 /* ShowDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowDetailView.swift; sourceTree = "<group>"; };
 		252D564B3B9FE54ED487A88C /* FindMixersRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindMixersRow.swift; sourceTree = "<group>"; };
@@ -276,6 +278,7 @@
 			isa = PBXGroup;
 			children = (
 				FEA294E3885AFF04F6D8CED9 /* Assets.xcassets */,
+				1BA48054FA4738E31732A40E /* DemoLink.swift */,
 				EB84E97783AC024563C212F7 /* HoldToStopButton.swift */,
 				803373069C5B52C0B8A79AD8 /* Info.plist */,
 				9383D6894516F217BC4158B8 /* RemoteView.swift */,
@@ -479,6 +482,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				425C1B6F2EF14106616C0F7C /* DemoLink.swift in Sources */,
 				0AFD0C740A130CFC0DDF7E9D /* HoldToStopButton.swift in Sources */,
 				722E175492AEBC8B8B8304BE /* RemoteView.swift in Sources */,
 				D21BC5FCF582EFFE9FB1139F /* ShowRecorderWatchApp.swift in Sources */,
