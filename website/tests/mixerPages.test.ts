@@ -154,3 +154,15 @@ describe("mixer pages in plain words", () => {
     expect(xr18Page.match(/public beta/g)?.length).toBe(1);
   });
 });
+
+// #482 C: beta testers start the Trial so every channel records, and know a TestFlight purchase isn't charged.
+describe("the beta Trial line", () => {
+  for (const slug of ["x32", "xr18"]) {
+    it(`/mixers/${slug} tells beta testers to start the 14-day Trial, and that TestFlight doesn't charge`, () => {
+      const body = readFileSync(path.join(ROOT, "app", "mixers", slug, "content.mdx"), "utf8");
+      const pricing = body.slice(body.indexOf("## Free, Trial and Pro"), body.indexOf("## Where to get it"));
+      expect(pricing).toMatch(/In the beta, start the 14-day Trial in \*\*Settings › Pro\*\*/);
+      expect(pricing).toMatch(/Buying Pro in the beta isn't charged, and doesn't carry over to the App Store version/);
+    });
+  }
+});
