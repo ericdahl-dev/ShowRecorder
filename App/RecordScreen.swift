@@ -77,6 +77,7 @@ struct RecordScreen: View {
             if launchFlag("-channelNames") { open(.channelNames) }
             if launchFlag("-showMarkers") { open(.markers) }
             if launchFlag("-soundcheck") { model.showingSoundcheck = true }
+            if launchFlag("-autoGainDemo") { showingAutoGain = true }
         }
         .onDisappear { model.screenDisappeared() }
         .sheet(isPresented: $showingMarkers) {
@@ -1255,10 +1256,11 @@ final class RecordScreenModel {
     }
 
     private func hasMicrophonePermission() async -> Bool {
+        if launchFlag("-autoGainDemo") { return false }  // screenshots of sample results: no prompt over the sheet
         #if os(iOS)
-        await AVAudioApplication.requestRecordPermission()
+        return await AVAudioApplication.requestRecordPermission()
         #else
-        true  // macOS asks on first input; the sandbox entitlement allows it.
+        return true  // macOS asks on first input; the sandbox entitlement allows it.
         #endif
     }
 

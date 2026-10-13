@@ -9,20 +9,22 @@ struct AutoGainSheet: View {
     let model: RecordScreenModel
     @Environment(\.dismiss) private var dismiss
     @State private var session: AutoGainSession?
-    @State private var results: [Int: AutoGainSession.Result] = [:]
-    @State private var running: Set<Int> = []
+    @State private var results: [Int: AutoGainSession.Result] = launchFlag("-autoGainDemo") ? AutoGainList.demoResults : [:]
+    @State private var running: Set<Int> = launchFlag("-autoGainDemo") ? [5] : []
+    /// The `-autoGainDemo` screenshot flag shows sample results with no Mixer: there's nothing to Undo for real.
+    private let isDemo = launchFlag("-autoGainDemo")
 
     var body: some View {
         NavigationStack {
             AutoGainList(
-                channels: (1...max(1, model.meterModel.channelCount)).map { ($0, model.channelLabel($0)) },
+                channels: isDemo ? AutoGainList.demoChannels : (1...max(1, model.meterModel.channelCount)).map { ($0, model.channelLabel($0)) },
                 results: results, running: running, locked: model.recorder.isRecording || !running.isEmpty,
                 runAll: { Task { await run(Array(1...model.meterModel.channelCount)) } },
                 runOne: { usb in Task { await run([usb]) } },
                 undoOne: { usb in Task { await undo(usb) } },
                 undoAll: { Task { await undoAll() } },
-                canUndo: { session?.steps[$0]?.isEmpty == false },
-                canUndoAll: session?.steps.values.contains { !$0.isEmpty } == true)
+                canUndo: { isDemo ? AutoGainList.demoUndoable.contains($0) : session?.steps[$0]?.isEmpty == false },
+                canUndoAll: isDemo || session?.steps.values.contains { !$0.isEmpty } == true)
                 .navigationTitle("Auto-gain")
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
@@ -30,7 +32,7 @@ struct AutoGainSheet: View {
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
         // A List has no size of its own; without this a Mac sheet shows it empty.
-        .frame(minWidth: 440, minHeight: 420)
+        .frame(minWidth: 480, minHeight: 560)
         .interactiveDismissDisabled(!running.isEmpty)
     }
 
@@ -67,6 +69,8 @@ struct AutoGainSheet: View {
 
 /// The channel list: what each USB Channel's auto-gain did, with its buttons. A plain view, so a preview can show it.
 struct AutoGainList: View {
+    static let explanation = "Plays what's on each channel for a few seconds and moves its preamp on the Mixer to bring it to -18 dBFS. The gate and compressor thresholds, the fader and pre-fader sends move to match, so the mix doesn't change. Play or speak into every channel while it runs."
+
     let channels: [(number: Int, name: String)]
     let results: [Int: AutoGainSession.Result]
     let running: Set<Int>
@@ -83,8 +87,14 @@ struct AutoGainList: View {
             Section {
                 Button("Auto-gain all channels", action: runAll).disabled(locked)
                 Button("Undo all", role: .destructive, action: undoAll).disabled(locked || !canUndoAll)
+                #if os(macOS)
+                // A Mac list cuts a footer to one line, so the explanation is a row there.
+                Text(Self.explanation).font(.callout).foregroundStyle(.secondary)
+                #endif
             } footer: {
-                Text("Plays what's on each channel for a few seconds and moves its preamp on the Mixer to bring it to -18 dBFS. The gate and compressor thresholds, the fader and pre-fader sends move to match, so the mix doesn't change. Play or speak into every channel while it runs.")
+                #if os(iOS)
+                Text(Self.explanation)
+                #endif
             }
             Section("Channels") {
                 ForEach(channels, id: \.number) { channel in
@@ -160,16 +170,22 @@ extension AutoGainSession.Result {
     }
 }
 
+extension AutoGainList {
+    /// Sample results for the preview and the `-autoGainDemo` screenshots: one of each kind of result.
+    static let demoChannels: [(number: Int, name: String)] = [(1, "Kick"), (2, "Snare"), (3, "USB 03"), (4, "Bass"), (5, "Keys L"), (6, "Vox")]
+    static let demoResults: [Int: AutoGainSession.Result] = [
+        1: .set(usbChannel: 1, channel: 1, fromGainDb: -12, toGainDb: 13, levelDbfs: -17.2),
+        2: .skipped(usbChannel: 2, reason: .noSignal),
+        3: .skipped(usbChannel: 3, reason: .noChannel),
+        4: .failed(usbChannel: 4, channel: 4, failure: .stillClipping(levelDbfs: -2)),
+        6: .stopped(usbChannel: 6, channel: 6),
+    ]
+    static let demoUndoable: Set<Int> = [1, 4]
+}
+
 #Preview("Auto-gain results") {
     AutoGainList(
-        channels: [(1, "Kick"), (2, "Snare"), (3, "USB 03"), (4, "Bass"), (5, "Keys L"), (6, "Vox")],
-        results: [
-            1: .set(usbChannel: 1, channel: 1, fromGainDb: -12, toGainDb: 13, levelDbfs: -17.2),
-            2: .skipped(usbChannel: 2, reason: .noSignal),
-            3: .skipped(usbChannel: 3, reason: .noChannel),
-            4: .failed(usbChannel: 4, channel: 4, failure: .stillClipping(levelDbfs: -2)),
-            6: .stopped(usbChannel: 6, channel: 6),
-        ],
+        channels: AutoGainList.demoChannels, results: AutoGainList.demoResults,
         running: [5], locked: true, runAll: {}, runOne: { _ in }, undoOne: { _ in }, undoAll: {},
-        canUndo: { $0 == 1 || $0 == 4 }, canUndoAll: true)
+        canUndo: { AutoGainList.demoUndoable.contains($0) }, canUndoAll: true)
 }
