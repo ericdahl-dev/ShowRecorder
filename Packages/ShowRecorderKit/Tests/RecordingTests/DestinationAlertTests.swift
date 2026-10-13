@@ -79,6 +79,15 @@ struct DestinationAlertTests {
         #expect(alert.text == "The Drive stopped. Recording to this iPhone for the rest of the Take; the audio moves to the Drive after it.")
     }
 
+    @Test("Drive only that started with no Drive: a Drive connected later is an ordinary Copy, so its stop says the normal text with Check Drive (#550)")
+    func driveOnlyLateDriveStops() throws {
+        let alert = try #require(DestinationAlert.make(copies: takeCopies(driveOnly: true, device: .recording, drive: .interrupted)))
+
+        #expect(alert.id == "drive-stopped")
+        #expect(alert.action == .checkDrive)
+        #expect(alert.text == "The Drive stopped. Recording continues on the Device; the Gap is Repaired when the Drive comes back.")
+    }
+
     @Test("Drive only never rejoins the Drive mid-Take, so the stand-in alert has no 'Still not found.' (#550)")
     func driveOnlyNoStillNotFound() throws {
         let alert = try #require(DestinationAlert.make(

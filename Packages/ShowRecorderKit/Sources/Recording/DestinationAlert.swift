@@ -12,7 +12,7 @@ public enum DestinationAlert {
             return ScreenAlert(
                 id: "device-stopped", priority: .destination, tone: .critical,
                 text: "The Device stopped writing. Recording continues on the Drive.")
-        case (.standingIn, _) where copies.isDriveOnly, (_, .interrupted) where copies.isDriveOnly:
+        case (.standingIn, _) where copies.isDriveOnly:
             return ScreenAlert(
                 id: "drive-stopped", priority: .destination, tone: .critical,
                 text: "The Drive stopped. Recording to this \(deviceWord) for the rest of the Take; the audio moves to the Drive after it.")
