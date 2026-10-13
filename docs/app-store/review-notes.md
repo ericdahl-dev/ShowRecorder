@@ -15,6 +15,8 @@ In-app purchases:
 
 What needs a mixer: the 32 channels of an X32 or M32, channel names from the Mixer Link, and Auto-gain (only shown with an X Air or X32 connected over USB and Mixer Link up; it moves the mixer's preamps, never during a recording). The Demo signal shows every other screen.
 
+Apple Watch (new in 1.1): the watch app is a remote for the iPhone app, over WatchConnectivity; it records nothing itself. With the iPhone Armed on the Demo signal, open ShowRecorder on the paired watch: it shows Armed, and Record starts a Take on the iPhone. During a Take it shows the time recorded, Marker drops a Marker, and Stop takes a one-second press and hold. With the iPhone not Armed, the watch asks you to open ShowRecorder on the iPhone (iOS doesn't let an app start the microphone from the background).
+
 Network: the optional Mixer Link talks to the mixer on the local network (OSC over UDP port 10024 for X Air mixers, 10023 for the X32 and M32) to read channel names; Find Mixers asks the local network for X Air and X32 mixers. Nothing is sent to the internet and no data is collected.
 
 Microphone permission is used to record the USB audio input (and the built-in microphone if the user chooses it).
