@@ -56,4 +56,11 @@ struct MixerFamilyTests {
         #expect(probe.identity(reply) == MixerIdentity(networkName: "FOH", model: "X32", firmware: "4.06"))
         #expect(probe.identity(OSCMessage("/status").encoded()) == nil)
     }
+
+    @Test("An address typed without a port is asked on the first family's port first, from the registry")
+    func defaultPort() {
+        #expect(MixerEndpoint.defaultPort == MixerFamily.probes.first?.port)
+        #expect(MixerEndpoint(host: "10.0.0.5").port == MixerEndpoint.defaultPort)
+        #expect(MixerEndpoint(parsing: "10.0.0.5")?.port == MixerEndpoint.defaultPort)
+    }
 }

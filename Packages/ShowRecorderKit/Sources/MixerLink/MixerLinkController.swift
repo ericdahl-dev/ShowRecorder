@@ -197,7 +197,7 @@ extension MixerEndpoint {
         let parts = trimmed.split(separator: ":", omittingEmptySubsequences: false)
         guard parts.count == 1 || parts.count == 2 else { return nil }
         let host = String(parts[0])
-        var port: UInt16 = 10024
+        var port = MixerEndpoint.defaultPort
         if parts.count == 2 {
             guard let parsed = UInt16(parts[1]), parsed > 0 else { return nil }
             port = parsed

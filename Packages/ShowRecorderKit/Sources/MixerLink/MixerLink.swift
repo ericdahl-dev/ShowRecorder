@@ -1,9 +1,13 @@
-/// Where a Mixer listens for OSC. X-Air mixers use UDP port 10024, the X32 and M32 10023.
+/// Where a Mixer listens for OSC. Each family has its own port (`MixerFamily.probe`): X-Air mixers use UDP 10024, the
+/// X32 and M32 10023.
 public struct MixerEndpoint: Equatable, Sendable {
     public var host: String
     public var port: UInt16
 
-    public init(host: String, port: UInt16 = 10024) {
+    /// The port an address typed without one is asked on first: the first family's. Detection asks the others too.
+    public static var defaultPort: UInt16 { MixerFamily.allCases[0].probe.port }
+
+    public init(host: String, port: UInt16 = MixerEndpoint.defaultPort) {
         self.host = host
         self.port = port
     }
