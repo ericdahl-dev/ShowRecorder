@@ -110,14 +110,23 @@ public final class ClipProtection {
         self.log = log
     }
 
+    /// Set by `stop()`: no move starts after it.
+    private var stopped = false
+
     /// A Take started: each channel may be turned down `mostPerTakeDb` again.
     public func takeStarted() {
         turnedDown = [:]
     }
 
+    /// The Take ended, or protection was switched off: a move still waiting on the Mixer doesn't start.
+    public func stop() {
+        stopped = true
+    }
+
     /// Takes one meter read, every USB Channel's window (USB Channel 1 first), and turns down any preamp whose
     /// channel runs hot.
     public func observe(_ levels: [ChannelLevel]) async {
+        guard !stopped else { return }
         if triggers.count != levels.count { triggers = Array(repeating: ClipTrigger(sampleRate: sampleRate), count: levels.count) }
         clock += Double(levels.map(\.frames).max() ?? 0) / sampleRate
         // Every trigger takes its window before any move waits on the Mixer: the next read can arrive during that
@@ -128,6 +137,8 @@ public final class ClipProtection {
             // The Mixer not answering here is no reason to skip protecting: the channel then stands for its own preamp,
             // negative so it can't be mistaken for a preamp number.
             let preamp = ((try? await control.preamp(ofChannel: channel)) ?? nil) ?? -channel
+            // The wait for the Mixer can outlast the Take.
+            guard !stopped else { return }
             guard lastMove[preamp].map({ clock - $0 >= Self.restSeconds }) ?? true else { continue }
             let left = Self.mostPerTakeDb - (turnedDown[preamp] ?? 0)
             guard left > 0 else { continue }

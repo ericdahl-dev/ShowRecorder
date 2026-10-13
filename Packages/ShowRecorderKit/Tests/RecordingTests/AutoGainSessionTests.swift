@@ -29,6 +29,8 @@ final class FakeGainControl: GainControl {
     var alsoMoves: ReGain.Change?
     /// When set, each undo waits on it first, as a slow Mixer does.
     var undoAnswer: (@Sendable () async -> Void)?
+    /// When set, each preamp read waits on it first, as a slow Mixer does.
+    var preampAnswer: (@Sendable () async -> Void)?
     /// When set, Re-Gain can't raise a gain past this, as when a threshold reaches its top: it stops there and says so.
     var reGainCeilingDb: Double?
     static let gateAtTop = ReGain.Limit(setting: ReGain.Setting(channel: 1, parameter: .gateThreshold), endDb: 0)
@@ -43,7 +45,8 @@ final class FakeGainControl: GainControl {
     }
 
     nonisolated func preamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? {
-        await MainActor.run { preampOf[channel] ?? channel }
+        if let answer = await MainActor.run(body: { preampAnswer }) { await answer() }
+        return await MainActor.run { preampOf[channel] ?? channel }
     }
 
     nonisolated func applyReGain(channel: Int, gainChangeDb: Double, scopes: ReGain.Scopes) async throws(MixerLinkProblem) -> GainStep {
