@@ -35,12 +35,16 @@ final class TakeWriter: @unchecked Sendable {
     /// real-time thread has said which Take frame the live audio starts at. Returns one array of samples
     /// per channel, as long as the frames before that point, or nil if they are no longer there.
     private let head: (() -> [[Float]]?)?
+    /// What the writer thread does between looks while it waits for its join frame.
+    private let joinPause: () -> Void
 
     init(
         feed: CopyFeed, stems: [any StemSink], commitInterval: Int, onFailure: @escaping @Sendable () -> Void = {},
-        priorGaps: [Range<Int>] = [], head: (() -> [[Float]]?)? = nil
+        priorGaps: [Range<Int>] = [], head: (() -> [[Float]]?)? = nil,
+        joinPause: @escaping () -> Void = { Thread.sleep(forTimeInterval: 0.002) }
     ) {
         self.head = head
+        self.joinPause = joinPause
         gapRanges = Mutex(priorGaps)
         self.onFailure = onFailure
         self.feed = feed
@@ -122,7 +126,12 @@ final class TakeWriter: @unchecked Sendable {
         do {
             // Commit once up front so even a Take that dies early leaves files that open.
             for stem in stems { try stem.commitHeader() }
-            let didJoin = try waitForJoin()
+            let join = feed.waitForJoin(while: { running.load(ordering: .acquiring) }, pause: joinPause)
+            if let join {
+                joined.store(true, ordering: .releasing)
+                try writeLeadIn(join: join)
+            }
+            let didJoin = join != nil
             while didJoin {
                 let stillRunning = running.load(ordering: .acquiring)
                 if let markers = pendingMarkers.withLock({ pending in defer { pending = nil }; return pending }) {
@@ -164,11 +173,9 @@ final class TakeWriter: @unchecked Sendable {
         finished.signal()
     }
 
-    /// A Copy that joins mid-Take waits for the real-time thread to say which Take frame it starts at,
-    /// then writes silence up to it. Returns false if the Take stopped first.
-    private func waitForJoin() throws -> Bool {
-        guard let join = feed.waitForJoin(while: { running.load(ordering: .acquiring) }) else { return false }
-        joined.store(true, ordering: .releasing)
+    /// Once the real-time thread has said which Take frame this Copy starts at, writes what comes before it:
+    /// the Pre-roll head when there is one, then silence up to the join.
+    private func writeLeadIn(join: Int) throws {
         if let head, join > 0, framesWritten == 0, let samples = head(), samples.count == stems.count,
            samples.allSatisfy({ $0.count == join }) {
             for (index, stem) in stems.enumerated() {
@@ -186,7 +193,6 @@ final class TakeWriter: @unchecked Sendable {
                 remaining -= count
             }
         }
-        return true
     }
 
     /// Writes what the ring holds. Where the ring had to drop audio, writes silence of the lost length

@@ -94,4 +94,47 @@ struct CopyJoinTests {
         #expect(stem.samples == [Float](repeating: 0, count: 480) + (1...100).map(Float.init))
         #expect(writer.gaps == [0..<480])
     }
+
+    @Test("A Copy attached mid-Take writes silence up to the frame it joined at, then the audio from there")
+    func joinHandshake() {
+        let capture = capture()
+        capture.startCapturing(copies: 1)
+        receive(capture)
+        let stem = TakeWriterDropTests.MemoryStem()
+        let joinedInPause = DispatchSemaphore(value: 0)
+        var pauses = 0
+        // The writer is waiting for its join frame: the real-time thread's next block arrives while it pauses.
+        let writer = TakeWriter(feed: capture.feeds[1], stems: [stem], commitInterval: 48_000, joinPause: {
+            pauses += 1
+            guard pauses == 1 else { return }
+            receive(capture)
+            joinedInPause.signal()
+        })
+        capture.attachMidTake(capture.feeds[1])
+        writer.start()
+        joinedInPause.wait()
+        writer.stop()
+
+        #expect(pauses == 1)
+        #expect(!writer.neverJoined)
+        #expect(stem.samples == [Float](repeating: 0, count: 480) + [Float](repeating: 0.25, count: 480))
+        #expect(writer.gaps == [0..<480])
+    }
+
+    @Test("A Copy whose Take stops before it joins writes nothing and never joins")
+    func stoppedBeforeJoin() {
+        let capture = capture()
+        capture.startCapturing(copies: 1)
+        receive(capture)
+        let stem = TakeWriterDropTests.MemoryStem()
+        let writer = TakeWriter(feed: capture.feeds[1], stems: [stem], commitInterval: 48_000, joinPause: {})
+        capture.attachMidTake(capture.feeds[1])
+        writer.start()
+        writer.stop()
+
+        #expect(writer.neverJoined)
+        #expect(capture.feeds[1].joinedAt == nil)
+        #expect(stem.samples.isEmpty)
+        #expect(writer.gaps.isEmpty)
+    }
 }
