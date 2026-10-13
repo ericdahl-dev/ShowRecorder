@@ -181,8 +181,13 @@ public final class ClipProtection {
         pending.formUnion(channels)
         return Task {
             await turnDown(targets)
-            pending.subtract(channels)
+            pending.subtract(channels)                      // when stopped before any lane ran
         }
+    }
+
+    /// Mixer channels whose turn-down is done, or was never made: they may turn down again.
+    private func release(_ channels: Set<Int>) {
+        pending.subtract(channels)
     }
 
     /// Reads the preamp and lane behind each channel that fired, settles which move, and moves them.
@@ -214,19 +219,25 @@ public final class ClipProtection {
             let lane = lanes[index].map(Lane.pair) ?? .preamp(preamp)
             moves.append((target.usbChannel, target.channel, preamp, lane, max(-left, Self.stepDb(peakDbfs: target.peak))))
         }
+        release(Set(targets.map(\.channel)).subtracting(moves.map(\.channel)))
         // Moves in one lane go one after the other, in USB Channel order (#554): the Mixer mirrors fader and sends between
         // the strips of a linked pair, so two moves at once could both rewrite one setting. Lanes move at once.
         // Known gap: on an X32 a move also compensates the other channels on its headamp (#473), so a channel sharing a
         // headamp with one strip of a linked pair can still move alongside that pair. Rare; left for now.
         await withTaskGroup(of: Void.self) { group in
             for lane in Dictionary(grouping: moves, by: { $0.lane }).values {
-                group.addTask {
-                    for move in lane {
-                        await self.turnDown(move.usbChannel, channel: move.channel, preamp: move.preamp, by: move.gainChangeDb)
-                    }
-                }
+                group.addTask { await self.move(lane) }
             }
         }
+    }
+
+    /// Moves one lane's turn-downs one after the other. A lane done frees its channels, though another lane from the same
+    /// read still waits on the Mixer.
+    private func move(_ lane: [(usbChannel: Int, channel: Int, preamp: Int, lane: Lane, gainChangeDb: Double)]) async {
+        for move in lane {
+            await turnDown(move.usbChannel, channel: move.channel, preamp: move.preamp, by: move.gainChangeDb)
+        }
+        release(Set(lane.map(\.channel)))
     }
 
     /// Moves in one lane go one after the other: a strip-linked pair (by its first channel), or else one preamp.

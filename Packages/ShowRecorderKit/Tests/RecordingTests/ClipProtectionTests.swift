@@ -159,18 +159,45 @@ struct ClipProtectionTests {
         let quiet = Windows.at(-30)
 
         let hot = [Windows.at(-2), quiet, quiet]
-        for _ in 0..<10 { protection.meters(hot) }
+        let first = (0..<10).compactMap { _ in protection.meters(hot) }
         #expect(control.moveStarts == 0, "every read returned before any move reached the Mixer")
         #expect(await Self.next(entered), "a move reaches the Mixer")
         // 6 s more of a hot channel while that move waits: past the 5 s rest, so only the pending turn-down keeps a
         // second one from starting.
-        for _ in 0..<190 { protection.meters(hot) }
+        let later = (0..<190).compactMap { _ in protection.meters(hot) }
+        #expect(later.isEmpty, "no read starts a second turn-down while the first is pending")
         for _ in 0..<100 { await Task.yield() }
         #expect(control.moveStarts == 1)
         release.yield()
-        for _ in 0..<100 where control.gainDb[1] != 26 { await Task.yield() }
+        for task in first { await task.value }
         #expect(control.gainDb == [1: 26, 2: 30])
         #expect(control.moveStarts == 1)
+    }
+
+    @Test("A channel whose move is done may move again while another lane from the same read still waits on the Mixer (#554)")
+    func laneReleasedWhenDone() async {
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        control.channelAnswer = { channel in
+            guard channel == 2 else { return }
+            enter.yield()
+            for await _ in released { return }
+        }
+        let (logged, log) = AsyncStream<Void>.makeStream()
+        let protection = ClipProtection(control: control, sampleRate: 48_000, log: { _ in log.yield() })
+        let quiet = Windows.at(-30)
+
+        let both = (0..<10).compactMap { _ in protection.meters([Windows.at(-2), Windows.at(-2), quiet]) }
+        #expect(await Self.next(entered), "channel 2's move reaches the Mixer")
+        #expect(await Self.next(logged), "channel 1's lane is done")
+        #expect(control.gainDb[1] == 26)
+        // 6 s more of channel 1 hot while channel 2 still waits: past the 5 s rest, so channel 1 moves again.
+        let again = (0..<180).compactMap { _ in protection.meters([Windows.at(-2), quiet, quiet]) }
+        for task in again { await task.value }
+        #expect(control.gainDb[1] == 22)
+        release.yield()
+        for task in both { await task.value }
+        #expect(control.gainDb[2] == 26)
     }
 
     @Test("Two channels of a strip-linked pair, both hot, turn down one after the other (#554)")

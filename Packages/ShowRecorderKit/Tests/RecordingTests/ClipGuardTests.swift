@@ -70,8 +70,9 @@ struct ClipGuardTests {
         clipGuard.handle(.takeStarted(take: 1))
         recording = false
 
-        for window in ClipProtectionTests.hot { clipGuard.meters([window]) }
-        for _ in 0..<100 { await Task.yield() }
+        let started = ClipProtectionTests.hot.compactMap { clipGuard.meters([$0]) }
+
+        #expect(started.isEmpty)
 
         #expect(control.gainDb[1] == 30)
     }
