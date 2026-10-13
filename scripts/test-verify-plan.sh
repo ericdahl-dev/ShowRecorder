@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 fail=0
 expect() {
   files=$1; want=$2
-  got=$(VERIFY_ALL=0 VERIFY_FILES="$files" VERIFY_PLAN_ONLY=1 ./scripts/verify.sh | sed -n 's/^== Plan: //p')
+  got=$(VERIFY_QUICK=0 VERIFY_ALL=0 VERIFY_FILES="$files" VERIFY_PLAN_ONLY=1 ./scripts/verify.sh | sed -n 's/^== Plan: //p')
   if [ "$got" != "$want" ]; then
     printf 'FAIL for files:\n%s\n  want: %s\n  got:  %s\n' "$files" "$want" "$got"
     fail=1
@@ -58,7 +58,7 @@ expect_quick "docs/notes.md" "spelling" no
 expect_quick "scripts/verify.sh" "spelling vocab package site" yes
 expect_quick "" "spelling vocab package site" yes
 # With a device to build for, quick says that build is skipped too: CI doesn't run it.
-out=$(DEVICE_ID=abc VERIFY_QUICK=1 VERIFY_FILES="App/RecordView.swift" VERIFY_PLAN_ONLY=1 ./scripts/verify.sh)
+out=$(DEVICE_ID=abc VERIFY_QUICK=1 VERIFY_ALL=0 VERIFY_FILES="App/RecordView.swift" VERIFY_PLAN_ONLY=1 ./scripts/verify.sh)
 printf '%s\n' "$out" | grep -q "signed device build for abc is skipped" ||
   { echo "FAIL (quick): doesn't say the device build is skipped: $out"; fail=1; }
 
