@@ -244,7 +244,10 @@ public final class TakeSequencer {
     /// Readies the next Show from the default Template (see `Recorder.prepareNextShow`); returns whether it did.
     @discardableResult
     public func prepareNextShow(from template: Template) -> Bool {
-        recorder.prepareNextShow(from: template)
+        // It ends a Show idle for 6 hours first; that end is told like any other.
+        var ready = false
+        try? endingShow { ready = recorder.prepareNextShow(from: template) }
+        return ready
     }
 
     /// Ends the open Show, so the next record starts a new one. Never during a Take.
@@ -256,7 +259,7 @@ public final class TakeSequencer {
     private func endingShow(_ change: () throws -> Void) throws {
         let open = recorder.currentShow
         try change()
-        if let open, recorder.currentShow?.name != open.name || recorder.currentShow == nil {
+        if let open, recorder.currentShow?.folder != open.folder {
             emit.yield(.showEnded(name: open.name, takeCount: open.takeCount))
         }
     }

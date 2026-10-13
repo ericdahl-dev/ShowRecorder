@@ -23,9 +23,15 @@ struct TakeControlTests {
         return seen
     }
 
-    func makeSequencer(free: FreeSpace = FreeSpace()) -> (TakeSequencer, Recorder, FakeInputDevices) {
+    final class Clock: @unchecked Sendable {
+        var date: Date
+        init(_ date: Date) { self.date = date }
+    }
+
+    func makeSequencer(free: FreeSpace = FreeSpace(), clock: Clock? = nil) -> (TakeSequencer, Recorder, FakeInputDevices) {
+        let clock = clock ?? Clock(RecordingTakeTests.showDay)
         let recorder = Recorder(
-            deviceFolder: root, now: { RecordingTakeTests.showDay }, freeSpace: { _ in free.bytes }, destinationCheckInterval: nil)
+            deviceFolder: root, now: { clock.date }, freeSpace: { _ in free.bytes }, destinationCheckInterval: nil)
         let source = FakeInputDevices([("xr18", 2)])
         return (TakeSequencer(recorder: recorder, devices: source, capsAt48k: { false }), recorder, source)
     }
@@ -172,5 +178,50 @@ struct TakeControlTests {
         #expect(recorder.currentShow?.name == show)
         let seen = await told(&events, through: .takeEnded(TakeEnd(take: 1, reason: .stopped)))
         #expect(seen == [.takeStarted(take: 1), .takeEnded(TakeEnd(take: 1, reason: .stopped))])
+    }
+
+    let saturday = Template(name: "Saturday", venue: nil, channelNames: [:], mixerNetworkName: nil, mixerAddress: "", preRollSeconds: 0)
+
+    @Test("Starting a new Show over the open one tells the open one ended")
+    func newShowEndsOpenOne() async throws {
+        let (sequencer, recorder, source) = makeSequencer()
+        sequencer.arm()
+        var events = sequencer.events.makeAsyncIterator()
+        _ = await events.next()  // .armed
+        try sequencer.startNewShow(name: "Friday", venue: "")
+        sequencer.record(sources: [], allowance: nil)
+        try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
+        sequencer.stop()
+
+        _ = await told(&events, through: .takeEnded(TakeEnd(take: 1, reason: .stopped)))
+
+        try sequencer.startNewShow(from: saturday)
+        sequencer.record(sources: [], allowance: nil)
+
+        let next = await events.next(isolation: #isolation)
+        #expect(next == .showEnded(name: "2026-10-06 Friday", takeCount: 1))
+        #expect(recorder.currentShow?.name == "2026-10-06 Saturday")
+    }
+
+    @Test("Readying the next Show over one idle for 6 hours tells the idle one ended")
+    func preparingEndsIdleShow() async throws {
+        let clock = Clock(RecordingTakeTests.showDay)
+        let (sequencer, recorder, source) = makeSequencer(clock: clock)
+        sequencer.arm()
+        var events = sequencer.events.makeAsyncIterator()
+        _ = await events.next()  // .armed
+        try sequencer.startNewShow(name: "Friday", venue: "")
+        sequencer.record(sources: [], allowance: nil)
+        try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
+        sequencer.stop()
+
+        _ = await told(&events, through: .takeEnded(TakeEnd(take: 1, reason: .stopped)))
+
+        clock.date = clock.date.addingTimeInterval(7 * 3600)
+        #expect(sequencer.prepareNextShow(from: saturday))
+        sequencer.record(sources: [], allowance: nil)
+
+        let next = await events.next(isolation: #isolation)
+        #expect(next == .showEnded(name: "2026-10-06 Friday", takeCount: 1))
     }
 }
