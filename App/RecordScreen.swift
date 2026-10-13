@@ -630,6 +630,22 @@ final class RecordScreenModel {
 
     /// Auto-gain's state (#155): kept here, not in the sheet, so Undo survives closing it; locked during a Take.
     let autoGain = AutoGainPanel()
+    /// Clip protection (#448): turns a hot channel's preamp down, only during a Take, only when switched on.
+    let clipGuard = ClipGuard()
+    /// Clip protection's switch in Settings (Debug builds for now), read when each Take starts. Off by default.
+    var clipProtectionOn: Bool = ClipProtectionSetting.isOn() {
+        didSet {
+            ClipProtectionSetting.save(clipProtectionOn)
+            if !clipProtectionOn { clipGuard.switchedOff() }
+        }
+    }
+
+    /// Clip protection on the linked Mixer, at the rate the input runs at, logging each move in the Take with a
+    /// Marker (#450). Nil when the Mixer can't set gain.
+    private func makeClipProtection() -> ClipProtection? {
+        guard let control = mixerLink.gainControl, let rate = recorder.sampleRate else { return nil }
+        return ClipProtection(control: control, sampleRate: Double(rate), log: { [weak self] change in self?.recorder.logGainChange(change) })
+    }
 
     /// The one listener to the sequencer's events (an AsyncStream takes one, and ending it ends the stream), for the
     /// model's whole life. Whatever follows Takes is told from here.
@@ -638,6 +654,7 @@ final class RecordScreenModel {
         Task { [weak self] in
             for await event in events {
                 self?.autoGain.handle(event)
+                self?.clipGuard.handle(event)
             }
         }
     }
@@ -903,6 +920,8 @@ final class RecordScreenModel {
         sequencer.log = { line in Self.sessionLog.notice("\(line, privacy: .public)") }
         autoGain.makeSession = { [weak self] in self?.makeAutoGainSession() }
         autoGain.isRecording = { [weak self] in self?.recorder.isRecording ?? false }
+        clipGuard.makeProtection = { [weak self] in self?.makeClipProtection() }
+        clipGuard.isRecording = { [weak self] in self?.recorder.isRecording ?? false }
         followTakes()
         sequencer.didArm = { [unowned self] device in
             if let device {
@@ -1263,6 +1282,8 @@ final class RecordScreenModel {
             lastPoll = now
             let fresh = recorder.takeChannelLevels()
             meterModel.update(from: fresh, seconds: seconds)
+            // Clip protection reads the same windows; a move waits on the Mixer, so it never holds up the meters.
+            if clipGuard.active != nil { Task { await clipGuard.observe(fresh) } }
             try? await Task.sleep(for: .milliseconds(33))
         }
     }

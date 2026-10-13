@@ -111,6 +111,11 @@ struct SettingsView: View {
                         .disabled(isConnecting || model.mixerAddress.isEmpty || locked(.mixerLink))
                     mixerStatus
                     FindMixersRow(model: model, disabled: locked(.mixerLink))
+                    if ClipProtectionSetting.isOffered() {
+                        Toggle("Clip protection", isOn: $model.clipProtectionOn)
+                        Text("During a Take, turns a clipping channel's preamp down on the Mixer, with Re-Gain so the mix stays the same. Each move adds a Marker. Switched on, it starts with the next Take; switched off, it stops at once.")
+                            .font(.footnote).secondaryText()
+                    }
                 } header: {
                     Text("Mixer Link").id(SettingsSection.mixer)
                 } }
