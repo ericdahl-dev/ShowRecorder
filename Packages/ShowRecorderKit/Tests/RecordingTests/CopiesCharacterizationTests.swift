@@ -69,7 +69,11 @@ extension GapTests {
         try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
         #expect(bridge(recorder) == Bridge(recording: true, device: .recording, drive: .interrupted, outcomes: [:], repairing: false))
 
-        recorder.checkDestinations()
+        // The Drive rejoins once its writer has finished; ask until it has.
+        try await waitUntil {
+            recorder.checkDestinations()
+            return recorder.copyStatus(.drive) == .recording
+        }
         #expect(bridge(recorder) == Bridge(recording: true, device: .recording, drive: .recording, outcomes: [:], repairing: false))
 
         try await deliverBlocks(5, to: audio, recorder, sample: counting())
@@ -109,12 +113,84 @@ extension GapTests {
         recorder.checkDestinations()
         #expect(bridge(recorder) == Bridge(recording: true, device: .interrupted, drive: .recording, outcomes: [:], repairing: false))
 
+        try await deliverBlocks(2, to: audio, recorder, sample: counting())   // the Take goes on without the Device
         try recorder.stopTake()
         await recorder.waitForRepair()
-        // As it is today, and maybe not as it should be: the retired Device Copy ends "complete", though it stopped
-        // early. Pinned here so the move to one answer can't change it; whether it should say so is a question for
-        // the retired-vs-failed follow-up, not this refactor.
         #expect(bridge(recorder) == Bridge(recording: false, device: .interrupted, drive: .recording,
+                                           outcomes: [.device: .hasGaps, .drive: .complete], repairing: false))
+    }
+
+    @Test("Characterization (#550): the Device fails mid-Take (not for space); the Drive carries on")
+    func characterizeDeviceFails() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(failing: [.device])
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        try await waitUntil { recorder.copyStatus(.device) == .interrupted }
+        #expect(bridge(recorder) == Bridge(recording: true, device: .interrupted, drive: .recording, outcomes: [:], repairing: false))
+
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+        // A failed Copy is Repaired from the other; one retired for space (above) keeps its Gap.
+        #expect(bridge(recorder) == Bridge(recording: false, device: .interrupted, drive: .recording,
+                                           outcomes: [.device: .repaired, .drive: .complete], repairing: false))
+    }
+
+    @Test("Characterization (#550): both Copies fail, so the Take ends on its own")
+    func characterizeBothFail() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(failing: [.device, .drive])
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(3, to: audio, recorder, sample: counting())
+        try await waitUntil { !recorder.isRecording }
+        await recorder.waitForRepair()
+        #expect(bridge(recorder) == Bridge(recording: false, device: .interrupted, drive: .interrupted,
+                                           outcomes: [.device: .repairFailed, .drive: .repairFailed], repairing: false))
+    }
+
+    @Test("Characterization (#550): a Drive that joins mid-Take")
+    func characterizeDriveJoins() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let available = DriveSwitch()
+        let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } },
+                                now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        #expect(bridge(recorder) == Bridge(recording: true, device: .recording, drive: .missing, outcomes: [:], repairing: false))
+        available.folder = drive
+        recorder.checkDestinations()
+        #expect(bridge(recorder) == Bridge(recording: true, device: .recording, drive: .recording, outcomes: [:], repairing: false))
+
+        try await deliverBlocks(5, from: 4_800, to: audio, recorder, sample: counting())
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+        #expect(bridge(recorder) == Bridge(recording: false, device: .recording, drive: .recording,
+                                           outcomes: [.device: .complete, .drive: .repaired], repairing: false))
+    }
+
+    @Test("Characterization (#550): a second Take starts; the last Take's outcomes are still there while it runs")
+    func characterizeSecondTake() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(failing: [])
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(3, to: audio, recorder, sample: counting())
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+        try recorder.startTake()
+        try await deliverBlocks(3, to: audio, recorder, sample: counting())
+        // The running words are the new Take's; the ended words are still the last Take's (the screens show them only
+        // when no Take is running).
+        #expect(bridge(recorder) == Bridge(recording: true, device: .recording, drive: .recording,
                                            outcomes: [.device: .complete, .drive: .complete], repairing: false))
+        try recorder.stopTake()
+        await recorder.waitForRepair()
     }
 }
