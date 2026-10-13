@@ -29,6 +29,8 @@ struct AutoGainSheet: View {
                 #endif
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
+        // A List has no size of its own; without this a Mac sheet shows it empty.
+        .frame(minWidth: 440, minHeight: 420)
         .interactiveDismissDisabled(!running.isEmpty)
     }
 
