@@ -1,5 +1,6 @@
 #!/bin/sh
 # Runs the checks CI runs, but only the ones the changed files need:
+#   spelling scripts/spelling-check.sh   every plan: CI's American spelling check, on the whole repo
 #   vocab    scripts/vocab-check.sh      App/, package Sources/, CONTEXT.md, scripts/vocab-*
 #   package  swift test                  Packages/
 #   app      macOS and iOS Simulator     App/, Packages/, project.yml, ShowRecorder.xcodeproj/
@@ -61,24 +62,22 @@ else
   IFS=$old_ifs
 fi
 
-plan=""
+plan="spelling"
 [ $vocab = 1 ] && plan="$plan vocab"
 [ $package = 1 ] && plan="$plan package"
 [ $app = 1 ] && plan="$plan app"
 [ $site = 1 ] && plan="$plan site"
-plan=${plan# }
-echo "== Plan: ${plan:-none}"
+echo "== Plan: $plan"
 [ "${VERIFY_PLAN_ONLY:-0}" = 1 ] && exit 0
-if [ -z "$plan" ]; then
-  echo "== Nothing to check for these changes (VERIFY_ALL=1 runs everything)"
-  exit 0
-fi
 
-if [ "$plan" = "vocab package app site" ]; then
+if [ "$plan" = "spelling vocab package app site" ]; then
   echo "== verify.sh plan and steps"
   ./scripts/test-verify-plan.sh
   ./scripts/test-verify-steps.sh
 fi
+
+echo "== American spelling (CI's check)"
+./scripts/spelling-check.sh
 
 if [ $vocab = 1 ]; then
   echo "== Vocabulary (CONTEXT.md)"
