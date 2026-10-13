@@ -67,7 +67,8 @@ final class StandInSink: StemSink, @unchecked Sendable {
             defer { request = nil }
             return request
         }) else { return }
-        let start = max(asked.start, oldestHeld)
+        // Never past what's held: a Drive ahead of a lagging standby would otherwise make an impossible range.
+        let start = min(max(asked.start, oldestHeld), Int(frameCount))
         let stem = try asked.open()
         file = (stem, start)
         var samples: [Float] = []

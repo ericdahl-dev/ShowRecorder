@@ -125,10 +125,14 @@ final class TakeSession {
         let standingBy = driveOnly && folders.count > 1
         if standingBy {
             let held = Int(Double(info.sampleRate) * Self.standbySeconds)
-            let sinks = stems.map { _ in StandInSink(heldFrames: held) }
+            // An unrecorded USB Channel is never stood in for, so it holds nothing.
+            let sinks = stems.map { StandInSink(heldFrames: $0.isRecorded ? held : 1) }
             let ring = capture.rings[DestinationKind.device.index]
-            standby = Standby(
-                folder: folders[0], writer: TakeWriter(ring: ring, stems: sinks, commitInterval: info.sampleRate * 2, head: head), sinks: sinks)
+            let writer = TakeWriter(ring: ring, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] in
+                capture.disable(copy: DestinationKind.device.index)
+                Task { @MainActor in self?.onCopyFailed() }
+            }, head: head)
+            standby = Standby(folder: folders[0], writer: writer, sinks: sinks)
         }
         for (index, folder) in folders.enumerated() where !(standingBy && index == DestinationKind.device.index) {
             let kind = DestinationKind(index: index)
@@ -161,6 +165,7 @@ final class TakeSession {
         // next header commit never happens.
         writeMetadata()
         for copy in copies { copy.writer.setMarkers(stemMarkers) }
+        standby?.writer.setMarkers(stemMarkers)
         return marker
     }
 
@@ -203,6 +208,7 @@ final class TakeSession {
         metadata.routingChanges = changes
         writeMetadata()
         for copy in copies { copy.writer.setMarkers(stemMarkers) }
+        standby?.writer.setMarkers(stemMarkers)
     }
 
     /// Logs that a Mixer renamed a Source, at the Take's current sample position, in `Take.json` of every
@@ -221,11 +227,13 @@ final class TakeSession {
         metadata.markers[place].name = name
         writeMetadata()
         for copy in copies { copy.writer.setMarkers(stemMarkers) }
+        standby?.writer.setMarkers(stemMarkers)
         return .renamed
     }
 
     /// How `kind`'s Copy is doing. A Copy that never started is missing.
     func status(_ kind: DestinationKind) -> CopyStatus {
+        if kind == .device, let standby, standby.start != nil { return standby.writer.hasFailed ? .interrupted : .recording }
         guard let copy = copies.first(where: { $0.kind == kind }) else { return .missing }
         return copy.writer.hasFailed ? .interrupted : .recording
     }
@@ -287,7 +295,14 @@ final class TakeSession {
                 copy.writer.retire()
             }
         }
-        if standby != nil {
+        if let standby {
+            // A stand-in keeps the Device's space reserve like a Copy: short of it, it stops cleanly; when the Drive
+            // is gone too, the Take ends.
+            if standby.start != nil, !standby.writer.hasFailed, reserve.isLow(free: freeSpace(standby.folder)) {
+                if healthy.isEmpty { return .outOfSpace }
+                capture.disable(copy: DestinationKind.device.index)
+                standby.writer.retire()
+            }
             standInIfDriveLost()
         } else {
             if copies.count == 1, let access = drive() {
@@ -426,19 +441,25 @@ final class TakeSession {
     /// Starts the stand-in once the Drive is lost: its writer failed, or wrote nothing for `driveStallLimit` while
     /// audio arrived. A Drive that hangs is given up, so Stop never waits on it.
     private func standInIfDriveLost() {
-        guard var standby, standby.start == nil, let drive = copies.first(where: { $0.kind == .drive }) else { return }
+        guard var standby, standby.start == nil, !capture.awaitingFirstBlock,
+              let drive = copies.first(where: { $0.kind == .drive }) else { return }
         let written = drive.writer.framesWritten
         let now = ContinuousClock.now
-        var lost = drive.writer.hasFailed
-        if !lost {
+        var stalled = false
+        if !drive.writer.hasFailed {
             if let last = driveProgress, last.frames == written {
-                lost = now - last.at >= driveStallLimit && capture.takeFrameCount > written
+                stalled = now - last.at >= driveStallLimit && capture.takeFrameCount > written
             } else {
                 driveProgress = (written, now)
             }
         }
-        guard lost else { return }
-        if !drive.writer.hasFailed {
+        // A Drive too slow to keep up drops audio but carries on: the standby stands in for it from the first drop,
+        // and the Drive isn't given up, so Repair can fill it later.
+        // The ring's overflow shows at once; the writer only logs the Dropout once it wakes, which a stuck write delays.
+        let overflowed = capture.rings[DestinationKind.drive.index].overflowedFrames.load(ordering: .relaxed) > 0
+        let firstDrop = drive.writer.dropouts.map(\.lowerBound).min()
+        guard drive.writer.hasFailed || stalled || overflowed || firstDrop != nil else { return }
+        if stalled {
             capture.disable(copy: DestinationKind.drive.index)
             drive.writer.giveUp()
         }
@@ -446,7 +467,10 @@ final class TakeSession {
         // for the blocks that arrive meanwhile. Audio the Drive lost before that stays a Gap no stand-in covers.
         let held = Int(Double(info.sampleRate) * Self.standbySeconds)
         let newest = standby.sinks.map { Int($0.frameCount) }.max() ?? 0
-        let start = max(written, newest + info.sampleRate / 10 - held, 0)
+        // From where the Drive stopped, less what it may not have made durable: up to one header commit (2 s) of
+        // audio can die with a pulled Drive. The overlap costs nothing; Repair only fills Gaps.
+        let lostFrom = min(written - info.sampleRate * 2, firstDrop ?? .max)
+        let start = max(lostFrom, newest + info.sampleRate / 10 - held, 0)
         let folder = standby.folder.appending(path: TakeMetadata.StandIn(start: start, end: start).folderName, directoryHint: .isDirectory)
         var startInfo = info
         startInfo.timeReference += UInt64(start)

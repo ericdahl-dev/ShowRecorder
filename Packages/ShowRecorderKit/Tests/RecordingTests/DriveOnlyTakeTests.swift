@@ -114,13 +114,79 @@ struct DriveOnlyTakeTests {
         #expect(ContinuousClock.now - started < .seconds(1), "Stop waited on the hung Drive")
         await recorder.waitForRepair()
 
-        // The Device holds the stand-in from the Drive's last frame to the end of the Take, and keeps it: the Drive
-        // can't be Repaired.
+        // The Device holds the stand-in to the end of the Take, from 2 s before the Drive's last frame (what a pulled
+        // Drive may not have made durable; here the start of the Take), and keeps it: the Drive can't be Repaired.
         let deviceTake = try TakeMetadata.read(fromTakeFolder: device.appending(path: take))
-        #expect(deviceTake.standIns == [.init(start: 4_800, end: 14_400)])
-        let standIn = device.appending(path: "\(take)/Stand-in 4800/01 USB 01.wav")
-        #expect(try StemWriter.readSamples(url: standIn, frames: 0..<9_600) == (4_800..<14_400).map { counting()($0, 0) })
-        #expect(try StemFile.inspect(standIn).frameCount == 9_600, "the stand-in's Stem is finalized")
+        #expect(deviceTake.standIns == [.init(start: 0, end: 14_400)])
+        let standIn = device.appending(path: "\(take)/Stand-in 0/01 USB 01.wav")
+        #expect(try StemWriter.readSamples(url: standIn, frames: 0..<14_400) == (0..<14_400).map { counting()($0, 0) })
+        #expect(try StemFile.inspect(standIn).frameCount == 14_400, "the stand-in's Stem is finalized")
         #expect(recorder.lastTakeOutcomes[.drive] != .repaired)
+    }
+
+    @Test("After a relaunch the next Take gets a new number, though the Device has no folder for the last one")
+    func takeNumberSurvivesRelaunch() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let first = recorder()
+        try first.arm(audio)
+        try first.startTake()
+        try await deliverBlocks(2, to: audio, first)
+        try first.stopTake()
+        await first.waitForRepair()
+        first.disarm()
+
+        let relaunched = recorder()
+        try relaunched.arm(audio)
+        try relaunched.startTake()
+        try await deliverBlocks(2, to: audio, relaunched)
+        try relaunched.stopTake()
+        await relaunched.waitForRepair()
+        #expect(FileManager.default.fileExists(atPath: drive.appending(path: "2026-10-06 Show/Take 02/01 USB 01.wav").path))
+    }
+
+    /// A Drive Stem that stalls once, for `pause`, on its first write past `healthyFrames`, then carries on.
+    final class SlowStem: StemSink, @unchecked Sendable {
+        let inner: StemWriter
+        let healthyFrames: Int
+        let pause: TimeInterval
+        private var paused = false
+        init(_ inner: StemWriter, healthyFrames: Int, pause: TimeInterval) {
+            self.inner = inner
+            self.healthyFrames = healthyFrames
+            self.pause = pause
+        }
+        var frameCount: UInt64 { inner.frameCount }
+        func append(_ samples: UnsafeBufferPointer<Float>) throws {
+            if !paused, Int(inner.frameCount) + samples.count > healthyFrames {
+                paused = true
+                Thread.sleep(forTimeInterval: pause)
+            }
+            try inner.append(samples)
+        }
+        func commitHeader() throws { try inner.commitHeader() }
+        func finalize() throws { try inner.finalize() }
+        @discardableResult func setMarkers(_ markers: [StemMarker]) throws -> Int { try inner.setMarkers(markers) }
+    }
+
+    @Test("A Drive too slow to keep up drops audio but isn't given up: the Device stands in from the drop, and Repair fills the Drive")
+    func slowDrive() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        // The stall limit is long, so only the drop (the Drive's 4 s ring overflowing) brings the standby in.
+        let recorder = recorder(driveStem: { SlowStem($0, healthyFrames: 4_800, pause: 0.5) }, stallLimit: .seconds(60))
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        // 5 s of audio arrive while the Drive is paused: more than its ring holds.
+        let total = 10 * 480 + 240_000
+        deliver(240_000, from: 4_800, to: audio, block: 480, sample: counting())
+        try await waitUntil { recorder.droppedFrameCount > 0 }
+        recorder.checkDestinations()
+        try await waitUntil { recorder.bufferedFrameCount == 0 }
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+
+        #expect(recorder.lastTakeOutcomes[.drive] == .repaired)
+        #expect(try driveSamples(frames: total) == (0..<total).map { counting()($0, 0) }, "the Drive has the whole Take")
+        #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "nothing of the Take is left on the Device")
     }
 }
