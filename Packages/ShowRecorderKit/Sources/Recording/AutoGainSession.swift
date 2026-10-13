@@ -262,27 +262,17 @@ public final class AutoGainSession {
         }
     }
 
-    /// Puts back every gain step taken on `usbChannel`, newest first.
-    /// One gain move or undo on the Mixer at a time, in the order asked: each Mix Hold plan reads the Mixer, ramps and
-    /// writes, so two at once could both rewrite a setting they both compensate (a keyed threshold) and lose one move.
-    private var mixerBusy = false
-    private var mixerWaiting: [CheckedContinuation<Void, Never>] = []
+    /// One gain move or undo on the Mixer at a time, in the order asked (`MixerQueue`).
+    private let mixerQueue = MixerQueue()
 
     private func onMixer<T>(_ body: () async throws(MixerLinkProblem) -> T) async throws(MixerLinkProblem) -> T {
-        if mixerBusy {
-            await withCheckedContinuation { mixerWaiting.append($0) }
-        } else {
-            mixerBusy = true
-        }
-        defer {
-            if mixerWaiting.isEmpty { mixerBusy = false } else { mixerWaiting.removeFirst().resume() }
-        }
-        return try await body()
+        try await mixerQueue.run(body)
     }
 
     /// USB Channels with an Undo under way.
     private var undoing: Set<Int> = []
 
+    /// Puts back every gain step taken on `usbChannel`, newest first.
     /// Each step is dropped as soon as it is undone, so when the Mixer stops answering partway the rest stay for
     /// another Undo, and none is undone twice. An Undo asked for while one is under way on the same USB Channel does
     /// nothing: the first one takes back every step.
