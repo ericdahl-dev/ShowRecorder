@@ -132,4 +132,42 @@ struct StatusChipsTests {
                                     mixer: nil, copies: ended).map(\.text)
         #expect(shown == ["Device 1 h 00 min", "Drive 1 h 00 min"])
     }
+
+    @Test("Drive only between Takes, the Drive there: one chip, the Drive's, beside the Mixer's (#550)")
+    func driveOnlyBetweenTakesDrive() {
+        let shown = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour * 2),
+                                    mixer: .idle, copies: .none, driveOnly: true).map(\.text)
+        #expect(shown == ["Drive 2 h 00 min", "Mixer not linked"])
+    }
+
+    @Test("Drive only between Takes, no Drive: one chip, the Device's, since the Device would stand in (#550)")
+    func driveOnlyBetweenTakesNoDrive() {
+        for drive in [DriveStatus.notChosen, .unavailable(.notConnected(name: "SSD"))] {
+            let shown = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive,
+                                        mixer: nil, copies: .none, driveOnly: true).map(\.text)
+            #expect(shown == ["Device 1 h 00 min"])
+        }
+    }
+
+    @Test("A Drive-only Take with the Device standing by: one chip, the Drive's (#550)")
+    func driveOnlyTakeStandingBy() {
+        let shown = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour * 2),
+                                    mixer: nil, copies: takeCopies(driveOnly: true, device: .standingBy, drive: .recording))
+        #expect(shown.map(\.text) == ["Drive 2 h 00 min"])
+    }
+
+    @Test("A Drive-only Take with the Device standing in for the Drive: one chip, the Device's (#550)")
+    func driveOnlyTakeStandingIn() {
+        let shown = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour * 2),
+                                    mixer: nil, copies: takeCopies(driveOnly: true, device: .standingIn, drive: .interrupted))
+        #expect(shown.map(\.text) == ["Device 1 h 00 min"])
+    }
+
+    @Test("A Drive-only Take that started with no Drive: the Device records it, so one chip, the Device's (#550)")
+    func driveOnlyTakeWithoutDrive() {
+        let shown = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour,
+                                    drive: .unavailable(.notConnected(name: "SSD")), mixer: nil,
+                                    copies: takeCopies(driveOnly: true, device: .recording, drive: .missing))
+        #expect(shown.map(\.text) == ["Device 1 h 00 min"])
+    }
 }

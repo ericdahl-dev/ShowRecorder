@@ -42,13 +42,16 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
     ///   - copies: the Take's Copies (#550): one that stopped mid-Take says so while the Take runs.
     ///   - sampleRate: the Armed input's rate, for the time left (#298); 48 kHz when nothing is Armed.
     ///   - mixer: nil when the input isn't an X Air or X32: Mixer Link isn't offered, so there's no Mixer chip (#365).
+    ///   - driveOnly: the Drive only setting (#196), so it applies between Takes too. Drive only, or a Drive-only Take,
+    ///     shows one of the Device and Drive chips (#550).
     public static func make(
         usbChannelCount: Int,
         deviceAvailableBytes: Int64,
         drive: DriveStatus,
         mixer: MixerLinkStatus?,
         copies: TakeCopies,
-        sampleRate: Int = 48_000
+        sampleRate: Int = 48_000,
+        driveOnly: Bool = false
     ) -> [StatusChip] {
         func stopped(_ kind: DestinationKind) -> Bool { copies.isRunning && copies[kind] == .interrupted }
         func timeLeft(_ bytes: Int64) -> TimeLeft {
@@ -73,7 +76,14 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         }
         if stopped(.drive) { driveChip = StatusChip(kind: .drive, text: "Drive stopped", state: .failed) }
 
-        guard let mixer else { return [device, driveChip] }
+        var chips = [device, driveChip]
+        if driveOnly || copies.isDriveOnly {
+            var driveAvailable: Bool { if case .available = drive { true } else { false } }
+            let deviceWrites = copies.isRunning ? [.standingIn, .recording].contains(copies[.device]) : !driveAvailable
+            chips = [deviceWrites ? device : driveChip]
+        }
+
+        guard let mixer else { return chips }
         let mixerChip: StatusChip
         switch mixer {
         case .idle:
@@ -90,7 +100,7 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         case .down:
             mixerChip = StatusChip(kind: .mixer, text: "Mixer down", state: .attention)
         }
-        return [device, driveChip, mixerChip]
+        return chips + [mixerChip]
     }
 
     /// Today's call with the running words (empty when no Take is running), until the record screen reads
