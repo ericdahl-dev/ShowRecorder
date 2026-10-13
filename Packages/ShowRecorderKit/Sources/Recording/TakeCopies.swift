@@ -1,0 +1,34 @@
+import Destinations
+
+/// One Copy of a Take, as the screens read it (#550).
+public enum CopyState: Equatable, Sendable {
+    // While the Take runs.
+    case recording
+    /// Its Destination failed or ran short of space mid-Take; the Take carries on in the other Copy.
+    case interrupted
+    /// It never started: no Destination.
+    case missing
+    // Once the Take has ended.
+    case complete
+    /// Its Gaps are still silence: Repair couldn't fill them (the Copy ran short of space, say).
+    case hasGaps
+    /// Repair filled its Gaps from the other Copy.
+    case repaired
+    /// Repair tried and failed.
+    case repairFailed
+}
+
+/// Copies of a Take (#550): what each Destination's Copy of one Take is doing, or ended as, keyed by Destination.
+/// The one answer every screen reads; its Gaps come from Copy coverage.
+public struct TakeCopies: Equatable, Sendable {
+    public let isRunning: Bool
+    /// Every Destination has a state, so two snapshots that read the same are equal.
+    private let states: [DestinationKind: CopyState]
+
+    init(isRunning: Bool, state: (DestinationKind) -> CopyState) {
+        self.isRunning = isRunning
+        states = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.map { ($0, state($0)) })
+    }
+
+    public subscript(_ kind: DestinationKind) -> CopyState { states[kind] ?? .missing }
+}
