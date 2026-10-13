@@ -101,7 +101,7 @@ public final class DetectingMixerDriver: MixerDriver {
 
     /// The found Mixer's gain control, when its driver has one (the X32 today; the X-Air with #153).
     public var gainControl: (any GainControl)? {
-        chosen.withLock { $0?.driver } as? any GainControl
+        chosen.withLock { $0?.driver }?.gainControl
     }
 
     public func sources(usbChannelCount: Int) async throws(MixerLinkProblem) -> [Source] {

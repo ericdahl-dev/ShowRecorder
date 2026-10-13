@@ -80,6 +80,12 @@ public protocol MixerDriver: Sendable {
     func renewLiveUpdates() async throws(MixerLinkProblem)
     /// The Source changes the Mixer pushes while live updates are renewed. Ends when the driver goes away.
     func sourceChanges() -> AsyncStream<SourceChange>
+    /// The Mixer's preamp control, which Re-Gain and auto-gain use (#442); nil when this driver can't set gain.
+    var gainControl: (any GainControl)? { get }
+}
+
+extension MixerDriver {
+    public var gainControl: (any GainControl)? { nil }
 }
 
 /// A name or color the Mixer changed on one USB Channel's Source. Nil fields did not change.

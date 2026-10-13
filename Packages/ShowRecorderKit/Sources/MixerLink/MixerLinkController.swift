@@ -32,8 +32,7 @@ public final class MixerLinkController {
 
     /// The linked Mixer's gain control for auto-gain (#155), while the Link is up and its driver can set gain.
     public var gainControl: (any GainControl)? {
-        guard identity != nil, let driver else { return nil }
-        return (driver as? DetectingMixerDriver)?.gainControl ?? driver as? any GainControl
+        identity != nil ? driver?.gainControl : nil
     }
 
     /// The identified Mixer, while the Link is up.

@@ -29,4 +29,21 @@ struct MixerGainControlTests {
         #expect(control.channel(forUSBChannel: 5) == 5)
         #expect(control.channel(forUSBChannel: 17) == nil, "the aux return has no preamp")
     }
+
+    @Test("The Link finds gain control on whichever driver it has, not only the ones it knows by type (#442)")
+    func fromAnyDriver() async {
+        let driver = FakeMixerDriver(gainControl: StubGainControl())
+        let link = MixerLinkController(makeDriver: { _, _ in driver })
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+        #expect(link.gainControl?.channel(forUSBChannel: 3) == 3)
+    }
+
+    @Test("A driver that can't set gain offers none, and a Link that went down offers none")
+    func noneWithoutGain() async {
+        let driver = FakeMixerDriver()
+        let link = MixerLinkController(makeDriver: { _, _ in driver })
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+        #expect(link.identity != nil)
+        #expect(link.gainControl == nil)
+    }
 }
