@@ -39,7 +39,7 @@ Several agents often work on this Mac at once, in their own worktrees. Builds ru
   Light commands run straight away: `swift --version`, `swift package describe` or `resolve`, `xcodebuild -list`, `-version`, `-showdestinations`, `-showsdks`. So does anything outside this repo; the shims then just run `/usr/bin/swift` or `/usr/bin/xcodebuild`.
 - Builds `verify.sh` starts itself don't wait for it (`SHOWRECORDER_BUILD_LOCK_HELD=1`).
 - A queued build can take longer than an agent's 10-minute command limit, so agents run builds and tests as background tasks.
-- Stop a build with Ctrl-C, or by signalling its whole process group (`kill -- -PGID`). A signal to `lockf` alone frees the lock while the build goes on, and the next build starts beside it.
+- Stop a build with Ctrl-C, or by signaling its whole process group (`kill -- -PGID`). A signal to `lockf` alone frees the lock while the build goes on, and the next build starts beside it.
 - `scripts/build-lock.sh` has the details; `scripts/test-verify-lock.sh` and `scripts/test-build-lock.sh` test it with stand-in tools and a lock of their own, so they never wait on a real build.
 
 `scripts/preflight.sh` builds an unsigned iOS Release app and checks what App Store Connect rejects a build for (icon, privacy manifest, export compliance, usage strings, version numbers); pass an `.xcarchive` to check one you already have. Set `BUILD_NUMBER` to override `CURRENT_PROJECT_VERSION` at build time. The marketing version stays in `project.yml`.
