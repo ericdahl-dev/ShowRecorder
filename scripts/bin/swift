@@ -18,7 +18,29 @@ case "${1:-}" in
     done ;;
 esac
 
-if [ "$light" = 1 ] || [ "${SHOWRECORDER_BUILD_LOCK_HELD:-0}" = 1 ] || ! in_showrecorder; then
+if [ "$light" = 1 ] || ! in_showrecorder; then
+  exec "$real" "$@"
+fi
+
+# At most build_jobs compile jobs, right after the subcommand (so swift run doesn't pass it to the program), unless
+# the caller gave a count.
+given=0
+for arg in "$@"; do
+  case "$arg" in -j | -j[0-9]* | --jobs | --jobs=*) given=1 ;; esac
+done
+if [ "$given" = 0 ]; then
+  jobs=$(build_jobs)
+  added=0
+  for arg in "$@"; do
+    shift
+    set -- "$@" "$arg"
+    if [ "$added" = 0 ]; then
+      case "$arg" in build | test | run) set -- "$@" -j "$jobs"; added=1 ;; esac
+    fi
+  done
+fi
+
+if [ "${SHOWRECORDER_BUILD_LOCK_HELD:-0}" = 1 ]; then
   exec "$real" "$@"
 fi
 build_lock_exec "$real" "$@"

@@ -38,6 +38,9 @@ Several agents often work on this Mac at once, in their own worktrees. Builds ru
 
   Light commands run straight away: `swift --version`, `swift package describe` or `resolve`, `xcodebuild -list`, `-version`, `-showdestinations`, `-showsdks`. So does anything outside this repo; the shims then just run `/usr/bin/swift` or `/usr/bin/xcodebuild`.
 - Builds `verify.sh` starts itself don't wait for it (`SHOWRECORDER_BUILD_LOCK_HELD=1`).
+- **Every build is capped at N compile jobs,** so one build alone doesn't take the whole CPU either. N is `SHOWRECORDER_BUILD_JOBS`, or this Mac's cores less 4 (at least 1): 8 on a 12-core Mac.
+  - The shims add `-j N` to `swift build`, `test` and `run` (right after the subcommand), and `-jobs N` to `xcodebuild`, unless you gave a count yourself.
+  - `verify.sh` runs its package tests and both app builds at once, so it splits N between them (8 / 3 = 2 each). It calls the shims by path, so the cap holds even without `scripts/bin` on PATH.
 - A queued build can take longer than an agent's 10-minute command limit, so agents run builds and tests as background tasks.
 - Stop a build with Ctrl-C, or by signaling its whole process group (`kill -- -PGID`). A signal to `lockf` alone frees the lock while the build goes on, and the next build starts beside it.
 - `scripts/build-lock.sh` has the details; `scripts/test-verify-lock.sh` and `scripts/test-build-lock.sh` test it with stand-in tools and a lock of their own, so they never wait on a real build.

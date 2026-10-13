@@ -12,7 +12,18 @@ for arg in "$@"; do
   esac
 done
 
-if [ "$light" = 1 ] || [ "${SHOWRECORDER_BUILD_LOCK_HELD:-0}" = 1 ] || ! in_showrecorder; then
+if [ "$light" = 1 ] || ! in_showrecorder; then
+  exec "$real" "$@"
+fi
+
+# At most build_jobs compile jobs, unless the caller gave a count.
+given=0
+for arg in "$@"; do
+  [ "$arg" = -jobs ] && given=1
+done
+[ "$given" = 0 ] && set -- "$@" -jobs "$(build_jobs)"
+
+if [ "${SHOWRECORDER_BUILD_LOCK_HELD:-0}" = 1 ]; then
   exec "$real" "$@"
 fi
 build_lock_exec "$real" "$@"
