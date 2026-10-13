@@ -31,7 +31,7 @@ struct XAirGainTests {
         state.channels[3].inputSource = 18     // OFF
         state.channels[4].inputSource = 7      // In08
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         #expect(try await driver.headamp(ofChannel: 1) == 1)
         #expect(try await driver.headamp(ofChannel: 3) == 17)
@@ -43,7 +43,7 @@ struct XAirGainTests {
     @Test("Reads a channel's Re-Gain state: thresholds, fader, and its 10 sends, each pre or post from its own tap; no mono")
     func readsReGainState() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let state = try await driver.reGainState(ofChannel: 1)
 
@@ -59,7 +59,7 @@ struct XAirGainTests {
     @Test("Finds gates and compressors keyed from a channel: on the X-Air a key is a channel (1-16), 0 is SELF")
     func keyed() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         #expect(try await driver.keyedDynamics(from: 1) == [ReGain.KeyedDynamics(channel: 2, dynamics: .compressor, thresholdDb: -30, keyChannel: 1)])
         #expect(try await driver.keyedDynamics(from: 3).isEmpty)
@@ -70,7 +70,7 @@ struct XAirGainTests {
         var state = Self.kickDesk()
         state.usbRouting?[0] = [4, 0]          // USB 1 carries Ch05
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
         _ = try await driver.sources(usbChannelCount: 18)
 
         #expect(driver.channel(forUSBChannel: 1) == 5)
@@ -81,7 +81,7 @@ struct XAirGainTests {
     @Test("+12 dB ramps, never makes the channel louder in the mix, ends on the plan, and undo puts it all back; the desk's echoes don't confuse it")
     func applyAndUndo() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
         let before = try await driver.reGainState(ofChannel: 1)
 
         let step = try await driver.applyReGain(channel: 1, gainChangeDb: 12, scopes: .all)
@@ -120,7 +120,7 @@ struct XAirGainTests {
         state.channels[0].inputSource = 0
         state.channels[1].inputSource = 1
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         #expect(try await driver.preamp(ofChannel: 2) == 2)
         mixer.update { $0.set["/config/chlink/1-2"] = .int(1) }
@@ -139,7 +139,7 @@ struct XAirGainTests {
         state.set["/config/chlink/1-2"] = .int(1)
         state.set["/config/linkcfg/preamp"] = .int(1)
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
         let before = try await driver.reGainState(ofChannel: 2)
 
         let step = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
@@ -157,7 +157,7 @@ struct XAirGainTests {
         state.channels[1].inputSource = 1
         state.set["/config/chlink/1-2"] = .int(1)
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let step = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
 
@@ -167,7 +167,7 @@ struct XAirGainTests {
     @Test("-6 dB and back: a cut compensates the other way, and Undo restores everything exactly (#393)")
     func cutAndUndo() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
         let before = (try await driver.reGainState(ofChannel: 1), try await driver.reGainState(ofChannel: 2))
 
         let step = try await driver.applyReGain(channel: 1, gainChangeDb: -6, scopes: .all)
@@ -183,7 +183,7 @@ struct XAirGainTests {
     @Test("With only the gate in scope, Re-Gain moves the gain and the gate threshold and nothing else (#393)")
     func scopeThroughTheDriver() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let step = try await driver.applyReGain(channel: 1, gainChangeDb: 4, scopes: .gate)
 
@@ -194,7 +194,7 @@ struct XAirGainTests {
     @Test("Each step reads the mixer fresh: a fader moved by hand between two steps is compensated from where it now is (#393)")
     func readsFreshEachStep() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
         _ = try await driver.applyReGain(channel: 1, gainChangeDb: 2, scopes: .all)
         mixer.update { $0.set["/ch/01/mix/fader"] = .float(0.75) }   // someone pushes the fader to 0 dB
 

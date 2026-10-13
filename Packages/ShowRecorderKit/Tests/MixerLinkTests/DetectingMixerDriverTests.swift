@@ -12,7 +12,7 @@ struct DetectingMixerDriverTests {
         var state = FakeXAirMixer.State.x32()
         state.channels[31] = .init(name: "Audience R", color: 6, inputSource: 32)
         let x32 = try await FakeXAirMixer(state)
-        let driver = DetectingMixerDriver(host: "127.0.0.1", ports: [xAirPort.port, x32.port], timeout: .seconds(1))
+        let driver = DetectingMixerDriver(host: "127.0.0.1", ports: [xAirPort.port, x32.port], timeout: Loopback.mixedTimeout)
 
         let identity = try await driver.identify()
         let sources = try await driver.sources(usbChannelCount: 32)
@@ -28,7 +28,7 @@ struct DetectingMixerDriverTests {
         var silent = FakeXAirMixer.State.x32()
         silent.answers = false
         let x32Port = try await FakeXAirMixer(silent)
-        let driver = DetectingMixerDriver(host: "127.0.0.1", ports: [xr18.port, x32Port.port], timeout: .seconds(1))
+        let driver = DetectingMixerDriver(host: "127.0.0.1", ports: [xr18.port, x32Port.port], timeout: Loopback.mixedTimeout)
 
         let identity = try await driver.identify()
 
@@ -39,7 +39,7 @@ struct DetectingMixerDriverTests {
     @Test("Every model in the X32 and M32 families gets the X32 driver", arguments: ["X32", "X32RACK", "X32C", "X32P", "M32", "M32R", "M32C"])
     func x32Family(model: String) async throws {
         let mixer = try await FakeXAirMixer(.x32(model: model))
-        let driver = DetectingMixerDriver(host: "127.0.0.1", ports: [mixer.port], timeout: .seconds(1))
+        let driver = DetectingMixerDriver(host: "127.0.0.1", ports: [mixer.port], timeout: Loopback.replyTimeout)
 
         let identity = try await driver.identify()
 
@@ -76,7 +76,7 @@ struct DetectingMixerDriverTests {
     @Test("Once found, an X32 keeps the X32 driver when asked again: its gain control is the X32's")
     func keepsDriverOnReidentify() async throws {
         let x32 = try await FakeXAirMixer(.x32())
-        let driver = DetectingMixerDriver(host: "127.0.0.1", ports: [x32.port], timeout: .seconds(1))
+        let driver = DetectingMixerDriver(host: "127.0.0.1", ports: [x32.port], timeout: Loopback.replyTimeout)
 
         _ = try await driver.identify()
         let again = try await driver.identify()
