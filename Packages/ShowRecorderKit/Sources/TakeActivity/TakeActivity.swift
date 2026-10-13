@@ -35,6 +35,18 @@ public struct TakeActivityContent: Codable, Hashable, Sendable {
         self.problems = problems
     }
 
+    private enum CodingKeys: String, CodingKey { case showName, takeTitle, startedAt, markerCount, problems }
+
+    /// Content from a build before problems existed reads with none.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        showName = try container.decode(String.self, forKey: .showName)
+        takeTitle = try container.decode(String.self, forKey: .takeTitle)
+        startedAt = try container.decode(Date.self, forKey: .startedAt)
+        markerCount = try container.decode(Int.self, forKey: .markerCount)
+        problems = try container.decodeIfPresent([TakeActivityProblem].self, forKey: .problems) ?? []
+    }
+
     /// The same Take: only its Marker count may differ.
     func isSameTake(as other: TakeActivityContent) -> Bool {
         showName == other.showName && takeTitle == other.takeTitle && startedAt == other.startedAt
@@ -59,9 +71,10 @@ public struct ProblemAlertGate: Sendable {
 
     public init() {}
 
-    /// A new Take: everything may alert again.
-    public mutating func takeStarted() {
-        showing = []
+    /// A new Take: everything may alert again. Problems already there as it starts were seen as Record was pressed,
+    /// so they don't alert now; if one clears and comes back, it does.
+    public mutating func takeStarted(with problems: [TakeActivityProblem]) {
+        showing = Set(problems.map(\.id))
         alertedAt = [:]
     }
 

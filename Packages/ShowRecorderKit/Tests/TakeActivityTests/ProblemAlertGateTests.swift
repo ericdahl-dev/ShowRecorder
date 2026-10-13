@@ -55,7 +55,7 @@ struct ProblemAlertGateTests {
     func newTake() {
         var gate = ProblemAlertGate()
         _ = gate.alert(for: [Self.drive], at: Self.t0)
-        gate.takeStarted()
+        gate.takeStarted(with: [])
         #expect(gate.alert(for: [Self.drive], at: Self.t0.addingTimeInterval(5)) != nil)
     }
 
@@ -67,5 +67,22 @@ struct ProblemAlertGateTests {
         var withProblem = take
         withProblem.problems = [Self.drive]
         #expect(tracker.next(withProblem) == .update(withProblem))
+    }
+
+    @Test("A problem already there when the Take starts doesn't alert then, but if it clears and comes back it does")
+    func presentAtStart() {
+        var gate = ProblemAlertGate()
+        gate.takeStarted(with: [Self.mixer])
+        #expect(gate.alert(for: [Self.mixer], at: Self.t0) == nil)
+        _ = gate.alert(for: [], at: Self.t0.addingTimeInterval(5))
+        #expect(gate.alert(for: [Self.mixer], at: Self.t0.addingTimeInterval(10)) != nil)
+    }
+
+    @Test("Content from a build before problems existed still reads, with none")
+    func olderContent() throws {
+        let json = Data(#"{"showName":"Show","takeTitle":"Take 01","startedAt":0,"markerCount":2}"#.utf8)
+        let content = try JSONDecoder().decode(TakeActivityContent.self, from: json)
+        #expect(content.problems.isEmpty)
+        #expect(content.markerCount == 2)
     }
 }
