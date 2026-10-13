@@ -15,8 +15,7 @@ struct ShowRecorderWidgets: WidgetBundle {
 struct TakeLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: TakeActivityAttributes.self) { context in
-            LockScreenView(take: context.state)
-                .padding()
+            TakeActivityView(take: context.state)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -46,6 +45,40 @@ struct TakeLiveActivityWidget: Widget {
                 Image(systemName: "record.circle.fill").foregroundStyle(.red)
             }
         }
+        // The same Live Activity in the Apple Watch's Smart Stack (#100): recording status on the wrist at a glance.
+        .supplementalActivityFamilies([.small])
+    }
+}
+
+/// The Lock Screen banner, or on the Apple Watch's Smart Stack (the small family) a compact one.
+private struct TakeActivityView: View {
+    let take: TakeActivityContent
+    @Environment(\.activityFamily) private var family
+
+    var body: some View {
+        switch family {
+        case .small:
+            WatchStackView(take: take)
+        default:
+            LockScreenView(take: take)
+                .padding()
+        }
+    }
+}
+
+/// The running Take on the watch's Smart Stack: recording, the elapsed time, and which Take.
+private struct WatchStackView: View {
+    let take: TakeActivityContent
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Label("Recording", systemImage: "record.circle.fill")
+                .labelStyle(RecordingLabelStyle())
+                .font(.caption)
+            Elapsed(since: take.startedAt, alignment: .leading)
+                .font(.title3.weight(.semibold))
+            Text(take.takeTitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+        }
     }
 }
 
@@ -73,11 +106,13 @@ private struct LockScreenView: View {
 /// Counts up on its own, with no updates from the app.
 private struct Elapsed: View {
     let since: Date
+    /// The timer text fills the width it's given, so where its digits sit is set here, not outside.
+    var alignment: TextAlignment = .trailing
 
     var body: some View {
         Text(timerInterval: since...Date.distantFuture, countsDown: false)
             .monospacedDigit()
-            .multilineTextAlignment(.trailing)
+            .multilineTextAlignment(alignment)
     }
 }
 
