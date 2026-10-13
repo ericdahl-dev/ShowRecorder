@@ -310,4 +310,13 @@ struct ReGainLoopTests {
         #expect(run.limitedBy?.setting.parameter == .mainFader)
         #expect(mixer.state == start)
     }
+
+    @Test("A gate keyed from an input two moved channels share is compensated once, not once per channel (#473)")
+    func keyedOncePerSetting() {
+        let ranges = ReGain.Ranges(fader: -90...10, send: -90...10, gateThreshold: -80...0, compressorThreshold: -60...0, offDb: -90)
+        let keyed = [1, 17].map { ReGain.KeyedDynamics(channel: 5, dynamics: .gate, thresholdDb: -40, keyChannel: $0) }
+        let plan = ReGain.plan(headamp: 0, gainChangeDb: 6, channels: [ReGain.ChannelState(channel: 1), ReGain.ChannelState(channel: 17)],
+                               ranges: ranges, keyed: keyed)
+        #expect(plan.changes == [ReGain.Change(setting: ReGain.Setting(channel: 5, parameter: .gateThreshold), fromDb: -40, toDb: -34)])
+    }
 }
