@@ -5,7 +5,7 @@ ShowRecorder records a live multitrack from a mixer connected over USB: a Behrin
 Testing without a mixer:
 1. Open Settings (the gear, top right) > Recording > Audio interface and choose "Demo signal (18 channels)". It plays a test signal on 18 channels so every screen works without hardware. (If that option isn't listed, the app records from the built-in microphone, which works the same way with one channel.)
 2. Close Settings. The record screen shows the level meters. Press the red button to record, the flag to add a Marker, and the square to stop (it asks first).
-3. Tap "Shows" to see the recording. Each Show folder (also in the Files app, On My iPhone > ShowRecorder) has one WAV per channel, a Show report and a Reaper project.
+3. Tap "Shows" to see the recording. Each Show folder has one WAV per channel, a Show report and a Reaper project. On iPhone and iPad it is also in the Files app (On My iPhone > ShowRecorder); on a Mac, in ~/Library/Containers/dev.ericdahl.ShowRecorder/Data/Documents/Shows.
 
 In-app purchases:
 - "14-day Trial" is a free non-consumable that unlocks everything for 14 days. Start it from Settings > Pro > Start 14-day Trial. The screen before it states how long it lasts, what Free keeps afterwards (2 USB channels of the user's choice) and the price of Pro.
