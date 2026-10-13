@@ -130,6 +130,18 @@ struct XAirGainTests {
         #expect(try await driver.preamp(ofChannel: 1) == 1)
     }
 
+    @Test("A pair whose strips are linked is one lane for clip protection, its first channel; unlinked, none (#554)")
+    func linkedStripsLane() async throws {
+        let mixer = try await FakeXAirMixer(FakeXAirMixer.State())
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        #expect(try await driver.lane(ofChannel: 2) == nil)
+        mixer.update { $0.set["/config/chlink/1-2"] = .int(1) }
+        #expect(try await driver.lane(ofChannel: 1) == 1)
+        #expect(try await driver.lane(ofChannel: 2) == 1)
+        #expect(try await driver.lane(ofChannel: 3) == nil)
+    }
+
     @Test("A preamp-linked pair: Mix Hold on channel 1 compensates channel 2's strip too, and Undo puts both back (#393)")
     func linkedPartnerCompensated() async throws {
         var state = FakeXAirMixer.State()

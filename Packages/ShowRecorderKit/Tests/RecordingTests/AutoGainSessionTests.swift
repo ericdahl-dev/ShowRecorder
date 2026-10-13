@@ -27,6 +27,8 @@ final class FakeGainControl: GainControl {
     var interruptsHalfway = false
     /// The preamp each Mixer channel's move lands on, when it isn't its own (a shared headamp, a stereo link).
     var preampOf: [Int: Int] = [:]
+    /// The lane each Mixer channel is moved in, when it shares one (a strip-linked pair).
+    var laneOf: [Int: Int] = [:]
     /// When set, every gain move also moves this compensated setting, even when the gain snaps back to where it was.
     var alsoMoves: MixHold.Change?
     /// When set, each undo waits on it first, as a slow Mixer does.
@@ -52,6 +54,10 @@ final class FakeGainControl: GainControl {
     nonisolated func preamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? {
         if let answer = await MainActor.run(body: { preampAnswer }) { await answer() }
         return await MainActor.run { preampOf[channel] ?? channel }
+    }
+
+    nonisolated func lane(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? {
+        await MainActor.run { laneOf[channel] }
     }
 
     nonisolated func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes) async throws(MixerLinkProblem) -> GainStep {
