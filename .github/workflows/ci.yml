@@ -58,7 +58,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [package tests, macOS build, iOS Simulator build]
+        check: [package tests, package tests (Release), macOS build, iOS Simulator build]
     steps:
       - uses: actions/checkout@v4
 
@@ -79,9 +79,9 @@ jobs:
         run: swift test
 
       # TestFlight builds are Release. Mixer detection once worked in Debug but opened port 0 in Release (v1.1.1,
-      # EINVAL on the iPhone): its tests run optimized too.
+      # EINVAL on the iPhone): its tests run optimized too, in their own leg so CI doesn't take longer.
       - name: Package tests, Release (Mixer detection)
-        if: matrix.check == 'package tests'
+        if: matrix.check == 'package tests (Release)'
         working-directory: Packages/ShowRecorderKit
         run: swift test -c release --filter DetectingMixerDriver
 

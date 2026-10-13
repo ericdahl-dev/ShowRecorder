@@ -90,8 +90,8 @@ public final class DetectingMixerDriver: MixerDriver {
     }
 
     /// What one probe says, as a Result. Kept out of the task group's child on purpose: with the typed-throws `do` inside
-    /// the child, Release builds (Swift 6.4, swiftlang-6.4.0.34.1) returned the candidate's port as 0, so the Link
-    /// opened to port 0 and the iPhone failed with EINVAL ("Invalid argument") in TestFlight 1.1.1. Debug was fine.
+    /// the child, Release builds (Swift 6.4, swiftlang-6.4.0.34.1) opened the Link to port 0, and the iPhone failed
+    /// with EINVAL ("Invalid argument") in TestFlight 1.1.1. Debug was fine.
     /// `DetectingMixerDriverTests` catch it only when run with `swift test -c release`, which CI does.
     @inline(never)
     private static func identity(of probe: any MixerDriver) async -> Result<MixerIdentity, MixerLinkProblem> {
