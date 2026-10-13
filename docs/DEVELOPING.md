@@ -59,6 +59,22 @@ Tag a version on `main` and push the tag:
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
+**Internal-only tags.** A build with changes to the real-time recording path, or ones checked only in the Simulator or by tests, goes to internal testers first; it reaches external testers only after Eric has recorded a Take with it on a real device. Mark the tag internal-only with `[internal]` in an annotated tag's message. The tag name stays `vX.Y.Z`:
+
+```sh
+git tag -a v1.1.3 -m "v1.1.3 [internal]: the watch app and the rebuilt Arm, record and stop" && git push origin v1.1.3
+```
+
+The release runs as usual (upload, What to Test), but `scripts/testflight_notes.py` adds the builds to the internal group(s) only, with no external group and no Beta App Review. A lightweight tag, or one without `[internal]`, goes to external testers as before. An internal group that already gets every build gets it either way.
+
+After Eric's Take, send the tag on to external testers:
+
+```sh
+ASC_KEY_ID=… ASC_ISSUER_ID=… ASC_KEY_PATH=path/to/AuthKey.p8 python3 scripts/testflight_promote.py v1.1.3
+```
+
+It finds the newest processed iPhone and Mac builds of that version, adds them to the external group(s) and submits them for Beta App Review, and says what it did on each platform. A platform with no processed build is skipped. Running it again changes nothing. It uses the release's App Store Connect key and prints no secret. `scripts/test_testflight.py` tests both scripts against a fake API.
+
 **Release branches.** While a version is in App Review, its fixes are kept apart from new work. `release/1.0` was cut from `v1.0.1`. A fix for 1.0 is merged to `main` first, then cherry-picked onto `release/1.0` (in a pull request to that branch, so CI runs) and tagged there, for example `v1.0.2`. New features merge only to `main` and ship in 1.1.x tags (`v1.1.1`, `v1.1.2`, …), which TestFlight lists apart from 1.0.x. When 1.1 goes to App Review, cut `release/1.1` from its tag the same way and move `main` to 1.2. Never merge `main` into a release branch. A tag runs the `release.yml` of the commit it points to, so a fix to that workflow must be cherry-picked to the release branch too.
 
 The **Release** workflow runs two jobs side by side, one for iOS and one for macOS. Each archives the app, signs it with one fixed Apple Distribution certificate (see below), runs `scripts/preflight.sh` on the archive and uploads it to TestFlight. A failure in one never stops the other. Both builds share the tag's version and build number; App Store Connect keeps them apart by platform. The tag sets the marketing version (`v0.1.0` becomes `0.1.0`); the build number is the run number plus the attempt (for example `57.1`), so re-running a tag uploads a new, higher build instead of failing as a duplicate. It only runs for tags pushed to this repository, never for pull requests or forks, and refuses a tag that isn't on `main` or a `release/` branch. The build appears in App Store Connect under TestFlight after Apple finishes processing it, usually 5 to 15 minutes.

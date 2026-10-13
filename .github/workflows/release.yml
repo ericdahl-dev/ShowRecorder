@@ -215,12 +215,17 @@ jobs:
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             2>&1 | tee "$RUNNER_TEMP/upload.log"
 
-      - name: Set What to Test and send the build to external testers
+      - name: Set What to Test and send the build to testers
         # The upload has happened; a failure here prints a warning and never fails the release.
+        # A tag whose message contains [internal] goes to internal testers only, until
+        # scripts/testflight_promote.py sends it on (docs/DEVELOPING.md, "Internal-only tags").
         continue-on-error: true
         env:
           TAG: ${{ github.ref_name }}
-        run: python3 scripts/testflight_notes.py
+        run: |
+          # The checkout can leave the tag lightweight, without its message: fetch the tag itself.
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          TAG_MESSAGE="$(git for-each-ref --format='%(contents)' "refs/tags/$TAG")" python3 scripts/testflight_notes.py
 
       - name: Remove the keys and the keychain
         if: always()
