@@ -117,7 +117,7 @@ struct StatusChipsTests {
         let words: [CopyStatus] = [.recording, .interrupted, .missing]
         let runs: [[DestinationKind: CopyStatus]] = [[:]] + words.flatMap { d in words.map { [.device: d, .drive: $0] } }
         for copies in runs {
-            for drive in [DriveStatus.notChosen, .unavailable, drive(bytes: Self.anHour), drive(bytes: 1_000)] {
+            for drive in [DriveStatus.notChosen, .unavailable(.notConnected(name: "SSD")), drive(bytes: Self.anHour), drive(bytes: 1_000)] {
                 let old = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive, mixer: .idle, copies: copies)
                 let take = TakeCopies(isRunning: !copies.isEmpty) { copies[$0].map(CopyState.init) ?? .recording }
                 #expect(old == StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive, mixer: .idle, copies: take))
