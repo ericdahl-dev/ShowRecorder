@@ -729,13 +729,9 @@ final class RecordScreenModel {
 
     /// A USB Channel's Average level over about 2 s, after half a second for the meter to follow a gain move.
     private func averageLevel(usbChannel: Int) async -> Double {
-        try? await Task.sleep(for: .milliseconds(500))
-        var readings: [Double] = []
-        for _ in 0..<20 {
-            if meterModel.levels.indices.contains(usbChannel - 1) { readings.append(meterModel.levels[usbChannel - 1].averageDbfs) }
-            try? await Task.sleep(for: .milliseconds(100))
-        }
-        return readings.isEmpty ? -120 : readings.reduce(0, +) / Double(readings.count)
+        await LevelAverage.measure(reading: { [meterModel] in
+            meterModel.levels.indices.contains(usbChannel - 1) ? meterModel.levels[usbChannel - 1].averageDbfs : nil
+        })
     }
 
     /// "Kick", or "USB 03" when the channel has no name.
