@@ -112,4 +112,20 @@ struct XAirGainTests {
         }
         return worst
     }
+
+    @Test("A stereo-linked pair with its preamps linked is one preamp move: channel 2 answers channel 1's preamp (#458)")
+    func linkedPairPreamp() async throws {
+        var state = FakeXAirMixer.State()
+        state.channels[0].inputSource = 0
+        state.channels[1].inputSource = 1
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+
+        #expect(try await driver.preamp(ofChannel: 2) == 2)
+        mixer.update { $0.set["/config/chlink/1-2"] = .int(1) }
+        #expect(try await driver.preamp(ofChannel: 2) == 2, "linked strips, but each keeps its own preamp")
+        mixer.update { $0.set["/config/linkcfg/preamp"] = .int(1) }
+        #expect(try await driver.preamp(ofChannel: 2) == 1)
+        #expect(try await driver.preamp(ofChannel: 1) == 1)
+    }
 }

@@ -76,6 +76,9 @@ extension XAirDriver: GainControl, ReGainDesk {
 
     static func gainAddress(_ headamp: Int) -> String { String(format: "/headamp/%02d/gain", headamp) }
 
+    /// Whether a channel link also links the preamps (the link setup's "Preamp").
+    static let preampLinkAddress = "/config/linkcfg/preamp"
+
     /// Preamps 1-16: -12 to +60 dB. The aux line in (17-18): -12 to +20 dB.
     static func gainScale(_ headamp: Int) -> X32Values {
         headamp >= 17 ? .linear(-12, 20) : .headampGain

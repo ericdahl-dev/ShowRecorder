@@ -20,6 +20,8 @@ final class FakeGainControl: GainControl {
     /// When set, each gain move waits on it first, as a slow Mixer does.
     var answer: (@Sendable () async -> Void)?
     let gainRange: ClosedRange<Double> = -12...60
+    /// The preamp each Mixer channel's move lands on, when it isn't its own (a shared headamp, a stereo link).
+    var preampOf: [Int: Int] = [:]
     /// When set, every gain move also moves this compensated setting, even when the gain snaps back to where it was.
     var alsoMoves: ReGain.Change?
     /// When set, each undo waits on it first, as a slow Mixer does.
@@ -35,6 +37,10 @@ final class FakeGainControl: GainControl {
 
     nonisolated func channel(forUSBChannel usbChannel: Int) -> Int? {
         MainActor.assumeIsolated { channelOfUSB[usbChannel] }
+    }
+
+    nonisolated func preamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? {
+        await MainActor.run { preampOf[channel] ?? channel }
     }
 
     nonisolated func applyReGain(channel: Int, gainChangeDb: Double, scopes: ReGain.Scopes) async throws(MixerLinkProblem) -> GainStep {
@@ -291,5 +297,19 @@ struct AutoGainSessionTests {
 
         #expect(session.steps[1]?.count == 1)
         #expect(logged.count == 1)
+    }
+
+    @Test("Two Mixer channels on one preamp (a shared X32 headamp, a stereo link) move it once; the other is skipped (#458)")
+    func samePreamp() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
+        control.preampOf = [2: 1]
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40, 2: -40]))
+
+        let results = await session.run(usbChannels: [1, 2])
+
+        #expect(results == [
+            .set(usbChannel: 1, channel: 1, fromGainDb: 0, toGainDb: 22, levelDbfs: -18),
+            .skipped(usbChannel: 2, reason: .samePreamp(asUSBChannel: 1)),
+        ])
     }
 }

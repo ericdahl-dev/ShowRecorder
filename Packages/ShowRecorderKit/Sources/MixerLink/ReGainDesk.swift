@@ -11,6 +11,8 @@ protocol ReGainDesk: GainControl {
     func headamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int?
     func reGainState(ofChannel channel: Int) async throws(MixerLinkProblem) -> ReGain.ChannelState
     func keyedDynamics(from channel: Int) async throws(MixerLinkProblem) -> [ReGain.KeyedDynamics]
+    /// Where the Mixer says whether a stereo link also links the preamps (`/config/linkcfg/…`).
+    static var preampLinkAddress: String { get }
     static func gainAddress(_ headamp: Int) -> String
     static func gainScale(_ headamp: Int) -> X32Values
     static func address(of setting: ReGain.Setting) -> String
@@ -27,6 +29,18 @@ struct ReGainMove {
 extension ReGainDesk {
     /// The most the gain moves in one ramp step, in dB.
     static var rampStepDb: Double { 1.0 }
+
+    /// The preamp a move on input channel `channel` lands on (#458): its own, or, when it is the second of a
+    /// stereo-linked pair (`/config/chlink/1-2` on the X-Air and the X32) whose preamps are linked too
+    /// (`preampLinkAddress`), the first channel's, since the Mixer then moves both together. A link of the channel
+    /// strips alone leaves each its own preamp. Two X32 channels on one headamp answer the same headamp.
+    public func preamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? {
+        guard channel % 2 == 0,
+              try await queries.int(at: String(format: "/config/chlink/%d-%d", channel - 1, channel)) != 0,
+              try await queries.int(at: Self.preampLinkAddress) != 0
+        else { return try await headamp(ofChannel: channel) }
+        return try await headamp(ofChannel: channel - 1)
+    }
 
     func deskGainDb(ofHeadamp headamp: Int) async throws(MixerLinkProblem) -> Double {
         Self.gainScale(headamp).db(ofOSC: try await queries.float(at: Self.gainAddress(headamp)))
