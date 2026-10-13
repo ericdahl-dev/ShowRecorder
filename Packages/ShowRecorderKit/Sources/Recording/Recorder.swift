@@ -37,6 +37,9 @@ public final class Recorder {
     public static let clipLevel: Float = 0.999
     /// Which Take ended last and why. Nil until a Take has ended.
     public private(set) var lastTakeEnd: TakeEnd?
+    /// Told each Take end as it happens, whoever ended it (record stopped, a full or failed Destination, an input
+    /// change), once `lastTakeEnd` says so.
+    @ObservationIgnored public var onTakeEnded: (TakeEnd) -> Void = { _ in }
     /// How each Copy of the last Take ended up: complete, has Gaps, Repaired or Repair failed.
     public private(set) var lastTakeOutcomes: [DestinationKind: CopyOutcome] = [:]
     /// How many USB Channels the last Take recorded and how many carried signal (#62: Free's limit, felt).
@@ -688,6 +691,7 @@ public final class Recorder {
         regenerateReports(skipping: finished.abandoned)
         repair.enqueue(finished.metadata, folders: finished.folders, holding: finished.access, abandoned: finished.abandoned)
         nameChannels(of: finished.metadata)
+        onTakeEnded(TakeEnd(take: finished.metadata.take, reason: reason))
     }
 
     /// Puts the names typed during the Take on its files. Waits for Repair first, which works on the Stems

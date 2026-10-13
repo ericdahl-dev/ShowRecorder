@@ -89,6 +89,7 @@ public final class TakeSequencer {
         (events, emit) = AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(Self.eventBufferSize))
         self.devices = devices.devices()
         selectedDeviceID = self.devices.first?.id
+        recorder.onTakeEnded = { [weak self] end in self?.takeEnded(end) }
     }
 
     /// What to do when the operator closes the window the recorder is shown in (the Mac).
@@ -169,8 +170,6 @@ public final class TakeSequencer {
     /// Returns whether it started.
     @discardableResult
     public func record(sources: [Source], allowance: TakeAllowance?) -> Bool {
-        // A Take the recorder ended on its own since the last tick is told before the new one starts.
-        tellTakeEnd()
         do {
             try recorder.startTake(sources: sources, allowance: allowance)
             takeStartedAt = now()
@@ -191,12 +190,10 @@ public final class TakeSequencer {
         } catch {
             recordError = "The Take didn't finish cleanly: \(error.localizedDescription)"
         }
-        tellTakeEnd()
     }
 
-    /// About once a second: tells a Take started elsewhere (the Soundcheck) or ended by the recorder on its own.
+    /// About once a second: tells a Take started elsewhere (the Soundcheck).
     public func tick() {
-        tellTakeEnd()
         if recorder.isRecording { tellTakeStart() }
         if !recorder.isRecording { takeStartedAt = nil }
         disarmIfIdle()
@@ -237,8 +234,11 @@ public final class TakeSequencer {
         emit.yield(.takeStarted(take: recorder.currentShow?.takeCount ?? 0))
     }
 
-    private func tellTakeEnd() {
-        guard toldTakeStarted, !recorder.isRecording, let end = recorder.lastTakeEnd else { return }
+    /// The recorder ended a Take, whoever ended it: told at once, not on the next tick. A Take started elsewhere that
+    /// ended before a tick saw it is told as started first.
+    private func takeEnded(_ end: TakeEnd) {
+        takeStartedAt = nil
+        if !toldTakeStarted { emit.yield(.takeStarted(take: end.take)) }
         toldTakeStarted = false
         emit.yield(.takeEnded(end))
     }

@@ -43,11 +43,22 @@ final class TestClock {
 }
 
 @MainActor
-@Suite("Take sequencer")
+@Suite("Take sequencer", .timeLimit(.minutes(1)))
 struct TakeSequencerTests {
     let root = FileManager.default.temporaryDirectory.appending(path: "TakeSequencerTests-\(UUID().uuidString)")
 
     let start = Date(timeIntervalSince1970: 1_800_000_000)
+
+    /// The events told up to and including `last`, so an event that never comes fails the test instead of
+    /// waiting for it.
+    func told(_ events: inout AsyncStream<TakeEvent>.Iterator, through last: TakeEvent) async -> [TakeEvent] {
+        var seen: [TakeEvent] = []
+        while let event = await events.next(isolation: #isolation) {
+            seen.append(event)
+            if event == last { break }
+        }
+        return seen
+    }
 
     func makeSequencer(_ source: FakeInputDevices = FakeInputDevices(), capsAt48k: Bool = false, now: @escaping () -> Date = Date.init) -> (TakeSequencer, Recorder) {
         let recorder = Recorder(deviceFolder: root, destinationCheckInterval: nil)
@@ -194,22 +205,6 @@ struct TakeSequencerTests {
         sequencer.stop()
 
         #expect(await events.next() == .takeEnded(TakeEnd(take: 1, reason: .stopped)))
-    }
-
-    @Test("A Take the recorder ends on its own is told on the next tick, and its start time cleared")
-    func takeEndedOnItsOwn() async throws {
-        let (sequencer, recorder) = makeSequencer()
-        sequencer.arm()
-        sequencer.record(sources: [], allowance: nil)
-        var events = sequencer.events.makeAsyncIterator()
-        _ = await events.next()  // .armed
-        _ = await events.next()  // .takeStarted
-
-        try recorder.restartInput(on: FakeAudioDevice(inputChannelCount: 2))
-        sequencer.tick()
-
-        #expect(await events.next() == .takeEnded(TakeEnd(take: 1, reason: .inputChanged)))
-        #expect(sequencer.takeStartedAt == nil)
     }
 
     @Test("A Take started without the sequencer (the Soundcheck) is told on the next tick, once")
@@ -485,5 +480,40 @@ struct TakeSequencerTests {
         for _ in 0..<TakeSequencer.eventBufferSize { kept.append(await events.next()!) }
         #expect(kept.first == .takeStarted(take: 5))
         #expect(kept.last == .takeEnded(TakeEnd(take: 20, reason: .stopped)))
+    }
+
+    @Test("A Take the recorder ends on its own is told at once, without waiting for a tick")
+    func takeEndedWithoutATick() async throws {
+        let (sequencer, recorder) = makeSequencer()
+        sequencer.start()
+        var events = sequencer.events.makeAsyncIterator()
+        _ = await events.next()  // .armed
+        sequencer.record(sources: [], allowance: nil)
+        _ = await events.next()  // .takeStarted
+
+        try recorder.restartInput(on: FakeAudioDevice(inputChannelCount: 2))
+        #expect(sequencer.takeStartedAt == nil)
+        sequencer.screenDisappeared()
+
+        #expect(await told(&events, through: .disarmed(reason: .screenGone)) == [
+            .takeEnded(TakeEnd(take: 1, reason: .inputChanged)), .disarmed(reason: .screenGone),
+        ])
+    }
+
+    @Test("A Take started elsewhere that starts and ends between two ticks is still told, start then end")
+    func takeBetweenTicks() async throws {
+        let (sequencer, recorder) = makeSequencer()
+        sequencer.start()
+        var events = sequencer.events.makeAsyncIterator()
+        _ = await events.next()  // .armed
+
+        try recorder.startTake()
+        try recorder.stopTake()
+        sequencer.tick()
+        sequencer.screenDisappeared()
+
+        #expect(await told(&events, through: .disarmed(reason: .screenGone)) == [
+            .takeStarted(take: 1), .takeEnded(TakeEnd(take: 1, reason: .stopped)), .disarmed(reason: .screenGone),
+        ])
     }
 }
