@@ -61,7 +61,8 @@ public final class MonitorRing: @unchecked Sendable {
     /// short. When more than `latencyLimit` frames would still be waiting after this read, the oldest are skipped.
     public func read(into out: UnsafeMutablePointer<Float>, count: Int, latencyLimit: Int) {
         var r = readCount.load(ordering: .relaxed)
-        let available = written.load(ordering: .acquiring) - r
+        // Never negative, even if the counters were ever out of step: silence, never a trap on the audio thread.
+        let available = max(written.load(ordering: .acquiring) - r, 0)
         // Compared without subtracting, so an unbounded limit (`.max`) can't overflow.
         let excess = available - count > latencyLimit ? available - count - latencyLimit : 0
         if excess > 0 {

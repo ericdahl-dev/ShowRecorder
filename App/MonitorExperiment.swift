@@ -46,6 +46,8 @@ final class MonitorExperiment {
     @ObservationIgnored let ring = MonitorRing(capacity: 32_768)
     @ObservationIgnored let switches = MonitorSwitches()
     @ObservationIgnored private var output: MonitorOutput?
+    /// The Armed input's rate, for restarting the output after an interruption.
+    @ObservationIgnored private var armedSampleRate = 48_000.0
     /// The input inside the `MonitorTap`, for what the route offers.
     @ObservationIgnored private(set) var sessionDevice: SessionAudioDevice?
 
@@ -86,13 +88,28 @@ final class MonitorExperiment {
             return
         }
         isArmed = true
+        armedSampleRate = tap.sampleRate
         // Nothing reads the ring while the output is stopped, so this side may drain it: no stale audio on start.
         ring.drain()
         routeChanged(reason: "Armed")
+        startOutput()
+    }
+
+    /// Input came back after an interruption on the same device (no `didArm`): restart the output iOS stopped.
+    func inputRestarted() {
+        guard isArmed else { return }
+        stopOutput()
+        ring.drain()
+        routeChanged(reason: "inputRestarted")
+        startOutput()
+    }
+
+    /// A failure is logged once and leaves the monitor silent; it never reaches the Take.
+    private func startOutput() {
         do {
-            output = try MonitorOutput(ring: ring, switches: switches, sampleRate: tap.sampleRate)
+            output = try MonitorOutput(ring: ring, switches: switches, sampleRate: armedSampleRate)
             outputError = nil
-            Self.log.notice("monitor output started at \(tap.sampleRate, privacy: .public) Hz")
+            Self.log.notice("monitor output started at \(self.armedSampleRate, privacy: .public) Hz")
         } catch {
             outputError = String(describing: error)
             Self.log.error("monitor output failed to start: \(String(describing: error), privacy: .public)")

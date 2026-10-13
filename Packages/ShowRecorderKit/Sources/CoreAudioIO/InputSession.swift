@@ -5,11 +5,13 @@ import CoreAudio
 public enum CoreAudioError: Error, CustomStringConvertible {
     case status(String, OSStatus)
     case noInputUnit
+    case noOutputUnit
 
     public var description: String {
         switch self {
         case .status(let step, let status): "Core Audio failed to \(step) (error \(status))"
         case .noInputUnit: "The audio input unit isn't available"
+        case .noOutputUnit: "The audio output unit isn't available"
         }
     }
 }

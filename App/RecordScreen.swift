@@ -41,7 +41,10 @@ struct RecordScreen: View {
 
     /// Whether a sheet is up, so the record screen doesn't present another over it.
     private var anotherSheetOpen: Bool {
-        showingSettings || showingMarkers || showingNewShow || showingShowList || showingChannelNames || showingAutoGain
+        #if DEBUG && os(iOS)
+        if showingMonitor { return true }
+        #endif
+        return showingSettings || showingMarkers || showingNewShow || showingShowList || showingChannelNames || showingAutoGain
             || showingTrialOffer || model.showingSoundcheck || shownPaywall != nil
     }
 
@@ -84,9 +87,6 @@ struct RecordScreen: View {
             if launchFlag("-autoGainDemo") { showingAutoGain = true }
         }
         .onDisappear { model.screenDisappeared() }
-        #if DEBUG && os(iOS)
-        .sheet(isPresented: $showingMonitor) { MonitorExperimentSheet().modifier(AppearanceRoot(mode: model.appearance)) }
-        #endif
         .sheet(isPresented: $showingMarkers) {
             NavigationStack {
                 MarkerListView(model: model)
@@ -704,6 +704,8 @@ final class RecordScreenModel {
                 self?.clipGuard.handle(event)
                 #if DEBUG && os(iOS)
                 if case .disarmed = event { MonitorExperiment.shared.disarmed() }
+                // An interruption's restart reuses the input without `didArm`; the output unit iOS stopped needs a restart.
+                if case .inputRestarted = event { MonitorExperiment.shared.inputRestarted() }
                 #endif
             }
         }

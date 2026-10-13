@@ -19,7 +19,9 @@ public struct MonitorMixer: Sendable {
 
     /// The test tone: 1 kHz at -18 dBFS.
     public static let toneHz = 1_000.0
-    public static let toneLevel = Float(pow(10, -18.0 / 20))
+    /// -18 dBFS as a gain. Stored per mixer, not a lazy `static let`, so the render thread never runs its one-time
+    /// initialization.
+    public let toneLevel = Float(pow(10, -18.0 / 20))
 
     /// At most this many frames wait in the ring after a render; older ones are skipped, so the delay stays bounded.
     public var latencyLimit: Int
@@ -43,7 +45,7 @@ public struct MonitorMixer: Sendable {
         ring.read(into: left, count: count, latencyLimit: latencyLimit)
         if flags.tone {
             for frame in 0..<count {
-                left[frame] += Self.toneLevel * Float(sin(phase))
+                left[frame] += toneLevel * Float(sin(phase))
                 phase += step
                 if phase >= 2 * Double.pi { phase -= 2 * Double.pi }
             }

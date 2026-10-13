@@ -60,10 +60,10 @@ public final class MonitorOutput: @unchecked Sendable {
             componentManufacturer: kAudioUnitManufacturer_Apple,
             componentFlags: 0,
             componentFlagsMask: 0)
-        guard let component = AudioComponentFindNext(nil, &description) else { throw CoreAudioError.noInputUnit }
+        guard let component = AudioComponentFindNext(nil, &description) else { throw CoreAudioError.noOutputUnit }
         var created: AudioUnit?
         try check("create the monitor output unit", AudioComponentInstanceNew(component, &created))
-        guard let unit = created else { throw CoreAudioError.noInputUnit }
+        guard let unit = created else { throw CoreAudioError.noOutputUnit }
         self.unit = unit
         self.ring = ring
         self.switches = switches
