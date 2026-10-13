@@ -4,6 +4,8 @@
 #   package  swift test                  Packages/
 #   app      macOS and iOS Simulator     App/, Packages/, project.yml, ShowRecorder.xcodeproj/
 #   site     website lint, tests, build  website/
+# The package tests, the two app builds and the website run side by side, each into its own log; when all have
+# finished each one's result and time is printed, with the log of any that failed (scripts/verify-steps.sh).
 # Docs, design notes and other Markdown need none. A change to verify.sh, CI or any path not listed
 # here runs everything, and so does a branch with no changes (a plain "is main green?" check).
 #
@@ -12,12 +14,14 @@
 #   VERIFY_BASE=<ref>   compare against another ref instead of origin/main
 #   VERIFY_FILES=...    use this newline-separated list instead of git (scripts/test-verify-plan.sh)
 #   VERIFY_PLAN_ONLY=1  print the plan and stop
-#   DERIVED_DATA=<dir>  Xcode build folder (default build/dd)
+#   DERIVED_DATA=<dir>  Xcode build folders' prefix (default build/dd: build/dd-mac, build/dd-ios, build/dd-device)
 # With DEVICE_ID set (an iOS device id from `xcodebuild -showdestinations`) and DEVELOPMENT_TEAM,
 # the app step also builds a signed app for that device.
 set -eu
 cd "$(dirname "$0")/.."
+. ./scripts/verify-steps.sh
 DD="${DERIVED_DATA:-build/dd}"
+started=$(date +%s)
 
 changed_files() {
   if [ -n "${VERIFY_FILES+x}" ]; then
@@ -69,8 +73,9 @@ if [ -z "$plan" ]; then
 fi
 
 if [ "$plan" = "vocab package app site" ]; then
-  echo "== verify.sh plan"
+  echo "== verify.sh plan and steps"
   ./scripts/test-verify-plan.sh
+  ./scripts/test-verify-steps.sh
 fi
 
 if [ $vocab = 1 ]; then
@@ -78,30 +83,28 @@ if [ $vocab = 1 ]; then
   ./scripts/vocab-check.sh
 fi
 
-if [ $package = 1 ]; then
-  echo "== Package tests"
-  (cd Packages/ShowRecorderKit && swift test)
-fi
+# A signed device build needs a team; say so now rather than after the other steps.
+[ $app = 1 ] && [ -n "${DEVICE_ID:-}" ] && : "${DEVELOPMENT_TEAM:?set DEVELOPMENT_TEAM}"
 
+# Each xcodebuild has its own build folder, so they don't wait on each other's locks.
+steps_start
+[ $package = 1 ] && run_step "Package tests" sh -c 'cd Packages/ShowRecorderKit && swift test --parallel'
 if [ $app = 1 ]; then
-  echo "== macOS build"
-  xcodebuild -quiet -project ShowRecorder.xcodeproj -scheme ShowRecorder -destination 'platform=macOS' \
-    -derivedDataPath "$DD" CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build
-
-  echo "== iOS Simulator build"
-  xcodebuild -quiet -project ShowRecorder.xcodeproj -scheme ShowRecorder -destination 'generic/platform=iOS Simulator' \
-    -derivedDataPath "$DD" CODE_SIGNING_ALLOWED=NO build
-
+  run_step "macOS build" xcodebuild -quiet -project ShowRecorder.xcodeproj -scheme ShowRecorder -destination 'platform=macOS' \
+    -derivedDataPath "$DD-mac" CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build
+  run_step "iOS Simulator build" xcodebuild -quiet -project ShowRecorder.xcodeproj -scheme ShowRecorder \
+    -destination 'generic/platform=iOS Simulator' -derivedDataPath "$DD-ios" CODE_SIGNING_ALLOWED=NO build
   if [ -n "${DEVICE_ID:-}" ]; then
-    echo "== Signed device build for $DEVICE_ID"
-    xcodebuild -quiet -project ShowRecorder.xcodeproj -scheme ShowRecorder -destination "platform=iOS,id=$DEVICE_ID" \
-      -derivedDataPath "$DD-device" -allowProvisioningUpdates DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM:?set DEVELOPMENT_TEAM}" build
+    run_step "Signed device build for $DEVICE_ID" xcodebuild -quiet -project ShowRecorder.xcodeproj -scheme ShowRecorder \
+      -destination "platform=iOS,id=$DEVICE_ID" -derivedDataPath "$DD-device" -allowProvisioningUpdates \
+      DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" build
   fi
 fi
-
-if [ $site = 1 ]; then
-  echo "== Website lint, tests and build"
-  (cd website && corepack enable >/dev/null 2>&1 || true; yarn install --immutable && yarn lint && yarn test:run && yarn build)
+[ $site = 1 ] && run_step "Website lint, tests and build" sh -c \
+  'cd website && { corepack enable >/dev/null 2>&1 || true; } && yarn install --immutable && yarn lint && yarn test:run && yarn build'
+if ! steps_finish; then
+  echo "== Failed after $(( $(date +%s) - started ))s ($plan)"
+  exit 1
 fi
 
-echo "== All checks passed ($plan)"
+echo "== All checks passed in $(( $(date +%s) - started ))s ($plan)"
