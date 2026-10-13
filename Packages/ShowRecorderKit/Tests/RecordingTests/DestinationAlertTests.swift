@@ -48,6 +48,48 @@ struct DestinationAlertTests {
         #expect(alert.text == "No Drive. Recording to the Device only.")
     }
 
+    @Test("Drive only, no Drive at record: the audio goes to this iPhone and moves to the Drive later (#550)")
+    func driveOnlyNoDrive() throws {
+        let alert = try #require(DestinationAlert.make(copies: takeCopies(driveOnly: true, device: .recording, drive: .missing)))
+
+        #expect(alert.id == "no-drive")
+        #expect(alert.tone == .warning)
+        #expect(alert.priority == .destination)
+        #expect(alert.text == "No Drive: recording to this iPhone; it moves to the Drive when one is connected.")
+    }
+
+    @Test("Drive only, the Drive stops and the Device stands in: recording to this iPhone until the Drive is back, with Check Drive (#550)")
+    func driveOnlyDriveStopped() throws {
+        let alert = try #require(DestinationAlert.make(copies: takeCopies(driveOnly: true, device: .standingIn, drive: .interrupted)))
+
+        #expect(alert.id == "drive-stopped")
+        #expect(alert.tone == .critical)
+        #expect(alert.priority == .destination)
+        #expect(alert.action == .checkDrive)
+        #expect(alert.text == "The Drive stopped. Recording to this iPhone until it's back; the audio moves to the Drive after the Take.")
+    }
+
+    @Test("Drive only, the check found no Drive: the stand-in alert says 'Still not found.' first (#550)")
+    func driveOnlyStillNotFound() throws {
+        let alert = try #require(DestinationAlert.make(
+            copies: takeCopies(driveOnly: true, device: .standingIn, drive: .interrupted), checkedAndNotFound: true))
+
+        #expect(alert.action == .checkDrive)
+        #expect(alert.text
+                == "Still not found. The Drive stopped. Recording to this iPhone until it's back; the audio moves to the Drive after the Take.")
+    }
+
+    @Test("Drive only on a Mac: both alerts say 'this Mac' (#550)")
+    func driveOnlyDeviceWord() throws {
+        let noDrive = try #require(DestinationAlert.make(
+            copies: takeCopies(driveOnly: true, device: .recording, drive: .missing), deviceWord: "Mac"))
+        #expect(noDrive.text == "No Drive: recording to this Mac; it moves to the Drive when one is connected.")
+
+        let stopped = try #require(DestinationAlert.make(
+            copies: takeCopies(driveOnly: true, device: .standingIn, drive: .interrupted), deviceWord: "Mac"))
+        #expect(stopped.text == "The Drive stopped. Recording to this Mac until it's back; the audio moves to the Drive after the Take.")
+    }
+
     @Test("Losing the Device Copy, or both, is critical too")
     func deviceOrBothLost() throws {
         let device = try #require(DestinationAlert.make(copies: takeCopies(device: .interrupted, drive: .recording)))
