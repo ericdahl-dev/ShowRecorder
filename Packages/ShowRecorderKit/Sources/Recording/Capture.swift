@@ -1,0 +1,133 @@
+import AudioIO
+import Darwin
+import Synchronization
+
+/// Everything the real-time callback touches, allocated when the recorder is Armed.
+final class Capture: Sendable {
+    let meters: PeakMeters
+    /// The last seconds of every channel while Armed, for Pre-roll. Nil when Pre-roll is off.
+    let preRoll: PreRollBuffer?
+    /// One ring per Copy: the Device, then the Drive.
+    let rings: [SampleRing]
+    /// Which Copies are being captured, one bit per ring (bit 0 the Device, bit 1 the Drive); 0 when not recording.
+    private let capturing = Atomic<Int>(0)
+    /// Copies waiting for the real-time thread to start feeding them, one bit per ring.
+    private let joinRequests = Atomic<Int>(0)
+    /// Frames delivered since the Take started: the Take's sample timeline. A Take with Pre-roll starts
+    /// it at the Pre-roll's length, so frame 0 is the first Pre-roll sample.
+    private let takeFrames = Atomic<Int>(0)
+    /// For a Take with Pre-roll: where the Take's first live frame sits in the Pre-roll buffer's own count,
+    /// set by the real-time thread at the block that starts feeding the Copies. -2 until then, -1 when the
+    /// Take has no Pre-roll.
+    let preRollStart = Atomic<Int>(-1)
+    /// Host-clock ticks per frame, and the host time the next block should start at: a block that starts much later
+    /// means input stopped (an interruption), and the missing stretch becomes a Dropout (#317). 0 until the first block.
+    private let hostTicksPerFrame: Double
+    private let expectedHostTime = Atomic<UInt64>(0)
+    /// A gap shorter than this (frames) is timing jitter, not lost input.
+    private let gapThreshold: Int
+    /// The host clock's ticks per second on this machine.
+    static let machTicksPerSecond: Double = {
+        var info = mach_timebase_info_data_t()
+        mach_timebase_info(&info)
+        return 1e9 * Double(info.denom) / Double(info.numer)
+    }()
+
+    var channelCount: Int { rings[0].channelCount }
+
+    /// - Parameter preRollSeconds: how much audio to keep before a Take starts; the buffer holds a second
+    ///   more, so a snapshot of that length isn't cut short by the writer overwriting its oldest frames.
+    init(channelCount: Int, sampleRate: Double, preRollSeconds: Double = 0, hostTicksPerSecond: Double = Capture.machTicksPerSecond) {
+        hostTicksPerFrame = hostTicksPerSecond / max(sampleRate, 1)
+        gapThreshold = Int(max(sampleRate, 1) * 0.05)
+        meters = PeakMeters(channelCount: channelCount)
+        preRoll = preRollSeconds > 0
+            ? PreRollBuffer(channelCount: channelCount, capacity: Int((preRollSeconds + 1) * max(sampleRate, 1)))
+            : nil
+        // Four seconds of headroom for each writer thread.
+        rings = (0..<2).map { _ in SampleRing(channelCount: channelCount, capacity: Int(max(sampleRate, 1) * 4)) }
+    }
+
+    /// Starts feeding the Copies' rings. With `preRollFrames`, the Take's timeline starts at that many
+    /// frames and the Copies start at the next block boundary, which the real-time thread notes in
+    /// `preRollStart` so the Pre-roll and the live audio join without a lost or repeated sample.
+    func startCapturing(copies: Int, preRollFrames: Int = 0) {
+        let mask = (1 << min(copies, rings.count)) - 1
+        takeFrames.store(preRollFrames, ordering: .releasing)
+        if preRollFrames > 0, preRoll != nil {
+            preRollStart.store(-2, ordering: .releasing)
+            joinRequests.store(mask, ordering: .releasing)
+        } else {
+            preRollStart.store(-1, ordering: .releasing)
+            capturing.store(mask, ordering: .releasing)
+        }
+    }
+
+    /// Whether the Take has Pre-roll but the real-time thread hasn't yet fed it a first block.
+    var awaitingFirstBlock: Bool { preRollStart.load(ordering: .acquiring) == -2 }
+
+    /// Frames delivered since the Take started.
+    var takeFrameCount: Int { takeFrames.load(ordering: .acquiring) }
+
+    /// Asks the real-time thread to start feeding one Copy's ring from its next block, and to record
+    /// the Take frame it starts at in the ring's `joinFrame`.
+    func requestJoin(copy: Int) {
+        joinRequests.bitwiseOr(1 << copy, ordering: .acquiringAndReleasing)
+    }
+
+    /// Stops feeding one Copy's ring (its writer failed).
+    func disable(copy: Int) {
+        capturing.bitwiseAnd(~(1 << copy), ordering: .acquiringAndReleasing)
+    }
+
+    func stopCapturing() {
+        capturing.store(0, ordering: .releasing)
+    }
+
+    /// Real-time: meter every block, and queue it for each Copy's writer while a Take is running.
+    /// Real-time safe. If this block starts well after the last one ended, input was stopped (a call, Siri, another
+    /// app took the session): the missing frames go into every Copy being recorded as a drop, which its writer turns
+    /// into silence with a Dropout, and the Take's timeline moves on by as much, so the Stems keep their length (#317).
+    private func noteInputGap(before block: AudioBlock, capturing mask: Int) {
+        guard block.hostTime != 0 else { return }
+        let expected = expectedHostTime.load(ordering: .relaxed)
+        if expected != 0, mask != 0, block.hostTime > expected {
+            let gap = Int((Double(block.hostTime - expected) / hostTicksPerFrame).rounded())
+            if gap > gapThreshold {
+                var copy = 0
+                while copy < rings.count {
+                    if mask & (1 << copy) != 0 { rings[copy].skip(frames: gap) }
+                    copy += 1
+                }
+                takeFrames.add(gap, ordering: .relaxed)
+            }
+        }
+        expectedHostTime.store(block.hostTime + UInt64((Double(block.frameCount) * hostTicksPerFrame).rounded()), ordering: .relaxed)
+    }
+
+    func receive(_ block: AudioBlock) {
+        meters.record(block)
+        preRoll?.write(block)
+        let requested = joinRequests.load(ordering: .acquiring)
+        if requested != 0 {
+            let frame = takeFrames.load(ordering: .relaxed)
+            if preRollStart.load(ordering: .relaxed) == -2 {
+                // The Pre-roll buffer already holds this block, so the live audio starts before it.
+                preRollStart.store((preRoll?.totalWrittenFrames ?? block.frameCount) - block.frameCount, ordering: .releasing)
+            }
+            for copy in 0..<rings.count where requested & (1 << copy) != 0 {
+                rings[copy].joinFrame.store(frame, ordering: .releasing)
+            }
+            capturing.bitwiseOr(requested, ordering: .acquiringAndReleasing)
+            joinRequests.bitwiseAnd(~requested, ordering: .acquiringAndReleasing)
+        }
+        let mask = capturing.load(ordering: .acquiring)
+        noteInputGap(before: block, capturing: mask)
+        var copy = 0
+        while copy < rings.count {
+            if mask & (1 << copy) != 0 { rings[copy].write(block) }
+            copy += 1
+        }
+        if mask != 0 { takeFrames.add(block.frameCount, ordering: .relaxed) }
+    }
+}
