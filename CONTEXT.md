@@ -65,7 +65,7 @@ A setting that writes a Take to the Drive alone. The Device stands in only while
 _Avoid_: Single copy, external only
 
 **Stand-in**:
-What the Device writes while Drive only is on and the Drive can't take the audio: from the frame the Drive was lost, or the Take started without one, until the Drive takes the audio again. It counts as the Device's Copy for those frames, and it is never the primary one.
+What the Device writes while Drive only is on and the Drive can't take the audio: from the frame the Drive was lost, or the Take started without one, to the end of the Take. It counts as the Device's Copy for those frames, and it is never the primary one.
 _Avoid_: Fallback copy, backup
 
 **Moved**:
