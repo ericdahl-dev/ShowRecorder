@@ -1,5 +1,6 @@
 #if os(iOS)
 import ActivityKit
+import Foundation
 import TakeActivity
 
 /// The running Take in the Dynamic Island and on the Lock Screen (#136). It only reads state the record
