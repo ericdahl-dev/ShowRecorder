@@ -669,9 +669,17 @@ final class RecordScreenModel {
 
     /// A new auto-gain session on the linked Mixer, measuring with the record screen's own meters. Every gain change it
     /// makes or undoes is logged in the Show (#450).
+    /// The linked Mixer as auto-gain tells Mixers apart, "FOH · XR18": its network name and model, so two desks both
+    /// named FOH aren't one. Nil while the Mixer Link is down.
+    var linkedMixer: String? {
+        mixerLink.identity.map { "\($0.networkName) · \($0.model)" }
+    }
+
     func makeAutoGainSession() -> AutoGainSession? {
-        guard let control = mixerLink.gainControl else { return nil }
-        return AutoGainSession(control: control, measure: { [weak self] usb in await self?.averageLevel(usbChannel: usb) ?? -120 },
+        guard mixerLink.gainControl != nil else { return nil }
+        // The Mixer Link's gain control at each step, so a reconnect's new driver is used, Undo included (#508).
+        return AutoGainSession(currentControl: { [weak self] in self?.mixerLink.gainControl },
+                               mixer: { [weak self] in self?.linkedMixer }, measure: { [weak self] usb in await self?.averageLevel(usbChannel: usb) ?? -120 },
                                log: { [weak self] change in self?.recorder.logGainChange(change) })
     }
 
@@ -928,6 +936,7 @@ final class RecordScreenModel {
         sequencer.log = { line in Self.sessionLog.notice("\(line, privacy: .public)") }
         autoGain.makeSession = { [weak self] in self?.makeAutoGainSession() }
         autoGain.isRecording = { [weak self] in self?.recorder.isRecording ?? false }
+        autoGain.mixerName = { [weak self] in self?.linkedMixer }
         clipGuard.makeProtection = { [weak self] in self?.makeClipProtection() }
         clipGuard.isRecording = { [weak self] in self?.recorder.isRecording ?? false }
         followTakes()

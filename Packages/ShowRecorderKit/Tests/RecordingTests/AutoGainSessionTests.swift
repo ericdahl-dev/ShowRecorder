@@ -166,6 +166,43 @@ struct AutoGainSessionTests {
         #expect(control.gainDb == [1: 0, 2: 0])
     }
 
+    @Test("After the Mixer Link reconnects (a new driver), runs and Undo go through the new one, not the first (#508)")
+    func followsTheCurrentControl() async throws {
+        let first = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
+        var current = first
+        let session = AutoGainSession(currentControl: { current }, measure: { usb in -40 + (current.gainDb[usb] ?? 0) })
+        _ = await session.run(usbChannels: [1])
+        #expect(first.gainDb[1] == 22)
+
+        // The Mixer Link reconnects: a new driver on the same Mixer, which holds what the first one wrote.
+        let reconnected = FakeGainControl(gainDb: first.gainDb, channelOfUSB: first.channelOfUSB)
+        current = reconnected
+        _ = await session.run(usbChannels: [2])
+        #expect(reconnected.gainDb[2] == 22)
+        #expect(first.gainDb[2] == 0, "the old driver isn't used")
+
+        try await session.undo(usbChannel: 1)
+        #expect(reconnected.gainDb[1] == 0, "Undo after the reconnect goes through the new driver")
+    }
+
+    @Test("An Undo under way when the Mixer Link reconnects to another Mixer stops: nothing of the first Mixer's is written to it (#508)")
+    func undoUnderWayNeverWritesToAnotherMixer() async throws {
+        let foh = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
+        let mon = FakeGainControl(gainDb: [1: 5], channelOfUSB: [1: 1])
+        var current = foh, mixer: String? = "FOH · XR18"
+        // The level follows 80% of each move, so two steps to undo.
+        // After the first step is undone (it's logged), the Link comes back on another Mixer.
+        let session = AutoGainSession(currentControl: { current }, mixer: { mixer }, measure: { usb in -40 + 0.8 * (current.gainDb[usb] ?? 0) },
+                                      log: { change in if change.reason == .undo { current = mon; mixer = "MON · XR18" } })
+        _ = await session.run(usbChannels: [1])
+        #expect(session.steps[1]?.count == 2)
+
+        await #expect(throws: MixerLinkProblem.self) { try await session.undo(usbChannel: 1) }
+
+        #expect(mon.gainDb[1] == 5, "nothing written to the other Mixer")
+        #expect(session.steps[1]?.count == 1, "the step left stays, for the first Mixer")
+    }
+
     @Test("All channels: silent ones, ones with no Mixer channel, and a second USB Channel on a channel already moved are skipped")
     func skips() async throws {
         let control = FakeGainControl(gainDb: [1: 0, 2: 0, 3: 0], channelOfUSB: [1: 1, 2: 2, 3: 3, 4: 1])

@@ -31,7 +31,8 @@ struct AutoGainSheet: View {
                 canUndo: { isDemo ? AutoGainList.demoUndoable.contains($0) : autoGain.canUndo($0) },
                 canUndoAll: isDemo || autoGain.canUndoAll,
                 compensation: { isDemo ? AutoGainList.demoCompensation[$0] : autoGain.compensationSummary($0) },
-                unavailable: isDemo ? nil : model.autoGainUnavailable)
+                unavailable: isDemo ? nil : model.autoGainUnavailable,
+                notice: isDemo ? nil : autoGain.notice)
                 .navigationTitle("Auto-gain")
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
@@ -71,6 +72,8 @@ struct AutoGainList: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Why it can't run right now, said at the top; everything is locked meanwhile.
     var unavailable: AutoGainAvailability.Unavailable? = nil
+    /// Why Undo went away (it was made on another Mixer, #508), said at the top.
+    var notice: String? = nil
 
     var body: some View {
         let locked = self.locked || unavailable != nil
@@ -79,6 +82,9 @@ struct AutoGainList: View {
                 Section {
                     Label(unavailable.message, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
                 }
+            }
+            if let notice {
+                Section { Label(notice, systemImage: "arrow.uturn.backward.circle") }
             }
             Section {
                 // While a run of several channels goes, its progress takes the place of the button that started it.
