@@ -34,6 +34,10 @@ struct RecordScreen: View {
     @AppStorage(License.trialOfferedKey) private var trialOffered = false
     /// The paywall on screen. `model.paywall` is one that came due; it waits here until no other sheet is up (#357).
     @State private var shownPaywall: PaywallRequest?
+    #if DEBUG && os(iOS)
+    /// The headphone monitor experiment's switches (#233), in a sheet so the meters keep their height.
+    @State private var showingMonitor = false
+    #endif
 
     /// Whether a sheet is up, so the record screen doesn't present another over it.
     private var anotherSheetOpen: Bool {
@@ -80,6 +84,9 @@ struct RecordScreen: View {
             if launchFlag("-autoGainDemo") { showingAutoGain = true }
         }
         .onDisappear { model.screenDisappeared() }
+        #if DEBUG && os(iOS)
+        .sheet(isPresented: $showingMonitor) { MonitorExperimentSheet().modifier(AppearanceRoot(mode: model.appearance)) }
+        #endif
         .sheet(isPresented: $showingMarkers) {
             NavigationStack {
                 MarkerListView(model: model)
@@ -108,6 +115,9 @@ struct RecordScreen: View {
         }
         // Each sheet applies the Appearance itself: iOS presents a sheet on its own, and one that only inherits the
         // window's look keeps the old one until it is shown again.
+        #if DEBUG && os(iOS)
+        .sheet(isPresented: $showingMonitor) { MonitorExperimentSheet().modifier(AppearanceRoot(mode: model.appearance)) }
+        #endif
         .sheet(isPresented: $showingNewShow) { NewShowSheet(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $model.showingSoundcheck) { SoundcheckView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingShowList) { ShowListView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
@@ -326,6 +336,9 @@ struct RecordScreen: View {
                         .buttonStyle(.plain)
                         .foregroundStyle(.tint)
                 }
+                #if DEBUG && os(iOS)
+                monitorButton.padding(.leading, 12)
+                #endif
             }
             .font(.subheadline)
             // Top-aligned: Marker is taller (its count sits below), so centring would drop Record.
@@ -346,6 +359,19 @@ struct RecordScreen: View {
         .onPreferenceChange(TransportWidthKey.self) { transportWidth = $0 }
         .animation(.easeInOut(duration: 0.15), value: model.recorder.takeMarkers.count)
     }
+
+    #if DEBUG && os(iOS)
+    /// Opens the headphone monitor experiment's sheet (#233), only while the experiment is Armed. In the Show row,
+    /// so it takes no height from the meters.
+    @ViewBuilder private var monitorButton: some View {
+        if MonitorExperiment.shared.isArmed {
+            Button { showingMonitor = true } label: { Text("Mon").tapTarget() }
+                .buttonStyle(.plain)
+                .foregroundStyle(.tint)
+                .accessibilityLabel("Monitor experiment")
+        }
+    }
+    #endif
 
     private var markerPlacedText: String {
         if let last = model.recorder.takeMarkers.last, model.recorder.isRecording { return "\(last.name) placed" }
@@ -384,6 +410,9 @@ struct RecordScreen: View {
                             .buttonStyle(.plain)
                             .foregroundStyle(.tint)
                     }
+                    #if DEBUG && os(iOS)
+                    monitorButton
+                    #endif
                 }
                 .font(.caption)
                 // One line for the Take and how long it has run, so the 44 pt rows above still fit a short screen.
@@ -542,7 +571,12 @@ struct AppInputDevices: InputDeviceSource {
 
     #if os(iOS)
     func currentRouteDevice(sampleRate: Int?) throws -> any AudioIODevice {
+        #if DEBUG
+        // The monitor experiment (#233) opens it with the plan chosen at Arm, so no category change mid-Take.
+        try MonitorExperiment.shared.openForRouteMove(sampleRate: sampleRate)
+        #else
         try SessionAudioDevice.current(sampleRate: sampleRate)
+        #endif
     }
     #endif
 }
@@ -668,6 +702,9 @@ final class RecordScreenModel {
             for await event in events {
                 self?.autoGain.handle(event)
                 self?.clipGuard.handle(event)
+                #if DEBUG && os(iOS)
+                if case .disarmed = event { MonitorExperiment.shared.disarmed() }
+                #endif
             }
         }
     }
@@ -963,6 +1000,9 @@ final class RecordScreenModel {
         clipGuard.isRecording = { [weak self] in self?.recorder.isRecording ?? false }
         followTakes()
         sequencer.didArm = { [unowned self] device in
+            #if DEBUG && os(iOS)
+            MonitorExperiment.shared.armed(device)
+            #endif
             if let device {
                 noteOfferedChannels(of: device)
                 #if os(iOS)
@@ -1250,6 +1290,10 @@ final class RecordScreenModel {
     func noteOfferedChannels(of device: any AudioIODevice) {
         #if os(iOS)
         offeredChannelCount = (device as? SessionAudioDevice)?.maximumInputChannelCount
+        #if DEBUG
+        // The monitor experiment (#233) wraps the input in a `MonitorTap`.
+        if device is MonitorTap { offeredChannelCount = MonitorExperiment.shared.sessionDevice?.maximumInputChannelCount }
+        #endif
         #else
         offeredChannelCount = nil
         #endif
@@ -1350,6 +1394,10 @@ final class RecordScreenModel {
         defer { routeWatcher.cancel() }
         let sessionWatcher = Task { await watchAudioSession() }
         defer { sessionWatcher.cancel() }
+        #if DEBUG
+        let monitorRouteLog = Task { await MonitorExperiment.shared.watchRoutes() }
+        defer { monitorRouteLog.cancel() }
+        #endif
         #endif
         #if os(macOS)
         let deviceWatcher = Task { await watchDeviceChanges() }
@@ -1504,8 +1552,9 @@ final class RecordScreenModel {
         #if os(iOS)
         // Every input iOS can see, USB interfaces first, so one that isn't the current route can be chosen.
         let session = AVAudioSession.sharedInstance()
-        // Inputs are only listed for a recording category; this doesn't activate the session.
-        if session.category != .record { try? session.setCategory(.record, mode: .measurement, options: []) }
+        // Inputs are only listed for a recording category; this doesn't activate the session. Play-and-record (the
+        // Debug headphone monitor experiment, #233) records too, and resetting it would cut the monitor off.
+        if ![.record, .playAndRecord].contains(session.category) { try? session.setCategory(.record, mode: .measurement, options: []) }
         let current = session.currentRoute.inputs.first
         var ports = session.availableInputs ?? []
         if let current, !ports.contains(where: { $0.uid == current.uid }) { ports.append(current) }
@@ -1521,7 +1570,11 @@ final class RecordScreenModel {
                 name: port.portName + (channels.map { " (\($0) in)" } ?? ""),
                 availableSampleRates: Self.sessionSampleRates,
                 make: { chosen, capAt48k in
+                    #if DEBUG
+                    try MonitorExperiment.shared.openForArm(preferredInputUID: uid, sampleRate: Self.sessionRate(chosen, capAt48k: capAt48k))
+                    #else
                     try SessionAudioDevice.current(preferredInputUID: uid, sampleRate: Self.sessionRate(chosen, capAt48k: capAt48k))
+                    #endif
                 }))
         }
         if ports.isEmpty {
@@ -1530,7 +1583,13 @@ final class RecordScreenModel {
                 info: InputDeviceInfo(id: Self.routeInputPrefix + "default", name: "Audio interface", inputChannelCount: 0, sampleRate: session.sampleRate),
                 name: "Audio interface",
                 availableSampleRates: Self.sessionSampleRates,
-                make: { chosen, capAt48k in try SessionAudioDevice.current(sampleRate: Self.sessionRate(chosen, capAt48k: capAt48k)) }))
+                make: { chosen, capAt48k in
+                    #if DEBUG
+                    try MonitorExperiment.shared.openForArm(preferredInputUID: nil, sampleRate: Self.sessionRate(chosen, capAt48k: capAt48k))
+                    #else
+                    try SessionAudioDevice.current(sampleRate: Self.sessionRate(chosen, capAt48k: capAt48k))
+                    #endif
+                }))
         }
         #endif
         if DemoSignalAvailability.isAvailableInThisBuild {

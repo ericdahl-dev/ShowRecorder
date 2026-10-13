@@ -35,6 +35,7 @@
 		7978ADCB74542A7F2803E11F /* MeterGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB46E32691A6C070E799F33D /* MeterGrid.swift */; };
 		7F1555A334A37A41677E5B47 /* TakeActivity in Frameworks */ = {isa = PBXBuildFile; productRef = 4DDAD2337FDDC304B0F1E946 /* TakeActivity */; };
 		992430B53737588E241A07B2 /* RecordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */; };
+		9FD36E125AA2BC7EE8AAEAD5 /* MonitorExperiment.swift in Sources */ = {isa = PBXBuildFile; fileRef = D942D124B2BCC55DD0044462 /* MonitorExperiment.swift */; };
 		A159D220EC3F72CD05142F7A /* LaunchFlag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 625D1286301830679767FD67 /* LaunchFlag.swift */; };
 		A9A8E28730C7E54C34DF1CAE /* CoreAudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = F366717F80C358C5B3DD7D70 /* CoreAudioIO */; };
 		B243732DF04F2E648E20259E /* FindMixersRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 252D564B3B9FE54ED487A88C /* FindMixersRow.swift */; };
@@ -145,6 +146,7 @@
 		BB46E32691A6C070E799F33D /* MeterGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeterGrid.swift; sourceTree = "<group>"; };
 		BFEAAED834B651D2EB178389 /* TakeLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TakeLiveActivityWidget.swift; sourceTree = "<group>"; };
 		CAE710202D63B74CD7D41083 /* ShowRecorderWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShowRecorderWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D942D124B2BCC55DD0044462 /* MonitorExperiment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitorExperiment.swift; sourceTree = "<group>"; };
 		DBBDC7B3AA4C8B14B57747DD /* ShowRecorder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ShowRecorder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DDDF413BFBEF5212621189D4 /* TrialSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrialSheet.swift; sourceTree = "<group>"; };
 		EB84E97783AC024563C212F7 /* HoldToStopButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldToStopButton.swift; sourceTree = "<group>"; };
@@ -230,6 +232,7 @@
 				625D1286301830679767FD67 /* LaunchFlag.swift */,
 				078720CF89E26EE2F4248B22 /* MarkerListView.swift */,
 				BB46E32691A6C070E799F33D /* MeterGrid.swift */,
+				D942D124B2BCC55DD0044462 /* MonitorExperiment.swift */,
 				391362E4626ED278BF3DF54D /* NewShowSheet.swift */,
 				01380066EBAE4A3580E3B80B /* PaywallSheet.swift */,
 				90AA2E3938B5B72E1F6B30B8 /* PowerMonitor.swift */,
@@ -449,6 +452,7 @@
 				A159D220EC3F72CD05142F7A /* LaunchFlag.swift in Sources */,
 				B5FB0EEE03B673365A8114BA /* MarkerListView.swift in Sources */,
 				7978ADCB74542A7F2803E11F /* MeterGrid.swift in Sources */,
+				9FD36E125AA2BC7EE8AAEAD5 /* MonitorExperiment.swift in Sources */,
 				C8FAB22502DCD4DD3F5DED9D /* NewShowSheet.swift in Sources */,
 				3B133367222FC5F3F5EBDBC3 /* PaywallSheet.swift in Sources */,
 				B243E4DC015F2D21E51CF47F /* PowerMonitor.swift in Sources */,
