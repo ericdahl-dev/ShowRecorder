@@ -610,7 +610,10 @@ final class RecordScreenModel {
     var linkedSources: [Source] { offersMixerLink ? mixerLink.sources : [] }
 
     /// Auto-gain (#155) is offered with Mixer Link, when the Mixer can set gain (the X32 today), and never during a Take.
-    var offersAutoGain: Bool { offersMixerLink && mixerLink.gainControl != nil && !recorder.isRecording }
+    /// Debug builds only for now (`AutoGainAvailability`).
+    var offersAutoGain: Bool {
+        AutoGainAvailability.isAvailable() && offersMixerLink && mixerLink.gainControl != nil && !recorder.isRecording
+    }
 
     /// A new auto-gain session on the linked Mixer, measuring with the record screen's own meters. Every gain change it
     /// makes or undoes is logged in the Show (#450).
