@@ -976,6 +976,7 @@ final class RecordScreenModel {
         #endif
         // `-demoSignal` starts on the 18-channel demo signal, for screenshots and layout checks.
         if launchFlag("-demoSignal"), devices.contains(where: { $0.id == "demo" }) { selectedDeviceID = "demo" }
+        if launchFlag("-demoStems"), devices.contains(where: { $0.id == "demo-stems" }) { selectedDeviceID = "demo-stems" }
     }
 
     /// "2026-10-06 Show · Take 02", or a hint before the first Take.
@@ -1279,7 +1280,11 @@ final class RecordScreenModel {
         if launchFlag("-demoNames"), isScreenshotBuild {
             Task {
                 try? await Task.sleep(for: .seconds(1))
-                for (index, name) in Self.demoChannelNames.enumerated() { recorder.setChannelName(name, forChannel: index + 1) }
+                var names = Self.demoChannelNames
+                #if DEBUG
+                if let folder = DemoStemsDevice.folder, let layout = DemoStemsDevice.layout(of: folder) { names = layout.channelNames }
+                #endif
+                for (index, name) in names.enumerated() { recorder.setChannelName(name, forChannel: index + 1) }
             }
         }
         // `-demoRecord` starts a Take once Armed, for screenshots. With `-demoSignal` only on the Demo signal, never the
@@ -1289,7 +1294,7 @@ final class RecordScreenModel {
                 for _ in 0..<60 {
                     try? await Task.sleep(for: .milliseconds(500))
                     guard recorder.isArmed, !recorder.isRecording else { continue }
-                    if launchFlag("-demoSignal"), armedDevice?.id != "demo" { continue }
+                    if launchFlag("-demoSignal") || launchFlag("-demoStems"), armedDevice?.id.hasPrefix("demo") != true { continue }
                     record()
                     return
                 }
@@ -1531,6 +1536,15 @@ final class RecordScreenModel {
                 name: "Demo signal (\(DemoAudioDevice.channelCount) channels)",
                 make: { _, _ in DemoAudioDevice() }))
         }
+        #if DEBUG
+        // `-demoStems <folder>` (Debug): a folder of stems as USB Channels, for screenshots (#374).
+        if let folder = DemoStemsDevice.folder, let layout = DemoStemsDevice.layout(of: folder) {
+            choices.append(DeviceChoice(
+                info: InputDeviceInfo(id: "demo-stems", name: "Demo stems", inputChannelCount: layout.channelCount, sampleRate: 48_000),
+                name: "Demo stems (\(layout.channelCount) channels)",
+                make: { _, _ in DemoStemsDevice(folder: folder, layout: layout) }))
+        }
+        #endif
         // The screenshot build offers only demo inputs (#374).
         return DemoOnlyInputSource.isScreenshotBuild() ? DemoOnlyInputSource.onlyDemo(choices) : choices
     }

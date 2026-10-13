@@ -121,16 +121,21 @@ First release.
 
 ### Mac set (taken 2026-10-13, #374)
 
-In [`docs/images/app-store-mac/`](../images/app-store-mac/), 2560 × 1600 each, Demo signal with typed band names (no people's names), a Drive set:
+In [`docs/images/app-store-mac/`](../images/app-store-mac/), 2560 × 1600 each: a band's stems played as 12 USB Channels (Drums, Bass, Gtr, Piano, Vox, Other, left and right), named from the files, with a Drive set:
 
-1. `mac-01-recording-light.png`: Every channel, its own file (a Take, 18 named meters)
+1. `mac-01-recording-light.png`: Every channel, its own file (a Take, 12 named meters)
 2. `mac-02-recording-dark.png`: the same in Dark
 3. `mac-03-shows-light.png` and `mac-04-shows-dark.png`: the Show list
 4. `mac-05-sunlight.png`: Sunlight for bright stages
 
-The Demo signal runs hot, so several meters read red: honest for what it is, but a real mixer's levels look calmer. A Mixer Link shot needs an X Air or X32 on this Mac's USB.
+The piano stem is silent in the part that loops, so its pair reads as an unused input. A Mixer Link shot waits for an X Air or X32 on this Mac's USB.
 
-To take them again: a Debug build with its own bundle ID, so its container is empty and the real app's Shows are untouched (`xcodebuild … PRODUCT_BUNDLE_IDENTIFIER=dev.ericdahl.ShowRecorder.screens`), launched with `-demoSignal -demoNames -demoDrive -demoRecord -screenshotWindow`, plus `-lightScheme` for the light set or `-showList` for the list; Sunlight is the appearance setting in that container's preferences. `-demoDrive` and `-demoNames` act only in a build whose bundle ID ends in `.screens`. `-screenshotWindow` makes a 1280 × 800 window on a Retina screen (2560 × 1600); 2880 × 1800 would need its size changed in `ShowRecorderApp.swift` and a screen with at least 900 points of usable height. Capture the window alone with `screencapture -o -l<window id>`.
+To take them again:
+- Build Debug under its own bundle ID, `xcodebuild … PRODUCT_BUNDLE_IDENTIFIER=dev.ericdahl.ShowRecorder.screens`. Its container is empty, the real app's Shows are untouched, and it Arms only demo inputs (`DemoOnlyInputSource`), never a microphone or USB interface.
+- Copy a folder of stems into its container (it is sandboxed), for example `~/Library/Containers/dev.ericdahl.ShowRecorder.screens/Data/tmp/demo-stems`. Never commit the audio.
+- Launch it with `-demoStems <that folder> -demoNames -demoDrive -demoRecord -screenshotWindow`, plus `-lightScheme` for the light set or `-showList` for the list. Sunlight is the appearance setting in that container's preferences.
+- `-demoStems` plays seconds 25 to 40 of each stem at 48 kHz, looped, about 6 dB down. `-screenshotWindow` makes a 1280 × 800 window on a Retina screen (2560 × 1600) and leaves out the empty alert slot. 2880 × 1800 would need its size changed in `ShowRecorderApp.swift` and a screen with at least 900 points of usable height.
+- Capture the window alone with `screencapture -o -l<window id>`.
 
 ## Decided (Eric, 2026-10-11)
 
