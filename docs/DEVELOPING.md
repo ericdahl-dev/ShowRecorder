@@ -25,6 +25,23 @@ xcodebuild -project ShowRecorder.xcodeproj -scheme ShowRecorder \
 
 `scripts/verify.sh` runs the checks CI runs, but only those the branch's changes need: the vocabulary check, package tests, macOS and iOS Simulator builds, and the website's lint, tests and build. It prints its plan first; a docs-only change needs none (except `docs/release-notes/`, which the site's changelog test reads, so it runs the site checks), and a change to `verify.sh`, CI or an unlisted path runs everything. `VERIFY_ALL=1` runs everything, `VERIFY_PLAN_ONLY=1` prints the plan and stops, and the header of `verify.sh` lists which paths pick which checks. Set `DEVICE_ID` and `DEVELOPMENT_TEAM` to also build for a device. The package tests, both app builds and the website run side by side, as CI runs them: each writes its own log, and at the end `verify.sh` prints each step's result and time and the log of any that failed. Each app build has its own build folder (`build/dd-mac`, `build/dd-ios`, `build/dd-device`; `DERIVED_DATA` changes the `build/dd` prefix), so they don't wait on each other; an older `build/dd` can be deleted. Ctrl-C stops every step. CI runs on every pull request on GitHub's free hosted `macos-26` runner and must pass before a PR merges.
 
+### One heavy build at a time
+
+Several agents often work on this Mac at once, in their own worktrees. Builds run side by side starve each other, and tests with time limits fail under the load. So every heavy build takes one lock, shared by all worktrees of the repo (`.git/verify.lock`), and a second one waits its turn and says so: "== Waiting for another build on this Mac to finish". Builds that hold the lock run at low priority (`nice -n 10`).
+
+- `scripts/verify.sh` takes the lock itself. `VERIFY_PLAN_ONLY=1` never waits.
+- `swift build`, `swift test`, `swift run` and `xcodebuild` builds and tests take it through the shims in `scripts/bin`. **Put `scripts/bin` first on your `PATH`** so they're used:
+
+  ```sh
+  export PATH="$HOME/Documents/GitHub/ericdahl.dev/ShowRecorder/scripts/bin:$PATH"
+  ```
+
+  Light commands run straight away: `swift --version`, `swift package describe` or `resolve`, `xcodebuild -list`, `-version`, `-showdestinations`, `-showsdks`. So does anything outside this repo; the shims then just run `/usr/bin/swift` or `/usr/bin/xcodebuild`.
+- Builds `verify.sh` starts itself don't wait for it (`SHOWRECORDER_BUILD_LOCK_HELD=1`).
+- A queued build can take longer than an agent's 10-minute command limit, so agents run builds and tests as background tasks.
+- Stop a build with Ctrl-C, or by signaling its whole process group (`kill -- -PGID`). A signal to `lockf` alone frees the lock while the build goes on, and the next build starts beside it.
+- `scripts/build-lock.sh` has the details; `scripts/test-verify-lock.sh` and `scripts/test-build-lock.sh` test it with stand-in tools and a lock of their own, so they never wait on a real build.
+
 `scripts/preflight.sh` builds an unsigned iOS Release app and checks what App Store Connect rejects a build for (icon, privacy manifest, export compliance, usage strings, version numbers); pass an `.xcarchive` to check one you already have. Set `BUILD_NUMBER` to override `CURRENT_PROJECT_VERSION` at build time. The marketing version stays in `project.yml`.
 
 To run on a device, pick your own team in Xcode. After editing `project.yml`, run `xcodegen generate` and commit both files.

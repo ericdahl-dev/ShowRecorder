@@ -1,0 +1,97 @@
+#!/bin/sh
+# Checks the one-heavy-build-at-a-time lock for the shims (scripts/build-lock.sh, scripts/bin/swift and
+# scripts/bin/xcodebuild; verify.sh's own lock is scripts/test-verify-lock.sh) with stand-in tools and a lock of its own, so it never waits on, or holds up, a real build on this Mac.
+set -eu
+cd "$(dirname "$0")/.."
+repo=$(pwd)
+
+fail=0
+# expect DESCRIPTION COMMAND...: records a failure when the command fails.
+expect() {
+  desc=$1; shift
+  if ! "$@"; then echo "FAIL: $desc"; fail=1; fi
+}
+# has PATTERN: the last output contains it.
+has() { printf '%s\n' "$out" | grep -q -- "$1"; }
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+export SHOWRECORDER_BUILD_LOCK="$work/test.lock"
+unset SHOWRECORDER_BUILD_LOCK_HELD || true
+log="$work/runs.log"
+
+# Stand-in tools: say when they start and end, take a second (STUB_SLEEP), and echo their arguments.
+for tool in swift xcodebuild; do
+  cat > "$work/real-$tool" <<STUB
+#!/bin/sh
+echo "start \$\$ \$(date +%s)" >> "$log"
+sleep \${STUB_SLEEP:-1}
+echo "end \$\$ \$(date +%s)" >> "$log"
+echo "ran $tool \$*"
+STUB
+  chmod +x "$work/real-$tool"
+done
+export SHOWRECORDER_REAL_SWIFT="$work/real-swift" SHOWRECORDER_REAL_XCODEBUILD="$work/real-xcodebuild"
+
+# Holds the test lock in the background, the way another build would, until release_lock.
+hold_lock() {
+  lockf -k "$SHOWRECORDER_BUILD_LOCK" sleep 30 &
+  holder=$!
+  sleep 0.5
+}
+release_lock() {
+  # Ends the holder's sleep, so lockf exits and lets the lock go (the sleep would keep it open).
+  pkill -P "$holder" sleep 2>/dev/null || true
+  wait "$holder" 2>/dev/null || true
+}
+
+# How long a command takes, in whole seconds; its stand-in tool returns at once, so only waiting shows.
+timed() {
+  t0=$(date +%s)
+  out=$(STUB_SLEEP=0 "$@" 2>&1) || true
+  elapsed=$(( $(date +%s) - t0 ))
+}
+
+# 1. Two heavy builds at once: the second waits, says so, and they never overlap.
+: > "$log"
+"$repo/scripts/bin/swift" build > "$work/first.out" 2>&1 &
+first=$!
+# Until the first build's tool has started, so it holds the lock (a fixed sleep isn't enough on a busy Mac).
+i=0
+until grep -q start "$log" 2>/dev/null || [ $i -ge 600 ]; do i=$((i + 1)); sleep 0.1; done
+out=$("$repo/scripts/bin/xcodebuild" -scheme ShowRecorder build 2>&1) || true
+wait $first || true
+expect "a second build says it is waiting" has "Waiting for another build"
+expect "the second build still runs, with its arguments" has "ran xcodebuild -scheme ShowRecorder build"
+# start A, end A, start B, end B: the second start comes after the first end.
+order=$(cut -d' ' -f1 "$log" | tr '\n' ' ')
+expect "builds don't overlap (got: $order)" [ "$order" = "start end start end " ]
+
+# 2. A build verify.sh runs while it holds the lock (SHOWRECORDER_BUILD_LOCK_HELD=1) doesn't wait for it.
+hold_lock
+timed env SHOWRECORDER_BUILD_LOCK_HELD=1 "$repo/scripts/bin/swift" test
+expect "a build inside a locked verify doesn't wait (took ${elapsed}s)" [ "$elapsed" -lt 10 ]
+release_lock
+
+# 3. Light commands don't wait.
+hold_lock
+for cmd in "swift --version" "swift package describe" "swift package resolve" \
+           "swift package --package-path Packages/ShowRecorderKit describe" "xcodebuild -list" \
+           "xcodebuild -version" "xcodebuild -showdestinations -scheme ShowRecorder" "xcodebuild -showsdks"; do
+  set -- $cmd
+  tool=$1; shift
+  timed "$repo/scripts/bin/$tool" "$@"
+  expect "'$cmd' doesn't wait (took ${elapsed}s)" [ "$elapsed" -lt 10 ]
+done
+release_lock
+
+# 4. Outside a ShowRecorder checkout, the shims are plain pass-throughs.
+mkdir "$work/elsewhere"
+hold_lock
+timed sh -c "cd '$work/elsewhere' && '$repo/scripts/bin/swift' build"
+expect "outside the repo, swift build doesn't wait (took ${elapsed}s)" [ "$elapsed" -lt 10 ]
+expect "outside the repo, the real tool still runs" has "ran swift build"
+release_lock
+
+[ $fail = 0 ] && echo "build lock: all checks passed"
+exit $fail
