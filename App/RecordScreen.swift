@@ -277,7 +277,7 @@ struct RecordScreen: View {
     /// Always in place, dimmed when no Take is running, so Record never shifts under the thumb.
     private func markerButton(size: CGFloat) -> some View {
         Button {
-            model.recorder.addMarker()
+            model.sequencer.addMarker()
             model.followLiveActivity()
         } label: {
             MarkerButtonLabel(count: model.recorder.takeMarkers.count, size: size)
@@ -747,8 +747,6 @@ final class RecordScreenModel {
     /// The Drive stopped and Check Drive found nothing, until it comes back.
     private var driveCheckedAndNotFound = false
     private var driveRejoin = DriveRejoinNotice()
-    /// The last Take end already told to the operator, so each is told once.
-    @ObservationIgnored private var toldTakeEnd: TakeEnd?
 
     /// How each Copy of the last Take stands, shown once recording has stopped.
     var copySummary: (text: String, isProblem: Bool)? {
@@ -795,11 +793,6 @@ final class RecordScreenModel {
         takeCopies = recorder.copies
         if takeCopies[.drive] != .interrupted { driveCheckedAndNotFound = false }
         driveRejoin.update(copies: takeCopies)
-        if let end = recorder.lastTakeEnd, end != toldTakeEnd {
-            toldTakeEnd = end
-            // An input change is told where it happens (a route move, a device change, a media reset's notice).
-            if recordError == nil, end.reason != .inputChanged, let message = end.reason.message { recordError = message }
-        }
         followLiveActivity()
     }
 
@@ -1100,7 +1093,7 @@ final class RecordScreenModel {
     func endShow() -> String? {
         let ending = recorder.currentShow
         do {
-            try recorder.endShow()
+            try sequencer.endShow()
             if let ending, let moment = proOffers.afterShowEnded(
                 show: ending.name, takeCount: ending.takeCount, license: pro.license()) {
                 offerPro(moment)
@@ -1116,7 +1109,7 @@ final class RecordScreenModel {
     /// Starts a new Show. Returns what to tell the operator, or nil when it started.
     func startNewShow(name: String, venue: String) -> String? {
         do {
-            try recorder.startNewShow(name: name, venue: venue)
+            try sequencer.startNewShow(name: name, venue: venue)
             return nil
         } catch RecorderError.takeRunning {
             return "A Show can't be started during a Take."
@@ -1147,7 +1140,7 @@ final class RecordScreenModel {
     func startShow(from template: Template) -> String? {
         guard templateAccess == .usable else { return templateAccess.note }
         do {
-            try recorder.startNewShow(from: template)
+            try sequencer.startNewShow(from: template)
         } catch RecorderError.takeRunning {
             return "A Show can't be started during a Take."
         } catch {
@@ -1173,7 +1166,7 @@ final class RecordScreenModel {
     /// record starts it), and sets its Pre-roll and Mixer (#34).
     func applyDefaultTemplate() {
         guard templateAccess == .usable, let template = templates.defaultTemplate,
-              recorder.prepareNextShow(from: template) else { return }
+              sequencer.prepareNextShow(from: template) else { return }
         if preRollSeconds != template.preRollSeconds {
             preRollSeconds = template.preRollSeconds
             preRollChanged()

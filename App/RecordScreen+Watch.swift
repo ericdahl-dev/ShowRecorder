@@ -40,7 +40,7 @@ extension RecordScreenModel {
             },
             marker: { [weak self] in
                 guard let self, recorder.isRecording else { return false }
-                recorder.addMarker()
+                sequencer.addMarker()
                 followLiveActivity()
                 return true
             })
