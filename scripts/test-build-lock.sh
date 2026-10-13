@@ -150,7 +150,7 @@ done
 
 # verify.sh runs the package tests and both app builds at once: each gets a third of N.
 : > "$work/args"
-out=$(SHOWRECORDER_BUILD_JOBS=6 VERIFY_FILES="Packages/ShowRecorderKit/Sources/Recording/AutoGainSession.swift" ./scripts/verify.sh 2>&1) || true
+out=$(VERIFY_QUICK=0 SHOWRECORDER_BUILD_JOBS=6 VERIFY_FILES="Packages/ShowRecorderKit/Sources/Recording/AutoGainSession.swift" ./scripts/verify.sh 2>&1) || true
 expect "verify.sh's package tests get N/3 (args: $(cat "$work/args"))" grep -q "^swift test -j 2 --parallel\$" "$work/args"
 expect "verify.sh's app builds get N/3 each" [ "$(grep -c -- "-jobs 2\$" "$work/args")" = 2 ]
 
