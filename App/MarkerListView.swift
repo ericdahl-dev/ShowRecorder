@@ -2,7 +2,8 @@ import Recording
 import SwiftUI
 
 /// The current (or last) Take's Markers with their time in the Take, and a way to rename each of yours,
-/// during the Take and after it. The recorder's Dropout Markers are listed but can't be renamed.
+/// during the Take and after it. The Markers the recorder placed (Dropouts, gain and routing changes) are listed but
+/// can't be renamed.
 struct MarkerListView: View {
     @Bindable var model: RecordScreenModel
     @State private var renaming: MarkerEntry?
@@ -48,6 +49,8 @@ struct MarkerListView: View {
                 .frame(minWidth: 56, alignment: .leading)
             if entry.isDropout {
                 Label("Dropout: audio was lost here", systemImage: "waveform.badge.exclamationmark")
+            } else if entry.operatorIndex == nil {
+                Label(entry.name, systemImage: entry.kind == .routing ? "arrow.triangle.branch" : "slider.vertical.3")
             } else {
                 Text(entry.name)
                 Spacer()
@@ -55,8 +58,8 @@ struct MarkerListView: View {
             }
         }
         .frame(minHeight: 44)
-        if entry.isDropout {
-            label
+        if entry.operatorIndex == nil {
+            label.accessibilityHint("Can't be renamed")
         } else {
             Button {
                 draft = entry.name

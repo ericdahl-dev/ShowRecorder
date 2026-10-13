@@ -1179,7 +1179,7 @@ final class RecordScreenModel {
     /// Renames a Marker in the list, during the Take or after it. Returns what to tell the operator, or nil when
     /// every Copy has the new name.
     func renameMarker(_ entry: MarkerEntry, to name: String) async -> String? {
-        guard let index = entry.operatorIndex else { return "Dropout Markers can't be renamed." }
+        guard let index = entry.operatorIndex else { return "Only your own Markers can be renamed." }
         if recorder.isRecording {
             switch recorder.renameMarker(at: index, to: name) {
             case .renamed: return nil

@@ -1,7 +1,7 @@
 import Recording
 import SwiftUI
 
-/// One Show's Markers by Take, with rename for the operator's Markers (not Dropout Markers).
+/// One Show's Markers by Take, with rename for the operator's Markers (not the ones the recorder placed).
 struct ShowDetailView: View {
     let model: RecordScreenModel
     let show: ShowSummary
@@ -112,7 +112,7 @@ struct ShowDetailView: View {
                 .buttonStyle(.plain)
                 .accessibilityHint("Renames this Marker")
         } else {
-            content.accessibilityHint("A Dropout Marker, which can't be renamed")
+            content.accessibilityHint("Can't be renamed")
         }
     }
 

@@ -22,8 +22,8 @@ public struct MarkerDetail: Equatable, Sendable {
     public var name: String
     /// Seconds from the start of the Take's audio.
     public var seconds: Double
-    /// Its position among the operator's Markers, which is what a rename needs; nil for a Dropout Marker,
-    /// which can't be renamed.
+    /// Its position among the operator's Markers, which is what a rename needs; nil for a Marker the recorder placed
+    /// (a Dropout, a gain or routing change), which can't be renamed.
     public var operatorIndex: Int?
 }
 
