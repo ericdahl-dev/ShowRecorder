@@ -133,12 +133,13 @@ struct X32DriverTests {
         let mixer = try await FakeXAirMixer(state)
         let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
         let before = try await driver.sources(usbChannelCount: 32)
-        #expect(before[safe: 0]?.name == "Kick")
+        #expect(before[safe: 0]?.name == "Kick" && before[safe: 0]?.routedFrom == "ch:1")
         var changes = driver.sourceChanges().makeAsyncIterator()
         try await driver.renewLiveUpdates()
 
         mixer.repatchCard(block: 0, to: 1)                // USB 1-8 now carry AN9-16
 
-        #expect(await changes.next() == SourceChange(usbChannel: 1, name: "Tom 1", color: MixerColor(hue: .blue, inverted: false)))
+        #expect(await changes.next() == SourceChange(usbChannel: 1, name: "Tom 1", color: MixerColor(hue: .blue, inverted: false), routedFrom: .some("ch:9")),
+                "a re-patch says what the USB Channel carries now (#21)")
     }
 }

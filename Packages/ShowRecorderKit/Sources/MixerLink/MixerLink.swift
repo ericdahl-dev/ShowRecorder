@@ -115,11 +115,14 @@ public struct SourceChange: Equatable, Sendable {
     public var usbChannel: Int
     public var name: String?
     public var color: MixerColor?
+    /// Set when a re-patch changed what the USB Channel carries (#21): its new `Source.routedFrom`, which can be nil.
+    public var routedFrom: String??
 
-    public init(usbChannel: Int, name: String? = nil, color: MixerColor? = nil) {
+    public init(usbChannel: Int, name: String? = nil, color: MixerColor? = nil, routedFrom: String?? = nil) {
         self.usbChannel = usbChannel
         self.name = name
         self.color = color
+        self.routedFrom = routedFrom
     }
 }
 
@@ -135,6 +138,9 @@ public struct Source: Equatable, Sendable {
     public var fader: Float?
     /// The Mixer's input source index for the channel.
     public var inputSource: Int?
+    /// What the Mixer routes to the USB Channel ("ch:5", "aux"), so a re-patch tells apart from a rename (#21). Nil
+    /// when it carries nothing nameable, or the routing isn't known.
+    public var routedFrom: String?
 
     public init(name: String, color: MixerColor, hasMixerName: Bool = true, isMuted: Bool? = nil, fader: Float? = nil, inputSource: Int? = nil) {
         self.name = name

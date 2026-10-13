@@ -50,12 +50,14 @@ public final class XAirDriver: MixerDriver {
                 sources.append(.fallback(usbChannel: usbChannel))
                 continue
             }
-            let source: Source
+            var source: Source
             switch target {
             case .channel(let channel):
                 source = try await queries.source(at: String(format: "/ch/%02d", channel), usbChannel: usbChannel, inputSourceField: "insrc", readsMixState: &readsMixState)
+                source.routedFrom = "ch:\(channel)"
             case .auxReturn:
                 source = try await queries.source(at: "/rtn/aux", usbChannel: usbChannel, inputSourceField: nil, readsMixState: &readsMixState)
+                source.routedFrom = "aux"
             }
             sources.append(source)
         }
@@ -116,15 +118,16 @@ public final class XAirDriver: MixerDriver {
         }
     }
 
-    /// Reads the Sources again after a routing change and says which USB Channels' names or colors moved.
+    /// Reads the Sources again after a routing change and says which USB Channels' names, colors or routing moved.
     private func reread() async -> [SourceChange] {
         let before = linked.withLock { $0.sources }
         guard !before.isEmpty, let after = try? await sources(usbChannelCount: before.count) else { return [] }
         return zip(before, after).enumerated().compactMap { index, pair in
             let (old, new) = pair
-            guard old.name != new.name || old.color != new.color else { return nil }
+            guard old.name != new.name || old.color != new.color || old.routedFrom != new.routedFrom else { return nil }
             return SourceChange(usbChannel: index + 1, name: old.name == new.name ? nil : (new.hasMixerName ? new.name : ""),
-                                color: old.color == new.color ? nil : new.color)
+                                color: old.color == new.color ? nil : new.color,
+                                routedFrom: old.routedFrom == new.routedFrom ? nil : .some(new.routedFrom))
         }
     }
 }

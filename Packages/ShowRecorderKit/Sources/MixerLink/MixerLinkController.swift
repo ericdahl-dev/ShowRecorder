@@ -165,6 +165,7 @@ public final class MixerLinkController {
             source.hasMixerName = !name.isEmpty
         }
         if let color = change.color { source.color = color }
+        if let routedFrom = change.routedFrom { source.routedFrom = routedFrom }
         sources[change.usbChannel - 1] = source
     }
 
