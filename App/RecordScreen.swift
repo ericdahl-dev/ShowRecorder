@@ -941,7 +941,9 @@ final class RecordScreenModel {
         self.recorder = recorder
         let pro = ProStore()
         self.pro = pro
-        sequencer = TakeSequencer(recorder: recorder, devices: AppInputDevices(), capsAt48k: { pro.license().capsAt48k })
+        // The screenshot build Arms only demo inputs, never a microphone or USB interface (#374).
+        let inputs: any InputDeviceSource = DemoOnlyInputSource.isScreenshotBuild() ? DemoOnlyInputSource(AppInputDevices()) : AppInputDevices()
+        sequencer = TakeSequencer(recorder: recorder, devices: inputs, capsAt48k: { pro.license().capsAt48k })
         mixerAddress = UserDefaults.standard.string(forKey: Self.mixerAddressKey) ?? ""
         sequencer.sampleRateChoice = {
             #if os(macOS)
@@ -1267,7 +1269,7 @@ final class RecordScreenModel {
         // Copy instead of a "No Drive" warning.
         // Both touch the container's data (the Drive bookmark, saved names), so they act only in the screenshot build,
         // whose bundle ID ends in ".screens": never in the real app's container.
-        let isScreenshotBuild = Bundle.main.bundleIdentifier?.hasSuffix(".screens") == true
+        let isScreenshotBuild = DemoOnlyInputSource.isScreenshotBuild()
         if launchFlag("-demoDrive"), isScreenshotBuild {
             let folder = URL.documentsDirectory.appending(path: "Show SSD", directoryHint: .isDirectory)
             try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -1529,7 +1531,8 @@ final class RecordScreenModel {
                 name: "Demo signal (\(DemoAudioDevice.channelCount) channels)",
                 make: { _, _ in DemoAudioDevice() }))
         }
-        return choices
+        // The screenshot build offers only demo inputs (#374).
+        return DemoOnlyInputSource.isScreenshotBuild() ? DemoOnlyInputSource.onlyDemo(choices) : choices
     }
 }
 

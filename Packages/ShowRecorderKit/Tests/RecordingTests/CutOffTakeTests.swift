@@ -82,6 +82,19 @@ struct CutOffTakeTests {
         }
     }
 
+    @Test("A launch over a cut-off Take only finishes it: nothing is Armed or recording, and no new Take is started")
+    func launchStartsNothing() async throws {
+        try await cutOffTake()
+        let next = recorder()
+        await next.waitForRepair()
+
+        #expect(!next.isArmed)
+        #expect(!next.isRecording)
+        for parent in [device, drive] {
+            #expect(!FileManager.default.fileExists(atPath: parent.appending(path: "\(show)/Take 02").path))
+        }
+    }
+
     @Test("Finishing is done once: a second launch changes no file")
     func idempotent() async throws {
         try await cutOffTake()
