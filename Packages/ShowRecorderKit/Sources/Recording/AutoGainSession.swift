@@ -13,8 +13,9 @@ public final class AutoGainSession {
         case set(usbChannel: Int, channel: Int, fromGainDb: Double, toGainDb: Double, levelDbfs: Double)
         /// Left alone, and why.
         case skipped(usbChannel: Int, reason: Skip)
-        /// The rule couldn't bring it to target; whatever gain it set stays, for Undo.
-        case failed(usbChannel: Int, channel: Int, failure: AutoGainRule.Failure)
+        /// The rule couldn't bring it to target; whatever gain it set stays, for Undo. `limitedBy` is the setting that
+        /// stopped Re-Gain going further, when that's why (a threshold at its top, say), rather than the preamp's range.
+        case failed(usbChannel: Int, channel: Int, failure: AutoGainRule.Failure, limitedBy: ReGain.Limit? = nil)
         /// Its level didn't follow the gain, so the gain moved somewhere else (the USB routing isn't what was read).
         /// It stopped and put that gain back.
         case stopped(usbChannel: Int, channel: Int)
@@ -73,6 +74,7 @@ public final class AutoGainSession {
             var taken: [GainStep] = []
             var expected: Double?   // where the last move should have put the level
             var lastLevel = 0.0
+            var limit: ReGain.Limit?   // what limited the latest step, if anything did
             let outcome: AutoGainRule.Outcome
             do {
                 outcome = try await rule.run(
@@ -85,31 +87,50 @@ public final class AutoGainSession {
                     },
                     adjust: { db in
                         let step = try await control.applyReGain(channel: channel, gainChangeDb: db, scopes: .all)
-                        taken.append(step)
-                        log(Self.change(step, usbChannel: usbChannel, reason: .autoGain))
                         let applied = step.toGainDb - step.fromGainDb
+                        limit = step.limitedBy
+                        // A step that moved nothing changed nothing: there's nothing to log or undo. A setting can move
+                        // while the gain snaps back to where it was, so that counts as a move.
+                        if applied != 0 || step.changes.contains(where: { step.held[$0.setting] ?? $0.toDb != $0.fromDb }) {
+                            taken.append(step)
+                            log(Self.change(step, usbChannel: usbChannel, reason: .autoGain))
+                        }
                         expected = lastLevel + applied
                         return applied
                     },
                     settle: { await settle() }
                 )
             } catch is LevelDidNotFollow {
-                for step in taken.reversed() where (try? await control.undo(step)) != nil {
-                    log(Self.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
+                // Newest first; a step the Mixer wouldn't take back stays for Undo, with every older one, and the
+                // result is the Mixer's problem rather than "stopped", which says the gain was put back.
+                var undoProblem: MixerLinkProblem?
+                while undoProblem == nil, let step = taken.last {
+                    do throws(MixerLinkProblem) {
+                        try await control.undo(step)
+                        taken.removeLast()
+                        log(Self.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
+                    } catch {
+                        undoProblem = error
+                    }
                 }
-                steps[usbChannel] = []
-                results.append(.stopped(usbChannel: usbChannel, channel: channel))
+                steps[usbChannel, default: []] += taken
+                if let undoProblem {
+                    results.append(.error(usbChannel: usbChannel, channel: channel, problem: undoProblem))
+                } else {
+                    results.append(.stopped(usbChannel: usbChannel, channel: channel))
+                }
                 continue
             } catch let problem as MixerLinkProblem {
-                steps[usbChannel] = taken
+                steps[usbChannel, default: []] += taken
                 results.append(.error(usbChannel: usbChannel, channel: channel, problem: problem))
                 continue
             } catch {
-                steps[usbChannel] = taken
+                steps[usbChannel, default: []] += taken
                 results.append(.error(usbChannel: usbChannel, channel: channel, problem: .other(String(describing: error))))
                 continue
             }
-            steps[usbChannel] = taken
+            // Added to any earlier run's steps on this USB Channel, so Undo goes all the way back.
+            steps[usbChannel, default: []] += taken
             switch outcome {
             case .onTarget(let level, _, _):
                 if let first = taken.first, let last = taken.last {
@@ -118,19 +139,28 @@ public final class AutoGainSession {
             case .failed(.noSignal, _):
                 results.append(.skipped(usbChannel: usbChannel, reason: .noSignal))
             case .failed(let failure, _):
-                results.append(.failed(usbChannel: usbChannel, channel: channel, failure: failure))
+                let limitedBy: ReGain.Limit? = if case .rangeReached = failure { limit } else { nil }
+                results.append(.failed(usbChannel: usbChannel, channel: channel, failure: failure, limitedBy: limitedBy))
             }
         }
         return results
     }
 
     /// Puts back every gain step taken on `usbChannel`, newest first.
+    /// USB Channels with an Undo under way.
+    private var undoing: Set<Int> = []
+
+    /// Each step is dropped as soon as it is undone, so when the Mixer stops answering partway the rest stay for
+    /// another Undo, and none is undone twice. An Undo asked for while one is under way on the same USB Channel does
+    /// nothing: the first one takes back every step.
     public func undo(usbChannel: Int) async throws(MixerLinkProblem) {
-        for step in (steps[usbChannel] ?? []).reversed() {
+        guard undoing.insert(usbChannel).inserted else { return }
+        defer { undoing.remove(usbChannel) }
+        while let step = steps[usbChannel]?.last {
             try await control.undo(step)
+            if steps[usbChannel]?.last == step { steps[usbChannel]?.removeLast() }
             log(Self.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
         }
-        steps[usbChannel] = []
     }
 
     /// Puts back every gain step of the run.
@@ -150,6 +180,15 @@ public final class AutoGainSession {
             usbChannel: usbChannel, channel: step.channel, headamp: step.headamp,
             fromGainDb: undoing ? step.toGainDb : step.fromGainDb, toGainDb: undoing ? step.fromGainDb : step.toGainDb,
             reason: reason, compensations: compensations)
+    }
+}
+
+extension ReGain.Limit {
+    /// The setting that stopped Re-Gain and its end stop, as the auto-gain sheet says it: "Channel 1's gate threshold
+    /// is at its end stop (0 dB)".
+    public var explanation: String {
+        let db = endDb > 0 ? String(format: "+%g", endDb) : String(format: "%g", endDb)
+        return "Channel \(setting.channel)'s \(setting.parameter.logName) is at its end stop (\(db) dB)"
     }
 }
 
