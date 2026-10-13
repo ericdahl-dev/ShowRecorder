@@ -129,8 +129,16 @@ public protocol GainControl: Sendable {
     /// one move (#458), such as two X32 channels on one headamp, or a stereo-linked pair, which the Mixer moves
     /// together. Nil when the channel has no preamp.
     func preamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int?
+    /// The lane clip protection moves input channel `channel` in (#554): moves in one lane go one after the other, as
+    /// on a stereo pair whose strips are linked, where the Mixer mirrors fader and sends between the two. Nil when its
+    /// own preamp is its lane.
+    func lane(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int?
     func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes) async throws(MixerLinkProblem) -> GainStep
     func undo(_ step: GainStep) async throws(MixerLinkProblem)
+}
+
+extension GainControl {
+    public func lane(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? { nil }
 }
 
 /// One gain move with Mix Hold: the gain set, what the mixer holds now, and what undo needs.

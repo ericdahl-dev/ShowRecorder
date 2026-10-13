@@ -165,28 +165,48 @@ public final class ClipProtection {
             if let channel = control.channel(forUSBChannel: usbChannel) { targets.append((usbChannel, channel, peak)) }
         }
         var preamps = [Int](repeating: 0, count: targets.count)
-        await withTaskGroup(of: (Int, Int).self) { group in
+        var lanes = [Int?](repeating: nil, count: targets.count)
+        await withTaskGroup(of: (Int, Int, Int?).self) { group in
             for (index, target) in targets.enumerated() {
-                group.addTask { (index, await self.preamp(ofChannel: target.channel)) }
+                group.addTask {
+                    async let preamp = self.preamp(ofChannel: target.channel)
+                    async let lane = self.lane(ofChannel: target.channel)
+                    return (index, await preamp, await lane)
+                }
             }
-            for await (index, preamp) in group { preamps[index] = preamp }
+            for await (index, preamp, lane) in group {
+                preamps[index] = preamp
+                lanes[index] = lane
+            }
         }
         // The wait for the Mixer can outlast the Take.
         guard !stopped else { return }
-        var moves: [(usbChannel: Int, channel: Int, preamp: Int, gainChangeDb: Double)] = []
+        var moves: [(usbChannel: Int, channel: Int, preamp: Int, lane: String, gainChangeDb: Double)] = []
         for (index, target) in targets.enumerated() {
             let preamp = preamps[index]
             guard lastMove[preamp].map({ clock - $0 >= Self.restSeconds }) ?? true else { continue }
             let left = Self.mostPerTakeDb - (turnedDown[preamp] ?? 0)
             guard left > 0 else { continue }
             lastMove[preamp] = clock
-            moves.append((target.usbChannel, target.channel, preamp, max(-left, Self.stepDb(peakDbfs: target.peak))))
+            let lane = lanes[index].map { "lane \($0)" } ?? "preamp \(preamp)"
+            moves.append((target.usbChannel, target.channel, preamp, lane, max(-left, Self.stepDb(peakDbfs: target.peak))))
         }
+        // Moves in one lane go one after the other, in USB Channel order (#554): the Mixer mirrors fader and sends between
+        // the strips of a linked pair, so two moves at once could both rewrite one setting. Lanes move at once.
         await withTaskGroup(of: Void.self) { group in
-            for move in moves {
-                group.addTask { await self.turnDown(move.usbChannel, channel: move.channel, preamp: move.preamp, by: move.gainChangeDb) }
+            for lane in Dictionary(grouping: moves, by: { $0.lane }).values {
+                group.addTask {
+                    for move in lane {
+                        await self.turnDown(move.usbChannel, channel: move.channel, preamp: move.preamp, by: move.gainChangeDb)
+                    }
+                }
             }
         }
+    }
+
+    /// The lane Mixer channel `channel` moves in, or nil for its own preamp's, as when the Mixer doesn't answer.
+    private func lane(ofChannel channel: Int) async -> Int? {
+        (try? await control.lane(ofChannel: channel)) ?? nil
     }
 
     /// The preamp behind Mixer channel `channel`. The Mixer not answering is no reason to skip protecting: the channel

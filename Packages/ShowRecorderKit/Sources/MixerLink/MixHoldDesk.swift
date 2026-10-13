@@ -46,6 +46,14 @@ extension MixHoldDesk {
         return channel == first ? first + 1 : first
     }
 
+    /// When `channel`'s pair has its strips linked (`/config/chlink/1-2`), the pair's first channel: the Mixer mirrors
+    /// fader and sends between the two, so clip protection moves them one after the other (#554). Whether the preamps
+    /// are linked too doesn't matter here: then they are one preamp anyway.
+    public func lane(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? {
+        let first = channel % 2 == 0 ? channel - 1 : channel
+        return try await queries.int(at: String(format: "/config/chlink/%d-%d", first, first + 1)) != 0 ? first : nil
+    }
+
     /// The most the gain moves in one ramp step, in dB.
     static var rampStepDb: Double { 1.0 }
 
