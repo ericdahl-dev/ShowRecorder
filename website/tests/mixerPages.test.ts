@@ -148,6 +148,7 @@ describe("mixer pages in plain words", () => {
     });
   }
 
+  // When 1.0 is approved, update "Where to get it" on the XR18 page and this test together.
   it("the XR18 page says once where it stands: 1.0 in App Review, the public beta open now", () => {
     expect(xr18Page.match(/App Review/g)?.length).toBe(1);
     expect(xr18Page.match(/public beta/g)?.length).toBe(1);
