@@ -209,7 +209,10 @@ struct RecordScreen: View {
         VStack(alignment: .leading, spacing: 12) {
             header
             StatusStrip(chips: model.chips, extras: model.extraChips, tap: chipTapped)
-            AlertSlot(queue: model.alerts, perform: model.perform)
+            // `-screenshotWindow` (Debug only): no empty alert band above the meters in a screenshot; the meters take it.
+            if !(launchFlag("-screenshotWindow") && model.alerts.top == nil) {
+                AlertSlot(queue: model.alerts, perform: model.perform)
+            }
             MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.linkedSources, typedNames: model.recorder.channelNames, nameChannel: nameChannel)
                 .overlay { if let block = model.recordBlock { DisarmedNotice(block: block, perform: model.perform) } }
             transport
@@ -938,7 +941,9 @@ final class RecordScreenModel {
         self.recorder = recorder
         let pro = ProStore()
         self.pro = pro
-        sequencer = TakeSequencer(recorder: recorder, devices: AppInputDevices(), capsAt48k: { pro.license().capsAt48k })
+        // The screenshot build Arms only demo inputs, never a microphone or USB interface (#374).
+        let inputs: any InputDeviceSource = DemoOnlyInputSource.isScreenshotBuild() ? DemoOnlyInputSource(AppInputDevices()) : AppInputDevices()
+        sequencer = TakeSequencer(recorder: recorder, devices: inputs, capsAt48k: { pro.license().capsAt48k })
         mixerAddress = UserDefaults.standard.string(forKey: Self.mixerAddressKey) ?? ""
         sequencer.sampleRateChoice = {
             #if os(macOS)
@@ -971,6 +976,7 @@ final class RecordScreenModel {
         #endif
         // `-demoSignal` starts on the 18-channel demo signal, for screenshots and layout checks.
         if launchFlag("-demoSignal"), devices.contains(where: { $0.id == "demo" }) { selectedDeviceID = "demo" }
+        if launchFlag("-demoStems"), devices.contains(where: { $0.id == "demo-stems" }) { selectedDeviceID = "demo-stems" }
     }
 
     /// "2026-10-06 Show · Take 02", or a hint before the first Take.
@@ -1260,21 +1266,59 @@ final class RecordScreenModel {
         pro.onTierChange = { [weak self] in self?.tierChanged() }
         applyDefaultTemplate()
         Task { await offerDemoSignalIfAvailable() }
-        // `-demoRecord` starts a Take two seconds after launch, for screenshots.
+        // `-demoDrive` (screenshots) uses a folder in the app's own container as the Drive, so the shots show a second
+        // Copy instead of a "No Drive" warning.
+        // Both touch the container's data (the Drive bookmark, saved names), so they act only in the screenshot build,
+        // whose bundle ID ends in ".screens": never in the real app's container.
+        let isScreenshotBuild = DemoOnlyInputSource.isScreenshotBuild()
+        if launchFlag("-demoDrive"), isScreenshotBuild {
+            let folder = URL.documentsDirectory.appending(path: "Show SSD", directoryHint: .isDirectory)
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            drive.choose(folder)
+        }
+        // `-demoNames` names the Demo signal's channels like a band's, for screenshots (typed names, in that Show only).
+        if launchFlag("-demoNames"), isScreenshotBuild {
+            Task {
+                try? await Task.sleep(for: .seconds(1))
+                var names = Self.demoChannelNames
+                #if DEBUG
+                if let folder = DemoStemsDevice.folder, let layout = DemoStemsDevice.layout(of: folder) { names = layout.channelNames }
+                #endif
+                for (index, name) in names.enumerated() { recorder.setChannelName(name, forChannel: index + 1) }
+            }
+        }
+        // `-demoRecord` starts a Take once Armed, for screenshots (the iOS ones in the Simulator too). With `-demoSignal`
+        // or `-demoStems`, only once a demo input is Armed, never a microphone a slow launch may Arm first.
         if launchFlag("-demoRecord") {
             Task {
-                try? await Task.sleep(for: .seconds(2))
-                if recorder.isArmed, !recorder.isRecording { record() }
+                for _ in 0..<60 {
+                    try? await Task.sleep(for: .milliseconds(500))
+                    guard recorder.isArmed, !recorder.isRecording else { continue }
+                    if launchFlag("-demoSignal") || launchFlag("-demoStems"), armedDevice?.id.hasPrefix("demo") != true { continue }
+                    record()
+                    return
+                }
             }
         }
     }
 
+    /// The names `-demoNames` types: a band's input list, no people's names.
+    static let demoChannelNames = ["Kick", "Snr", "Hat", "Tom 1", "Tom 2", "OH L", "OH R", "Bs", "Gtr 1", "Gtr 2",
+                                   "Key 1", "Key 2", "Vox", "BV 1", "BV 2", "BV 3", "PB", "Clk"]
+
     /// The Demo signal needs StoreKit's answer (TestFlight or not), which arrives later; the input list
     /// starts without it and gets it here. Only adds an input: the selection and an armed device stay.
     private func offerDemoSignalIfAvailable() async {
-        await DemoSignalAvailability.resolveEnvironment()
+        // A Debug build offers it without StoreKit's answer, which can come late on a busy Mac.
+        if !DemoSignalAvailability.isAvailableInThisBuild { await DemoSignalAvailability.resolveEnvironment() }
         guard DemoSignalAvailability.isAvailableInThisBuild, !devices.contains(where: { $0.id == "demo" }) else { return }
         devices = Self.availableDevices()
+        // `-demoSignal` (Debug, screenshots): when StoreKit answered after the first Arm, switch to the Demo signal now,
+        // so a slow launch doesn't leave the built-in microphone Armed.
+        if launchFlag("-demoSignal"), selectedDeviceID != "demo", !recorder.isRecording {
+            selectedDeviceID = "demo"
+            selectionDidChange()
+        }
     }
 
     /// The screen appeared again: Arm if nothing is, never over a running Take.
@@ -1492,7 +1536,17 @@ final class RecordScreenModel {
                 name: "Demo signal (\(DemoAudioDevice.channelCount) channels)",
                 make: { _, _ in DemoAudioDevice() }))
         }
-        return choices
+        #if DEBUG
+        // `-demoStems <folder>` (Debug): a folder of stems as USB Channels, for screenshots (#374).
+        if let folder = DemoStemsDevice.folder, let layout = DemoStemsDevice.layout(of: folder) {
+            choices.append(DeviceChoice(
+                info: InputDeviceInfo(id: "demo-stems", name: "Demo stems", inputChannelCount: layout.channelCount, sampleRate: 48_000),
+                name: "Demo stems (\(layout.channelCount) channels)",
+                make: { _, _ in DemoStemsDevice(folder: folder, layout: layout) }))
+        }
+        #endif
+        // The screenshot build offers only demo inputs (#374).
+        return DemoOnlyInputSource.isScreenshotBuild() ? DemoOnlyInputSource.onlyDemo(choices) : choices
     }
 }
 
