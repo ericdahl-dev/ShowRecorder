@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
 """Kit code coverage as a Markdown table (#576): reads `llvm-cov export -summary-only` JSON on stdin and prints
 coverage per module and the files with the least. Report only: no floor, nothing fails."""
-import json, sys
+import glob, json, os, sys
+
+
+def inputs(codecov_json):
+    """The profiles and test binaries for `llvm-cov`, from what `swift test --show-codecov-path` prints (#576): every
+    profile in its folder, and the binary of each test bundle in the folder above it (one or one per test target)."""
+    codecov = os.path.dirname(codecov_json)
+    profiles = glob.glob(os.path.join(glob.escape(codecov), "*.profraw"))
+    bundles = sorted(glob.glob(os.path.join(glob.escape(os.path.dirname(codecov)), "*.xctest")))
+    binaries = [os.path.join(b, "Contents", "MacOS", os.path.basename(b)[:-len(".xctest")]) for b in bundles]
+    return profiles, binaries
 
 
 def module(path):
@@ -54,4 +64,8 @@ def markdown(export, lowest=10):
 
 
 if __name__ == "__main__":
-    print(markdown(json.load(sys.stdin)))
+    # `--profiles <json>` / `--binaries <json>`: one path per line for coverage.sh (profile names have spaces).
+    if len(sys.argv) == 3 and sys.argv[1] in ("--profiles", "--binaries"):
+        print("\n".join(inputs(sys.argv[2])[sys.argv[1] == "--binaries"]))
+    else:
+        print(markdown(json.load(sys.stdin)))

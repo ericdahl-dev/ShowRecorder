@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Tests for the Kit coverage table (#576): llvm-cov's summary JSON in, Markdown out. No toolchain needed.
 Run: python3 scripts/test_coverage.py"""
-import os, sys, unittest
+import os, sys, tempfile, unittest
 
 sys.dont_write_bytecode = True  # scripts/__pycache__ is tracked; running the tests mustn't change it
 
@@ -58,6 +58,34 @@ class CoverageTableTests(unittest.TestCase):
         self.assertIn("| **All** | **50.0%** | **50.0%** | **1** |", md)
         self.assertNotIn("OSCTests", md)
         self.assertNotIn("X.swift", md)
+
+
+class InputsTests(unittest.TestCase):
+    """Where `swift test --enable-code-coverage` left its profiles and test bundles. It differs between toolchains:
+    CI's Xcode 26.6 has one bundle in .build/debug; Swift 6.4 has one per test target in .build/out/Products/Debug."""
+
+    def layout(self, products, bundles):
+        root = tempfile.mkdtemp()
+        folder = os.path.join(root, products)
+        os.makedirs(os.path.join(folder, "codecov"))
+        for name in ("Swift Testing1.profraw", "XCTest2.profraw"):
+            open(os.path.join(folder, "codecov", name), "w").close()
+        for bundle in bundles:
+            os.makedirs(os.path.join(folder, f"{bundle}.xctest", "Contents", "MacOS"))
+        return root, os.path.join(folder, "codecov", "ShowRecorderKit.json")
+
+    def test_one_bundle_beside_the_codecov_folder(self):
+        root, json_path = self.layout(".build/arm64-apple-macosx/debug", ["ShowRecorderKitPackageTests"])
+        profiles, binaries = table.inputs(json_path)
+        self.assertEqual(sorted(os.path.basename(p) for p in profiles), ["Swift Testing1.profraw", "XCTest2.profraw"])
+        self.assertEqual(binaries, [os.path.join(os.path.dirname(os.path.dirname(json_path)),
+                                                 "ShowRecorderKitPackageTests.xctest/Contents/MacOS/ShowRecorderKitPackageTests")])
+
+    def test_a_bundle_per_test_target(self):
+        root, json_path = self.layout(".build/out/Products/Debug", ["OSCTests", "RecordingTests"])
+        profiles, binaries = table.inputs(json_path)
+        self.assertEqual(len(profiles), 2)
+        self.assertEqual([os.path.basename(b) for b in binaries], ["OSCTests", "RecordingTests"])
 
 if __name__ == "__main__":
     unittest.main()
