@@ -76,15 +76,17 @@ public final class TakeSequencer {
     /// Called after each attempt to Arm an interface: with the device when it worked, nil when it failed. The App
     /// resets its meters and reads what the system offered here.
     @ObservationIgnored public var didArm: (_ device: (any AudioIODevice)?) -> Void = { _ in }
-    /// Everything that happens, in order. One listener.
+    /// Everything that happens, in order. One listener. With no one listening only the newest
+    /// `eventBufferSize` are kept, so a stream nobody reads never grows.
     public let events: AsyncStream<TakeEvent>
+    public static let eventBufferSize = 32
     @ObservationIgnored private let emit: AsyncStream<TakeEvent>.Continuation
 
     public init(recorder: Recorder, devices: any InputDeviceSource, capsAt48k: @escaping () -> Bool, now: @escaping () -> Date = Date.init) {
         self.recorder = recorder
         self.now = now
         self.capsAt48k = capsAt48k
-        (events, emit) = AsyncStream.makeStream()
+        (events, emit) = AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(Self.eventBufferSize))
         self.devices = devices.devices()
         selectedDeviceID = self.devices.first?.id
     }
