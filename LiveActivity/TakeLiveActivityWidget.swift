@@ -28,13 +28,16 @@ struct TakeLiveActivityWidget: Widget {
                         .font(.title3.weight(.semibold))
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    HStack {
-                        Text(context.state.showName).lineLimit(1)
-                        Spacer()
-                        Markers(count: context.state.markerCount)
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(context.state.showName).lineLimit(1)
+                            Spacer()
+                            Markers(count: context.state.markerCount)
+                        }
+                        .foregroundStyle(.secondary)
+                        ProblemLine(problems: context.state.problems)
                     }
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
                 }
             } compactLeading: {
                 Image(systemName: "record.circle.fill").foregroundStyle(.red)
@@ -77,7 +80,12 @@ private struct WatchStackView: View {
                 .font(.caption)
             Elapsed(since: take.startedAt, alignment: .leading)
                 .font(.title3.weight(.semibold))
-            Text(take.takeTitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+            // A problem takes the Take title's place: on the wrist it's what matters.
+            if take.problems.isEmpty {
+                Text(take.takeTitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+            } else {
+                ProblemLine(problems: take.problems).font(.caption2)
+            }
         }
     }
 }
@@ -86,19 +94,36 @@ private struct LockScreenView: View {
     let take: TakeActivityContent
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Image(systemName: "record.circle.fill")
-                .font(.title)
-                .foregroundStyle(.red)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(take.takeTitle).font(.headline)
-                Text(take.showName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: "record.circle.fill")
+                    .font(.title)
+                    .foregroundStyle(.red)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(take.takeTitle).font(.headline)
+                    Text(take.showName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Elapsed(since: take.startedAt).font(.title2.weight(.semibold))
+                    Markers(count: take.markerCount).font(.subheadline).foregroundStyle(.secondary)
+                }
             }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
-                Elapsed(since: take.startedAt).font(.title2.weight(.semibold))
-                Markers(count: take.markerCount).font(.subheadline).foregroundStyle(.secondary)
-            }
+            ProblemLine(problems: take.problems).font(.subheadline)
+        }
+    }
+}
+
+/// What needs attention (#545): the first problem as a symbol and words, so it reads without color, and how many
+/// more. Nothing when all is well.
+private struct ProblemLine: View {
+    let problems: [TakeActivityProblem]
+
+    var body: some View {
+        if let first = problems.first {
+            Label(problems.count > 1 ? "\(first.text) (+\(problems.count - 1))" : first.text, systemImage: first.symbol)
+                .foregroundStyle(.orange)
+                .lineLimit(1)
         }
     }
 }

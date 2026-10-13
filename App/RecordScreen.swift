@@ -773,7 +773,10 @@ final class RecordScreenModel {
     func followLiveActivity() {
         #if os(iOS)
         let take = recorder.isRecording ? takeStartedAt.flatMap { started in
-            recorder.currentShow.map { TakeActivityContent(showName: $0.name, takeTitle: takeTitle, startedAt: started, markerCount: recorder.takeMarkers.count) }
+            recorder.currentShow.map {
+                TakeActivityContent(showName: $0.name, takeTitle: takeTitle, startedAt: started,
+                                    markerCount: recorder.takeMarkers.count, problems: liveActivityProblems)
+            }
         } : nil
         liveActivity.follow(take)
         #endif

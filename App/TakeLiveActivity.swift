@@ -7,6 +7,8 @@ import TakeActivity
 @MainActor
 final class TakeLiveActivity {
     private var tracker = TakeActivityTracker()
+    /// When a problem during the Take alerts (#545): once when new, quietly when it clears.
+    private var alerts = ProblemAlertGate()
     /// The shown activity's id. `Activity` isn't Sendable, so tasks look it up by id rather than carry it.
     private var activityID: String?
 
@@ -21,16 +23,24 @@ final class TakeLiveActivity {
         case .none:
             break
         case .start(let content):
+            alerts.takeStarted()
+            _ = alerts.alert(for: content.problems, at: .now)
             start(content)
         case .update(let content):
             guard let id = activityID else { return }
+            // A new problem lights up the iPhone and buzzes the watch, even with neither app open (#545).
+            let alert = alerts.alert(for: content.problems, at: .now).map {
+                AlertConfiguration(title: "\($0.title)", body: "\($0.body)", sound: .default)
+            }
             Task.detached {
                 for activity in Activity<TakeActivityAttributes>.activities where activity.id == id {
-                    await activity.update(ActivityContent(state: content, staleDate: nil))
+                    await activity.update(ActivityContent(state: content, staleDate: nil), alertConfiguration: alert)
                 }
             }
         case .replace(let content):
             end()
+            alerts.takeStarted()
+            _ = alerts.alert(for: content.problems, at: .now)
             start(content)
         case .end:
             end()

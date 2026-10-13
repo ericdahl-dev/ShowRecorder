@@ -1,24 +1,83 @@
 import Foundation
 
+/// Something that needs attention during the Take, as the Live Activity shows it (#545): the same set the Apple
+/// Watch remote shows (iPhone or Drive low on space, a Copy stopped, a Gap or Dropout, Mixer Link lost).
+public struct TakeActivityProblem: Codable, Hashable, Sendable {
+    /// Stable across updates, so the same problem is recognized.
+    public var id: String
+    public var text: String
+    /// An SF Symbol name.
+    public var symbol: String
+
+    public init(id: String, text: String, symbol: String) {
+        self.id = id
+        self.text = text
+        self.symbol = symbol
+    }
+}
+
 /// What the Live Activity shows for the running Take (#136). The elapsed time counts on its own from
-/// `startedAt`, so the activity only changes when a Marker is added.
+/// `startedAt`, so the activity only changes when a Marker is added or a problem comes or goes.
 public struct TakeActivityContent: Codable, Hashable, Sendable {
     public var showName: String
     public var takeTitle: String
     public var startedAt: Date
     /// The operator's Markers in this Take.
     public var markerCount: Int
+    /// What needs attention now, most important first (#545).
+    public var problems: [TakeActivityProblem]
 
-    public init(showName: String, takeTitle: String, startedAt: Date, markerCount: Int) {
+    public init(showName: String, takeTitle: String, startedAt: Date, markerCount: Int, problems: [TakeActivityProblem] = []) {
         self.showName = showName
         self.takeTitle = takeTitle
         self.startedAt = startedAt
         self.markerCount = markerCount
+        self.problems = problems
     }
 
     /// The same Take: only its Marker count may differ.
     func isSameTake(as other: TakeActivityContent) -> Bool {
         showName == other.showName && takeTitle == other.takeTitle && startedAt == other.startedAt
+    }
+}
+
+/// An alert to send with a Live Activity update: it lights up the iPhone and buzzes the Apple Watch, even with
+/// neither app open (#545).
+public struct TakeActivityAlert: Equatable, Sendable {
+    public var title: String
+    public var body: String
+}
+
+/// Decides when a problem during a Take alerts (#545): once when it first appears, never on an ordinary update, and
+/// not again when it clears and comes back within a few minutes (a flapping Mixer Link buzzes once). Problems that
+/// appear together are one alert. Recovery updates the activity without an alert.
+public struct ProblemAlertGate: Sendable {
+    /// How long after its last alert a problem that clears and comes back alerts again.
+    public static let repeatAfter: TimeInterval = 300
+    private var showing: Set<String> = []
+    private var alertedAt: [String: Date] = [:]
+
+    public init() {}
+
+    /// A new Take: everything may alert again.
+    public mutating func takeStarted() {
+        showing = []
+        alertedAt = [:]
+    }
+
+    /// `problems` is what needs attention now; nil when nothing new should alert.
+    public mutating func alert(for problems: [TakeActivityProblem], at now: Date) -> TakeActivityAlert? {
+        defer { showing = Set(problems.map(\.id)) }
+        let new = problems.filter { problem in
+            guard !showing.contains(problem.id) else { return false }
+            guard let last = alertedAt[problem.id] else { return true }
+            return now.timeIntervalSince(last) > Self.repeatAfter
+        }
+        guard let first = new.first else { return nil }
+        for problem in new { alertedAt[problem.id] = now }
+        let others = new.dropFirst().map(\.text)
+        let body = others.isEmpty ? "The Take carries on." : "Also: \(others.joined(separator: ", ")). The Take carries on."
+        return TakeActivityAlert(title: first.text, body: body)
     }
 }
 
