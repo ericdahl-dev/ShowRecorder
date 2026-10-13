@@ -17,5 +17,5 @@
 - **Release branches** (since 2026-10-12): `release/1.0` was cut from `v1.0.1`, the build in App Review. A fix for a version in review goes to main first, then is cherry-picked onto `release/X.Y` and tagged there (`v1.0.2`, …), with CI green on that branch. New features go only to main and ship in that version's patch tags: 1.1.x (`v1.1.1`, `v1.1.2`, …) while 1.1 is in TestFlight. When 1.1 goes to App Review, cut `release/1.1` the same way and move main to 1.2. Never merge main into a release branch.
 - Eric tests on a real iPhone through TestFlight. Say plainly when something has only been checked in the Simulator or by tests.
 - Open pull requests with `gh pr merge --auto --squash`.
-- `./scripts/verify.sh` must pass before a PR.
+- Before a PR, `VERIFY_QUICK=1 ./scripts/verify.sh` must pass (spelling, vocabulary, package tests, the site); CI runs the macOS and iOS app builds. Run the full `./scripts/verify.sh` instead when the change touches `App/`, `project.yml` or `ShowRecorder.xcodeproj/` (quick mode compiles none of the app), or when CI fails (Eric, 2026-10-13: lean on CI).
 - One heavy build at a time on this Mac (since 2026-10-13): `verify.sh`, `swift build`/`swift test` and `xcodebuild` share one lock (the `scripts/bin` shims; see docs/DEVELOPING.md). Run them as background tasks: a build waiting its turn can pass the 10-minute command timeout.
