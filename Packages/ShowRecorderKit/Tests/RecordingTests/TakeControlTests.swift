@@ -40,7 +40,7 @@ struct TakeControlTests {
 
     @Test("A Soundcheck run tells the events stream its Take started and ended, Take 01 of the Soundcheck Show")
     func soundcheckTold() async throws {
-        let (sequencer, recorder, source) = makeSequencer()
+        let (sequencer, _, source) = makeSequencer()
         sequencer.arm()
         var events = sequencer.events.makeAsyncIterator()
         _ = await events.next()  // .armed
@@ -55,7 +55,7 @@ struct TakeControlTests {
         defer { feeding.cancel() }
 
         _ = await Soundcheck.run(
-            recorder: recorder, mixer: nil, sources: [], expectedUSBChannels: nil, driveChosen: false, takeLength: .milliseconds(200))
+            sequencer: sequencer, mixer: nil, sources: [], expectedUSBChannels: nil, driveChosen: false, takeLength: .milliseconds(200))
 
         let seen = await told(&events, through: .takeEnded(TakeEnd(take: 1, reason: .stopped)))
         #expect(seen == [.takeStarted(take: 1), .takeEnded(TakeEnd(take: 1, reason: .stopped))])
@@ -223,5 +223,30 @@ struct TakeControlTests {
 
         let next = await events.next(isolation: #isolation)
         #expect(next == .showEnded(name: "2026-10-06 Friday", takeCount: 1))
+    }
+
+    // MARK: - The Soundcheck Take (PR 3)
+
+    @Test("The Soundcheck Take runs through the sequencer and has a start time while it records, like any Take")
+    func soundcheckTakeHasStartTime() async throws {
+        let (sequencer, recorder, source) = makeSequencer()
+        sequencer.arm()
+        let audio = try #require(source.opened.last)
+        var startedWhileRecording = false
+        let feeding = Task { @MainActor in
+            while !Task.isCancelled {
+                audio.deliver([[Float](repeating: 0.5, count: 480), [Float](repeating: 0.5, count: 480)])
+                if recorder.isRecording, sequencer.takeStartedAt != nil { startedWhileRecording = true }
+                try? await Task.sleep(for: .milliseconds(5))
+            }
+        }
+        defer { feeding.cancel() }
+
+        _ = await Soundcheck.run(
+            sequencer: sequencer, mixer: nil, sources: [], expectedUSBChannels: nil, driveChosen: false,
+            takeLength: .milliseconds(200))
+
+        #expect(startedWhileRecording)
+        #expect(sequencer.takeStartedAt == nil, "and none once it ended")
     }
 }

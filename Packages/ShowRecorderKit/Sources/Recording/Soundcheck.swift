@@ -128,10 +128,11 @@ public enum Soundcheck {
     /// isn't an X Air or X32: Mixer Link isn't offered, so its step is skipped rather than failed (#365).
     @MainActor
     public static func run(
-        recorder: Recorder, mixer: MixerLinkStatus?, sources: [Source], expectedUSBChannels: Int?, driveChosen: Bool,
+        sequencer: TakeSequencer, mixer: MixerLinkStatus?, sources: [Source], expectedUSBChannels: Int?, driveChosen: Bool,
         allowance: TakeAllowance? = nil, takeLength: Duration = Soundcheck.takeLength, progress: (Step.Kind) -> Void = { _ in },
         result: (Step) -> Void = { _ in }
     ) async -> [Step] {
+        let recorder = sequencer.recorder
         guard !recorder.isRecording else {
             return [Step(kind: .take, passed: false, message: "A Take is running. Stop it before the Soundcheck.")]
         }
@@ -151,12 +152,17 @@ public enum Soundcheck {
         progress(.take)
         var takeError: String?
         do {
-            try recorder.startNewShow(name: "Soundcheck", venue: "")
+            try sequencer.startNewShow(name: "Soundcheck", venue: "")
             // The test Take records what a Take would under the License: Free's USB Channels, no Pro extras (#558).
-            try recorder.startTake(sources: sources, allowance: allowance)
-            try? await Task.sleep(for: takeLength)
-            try recorder.stopTake()
-            await recorder.waitForRepair()
+            // It runs through the sequencer, so it has a start time like any Take (#551).
+            if sequencer.record(sources: sources, allowance: allowance) {
+                try? await Task.sleep(for: takeLength)
+                sequencer.stop()
+                await recorder.waitForRepair()
+            }
+            if let failed = sequencer.recordError {
+                takeError = "The test Take couldn't be recorded: \(failed)"
+            }
         } catch {
             takeError = "The test Take couldn't be recorded: \(error.localizedDescription)"
         }
@@ -183,7 +189,7 @@ public enum Soundcheck {
             }
         }
         result(filesStep)
-        try? recorder.endShow()
+        try? sequencer.endShow()
         return mixerSteps + [channelsStep, takeStep, filesStep]
     }
 

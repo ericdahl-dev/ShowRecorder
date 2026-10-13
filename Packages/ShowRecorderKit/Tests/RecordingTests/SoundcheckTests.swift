@@ -110,7 +110,7 @@ struct SoundcheckTests {
         var resultsWhenTakeStarted: [Soundcheck.Step.Kind] = []
         var results: [Soundcheck.Step.Kind] = []
         let steps = await Soundcheck.run(
-            recorder: recorder, mixer: .idle, sources: [], expectedUSBChannels: nil, driveChosen: false,
+            sequencer: TakeSequencer(recorder: recorder, devices: FakeInputDevices(), capsAt48k: { false }), mixer: .idle, sources: [], expectedUSBChannels: nil, driveChosen: false,
             takeLength: .milliseconds(300),
             progress: { kind in
                 seen.append(kind)
@@ -146,7 +146,7 @@ struct SoundcheckTests {
         }
         defer { feeding.cancel() }
         let steps = await Soundcheck.run(
-            recorder: recorder, mixer: nil, sources: [], expectedUSBChannels: nil, driveChosen: false, allowance: allowance,
+            sequencer: TakeSequencer(recorder: recorder, devices: FakeInputDevices(), capsAt48k: { false }), mixer: nil, sources: [], expectedUSBChannels: nil, driveChosen: false, allowance: allowance,
             takeLength: .milliseconds(300))
         let show = try #require(try FileManager.default.contentsOfDirectory(atPath: root.path).first { $0.contains("Soundcheck") })
         return (steps, root.appending(path: "\(show)/Take 01"))
@@ -181,7 +181,7 @@ struct SoundcheckTests {
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         try recorder.arm(audio)
         try recorder.startTake()
-        let steps = await Soundcheck.run(recorder: recorder, mixer: .idle, sources: [], expectedUSBChannels: nil, driveChosen: false)
+        let steps = await Soundcheck.run(sequencer: TakeSequencer(recorder: recorder, devices: FakeInputDevices(), capsAt48k: { false }), mixer: .idle, sources: [], expectedUSBChannels: nil, driveChosen: false)
         #expect(steps == [.init(kind: .take, passed: false, message: "A Take is running. Stop it before the Soundcheck.")])
         #expect(recorder.isRecording)
         try recorder.stopTake()
@@ -193,7 +193,7 @@ struct SoundcheckTests {
         let root = FileManager.default.temporaryDirectory.appending(path: "SoundcheckNoMixer-\(UUID().uuidString)")
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         var progressed: [Soundcheck.Step.Kind] = []
-        let steps = await Soundcheck.run(recorder: recorder, mixer: nil, sources: [], expectedUSBChannels: nil, driveChosen: false,
+        let steps = await Soundcheck.run(sequencer: TakeSequencer(recorder: recorder, devices: FakeInputDevices(), capsAt48k: { false }), mixer: nil, sources: [], expectedUSBChannels: nil, driveChosen: false,
                                          progress: { progressed.append($0) })
         #expect(!steps.contains { $0.kind == .mixer })
         #expect(!progressed.contains(.mixer))
