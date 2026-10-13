@@ -22,6 +22,7 @@
 		47525D0C9DECC739535A5E15 /* DemoAudioDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */; };
 		4B1D83A876DD31D7B6E31F73 /* AppearanceStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F1B5EEDD8FA484B7416BB0B /* AppearanceStyle.swift */; };
 		4B277180EC441F56D74ED665 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8F032F2B06E5F2F3AA51A95B /* Assets.xcassets */; };
+		70AA117DAA1414DE3DC7CC7F /* RecordScreen+Watch.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC3CAB67C71FB3C5018C1B22 /* RecordScreen+Watch.swift */; };
 		75CA30F76EAD77FB29C41E7C /* StatusStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F25297D625A2C059541D858 /* StatusStrip.swift */; };
 		76BB34DDF7CEAD4AC34661C9 /* ShowRecorderLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EF187F967C613A176A6CB202 /* ShowRecorderLiveActivity.appex */; platformFilters = (ios, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7978ADCB74542A7F2803E11F /* MeterGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB46E32691A6C070E799F33D /* MeterGrid.swift */; };
@@ -42,11 +43,13 @@
 		CD0970AC1E67A961E697395E /* ShowDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2220CC601D180E6771D03197 /* ShowDetailView.swift */; };
 		CFC9F8D3194115954ABE8B0D /* Destinations in Frameworks */ = {isa = PBXBuildFile; productRef = 2A213300C93BF0054D83D85D /* Destinations */; };
 		D1B69547449C5B4B58E8DBEA /* MixerLink in Frameworks */ = {isa = PBXBuildFile; productRef = 3F4AE86B4D698E33356CCFFE /* MixerLink */; };
+		DE5FD4B161A06DAE42652163 /* WatchRemote in Frameworks */ = {isa = PBXBuildFile; productRef = BBE7703958E4B165D4C0B1E7 /* WatchRemote */; };
 		E1A7E2310CDCF098C85053B3 /* TakeActivity in Frameworks */ = {isa = PBXBuildFile; productRef = 47B54BB211AC8DBB5B2896CB /* TakeActivity */; };
 		E81A70130E30A8E156EDA841 /* AudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = 06DFC4C4263644F94AB1BE1B /* AudioIO */; };
 		E8ED4177702282C467A8AC09 /* SoundcheckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D7ADCDE507077F908B89E77 /* SoundcheckView.swift */; };
 		F316B6D0CB9427B29787ED74 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A66A4A288C0B0A560B802624 /* PrivacyInfo.xcprivacy */; };
 		F7769B6393421DB1EE75F743 /* QuitGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38DF639C46586DCDF4866E87 /* QuitGuard.swift */; };
+		FFB051D0C43CF1136FC20431 /* WatchLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = B226D8F0693756FC24B78255 /* WatchLink.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -105,6 +108,8 @@
 		A48D43A0417E4FE9049EE0AC /* ShowRecorderKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ShowRecorderKit; path = Packages/ShowRecorderKit; sourceTree = SOURCE_ROOT; };
 		A570C7ADCE1D60BED124A213 /* ShowRecorder.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShowRecorder.entitlements; sourceTree = "<group>"; };
 		A66A4A288C0B0A560B802624 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		AC3CAB67C71FB3C5018C1B22 /* RecordScreen+Watch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RecordScreen+Watch.swift"; sourceTree = "<group>"; };
+		B226D8F0693756FC24B78255 /* WatchLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLink.swift; sourceTree = "<group>"; };
 		BB46E32691A6C070E799F33D /* MeterGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeterGrid.swift; sourceTree = "<group>"; };
 		BFEAAED834B651D2EB178389 /* TakeLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TakeLiveActivityWidget.swift; sourceTree = "<group>"; };
 		DBBDC7B3AA4C8B14B57747DD /* ShowRecorder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ShowRecorder.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -136,6 +141,7 @@
 				D1B69547449C5B4B58E8DBEA /* MixerLink in Frameworks */,
 				CFC9F8D3194115954ABE8B0D /* Destinations in Frameworks */,
 				E1A7E2310CDCF098C85053B3 /* TakeActivity in Frameworks */,
+				DE5FD4B161A06DAE42652163 /* WatchRemote in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -186,6 +192,7 @@
 				93A6FB94028F7291894E26FC /* ProStore.swift */,
 				38DF639C46586DCDF4866E87 /* QuitGuard.swift */,
 				84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */,
+				AC3CAB67C71FB3C5018C1B22 /* RecordScreen+Watch.swift */,
 				8CC47A3C7EE61A034F3F6FE0 /* SettingsView.swift */,
 				2220CC601D180E6771D03197 /* ShowDetailView.swift */,
 				034579A5DCE44DCC61521CA4 /* ShowListView.swift */,
@@ -196,6 +203,7 @@
 				3F25297D625A2C059541D858 /* StatusStrip.swift */,
 				95E36C84780061B781FBBE4D /* TakeLiveActivity.swift */,
 				DDDF413BFBEF5212621189D4 /* TrialSheet.swift */,
+				B226D8F0693756FC24B78255 /* WatchLink.swift */,
 				8DFAA5CBF9186C8638F0BDDD /* WindowCloseGuard.swift */,
 			);
 			path = App;
@@ -271,6 +279,7 @@
 				3F4AE86B4D698E33356CCFFE /* MixerLink */,
 				2A213300C93BF0054D83D85D /* Destinations */,
 				47B54BB211AC8DBB5B2896CB /* TakeActivity */,
+				BBE7703958E4B165D4C0B1E7 /* WatchRemote */,
 			);
 			productName = ShowRecorder;
 			productReference = DBBDC7B3AA4C8B14B57747DD /* ShowRecorder.app */;
@@ -350,6 +359,7 @@
 				BADEF205E3EB926F596C5E62 /* ProSection.swift in Sources */,
 				C68029C5842FA7BCB2FBF535 /* ProStore.swift in Sources */,
 				F7769B6393421DB1EE75F743 /* QuitGuard.swift in Sources */,
+				70AA117DAA1414DE3DC7CC7F /* RecordScreen+Watch.swift in Sources */,
 				992430B53737588E241A07B2 /* RecordScreen.swift in Sources */,
 				BDB211EC46C2B160A043D06F /* SettingsView.swift in Sources */,
 				CD0970AC1E67A961E697395E /* ShowDetailView.swift in Sources */,
@@ -359,6 +369,7 @@
 				75CA30F76EAD77FB29C41E7C /* StatusStrip.swift in Sources */,
 				1339BC14126FF5CDF750BC20 /* TakeLiveActivity.swift in Sources */,
 				07FB0DD2A97E806B1CB409A1 /* TrialSheet.swift in Sources */,
+				FFB051D0C43CF1136FC20431 /* WatchLink.swift in Sources */,
 				42E521FCCC800B2B20D0B69B /* WindowCloseGuard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -655,6 +666,10 @@
 		4DDAD2337FDDC304B0F1E946 /* TakeActivity */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = TakeActivity;
+		};
+		BBE7703958E4B165D4C0B1E7 /* WatchRemote */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WatchRemote;
 		};
 		E4B425D454C0ADEC5187ABCF /* Recording */ = {
 			isa = XCSwiftPackageProductDependency;
