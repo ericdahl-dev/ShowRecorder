@@ -266,6 +266,10 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     /// The operator's Markers, in the order they were placed. A Dropout Marker isn't one.
     public var operatorMarkers: [Marker] { markers.filter { $0.origin == .operator } }
 
+    /// The Markers every Stem carries as a cue point: the operator's and the routing changes (#21). A Copy's Stems
+    /// also carry a Dropout cue where that Copy lost audio.
+    public var stemCueMarkers: [Marker] { markers.filter { $0.origin == .operator || $0.origin == .routing } }
+
     /// The Dropout Markers, one at each place in the Take that lost audio.
     public var dropoutMarkers: [Marker] { markers.filter { $0.origin == .dropout } }
 

@@ -827,7 +827,8 @@ final class RecordScreenModel {
         }
         // A re-patch on the Mixer during the Take (#21), until the Take ends or the operator has seen it.
         let routing = recorder.routingChanges
-        if recorder.isRecording, routing.last != routingChangeSeen, let text = RoutingChangeNotice.message(for: routing) {
+        if recorder.isRecording, routingChangeSeen?.take != takeNumber || routingChangeSeen?.changes != routing,
+           let text = recorder.routingNotice {
             list.append(ScreenAlert(id: "routing", priority: .input, tone: .warning, text: text, action: .dismissRoutingChange))
         }
         list += power.status.alerts
@@ -865,8 +866,9 @@ final class RecordScreenModel {
         !setupHintDismissed && !recorder.isRecording && drive.status == .notChosen && mixerAddress.isEmpty
     }
 
-    /// The routing change the operator dismissed the warning at: a later re-patch, or the next Take's, warns again.
-    private var routingChangeSeen: TakeMetadata.RoutingChange?
+    /// The routing changes the operator dismissed the warning at, in which Take: a later re-patch, or the next
+    /// Take's, warns again.
+    private var routingChangeSeen: (take: Int, changes: [TakeMetadata.RoutingChange])?
 
     func perform(_ action: ScreenAlert.Action) {
         switch action {
@@ -880,7 +882,7 @@ final class RecordScreenModel {
         case .soundcheck:
             showingSoundcheck = true
         case .dismissRoutingChange:
-            routingChangeSeen = recorder.routingChanges.last
+            routingChangeSeen = (takeNumber, recorder.routingChanges)
         case .checkDrive:
             // Look again now, and say so if it's still not there.
             drive.refresh()
@@ -970,6 +972,9 @@ final class RecordScreenModel {
         guard let show = recorder.currentShow else { return "Press record to start a Show" }
         return "\(show.name) · \(takeTitle)"
     }
+
+    /// The running (or last) Take's number in the Show.
+    private var takeNumber: Int { recorder.currentShow?.takeCount ?? 0 }
 
     var takeTitle: String {
         TakeMetadata.name(take: recorder.currentShow?.takeCount ?? 0)
