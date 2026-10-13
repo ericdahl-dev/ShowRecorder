@@ -857,8 +857,8 @@ final class RecordScreenModel {
         UserDefaults.standard.set(mixerAddress, forKey: Self.mixerAddressKey)
     }
 
-    /// What to do about audio interruptions, and the banner they leave (see AudioSessionEvents.swift).
-    var interruptions = InterruptionPolicy()
+    /// What to do about audio interruptions, and the banner they leave. The `TakeSequencer` keeps it.
+    var interruptions: InterruptionPolicy { sequencer.interruptions }
 
     init() {
         let drive = DriveFolderModel()
@@ -879,6 +879,7 @@ final class RecordScreenModel {
             SampleRateSetting.load(platformDefault: 48_000)
             #endif
         }()
+        sequencer.log = { line in Self.sessionLog.notice("\(line, privacy: .public)") }
         sequencer.didArm = { [unowned self] device in
             if let device {
                 noteOfferedChannels(of: device)
@@ -908,7 +909,6 @@ final class RecordScreenModel {
         // Freeze whatever the Mixer Link knows right now, and what the tier allows, into the Take (Show-Safe
         // Promise: judged only here, never during the Take).
         guard sequencer.record(sources: linkedSources, allowance: currentAllowance()) else { return }
-        handle(.takeStarted)
         followLiveActivity()
     }
 
@@ -1275,7 +1275,7 @@ final class RecordScreenModel {
             guard Self.isRouteInput(selectedDeviceID) else { continue }
             // Whatever iOS just routed to is now the selection; re-arming must not pull it back.
             selectCurrentRouteInput()
-            switch interruptions.routeChanged(isRecording: recorder.isRecording) {
+            switch sequencer.routeChanged() {
             case .none: break
             case .rearm: armSelectedDevice()
             case .moveInput: moveTakeToCurrentRoute()

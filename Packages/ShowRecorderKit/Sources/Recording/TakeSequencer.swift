@@ -36,6 +36,10 @@ public enum TakeEvent: Equatable, Sendable {
     case takeStarted(take: Int)
     case takeEnded(TakeEnd)
     case disarmed(reason: DisarmReason)
+    /// The system stopped input (an interruption, a failed restart); the Take, if any, is still running.
+    case inputStopped
+    /// Input is back after being stopped.
+    case inputRestarted
 
     public enum DisarmReason: Equatable, Sendable {
         /// The screen showing the recorder went away with no Take running.
@@ -74,6 +78,7 @@ public final class TakeSequencer {
     public private(set) var disarmedForIdle = false
     /// What to do about audio interruptions, and the banner they leave.
     public private(set) var interruptions = InterruptionPolicy()
+    @ObservationIgnored private var toldInputStopped = false
 
     /// Called after each attempt to Arm an interface, or to move input to a new one: with the device when it worked,
     /// nil when it failed. The App resets its meters and reads what the system offered here.
@@ -185,6 +190,7 @@ public final class TakeSequencer {
             takeStartedAt = now()
             recordError = nil
             tellTakeStart()
+            handle(.takeStarted)
             return true
         } catch {
             recordError = "Couldn't start recording: \(error.localizedDescription)"
@@ -229,9 +235,22 @@ public final class TakeSequencer {
         }
     }
 
+    /// The iOS input route really changed: what to do with the input (`InterruptionPolicy.routeChanged`). The App
+    /// still carries a move out until it moves here too.
+    public func routeChanged() -> InterruptionPolicy.RouteAction {
+        interruptions.routeChanged(isRecording: recorder.isRecording)
+    }
+
     /// An audio session interruption, a media services reset or a change of app state: `InterruptionPolicy` decides,
     /// and this carries it out on the recorder. Nothing here ends a Take, except a reset whose new input can't take it.
     public func handle(_ event: InterruptionPolicy.Event) {
+        // Told against what was last told, not the state on entry: `handle` calls itself for a restart.
+        defer {
+            if interruptions.isInputStopped != toldInputStopped {
+                toldInputStopped = interruptions.isInputStopped
+                emit.yield(toldInputStopped ? .inputStopped : .inputRestarted)
+            }
+        }
         let response = interruptions.handle(event, isRecording: recorder.isRecording)
         if let line = response.log { log(line) }
         switch response.action {

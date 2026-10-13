@@ -550,6 +550,53 @@ struct TakeSequencerTests {
         #expect(sequencer.interruptions.notice == "Input is back. Audio from the interruption is missing from this Take.")
     }
 
+    @Test("Input stopping and coming back are told, once each")
+    func inputStoppedAndRestartedAreTold() async throws {
+        let source = FakeInputDevices()
+        let (sequencer, _) = makeSequencer(source)
+        sequencer.start()
+        let device = try #require(source.opened.last)
+        sequencer.record(sources: [], allowance: nil)
+        var events = sequencer.events.makeAsyncIterator()
+
+        sequencer.handle(.interruptionBegan)
+        device.stop()
+        sequencer.handle(.interruptionEnded(shouldResume: true))
+
+        sequencer.stop()
+
+        let told = await told(&events, through: .takeEnded(TakeEnd(take: 1, reason: .stopped)))
+        #expect(told.filter { $0 == .inputStopped }.count == 1)
+        #expect(told.filter { $0 == .inputRestarted }.count == 1)
+    }
+
+    @Test("Starting a Take clears an interruption's old notice")
+    func recordClearsTheNotice() throws {
+        let source = FakeInputDevices()
+        let (sequencer, _) = makeSequencer(source)
+        sequencer.start()
+        let device = try #require(source.opened.last)
+        sequencer.record(sources: [], allowance: nil)
+        sequencer.handle(.interruptionBegan)
+        device.stop()
+        sequencer.handle(.interruptionEnded(shouldResume: true))
+        sequencer.stop()
+        #expect(sequencer.interruptions.notice != nil)
+
+        sequencer.record(sources: [], allowance: nil)
+
+        #expect(sequencer.interruptions.notice == nil)
+    }
+
+    @Test("A new iOS route re-Arms between Takes and moves a running Take")
+    func routeChangeAction() {
+        let (sequencer, _) = makeSequencer()
+        sequencer.start()
+        #expect(sequencer.routeChanged() == .rearm)
+        sequencer.record(sources: [], allowance: nil)
+        #expect(sequencer.routeChanged() == .moveInput)
+    }
+
     @Test("A restart that fails leaves input stopped and says so in the notice")
     func failedRestart() {
         let (sequencer, _) = makeSequencer()  // Nothing Armed, so there's nothing to restart.
