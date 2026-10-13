@@ -66,11 +66,7 @@ public final class DetectingMixerDriver: MixerDriver {
             for candidate in candidates {
                 group.addTask { [host, timeout] in
                     let probe = candidate.family.makeDriver(endpoint: MixerEndpoint(host: host, port: candidate.port), timeout: timeout)
-                    do throws(MixerLinkProblem) {
-                        return (candidate, .success(try await probe.identify()))
-                    } catch {
-                        return (candidate, .failure(error))
-                    }
+                    return (candidate, await Self.identity(of: probe))
                 }
             }
             var failures: [UInt16: MixerLinkProblem] = [:]
@@ -91,6 +87,19 @@ public final class DetectingMixerDriver: MixerDriver {
         let driver = family.makeDriver(endpoint: MixerEndpoint(host: host, port: port), timeout: timeout)
         chosen.withLock { $0 = (family, driver) }
         return identity
+    }
+
+    /// What one probe says, as a Result. Kept out of the task group's child on purpose: with the typed-throws `do` inside
+    /// the child, Release builds (Swift 6.4, swiftlang-6.4.0.34.1) returned the candidate's port as 0, so the Link
+    /// opened to port 0 and the iPhone failed with EINVAL ("Invalid argument") in TestFlight 1.1.1. Debug was fine.
+    /// `DetectingMixerDriverTests` catch it only when run with `swift test -c release`, which CI does.
+    @inline(never)
+    private static func identity(of probe: any MixerDriver) async -> Result<MixerIdentity, MixerLinkProblem> {
+        do throws(MixerLinkProblem) {
+            return .success(try await probe.identify())
+        } catch {
+            return .failure(error)
+        }
     }
 
     public func capabilities(for identity: MixerIdentity) -> MixerCapabilities {

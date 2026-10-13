@@ -78,6 +78,13 @@ jobs:
         working-directory: Packages/ShowRecorderKit
         run: swift test
 
+      # TestFlight builds are Release. Mixer detection once worked in Debug but opened port 0 in Release (v1.1.1,
+      # EINVAL on the iPhone): its tests run optimized too.
+      - name: Package tests, Release (Mixer detection)
+        if: matrix.check == 'package tests'
+        working-directory: Packages/ShowRecorderKit
+        run: swift test -c release --filter DetectingMixerDriver
+
       - name: Build for macOS
         if: matrix.check == 'macOS build'
         run: >
