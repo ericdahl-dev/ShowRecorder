@@ -24,6 +24,8 @@
 # SHOWRECORDER_BUILD_LOCK_HELD=1, so its own side-by-side builds don't wait for it. A queued run can take longer than
 # an agent's 10-minute command limit: run it as a background task. VERIFY_PLAN_ONLY=1 never waits. Builds are capped
 # at SHOWRECORDER_BUILD_JOBS compile jobs (default: cores less 4), split between the builds that run at once.
+# A run that holds the lock longer than SHOWRECORDER_VERIFY_TIMEOUT minutes (default 45) is stopped, its whole process
+# group, and the lock freed for the next build (#578); its own builds share that limit.
 #   VERIFY_LOCK_PROBE=<sh>  once the lock is held, run this instead of the checks (scripts/test-verify-lock.sh)
 # With DEVICE_ID set (an iOS device id from `xcodebuild -showdestinations`) and DEVELOPMENT_TEAM,
 # the app step also builds a signed app for that device.
@@ -31,6 +33,9 @@ set -eu
 cd "$(dirname "$0")/.."
 if [ "${VERIFY_PLAN_ONLY:-0}" != 1 ] && [ "${SHOWRECORDER_BUILD_LOCK_HELD:-0}" != 1 ]; then
   . ./scripts/build-lock.sh
+  # A whole run may hold the lock for SHOWRECORDER_VERIFY_TIMEOUT minutes (default 45: a full run takes about 4 here,
+  # and the wait for the lock doesn't count); past that it's stopped and the lock freed (#578).
+  export SHOWRECORDER_BUILD_TIMEOUT="${SHOWRECORDER_VERIFY_TIMEOUT:-45}"
   build_lock_exec ./scripts/verify.sh
 fi
 if [ -n "${VERIFY_LOCK_PROBE:-}" ]; then

@@ -4,11 +4,14 @@
 # Sourced by verify.sh and the scripts/bin shims. A build that finds the lock taken waits, and says so.
 #   SHOWRECORDER_BUILD_LOCK=<file>   use this lock file instead (scripts/test-build-lock.sh)
 #   SHOWRECORDER_BUILD_LOCK_HELD=1   set while the lock is held: builds started inside it don't take it again
+#   SHOWRECORDER_BUILD_TIMEOUT=<min> stop a build that has held the lock this long (default 20 minutes; #578), its
+#                                    whole process group, and free the lock (scripts/build-limit.sh)
 #   SHOWRECORDER_BUILD_JOBS=<n>      compile jobs for a build (default: this Mac's cores less 4, at least 1), so one
 #                                    build alone doesn't take the whole CPU either. verify.sh takes it as its total
 #                                    and gives each of the builds it runs at once a share.
-# Stop a locked build with Ctrl-C, or by signaling its whole process group (kill -- -PGID): lockf holds the lock and
-# runs the build as its child, so a signal to lockf alone frees the lock while the build goes on.
+# Stop a locked build with Ctrl-C, or with TERM to its scripts/build-limit.sh (lockf's child): it stops the build's own
+# process group, waits for it, then lockf frees the lock. A signal to lockf alone, or a SIGKILL to build-limit.sh,
+# frees the lock while the build goes on.
 
 # The lock file: one per repo, in the git folder every worktree shares.
 build_lock_path() {
@@ -26,6 +29,13 @@ build_lock_exec() {
   lock=$(build_lock_path) || { echo "build-lock: not in a git checkout" >&2; exit 1; }
   if ! lockf -k -t 0 "$lock" true 2>/dev/null; then
     echo "== Waiting for another build on this Mac to finish (lock: $lock)" >&2
+  fi
+  # The build runs under a time limit (scripts/build-limit.sh, #578), so a hung one can't hold every other build up.
+  limit=$(CDPATH= cd -P -- "$(dirname -- "$0")/.." 2>/dev/null && pwd -P)/build-limit.sh
+  [ -x "$limit" ] || limit=$(git rev-parse --show-toplevel 2>/dev/null)/scripts/build-limit.sh
+  # A checkout without it (one made before #578) still builds, without the limit.
+  if [ -x "$limit" ]; then
+    exec lockf -k "$lock" env SHOWRECORDER_BUILD_LOCK_HELD=1 nice -n 10 "$limit" "$@"
   fi
   exec lockf -k "$lock" env SHOWRECORDER_BUILD_LOCK_HELD=1 nice -n 10 "$@"
 }
