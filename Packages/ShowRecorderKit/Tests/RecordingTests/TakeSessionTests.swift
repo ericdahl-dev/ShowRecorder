@@ -157,6 +157,46 @@ struct TakeSessionTests {
         #expect(secondReleased.count == 0)
     }
 
+    @Test("A Drive Copy that fails and rejoins twice keeps every earlier Gap")
+    func driveRejoinsTwice() async throws {
+        let opened = Opened()
+        let capture = capture
+        // The first two Drive writers fail: the first on its first audio, the second after 480 frames of it.
+        let session = try session(opened: opened, wrap: { url, real in
+            let driveOpens = opened.resumes.count - 1
+            guard url.path.contains("/Drive/"), driveOpens <= 2 else { return real }
+            let leadIn = capture.takeFrameCount - Int(opened.resumes.last! ?? 0)
+            return FailingStem(real, healthyFrames: leadIn + (driveOpens == 2 ? 480 : 0))
+        })
+        let drive = drive
+        try await deliver(480)
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
+        for _ in 0..<4 { try await deliver(480) }
+        try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
+        let firstFailedAt = Int(session.copies[1].writer.stemFrameCounts[0])
+
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
+        let firstRejoin = capture.takeFrameCount
+        for _ in 0..<4 { try await deliver(480) }
+        try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
+        let secondFailedAt = Int(session.copies[1].writer.stemFrameCounts[0])
+        #expect(secondFailedAt == firstRejoin + 480)
+
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
+        let secondRejoin = capture.takeFrameCount
+        #expect(session.status(.drive) == .recording)
+        try await deliver(480)
+        let finished = session.finish()
+
+        #expect(opened.resumes.count == 4)
+        #expect(finished.metadata.gaps == [
+            .init(copy: .drive, start: 0, end: 480),
+            .init(copy: .drive, start: firstFailedAt, end: firstRejoin),
+            .init(copy: .drive, start: secondFailedAt, end: secondRejoin),
+        ])
+        #expect(finished.statuses[.drive] == .recording)
+    }
+
     @Test("The last healthy Copy running low ends the Take; a Copy running low while another has room retires")
     func lowSpace() async throws {
         let drive = drive
