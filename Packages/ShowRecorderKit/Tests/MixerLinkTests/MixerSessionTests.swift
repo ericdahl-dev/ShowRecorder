@@ -33,6 +33,20 @@ struct MixerSessionTests {
         #expect(link.identity != nil, "the Link stays up, hidden")
     }
 
+    @Test("The Mixer's identity and what it sends over USB show while Mixer Link is offered, and hide with another input Armed")
+    func identityAndCapabilitiesGated() async {
+        let (session, link) = session()
+        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+        #expect(session.identity?.networkName == "FOH")
+        #expect(session.capabilities?.usbChannelCount == 18)
+
+        await session.armed(interfaceName: "EVO 4", usbChannelCount: 2)
+
+        #expect(session.identity == nil)
+        #expect(session.capabilities == nil)
+    }
+
     @Test("A remembered Mixer connects when an X Air is Armed and the Link is idle")
     func rememberedMixerConnectsOnArm() async {
         let driver = FakeMixerDriver()
