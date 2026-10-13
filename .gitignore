@@ -20,3 +20,6 @@ Packages/*/Package.resolved
 *.p8
 *.mobileprovision
 *.provisionprofile
+
+# Python bytecode from scripts/*.py
+__pycache__/
