@@ -469,4 +469,21 @@ struct TakeSequencerTests {
         #expect(await events.next() == .takeEnded(TakeEnd(take: 1, reason: .stopped)))
         #expect(await events.next() == .takeStarted(take: 2))
     }
+
+    @Test("With no one listening, the events stream keeps only the newest events, not every one since launch")
+    func eventsBufferIsBounded() async {
+        let (sequencer, _) = makeSequencer()
+        sequencer.arm()
+        for _ in 0..<20 {
+            sequencer.record(sources: [], allowance: nil)
+            sequencer.stop()
+        }
+        var events = sequencer.events.makeAsyncIterator()
+
+        // 41 events were told; only the newest 32 are kept, so the .armed at the start is gone.
+        var kept: [TakeEvent] = []
+        for _ in 0..<TakeSequencer.eventBufferSize { kept.append(await events.next()!) }
+        #expect(kept.first == .takeStarted(take: 5))
+        #expect(kept.last == .takeEnded(TakeEnd(take: 20, reason: .stopped)))
+    }
 }
