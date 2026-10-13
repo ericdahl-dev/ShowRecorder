@@ -1,4 +1,5 @@
 import Destinations
+import TakeFile
 
 /// One Copy of a Take, as the screens read it (#550).
 public enum CopyState: Equatable, Sendable {
@@ -36,5 +37,18 @@ public struct TakeCopies: Equatable, Sendable {
     public var stopped: Set<DestinationKind> {
         guard isRunning else { return [] }
         return Set(DestinationKind.allCases.filter { states[$0] == .interrupted })
+    }
+}
+
+extension CopyState {
+    /// How the Copy ended, once the Take has; nil while it runs or for a Copy that never started.
+    var outcome: CopyOutcome? {
+        switch self {
+        case .complete: .complete
+        case .hasGaps: .hasGaps
+        case .repaired: .repaired
+        case .repairFailed: .repairFailed
+        case .recording, .interrupted, .missing: nil
+        }
     }
 }
