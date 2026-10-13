@@ -38,8 +38,8 @@ expect "" "$ALL"
 
 # CI picks its site job with its own pattern (.github/workflows/ci.yml); it must agree for the release notes.
 site_pattern=$(grep "site=true; fi" .github/workflows/ci.yml | sed -n "s/.*grep -qE '\([^']*\)'.*/\1/p")
-if [ -z "$site_pattern" ]; then
-  echo "FAIL: couldn't find CI's site pattern in .github/workflows/ci.yml"
+if [ "$(grep -c "site=true; fi" .github/workflows/ci.yml)" != 1 ] || [ -z "$site_pattern" ]; then
+  echo "FAIL: expected exactly one site pattern line in .github/workflows/ci.yml"
   fail=1
 else
   for f in website/app/page.tsx docs/release-notes/v1.1.2.md .github/workflows/ci.yml; do
