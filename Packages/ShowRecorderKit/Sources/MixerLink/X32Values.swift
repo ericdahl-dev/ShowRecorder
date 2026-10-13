@@ -26,6 +26,9 @@ struct X32Values: Sendable {
                   toFloat: { (max(low, min(high, $0)) - low) / (high - low) })
     }
 
+    /// The lowest and highest dB the scale reaches.
+    var dbRange: ClosedRange<Double> { toDb(0)...toDb(1) }
+
     /// The nearest step to `db`, in dB.
     func snap(_ db: Double) -> Double {
         toDb(Double(step(db)) / Double(steps))

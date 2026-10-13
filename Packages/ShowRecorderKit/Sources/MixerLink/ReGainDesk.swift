@@ -45,7 +45,7 @@ extension ReGainDesk {
         let reachable = gainScale.snap(from + gainChangeDb) - from
         let state = try await reGainState(ofChannel: channel)
         let keyed = try await keyedDynamics(from: channel)
-        let ranges = ReGain.Ranges(fader: -90...10, send: -90...10, gateThreshold: -80...0, compressorThreshold: -60...0, offDb: -90)
+        let ranges = Self.reGainRanges
         let plan = ReGain.plan(headamp: headamp, gainChangeDb: reachable, channels: [state], ranges: ranges, scopes: scopes, keyed: keyed)
         let to = gainScale.snap(from + plan.gainChangeDb)
 
