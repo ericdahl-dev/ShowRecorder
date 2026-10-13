@@ -67,6 +67,22 @@ struct DriveOnlyTakeTests {
         await recorder.waitForRepair()
     }
 
+    @Test("A Drive only Take with no Drive at record says it records to this iPhone and moves to the Drive later (#550)")
+    func noDriveAlert() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        recorder.recordsToDriveOnly = true
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(2, to: audio, recorder, sample: counting())
+
+        let alert = try #require(DestinationAlert.make(copies: recorder.copies))
+        #expect(alert.id == "no-drive")
+        #expect(alert.text == "No Drive: recording to this iPhone; it moves to the Drive when one is connected.")
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+    }
+
     @Test("Once the Drive fails, a Drive only Take's Copies say the Device is standing in and the Drive interrupted")
     func copiesStandingIn() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
