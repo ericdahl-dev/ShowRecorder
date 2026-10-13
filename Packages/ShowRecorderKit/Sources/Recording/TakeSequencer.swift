@@ -35,6 +35,12 @@ public enum TakeEvent: Equatable, Sendable {
     case armed(InputDeviceInfo)
     case takeStarted(take: Int)
     case takeEnded(TakeEnd)
+    case disarmed(reason: DisarmReason)
+
+    public enum DisarmReason: Equatable, Sendable {
+        /// The screen showing the recorder went away with no Take running.
+        case screenGone
+    }
 }
 
 /// Takes, start to end, on the recorder: which Audio interface is Armed, record and stop.
@@ -48,6 +54,8 @@ public final class TakeSequencer {
     @ObservationIgnored private var toldTakeEnd: TakeEnd?
     /// Whether the running Take has been told to the events stream.
     @ObservationIgnored private var toldTakeStarted = false
+    /// Set once the first Arm has been tried, so a screen appearing before that doesn't Arm early.
+    @ObservationIgnored private var didStart = false
 
     public var devices: [DeviceChoice]
     public var selectedDeviceID: String?
@@ -77,6 +85,52 @@ public final class TakeSequencer {
         (events, emit) = AsyncStream.makeStream()
         self.devices = devices.devices()
         selectedDeviceID = self.devices.first?.id
+    }
+
+    /// What to do when the operator closes the window the recorder is shown in (the Mac).
+    public enum WindowCloseAction: Equatable, Sendable {
+        case close
+        /// A Take is running: ask whether to stop it, and close only if the answer is stop.
+        case askToStop
+    }
+
+    /// The operator asked to close the window (the close button or Command-W).
+    public func windowCloseRequested() -> WindowCloseAction {
+        recorder.isRecording ? .askToStop : .close
+    }
+
+    /// What to do when the operator quits the app (the Mac).
+    public enum QuitAction: Equatable, Sendable {
+        case quit
+        /// A Take is running: ask whether to stop it, and quit only if the answer is stop.
+        case askToStop
+    }
+
+    /// The operator asked to quit (Command-Q or the Dock menu).
+    public func quitRequested() -> QuitAction {
+        recorder.isRecording ? .askToStop : .quit
+    }
+
+    /// The first Arm, once the App may use the input. Never Arms over an Armed recorder, because Arming again stops
+    /// the Take.
+    public func start() {
+        if !recorder.isArmed { arm() }
+        didStart = true
+    }
+
+    /// The screen appeared, or came back: Arm if nothing is, never over a running Take. A screen being torn down
+    /// and built again (iOS discarding a scene, a window closing) never ends a Take.
+    public func screenAppeared() {
+        guard didStart, !recorder.isArmed else { return }
+        arm()
+    }
+
+    /// The screen went away: disarm an unused recorder, never a running Take.
+    public func screenDisappeared() {
+        guard !recorder.isRecording else { return }
+        let wasArmed = recorder.isArmed
+        recorder.disarm()
+        if wasArmed { emit.yield(.disarmed(reason: .screenGone)) }
     }
 
     /// The operator chose an interface. Skips the one already Armed (as after a device change the sequencer Armed itself).

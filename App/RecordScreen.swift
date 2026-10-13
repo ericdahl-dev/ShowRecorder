@@ -1184,8 +1184,6 @@ final class RecordScreenModel {
     // MARK: - The loop that outlives the screen
 
     @ObservationIgnored private var loop: Task<Void, Never>?
-    /// Set once the first Arm has been tried, so a screen appearing before that doesn't Arm early.
-    @ObservationIgnored private var didStart = false
 
     /// Starts the loop that protects and shows a Take: it Arms the input, polls the meters, looks for a Drive
     /// joining or space running low, keeps the Mixer Link and follows route changes. It belongs to the model,
@@ -1214,15 +1212,14 @@ final class RecordScreenModel {
         devices = Self.availableDevices()
     }
 
-    /// The screen appeared again: Arm if nothing is, never over a running Take (see `RecorderLifecycle`).
+    /// The screen appeared again: Arm if nothing is, never over a running Take.
     func screenAppeared() {
-        guard didStart, RecorderLifecycle.screenAppeared(isArmed: recorder.isArmed) == .arm else { return }
-        armSelectedDevice()
+        sequencer.screenAppeared()
     }
 
     /// The screen went away: disarm an unused recorder, never a running Take.
     func screenDisappeared() {
-        if RecorderLifecycle.screenDisappeared(isRecording: recorder.isRecording) == .disarm { recorder.disarm() }
+        sequencer.screenDisappeared()
     }
 
     private func run() async {
@@ -1233,8 +1230,7 @@ final class RecordScreenModel {
             return
         }
         drive.refresh()
-        if RecorderLifecycle.screenAppeared(isArmed: recorder.isArmed) == .arm { armSelectedDevice() }
-        didStart = true
+        sequencer.start()
         // Reconnect to the remembered Mixer. This runs here, not in Settings, so it happens without Settings open.
         if offersMixerLink, !mixerAddress.isEmpty, mixerLink.status == .idle { connectMixer() }
         #if os(iOS)

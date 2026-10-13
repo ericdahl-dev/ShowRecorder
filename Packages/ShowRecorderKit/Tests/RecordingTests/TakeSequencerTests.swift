@@ -251,4 +251,104 @@ struct TakeSequencerTests {
 
         #expect(heard == ["xr18", nil])
     }
+
+    @Test("A screen that appears before the first Arm was tried doesn't Arm early; after it, it Arms one that isn't")
+    func appearBeforeStart() {
+        let source = FakeInputDevices()
+        let (sequencer, recorder) = makeSequencer(source)
+
+        sequencer.screenAppeared()
+        #expect(!recorder.isArmed)
+
+        sequencer.start()
+        #expect(recorder.isArmed)
+    }
+
+    @Test("A screen that appears leaves an Armed recorder alone, because Arming again would stop a Take")
+    func appearWhileArmed() {
+        let source = FakeInputDevices()
+        let (sequencer, _) = makeSequencer(source)
+        sequencer.start()
+
+        sequencer.screenAppeared()
+
+        #expect(source.opened.count == 1)
+    }
+
+    @Test("When the screen goes away during a Take, nothing ends the Take")
+    func disappearDuringATake() {
+        let (sequencer, recorder) = makeSequencer()
+        sequencer.start()
+        sequencer.record(sources: [], allowance: nil)
+
+        sequencer.screenDisappeared()
+
+        #expect(recorder.isRecording)
+    }
+
+    @Test("When the screen goes away with no Take, the recorder disarms so the input isn't held for nothing")
+    func disappearWhileOnlyArmed() {
+        let (sequencer, recorder) = makeSequencer()
+        sequencer.start()
+
+        sequencer.screenDisappeared()
+
+        #expect(!recorder.isArmed)
+    }
+
+    @Test("A screen that goes away and disarms tells the events stream why")
+    func screenGoneEvent() async {
+        let (sequencer, _) = makeSequencer()
+        sequencer.start()
+        var events = sequencer.events.makeAsyncIterator()
+        _ = await events.next()  // .armed
+
+        sequencer.screenDisappeared()
+
+        #expect(await events.next() == .disarmed(reason: .screenGone))
+    }
+
+    @Test("Closing a window while a Take is running asks first; with no Take it just closes")
+    func closingTheWindow() {
+        let (sequencer, _) = makeSequencer()
+        sequencer.start()
+        #expect(sequencer.windowCloseRequested() == .close)
+
+        sequencer.record(sources: [], allowance: nil)
+        #expect(sequencer.windowCloseRequested() == .askToStop)
+    }
+
+    @Test("Quitting the Mac app during a Take asks first, like closing the window; otherwise it just quits")
+    func quitAsksDuringATake() {
+        let (sequencer, _) = makeSequencer()
+        sequencer.start()
+        #expect(sequencer.quitRequested() == .quit)
+
+        sequencer.record(sources: [], allowance: nil)
+        #expect(sequencer.quitRequested() == .askToStop)
+    }
+
+    @Test("Tearing down the screen and building it again during a Take leaves the Take, its Markers and its Stem untouched")
+    func screenRebuiltDuringATake() throws {
+        let source = FakeInputDevices([("fake", 1)])
+        let (sequencer, recorder) = makeSequencer(source)
+        func sample(_ value: Int32) -> Float { Float(value) / 8_388_608 }
+        sequencer.start()
+        let device = try #require(source.opened.last)
+        sequencer.record(sources: [], allowance: nil)
+        device.deliver([[sample(1), sample(2)]])
+        recorder.addMarker(named: "Verse")
+
+        // The screen goes away and a new one appears, as when iOS discards and rebuilds a scene.
+        sequencer.screenDisappeared()
+        sequencer.screenAppeared()
+
+        #expect(recorder.isRecording)
+        #expect(recorder.takeMarkers.map(\.name) == ["Verse"])
+        device.deliver([[sample(3), sample(4)]])
+        sequencer.stop()
+
+        let stem = try ParsedStem(contentsOf: try #require(recorder.currentShow).folder.appending(path: "Take 01/01 USB 01.wav"))
+        #expect(stem.samples == [1, 2, 3, 4])
+    }
 }

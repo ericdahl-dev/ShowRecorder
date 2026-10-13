@@ -5,7 +5,7 @@ import SwiftUI
 
 /// Closing the record window during a Take asks "Stop the Take?" first. Keep Going leaves the window
 /// and the Take alone; Stop Take ends the Take and closes the window. With no Take running the window
-/// closes as usual (see `RecorderLifecycle.windowCloseRequested`).
+/// closes as usual (see `TakeSequencer.windowCloseRequested`).
 ///
 /// It sits behind the window as an invisible view and puts itself in as the window's delegate, forwarding
 /// everything but `windowShouldClose` to the delegate SwiftUI installed, so the window otherwise behaves
@@ -50,7 +50,7 @@ struct WindowCloseGuard: NSViewRepresentable {
         }
 
         func windowShouldClose(_ sender: NSWindow) -> Bool {
-            switch RecorderLifecycle.windowCloseRequested(isRecording: model.recorder.isRecording) {
+            switch model.sequencer.windowCloseRequested() {
             case .close:
                 return original?.windowShouldClose?(sender) ?? true
             case .askToStop:
