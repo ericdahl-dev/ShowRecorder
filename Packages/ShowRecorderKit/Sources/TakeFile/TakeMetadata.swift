@@ -112,10 +112,12 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     /// One preamp gain change on the Mixer, by auto-gain, clip protection or Undo, with what Mix Hold moved to keep
     /// the mix the same. Logged in the Take during a Take (with `position`) and in the Show between Takes.
     public struct GainChange: Codable, Equatable, Sendable {
-        public enum Reason: String, Codable, Sendable {
+        public enum Reason: Codable, Equatable, Sendable {
             case autoGain
             case clipProtection
             case undo
+            /// A reason from a newer ShowRecorder, kept as written so the Take still opens and saves it unchanged.
+            case other(String)
 
             /// "auto-gain", "clip protection" or "undo", as the operator reads it.
             public var word: String {
@@ -123,7 +125,31 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
                 case .autoGain: "auto-gain"
                 case .clipProtection: "clip protection"
                 case .undo: "undo"
+                case .other(let text): text
                 }
+            }
+
+            /// What `Take.json` stores.
+            public var rawValue: String {
+                switch self {
+                case .autoGain: "autoGain"
+                case .clipProtection: "clipProtection"
+                case .undo: "undo"
+                case .other(let text): text
+                }
+            }
+
+            public init(rawValue: String) {
+                self = [Self.autoGain, .clipProtection, .undo].first { $0.rawValue == rawValue } ?? .other(rawValue)
+            }
+
+            public init(from decoder: any Decoder) throws {
+                self.init(rawValue: try decoder.singleValueContainer().decode(String.self))
+            }
+
+            public func encode(to encoder: any Encoder) throws {
+                var container = encoder.singleValueContainer()
+                try container.encode(rawValue)
             }
         }
 
@@ -242,7 +268,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
 
     /// A named point in the Take, in samples from its start.
     public struct Marker: Codable, Equatable, Sendable {
-        public enum Origin: String, Codable, Sendable {
+        public enum Origin: Codable, Equatable, Sendable {
             case `operator`
             /// Placed by the recorder where a Copy's audio was lost.
             case dropout
@@ -250,6 +276,33 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
             case gain
             /// Placed where the Mixer's USB routing changed during the Take (#21).
             case routing
+            /// A kind from a newer ShowRecorder, kept as written: the Take still opens, and saving it keeps the kind.
+            /// Not the operator's, so it can't be renamed here.
+            case other(String)
+
+            /// What `Take.json` stores.
+            public var rawValue: String {
+                switch self {
+                case .operator: "operator"
+                case .dropout: "dropout"
+                case .gain: "gain"
+                case .routing: "routing"
+                case .other(let text): text
+                }
+            }
+
+            public init(rawValue: String) {
+                self = [Self.operator, .dropout, .gain, .routing].first { $0.rawValue == rawValue } ?? .other(rawValue)
+            }
+
+            public init(from decoder: any Decoder) throws {
+                self.init(rawValue: try decoder.singleValueContainer().decode(String.self))
+            }
+
+            public func encode(to encoder: any Encoder) throws {
+                var container = encoder.singleValueContainer()
+                try container.encode(rawValue)
+            }
         }
 
         public var position: Int
@@ -299,7 +352,10 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         String(format: "Take %02d", take)
     }
 
-    enum CodingKeys: String, CodingKey {
+    /// Fields from a newer ShowRecorder, kept from `read` to `write`. Nil in a Take this version wrote.
+    var unknownFields: UnknownFields?
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
         case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames, gainChanges, routingChanges
     }
 
@@ -336,14 +392,18 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        try encoder.encode(self).write(to: takeFolder.appending(path: Self.fileName), options: .atomic)
+        let data = try encoder.encode(self)
+        try (unknownFields?.merged(into: data) ?? data).write(to: takeFolder.appending(path: Self.fileName), options: .atomic)
     }
 
     /// Reads `Take.json` from `takeFolder`. Throws when it is missing or can't be decoded.
     public static func read(fromTakeFolder takeFolder: URL) throws -> TakeMetadata {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(TakeMetadata.self, from: Data(contentsOf: takeFolder.appending(path: fileName)))
+        let data = try Data(contentsOf: takeFolder.appending(path: fileName))
+        var metadata = try decoder.decode(TakeMetadata.self, from: data)
+        metadata.unknownFields = UnknownFields.find(in: data, known: Set(CodingKeys.allCases.map(\.rawValue)))
+        return metadata
     }
 }
 

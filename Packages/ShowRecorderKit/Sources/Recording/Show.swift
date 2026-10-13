@@ -219,12 +219,19 @@ struct ShowFile: Codable, Equatable {
     var driveCopyWritten: Bool?
     /// Gain changes made on the Mixer between Takes (#450). Nil when there are none, and in Shows from before this.
     var gainChanges: [TakeMetadata.GainChange]?
+    /// Fields from a newer ShowRecorder, kept from `read` to `write`. Nil in a Show this version wrote.
+    var unknownFields: UnknownFields?
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case name, startedAt, endedAt, venue, lastTakeEndedAt, channelNames, driveCopyWritten, gainChanges
+    }
 
     func write(to showFolder: URL) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        try encoder.encode(self).write(to: showFolder.appending(path: Self.fileName), options: .atomic)
+        let data = try encoder.encode(self)
+        try (unknownFields?.merged(into: data) ?? data).write(to: showFolder.appending(path: Self.fileName), options: .atomic)
     }
 
     /// The file in `showFolder`, or nil when it is missing or can't be read.
@@ -232,6 +239,8 @@ struct ShowFile: Codable, Equatable {
         guard let data = try? Data(contentsOf: showFolder.appending(path: fileName)) else { return nil }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try? decoder.decode(ShowFile.self, from: data)
+        guard var file = try? decoder.decode(ShowFile.self, from: data) else { return nil }
+        file.unknownFields = UnknownFields.find(in: data, known: Set(CodingKeys.allCases.map(\.rawValue)))
+        return file
     }
 }
