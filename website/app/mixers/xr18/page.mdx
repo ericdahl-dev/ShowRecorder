@@ -1,0 +1,38 @@
+import { pageMetadata, PAGES } from "@/lib/metadata";
+
+export const metadata = pageMetadata(PAGES.mixersXR18);
+
+# Multitrack record a Behringer XR18 or MR18 on iPhone or iPad
+
+The XR18 and MR18 send every channel over USB to whatever is plugged in. ShowRecorder makes that your iPhone or iPad: all 18 USB Channels recorded at once, one WAV file per channel, each named after the channel on the mixer. No laptop at the show.
+
+## Record without a laptop
+
+Recording an XR18 usually means a laptop on the stage box and a DAW running all night. With ShowRecorder the phone or tablet you already carry does the job, and the mixer's own Wi-Fi gives the files their names. When the show ends, the Stems are ready for your DAW.
+
+## What you get
+
+- **All 18 USB Channels**: the 16 inputs and the aux line in, recorded in step with each other at the mixer's sample rate.
+- **Files named from the mixer.** Over the Mixer Link, ShowRecorder reads each channel's name and color from the XR18 or MR18 and follows renames on the mixer as they happen. In the current public beta, each file is also named after what the mixer actually routes to that USB Channel.
+- **A second copy as you record**, on a USB drive through a hub, so one failure doesn't lose the show.
+- **Markers and Pre-roll**, and with Pro a Show report and a Reaper project.
+
+## What you need
+
+- A Behringer X Air XR18 or Midas MR18. The XR12 and XR16 send no multichannel USB audio, so they can't be multitracked this way.
+- A USB-C iPhone (iPhone 15 or later) or an iPad, and a USB cable to the mixer. A powered USB-C hub lets it charge through a long show.
+- For names and colors: your iPhone or iPad on the mixer's Wi-Fi, or on the network the mixer is connected to. Recording itself needs only the USB cable.
+
+The step-by-step setup is in [Recording an XR18 or MR18 on iPhone or iPad](/docs/connecting-xr18), and names and colors are in [Mixer Link](/docs/mixer-link).
+
+18 channels at 48 kHz take about 9.3 GB per hour on each place a Take is written to. The record screen shows the time left.
+
+## Free, Trial and Pro
+
+ShowRecorder is free to download. Free records 2 USB Channels of your choice, with names and colors from the mixer. The [14-day Trial and Pro](/docs/pricing), a one-time purchase, record all 18. No subscription.
+
+## Where to get it
+
+ShowRecorder 1.0 for iPhone and iPad, with the XR18 and MR18, is coming soon to the App Store. Until then, the public beta is open. See the [home page](/) to join it.
+
+Other mixers: see [Supported mixers](/features#mixers), and the [Behringer X32 and Midas M32 page](/mixers/x32).
