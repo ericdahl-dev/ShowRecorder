@@ -92,7 +92,7 @@ struct CopyJoinTests {
         writer.start()
         writer.stop()
         #expect(stem.samples == [Float](repeating: 0, count: 480) + (1...100).map(Float.init))
-        #expect(writer.gaps == [0..<480])
+        #expect(writer.leadGap == 0..<480)
     }
 
     @Test("A Copy attached mid-Take writes silence up to the frame it joined at, then the audio from there")
@@ -118,7 +118,7 @@ struct CopyJoinTests {
         #expect(pauses == 1)
         #expect(!writer.neverJoined)
         #expect(stem.samples == [Float](repeating: 0, count: 480) + [Float](repeating: 0.25, count: 480))
-        #expect(writer.gaps == [0..<480])
+        #expect(writer.leadGap == 0..<480)
     }
 
     @Test("A Copy whose Take stops before it joins writes nothing and never joins")
@@ -135,6 +135,6 @@ struct CopyJoinTests {
         #expect(writer.neverJoined)
         #expect(capture.feeds[1].joinedAt == nil)
         #expect(stem.samples.isEmpty)
-        #expect(writer.gaps.isEmpty)
+        #expect(writer.leadGap == nil)
     }
 }

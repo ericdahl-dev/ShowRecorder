@@ -23,8 +23,8 @@ final class TakeWriter: @unchecked Sendable {
     /// Frames between header commits, so a crash loses at most this much (#6).
     private let commitInterval: Int
     private var framesSinceCommit = 0
-    /// Stretches written as silence because this Copy joined late, as Take frames.
-    private let gapRanges: Mutex<[Range<Int>]>
+    /// The stretch written as silence because this Copy joined late, as Take frames.
+    private let leadGapRange = Mutex<Range<Int>?>(nil)
     /// Stretches written as silence because the ring dropped that audio, as Take frames.
     private let dropoutRanges = Mutex<[Range<Int>]>([])
     /// The operator's Markers, last set by `setMarkers`. Only the writer thread uses it.
@@ -40,12 +40,11 @@ final class TakeWriter: @unchecked Sendable {
 
     init(
         feed: CopyFeed, stems: [any StemSink], commitInterval: Int, onFailure: @escaping @Sendable () -> Void = {},
-        priorGaps: [Range<Int>] = [], head: (() -> [[Float]]?)? = nil,
+        head: (() -> [[Float]]?)? = nil,
         joinPause: @escaping () -> Void = { Thread.sleep(forTimeInterval: 0.002) }
     ) {
         self.head = head
         self.joinPause = joinPause
-        gapRanges = Mutex(priorGaps)
         self.onFailure = onFailure
         self.feed = feed
         ring = feed.ring
@@ -67,8 +66,9 @@ final class TakeWriter: @unchecked Sendable {
         thread.start()
     }
 
-    /// Stretches written as silence because this Copy joined after the Take began.
-    var gaps: [Range<Int>] { gapRanges.withLock { $0 } }
+    /// The stretch written as silence before this Copy's first audio, because it joined after the Take began
+    /// (after any Pre-roll head). Nil when it joined where its Stems already were.
+    var leadGap: Range<Int>? { leadGapRange.withLock { $0 } }
 
     /// Frames every Stem has: the Copy's length so far. Read once the writer has stopped.
     var framesWritten: Int { Int(stems.map(\.frameCount).min() ?? 0) }
@@ -183,7 +183,7 @@ final class TakeWriter: @unchecked Sendable {
             }
         }
         let start = framesWritten
-        if join > start { gapRanges.withLock { $0.append(start..<join) } }
+        if join > start { leadGapRange.withLock { $0 = start..<join } }
         let silence = [Float](repeating: 0, count: 4096)
         for stem in stems {
             var remaining = join - Int(stem.frameCount)

@@ -38,8 +38,13 @@ final class TakeSession {
         var folder: URL
         let feed: CopyFeed
         var writer: TakeWriter
+        /// Gaps from this Copy's earlier writers, before a Drive rejoined.
+        var earlierGaps: [Range<Int>] = []
         /// Held until the Take is finished and Repaired. Only the Drive has one.
         var access: DriveAccess?
+
+        /// Stretches written as silence in this Copy because it joined after the Take began, as Take frames.
+        var gaps: [Range<Int>] { earlierGaps + (writer.leadGap.map { [$0] } ?? []) }
     }
 
     /// What `checkDestinations` found.
@@ -269,7 +274,7 @@ final class TakeSession {
         var all = copies.map { copy in
             CopyCoverage.Copy(
                 kind: copy.kind, written: copy.writer.framesWritten, dropped: copy.writer.dropouts,
-                silence: copy.writer.gaps, stoppedEarly: copy.writer.hasFailed || copy.writer.neverJoined)
+                silence: copy.gaps, stoppedEarly: copy.writer.hasFailed || copy.writer.neverJoined)
         }
         // Drive only: the standby holds the audio from where its stand-in starts, and nothing before.
         if let standby {
@@ -411,12 +416,12 @@ final class TakeSession {
 
             // The Drive's feed is the one after the Device's.
             let feed = old?.feed ?? capture.feeds[copies.count]
-            let writer = makeWriter(feed: feed, stems: sinks, priorGaps: old?.writer.gaps ?? [])
+            let writer = makeWriter(feed: feed, stems: sinks)
             capture.attachMidTake(feed)
             writer.start()
             if !stemMarkers.isEmpty { writer.setMarkers(stemMarkers) }
 
-            let record = CopyRecord(kind: .drive, folder: folder, feed: feed, writer: writer, access: access)
+            let record = CopyRecord(kind: .drive, folder: folder, feed: feed, writer: writer, earlierGaps: old?.gaps ?? [], access: access)
             if old == nil { copies.append(record) } else { copies[copies.firstIndex { $0.kind == .drive }!] = record }
             old?.access?.end()
             self.show = show
@@ -427,14 +432,11 @@ final class TakeSession {
 
     // MARK: - Helpers
 
-    private func makeWriter(
-        feed: CopyFeed, stems sinks: [any StemSink], priorGaps: [Range<Int>] = [],
-        head: (() -> [[Float]]?)? = nil
-    ) -> TakeWriter {
+    private func makeWriter(feed: CopyFeed, stems sinks: [any StemSink], head: (() -> [[Float]]?)? = nil) -> TakeWriter {
         TakeWriter(feed: feed, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] in
             capture.stopFeeding(feed)
             Task { @MainActor in self?.onCopyFailed() }
-        }, priorGaps: priorGaps, head: head)
+        }, head: head)
     }
 
     /// The Markers the Stems carry as cue points. Each writer adds its own Dropout Markers.
