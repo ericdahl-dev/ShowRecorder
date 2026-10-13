@@ -532,18 +532,9 @@ extension StatusChip.Kind {
     }
 }
 
-/// One choosable audio device.
-struct DeviceChoice: Identifiable {
-    /// What the hot-plug decision sees. `info.id` is stable across unplug and replug.
-    let info: InputDeviceInfo
-    /// The label shown in the picker.
-    let name: String
-    /// The sample rates the input offers, for the picker (#195); empty when it can't say.
-    var availableSampleRates: [Int] = []
-    /// Opens the input at `chosen` (nil: as it is), at most 48 kHz when `capAt48k`. A mixer's input keeps its rate.
-    let make: (_ chosen: Int?, _ capAt48k: Bool) throws -> any AudioIODevice
-
-    var id: String { info.id }
+/// The Audio interfaces this device offers: Core Audio on the Mac, the audio session on iOS, and the Demo signal.
+struct AppInputDevices: InputDeviceSource {
+    func devices() -> [DeviceChoice] { RecordScreenModel.availableDevices() }
 }
 
 @MainActor
@@ -551,6 +542,8 @@ struct DeviceChoice: Identifiable {
 final class RecordScreenModel {
     /// Each Take goes to the Device and, when the Drive folder is connected at record time, the Drive.
     let recorder: Recorder
+    /// Arms the chosen Audio interface and starts and stops Takes on the recorder.
+    let sequencer: TakeSequencer
     /// The Drive folder and Device free space, kept current here so the status strip, Settings and the
     /// recorder share one state whether or not Settings is open.
     let drive: DriveFolderModel
@@ -560,7 +553,7 @@ final class RecordScreenModel {
     /// Whether the system denied microphone access (shows a button that opens the system settings).
     private(set) var micDenied = false
     /// When the running Take started, for the elapsed time.
-    private(set) var takeStartedAt: Date?
+    var takeStartedAt: Date? { sequencer.takeStartedAt }
     #if os(iOS)
     /// The running Take in the Dynamic Island and on the Lock Screen.
     @ObservationIgnored private let liveActivity = TakeLiveActivity()
@@ -575,7 +568,7 @@ final class RecordScreenModel {
     /// Battery and heat, shown as chips on the status strip.
     let power = PowerMonitor()
     /// Pro, the Trial and the Free channel choice (ADR 0004).
-    let pro = ProStore()
+    let pro: ProStore
     /// When the app offers Pro (#62); what was offered is kept on the device.
     @ObservationIgnored private var proOffers = ProOffers()
     /// The paywall to show, when one is due. Never during a Take.
@@ -585,20 +578,33 @@ final class RecordScreenModel {
     private(set) var setupHintDismissed = UserDefaults.standard.bool(forKey: RecordScreenModel.hintKey)
     private static let hintKey = "setupHintDismissed"
     private static let mixerAddressKey = "mixerAddress"
-    private(set) var devices: [DeviceChoice] = []
-    var selectedDeviceID: String?
+    var devices: [DeviceChoice] {
+        get { sequencer.devices }
+        set { sequencer.devices = newValue }
+    }
+    var selectedDeviceID: String? {
+        get { sequencer.selectedDeviceID }
+        set { sequencer.selectedDeviceID = newValue }
+    }
     /// Whether the "Stop Take N?" question is showing. In the model so the Take menu can ask it too.
     var confirmingStop = false
     /// The level meters, in their own model: they change 30 times a second, and only the meter grid reads them.
     let meterModel = MeterModel()
-    private(set) var armError: String?
-    private(set) var recordError: String?
+    private(set) var armError: String? {
+        get { sequencer.armError }
+        set { sequencer.armError = newValue }
+    }
+    private(set) var recordError: String? {
+        get { sequencer.recordError }
+        set { sequencer.recordError = newValue }
+    }
     /// The device as it was when last Armed, to tell a format change from a new device.
-    @ObservationIgnored private var armedDevice: InputDeviceInfo? {
-        didSet { armedFamily = armedDevice.flatMap { MixerFamily(audioInterfaceName: $0.name) } }
+    private var armedDevice: InputDeviceInfo? {
+        get { sequencer.armedDevice }
+        set { sequencer.armedDevice = newValue }
     }
     /// The Armed interface's mixer family: X Air or X32, or nil for anything else (#365).
-    private(set) var armedFamily: MixerFamily?
+    var armedFamily: MixerFamily? { armedDevice.flatMap { MixerFamily(audioInterfaceName: $0.name) } }
 
     /// Mixer Link is offered only while an X Air or X32 is the Armed input (#365). Any other input (a built-in mic,
     /// the Demo signal, an EVO 4, a DJM) has no Mixer Link: Settings hides it, the strip has no Mixer chip and the
@@ -700,7 +706,6 @@ final class RecordScreenModel {
             // An input change is told where it happens (a route move, a device change, a media reset's notice).
             if recordError == nil, end.reason != .inputChanged, let message = end.reason.message { recordError = message }
         }
-        if !recorder.isRecording { takeStartedAt = nil }
         followLiveActivity()
     }
 
@@ -860,12 +865,32 @@ final class RecordScreenModel {
         let drive = DriveFolderModel()
         let store = drive.store
         self.drive = drive
-        recorder = Recorder(driveFolder: {
+        let recorder = Recorder(driveFolder: {
             store.beginAccess()
         }, preRollSeconds: PreRollSetting.load())
+        self.recorder = recorder
+        let pro = ProStore()
+        self.pro = pro
+        sequencer = TakeSequencer(recorder: recorder, devices: AppInputDevices(), capsAt48k: { pro.license().capsAt48k })
         mixerAddress = UserDefaults.standard.string(forKey: Self.mixerAddressKey) ?? ""
-        devices = Self.availableDevices()
-        selectedDeviceID = devices.first?.id
+        sequencer.sampleRateChoice = {
+            #if os(macOS)
+            SampleRateSetting.load(platformDefault: nil)
+            #else
+            SampleRateSetting.load(platformDefault: 48_000)
+            #endif
+        }()
+        sequencer.didArm = { [unowned self] device in
+            if let device {
+                noteOfferedChannels(of: device)
+                #if os(iOS)
+                // The route's name and channels are only known once the session is active.
+                devices = Self.availableDevices()
+                if !devices.contains(where: { $0.id == selectedDeviceID }) { selectCurrentRouteInput() }
+                #endif
+            }
+            meterModel.reset(channelCount: recorder.usbChannelCount)
+        }
         // `-demoSignal` starts on the 18-channel demo signal, for screenshots and layout checks.
         if launchFlag("-demoSignal"), devices.contains(where: { $0.id == "demo" }) { selectedDeviceID = "demo" }
     }
@@ -881,17 +906,11 @@ final class RecordScreenModel {
     }
 
     func record() {
-        do {
-            // Freeze whatever the Mixer Link knows right now, and what the tier allows, into the Take (Show-Safe
-            // Promise: judged only here, never during the Take).
-            try recorder.startTake(sources: linkedSources, allowance: currentAllowance())
-            takeStartedAt = Date()
-            recordError = nil
-            handle(.takeStarted)
-            followLiveActivity()
-        } catch {
-            recordError = "Couldn't start recording: \(error.localizedDescription)"
-        }
+        // Freeze whatever the Mixer Link knows right now, and what the tier allows, into the Take (Show-Safe
+        // Promise: judged only here, never during the Take).
+        guard sequencer.record(sources: linkedSources, allowance: currentAllowance()) else { return }
+        handle(.takeStarted)
+        followLiveActivity()
     }
 
     func appearanceChanged() { appearance.save() }
@@ -901,12 +920,7 @@ final class RecordScreenModel {
     }
 
     func stop() {
-        takeStartedAt = nil
-        do {
-            try recorder.stopTake()
-        } catch {
-            recordError = "The Take didn't finish cleanly: \(error.localizedDescription)"
-        }
+        sequencer.stop()
         followLiveActivity()
         offerProAfterTake()
     }
@@ -1237,7 +1251,7 @@ final class RecordScreenModel {
         var lastPoll = ContinuousClock.now
         while !Task.isCancelled {
             tick += 1
-            if tick % 30 == 0 { refreshDestinations(); announceChanges() }
+            if tick % 30 == 0 { sequencer.tick(); refreshDestinations(); announceChanges() }
             if tick % 30 == 0 { disarmIfIdle() }
             // Re-check the Drive every few seconds so an unplugged one shows before record is pressed.
             if tick % 90 == 0 { drive.refresh() }
@@ -1252,33 +1266,11 @@ final class RecordScreenModel {
 
     /// The picker changed. Skips the device the model has just Armed itself after a device change.
     func selectionDidChange() {
-        if recorder.isArmed, armedDevice?.id == selectedDeviceID { return }
-        armSelectedDevice()
+        sequencer.select(selectedDeviceID)
     }
 
     func armSelectedDevice() {
-        guard let choice = devices.first(where: { $0.id == selectedDeviceID }) else {
-            recorder.disarm()
-            armedDevice = nil
-            return
-        }
-        do {
-            armedDevice = nil
-            let device = try choice.make(
-                sampleRateChoice, pro.license().capsAt48k)
-            try recorder.arm(device)
-            noteOfferedChannels(of: device)
-            armedDevice = choice.info
-            armError = nil
-            #if os(iOS)
-            // The route's name and channels are only known once the session is active.
-            devices = Self.availableDevices()
-            if !devices.contains(where: { $0.id == selectedDeviceID }) { selectCurrentRouteInput() }
-            #endif
-        } catch {
-            armError = "Couldn't start \(choice.name): \(error)"
-        }
-        meterModel.reset(channelCount: recorder.usbChannelCount)
+        sequencer.arm()
     }
 
     private func hasMicrophonePermission() async -> Bool {
@@ -1407,13 +1399,10 @@ final class RecordScreenModel {
 
     /// The sample rate choice (#195): nil is the interface's own rate, the Mac's default; iPhone and iPad default to
     /// 48 kHz, which the app has always asked iOS for.
-    var sampleRateChoice: Int? = {
-        #if os(macOS)
-        SampleRateSetting.load(platformDefault: nil)
-        #else
-        SampleRateSetting.load(platformDefault: 48_000)
-        #endif
-    }()
+    var sampleRateChoice: Int? {
+        get { sequencer.sampleRateChoice }
+        set { sequencer.sampleRateChoice = newValue }
+    }
 
     /// The rate choice changed in Settings: keep it and, if Armed, Arm again at it. Settings is locked during a Take.
     func sampleRateChanged() {
@@ -1427,7 +1416,7 @@ final class RecordScreenModel {
         SampleRateSetting.choices(available: devices.first { $0.id == selectedDeviceID }?.availableSampleRates ?? [])
     }
 
-    private static func availableDevices() -> [DeviceChoice] {
+    static func availableDevices() -> [DeviceChoice] {
         var choices: [DeviceChoice] = []
         #if os(macOS)
         // Multichannel devices first (most channels first), then the system default input.
