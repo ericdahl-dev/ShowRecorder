@@ -15,8 +15,10 @@ struct StatusChipsTests {
         mixer: MixerLinkStatus = .idle,
         copies: [DestinationKind: CopyStatus] = [:]
     ) -> [StatusChip.Kind: StatusChip] {
-        Dictionary(uniqueKeysWithValues: StatusChip.make(
-            usbChannelCount: 18, deviceAvailableBytes: deviceBytes, drive: drive, mixer: mixer, copies: copies
+        // No running words is no Take running, as the record screen passes them today.
+        let take = TakeCopies(isRunning: !copies.isEmpty) { copies[$0].map(CopyState.init) ?? .recording }
+        return Dictionary(uniqueKeysWithValues: StatusChip.make(
+            usbChannelCount: 18, deviceAvailableBytes: deviceBytes, drive: drive, mixer: mixer, copies: take
         ).map { ($0.kind, $0) })
     }
 
@@ -108,5 +110,18 @@ struct StatusChipsTests {
         #expect(chips(drive: .unavailable(.notConnected(name: "SSD")))[.drive]?.shortText == "Drive missing")
         let stopped = chips(drive: drive(bytes: StatusChipsTests.anHour), copies: [.drive: .interrupted])
         #expect(stopped[.drive]?.shortText == "Drive stopped")
+    }
+
+    @Test("Today's call with the running words gives the same chips as one with the Take's Copies (until the screen moves over)")
+    func adapterSaysTheSame() {
+        let words: [CopyStatus] = [.recording, .interrupted, .missing]
+        let runs: [[DestinationKind: CopyStatus]] = [[:]] + words.flatMap { d in words.map { [.device: d, .drive: $0] } }
+        for copies in runs {
+            for drive in [DriveStatus.notChosen, .unavailable, drive(bytes: Self.anHour), drive(bytes: 1_000)] {
+                let old = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive, mixer: .idle, copies: copies)
+                let take = TakeCopies(isRunning: !copies.isEmpty) { copies[$0].map(CopyState.init) ?? .recording }
+                #expect(old == StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive, mixer: .idle, copies: take))
+            }
+        }
     }
 }
