@@ -127,6 +127,7 @@ final class TakeSession {
                 return capture.preRoll?.read(frames: (start - preRollFrames)..<start)
             } : nil
         var records: [CopyRecord] = []
+        precondition(DestinationKind.allCases.count <= capture.feeds.count, "more Copy kinds than Capture feeds")
         // Each Copy's feed, paired with its kind in order: Capture's feeds, like the kinds, put the Device first.
         let feeds = Dictionary(uniqueKeysWithValues: zip(DestinationKind.allCases, capture.feeds))
         // Drive only, with a Drive: the Device's ring feeds the standby, which writes nothing until the Drive is lost.

@@ -138,12 +138,14 @@ final class Capture: Sendable {
     /// Brings a Copy into the running Take: empties its ring, forgets any join frame, then asks the real-time
     /// thread to start feeding it from its next block and to record the Take frame it starts at in `feed`.
     func attachMidTake(_ feed: CopyFeed) {
+        precondition(feed.slot >= 0, "a feed this Capture doesn't own")
         feed.reset(joinedAt: nil)
         joinRequests.bitwiseOr(1 << feed.slot, ordering: .acquiringAndReleasing)
     }
 
     /// Stops feeding one Copy's ring (its writer failed, or it retired).
     func stopFeeding(_ feed: CopyFeed) {
+        precondition(feed.slot >= 0, "a feed this Capture doesn't own")
         capturing.bitwiseAnd(~(1 << feed.slot), ordering: .acquiringAndReleasing)
     }
 
