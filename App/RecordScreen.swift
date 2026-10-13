@@ -628,6 +628,20 @@ final class RecordScreenModel {
         AutoGainAvailability.isAvailable() && offersMixerLink && mixerLink.gainControl != nil && !recorder.isRecording
     }
 
+    /// Auto-gain's state (#155): kept here, not in the sheet, so Undo survives closing it; locked during a Take.
+    let autoGain = AutoGainPanel()
+
+    /// The one listener to the sequencer's events (an AsyncStream takes one, and ending it ends the stream), for the
+    /// model's whole life. Whatever follows Takes is told from here.
+    private func followTakes() {
+        let events = sequencer.events
+        Task { [weak self] in
+            for await event in events {
+                self?.autoGain.handle(event)
+            }
+        }
+    }
+
     /// A new auto-gain session on the linked Mixer, measuring with the record screen's own meters. Every gain change it
     /// makes or undoes is logged in the Show (#450).
     func makeAutoGainSession() -> AutoGainSession? {
@@ -887,6 +901,9 @@ final class RecordScreenModel {
             #endif
         }()
         sequencer.log = { line in Self.sessionLog.notice("\(line, privacy: .public)") }
+        autoGain.makeSession = { [weak self] in self?.makeAutoGainSession() }
+        autoGain.isRecording = { [weak self] in self?.recorder.isRecording ?? false }
+        followTakes()
         sequencer.didArm = { [unowned self] device in
             if let device {
                 noteOfferedChannels(of: device)
