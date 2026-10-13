@@ -57,7 +57,8 @@ timed() {
 
 # 1. Two heavy builds at once: the second waits, says so, and they never overlap.
 : > "$log"
-"$repo/scripts/bin/swift" build > "$work/first.out" 2>&1 &
+# The first holds the lock for 4 s, so on a busy Mac the second still finds it taken.
+STUB_SLEEP=4 "$repo/scripts/bin/swift" build > "$work/first.out" 2>&1 &
 first=$!
 # Until the first build's tool has started, so it holds the lock (a fixed sleep isn't enough on a busy Mac).
 i=0
