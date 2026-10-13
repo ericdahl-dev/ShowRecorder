@@ -247,6 +247,20 @@ public final class TakeSequencer {
         }
     }
 
+    /// The Pre-roll length or the sample rate choice changed: re-Arm so the input uses it. Only between Takes; a
+    /// running Take keeps what it started with (Show-Safe Promise).
+    public func settingsChanged() {
+        if recorder.isArmed, !recorder.isRecording { arm() }
+    }
+
+    /// The tier changed (the App Store answered, a purchase, a refund): re-Arm between Takes when the 48 kHz cap now
+    /// differs from the rate the input runs at (#316). A running Take keeps its rate; the change applies at the next Arm.
+    public func tierChanged() {
+        guard recorder.isArmed, !recorder.isRecording, let rate = recorder.sampleRate else { return }
+        let capped = capsAt48k()
+        if (capped && rate > 48_000) || (!capped && (sampleRateChoice ?? rate) > rate) { arm() }
+    }
+
     /// The list of Audio interfaces changed (the Mac): keeps, switches, re-Arms or disarms as `InputDeviceChange`
     /// decides. A Take on an interface that went away or changed format ends as an input change, with its message.
     public func deviceListChanged() {

@@ -1044,9 +1044,7 @@ final class RecordScreenModel {
     /// The known tier changed (the App Store answered, a purchase, a refund): re-Arm between Takes if the rate the
     /// input may run at changed (#316). A Take that's running keeps its rate; the change applies at the next Arm.
     private func tierChanged() {
-        guard recorder.isArmed, !recorder.isRecording, let rate = recorder.sampleRate else { return }
-        let capped = pro.license().capsAt48k
-        if (capped && rate > 48_000) || (!capped && (sampleRateChoice ?? rate) > rate) { armSelectedDevice() }
+        sequencer.tierChanged()
     }
 
     /// At launch with no Show open: the default Template readies the next Show (its channel names now, its name when
@@ -1126,7 +1124,7 @@ final class RecordScreenModel {
     func preRollChanged() {
         PreRollSetting.save(preRollSeconds)
         recorder.preRollSeconds = preRollSeconds
-        if recorder.isArmed { armSelectedDevice() }
+        sequencer.settingsChanged()
     }
 
     /// What the chosen Pre-roll length costs in memory for the Armed input (or an 18-channel one before
@@ -1342,7 +1340,7 @@ final class RecordScreenModel {
     /// The rate choice changed in Settings: keep it and, if Armed, Arm again at it. Settings is locked during a Take.
     func sampleRateChanged() {
         SampleRateSetting.save(sampleRateChoice)
-        if recorder.isArmed { armSelectedDevice() }
+        sequencer.settingsChanged()
     }
 
     /// What the rate picker offers for the selected input: "Interface" and each rate it offers, or just "Interface"

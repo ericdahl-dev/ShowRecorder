@@ -13,6 +13,8 @@ final class FakeInputDevices: InputDeviceSource {
     var asked: [(chosen: Int?, capAt48k: Bool)] = []
     /// USB Channels an interface sends when it is opened again, where that changed (a reset, a new mixer setup).
     var reopensWith: [String: Int] = [:]
+    /// Sample rates an interface opens at, where not 48 kHz.
+    var rates: [String: Double] = [:]
 
     init(_ specs: [(id: String, channels: Int)] = [("xr18", 18)]) {
         choices = []
@@ -27,7 +29,7 @@ final class FakeInputDevices: InputDeviceSource {
                 asked.append((chosen, capAt48k))
                 struct Refused: Error {}
                 if fails { throw Refused() }
-                let device = FakeAudioDevice(name: id, inputChannelCount: reopensWith[id] ?? channels)
+                let device = FakeAudioDevice(name: id, inputChannelCount: reopensWith[id] ?? channels, sampleRate: capAt48k ? 48_000 : rates[id] ?? 48_000)
                 opened.append(device)
                 return device
             })
@@ -57,7 +59,9 @@ final class TestClock {
 }
 
 @MainActor
-@Suite("Take sequencer", .timeLimit(.minutes(1)))
+// Only a guard against a test that waits for an event that never comes: every event is told before a test reads
+// it, so nothing here depends on time. Generous, because a busy Mac (#462) stretches every test.
+@Suite("Take sequencer", .timeLimit(.minutes(10)))
 struct TakeSequencerTests {
     let root = FileManager.default.temporaryDirectory.appending(path: "TakeSequencerTests-\(UUID().uuidString)")
 
@@ -734,5 +738,41 @@ struct TakeSequencerTests {
         #expect(sequencer.recordError == "xr18 now sends 12 USB Channels during the Take. Recording stopped and the Stems recorded so far were saved. Press record to start a new Take.")
         #expect(recorder.isArmed && !recorder.isRecording)
         #expect(recorder.usbChannelCount == 12)
+    }
+
+    @Test("A Pre-roll or sample rate change re-Arms between Takes, never during one (Show-Safe)")
+    func settingsChangeReArmsOnlyBetweenTakes() {
+        let source = FakeInputDevices()
+        let (sequencer, recorder) = makeSequencer(source)
+        sequencer.start()
+
+        sequencer.settingsChanged()
+        #expect(source.opened.count == 2)
+
+        sequencer.record(sources: [], allowance: nil)
+        sequencer.settingsChanged()
+        #expect(source.opened.count == 2)
+        #expect(recorder.isRecording)
+    }
+
+    @Test("When the tier comes to cap at 48 kHz, an input running faster re-Arms between Takes; a running Take keeps its rate")
+    func tierCapReArmsOnlyBetweenTakes() {
+        let source = FakeInputDevices()
+        source.rates["xr18"] = 96_000
+        var capped = false
+        let recorder = Recorder(deviceFolder: root, destinationCheckInterval: nil)
+        let sequencer = TakeSequencer(recorder: recorder, devices: source, capsAt48k: { capped })
+        sequencer.start()
+        #expect(recorder.sampleRate == 96_000)
+
+        sequencer.record(sources: [], allowance: nil)
+        capped = true
+        sequencer.tierChanged()
+        #expect(recorder.isRecording && recorder.sampleRate == 96_000)
+
+        sequencer.stop()
+        sequencer.tierChanged()
+        #expect(recorder.sampleRate == 48_000)
+        #expect(source.asked.last?.capAt48k == true)
     }
 }
