@@ -91,7 +91,10 @@ plan="spelling"
 [ $app = 1 ] && plan="$plan app"
 [ $site = 1 ] && plan="$plan site"
 echo "== Plan: $plan"
-[ $skipped_app = 1 ] && echo "== Quick: CI runs the macOS and iOS app builds"
+if [ $skipped_app = 1 ]; then
+  echo "== Quick: CI runs the macOS and iOS app builds"
+  [ -n "${DEVICE_ID:-}" ] && echo "== Quick: the signed device build for $DEVICE_ID is skipped too, and CI doesn't run it"
+fi
 [ "${VERIFY_PLAN_ONLY:-0}" = 1 ] && exit 0
 
 if [ $everything = 1 ]; then
@@ -148,4 +151,6 @@ if ! steps_finish; then
   exit 1
 fi
 
-echo "== All checks passed in $(( $(date +%s) - started ))s ($plan)"
+quick=""
+[ $skipped_app = 1 ] && quick="; quick: app builds left to CI"
+echo "== All checks passed in $(( $(date +%s) - started ))s ($plan$quick)"
