@@ -15,6 +15,8 @@
 #   VERIFY_BASE=<ref>   compare against another ref instead of origin/main
 #   VERIFY_FILES=...    use this newline-separated list instead of git (scripts/test-verify-plan.sh)
 #   VERIFY_PLAN_ONLY=1  print the plan and stop
+#   VERIFY_QUICK=1      skip the macOS and iOS app builds (CI runs them): spelling, vocabulary, package tests and the
+#                       site, as the changes need
 #   DERIVED_DATA=<dir>  Xcode build folders' prefix (default build/dd: build/dd-mac, build/dd-ios, build/dd-device)
 #
 # One heavy build at a time on this Mac (scripts/build-lock.sh): a second verify.sh, or a swift build/test or
@@ -49,8 +51,8 @@ changed_files() {
   git ls-files --others --exclude-standard
 }
 
-vocab=0 package=0 app=0 site=0
-all() { vocab=1 package=1 app=1 site=1; }
+vocab=0 package=0 app=0 site=0 everything=0
+all() { vocab=1 package=1 app=1 site=1 everything=1; }
 
 files=$(changed_files | sed '/^$/d' | sort -u)
 if [ "${VERIFY_ALL:-0}" = 1 ] || [ -z "$files" ]; then
@@ -77,15 +79,22 @@ else
   IFS=$old_ifs
 fi
 
+# Quick mode leaves the two app builds, the slowest step, to CI.
+skipped_app=0
+if [ "${VERIFY_QUICK:-0}" = 1 ] && [ $app = 1 ]; then
+  app=0 skipped_app=1
+fi
+
 plan="spelling"
 [ $vocab = 1 ] && plan="$plan vocab"
 [ $package = 1 ] && plan="$plan package"
 [ $app = 1 ] && plan="$plan app"
 [ $site = 1 ] && plan="$plan site"
 echo "== Plan: $plan"
+[ $skipped_app = 1 ] && echo "== Quick: CI runs the macOS and iOS app builds"
 [ "${VERIFY_PLAN_ONLY:-0}" = 1 ] && exit 0
 
-if [ "$plan" = "spelling vocab package app site" ]; then
+if [ $everything = 1 ]; then
   echo "== verify.sh plan, steps and build lock"
   ./scripts/test-verify-plan.sh
   ./scripts/test-verify-steps.sh
