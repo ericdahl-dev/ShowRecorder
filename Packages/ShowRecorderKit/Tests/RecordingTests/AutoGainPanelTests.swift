@@ -106,4 +106,43 @@ struct AutoGainPanelTests {
         #expect(control.gainDb[1] == 0)
         #expect(panel.isLocked)
     }
+    @Test("Each result can say in plain words what moved to keep the mix, until Undo puts it back (#155, #393)")
+    func compensationSummary() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
+        control.alsoMoves = ReGain.Change(setting: ReGain.Setting(channel: 1, parameter: .mainFader), fromDb: 0, toDb: -22)
+        let panel = makePanel(control, source: [1: -40])
+
+        await panel.run([1, 2])
+
+        #expect(panel.compensationSummary(1) == "To keep the mix: fader moved -22.0 dB")
+        #expect(panel.compensationSummary(2) == nil)
+        await panel.undo(1)
+        #expect(panel.compensationSummary(1) == nil)
+    }
+
+    typealias Moved = TakeMetadata.GainChange.Compensation
+
+    @Test("Everything moved the same amount, as Re-Gain does, reads as one line: sends and thresholds counted",
+          arguments: [
+            ([Moved(channel: 1, setting: "fader", fromDb: -5, toDb: -30)], "fader moved -25.0 dB"),
+            ([Moved(channel: 1, setting: "fader", fromDb: -5, toDb: -30), Moved(channel: 1, setting: "send 3", fromDb: -10, toDb: -35)],
+             "fader and send 3 moved -25.0 dB"),
+            ((1...6).map { Moved(channel: 1, setting: "send \($0)", fromDb: 0, toDb: 6) }
+                + [Moved(channel: 1, setting: "fader", fromDb: -10, toDb: -4),
+                   Moved(channel: 1, setting: "gate threshold", fromDb: -40, toDb: -34),
+                   Moved(channel: 1, setting: "compressor threshold", fromDb: -20, toDb: -14)],
+             "fader, 6 sends and 2 thresholds moved +6.0 dB"),
+            ([Moved(channel: 1, setting: "fader", fromDb: -5, toDb: -11), Moved(channel: 2, setting: "gate threshold", fromDb: -40, toDb: -46)],
+             "fader and channel 2's gate threshold moved -6.0 dB"),
+          ])
+    func sameAmount(moved: [Moved], text: String) {
+        #expect(AutoGainPanel.compensationSummary(moved, channel: 1) == "To keep the mix: " + text)
+    }
+
+    @Test("When the amounts differ (a setting reached its end), each is listed, signed, from and to")
+    func differentAmounts() {
+        let moved = [Moved(channel: 1, setting: "fader", fromDb: -80, toDb: -90), Moved(channel: 1, setting: "send 3", fromDb: 5, toDb: -20)]
+        #expect(AutoGainPanel.compensationSummary(moved, channel: 1)
+                == "To keep the mix: fader -80.0 to -90.0 dB, send 3 +5.0 to -20.0 dB")
+    }
 }

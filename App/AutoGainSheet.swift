@@ -25,7 +25,8 @@ struct AutoGainSheet: View {
                 undoOne: { usb in Task { await autoGain.undo(usb) } },
                 undoAll: { Task { await autoGain.undoAll() } },
                 canUndo: { isDemo ? AutoGainList.demoUndoable.contains($0) : autoGain.canUndo($0) },
-                canUndoAll: isDemo || autoGain.canUndoAll)
+                canUndoAll: isDemo || autoGain.canUndoAll,
+                compensation: { isDemo ? AutoGainList.demoCompensation[$0] : autoGain.compensationSummary($0) })
                 .navigationTitle("Auto-gain")
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
@@ -52,6 +53,8 @@ struct AutoGainList: View {
     let undoAll: () -> Void
     let canUndo: (Int) -> Bool
     let canUndoAll: Bool
+    /// What moved to keep the mix on a USB Channel, in plain words, while it can still be undone.
+    let compensation: (Int) -> String?
 
     var body: some View {
         List {
@@ -76,8 +79,13 @@ struct AutoGainList: View {
                                 Text("Measuring…").font(.caption).foregroundStyle(.secondary)
                             } else if let result = results[channel.number] {
                                 Text(result.summary).font(.caption).foregroundStyle(result.isProblem ? .orange : .secondary)
+                                if let moved = compensation(channel.number) {
+                                    Text(moved).font(.caption).foregroundStyle(.tertiary)
+                                }
                             }
                         }
+                        // One VoiceOver stop: the channel, its result and what moved to keep the mix.
+                        .accessibilityElement(children: .combine)
                         Spacer()
                         if canUndo(channel.number), !running.contains(channel.number) {
                             Button("Undo") { undoOne(channel.number) }.disabled(locked).buttonStyle(.borderless)
@@ -148,11 +156,15 @@ extension AutoGainList {
         6: .stopped(usbChannel: 6, channel: 6),
     ]
     static let demoUndoable: Set<Int> = [1, 4]
+    static let demoCompensation: [Int: String] = [
+        1: "To keep the mix: fader, 6 sends and 2 thresholds moved -25.0 dB",
+    ]
 }
 
 #Preview("Auto-gain results") {
     AutoGainList(
         channels: AutoGainList.demoChannels, results: AutoGainList.demoResults,
         running: [5], locked: true, runAll: {}, runOne: { _ in }, undoOne: { _ in }, undoAll: {},
-        canUndo: { AutoGainList.demoUndoable.contains($0) }, canUndoAll: true)
+        canUndo: { AutoGainList.demoUndoable.contains($0) }, canUndoAll: true,
+        compensation: { AutoGainList.demoCompensation[$0] })
 }

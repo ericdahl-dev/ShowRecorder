@@ -473,4 +473,18 @@ struct AutoGainSessionTests {
 
         #expect(control.gainDb[2] == 22, "USB 2's Undo never reached the Mixer")
     }
+
+    @Test("The result can say what Re-Gain compensated on each USB Channel, until Undo puts it back (#155, #393)")
+    func compensated() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
+        control.alsoMoves = ReGain.Change(setting: ReGain.Setting(channel: 1, parameter: .mainFader), fromDb: 0, toDb: -22)
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]))
+
+        _ = await session.run(usbChannels: [1, 2])
+
+        #expect(session.compensated(usbChannel: 1) == [.init(channel: 1, setting: "fader", fromDb: 0, toDb: -22)])
+        #expect(session.compensated(usbChannel: 2).isEmpty)   // no signal, nothing moved
+        try await session.undo(usbChannel: 1)
+        #expect(session.compensated(usbChannel: 1).isEmpty)
+    }
 }

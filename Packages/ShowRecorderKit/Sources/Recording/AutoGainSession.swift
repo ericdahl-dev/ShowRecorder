@@ -260,6 +260,22 @@ public final class AutoGainSession {
         for usbChannel in steps.keys.sorted().reversed() { try await undo(usbChannel: usbChannel) }
     }
 
+    /// What Re-Gain moved to keep the mix the same on `usbChannel`, from before its first step still held to now:
+    /// one entry per setting, in channel and setting order. Empty once Undo has put every step back.
+    public func compensated(usbChannel: Int) -> [TakeMetadata.GainChange.Compensation] {
+        var moved: [ReGain.Setting: (fromDb: Double, toDb: Double)] = [:]
+        for step in steps[usbChannel] ?? [] {
+            for change in step.changes {
+                let toDb = step.held[change.setting] ?? change.toDb
+                moved[change.setting] = (moved[change.setting]?.fromDb ?? change.fromDb, toDb)
+            }
+        }
+        return moved.filter { $0.value.fromDb != $0.value.toDb }
+            .map { TakeMetadata.GainChange.Compensation(channel: $0.key.channel, setting: $0.key.parameter.logName,
+                                                         fromDb: $0.value.fromDb, toDb: $0.value.toDb) }
+            .sorted { ($0.channel, $0.setting) < ($1.channel, $1.setting) }
+    }
+
     /// A gain step as the log records it: the gain and every compensated setting from and to (reversed for an undo).
     static func change(_ step: GainStep, usbChannel: Int, reason: TakeMetadata.GainChange.Reason, undoing: Bool = false) -> TakeMetadata.GainChange {
         let compensations = step.changes.map { change in
