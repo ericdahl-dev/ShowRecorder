@@ -139,10 +139,13 @@ public final class AutoGainSession {
                     return level
                 },
                 adjust: { db in
-                    if stopRequested { throw StoppedForTake() }
-                    let step: GainStep
+                    let moved: GainStep?
                     do throws(MixerLinkProblem) {
-                        step = try await control.applyReGain(channel: channel, gainChangeDb: db, scopes: .all)
+                        // Checked again once it's this channel's turn on the Mixer: a stop while it waited means no move.
+                        moved = try await onMixer { () throws(MixerLinkProblem) -> GainStep? in
+                            if stopRequested { return nil }
+                            return try await control.applyReGain(channel: channel, gainChangeDb: db, scopes: .all)
+                        }
                     } catch {
                         // Stopped partway: what was written is logged and kept for Undo (#450), then the run ends.
                         if case .gainMoveInterrupted(let partial) = error {
@@ -151,6 +154,7 @@ public final class AutoGainSession {
                         }
                         throw error
                     }
+                    guard let step = moved else { throw StoppedForTake() }
                     let applied = step.toGainDb - step.fromGainDb
                     limit = step.limitedBy
                     // A step that moved nothing changed nothing: there's nothing to log or undo. A setting can move
@@ -173,7 +177,7 @@ public final class AutoGainSession {
             var undoProblem: MixerLinkProblem?
             while undoProblem == nil, let step = taken.last {
                 do throws(MixerLinkProblem) {
-                    try await control.undo(step)
+                    try await onMixer { () throws(MixerLinkProblem) in try await control.undo(step) }
                     taken.removeLast()
                     log(Self.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
                 } catch {
@@ -210,6 +214,23 @@ public final class AutoGainSession {
     }
 
     /// Puts back every gain step taken on `usbChannel`, newest first.
+    /// One gain move or undo on the Mixer at a time, in the order asked: each Re-Gain plan reads the Mixer, ramps and
+    /// writes, so two at once could both rewrite a setting they both compensate (a keyed threshold) and lose one move.
+    private var mixerBusy = false
+    private var mixerWaiting: [CheckedContinuation<Void, Never>] = []
+
+    private func onMixer<T>(_ body: () async throws(MixerLinkProblem) -> T) async throws(MixerLinkProblem) -> T {
+        if mixerBusy {
+            await withCheckedContinuation { mixerWaiting.append($0) }
+        } else {
+            mixerBusy = true
+        }
+        defer {
+            if mixerWaiting.isEmpty { mixerBusy = false } else { mixerWaiting.removeFirst().resume() }
+        }
+        return try await body()
+    }
+
     /// USB Channels with an Undo under way.
     private var undoing: Set<Int> = []
 
@@ -222,7 +243,7 @@ public final class AutoGainSession {
         defer { undoing.remove(usbChannel) }
         stopRequested = false
         while !stopRequested, let step = steps[usbChannel]?.last {
-            try await control.undo(step)
+            try await onMixer { () throws(MixerLinkProblem) in try await control.undo(step) }
             if steps[usbChannel]?.last == step { steps[usbChannel]?.removeLast() }
             log(Self.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
         }
