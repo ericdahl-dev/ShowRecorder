@@ -180,6 +180,18 @@ struct ClipProtectionTests {
         #expect(control.gainDb[1] == 18)
     }
 
+    @Test("A turn-down the mixer stops answering partway is still logged and counted in the Take's 12 dB (#450)")
+    func interruptedTurnDown() async {
+        control.interruptsHalfway = true
+        var logged: [TakeMetadata.GainChange] = []
+        let protection = ClipProtection(control: control, sampleRate: 48_000, log: { logged.append($0) })
+
+        await Self.feed(protection, Self.hot)
+
+        #expect(control.gainDb[1] == 28)
+        #expect(logged.map(\.toGainDb) == [28])
+    }
+
     @Test("When the Mixer doesn't answer, nothing is logged and the meters keep going; it tries again after the rest")
     func mixerProblem() async {
         var logged: [TakeMetadata.GainChange] = []

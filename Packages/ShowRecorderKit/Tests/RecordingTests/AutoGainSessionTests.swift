@@ -20,6 +20,9 @@ final class FakeGainControl: GainControl {
     /// When set, each gain move waits on it first, as a slow Mixer does.
     var answer: (@Sendable () async -> Void)?
     let gainRange: ClosedRange<Double> = -12...60
+    /// When set, every gain move stops halfway: the mixer has the half it was sent, and the move throws
+    /// `.gainMoveInterrupted` with that half (#450).
+    var interruptsHalfway = false
     /// The preamp each Mixer channel's move lands on, when it isn't its own (a shared headamp, a stereo link).
     var preampOf: [Int: Int] = [:]
     /// When set, every gain move also moves this compensated setting, even when the gain snaps back to where it was.
@@ -46,7 +49,7 @@ final class FakeGainControl: GainControl {
     nonisolated func applyReGain(channel: Int, gainChangeDb: Double, scopes: ReGain.Scopes) async throws(MixerLinkProblem) -> GainStep {
         if let problem = await MainActor.run(body: { problem }) { throw problem }
         if let answer = await MainActor.run(body: { answer }) { await answer() }
-        return await MainActor.run {
+        let result: Result<GainStep, MixerLinkProblem> = await MainActor.run {
             let target = movesInstead[channel] ?? channel
             let from = gainDb[target] ?? 0
             var to = min(gainRange.upperBound, max(gainRange.lowerBound, from + gainChangeDb))
@@ -55,12 +58,20 @@ final class FakeGainControl: GainControl {
                 to = max(from, ceiling)
                 limit = Self.gateAtTop
             }
+            if interruptsHalfway {
+                let half = from + (to - from) / 2
+                gainDb[target] = half
+                let step = GainStep(channel: channel, headamp: target, fromGainDb: from, toGainDb: half, held: [:], limitedBy: nil,
+                                    restore: ["gain/\(target)": Float(from)])
+                return .failure(.gainMoveInterrupted(step))
+            }
             gainDb[target] = to
             let changes = alsoMoves.map { [$0] } ?? []
             let held = Dictionary(changes.map { ($0.setting, $0.toDb) }, uniquingKeysWith: { _, last in last })
-            return GainStep(channel: channel, headamp: target, fromGainDb: from, toGainDb: to, changes: changes, held: held,
-                            limitedBy: limit, restore: ["gain/\(target)": Float(from)])
+            return .success(GainStep(channel: channel, headamp: target, fromGainDb: from, toGainDb: to, changes: changes, held: held,
+                                     limitedBy: limit, restore: ["gain/\(target)": Float(from)]))
         }
+        return try result.get()
     }
 
     nonisolated func undo(_ step: GainStep) async throws(MixerLinkProblem) {
@@ -311,5 +322,25 @@ struct AutoGainSessionTests {
             .set(usbChannel: 1, channel: 1, fromGainDb: 0, toGainDb: 22, levelDbfs: -18),
             .skipped(usbChannel: 2, reason: .samePreamp(asUSBChannel: 1)),
         ])
+    }
+
+    @Test("A gain move the mixer stops answering partway is logged with what was written and kept for Undo (#450)")
+    func interruptedMoveLoggedAndUndone() async throws {
+        let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
+        control.interruptsHalfway = true
+        var logged: [TakeMetadata.GainChange] = []
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]), log: { logged.append($0) })
+
+        let results = await session.run(usbChannels: [1])
+
+        guard case .error(usbChannel: 1, channel: 1, problem: .gainMoveInterrupted)? = results.first else {
+            Issue.record("expected the interrupted move as the result, got \(results)")
+            return
+        }
+        #expect(logged.map(\.toGainDb) == [11])
+        #expect(session.steps[1]?.count == 1)
+        control.interruptsHalfway = false
+        try await session.undo(usbChannel: 1)
+        #expect(control.gainDb[1] == 0)
     }
 }

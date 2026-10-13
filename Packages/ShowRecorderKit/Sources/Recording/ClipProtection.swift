@@ -132,8 +132,14 @@ public final class ClipProtection {
             let left = Self.mostPerTakeDb - (turnedDown[preamp] ?? 0)
             guard left > 0 else { continue }
             lastMove[preamp] = clock
-            guard let step = try? await control.applyReGain(channel: channel, gainChangeDb: max(-left, Self.stepDb(peakDbfs: peak)), scopes: .all)
-            else { continue }
+            let step: GainStep
+            do throws(MixerLinkProblem) {
+                step = try await control.applyReGain(channel: channel, gainChangeDb: max(-left, Self.stepDb(peakDbfs: peak)), scopes: .all)
+            } catch {
+                // Stopped partway: whatever was written still counts and is logged (#450); otherwise nothing moved.
+                guard case .gainMoveInterrupted(let partial) = error else { continue }
+                step = partial
+            }
             // At its lowest gain, or Re-Gain out of range: nothing moved, so nothing to log or Mark.
             guard step.toGainDb < step.fromGainDb else { continue }
             turnedDown[preamp, default: 0] += step.fromGainDb - step.toGainDb

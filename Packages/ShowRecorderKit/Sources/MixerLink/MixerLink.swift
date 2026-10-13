@@ -54,6 +54,9 @@ public enum MixerLinkProblem: Error, Equatable, Sendable {
     case hostNotFound(String)
     /// Gain can't be set: input channel `channel` has no preamp (its source is digital, such as a card or USB input).
     case noPreamp(channel: Int)
+    /// The Mixer stopped answering partway through a gain move (#450). `step` is what was written before it stopped,
+    /// with the exact values from before, so it can be logged and undone.
+    case gainMoveInterrupted(GainStep)
     /// A connection to the Mixer couldn't be opened, for a reason with no words of its own: the code is kept for support.
     case cantConnect(host: String, port: UInt16, code: Int)
     case other(String)
@@ -70,6 +73,8 @@ public enum MixerLinkProblem: Error, Equatable, Sendable {
             "\"\(text)\" isn't a valid Mixer address. Enter its IP address, such as 192.168.1.20, or its name, such as xr18.local."
         case .hostNotFound(let host):
             "No Mixer named \(host) was found on this network. Check the name, or enter the Mixer's IP address."
+        case .gainMoveInterrupted(let step):
+            "The Mixer stopped answering partway through moving channel \(step.channel)'s gain. Undo puts back what was changed."
         case .noPreamp(let channel):
             "Channel \(channel) on the Mixer has no preamp (its input is digital), so its gain can't be set."
         case .cantConnect(let host, let port, let code):
