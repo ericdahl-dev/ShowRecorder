@@ -29,8 +29,8 @@ struct ClipTriggerTests {
 
     @Test("A peak above -3 dBFS held for 300 ms fires, with the highest peak it saw")
     func sustained() throws {
-        // 9 windows of 33 ms = 300 ms.
-        let windows = [Windows.at(-2), Windows.at(-1.5)] + Windows.repeating(Windows.at(-2), 7)
+        // 10 windows of 33 ms = 333 ms.
+        let windows = [Windows.at(-2), Windows.at(-1.5)] + Windows.repeating(Windows.at(-2), 8)
         let fired = try #require(Self.run(windows))
         #expect(abs(fired - -1.5) < 0.01)
     }
@@ -79,6 +79,11 @@ struct ClipProtectionStepTests {
     func halfDb() {
         #expect(ClipProtection.stepDb(peakDbfs: -2.7) == -3.5)
         #expect(ClipProtection.stepDb(peakDbfs: -1.999_99) == -4)
+    }
+
+    @Test("A Peak already below -6 never turns a preamp up")
+    func neverUp() {
+        #expect(ClipProtection.stepDb(peakDbfs: -10) == 0)
     }
 }
 
@@ -170,6 +175,40 @@ struct ClipProtectionTests {
 
         #expect(control.gainDb[1] == -12)
         #expect(logged.isEmpty)
+    }
+
+    @Test("A meter read while a slow Mixer is still answering, a disarm leaving no channels, doesn't crash or move twice")
+    func readDuringMove() async {
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        control.answer = {
+            enter.yield()
+            for await _ in released { return }
+        }
+        let protection = ClipProtection(control: control, sampleRate: 48_000)
+
+        let moving = Task { await Self.feed(protection, Self.hot + Self.hot) }
+        for await _ in entered { break }
+        await protection.observe([])
+        release.yield()
+        await moving.value
+
+        #expect(control.gainDb[1] == 26)
+    }
+
+    @Test("Three separate clips in 2 s take a full 6 dB; the last move of a Take takes only what's left of the 12 dB")
+    func clipsAndWhatsLeft() async {
+        let protection = ClipProtection(control: control, sampleRate: 48_000)
+        let rest = Windows.repeating(Windows.at(-20), 150)
+        let gap = Windows.repeating(Windows.at(-12), 15)
+        let clips = [Windows.clip] + gap + [Windows.clip] + gap + [Windows.clip] + rest
+
+        await Self.feed(protection, Self.hot + rest)
+        #expect(control.gainDb[1] == 26)
+        await Self.feed(protection, clips)
+        #expect(control.gainDb[1] == 20)
+        await Self.feed(protection, clips)
+        #expect(control.gainDb[1] == 18)
     }
 }
 

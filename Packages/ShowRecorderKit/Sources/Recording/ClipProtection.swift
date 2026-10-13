@@ -87,7 +87,7 @@ public final class ClipProtection {
     /// resolution, rounded to turn down more; to the hundredth first, so a meter's float noise doesn't add a step.
     nonisolated public static func stepDb(peakDbfs: Double) -> Double {
         let exact = ((targetPeakDbfs - peakDbfs) * 100).rounded() / 100
-        return max(-largestStepDb, (exact * 2).rounded(.down) / 2)
+        return min(0, max(-largestStepDb, (exact * 2).rounded(.down) / 2))
     }
 
     private let control: any GainControl
@@ -119,9 +119,10 @@ public final class ClipProtection {
     public func observe(_ levels: [ChannelLevel]) async {
         if triggers.count != levels.count { triggers = Array(repeating: ClipTrigger(sampleRate: sampleRate), count: levels.count) }
         clock += Double(levels.map(\.frames).max() ?? 0) / sampleRate
-        for (index, level) in levels.enumerated() {
-            guard let peak = triggers[index].observe(level) else { continue }
-            let usbChannel = index + 1
+        // Every trigger takes its window before any move waits on the Mixer: the next read can arrive during that
+        // wait (and a disarm can leave no channels), so nothing below touches `triggers`.
+        let fired = levels.indices.compactMap { index in triggers[index].observe(levels[index]).map { (usbChannel: index + 1, peak: $0) } }
+        for (usbChannel, peak) in fired {
             guard let channel = control.channel(forUSBChannel: usbChannel),
                   lastMove[channel].map({ clock - $0 >= Self.restSeconds }) ?? true else { continue }
             let left = Self.mostPerTakeDb - (turnedDown[channel] ?? 0)

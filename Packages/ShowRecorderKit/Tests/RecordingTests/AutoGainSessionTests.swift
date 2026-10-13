@@ -14,6 +14,8 @@ final class FakeGainControl: GainControl {
     var movesInstead: [Int: Int] = [:]
     /// When set, every gain move fails with it (the Mixer stopped answering).
     var problem: MixerLinkProblem?
+    /// When set, each gain move waits on it first, as a slow Mixer does.
+    var answer: (@Sendable () async -> Void)?
     let gainRange: ClosedRange<Double> = -12...60
 
     init(gainDb: [Int: Double], channelOfUSB: [Int: Int]) {
@@ -27,6 +29,7 @@ final class FakeGainControl: GainControl {
 
     nonisolated func applyReGain(channel: Int, gainChangeDb: Double, scopes: ReGain.Scopes) async throws(MixerLinkProblem) -> GainStep {
         if let problem = await MainActor.run(body: { problem }) { throw problem }
+        if let answer = await MainActor.run(body: { answer }) { await answer() }
         return await MainActor.run {
             let target = movesInstead[channel] ?? channel
             let from = gainDb[target] ?? 0
