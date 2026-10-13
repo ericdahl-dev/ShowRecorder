@@ -697,7 +697,8 @@ final class RecordScreenModel {
         driveRejoin.update(isRecording: recorder.isRecording, drive: driveCopy)
         if let end = recorder.lastTakeEnd, end != toldTakeEnd {
             toldTakeEnd = end
-            if recordError == nil, let message = end.reason.message { recordError = message }
+            // An input change is told where it happens (a route move, a device change, a media reset's notice).
+            if recordError == nil, end.reason != .inputChanged, let message = end.reason.message { recordError = message }
         }
         if !recorder.isRecording { takeStartedAt = nil }
         followLiveActivity()
@@ -1321,7 +1322,7 @@ final class RecordScreenModel {
             meterModel.reset(channelCount: recorder.usbChannelCount)
             Self.sessionLog.notice("Input route changed during a Take; \(continued ? "the Take continues" : "the format changed, so the Take was stopped and saved", privacy: .public)")
             if !continued {
-                recordError = "The audio input changed format during the Take. Recording stopped and the Stems recorded so far were saved. Press record to start a new Take."
+                recordError = TakeEnd.Reason.inputChanged.message
             }
             // A retry that works ends the "input is stopped" state the failed move left behind.
             if wasStopped { handle(.restarted) }

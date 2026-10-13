@@ -177,14 +177,15 @@ public final class Recorder {
     /// reset its media services).
     ///
     /// When `replacement` has the same USB Channel count and sample rate, the running Take carries
-    /// on into the same Stems and this returns `true`. Otherwise the Take is stopped and finalized,
-    /// the recorder Arms on `replacement`, and this returns `false`.
+    /// on into the same Stems and this returns `true`. Otherwise the Take is stopped and finalized
+    /// (its end's reason is `.inputChanged`), the recorder Arms on `replacement`, and this returns `false`.
     @discardableResult
     public func restartInput(on replacement: any AudioIODevice) throws -> Bool {
         guard let device, let capture,
               replacement.inputChannelCount == capture.channelCount,
               replacement.sampleRate == device.sampleRate
         else {
+            if isRecording { try stopTake(because: .inputChanged) }
             try arm(replacement)
             return false
         }
