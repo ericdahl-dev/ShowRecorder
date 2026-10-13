@@ -3,7 +3,7 @@
 /// level dB for dB), lets it settle and measures again, for at most a few passes.
 ///
 /// It never reads the absolute gain back: it only asks for relative moves, and the actuator answers with how far it
-/// actually moved. An actuator at the end of its range (or of the range Re-Gain can compensate) moves less, or not
+/// actually moved. An actuator at the end of its range (or of the range Mix Hold can compensate) moves less, or not
 /// at all, and the rule stops there instead of spending its passes. The wait between passes is passed in, so tests
 /// don't sleep.
 public struct AutoGainRule: Sendable {

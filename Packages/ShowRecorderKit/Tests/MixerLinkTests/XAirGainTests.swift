@@ -3,7 +3,7 @@ import AutoGain
 import OSC
 import Testing
 
-/// Setting an X-Air channel's preamp gain with Re-Gain (#153). Addresses and scales as read on Eric's XR18
+/// Setting an X-Air channel's preamp gain with Mix Hold (#153). Addresses and scales as read on Eric's XR18
 /// (firmware 1.26): /headamp/01-16 -12..+60 dB, 17-18 (aux line in) -12..+20 dB; a channel's preamp from its insrc.
 @Suite("X-Air gain")
 struct XAirGainTests {
@@ -40,19 +40,19 @@ struct XAirGainTests {
         #expect(try await driver.gainDb(ofHeadamp: 1) == 14.5)
     }
 
-    @Test("Reads a channel's Re-Gain state: thresholds, fader, and its 10 sends, each pre or post from its own tap; no mono")
-    func readsReGainState() async throws {
+    @Test("Reads a channel's Mix Hold state: thresholds, fader, and its 10 sends, each pre or post from its own tap; no mono")
+    func readsMixHoldState() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
         let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
-        let state = try await driver.reGainState(ofChannel: 1)
+        let state = try await driver.mixHoldState(ofChannel: 1)
 
         #expect(state.gateThresholdDb == -18.5)
         #expect(state.compressorThresholdDb == -25)
         #expect(abs((state.mainFaderDb ?? 0) - -6.2) < 0.05)
         #expect(state.otherMainsDb.isEmpty)
         #expect(state.sends.count == 10)
-        #expect(state.sends.first { $0.bus == 7 } == ReGain.Send(bus: 7, levelDb: -8.5, preFader: true))
+        #expect(state.sends.first { $0.bus == 7 } == MixHold.Send(bus: 7, levelDb: -8.5, preFader: true))
         #expect(state.sends.first { $0.bus == 1 }?.preFader == false, "POST")
     }
 
@@ -61,7 +61,7 @@ struct XAirGainTests {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
         let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
-        #expect(try await driver.keyedDynamics(from: 1) == [ReGain.KeyedDynamics(channel: 2, dynamics: .compressor, thresholdDb: -30, keyChannel: 1)])
+        #expect(try await driver.keyedDynamics(from: 1) == [MixHold.KeyedDynamics(channel: 2, dynamics: .compressor, thresholdDb: -30, keyChannel: 1)])
         #expect(try await driver.keyedDynamics(from: 3).isEmpty)
     }
 
@@ -82,21 +82,21 @@ struct XAirGainTests {
     func applyAndUndo() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
         let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
-        let before = try await driver.reGainState(ofChannel: 1)
+        let before = try await driver.mixHoldState(ofChannel: 1)
 
-        let step = try await driver.applyReGain(channel: 1, gainChangeDb: 12, scopes: .all)
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 12, scopes: .all)
 
         #expect(step.headamp == 1 && step.fromGainDb == 14.5 && step.toGainDb == 26.5)
-        #expect(step.held[ReGain.Setting(channel: 1, parameter: .gateThreshold)] == -6.5)
-        #expect(step.held[ReGain.Setting(channel: 1, parameter: .send(7))] == -20.5)
-        #expect(step.held[ReGain.Setting(channel: 2, parameter: .compressorThreshold)] == -18)
+        #expect(step.held[MixHold.Setting(channel: 1, parameter: .gateThreshold)] == -6.5)
+        #expect(step.held[MixHold.Setting(channel: 1, parameter: .send(7))] == -20.5)
+        #expect(step.held[MixHold.Setting(channel: 2, parameter: .compressorThreshold)] == -18)
         #expect(try await driver.gainDb(ofHeadamp: 1) == 26.5)
         #expect(Self.loudestRise(mixer.writes) <= 0.3)
 
         try await driver.undo(step)
-        #expect(try await driver.reGainState(ofChannel: 1) == before)
+        #expect(try await driver.mixHoldState(ofChannel: 1) == before)
         #expect(try await driver.gainDb(ofHeadamp: 1) == 14.5)
-        #expect(try await driver.reGainState(ofChannel: 2).compressorThresholdDb == -30, "the keyed compressor goes back too (#393)")
+        #expect(try await driver.mixHoldState(ofChannel: 2).compressorThresholdDb == -30, "the keyed compressor goes back too (#393)")
     }
 
     /// The loudest channel 1 got in the mix along the writes (gain + fader, gain + send 7), against the start.
@@ -130,7 +130,7 @@ struct XAirGainTests {
         #expect(try await driver.preamp(ofChannel: 1) == 1)
     }
 
-    @Test("A preamp-linked pair: Re-Gain on channel 1 compensates channel 2's strip too, and Undo puts both back (#393)")
+    @Test("A preamp-linked pair: Mix Hold on channel 1 compensates channel 2's strip too, and Undo puts both back (#393)")
     func linkedPartnerCompensated() async throws {
         var state = FakeXAirMixer.State()
         state.channels[0].inputSource = 0
@@ -140,18 +140,18 @@ struct XAirGainTests {
         state.set["/config/linkcfg/preamp"] = .int(1)
         let mixer = try await FakeXAirMixer(state)
         let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
-        let before = try await driver.reGainState(ofChannel: 2)
+        let before = try await driver.mixHoldState(ofChannel: 2)
 
-        let step = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
 
-        let fader2 = try #require(step.changes.first { $0.setting == ReGain.Setting(channel: 2, parameter: .mainFader) })
+        let fader2 = try #require(step.changes.first { $0.setting == MixHold.Setting(channel: 2, parameter: .mainFader) })
         #expect(abs(fader2.toDb - (fader2.fromDb - 6)) < 0.05)
-        #expect(step.changes.contains { $0.setting == ReGain.Setting(channel: 2, parameter: .gateThreshold) })
+        #expect(step.changes.contains { $0.setting == MixHold.Setting(channel: 2, parameter: .gateThreshold) })
         try await driver.undo(step)
-        #expect(try await driver.reGainState(ofChannel: 2) == before)
+        #expect(try await driver.mixHoldState(ofChannel: 2) == before)
     }
 
-    @Test("Linked strips without linked preamps: Re-Gain on channel 1 leaves channel 2 alone")
+    @Test("Linked strips without linked preamps: Mix Hold on channel 1 leaves channel 2 alone")
     func linkedStripsOnly() async throws {
         var state = FakeXAirMixer.State()
         state.channels[1].inputSource = 1
@@ -159,7 +159,7 @@ struct XAirGainTests {
         let mixer = try await FakeXAirMixer(state)
         let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
-        let step = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
 
         #expect(!step.changes.contains { $0.setting.channel == 2 })
     }
@@ -168,26 +168,26 @@ struct XAirGainTests {
     func cutAndUndo() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
         let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
-        let before = (try await driver.reGainState(ofChannel: 1), try await driver.reGainState(ofChannel: 2))
+        let before = (try await driver.mixHoldState(ofChannel: 1), try await driver.mixHoldState(ofChannel: 2))
 
-        let step = try await driver.applyReGain(channel: 1, gainChangeDb: -6, scopes: .all)
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: -6, scopes: .all)
         #expect(step.toGainDb == 8.5)
-        #expect(step.held[ReGain.Setting(channel: 1, parameter: .gateThreshold)] == -24.5)
+        #expect(step.held[MixHold.Setting(channel: 1, parameter: .gateThreshold)] == -24.5)
         try await driver.undo(step)
 
-        #expect(try await driver.reGainState(ofChannel: 1) == before.0)
-        #expect(try await driver.reGainState(ofChannel: 2) == before.1)
+        #expect(try await driver.mixHoldState(ofChannel: 1) == before.0)
+        #expect(try await driver.mixHoldState(ofChannel: 2) == before.1)
         #expect(try await driver.gainDb(ofHeadamp: 1) == 14.5)
     }
 
-    @Test("With only the gate in scope, Re-Gain moves the gain and the gate threshold and nothing else (#393)")
+    @Test("With only the gate in scope, Mix Hold moves the gain and the gate threshold and nothing else (#393)")
     func scopeThroughTheDriver() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
         let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
-        let step = try await driver.applyReGain(channel: 1, gainChangeDb: 4, scopes: .gate)
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 4, scopes: .gate)
 
-        #expect(step.changes.map(\.setting) == [ReGain.Setting(channel: 1, parameter: .gateThreshold)])
+        #expect(step.changes.map(\.setting) == [MixHold.Setting(channel: 1, parameter: .gateThreshold)])
         #expect(!mixer.writes.contains { $0.address == "/ch/01/mix/fader" })
     }
 
@@ -195,12 +195,12 @@ struct XAirGainTests {
     func readsFreshEachStep() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
         let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
-        _ = try await driver.applyReGain(channel: 1, gainChangeDb: 2, scopes: .all)
+        _ = try await driver.applyMixHold(channel: 1, gainChangeDb: 2, scopes: .all)
         mixer.update { $0.set["/ch/01/mix/fader"] = .float(0.75) }   // someone pushes the fader to 0 dB
 
-        let step = try await driver.applyReGain(channel: 1, gainChangeDb: 2, scopes: .all)
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 2, scopes: .all)
 
-        let fader = try #require(step.changes.first { $0.setting == ReGain.Setting(channel: 1, parameter: .mainFader) })
+        let fader = try #require(step.changes.first { $0.setting == MixHold.Setting(channel: 1, parameter: .mainFader) })
         #expect(abs(fader.fromDb) < 0.05)
         #expect(abs(fader.toDb - -2) < 0.05)
     }

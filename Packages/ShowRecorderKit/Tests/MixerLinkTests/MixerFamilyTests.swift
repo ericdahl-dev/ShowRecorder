@@ -64,7 +64,7 @@ struct MixerFamilyTests {
         #expect(MixerEndpoint(parsing: "10.0.0.5")?.port == MixerEndpoint.defaultPort)
     }
 
-    @Test("Every family's driver offers its preamp control, so Re-Gain and auto-gain reach it (#442)",
+    @Test("Every family's driver offers its preamp control, so Mix Hold and auto-gain reach it (#442)",
           arguments: MixerFamily.allCases)
     func gainControl(family: MixerFamily) {
         let driver = family.makeDriver(endpoint: MixerEndpoint(host: "10.0.0.20"), timeout: .seconds(1))

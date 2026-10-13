@@ -105,7 +105,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     /// Takes made before the gain log existed.
     public var gainChanges: [GainChange]?
 
-    /// One preamp gain change on the Mixer, by auto-gain, clip protection or Undo, with what Re-Gain moved to keep
+    /// One preamp gain change on the Mixer, by auto-gain, clip protection or Undo, with what Mix Hold moved to keep
     /// the mix the same. Logged in the Take during a Take (with `position`) and in the Show between Takes.
     public struct GainChange: Codable, Equatable, Sendable {
         public enum Reason: String, Codable, Sendable {
@@ -123,7 +123,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
             }
         }
 
-        /// A setting Re-Gain moved: a threshold, the fader or a send on a Mixer channel, as the Mixer holds it.
+        /// A setting Mix Hold moved: a threshold, the fader or a send on a Mixer channel, as the Mixer holds it.
         public struct Compensation: Codable, Equatable, Sendable {
             public var channel: Int
             /// "gate threshold", "compressor threshold", "fader", "send 3" and so on.

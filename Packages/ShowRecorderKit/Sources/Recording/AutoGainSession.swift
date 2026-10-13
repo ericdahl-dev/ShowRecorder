@@ -3,7 +3,7 @@ import MixerLink
 import TakeFile
 
 /// Auto-gain on the record screen (#155): brings USB Channels to the target level by moving their preamps on the
-/// Mixer with Re-Gain, so the mix stays the same. It measures with our own meters, the level actually recorded.
+/// Mixer with Mix Hold, so the mix stays the same. It measures with our own meters, the level actually recorded.
 /// Never during a Take: the screen doesn't offer it then.
 @MainActor
 public final class AutoGainSession {
@@ -14,8 +14,8 @@ public final class AutoGainSession {
         /// Left alone, and why.
         case skipped(usbChannel: Int, reason: Skip)
         /// The rule couldn't bring it to target; whatever gain it set stays, for Undo. `limitedBy` is the setting that
-        /// stopped Re-Gain going further, when that's why (a threshold at its top, say), rather than the preamp's range.
-        case failed(usbChannel: Int, channel: Int, failure: AutoGainRule.Failure, limitedBy: ReGain.Limit? = nil)
+        /// stopped Mix Hold going further, when that's why (a threshold at its top, say), rather than the preamp's range.
+        case failed(usbChannel: Int, channel: Int, failure: AutoGainRule.Failure, limitedBy: MixHold.Limit? = nil)
         /// Its level didn't follow the gain, so the gain moved somewhere else (the USB routing isn't what was read).
         /// It stopped and put that gain back.
         case stopped(usbChannel: Int, channel: Int)
@@ -150,7 +150,7 @@ public final class AutoGainSession {
         var taken: [GainStep] = []
         var expected: Double?   // where the last move should have put the level
         var lastLevel = 0.0
-        var limit: ReGain.Limit?   // what limited the latest step, if anything did
+        var limit: MixHold.Limit?   // what limited the latest step, if anything did
         let outcome: AutoGainRule.Outcome
         do {
             outcome = try await rule.run(
@@ -169,7 +169,7 @@ public final class AutoGainSession {
                         // Checked again once it's this channel's turn on the Mixer: a stop while it waited means no move.
                         moved = try await onMixer { () throws(MixerLinkProblem) -> GainStep? in
                             if stopRequested { return nil }
-                            return try await control.applyReGain(channel: channel, gainChangeDb: db, scopes: .all)
+                            return try await control.applyMixHold(channel: channel, gainChangeDb: db, scopes: .all)
                         }
                     } catch {
                         // Stopped partway: what was written is logged and kept for Undo (#450), then the run ends.
@@ -233,13 +233,13 @@ public final class AutoGainSession {
         case .failed(.noSignal, _):
             return .skipped(usbChannel: usbChannel, reason: .noSignal)
         case .failed(let failure, _):
-            let limitedBy: ReGain.Limit? = if case .rangeReached = failure { limit } else { nil }
+            let limitedBy: MixHold.Limit? = if case .rangeReached = failure { limit } else { nil }
             return .failed(usbChannel: usbChannel, channel: channel, failure: failure, limitedBy: limitedBy)
         }
     }
 
     /// Puts back every gain step taken on `usbChannel`, newest first.
-    /// One gain move or undo on the Mixer at a time, in the order asked: each Re-Gain plan reads the Mixer, ramps and
+    /// One gain move or undo on the Mixer at a time, in the order asked: each Mix Hold plan reads the Mixer, ramps and
     /// writes, so two at once could both rewrite a setting they both compensate (a keyed threshold) and lose one move.
     private var mixerBusy = false
     private var mixerWaiting: [CheckedContinuation<Void, Never>] = []
@@ -285,10 +285,10 @@ public final class AutoGainSession {
         for usbChannel in steps.keys.sorted().reversed() { try await undo(usbChannel: usbChannel) }
     }
 
-    /// What Re-Gain moved to keep the mix the same on `usbChannel`, from before its first step still held to now:
+    /// What Mix Hold moved to keep the mix the same on `usbChannel`, from before its first step still held to now:
     /// one entry per setting, in channel and setting order. Empty once Undo has put every step back.
     public func compensated(usbChannel: Int) -> [TakeMetadata.GainChange.Compensation] {
-        var moved: [ReGain.Setting: (fromDb: Double, toDb: Double)] = [:]
+        var moved: [MixHold.Setting: (fromDb: Double, toDb: Double)] = [:]
         for step in steps[usbChannel] ?? [] {
             for change in step.changes {
                 let toDb = step.held[change.setting] ?? change.toDb
@@ -316,8 +316,8 @@ public final class AutoGainSession {
     }
 }
 
-extension ReGain.Limit {
-    /// The setting that stopped Re-Gain and its end stop, as the auto-gain sheet says it: "Channel 1's gate threshold
+extension MixHold.Limit {
+    /// The setting that stopped Mix Hold and its end stop, as the auto-gain sheet says it: "Channel 1's gate threshold
     /// is at its end stop (0 dB)".
     public var explanation: String {
         let db = endDb > 0 ? String(format: "+%g", endDb) : String(format: "%g", endDb)
@@ -325,7 +325,7 @@ extension ReGain.Limit {
     }
 }
 
-extension ReGain.Parameter {
+extension MixHold.Parameter {
     /// "gate threshold", "fader", "send 3", as the gain log names it.
     var logName: String {
         switch self {

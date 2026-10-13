@@ -3,7 +3,7 @@ import AutoGain
 import OSC
 import Testing
 
-/// Setting an X32 channel's preamp gain, with Re-Gain's compensation (#392).
+/// Setting an X32 channel's preamp gain, with Mix Hold's compensation (#392).
 @Suite("X32 gain")
 struct X32GainTests {
     @Test("A channel's preamp is the one the X32 reports for it; a channel with none (a digital source) has none")
@@ -19,8 +19,8 @@ struct X32GainTests {
         #expect(try await driver.headamp(ofChannel: 10) == nil)
     }
 
-    @Test("Reads a channel's Re-Gain state in dB: thresholds, fader, mono, and its sends with pre or post")
-    func readsReGainState() async throws {
+    @Test("Reads a channel's Mix Hold state in dB: thresholds, fader, mono, and its sends with pre or post")
+    func readsMixHoldState() async throws {
         var state = FakeXAirMixer.State.x32()
         var kick = state.channels[0]
         kick.gateThreshold = 0.5375          // -37.0 dB
@@ -34,15 +34,15 @@ struct X32GainTests {
         let mixer = try await FakeXAirMixer(state)
         let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
-        let read = try await driver.reGainState(ofChannel: 1)
+        let read = try await driver.mixHoldState(ofChannel: 1)
 
         #expect(read.channel == 1)
         #expect(read.gateThresholdDb == -37.0)
         #expect(read.compressorThresholdDb == -31.5)
         #expect(abs((read.mainFaderDb ?? 99) - 0) < 0.05, "0 dB isn't on one of the fader's 1024 steps; the nearest is -0.01 dB")
         #expect(read.otherMainsDb == [1: -90])
-        #expect(read.sends.first { $0.bus == 1 } == ReGain.Send(bus: 1, levelDb: -20, preFader: true))
-        #expect(read.sends.first { $0.bus == 2 } == ReGain.Send(bus: 2, levelDb: -8.75, preFader: true))
+        #expect(read.sends.first { $0.bus == 1 } == MixHold.Send(bus: 1, levelDb: -20, preFader: true))
+        #expect(read.sends.first { $0.bus == 2 } == MixHold.Send(bus: 2, levelDb: -8.75, preFader: true))
         #expect(read.sends.first { $0.bus == 3 }?.preFader == false, "sends 3-4 are POST")
         #expect(read.sends.count == 16)
     }
@@ -61,8 +61,8 @@ struct X32GainTests {
         let keyed = try await driver.keyedDynamics(from: 1)
 
         #expect(Set(keyed) == [
-            ReGain.KeyedDynamics(channel: 2, dynamics: .compressor, thresholdDb: -34, keyChannel: 1),
-            ReGain.KeyedDynamics(channel: 3, dynamics: .gate, thresholdDb: -40, keyChannel: 1),
+            MixHold.KeyedDynamics(channel: 2, dynamics: .compressor, thresholdDb: -34, keyChannel: 1),
+            MixHold.KeyedDynamics(channel: 3, dynamics: .gate, thresholdDb: -40, keyChannel: 1),
         ])
     }
 
@@ -93,37 +93,37 @@ struct X32GainTests {
     }
 
     @Test("+6 dB: the gain and every compensation are written on the X32's own steps, and the result says what it holds")
-    func applyReGain() async throws {
+    func applyMixHold() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
         let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
-        let result = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
+        let result = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
 
         #expect(result.headamp == 0)
         #expect(result.fromGainDb == -12 && result.toGainDb == -6)
-        #expect(result.held[ReGain.Setting(channel: 1, parameter: .gateThreshold)] == -31)
-        #expect(result.held[ReGain.Setting(channel: 1, parameter: .compressorThreshold)] == -25.5)
-        #expect(result.held[ReGain.Setting(channel: 1, parameter: .send(1))] == -26)
-        #expect(result.held[ReGain.Setting(channel: 2, parameter: .compressorThreshold)] == -28)
-        let send2 = try #require(result.held[ReGain.Setting(channel: 1, parameter: .send(2))])
+        #expect(result.held[MixHold.Setting(channel: 1, parameter: .gateThreshold)] == -31)
+        #expect(result.held[MixHold.Setting(channel: 1, parameter: .compressorThreshold)] == -25.5)
+        #expect(result.held[MixHold.Setting(channel: 1, parameter: .send(1))] == -26)
+        #expect(result.held[MixHold.Setting(channel: 2, parameter: .compressorThreshold)] == -28)
+        let send2 = try #require(result.held[MixHold.Setting(channel: 1, parameter: .send(2))])
         #expect(abs(send2 - -14.75) <= 0.25, "a step next to -14.75")
         #expect(X32Values.level.snap(send2) == send2, "on a step")
-        let after = try await driver.reGainState(ofChannel: 1)
+        let after = try await driver.mixHoldState(ofChannel: 1)
         #expect(after.gateThresholdDb == -31, "read back as written")
         #expect(after.sends.first { $0.bus == 2 }?.levelDb == send2)
         #expect(mixer.writes.allSatisfy { $0.address.hasPrefix("/ch/") || $0.address.hasPrefix("/headamp/") })
     }
 
     @Test("Undo puts back every value exactly as it was, gain included")
-    func undoReGain() async throws {
+    func undoMixHold() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
         let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
-        let before = try await driver.reGainState(ofChannel: 1)
+        let before = try await driver.mixHoldState(ofChannel: 1)
 
-        let result = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
+        let result = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
         try await driver.undo(result)
 
-        #expect(try await driver.reGainState(ofChannel: 1) == before)
+        #expect(try await driver.mixHoldState(ofChannel: 1) == before)
         #expect(try await driver.keyedDynamics(from: 1).first?.thresholdDb == -34)
         #expect(try await driver.gainDb(ofHeadamp: 0) == -12)
     }
@@ -135,7 +135,7 @@ struct X32GainTests {
         let mixer = try await FakeXAirMixer(state)
         let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
-        await #expect(throws: MixerLinkProblem.noPreamp(channel: 1)) { try await driver.applyReGain(channel: 1, gainChangeDb: 6) }
+        await #expect(throws: MixerLinkProblem.noPreamp(channel: 1)) { try await driver.applyMixHold(channel: 1, gainChangeDb: 6) }
         #expect(mixer.writes.isEmpty)
     }
 
@@ -146,14 +146,14 @@ struct X32GainTests {
         let mixer = try await FakeXAirMixer(state)
         let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
-        let result = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
+        let result = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
 
         #expect(result.toGainDb == 60)
-        #expect(result.held[ReGain.Setting(channel: 1, parameter: .gateThreshold)] == -34, "-37 + 3, not + 6")
+        #expect(result.held[MixHold.Setting(channel: 1, parameter: .gateThreshold)] == -34, "-37 + 3, not + 6")
     }
 
     /// Replays the writes in order and returns the loudest the channel got in the mix along the way, against where it
-    /// started: gain + fader, and gain + each pre-fader send, in dB. Re-Gain must never make it louder, even for a
+    /// started: gain + fader, and gain + each pre-fader send, in dB. Mix Hold must never make it louder, even for a
     /// moment, so this is at most a hair above 0.
     static func loudestRise(_ writes: [(address: String, value: OSCArgument)], start: [String: Double]) -> Double {
         var now = start
@@ -188,7 +188,7 @@ struct X32GainTests {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
         let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
-        let step = try await driver.applyReGain(channel: 1, gainChangeDb: 25)
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 25)
 
         let writes = mixer.writes
         let gainWrites = writes.filter { $0.address == "/headamp/000/gain" }
@@ -207,7 +207,7 @@ struct X32GainTests {
         var start = Self.kickStart
         start["/headamp/000/gain"] = 10
 
-        _ = try await driver.applyReGain(channel: 1, gainChangeDb: -6)
+        _ = try await driver.applyMixHold(channel: 1, gainChangeDb: -6)
 
         #expect(Self.loudestRise(mixer.writes, start: start) <= 0.3)
     }
@@ -216,8 +216,8 @@ struct X32GainTests {
     func undoRampsBack() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
         let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
-        let before = try await driver.reGainState(ofChannel: 1)
-        let step = try await driver.applyReGain(channel: 1, gainChangeDb: 25)
+        let before = try await driver.mixHoldState(ofChannel: 1)
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 25)
         let applied = mixer.writes.count
         var start = Self.kickStart
         start["/headamp/000/gain"] = 13
@@ -228,7 +228,7 @@ struct X32GainTests {
         try await driver.undo(step)
 
         #expect(Self.loudestRise(Array(mixer.writes.dropFirst(applied)), start: start) <= 0.6)
-        #expect(try await driver.reGainState(ofChannel: 1) == before)
+        #expect(try await driver.mixHoldState(ofChannel: 1) == before)
         #expect(try await driver.gainDb(ofHeadamp: 0) == -12)
     }
 
@@ -247,7 +247,7 @@ struct X32GainTests {
         #expect(try await driver.preamp(ofChannel: 4) == driver.preamp(ofChannel: 3))
     }
 
-    @Test("Two channels on one headamp: Re-Gain compensates both, so the other channel's level in the mix stays put (#473)")
+    @Test("Two channels on one headamp: Mix Hold compensates both, so the other channel's level in the mix stays put (#473)")
     func sharedHeadampCompensatesBoth() async throws {
         var state = FakeXAirMixer.State.x32()
         state.headampOfChannel[16] = 0   // channel 17 on local input 1, like channel 1
@@ -256,12 +256,12 @@ struct X32GainTests {
         let mixer = try await FakeXAirMixer(state)
         let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
-        let step = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
-        #expect(step.changes.filter { $0.setting == ReGain.Setting(channel: 5, parameter: .gateThreshold) }.count == 1)
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+        #expect(step.changes.filter { $0.setting == MixHold.Setting(channel: 5, parameter: .gateThreshold) }.count == 1)
 
-        let fader17 = try #require(step.changes.first { $0.setting == ReGain.Setting(channel: 17, parameter: .mainFader) })
+        let fader17 = try #require(step.changes.first { $0.setting == MixHold.Setting(channel: 17, parameter: .mainFader) })
         #expect(abs(fader17.toDb - (fader17.fromDb - 6)) < 0.05)
-        #expect(step.changes.contains { $0.setting == ReGain.Setting(channel: 17, parameter: .gateThreshold) })
+        #expect(step.changes.contains { $0.setting == MixHold.Setting(channel: 17, parameter: .gateThreshold) })
         #expect(mixer.writes.contains { $0.address == "/ch/17/mix/fader" })
         #expect(!step.changes.contains { $0.setting.channel == 2 }, "channel 2 is on its own headamp")
 
@@ -276,12 +276,12 @@ struct X32GainTests {
         state.stopsAnsweringAfterWrites = 9   // a few ramp steps into a +6 dB move
         let mixer = try await FakeXAirMixer(state)
         let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))   // waits out a Mixer that stops answering: keeps the short default
-        let before = try await driver.reGainState(ofChannel: 1)
+        let before = try await driver.mixHoldState(ofChannel: 1)
         let gainBefore = try await driver.gainDb(ofHeadamp: 0)
 
         var interrupted: GainStep?
         do {
-            _ = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
+            _ = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
         } catch {
             if case .gainMoveInterrupted(let step) = error { interrupted = step }
         }
@@ -289,11 +289,11 @@ struct X32GainTests {
         let step = try #require(interrupted)
         #expect(step.fromGainDb == gainBefore)
         #expect(step.toGainDb > gainBefore && step.toGainDb < gainBefore + 6, "partway: what was written, not the plan")
-        let fader = try #require(step.changes.first { $0.setting == ReGain.Setting(channel: 1, parameter: .mainFader) })
+        let fader = try #require(step.changes.first { $0.setting == MixHold.Setting(channel: 1, parameter: .mainFader) })
         #expect(step.held[fader.setting] == fader.toDb)
         mixer.update { $0.answers = true; $0.stopsAnsweringAfterWrites = nil }
         try await driver.undo(step)
-        #expect(try await driver.reGainState(ofChannel: 1) == before)
+        #expect(try await driver.mixHoldState(ofChannel: 1) == before)
         #expect(try await driver.gainDb(ofHeadamp: 0) == gainBefore)
     }
 
@@ -303,12 +303,12 @@ struct X32GainTests {
         state.stopsAnsweringAfterWrites = 1   // only the first compensation of the first ramp step lands
         let mixer = try await FakeXAirMixer(state)
         let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))   // waits out a Mixer that stops answering: keeps the short default
-        let before = try await driver.reGainState(ofChannel: 1)
+        let before = try await driver.mixHoldState(ofChannel: 1)
         let gainBefore = try await driver.gainDb(ofHeadamp: 0)
 
         var interrupted: GainStep?
         do {
-            _ = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
+            _ = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
         } catch {
             if case .gainMoveInterrupted(let step) = error { interrupted = step }
         }
@@ -318,11 +318,11 @@ struct X32GainTests {
         #expect(!step.changes.isEmpty)
         mixer.update { $0.answers = true; $0.stopsAnsweringAfterWrites = nil }
         try await driver.undo(step)
-        #expect(try await driver.reGainState(ofChannel: 1) == before)
+        #expect(try await driver.mixHoldState(ofChannel: 1) == before)
         #expect(try await driver.gainDb(ofHeadamp: 0) == gainBefore)
     }
 
-    @Test("An X32 preamp-linked pair: Re-Gain asked on channel 4 compensates channel 3's strip too (#393)")
+    @Test("An X32 preamp-linked pair: Mix Hold asked on channel 4 compensates channel 3's strip too (#393)")
     func linkedPartnerCompensated() async throws {
         var state = FakeXAirMixer.State.x32()
         state.set["/config/chlink/3-4"] = .int(1)
@@ -330,10 +330,10 @@ struct X32GainTests {
         let mixer = try await FakeXAirMixer(state)
         let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
-        let step = try await driver.applyReGain(channel: 4, gainChangeDb: 6)
+        let step = try await driver.applyMixHold(channel: 4, gainChangeDb: 6)
 
-        #expect(step.changes.contains { $0.setting == ReGain.Setting(channel: 3, parameter: .mainFader) })
-        #expect(step.changes.contains { $0.setting == ReGain.Setting(channel: 4, parameter: .mainFader) })
+        #expect(step.changes.contains { $0.setting == MixHold.Setting(channel: 3, parameter: .mainFader) })
+        #expect(step.changes.contains { $0.setting == MixHold.Setting(channel: 4, parameter: .mainFader) })
         #expect(!step.changes.contains { $0.setting.channel == 5 })
     }
 }

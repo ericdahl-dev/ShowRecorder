@@ -114,6 +114,10 @@ _Avoid_: Channel (unqualified), input
 A saved mixer scene stored on the mixer. Loading one can rename, re-route and re-mute channels.
 _Avoid_: Scene, preset
 
+**Mix Hold**:
+What keeps the mix the same when ShowRecorder moves a preamp's gain on the Mixer (auto-gain, clip protection, Undo): everything after the preamp moves the other way (the gate and compressor thresholds, the fader and the pre-fader sends), so only the recorded level changes.
+_Avoid_: Re-Gain, gain compensation
+
 **Mixer Trigger**:
 A mixer control the operator has set aside to drive the recorder: one press is one action, such as start, stop or drop a Marker.
 _Avoid_: Remote button, hotkey, GPI

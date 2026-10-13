@@ -28,17 +28,17 @@ final class FakeGainControl: GainControl {
     /// The preamp each Mixer channel's move lands on, when it isn't its own (a shared headamp, a stereo link).
     var preampOf: [Int: Int] = [:]
     /// When set, every gain move also moves this compensated setting, even when the gain snaps back to where it was.
-    var alsoMoves: ReGain.Change?
+    var alsoMoves: MixHold.Change?
     /// When set, each undo waits on it first, as a slow Mixer does.
     var undoAnswer: (@Sendable () async -> Void)?
     /// When set, each preamp read waits on it first, as a slow Mixer does.
     var preampAnswer: (@Sendable () async -> Void)?
-    /// When set, Re-Gain can't raise a gain past this, as when a threshold reaches its top: it stops there and says so.
-    var reGainCeilingDb: Double?
+    /// When set, Mix Hold can't raise a gain past this, as when a threshold reaches its top: it stops there and says so.
+    var mixHoldCeilingDb: Double?
     /// When set, a threshold every move compensates (one keyed from all the channels, say): a move reads it, ramps,
-    /// then writes what it read less the gain change, as a Re-Gain plan does. Moves that overlap lose each other's.
+    /// then writes what it read less the gain change, as a Mix Hold plan does. Moves that overlap lose each other's.
     var sharedThresholdDb: Double?
-    static let gateAtTop = ReGain.Limit(setting: ReGain.Setting(channel: 1, parameter: .gateThreshold), endDb: 0)
+    static let gateAtTop = MixHold.Limit(setting: MixHold.Setting(channel: 1, parameter: .gateThreshold), endDb: 0)
 
     init(gainDb: [Int: Double], channelOfUSB: [Int: Int]) {
         self.gainDb = gainDb
@@ -54,7 +54,7 @@ final class FakeGainControl: GainControl {
         return await MainActor.run { preampOf[channel] ?? channel }
     }
 
-    nonisolated func applyReGain(channel: Int, gainChangeDb: Double, scopes: ReGain.Scopes) async throws(MixerLinkProblem) -> GainStep {
+    nonisolated func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes) async throws(MixerLinkProblem) -> GainStep {
         await MainActor.run { moveStarts += 1 }
         if let problem = await MainActor.run(body: { problem }) { throw problem }
         if let answer = await MainActor.run(body: { answer }) { await answer() }
@@ -66,8 +66,8 @@ final class FakeGainControl: GainControl {
             let target = movesInstead[channel] ?? channel
             let from = gainDb[target] ?? 0
             var to = min(gainRange.upperBound, max(gainRange.lowerBound, from + gainChangeDb))
-            var limit: ReGain.Limit?
-            if let ceiling = reGainCeilingDb, to > max(from, ceiling) {
+            var limit: MixHold.Limit?
+            if let ceiling = mixHoldCeilingDb, to > max(from, ceiling) {
                 to = max(from, ceiling)
                 limit = Self.gateAtTop
             }
@@ -234,7 +234,7 @@ struct AutoGainSessionTests {
         #expect(session.steps.values.allSatisfy { $0.isEmpty })
     }
 
-    @Test("Every gain step and every Undo is logged, with what Re-Gain moved (#450)")
+    @Test("Every gain step and every Undo is logged, with what Mix Hold moved (#450)")
     func logsGainChanges() async throws {
         let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
         var logged: [TakeMetadata.GainChange] = []
@@ -264,7 +264,7 @@ struct AutoGainSessionTests {
     @Test("Running a USB Channel again keeps the earlier run's moves for Undo, so Undo puts the gain back where it started")
     func undoAfterRerun() async throws {
         let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
-        control.reGainCeilingDb = 10
+        control.mixHoldCeilingDb = 10
         let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]))
 
         _ = await session.run(usbChannels: [1])
@@ -275,10 +275,10 @@ struct AutoGainSessionTests {
         #expect(control.gainDb[1] == 0)
     }
 
-    @Test("When Re-Gain can't go further, the result says which setting stopped it, not that the preamp ran out")
+    @Test("When Mix Hold can't go further, the result says which setting stopped it, not that the preamp ran out")
     func limitNamed() async throws {
         let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
-        control.reGainCeilingDb = 10
+        control.mixHoldCeilingDb = 10
         let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]))
 
         let results = await session.run(usbChannels: [1])
@@ -286,14 +286,14 @@ struct AutoGainSessionTests {
         #expect(results == [.failed(usbChannel: 1, channel: 1, failure: .rangeReached(levelDbfs: -30), limitedBy: FakeGainControl.gateAtTop)])
     }
 
-    @Test("A Re-Gain limit reads as the setting that stopped it and its end stop",
-          arguments: [(ReGain.Limit(setting: .init(channel: 1, parameter: .gateThreshold), endDb: 0),
+    @Test("A Mix Hold limit reads as the setting that stopped it and its end stop",
+          arguments: [(MixHold.Limit(setting: .init(channel: 1, parameter: .gateThreshold), endDb: 0),
                        "Channel 1's gate threshold is at its end stop (0 dB)"),
-                      (ReGain.Limit(setting: .init(channel: 3, parameter: .mainFader), endDb: -90),
+                      (MixHold.Limit(setting: .init(channel: 3, parameter: .mainFader), endDb: -90),
                        "Channel 3's fader is at its end stop (-90 dB)"),
-                      (ReGain.Limit(setting: .init(channel: 2, parameter: .send(4)), endDb: 10),
+                      (MixHold.Limit(setting: .init(channel: 2, parameter: .send(4)), endDb: 10),
                        "Channel 2's send 4 is at its end stop (+10 dB)")])
-    func limitText(limit: ReGain.Limit, text: String) {
+    func limitText(limit: MixHold.Limit, text: String) {
         #expect(limit.explanation == text)
     }
 
@@ -301,9 +301,9 @@ struct AutoGainSessionTests {
     func undoFailsHalfway() async throws {
         let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
         let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]))
-        control.reGainCeilingDb = 10
+        control.mixHoldCeilingDb = 10
         _ = await session.run(usbChannels: [1])          // 0 -> 10
-        control.reGainCeilingDb = 20
+        control.mixHoldCeilingDb = 20
         _ = await session.run(usbChannels: [1])          // 10 -> 20
         control.undoFailsAfter = 1
 
@@ -338,9 +338,9 @@ struct AutoGainSessionTests {
     func overlappingUndos() async throws {
         let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
         let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]))
-        control.reGainCeilingDb = 10
+        control.mixHoldCeilingDb = 10
         _ = await session.run(usbChannels: [1])          // 0 -> 10
-        control.reGainCeilingDb = 20
+        control.mixHoldCeilingDb = 20
         _ = await session.run(usbChannels: [1])          // 10 -> 20
         control.undoAnswer = { try? await Task.sleep(for: .milliseconds(20)) }
 
@@ -355,9 +355,9 @@ struct AutoGainSessionTests {
     @Test("A step whose gain snapped back but which still moved a setting is kept for Undo and logged")
     func settingMovedWithoutGain() async throws {
         let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
-        control.reGainCeilingDb = 0   // the gain can't go up at all
-        let fader = ReGain.Setting(channel: 1, parameter: .mainFader)
-        control.alsoMoves = ReGain.Change(setting: fader, fromDb: 9.8, toDb: 10)
+        control.mixHoldCeilingDb = 0   // the gain can't go up at all
+        let fader = MixHold.Setting(channel: 1, parameter: .mainFader)
+        control.alsoMoves = MixHold.Change(setting: fader, fromDb: 9.8, toDb: 10)
         var logged: [TakeMetadata.GainChange] = []
         let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]), log: { logged.append($0) })
 
@@ -474,10 +474,10 @@ struct AutoGainSessionTests {
         #expect(control.gainDb[2] == 22, "USB 2's Undo never reached the Mixer")
     }
 
-    @Test("The result can say what Re-Gain compensated on each USB Channel, until Undo puts it back (#155, #393)")
+    @Test("The result can say what Mix Hold compensated on each USB Channel, until Undo puts it back (#155, #393)")
     func compensated() async throws {
         let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
-        control.alsoMoves = ReGain.Change(setting: ReGain.Setting(channel: 1, parameter: .mainFader), fromDb: 0, toDb: -22)
+        control.alsoMoves = MixHold.Change(setting: MixHold.Setting(channel: 1, parameter: .mainFader), fromDb: 0, toDb: -22)
         let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]))
 
         _ = await session.run(usbChannels: [1, 2])

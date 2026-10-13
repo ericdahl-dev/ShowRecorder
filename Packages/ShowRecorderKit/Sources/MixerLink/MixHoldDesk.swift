@@ -1,16 +1,16 @@
 import AutoGain
 import OSC
 
-/// A Behringer desk Re-Gain can drive (#392, #153): the X32 and the X-Air differ in addresses, scales and which preamp
+/// A Behringer desk Mix Hold can drive (#392, #153): the X32 and the X-Air differ in addresses, scales and which preamp
 /// a channel uses; how a gain move is planned, written, ramped and undone is the same, and lives here.
-protocol ReGainDesk: GainControl {
+protocol MixHoldDesk: GainControl {
     var queries: MixerQueries { get }
     var client: OSCUDPClient { get }
     func identify() async throws(MixerLinkProblem) -> MixerIdentity
     /// The preamp behind input channel `channel`, or nil when it has none.
     func headamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int?
-    func reGainState(ofChannel channel: Int) async throws(MixerLinkProblem) -> ReGain.ChannelState
-    func keyedDynamics(from channel: Int) async throws(MixerLinkProblem) -> [ReGain.KeyedDynamics]
+    func mixHoldState(ofChannel channel: Int) async throws(MixerLinkProblem) -> MixHold.ChannelState
+    func keyedDynamics(from channel: Int) async throws(MixerLinkProblem) -> [MixHold.KeyedDynamics]
     /// Where the Mixer says whether a stereo link also links the preamps (`/config/linkcfg/…`).
     static var preampLinkAddress: String { get }
     /// Every input channel a move of `headamp` changes, `channel` (the one asked for) first. Most desks give each
@@ -18,25 +18,25 @@ protocol ReGainDesk: GainControl {
     func channels(onHeadamp headamp: Int, movedWith channel: Int) async throws(MixerLinkProblem) -> [Int]
     static func gainAddress(_ headamp: Int) -> String
     static func gainScale(_ headamp: Int) -> X32Values
-    static func address(of setting: ReGain.Setting) -> String
-    static func scale(of parameter: ReGain.Parameter) -> X32Values
+    static func address(of setting: MixHold.Setting) -> String
+    static func scale(of parameter: MixHold.Parameter) -> X32Values
 }
 
 /// One compensated setting moving from one value to another.
-struct ReGainMove {
-    var setting: ReGain.Setting
+struct MixHoldMove {
+    var setting: MixHold.Setting
     var fromDb: Double
     var toDb: Double
 }
 
-extension ReGainDesk {
+extension MixHoldDesk {
     public func channels(onHeadamp headamp: Int, movedWith channel: Int) async throws(MixerLinkProblem) -> [Int] {
         guard let partner = try await linkedPartner(of: channel) else { return [channel] }
         return [channel, partner]
     }
 
     /// The other channel of `channel`'s stereo-linked pair, when the pair's preamps are linked too, so a gain move on
-    /// one moves the other's preamp (#393). Re-Gain then compensates both strips; writing the partner as well is
+    /// one moves the other's preamp (#393). Mix Hold then compensates both strips; writing the partner as well is
     /// harmless where the Mixer mirrors a linked strip, and needed where it doesn't.
     func linkedPartner(of channel: Int) async throws(MixerLinkProblem) -> Int? {
         let first = channel % 2 == 0 ? channel - 1 : channel
@@ -63,26 +63,26 @@ extension ReGainDesk {
         Self.gainScale(headamp).db(ofOSC: try await queries.float(at: Self.gainAddress(headamp)))
     }
 
-    /// Moves input channel `channel`'s preamp by `gainChangeDb` and compensates everything after it with Re-Gain
+    /// Moves input channel `channel`'s preamp by `gainChangeDb` and compensates everything after it with Mix Hold
     /// (#393), so the mix stays the same and only the recorded level moves. Everything is read fresh first.
     ///
-    /// The gain stops at the preamp's range and at what Re-Gain can compensate (`limitedBy`), and every value is
+    /// The gain stops at the preamp's range and at what Mix Hold can compensate (`limitedBy`), and every value is
     /// written on one of the desk's own steps: `held` is what it holds afterwards, which can differ from the plan by
     /// up to half a step. Never call it during a Take (#155 doesn't offer it then).
-    func reGain(channel: Int, gainChangeDb: Double, scopes: ReGain.Scopes) async throws(MixerLinkProblem) -> GainStep {
+    func mixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes) async throws(MixerLinkProblem) -> GainStep {
         guard let headamp = try await headamp(ofChannel: channel) else { throw .noPreamp(channel: channel) }
         let gainScale = Self.gainScale(headamp)
         let from = try await deskGainDb(ofHeadamp: headamp)
         let reachable = gainScale.snap(from + gainChangeDb) - from
-        // Every channel on this preamp moves with it, so Re-Gain compensates each of them (#473).
-        var states: [ReGain.ChannelState] = []
-        var keyed: Set<ReGain.KeyedDynamics> = []
+        // Every channel on this preamp moves with it, so Mix Hold compensates each of them (#473).
+        var states: [MixHold.ChannelState] = []
+        var keyed: Set<MixHold.KeyedDynamics> = []
         for moved in try await channels(onHeadamp: headamp, movedWith: channel) {
-            states.append(try await reGainState(ofChannel: moved))
+            states.append(try await mixHoldState(ofChannel: moved))
             keyed.formUnion(try await keyedDynamics(from: moved))
         }
-        let ranges = Self.reGainRanges
-        let plan = ReGain.plan(headamp: headamp, gainChangeDb: reachable, channels: states, ranges: ranges, scopes: scopes, keyed: Array(keyed))
+        let ranges = Self.mixHoldRanges
+        let plan = MixHold.plan(headamp: headamp, gainChangeDb: reachable, channels: states, ranges: ranges, scopes: scopes, keyed: Array(keyed))
         let to = gainScale.snap(from + plan.gainChangeDb)
 
         // The raw value of every address about to change, so undo restores it exactly.
@@ -91,24 +91,24 @@ extension ReGainDesk {
         var restore: [String: Float] = [:]
         for address in addresses { restore[address] = try await queries.float(at: address) }
 
-        var held: [ReGain.Setting: Double] = [:]
+        var held: [MixHold.Setting: Double] = [:]
         for (setting, db) in plan.values { held[setting] = Self.scale(of: setting.parameter).snap(db) }
         var sent: [String: Float] = [:]
         do throws(MixerLinkProblem) {
             try await ramp(headamp: headamp, gainFrom: from, gainTo: to,
-                           moves: plan.changes.map { ReGainMove(setting: $0.setting, fromDb: $0.fromDb, toDb: $0.toDb) }, sent: &sent)
+                           moves: plan.changes.map { MixHoldMove(setting: $0.setting, fromDb: $0.fromDb, toDb: $0.toDb) }, sent: &sent)
         } catch {
             guard !sent.isEmpty else { throw error }
             // Partway: report what was written, so it is logged and Undo can take it back (#450).
             let gainAddress = Self.gainAddress(headamp)
             let partialTo = sent[gainAddress].map { gainScale.db(ofOSC: $0) } ?? from
-            var partialHeld: [ReGain.Setting: Double] = [:]
-            var partialChanges: [ReGain.Change] = []
+            var partialHeld: [MixHold.Setting: Double] = [:]
+            var partialChanges: [MixHold.Change] = []
             for change in plan.changes {
                 guard let value = sent[Self.address(of: change.setting)] else { continue }
                 let db = Self.scale(of: change.setting.parameter).db(ofOSC: value)
                 partialHeld[change.setting] = db
-                partialChanges.append(ReGain.Change(setting: change.setting, fromDb: change.fromDb, toDb: db))
+                partialChanges.append(MixHold.Change(setting: change.setting, fromDb: change.fromDb, toDb: db))
             }
             throw .gainMoveInterrupted(GainStep(channel: channel, headamp: headamp, fromGainDb: from, toGainDb: partialTo,
                                                 changes: partialChanges, held: partialHeld, limitedBy: plan.limitedBy, restore: restore))
@@ -118,11 +118,11 @@ extension ReGainDesk {
     }
 
     /// Puts back every value `result` changed: ramps back the way it came, then writes the exact values read before.
-    func undoReGain(_ result: GainStep) async throws(MixerLinkProblem) {
+    func undoMixHold(_ result: GainStep) async throws(MixerLinkProblem) {
         let gainAddress = Self.gainAddress(result.headamp)
         var sent: [String: Float] = [:]
         try await ramp(headamp: result.headamp, gainFrom: result.toGainDb, gainTo: result.fromGainDb,
-                       moves: result.changes.map { ReGainMove(setting: $0.setting, fromDb: result.held[$0.setting] ?? $0.toDb, toDb: $0.fromDb) },
+                       moves: result.changes.map { MixHoldMove(setting: $0.setting, fromDb: result.held[$0.setting] ?? $0.toDb, toDb: $0.fromDb) },
                        sent: &sent)
         // The exact raw values, in the same safe order: when the gain went back down, it goes first.
         let others = result.restore.filter { $0.key != gainAddress }
@@ -140,7 +140,7 @@ extension ReGainDesk {
     /// on the plan's values.
     /// `sent` gets every value written, by address, as it goes: if the desk stops answering partway, it is what the
     /// desk was last told.
-    private func ramp(headamp: Int, gainFrom: Double, gainTo: Double, moves: [ReGainMove],
+    private func ramp(headamp: Int, gainFrom: Double, gainTo: Double, moves: [MixHoldMove],
                       sent: inout [String: Float]) async throws(MixerLinkProblem) {
         let gainAddress = Self.gainAddress(headamp)
         let gainScale = Self.gainScale(headamp)

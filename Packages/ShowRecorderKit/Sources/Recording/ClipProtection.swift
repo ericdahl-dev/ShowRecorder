@@ -68,7 +68,7 @@ public struct ClipTrigger: Sendable {
 }
 
 /// Automatic clip protection (#448): when a USB Channel's Peak runs hot, turns its preamp down on the Mixer with
-/// Re-Gain, so the recording stops clipping and the mix stays the same. Works during a Take too, within limits.
+/// Mix Hold, so the recording stops clipping and the mix stays the same. Works during a Take too, within limits.
 @MainActor
 public final class ClipProtection {
     /// Where a move puts the Peak.
@@ -145,13 +145,13 @@ public final class ClipProtection {
             lastMove[preamp] = clock
             let step: GainStep
             do throws(MixerLinkProblem) {
-                step = try await control.applyReGain(channel: channel, gainChangeDb: max(-left, Self.stepDb(peakDbfs: peak)), scopes: .all)
+                step = try await control.applyMixHold(channel: channel, gainChangeDb: max(-left, Self.stepDb(peakDbfs: peak)), scopes: .all)
             } catch {
                 // Stopped partway: whatever was written still counts and is logged (#450); otherwise nothing moved.
                 guard case .gainMoveInterrupted(let partial) = error else { continue }
                 step = partial
             }
-            // At its lowest gain, or Re-Gain out of range: nothing moved, so nothing to log or Mark.
+            // At its lowest gain, or Mix Hold out of range: nothing moved, so nothing to log or Mark.
             guard step.toGainDb < step.fromGainDb else { continue }
             turnedDown[preamp, default: 0] += step.fromGainDb - step.toGainDb
             log(AutoGainSession.change(step, usbChannel: usbChannel, reason: .clipProtection))

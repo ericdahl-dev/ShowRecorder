@@ -109,7 +109,7 @@ struct AutoGainPanelTests {
     @Test("Each result can say in plain words what moved to keep the mix, until Undo puts it back (#155, #393)")
     func compensationSummary() async throws {
         let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
-        control.alsoMoves = ReGain.Change(setting: ReGain.Setting(channel: 1, parameter: .mainFader), fromDb: 0, toDb: -22)
+        control.alsoMoves = MixHold.Change(setting: MixHold.Setting(channel: 1, parameter: .mainFader), fromDb: 0, toDb: -22)
         let panel = makePanel(control, source: [1: -40])
 
         await panel.run([1, 2])
@@ -122,7 +122,7 @@ struct AutoGainPanelTests {
 
     typealias Moved = TakeMetadata.GainChange.Compensation
 
-    @Test("Everything moved the same amount, as Re-Gain does, reads as one line: sends and thresholds counted",
+    @Test("Everything moved the same amount, as Mix Hold does, reads as one line: sends and thresholds counted",
           arguments: [
             ([Moved(channel: 1, setting: "fader", fromDb: -5, toDb: -30)], "fader moved -25.0 dB"),
             ([Moved(channel: 1, setting: "fader", fromDb: -5, toDb: -30), Moved(channel: 1, setting: "send 3", fromDb: -10, toDb: -35)],
