@@ -28,6 +28,16 @@ extension ReGainDesk {
     /// The most the gain moves in one ramp step, in dB.
     static var rampStepDb: Double { 1.0 }
 
+    /// The preamp a move on input channel `channel` lands on (#458): its own, or, when it is the second of a
+    /// stereo-linked pair (`/config/chlink/1-2` on the X-Air and the X32), the first channel's, since the Mixer moves
+    /// the pair together. Two X32 channels on one headamp answer the same headamp.
+    public func preamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? {
+        guard channel % 2 == 0,
+              try await queries.int(at: String(format: "/config/chlink/%d-%d", channel - 1, channel)) != 0
+        else { return try await headamp(ofChannel: channel) }
+        return try await headamp(ofChannel: channel - 1)
+    }
+
     func deskGainDb(ofHeadamp headamp: Int) async throws(MixerLinkProblem) -> Double {
         Self.gainScale(headamp).db(ofOSC: try await queries.float(at: Self.gainAddress(headamp)))
     }

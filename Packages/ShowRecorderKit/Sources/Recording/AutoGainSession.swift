@@ -30,6 +30,9 @@ public final class AutoGainSession {
         case noChannel
         /// It carries the same Mixer channel as an earlier USB Channel, whose preamp already moved.
         case sameChannel(asUSBChannel: Int)
+        /// Its Mixer channel shares a preamp with an earlier USB Channel's (a shared headamp, a stereo link), and that
+        /// preamp already moved (#458).
+        case samePreamp(asUSBChannel: Int)
     }
 
     private let control: any GainControl
@@ -61,6 +64,7 @@ public final class AutoGainSession {
     public func run(usbChannels: [Int]) async -> [Result] {
         var results: [Result] = []
         var done: [Int: Int] = [:]   // Mixer channel -> the USB Channel that moved it
+        var donePreamps: [Int: Int] = [:]   // preamp -> the USB Channel that moved it
         for usbChannel in usbChannels {
             guard let channel = control.channel(forUSBChannel: usbChannel) else {
                 results.append(.skipped(usbChannel: usbChannel, reason: .noChannel))
@@ -71,6 +75,20 @@ public final class AutoGainSession {
                 continue
             }
             done[channel] = usbChannel
+            let preamp: Int?
+            do throws(MixerLinkProblem) {
+                preamp = try await control.preamp(ofChannel: channel)
+            } catch {
+                results.append(.error(usbChannel: usbChannel, channel: channel, problem: error))
+                continue
+            }
+            if let preamp {
+                if let earlier = donePreamps[preamp] {
+                    results.append(.skipped(usbChannel: usbChannel, reason: .samePreamp(asUSBChannel: earlier)))
+                    continue
+                }
+                donePreamps[preamp] = usbChannel
+            }
             var taken: [GainStep] = []
             var expected: Double?   // where the last move should have put the level
             var lastLevel = 0.0

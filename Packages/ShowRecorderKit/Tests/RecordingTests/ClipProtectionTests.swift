@@ -150,6 +150,36 @@ struct ClipProtectionTests {
         #expect(logged.map(\.usbChannel) == [1])
     }
 
+    /// Channels 1 and 2 on one preamp (a shared X32 headamp, or a stereo-linked pair): a move on either lands on 1.
+    func sharePreamp() {
+        control.preampOf = [2: 1]
+        control.movesInstead = [2: 1]
+    }
+
+    @Test("Two Mixer channels on one preamp, both hot in one read, turn it down once (#458)")
+    func samePreampOnce() async {
+        sharePreamp()
+        var logged: [TakeMetadata.GainChange] = []
+        let protection = ClipProtection(control: control, sampleRate: 48_000, log: { logged.append($0) })
+
+        await Self.feed(protection, Self.hot, on: [1, 2])
+
+        #expect(control.gainDb == [1: 26, 2: 30])
+        #expect(logged.count == 1)
+    }
+
+    @Test("The 12 dB a Take allows counts the preamp once, whichever of its channels runs hot (#458)")
+    func samePreampBudget() async {
+        sharePreamp()
+        let protection = ClipProtection(control: control, sampleRate: 48_000)
+        let clipping = Windows.repeating(Windows.clip, 10) + Windows.repeating(Windows.at(-20), 150)
+
+        await Self.feed(protection, clipping + clipping, on: [1])
+        await Self.feed(protection, clipping + clipping, on: [2])
+
+        #expect(control.gainDb[1] == 18)
+    }
+
     @Test("When the Mixer doesn't answer, nothing is logged and the meters keep going; it tries again after the rest")
     func mixerProblem() async {
         var logged: [TakeMetadata.GainChange] = []

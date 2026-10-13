@@ -136,6 +136,8 @@ extension AutoGainSession.Result {
             return "No Mixer channel on this USB Channel"
         case .skipped(_, .sameChannel(let earlier)):
             return "Same Mixer channel as USB \(earlier)"
+        case .skipped(_, .samePreamp(let earlier)):
+            return "Same preamp as USB \(earlier) (linked or shared)"
         case .failed(_, _, .stillClipping(let level), _):
             return "Still too loud at the lowest gain (\(dbfs(level)))"
         case .failed(_, _, .stillTooQuiet(let level), _):

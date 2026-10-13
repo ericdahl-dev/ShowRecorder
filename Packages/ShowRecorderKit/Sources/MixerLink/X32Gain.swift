@@ -98,6 +98,10 @@ extension X32Driver {
 public protocol GainControl: Sendable {
     /// The input channel USB Channel `usbChannel` carries, from the routing read on connect; nil when none.
     func channel(forUSBChannel usbChannel: Int) -> Int?
+    /// The preamp a gain move on input channel `channel` lands on, read fresh: two channels that answer the same are
+    /// one move (#458), such as two X32 channels on one headamp, or a stereo-linked pair, which the Mixer moves
+    /// together. Nil when the channel has no preamp.
+    func preamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int?
     func applyReGain(channel: Int, gainChangeDb: Double, scopes: ReGain.Scopes) async throws(MixerLinkProblem) -> GainStep
     func undo(_ step: GainStep) async throws(MixerLinkProblem)
 }

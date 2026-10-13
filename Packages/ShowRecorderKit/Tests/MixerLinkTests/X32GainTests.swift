@@ -231,4 +231,17 @@ struct X32GainTests {
         #expect(try await driver.reGainState(ofChannel: 1) == before)
         #expect(try await driver.gainDb(ofHeadamp: 0) == -12)
     }
+
+    @Test("Two X32 channels on one headamp are one preamp move, and so is a stereo-linked pair (#458)")
+    func sharedAndLinkedPreamp() async throws {
+        var state = FakeXAirMixer.State.x32()
+        state.headampOfChannel[16] = 0   // channel 17 on local input 1, like channel 1
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+
+        #expect(try await driver.preamp(ofChannel: 17) == driver.preamp(ofChannel: 1))
+        #expect(try await driver.preamp(ofChannel: 4) != driver.preamp(ofChannel: 3))
+        mixer.update { $0.set["/config/chlink/3-4"] = .int(1) }
+        #expect(try await driver.preamp(ofChannel: 4) == driver.preamp(ofChannel: 3))
+    }
 }

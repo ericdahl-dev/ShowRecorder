@@ -98,9 +98,10 @@ public final class ClipProtection {
     private var triggers: [ClipTrigger] = []
     /// Seconds of audio read so far, by frames.
     private var clock = 0.0
-    /// When each Mixer channel last moved.
+    /// When each preamp last moved, by `GainControl.preamp(ofChannel:)` (#458): two Mixer channels on one preamp,
+    /// a shared X32 headamp or a stereo-linked pair, are one preamp here.
     private var lastMove: [Int: Double] = [:]
-    /// How far each Mixer channel has been turned down since the Take started.
+    /// How far each preamp has been turned down since the Take started.
     private var turnedDown: [Int: Double] = [:]
 
     public init(control: any GainControl, sampleRate: Double, log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }) {
@@ -123,16 +124,19 @@ public final class ClipProtection {
         // wait (and a disarm can leave no channels), so nothing below touches `triggers`.
         let fired = levels.indices.compactMap { index in triggers[index].observe(levels[index]).map { (usbChannel: index + 1, peak: $0) } }
         for (usbChannel, peak) in fired {
-            guard let channel = control.channel(forUSBChannel: usbChannel),
-                  lastMove[channel].map({ clock - $0 >= Self.restSeconds }) ?? true else { continue }
-            let left = Self.mostPerTakeDb - (turnedDown[channel] ?? 0)
+            guard let channel = control.channel(forUSBChannel: usbChannel) else { continue }
+            // The Mixer not answering here is no reason to skip protecting: the channel then stands for its own preamp,
+            // negative so it can't be mistaken for a preamp number.
+            let preamp = ((try? await control.preamp(ofChannel: channel)) ?? nil) ?? -channel
+            guard lastMove[preamp].map({ clock - $0 >= Self.restSeconds }) ?? true else { continue }
+            let left = Self.mostPerTakeDb - (turnedDown[preamp] ?? 0)
             guard left > 0 else { continue }
-            lastMove[channel] = clock
+            lastMove[preamp] = clock
             guard let step = try? await control.applyReGain(channel: channel, gainChangeDb: max(-left, Self.stepDb(peakDbfs: peak)), scopes: .all)
             else { continue }
             // At its lowest gain, or Re-Gain out of range: nothing moved, so nothing to log or Mark.
             guard step.toGainDb < step.fromGainDb else { continue }
-            turnedDown[channel, default: 0] += step.fromGainDb - step.toGainDb
+            turnedDown[preamp, default: 0] += step.fromGainDb - step.toGainDb
             log(AutoGainSession.change(step, usbChannel: usbChannel, reason: .clipProtection))
         }
     }
