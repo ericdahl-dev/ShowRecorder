@@ -645,4 +645,40 @@ struct TakeSequencerTests {
         #expect(sequencer.interruptions.notice == "The system reset its audio and the input changed, so the Take ended and was saved. Press record to start the next Take.")
         #expect(sequencer.recordError == nil)
     }
+
+    @Test("The Armed interface unplugged during a Take: the Take ends as an input change, the message says so, and the recorder disarms")
+    func armedInterfaceUnpluggedDuringATake() async {
+        let source = FakeInputDevices([("built-in", 1), ("xr18", 18)])
+        let (sequencer, recorder) = makeSequencer(source)
+        sequencer.selectedDeviceID = "xr18"
+        sequencer.start()
+        sequencer.record(sources: [], allowance: nil)
+        var events = sequencer.events.makeAsyncIterator()
+
+        source.choices.removeAll { $0.id == "xr18" }
+        sequencer.deviceListChanged()
+
+        #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .inputChanged))
+        #expect(sequencer.recordError == "xr18 was disconnected during the Take. Recording stopped and the Stems recorded so far were saved.")
+        #expect(!recorder.isArmed)
+        #expect(sequencer.armedDevice == nil)
+        let told = await told(&events, through: .disarmed(reason: .deviceLost))
+        #expect(told.contains(.takeEnded(TakeEnd(take: 1, reason: .inputChanged))))
+    }
+
+    @Test("The Armed interface changes format during a Take: the Take ends as an input change and the recorder re-Arms on the new format")
+    func armedInterfaceChangesFormatDuringATake() {
+        let source = FakeInputDevices([("xr18", 18)])
+        let (sequencer, recorder) = makeSequencer(source)
+        sequencer.start()
+        sequencer.record(sources: [], allowance: nil)
+
+        source.choices = [source.choice(id: "xr18", channels: 12)]
+        sequencer.deviceListChanged()
+
+        #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .inputChanged))
+        #expect(sequencer.recordError == "xr18 now sends 12 USB Channels during the Take. Recording stopped and the Stems recorded so far were saved. Press record to start a new Take.")
+        #expect(recorder.isArmed && !recorder.isRecording)
+        #expect(recorder.usbChannelCount == 12)
+    }
 }

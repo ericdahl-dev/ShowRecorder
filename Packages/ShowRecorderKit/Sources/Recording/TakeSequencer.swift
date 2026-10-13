@@ -46,6 +46,8 @@ public enum TakeEvent: Equatable, Sendable {
         case screenGone
         /// The app sat in the background for 30 minutes with no Take (`IdleDisarm`).
         case idle
+        /// The Armed Audio interface was disconnected.
+        case deviceLost
     }
 }
 
@@ -90,6 +92,7 @@ public final class TakeSequencer {
     /// Every Take start and end is told. Arm and disarm are told for the sequencer's own Arming; a device-list,
     /// route or media-reset change still re-Arms from the App and isn't told yet (#301 slices 5-7).
     public let events: AsyncStream<TakeEvent>
+    @ObservationIgnored private let source: any InputDeviceSource
     public static let eventBufferSize = 32
     @ObservationIgnored private let emit: AsyncStream<TakeEvent>.Continuation
 
@@ -98,6 +101,7 @@ public final class TakeSequencer {
         self.now = now
         self.capsAt48k = capsAt48k
         (events, emit) = AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(Self.eventBufferSize))
+        source = devices
         self.devices = devices.devices()
         selectedDeviceID = self.devices.first?.id
         recorder.onTakeEnded = { [weak self] end in self?.takeEnded(end) }
@@ -232,6 +236,39 @@ public final class TakeSequencer {
         if disarmedForIdle {
             disarmedForIdle = false
             arm()
+        }
+    }
+
+    /// The list of Audio interfaces changed (the Mac): keeps, switches, re-Arms or disarms as `InputDeviceChange`
+    /// decides. A Take on an interface that went away or changed format ends as an input change, with its message.
+    public func deviceListChanged() {
+        let fresh = source.devices()
+        let change = InputDeviceChange.decide(
+            old: devices.map(\.info), new: fresh.map(\.info),
+            selectedID: selectedDeviceID,
+            armed: recorder.isArmed ? armedDevice : nil,
+            isRecording: recorder.isRecording)
+        devices = fresh
+        if change.stopsTake {
+            do {
+                try recorder.stopTake(because: .inputChanged)
+                recordError = change.message
+            } catch {
+                recordError = "\(change.message ?? "The input device changed during the Take.") But the Take didn't finish cleanly: \(error.localizedDescription)"
+            }
+        }
+        selectedDeviceID = change.selectedID
+        switch change.action {
+        case .none:
+            break
+        case .arm:
+            arm()
+        case .disarm:
+            recorder.disarm()
+            armedDevice = nil
+            didArm(nil)
+            emit.yield(.disarmed(reason: .deviceLost))
+            if !change.stopsTake { armError = change.message }
         }
     }
 

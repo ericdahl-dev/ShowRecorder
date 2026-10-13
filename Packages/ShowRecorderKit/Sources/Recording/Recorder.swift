@@ -667,7 +667,7 @@ public final class Recorder {
         try stopTake(because: .stopped)
     }
 
-    private func stopTake(because reason: TakeEnd.Reason) throws {
+    func stopTake(because reason: TakeEnd.Reason) throws {
         guard isRecording, let session else { return }
         // Not recording from here on, so a Copy that fails while draining doesn't stop the Take again.
         isRecording = false

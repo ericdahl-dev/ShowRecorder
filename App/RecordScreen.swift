@@ -1336,35 +1336,9 @@ final class RecordScreenModel {
         }
     }
 
-    /// Re-reads the device list and keeps, switches, re-arms or disarms as `InputDeviceChange` decides.
+    /// Re-reads the device list; the `TakeSequencer` keeps, switches, re-Arms or disarms as `InputDeviceChange` decides.
     private func applyDeviceListChange() {
-        let fresh = Self.availableDevices()
-        let change = InputDeviceChange.decide(
-            old: devices.map(\.info), new: fresh.map(\.info),
-            selectedID: selectedDeviceID,
-            armed: recorder.isArmed ? armedDevice : nil,
-            isRecording: recorder.isRecording)
-        devices = fresh
-        if change.stopsTake {
-            do {
-                try recorder.stopTake()
-                recordError = change.message
-            } catch {
-                recordError = "\(change.message ?? "The input device changed during the Take.") But the Take didn't finish cleanly: \(error.localizedDescription)"
-            }
-        }
-        selectedDeviceID = change.selectedID
-        switch change.action {
-        case .none:
-            break
-        case .arm:
-            armSelectedDevice()
-        case .disarm:
-            recorder.disarm()
-            armedDevice = nil
-            meterModel.reset(channelCount: 0)
-            if !change.stopsTake { armError = change.message }
-        }
+        sequencer.deviceListChanged()
     }
     #endif
 
