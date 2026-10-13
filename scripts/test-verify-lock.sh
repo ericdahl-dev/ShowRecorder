@@ -37,5 +37,20 @@ VERIFY_PLAN_ONLY=1 VERIFY_FILES="README.md" VERIFY_ALL=0 ./scripts/verify.sh > /
 [ $(( $(date +%s) - start )) -lt 6 ] || { echo "FAIL: a plan-only run waited for the lock"; fail=1; }
 wait $holder
 
+# A verify.sh that holds the lock past its time limit (#578) is stopped, says why, and frees the lock.
+# SHOWRECORDER_VERIFY_TIMEOUT is minutes; 0.05 is 3 s. This test gives up waiting after 20 s itself.
+hang=$((600 + $$ % 1000))  # a length only this run uses, matched exactly, so runs at once never stop each other's
+VERIFY_LOCK_PROBE="echo hung >> $dir/hung; sleep $hang" SHOWRECORDER_VERIFY_TIMEOUT=0.05 ./scripts/verify.sh > "$dir/hung.out" 2>&1 &
+hung=$!
+i=0
+while kill -0 "$hung" 2>/dev/null && [ $i -lt 200 ]; do i=$((i + 1)); sleep 0.1; done
+if kill -0 "$hung" 2>/dev/null; then
+  echo "FAIL: a verify.sh past its time limit wasn't stopped"; fail=1
+  pkill -f "^sleep $hang\$" 2>/dev/null || true
+fi
+wait "$hung" 2>/dev/null || true
+grep -q "held the build lock for more than" "$dir/hung.out" || { echo "FAIL: the stopped verify.sh didn't say why"; fail=1; }
+lockf -k -t 0 "$SHOWRECORDER_BUILD_LOCK" true || { echo "FAIL: the lock wasn't freed"; fail=1; }
+
 [ $fail = 0 ] && echo "verify.sh lock: all cases pass"
 exit $fail
