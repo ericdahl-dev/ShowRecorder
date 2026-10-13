@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "ShowRecorderKit",
-    platforms: [.iOS("26.0"), .macOS("26.0")],
+    platforms: [.iOS("26.0"), .macOS("26.0"), .watchOS("26.0")],
     products: [
         .library(name: "AudioIO", targets: ["AudioIO"]),
         .library(name: "BroadcastWave", targets: ["BroadcastWave"]),
@@ -15,6 +15,7 @@ let package = Package(
         .library(name: "ShowReport", targets: ["ShowReport"]),
         .library(name: "TakeActivity", targets: ["TakeActivity"]),
         .library(name: "AutoGain", targets: ["AutoGain"]),
+        .library(name: "WatchRemote", targets: ["WatchRemote"]),
     ],
     targets: [
         // The audio I/O boundary and a fake device. No platform audio frameworks.
@@ -44,9 +45,13 @@ let package = Package(
         // Auto-gain (#151): the closed-loop rule that steps a channel's preamp to a target Average level. Pure logic
         // with no dependencies, so the Mixer drivers that move the preamp and the recorder that runs it can both use it.
         .target(name: "AutoGain"),
+        // The Apple Watch remote (#100): what the watch shows and the three commands it sends, and how each side
+        // handles them. Pure logic, no WatchConnectivity, so the iPhone app and the watch app share it.
+        .target(name: "WatchRemote"),
         .testTarget(name: "DestinationsTests", dependencies: ["Destinations"]),
         .testTarget(name: "TakeActivityTests", dependencies: ["TakeActivity"]),
         .testTarget(name: "AutoGainTests", dependencies: ["AutoGain"]),
+        .testTarget(name: "WatchRemoteTests", dependencies: ["WatchRemote"]),
         .testTarget(name: "OSCTests", dependencies: ["OSC"]),
         .testTarget(name: "MixerLinkTests", dependencies: ["MixerLink", "OSC", "AutoGain"]),
         .testTarget(name: "RecordingTests", dependencies: ["Recording", "AudioIO", "MixerLink", "Destinations", "AutoGain"]),
