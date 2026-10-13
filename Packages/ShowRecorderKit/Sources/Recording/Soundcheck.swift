@@ -124,7 +124,7 @@ public enum Soundcheck {
     @MainActor
     public static func run(
         recorder: Recorder, mixer: MixerLinkStatus?, sources: [Source], expectedUSBChannels: Int?, driveChosen: Bool,
-        takeLength: Duration = Soundcheck.takeLength, progress: (Step.Kind) -> Void = { _ in },
+        allowance: TakeAllowance? = nil, takeLength: Duration = Soundcheck.takeLength, progress: (Step.Kind) -> Void = { _ in },
         result: (Step) -> Void = { _ in }
     ) async -> [Step] {
         guard !recorder.isRecording else {
@@ -147,7 +147,8 @@ public enum Soundcheck {
         var takeError: String?
         do {
             try recorder.startNewShow(name: "Soundcheck", venue: "")
-            try recorder.startTake(sources: sources)
+            // The test Take records what a Take would under the License: Free's USB Channels, no Pro extras (#558).
+            try recorder.startTake(sources: sources, allowance: allowance)
             try? await Task.sleep(for: takeLength)
             try recorder.stopTake()
             await recorder.waitForRepair()
@@ -165,7 +166,10 @@ public enum Soundcheck {
 
         progress(.files)
         var filesStep = Step(kind: .files, passed: false, message: "There is no Show folder to check.")
-        if let showFolder {
+        if let showFolder, let allowance, !allowance.showReport, !allowance.reaperExport {
+            // Free writes neither (#558): nothing is missing.
+            filesStep = Step(kind: .files, passed: true, message: "Free writes no Show report or Reaper project; the Takes are in the Show folder.")
+        } else if let showFolder {
             // The report and project are written after the Take finalizes; give them a few seconds.
             for _ in 0..<50 {
                 filesStep = judgeFiles(showFolder: showFolder)
