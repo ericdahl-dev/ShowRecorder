@@ -15,7 +15,9 @@ expect() {
 has() { printf '%s\n' "$out" | grep -q -- "$1"; }
 
 work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+old="$work/old-worktree"
+# The temporary worktree check 5 makes goes too, even if the test is stopped partway.
+trap '[ -d "$old" ] && git worktree remove --force "$old" 2>/dev/null; rm -rf "$work"' EXIT
 export SHOWRECORDER_BUILD_LOCK="$work/test.lock"
 unset SHOWRECORDER_BUILD_LOCK_HELD || true
 log="$work/runs.log"
@@ -95,13 +97,19 @@ release_lock
 
 # 5. A worktree of this repo made before the lock existed (no scripts/build-lock.sh of its own) still takes it; another
 #    git repo doesn't. The old worktree is a bare, unchecked-out one, made here and removed at the end.
-old="$work/old-worktree"
 git worktree add -q --detach --no-checkout "$old" HEAD
 mkdir -p "$old/Packages/ShowRecorderKit"
 hold_lock
-timed sh -c "cd '$old/Packages/ShowRecorderKit' && '$repo/scripts/bin/swift' build"
+(cd "$old/Packages/ShowRecorderKit" && STUB_SLEEP=0 "$repo/scripts/bin/swift" build) > "$work/old.out" 2>&1 &
+waiter=$!
+# Until it says it's waiting (or 20 s), then let the lock go, rather than sit out the holder.
+i=0
+until grep -q "Waiting for another build" "$work/old.out" || [ $i -ge 200 ]; do i=$((i + 1)); sleep 0.1; done
 release_lock
-expect "an old worktree without build-lock.sh still waits for the lock (took ${elapsed}s)" has "Waiting for another build"
+wait "$waiter" || true
+out=$(cat "$work/old.out")
+expect "an old worktree without build-lock.sh still waits for the lock" has "Waiting for another build"
+expect "and then runs" has "ran swift build"
 git worktree remove --force "$old"
 mkdir "$work/other-repo"
 git -C "$work/other-repo" init -q

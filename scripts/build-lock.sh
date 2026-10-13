@@ -29,9 +29,10 @@ build_lock_exec() {
 
 # The absolute git folder every worktree of the repo at or above $1 shares, or nothing outside a git repo.
 common_git_dir() {
-  dir=$(cd "$1" 2>/dev/null && git rev-parse --git-common-dir 2>/dev/null) || return 1
+  # CDPATH empty, so cd never prints a folder into what's captured.
+  dir=$(CDPATH= cd -P -- "$1" 2>/dev/null && git rev-parse --git-common-dir 2>/dev/null) || return 1
   # Relative to $1 from the main checkout (".git"), absolute from a worktree.
-  (cd "$1" && cd "$dir" && pwd -P)
+  (CDPATH= cd -P -- "$1" && CDPATH= cd -P -- "$dir" && pwd -P)
 }
 
 # Whether the current folder is in a checkout of the repo this script is in: any worktree, even one made before the
