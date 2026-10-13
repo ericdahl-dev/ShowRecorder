@@ -110,7 +110,7 @@ First release.
 
 ## Screenshots (to take)
 
-6.9" iPhone (required), 13" iPad, and for the Mac (1.1) 16:10 at 2880 × 1800 (or 1280 × 800, 1440 × 900, 2560 × 1600). Captions, in order:
+6.9" iPhone (required), 13" iPad, and for the Mac (1.1) 16:10 at 1280 × 800, 1440 × 900, 2560 × 1600 or 2880 × 1800. Captions, in order:
 
 1. Every channel, its own file (the record screen during a Take, 18 named meters)
 2. Named from your mixer (the Mixer Link and Find Mixers)
@@ -118,6 +118,19 @@ First release.
 4. Markers as you record
 5. Ready to mix (a Show with its report and Reaper project)
 6. Sunlight for bright stages
+
+### Mac set (taken 2026-10-13, #374)
+
+In [`docs/images/app-store-mac/`](../images/app-store-mac/), 2560 × 1600 each, Demo signal with typed band names (no people's names), a Drive set:
+
+1. `mac-01-recording-light.png`: Every channel, its own file (a Take, 18 named meters)
+2. `mac-02-recording-dark.png`: the same in Dark
+3. `mac-03-shows-light.png` and `mac-04-shows-dark.png`: the Show list
+4. `mac-05-sunlight.png`: Sunlight for bright stages
+
+The Demo signal runs hot, so several meters read red: honest for what it is, but a real mixer's levels look calmer. A Mixer Link shot needs an X Air or X32 on this Mac's USB.
+
+To take them again: a Debug build with its own bundle ID, so its container is empty and the real app's Shows are untouched (`xcodebuild … PRODUCT_BUNDLE_IDENTIFIER=dev.ericdahl.ShowRecorder.screens`), launched with `-demoSignal -demoNames -demoDrive -demoRecord -screenshotWindow`, plus `-lightScheme` for the light set or `-showList` for the list; Sunlight is the appearance setting in that container's preferences. `-screenshotWindow` makes a 1280 × 800 window on a Retina screen (2560 × 1600); 2880 × 1800 needs a screen with at least 900 points of usable height. Capture the window alone with `screencapture -o -l<window id>`.
 
 ## Decided (Eric, 2026-10-11)
 

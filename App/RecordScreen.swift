@@ -1260,6 +1260,20 @@ final class RecordScreenModel {
         pro.onTierChange = { [weak self] in self?.tierChanged() }
         applyDefaultTemplate()
         Task { await offerDemoSignalIfAvailable() }
+        // `-demoDrive` (screenshots) uses a folder in the app's own container as the Drive, so the shots show a second
+        // Copy instead of a "No Drive" warning.
+        if launchFlag("-demoDrive") {
+            let folder = URL.documentsDirectory.appending(path: "Show SSD", directoryHint: .isDirectory)
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            drive.choose(folder)
+        }
+        // `-demoNames` names the Demo signal's channels like a band's, for screenshots (typed names, in that Show only).
+        if launchFlag("-demoNames") {
+            Task {
+                try? await Task.sleep(for: .seconds(1))
+                for (index, name) in Self.demoChannelNames.enumerated() { recorder.setChannelName(name, forChannel: index + 1) }
+            }
+        }
         // `-demoRecord` starts a Take two seconds after launch, for screenshots.
         if launchFlag("-demoRecord") {
             Task {
@@ -1268,6 +1282,10 @@ final class RecordScreenModel {
             }
         }
     }
+
+    /// The names `-demoNames` types: a band's input list, no people's names.
+    static let demoChannelNames = ["Kick", "Snr", "Hat", "Tom 1", "Tom 2", "OH L", "OH R", "Bs", "Gtr 1", "Gtr 2",
+                                   "Key 1", "Key 2", "Vox", "BV 1", "BV 2", "BV 3", "PB", "Clk"]
 
     /// The Demo signal needs StoreKit's answer (TestFlight or not), which arrives later; the input list
     /// starts without it and gets it here. Only adds an input: the selection and an armed device stay.

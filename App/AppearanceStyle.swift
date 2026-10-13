@@ -51,7 +51,8 @@ struct AppearanceRoot: ViewModifier {
     func body(content: Content) -> some View {
         content
             .environment(\.appearanceMode, mode)
-            .preferredColorScheme(mode.colorScheme)
+            // `-lightScheme` (Debug only): the light screenshots on a Mac set to Dark, without changing the Mac.
+            .preferredColorScheme(mode == .system && launchFlag("-lightScheme") ? .light : mode.colorScheme)
             .background {
                 if mode != .system { Color(Palette.background(mode)).ignoresSafeArea() }
             }
