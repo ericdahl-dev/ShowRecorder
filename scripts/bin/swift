@@ -1,0 +1,20 @@
+#!/bin/sh
+# `swift`, one heavy build at a time on this Mac (scripts/build-lock.sh). Put scripts/bin first on PATH.
+# Inside a ShowRecorder checkout, swift build, test and run wait for the shared lock; light commands (--version,
+# package describe/resolve, help) and anything outside this repo run straight away.
+real="${SHOWRECORDER_REAL_SWIFT:-/usr/bin/swift}"
+. "$(dirname "$0")/../build-lock.sh"
+
+light=0
+case "${1:-}" in
+  "" | --version | -version | --help | -h | -help) light=1 ;;
+  package)
+    case "${2:-}" in
+      describe | resolve | dump-package | show-dependencies | --help | -h | "") light=1 ;;
+    esac ;;
+esac
+
+if [ "$light" = 1 ] || [ "${SHOWRECORDER_BUILD_LOCK_HELD:-0}" = 1 ] || ! in_showrecorder; then
+  exec "$real" "$@"
+fi
+build_lock_exec "$real" "$@"

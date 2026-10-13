@@ -16,10 +16,24 @@
 #   VERIFY_FILES=...    use this newline-separated list instead of git (scripts/test-verify-plan.sh)
 #   VERIFY_PLAN_ONLY=1  print the plan and stop
 #   DERIVED_DATA=<dir>  Xcode build folders' prefix (default build/dd: build/dd-mac, build/dd-ios, build/dd-device)
+#
+# One heavy build at a time on this Mac (scripts/build-lock.sh): a second verify.sh, or a swift build/test or
+# xcodebuild through scripts/bin, waits for the first to finish, and says so. verify.sh runs at low priority with
+# SHOWRECORDER_BUILD_LOCK_HELD=1, so its own side-by-side builds don't wait for it. A queued run can take longer than
+# an agent's 10-minute command limit: run it as a background task. VERIFY_PLAN_ONLY=1 never waits.
+#   VERIFY_LOCK_PROBE=<sh>  once the lock is held, run this instead of the checks (scripts/test-verify-lock.sh)
 # With DEVICE_ID set (an iOS device id from `xcodebuild -showdestinations`) and DEVELOPMENT_TEAM,
 # the app step also builds a signed app for that device.
 set -eu
 cd "$(dirname "$0")/.."
+if [ "${VERIFY_PLAN_ONLY:-0}" != 1 ] && [ "${SHOWRECORDER_BUILD_LOCK_HELD:-0}" != 1 ]; then
+  . ./scripts/build-lock.sh
+  build_lock_exec ./scripts/verify.sh
+fi
+if [ -n "${VERIFY_LOCK_PROBE:-}" ]; then
+  sh -c "$VERIFY_LOCK_PROBE"
+  exit
+fi
 . ./scripts/verify-steps.sh
 DD="${DERIVED_DATA:-build/dd}"
 started=$(date +%s)
@@ -71,9 +85,11 @@ echo "== Plan: $plan"
 [ "${VERIFY_PLAN_ONLY:-0}" = 1 ] && exit 0
 
 if [ "$plan" = "spelling vocab package app site" ]; then
-  echo "== verify.sh plan and steps"
+  echo "== verify.sh plan, steps and build lock"
   ./scripts/test-verify-plan.sh
   ./scripts/test-verify-steps.sh
+  ./scripts/test-verify-lock.sh
+  ./scripts/test-build-lock.sh
 fi
 
 echo "== American spelling (CI's check)"

@@ -5,18 +5,18 @@ set -eu
 cd "$(dirname "$0")/.."
 dir=$(mktemp -d)
 trap 'rm -rf "$dir"' EXIT
-export VERIFY_LOCK_FILE="$dir/verify.lock"
-unset VERIFY_LOCKED || true
+export SHOWRECORDER_BUILD_LOCK="$dir/verify.lock"
+unset SHOWRECORDER_BUILD_LOCK_HELD || true
 
 fail=0
 VERIFY_LOCK_PROBE="echo A-start >> $dir/log; sleep 2; echo A-end >> $dir/log" ./scripts/verify.sh > "$dir/a.out" 2>&1 &
 first=$!
-sleep 0.5
+sleep 1.5
 VERIFY_LOCK_PROBE="echo B-start >> $dir/log" ./scripts/verify.sh > "$dir/b.out" 2>&1
 wait $first
 order=$(tr '\n' ' ' < "$dir/log")
 [ "$order" = "A-start A-end B-start " ] || { echo "FAIL: the second run didn't wait: $order"; fail=1; }
-grep -q "Waiting for another verify.sh" "$dir/b.out" || { echo "FAIL: the second run didn't say it was waiting"; fail=1; }
+grep -q "Waiting for another build" "$dir/b.out" || { echo "FAIL: the second run didn't say it was waiting"; fail=1; }
 grep -q "Waiting" "$dir/a.out" && { echo "FAIL: the first run said it was waiting"; fail=1; }
 
 # A plan-only run doesn't queue behind a running one.
