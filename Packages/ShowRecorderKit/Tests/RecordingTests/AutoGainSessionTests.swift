@@ -17,6 +17,8 @@ final class FakeGainControl: GainControl {
     /// When set, undo fails with it from this many undos on (0: the first fails), as a Mixer that stops answering.
     var undoFailsAfter: Int?
     private(set) var undos = 0
+    /// Gain moves started on the Mixer.
+    private(set) var moveStarts = 0
     /// When set, each gain move waits on it first, as a slow Mixer does.
     var answer: (@Sendable () async -> Void)?
     let gainRange: ClosedRange<Double> = -12...60
@@ -33,6 +35,9 @@ final class FakeGainControl: GainControl {
     var preampAnswer: (@Sendable () async -> Void)?
     /// When set, Re-Gain can't raise a gain past this, as when a threshold reaches its top: it stops there and says so.
     var reGainCeilingDb: Double?
+    /// When set, a threshold every move compensates (one keyed from all the channels, say): a move reads it, ramps,
+    /// then writes what it read less the gain change, as a Re-Gain plan does. Moves that overlap lose each other's.
+    var sharedThresholdDb: Double?
     static let gateAtTop = ReGain.Limit(setting: ReGain.Setting(channel: 1, parameter: .gateThreshold), endDb: 0)
 
     init(gainDb: [Int: Double], channelOfUSB: [Int: Int]) {
@@ -50,8 +55,13 @@ final class FakeGainControl: GainControl {
     }
 
     nonisolated func applyReGain(channel: Int, gainChangeDb: Double, scopes: ReGain.Scopes) async throws(MixerLinkProblem) -> GainStep {
+        await MainActor.run { moveStarts += 1 }
         if let problem = await MainActor.run(body: { problem }) { throw problem }
         if let answer = await MainActor.run(body: { answer }) { await answer() }
+        if let read = await MainActor.run(body: { sharedThresholdDb }) {
+            for _ in 0..<5 { await Task.yield() }   // the ramp
+            await MainActor.run { sharedThresholdDb = read - gainChangeDb }
+        }
         let result: Result<GainStep, MixerLinkProblem> = await MainActor.run {
             let target = movesInstead[channel] ?? channel
             let from = gainDb[target] ?? 0
@@ -112,27 +122,48 @@ struct AutoGainSessionTests {
         #expect(control.gainDb[1] == 22)
     }
 
-    @Test("Stopped mid-run (a Take started): no gain moves after it, the channel says so and keeps its moves for Undo, later channels are left alone")
+    @Test("Stopped mid-run (a Take started): no new gain move after it, every channel still moving says so and keeps its moves for Undo")
     func stopMidRun() async throws {
         let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
         var session: AutoGainSession!
-        var measured = 0
-        // The level follows 80% of each move, so USB 1 needs a second move to land; the Take starts before it.
+        var measuredUSB1 = 0
+        var movesAtStop = 0
+        // The level follows 80% of each move, so each channel needs a second move to land; the Take starts before it.
         session = AutoGainSession(control: control, measure: { usb in
-            measured += 1
-            if measured == 2 { session.stop() }
+            if usb == 1 {
+                measuredUSB1 += 1
+                if measuredUSB1 == 2 {
+                    session.stop()
+                    movesAtStop = control.moveStarts
+                }
+            }
             return -40 + 0.8 * (control.gainDb[control.channelOfUSB[usb] ?? usb] ?? 0)
+        }, settle: { await Task.yield() })
+
+        let results = await session.run(usbChannels: [1, 2])
+
+        #expect(results == [.haltedForTake(usbChannel: 1, channel: 1), .haltedForTake(usbChannel: 2, channel: 2)])
+        // The Mixer takes one move at a time, so at most the one already on its way when the Take started lands.
+        #expect(control.moveStarts <= movesAtStop + 1, "no new gain move after the stop")
+        #expect(control.gainDb[1] != 0)
+        #expect(session.steps[1]?.isEmpty == false, "kept for Undo")
+        try await session.undoAll()
+        #expect(control.gainDb == [1: 0, 2: 0])
+    }
+
+    @Test("Stopped before any channel moves, nothing moves and no channel is run")
+    func stopBeforeMoves() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
+        var session: AutoGainSession!
+        session = AutoGainSession(control: control, measure: { _ in
+            session.stop()
+            return -40
         })
 
         let results = await session.run(usbChannels: [1, 2])
 
-        #expect(results == [.haltedForTake(usbChannel: 1, channel: 1)])
-        #expect(control.gainDb[2] == 0, "USB 2 never moved")
-        let moved = try #require(control.gainDb[1])
-        #expect(moved != 0)
-        #expect(session.steps[1]?.isEmpty == false, "kept for Undo")
-        try await session.undo(usbChannel: 1)
-        #expect(control.gainDb[1] == 0)
+        #expect(results == [.haltedForTake(usbChannel: 1, channel: 1), .haltedForTake(usbChannel: 2, channel: 2)])
+        #expect(control.gainDb == [1: 0, 2: 0])
     }
 
     @Test("All channels: silent ones, ones with no Mixer channel, and a second USB Channel on a channel already moved are skipped")
@@ -368,5 +399,78 @@ struct AutoGainSessionTests {
         control.interruptsHalfway = false
         try await session.undo(usbChannel: 1)
         #expect(control.gainDb[1] == 0)
+    }
+
+    @Test("All channels are measured and stepped together, each on its own USB Channel, not one after another (#155)")
+    func inParallel() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
+        let meters = Self.meters(control, source: [1: -40, 2: -30])
+        var measured: [Int] = []
+        let session = AutoGainSession(control: control, measure: { usb in
+            measured.append(usb)
+            return await meters(usb)
+        }, settle: { await Task.yield() })
+
+        let results = await session.run(usbChannels: [1, 2])
+
+        #expect(results == [
+            .set(usbChannel: 1, channel: 1, fromGainDb: 0, toGainDb: 22, levelDbfs: -18),
+            .set(usbChannel: 2, channel: 2, fromGainDb: 0, toGainDb: 12, levelDbfs: -18),
+        ])
+        // USB Channel 2 is measured before USB Channel 1 is done.
+        let firstOf2 = try #require(measured.firstIndex(of: 2))
+        let lastOf1 = try #require(measured.lastIndex(of: 1))
+        #expect(firstOf2 < lastOf1, "measured in order \(measured)")
+    }
+    @Test("Run together, a channel whose level doesn't follow is stopped and put back; the others still reach target (#155)")
+    func oneStopsOthersFinish() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0, 3: 0], channelOfUSB: [1: 1, 2: 2])
+        control.movesInstead = [2: 3]   // USB Channel 2's move lands on channel 3
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40, 2: -40]),
+                                      settle: { await Task.yield() })
+
+        let results = await session.run(usbChannels: [1, 2])
+
+        #expect(results == [
+            .set(usbChannel: 1, channel: 1, fromGainDb: 0, toGainDb: 22, levelDbfs: -18),
+            .stopped(usbChannel: 2, channel: 2),
+        ])
+        #expect(control.gainDb == [1: 22, 2: 0, 3: 0])
+    }
+    @Test("Run together, one channel's move on the Mixer finishes before the next starts, so a setting both compensate keeps both (#155)")
+    func movesOneAtATime() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
+        control.sharedThresholdDb = 0
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40, 2: -30]),
+                                      settle: { await Task.yield() })
+
+        _ = await session.run(usbChannels: [1, 2])
+
+        #expect(control.gainDb == [1: 22, 2: 12])
+        #expect(control.sharedThresholdDb == -34)
+    }
+    @Test("An Undo waiting for its turn on the Mixer when a Take starts doesn't move anything (#155)")
+    func undoWaitingWhenStopped() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40, 2: -40]))
+        _ = await session.run(usbChannels: [1, 2])
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        control.undoAnswer = {
+            enter.yield()
+            for await _ in released { return }
+        }
+
+        let first = Task { try await session.undo(usbChannel: 1) }
+        for await _ in entered { break }
+        let second = Task { try await session.undo(usbChannel: 2) }   // waits for the Mixer
+        await Task.yield()
+        session.stop()
+        release.yield()
+        release.finish()
+        try await first.value
+        try await second.value
+
+        #expect(control.gainDb[2] == 22, "USB 2's Undo never reached the Mixer")
     }
 }
