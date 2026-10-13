@@ -101,6 +101,71 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     /// were none, and in Takes made before the rename log existed.
     public var renames: [Rename]?
 
+    /// Every preamp gain ShowRecorder changed on the Mixer during this Take (#450). Nil when there were none, and in
+    /// Takes made before the gain log existed.
+    public var gainChanges: [GainChange]?
+
+    /// One preamp gain change on the Mixer, by auto-gain, clip protection or Undo, with what Re-Gain moved to keep
+    /// the mix the same. Logged in the Take during a Take (with `position`) and in the Show between Takes.
+    public struct GainChange: Codable, Equatable, Sendable {
+        public enum Reason: String, Codable, Sendable {
+            case autoGain
+            case clipProtection
+            case undo
+
+            /// "auto-gain", "clip protection" or "undo", as the operator reads it.
+            public var word: String {
+                switch self {
+                case .autoGain: "auto-gain"
+                case .clipProtection: "clip protection"
+                case .undo: "undo"
+                }
+            }
+        }
+
+        /// A setting Re-Gain moved: a threshold, the fader or a send on a Mixer channel, as the Mixer holds it.
+        public struct Compensation: Codable, Equatable, Sendable {
+            public var channel: Int
+            /// "gate threshold", "compressor threshold", "fader", "send 3" and so on.
+            public var setting: String
+            public var fromDb: Double
+            public var toDb: Double
+
+            public init(channel: Int, setting: String, fromDb: Double, toDb: Double) {
+                self.channel = channel
+                self.setting = setting
+                self.fromDb = fromDb
+                self.toDb = toDb
+            }
+        }
+
+        /// Samples from the Take's start; nil between Takes.
+        public var position: Int?
+        /// When it happened.
+        public var at: Date?
+        public var usbChannel: Int
+        /// The Mixer's input channel and the preamp behind it.
+        public var channel: Int
+        public var headamp: Int
+        public var fromGainDb: Double
+        public var toGainDb: Double
+        public var reason: Reason
+        public var compensations: [Compensation]
+
+        public init(position: Int? = nil, at: Date? = nil, usbChannel: Int, channel: Int, headamp: Int, fromGainDb: Double,
+                    toGainDb: Double, reason: Reason, compensations: [Compensation]) {
+            self.position = position
+            self.at = at
+            self.usbChannel = usbChannel
+            self.channel = channel
+            self.headamp = headamp
+            self.fromGainDb = fromGainDb
+            self.toGainDb = toGainDb
+            self.reason = reason
+            self.compensations = compensations
+        }
+    }
+
     /// A Source renamed on the Mixer at a point in the Take, in samples from its start.
     public struct Rename: Codable, Equatable, Sendable {
         public var position: Int
@@ -161,6 +226,8 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
             case `operator`
             /// Placed by the recorder where a Copy's audio was lost.
             case dropout
+            /// Placed where ShowRecorder changed a preamp's gain on the Mixer (#450).
+            case gain
         }
 
         public var position: Int
@@ -207,7 +274,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames
+        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames, gainChanges
     }
 
     public init(from decoder: any Decoder) throws {
@@ -224,6 +291,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         preRollFrames = try c.decodeIfPresent(Int.self, forKey: .preRollFrames)
         dropouts = try c.decodeIfPresent([Dropout].self, forKey: .dropouts) ?? []  // Takes recorded before Dropouts existed
         renames = try c.decodeIfPresent([Rename].self, forKey: .renames)
+        gainChanges = try c.decodeIfPresent([GainChange].self, forKey: .gainChanges)
     }
 
     public init(show: String, take: Int, startedAt: Date, sampleRate: Int, timeReference: UInt64, usbChannels: [USBChannel], markers: [Marker] = []) {

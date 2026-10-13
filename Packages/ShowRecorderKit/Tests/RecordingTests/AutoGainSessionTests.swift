@@ -1,5 +1,6 @@
 import AutoGain
 import MixerLink
+import TakeFile
 @testable import Recording
 import Testing
 
@@ -129,5 +130,32 @@ struct AutoGainSessionTests {
         try await session.undoAll()
         #expect(control.gainDb == [1: 0, 2: 5])
         #expect(session.steps.values.allSatisfy { $0.isEmpty })
+    }
+
+    @Test("Every gain step and every Undo is logged, with what Re-Gain moved (#450)")
+    func logsGainChanges() async throws {
+        let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
+        var logged: [TakeMetadata.GainChange] = []
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]), log: { logged.append($0) })
+
+        _ = await session.run(usbChannels: [1])
+        try await session.undo(usbChannel: 1)
+
+        #expect(logged.map(\.reason) == [.autoGain, .undo])
+        #expect(logged.map(\.fromGainDb) == [0, 22])
+        #expect(logged.map(\.toGainDb) == [22, 0])
+        #expect(logged.allSatisfy { $0.usbChannel == 1 && $0.channel == 1 && $0.headamp == 1 })
+    }
+
+    @Test("A safety stop's Undo is logged too")
+    func logsSafetyUndo() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1])
+        control.movesInstead = [1: 2]
+        var logged: [TakeMetadata.GainChange] = []
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]), log: { logged.append($0) })
+
+        _ = await session.run(usbChannels: [1])
+
+        #expect(logged.map(\.reason) == [.autoGain, .undo])
     }
 }
