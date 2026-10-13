@@ -3,7 +3,7 @@
 #   vocab    scripts/vocab-check.sh      App/, package Sources/, CONTEXT.md, scripts/vocab-*
 #   package  swift test                  Packages/
 #   app      macOS and iOS Simulator     App/, Packages/, project.yml, ShowRecorder.xcodeproj/
-#   site     website lint, tests, build  website/
+#   site     website lint, tests, build  website/, docs/release-notes/
 # The package tests, the two app builds and the website run side by side, each into its own log; when all have
 # finished each one's result and time is printed, with the log of any that failed (scripts/verify-steps.sh).
 # Docs, design notes and other Markdown need none. A change to verify.sh, CI or any path not listed
@@ -52,6 +52,8 @@ else
       project.yml | ShowRecorder.xcodeproj/*) app=1 ;;
       CONTEXT.md | scripts/vocab-*) vocab=1 ;;
       website/*) site=1 ;;
+      # The site's changelog test reads the release notes.
+      docs/release-notes/*) site=1 ;;
       docs/* | design/* | *.md) ;;
       *) all ;;
     esac

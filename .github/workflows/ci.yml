@@ -13,7 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Which parts changed: the app (anything outside website/) and the site (website/).
+  # Which parts changed: the app (anything outside website/) and the site (website/, and
+  # docs/release-notes/, which the site's changelog test reads).
   # A change to this workflow runs both.
   changes:
     name: Changes
@@ -39,7 +40,7 @@ jobs:
           printf '%s\n' "$files"
           app=false; site=false
           if printf '%s\n' "$files" | grep -qvE '^website/|^$'; then app=true; fi
-          if printf '%s\n' "$files" | grep -qE '^website/|^\.github/workflows/ci\.yml$'; then site=true; fi
+          if printf '%s\n' "$files" | grep -qE '^website/|^docs/release-notes/|^\.github/workflows/ci\.yml$'; then site=true; fi
           # Nothing to build until the site is on this branch.
           if [ ! -f website/package.json ]; then site=false; fi
           echo "app=$app" >> "$GITHUB_OUTPUT"; echo "site=$site" >> "$GITHUB_OUTPUT"
