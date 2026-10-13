@@ -35,6 +35,15 @@ final class Capture: Sendable {
 
     var channelCount: Int { rings[0].channelCount }
 
+    /// Frames the Copy that lost the most has dropped because its ring was full.
+    var maxOverflowedFrames: Int { rings.map { $0.overflowedFrames.load(ordering: .relaxed) }.max() ?? 0 }
+
+    /// Frames captured but not yet taken by their writer, for the Copy furthest behind.
+    var maxBufferedFrames: Int { rings.map(\.availableFrames).max() ?? 0 }
+
+    /// Whether every Copy's writer has taken all that was captured for it.
+    var isDrained: Bool { rings.allSatisfy { $0.availableFrames == 0 } }
+
     /// - Parameter preRollSeconds: how much audio to keep before a Take starts; the buffer holds a second
     ///   more, so a snapshot of that length isn't cut short by the writer overwriting its oldest frames.
     init(channelCount: Int, sampleRate: Double, preRollSeconds: Double = 0, hostTicksPerSecond: Double = Capture.machTicksPerSecond) {

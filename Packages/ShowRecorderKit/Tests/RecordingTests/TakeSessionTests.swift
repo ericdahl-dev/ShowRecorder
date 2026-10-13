@@ -57,7 +57,7 @@ struct TakeSessionTests {
                 capture.receive(AudioBlock(channels: $0, channelCount: 1, frameCount: frames, hostTime: 0))
             }
         }
-        try await waitUntil { capture.rings.allSatisfy { $0.availableFrames == 0 } }
+        try await waitUntil { capture.isDrained }
     }
 
 

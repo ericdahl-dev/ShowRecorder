@@ -227,12 +227,12 @@ public final class Recorder {
 
     /// Frames lost since Arming because the writer couldn't keep up. (Dropouts proper come in #15.)
     public var droppedFrameCount: Int {
-        capture?.rings.map { $0.overflowedFrames.load(ordering: .relaxed) }.max() ?? 0
+        capture?.maxOverflowedFrames ?? 0
     }
 
     /// Frames captured but not yet written to the Stems, for the slowest Destination.
     var bufferedFrameCount: Int {
-        capture?.rings.map(\.availableFrames).max() ?? 0
+        capture?.maxBufferedFrames ?? 0
     }
 
     /// Each USB Channel's linear peak level (0...1) since the last call. Empty when not Armed.
