@@ -1,6 +1,4 @@
-import { TESTFLIGHT_URL } from "@/lib/site";
-
-**X32 and M32 support is in the public beta.** The App Store release of ShowRecorder 1.0 is for the Behringer X Air XR18 and MR18 and other class-compliant USB audio interfaces. The X32 and M32 come to the App Store in a later update. Until then, <a href={TESTFLIGHT_URL ?? "/"}>join the public beta</a> to record yours.
+The X32 and M32 work in the public beta now. They come to the App Store in an update after 1.0.
 
 > **Tested only against an emulator so far.** ShowRecorder's X32 and M32 support has run against an X32 emulator, not yet against a real desk. Try it first at a rehearsal, or alongside your usual recorder, before you count on it for a show.
 
@@ -11,10 +9,10 @@ Most X32 and M32 shows are recorded to a laptop running a DAW, or to SD cards. S
 ## What you get
 
 - **All 32 USB Channels** from the mixer's USB card, recorded in step with each other, at the mixer's sample rate.
-- **Files named from the mixer.** Over the Mixer Link, ShowRecorder reads each channel's name and color, and follows renames as they happen, on the meters and in the next Take.
+- **Files named from the mixer.** Over the Mixer Link, ShowRecorder reads each channel's name and color, and picks up a rename on the mixer within a second or two: on screen straight away, and in the files from the next recording.
 - **Named after what's really patched.** If you re-patch the card's outputs (a bus or another channel on USB 1), each file is named after what is actually routed to that USB Channel, not after its number.
 - **A second copy as you record**, on a USB drive through a hub, so one failure doesn't lose the show.
-- **Markers and Pre-roll**, and with Pro a Show report and a Reaper project, as on every mixer.
+- **Markers you drop during the set, and the seconds before you press record**, and with Pro a report of the show and a Reaper project, as on every mixer.
 
 ## What you need
 
@@ -24,12 +22,12 @@ Most X32 and M32 shows are recorded to a laptop running a DAW, or to SD cards. S
 
 ## Set it up
 
-1. Connect the mixer's USB card to your iPhone or iPad. ShowRecorder Arms on it, and Settings should show **32 USB Channels**. If it doesn't, tell us.
+1. Connect the mixer's USB card to your iPhone or iPad. ShowRecorder picks it up, and Settings should show **32 USB Channels**. If it doesn't, tell us.
 2. Join the network of the router on the mixer's Ethernet port.
 3. Open **Settings**, then **Mixer Link**, and tap **Find Mixers**. Tap your mixer. The meters take the mixer's channel names and colors.
 4. Press record.
 
-32 channels at 48 kHz take about 16.6 GB per hour on each place a Take is written to. The record screen shows the time left.
+32 channels at 48 kHz take about 16.6 GB per hour, on the iPhone or iPad and again on the drive if you use one. The record screen shows the time left.
 
 ## Free, Trial and Pro
 

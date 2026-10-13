@@ -138,3 +138,19 @@ describe("mixer page screenshots", () => {
     expect(x32Page).not.toMatch(/Screenshot|<figure/);
   });
 });
+
+// #482 E: these are pages for people who haven't got the app yet, so they use plain words, not the app's own terms.
+// "Mixer Link", "Find Mixers" and "USB Channels" stay: the app shows them, and the pages teach them.
+describe("mixer pages in plain words", () => {
+  for (const [name, page] of [["x32", x32Page], ["xr18", xr18Page]] as const) {
+    it(`/mixers/${name} has none of the app's own terms`, () => {
+      expect(page).not.toMatch(/\b(Arms?|Armed|Takes?|Stems?|Pre-roll|Show report)\b/);
+    });
+  }
+
+  // When 1.0 is approved, update "Where to get it" on the XR18 page and this test together.
+  it("the XR18 page says once where it stands: 1.0 in App Review, the public beta open now", () => {
+    expect(xr18Page.match(/App Review/g)?.length).toBe(1);
+    expect(xr18Page.match(/public beta/g)?.length).toBe(1);
+  });
+});
