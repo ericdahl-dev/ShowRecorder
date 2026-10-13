@@ -243,7 +243,13 @@ public final class AutoGainSession {
         defer { undoing.remove(usbChannel) }
         stopRequested = false
         while !stopRequested, let step = steps[usbChannel]?.last {
-            try await onMixer { () throws(MixerLinkProblem) in try await control.undo(step) }
+            // Checked again once it's this Undo's turn on the Mixer: a Take that started while it waited stops it.
+            let undone = try await onMixer { () throws(MixerLinkProblem) -> Bool in
+                if stopRequested { return false }
+                try await control.undo(step)
+                return true
+            }
+            guard undone else { return }
             if steps[usbChannel]?.last == step { steps[usbChannel]?.removeLast() }
             log(Self.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
         }

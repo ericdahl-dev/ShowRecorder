@@ -446,4 +446,28 @@ struct AutoGainSessionTests {
         #expect(control.gainDb == [1: 22, 2: 12])
         #expect(control.sharedThresholdDb == -34)
     }
+    @Test("An Undo waiting for its turn on the Mixer when a Take starts doesn't move anything (#155)")
+    func undoWaitingWhenStopped() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40, 2: -40]))
+        _ = await session.run(usbChannels: [1, 2])
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        control.undoAnswer = {
+            enter.yield()
+            for await _ in released { return }
+        }
+
+        let first = Task { try await session.undo(usbChannel: 1) }
+        for await _ in entered { break }
+        let second = Task { try await session.undo(usbChannel: 2) }   // waits for the Mixer
+        await Task.yield()
+        session.stop()
+        release.yield()
+        release.finish()
+        try await first.value
+        try await second.value
+
+        #expect(control.gainDb[2] == 22, "USB 2's Undo never reached the Mixer")
+    }
 }
