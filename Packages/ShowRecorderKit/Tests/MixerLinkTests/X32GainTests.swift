@@ -321,4 +321,19 @@ struct X32GainTests {
         #expect(try await driver.reGainState(ofChannel: 1) == before)
         #expect(try await driver.gainDb(ofHeadamp: 0) == gainBefore)
     }
+
+    @Test("An X32 preamp-linked pair: Re-Gain asked on channel 4 compensates channel 3's strip too (#393)")
+    func linkedPartnerCompensated() async throws {
+        var state = FakeXAirMixer.State.x32()
+        state.set["/config/chlink/3-4"] = .int(1)
+        state.set["/config/linkcfg/hadly"] = .int(1)
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+
+        let step = try await driver.applyReGain(channel: 4, gainChangeDb: 6)
+
+        #expect(step.changes.contains { $0.setting == ReGain.Setting(channel: 3, parameter: .mainFader) })
+        #expect(step.changes.contains { $0.setting == ReGain.Setting(channel: 4, parameter: .mainFader) })
+        #expect(!step.changes.contains { $0.setting.channel == 5 })
+    }
 }

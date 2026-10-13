@@ -54,11 +54,9 @@ extension ReGainDesk {
     /// (`preampLinkAddress`), the first channel's, since the Mixer then moves both together. A link of the channel
     /// strips alone leaves each its own preamp. Two X32 channels on one headamp answer the same headamp.
     public func preamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? {
-        guard channel % 2 == 0,
-              try await queries.int(at: String(format: "/config/chlink/%d-%d", channel - 1, channel)) != 0,
-              try await queries.int(at: Self.preampLinkAddress) != 0
-        else { return try await headamp(ofChannel: channel) }
-        return try await headamp(ofChannel: channel - 1)
+        // One rule for which channels move together (`linkedPartner`): the pair answers its first channel's preamp.
+        guard channel % 2 == 0, let partner = try await linkedPartner(of: channel) else { return try await headamp(ofChannel: channel) }
+        return try await headamp(ofChannel: partner)
     }
 
     func deskGainDb(ofHeadamp headamp: Int) async throws(MixerLinkProblem) -> Double {
