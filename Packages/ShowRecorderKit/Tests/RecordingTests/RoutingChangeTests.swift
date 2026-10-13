@@ -48,6 +48,23 @@ struct RoutingChangeTests {
         #expect(FileManager.default.fileExists(atPath: take.appending(path: "01 Kick.wav").path))
     }
 
+    @Test("The Marker list shows a routing Marker as itself, not as a Dropout, and not as the operator's (#528)")
+    func listedAsItsOwnKind() async throws {
+        let device = FakeAudioDevice(inputChannelCount: 2)
+        let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
+        try recorder.arm(device)
+        try recorder.startTake(sources: Self.start)
+        for _ in 0..<3 { device.deliver(Array(repeating: [0, 0, 0, 0], count: 2)) }
+        recorder.addMarker()
+        recorder.offerSources([Self.source("Snare", routedFrom: "ch:3"), Self.start[1]])
+
+        let entries = recorder.markerEntries
+        #expect(entries.map(\.kind) == [.operator, .routing])
+        #expect(entries.map(\.isDropout) == [false, false])
+        #expect(entries.map { $0.operatorIndex != nil } == [true, false])
+        try recorder.stopTake()
+    }
+
     @Test("A rename on the Mixer, same routing, stays a quiet rename: no routing change, no Marker")
     func renameIsNotARepatch() async throws {
         let device = FakeAudioDevice(inputChannelCount: 2)

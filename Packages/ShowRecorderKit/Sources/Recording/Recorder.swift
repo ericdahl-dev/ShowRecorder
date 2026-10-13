@@ -539,6 +539,7 @@ public final class Recorder {
             let name = session.channelName(change.usbChannel) ?? String(format: "USB %02d", change.usbChannel)
             let marker = String(format: "%@: gain %+.1f dB (%@)", name, change.toGainDb - change.fromGainDb, change.reason.word)
             session.logGainChange(change, markerName: marker)
+            refreshMarkers(from: session.metadata)
         } else {
             currentShow?.logGainChange(change)
         }
@@ -667,7 +668,7 @@ public final class Recorder {
                 seconds: metadata.sampleRate > 0 ? Double(marker.position) / Double(metadata.sampleRate) : 0,
                 secondsSincePress: metadata.sampleRate > 0
                     ? Double(max(marker.position - (metadata.preRollFrames ?? 0), 0)) / Double(metadata.sampleRate) : 0,
-                name: marker.name)
+                name: marker.name, kind: marker.origin)
         }
     }
 
@@ -925,14 +926,17 @@ final class Capture: Sendable {
 public struct MarkerEntry: Equatable, Identifiable, Sendable {
     /// Its place in the Take's list of all Markers.
     public var id: Int
-    /// Which operator Marker this is (the index `Recorder.renameMarker` takes), or nil for a Dropout Marker,
-    /// which the recorder placed and which can't be renamed.
+    /// Which operator Marker this is (the index `Recorder.renameMarker` takes), or nil for a Marker the recorder
+    /// placed (a Dropout, a gain change, a routing change), which can't be renamed.
     public var operatorIndex: Int?
     /// Counted from the start of the audio, which includes the Pre-roll.
     public var seconds: Double
     /// Counted from when Record was pressed, as the timer on the record screen does.
     public var secondsSincePress: Double
     public var name: String
+    /// Who placed it: the operator, or the recorder at a Dropout, a gain change or a routing change (#528).
+    public var kind: TakeMetadata.Marker.Origin
 
-    public var isDropout: Bool { operatorIndex == nil }
+    /// A Dropout Marker: audio was lost here.
+    public var isDropout: Bool { kind == .dropout }
 }
