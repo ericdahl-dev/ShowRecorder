@@ -6,7 +6,7 @@ struct X32DriverTests {
     @Test("Identifies the Mixer from /xinfo and knows an X32 sends 32 USB Channels, all nameable")
     func identifiesMixer() async throws {
         let mixer = try await FakeXAirMixer(.x32())
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let identity = try await driver.identify()
 
@@ -21,7 +21,7 @@ struct X32DriverTests {
         state.channels[16] = .init(name: "Lead Vocal", color: 11, inputSource: 17)  // yellow, inverted
         state.channels[31] = .init(name: "Audience R", color: 6, inputSource: 32)   // cyan
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let sources = try await driver.sources(usbChannelCount: 32)
 
@@ -39,7 +39,7 @@ struct X32DriverTests {
         var state = FakeXAirMixer.State.x32()
         state.channels[24] = .init(name: "Keys L", color: 5, on: 0, fader: 0.5, inputSource: 25)
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let sources = try await driver.sources(usbChannelCount: 32)
 
@@ -52,7 +52,7 @@ struct X32DriverTests {
     @Test("Name and color changes pushed for any of the 32 channels reach their USB Channel")
     func pushedChangesReachTheirUSBChannel() async throws {
         let mixer = try await FakeXAirMixer(.x32())
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
         _ = try await driver.sources(usbChannelCount: 32)   // as the Link does before live updates
         var changes = driver.sourceChanges().makeAsyncIterator()
         try await driver.renewLiveUpdates()
@@ -71,7 +71,7 @@ struct X32DriverTests {
         state.channels[8] = .init(name: "Tom 1", color: 4, inputSource: 9)
         state.channels[0] = .init(name: "Kick", color: 1, inputSource: 1)
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let sources = try await driver.sources(usbChannelCount: 32)
 
@@ -86,7 +86,7 @@ struct X32DriverTests {
         state.cardBlocks?[3] = 20                         // USB 25-32 carry OUT1-8
         state.channels[24] = .init(name: "Keys L", color: 5, inputSource: 25)
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let sources = try await driver.sources(usbChannelCount: 32)
 
@@ -113,7 +113,7 @@ struct X32DriverTests {
         var state = FakeXAirMixer.State.x32()
         state.cardBlocks?[0] = 1                          // USB 1-8 carry AN9-16
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
         _ = try await driver.sources(usbChannelCount: 32)
         var changes = driver.sourceChanges().makeAsyncIterator()
         try await driver.renewLiveUpdates()
@@ -131,7 +131,7 @@ struct X32DriverTests {
         state.channels[0] = .init(name: "Kick", color: 1, inputSource: 1)
         state.channels[8] = .init(name: "Tom 1", color: 4, inputSource: 9)
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
         let before = try await driver.sources(usbChannelCount: 32)
         #expect(before[safe: 0]?.name == "Kick")
         var changes = driver.sourceChanges().makeAsyncIterator()

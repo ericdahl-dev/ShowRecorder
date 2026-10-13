@@ -6,7 +6,7 @@ struct XAirDriverTests {
     @Test("Identifies the Mixer from /xinfo")
     func identifiesMixer() async throws {
         let mixer = try await FakeXAirMixer()
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let identity = try await driver.identify()
 
@@ -19,8 +19,9 @@ struct XAirDriverTests {
         state.channels[0] = .init(name: "Kick", color: 1)        // red
         state.channels[6] = .init(name: "Lead Vocal", color: 11) // yellow, inverted
         state.auxReturn = .init(name: "Playback", color: 4)      // blue
+        state.usbRouting = Self.defaultRouting   // answered, so no read waits out its timeout (#462)
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let sources = try await driver.sources(usbChannelCount: 18)
 
@@ -36,8 +37,9 @@ struct XAirDriverTests {
     func readsOneSourcePerUSBChannel(count: Int) async throws {
         var state = FakeXAirMixer.State()
         state.channels[0] = .init(name: "Kick", color: 1)
+        state.usbRouting = Self.defaultRouting   // answered, so no read waits out its timeout (#462)
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let sources = try await driver.sources(usbChannelCount: count)
 
@@ -49,8 +51,9 @@ struct XAirDriverTests {
     func channelsBeyondEighteenFallBack() async throws {
         var state = FakeXAirMixer.State()
         state.auxReturn = .init(name: "Playback", color: 4)
+        state.usbRouting = Self.defaultRouting   // answered, so no read waits out its timeout (#462)
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let sources = try await driver.sources(usbChannelCount: 32)
 
@@ -63,8 +66,10 @@ struct XAirDriverTests {
 
     @Test("A Source with an empty name falls back to its USB Channel number")
     func emptyNameFallsBackToUSBChannel() async throws {
-        let mixer = try await FakeXAirMixer()
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        var state = FakeXAirMixer.State()
+        state.usbRouting = Self.defaultRouting   // answered, so no read waits out its timeout (#462)
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let sources = try await driver.sources(usbChannelCount: 18)
 
@@ -78,8 +83,9 @@ struct XAirDriverTests {
         var state = FakeXAirMixer.State()
         state.channels[2] = .init(name: "Hat", color: 3, on: 0, fader: 0.5, inputSource: 2)
         state.auxReturn = .init(name: "Playback", color: 4, on: 1, fader: 0.25)
+        state.usbRouting = Self.defaultRouting   // answered, so no read waits out its timeout (#462)
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let sources = try await driver.sources(usbChannelCount: 18)
 
@@ -115,8 +121,9 @@ struct XAirDriverTests {
         var state = FakeXAirMixer.State()
         state.channels[0] = .init(name: "Kick", color: 1, on: 0)
         state.reportsFaderAsInt = true
+        state.usbRouting = Self.defaultRouting   // answered, so no read waits out its timeout (#462)
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let sources = try await driver.sources(usbChannelCount: 18)
 
@@ -137,7 +144,7 @@ struct XAirDriverTests {
         state.channels[0] = .init(name: "Kick", color: 1)
         state.auxReturn = .init(name: "Playback", color: 4)
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let sources = try await driver.sources(usbChannelCount: 18)
 
@@ -167,7 +174,7 @@ struct XAirDriverTests {
         state.usbRouting = Self.defaultRouting
         state.usbRouting?[0] = [4, 0]          // USB 1 carries Ch05
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
         _ = try await driver.sources(usbChannelCount: 18)
         var changes = driver.sourceChanges().makeAsyncIterator()
         try await driver.renewLiveUpdates()
@@ -188,7 +195,7 @@ struct XAirDriverTests {
         state.usbRouting = Self.defaultRouting
         state.channels[3] = .init(name: "Tom", color: 1)
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
         _ = try await driver.sources(usbChannelCount: 18)   // as the Link does before live updates
         var changes = driver.sourceChanges().makeAsyncIterator()
         try await driver.renewLiveUpdates()
@@ -208,7 +215,7 @@ struct XAirDriverTests {
         state.model = "XR16"
         state.channels[0] = .init(name: "Kick", color: 1)
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let sources = try await driver.sources(usbChannelCount: 0)
 

@@ -27,7 +27,7 @@ struct MixerScanTests {
     @Test("The scan finds a mixer that answers /xinfo, with its name, model and address, and only asks /xinfo")
     func findsMixer() async throws {
         let mixer = try await FakeXAirMixer()
-        let found = await MixerScanner.scan(hosts: ["127.0.0.1"], ports: [mixer.port], timeout: .seconds(1))
+        let found = await MixerScanner.scan(hosts: ["127.0.0.1"], ports: [mixer.port], timeout: Loopback.mixedTimeout)
         #expect(found == [FoundMixer(host: "127.0.0.1", identity: MixerIdentity(networkName: "FOH-XR18", model: "XR18", firmware: "1.22"))])
         #expect(mixer.queries == ["/xinfo"])
     }
@@ -49,7 +49,7 @@ struct MixerScanTests {
         silent.answers = false
         let xAirPort = try await FakeXAirMixer(silent)
         let x32 = try await FakeXAirMixer(.x32())
-        let found = await MixerScanner.scan(hosts: ["127.0.0.1"], ports: [xAirPort.port, x32.port], timeout: .seconds(1))
+        let found = await MixerScanner.scan(hosts: ["127.0.0.1"], ports: [xAirPort.port, x32.port], timeout: Loopback.mixedTimeout)
         #expect(found == [FoundMixer(host: "127.0.0.1", identity: MixerIdentity(networkName: "FOH-X32", model: "X32", firmware: "4.06"))])
     }
 
@@ -65,7 +65,7 @@ struct MixerScanTests {
             let parts = String(decoding: data, as: UTF8.self).split(separator: ",").map(String.init)
             return parts.count == 3 ? MixerIdentity(networkName: parts[0], model: parts[1], firmware: parts[2]) : nil
         }
-        let found = await MixerScanner.scan(hosts: ["127.0.0.1"], probes: [probe], timeout: .seconds(1))
+        let found = await MixerScanner.scan(hosts: ["127.0.0.1"], probes: [probe], timeout: Loopback.mixedTimeout)
         #expect(found == [FoundMixer(host: "127.0.0.1", identity: MixerIdentity(networkName: "FOH", model: "TEST", firmware: "1.0"))])
         #expect(mixer.requests == ["WHO?"])
     }

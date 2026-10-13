@@ -8,7 +8,7 @@ struct OSCUDPClientOrderTests {
     @Test("300 renames pushed back to back arrive in the order they were sent")
     func pushesKeepTheirOrder() async throws {
         let mixer = try await FakeXAirMixer()
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
         var changes = driver.sourceChanges().makeAsyncIterator()
         try await driver.renewLiveUpdates()
 

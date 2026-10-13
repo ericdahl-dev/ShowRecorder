@@ -12,7 +12,7 @@ struct X32GainTests {
         state.headampOfChannel[4] = 37        // channel 5 on an AES50 A stage box input
         state.headampOfChannel[9] = -1        // channel 10 on a card input: no preamp
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         #expect(try await driver.headamp(ofChannel: 1) == 0)
         #expect(try await driver.headamp(ofChannel: 5) == 37)
@@ -32,7 +32,7 @@ struct X32GainTests {
         kick.sendTypes[0] = 3                // sends 1-2: PRE
         state.channels[0] = kick
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let read = try await driver.reGainState(ofChannel: 1)
 
@@ -56,7 +56,7 @@ struct X32GainTests {
         state.channels[2].gateThreshold = 0.5        // -40 dB
         state.channels[3].gateKey = 2                // channel 4 keyed from In02: not ours
         let mixer = try await FakeXAirMixer(state)  // every other key is 0 (own signal)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let keyed = try await driver.keyedDynamics(from: 1)
 
@@ -71,7 +71,7 @@ struct X32GainTests {
         var state = FakeXAirMixer.State.x32()
         state.channels[0].inputSource = 0
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         #expect(try await driver.keyedDynamics(from: 1).isEmpty)
     }
@@ -95,7 +95,7 @@ struct X32GainTests {
     @Test("+6 dB: the gain and every compensation are written on the X32's own steps, and the result says what it holds")
     func applyReGain() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let result = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
 
@@ -117,7 +117,7 @@ struct X32GainTests {
     @Test("Undo puts back every value exactly as it was, gain included")
     func undoReGain() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
         let before = try await driver.reGainState(ofChannel: 1)
 
         let result = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
@@ -133,7 +133,7 @@ struct X32GainTests {
         var state = Self.kickDesk()
         state.headampOfChannel[0] = -1
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         await #expect(throws: MixerLinkProblem.noPreamp(channel: 1)) { try await driver.applyReGain(channel: 1, gainChangeDb: 6) }
         #expect(mixer.writes.isEmpty)
@@ -144,7 +144,7 @@ struct X32GainTests {
         var state = Self.kickDesk()
         state.headampGains[0] = Float(X32Values.headampGain.toFloat(57))   // +57 dB
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let result = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
 
@@ -186,7 +186,7 @@ struct X32GainTests {
     @Test("Raising the gain by 25 dB ramps in steps of at most 1 dB, and the channel never gets louder in the mix")
     func raiseRampsWithoutGettingLouder() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let step = try await driver.applyReGain(channel: 1, gainChangeDb: 25)
 
@@ -203,7 +203,7 @@ struct X32GainTests {
         var state = Self.kickDesk()
         state.headampGains[0] = Float(X32Values.headampGain.toFloat(10))
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
         var start = Self.kickStart
         start["/headamp/000/gain"] = 10
 
@@ -215,7 +215,7 @@ struct X32GainTests {
     @Test("Undo ramps back the same way and ends on the exact values from before")
     func undoRampsBack() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
         let before = try await driver.reGainState(ofChannel: 1)
         let step = try await driver.applyReGain(channel: 1, gainChangeDb: 25)
         let applied = mixer.writes.count
@@ -237,7 +237,7 @@ struct X32GainTests {
         var state = FakeXAirMixer.State.x32()
         state.headampOfChannel[16] = 0   // channel 17 on local input 1, like channel 1
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         #expect(try await driver.preamp(ofChannel: 17) == driver.preamp(ofChannel: 1))
         #expect(try await driver.preamp(ofChannel: 4) != driver.preamp(ofChannel: 3))
@@ -254,7 +254,7 @@ struct X32GainTests {
         state.channels[16].inputSource = 1
         state.channels[4].gateKey = 1    // channel 5's gate keyed from In01, which both channels take
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let step = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
         #expect(step.changes.filter { $0.setting == ReGain.Setting(channel: 5, parameter: .gateThreshold) }.count == 1)
@@ -275,7 +275,7 @@ struct X32GainTests {
         var state = FakeXAirMixer.State.x32()
         state.stopsAnsweringAfterWrites = 9   // a few ramp steps into a +6 dB move
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))   // waits out a Mixer that stops answering: keeps the short default
         let before = try await driver.reGainState(ofChannel: 1)
         let gainBefore = try await driver.gainDb(ofHeadamp: 0)
 
@@ -302,7 +302,7 @@ struct X32GainTests {
         var state = FakeXAirMixer.State.x32()
         state.stopsAnsweringAfterWrites = 1   // only the first compensation of the first ramp step lands
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))   // waits out a Mixer that stops answering: keeps the short default
         let before = try await driver.reGainState(ofChannel: 1)
         let gainBefore = try await driver.gainDb(ofHeadamp: 0)
 
@@ -328,7 +328,7 @@ struct X32GainTests {
         state.set["/config/chlink/3-4"] = .int(1)
         state.set["/config/linkcfg/hadly"] = .int(1)
         let mixer = try await FakeXAirMixer(state)
-        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
 
         let step = try await driver.applyReGain(channel: 4, gainChangeDb: 6)
 
