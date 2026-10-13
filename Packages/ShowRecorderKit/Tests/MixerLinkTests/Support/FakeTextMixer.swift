@@ -21,7 +21,11 @@ final class FakeTextMixer: Sendable {
         let listener = try NWListener(using: parameters)
         let ready = AsyncStream<UInt16>.makeStream()
         listener.stateUpdateHandler = { [listener] update in
-            if case .ready = update, let port = listener.port?.rawValue { ready.continuation.yield(port) }
+            switch update {
+            case .ready: if let port = listener.port?.rawValue { ready.continuation.yield(port) }
+            case .failed, .cancelled: ready.continuation.finish()
+            default: break
+            }
         }
         let log = log
         listener.newConnectionHandler = { connection in
@@ -40,7 +44,8 @@ final class FakeTextMixer: Sendable {
         listener.start(queue: .global())
         var iterator = ready.stream.makeAsyncIterator()
         self.listener = listener
-        self.port = await iterator.next() ?? 0
+        guard let port = await iterator.next() else { throw CancellationError() }
+        self.port = port
     }
 
     deinit { listener.cancel() }

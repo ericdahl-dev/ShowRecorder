@@ -99,7 +99,7 @@ public final class DetectingMixerDriver: MixerDriver {
             .capabilities(for: identity)
     }
 
-    /// The found Mixer's gain control, when its driver has one (the X32 today; the X-Air with #153).
+    /// The found Mixer's gain control, when its driver has one.
     public var gainControl: (any GainControl)? {
         chosen.withLock { $0?.driver }?.gainControl
     }

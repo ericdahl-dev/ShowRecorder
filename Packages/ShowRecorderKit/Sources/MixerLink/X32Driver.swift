@@ -18,9 +18,6 @@ public final class X32Driver: MixerDriver {
         try await queries.identify()
     }
 
-    /// Its own preamp control, with Re-Gain (`ReGainDesk`).
-    public var gainControl: (any GainControl)? { self }
-
     /// An X-USB card sends 32 USB Channels, each nameable from one of the 32 input channels.
     public func capabilities(for identity: MixerIdentity) -> MixerCapabilities {
         MixerCapabilities(usbChannelCount: Self.channelCount, nameableUSBChannelCount: Self.channelCount)

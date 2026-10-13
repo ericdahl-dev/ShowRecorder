@@ -92,6 +92,11 @@ extension MixerDriver {
     public var gainControl: (any GainControl)? { nil }
 }
 
+/// A driver that is its own preamp control offers itself, so a new family's driver can't forget to.
+extension MixerDriver where Self: GainControl {
+    public var gainControl: (any GainControl)? { self }
+}
+
 /// A name or color the Mixer changed on one USB Channel's Source. Nil fields did not change.
 public struct SourceChange: Equatable, Sendable {
     public var usbChannel: Int

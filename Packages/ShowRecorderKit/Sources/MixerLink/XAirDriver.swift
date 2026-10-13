@@ -22,9 +22,6 @@ public final class XAirDriver: MixerDriver {
         try await queries.identify()
     }
 
-    /// Its own preamp control, with Re-Gain (`ReGainDesk`).
-    public var gainControl: (any GainControl)? { self }
-
     /// The XR18 and MR18 send 18 USB Channels; the XR12 and XR16 send no multichannel USB audio. An
     /// X-Air model not listed here has no known USB Channel count and is named like the XR18.
     public func capabilities(for identity: MixerIdentity) -> MixerCapabilities {
