@@ -12,11 +12,12 @@ struct MixerCapabilitiesTests {
         #expect(capabilities == MixerCapabilities(usbChannelCount: 18, nameableUSBChannelCount: 18))
     }
 
-    @Test("The XR12 and XR16 send no multichannel USB audio", arguments: ["XR12", "XR16"])
+    @Test("The XR12 and XR16 send no multichannel USB audio, so the X-Air driver names none", arguments: ["XR12", "XR16"])
     func xAirWithoutMultichannelUSB(model: String) {
         let capabilities = driver.capabilities(for: MixerIdentity(networkName: "FOH", model: model, firmware: "1.22"))
 
         #expect(capabilities.usbChannelCount == nil)
+        #expect(capabilities.nameableUSBChannelCount == 0, "so the Link asks it to name no USB Channel")
     }
 
     @Test("An X-Air model the driver doesn't know has no known USB Channel count")

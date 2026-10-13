@@ -64,8 +64,7 @@ struct MixerQueries: Sendable {
     /// `/xinfo`: the Mixer's IP, network name, model and firmware, on the X-Air and the X32 alike.
     func identify() async throws(MixerLinkProblem) -> MixerIdentity {
         let reply = try await client.request(OSCMessage("/xinfo"), timeout: timeout)
-        let strings = reply.arguments.compactMap { if case .string(let value) = $0 { value } else { nil } }
-        guard strings.count >= 4 else { throw .other("The Mixer's /xinfo reply was incomplete") }
-        return MixerIdentity(networkName: strings[1], model: strings[2], firmware: strings[3])
+        guard let identity = MixerProbe.xinfoIdentity(reply) else { throw .other("The Mixer's /xinfo reply was incomplete") }
+        return identity
     }
 }

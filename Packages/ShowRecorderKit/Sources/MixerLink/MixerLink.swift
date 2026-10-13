@@ -1,9 +1,13 @@
-/// Where a Mixer listens for OSC. X-Air mixers use UDP port 10024, the X32 and M32 10023.
+/// Where a Mixer listens for OSC. Each family has its own port (`MixerFamily.probe`): X-Air mixers use UDP 10024, the
+/// X32 and M32 10023.
 public struct MixerEndpoint: Equatable, Sendable {
     public var host: String
     public var port: UInt16
 
-    public init(host: String, port: UInt16 = 10024) {
+    /// The port an address typed without one is asked on first: the first family's. Detection asks the others too.
+    public static var defaultPort: UInt16 { MixerFamily.allCases[0].probe.port }
+
+    public init(host: String, port: UInt16 = MixerEndpoint.defaultPort) {
         self.host = host
         self.port = port
     }
@@ -80,6 +84,17 @@ public protocol MixerDriver: Sendable {
     func renewLiveUpdates() async throws(MixerLinkProblem)
     /// The Source changes the Mixer pushes while live updates are renewed. Ends when the driver goes away.
     func sourceChanges() -> AsyncStream<SourceChange>
+    /// The Mixer's preamp control, which Re-Gain and auto-gain use (#442); nil when this driver can't set gain.
+    var gainControl: (any GainControl)? { get }
+}
+
+extension MixerDriver {
+    public var gainControl: (any GainControl)? { nil }
+}
+
+/// A driver that is its own preamp control offers itself, so a new family's driver can't forget to.
+extension MixerDriver where Self: GainControl {
+    public var gainControl: (any GainControl)? { self }
 }
 
 /// A name or color the Mixer changed on one USB Channel's Source. Nil fields did not change.

@@ -62,4 +62,26 @@ struct DetectingMixerDriverTests {
         #expect(DetectingMixerDriver.ports(for: MixerEndpoint(host: "10.0.0.20", port: 10023)) == [10023, 10024])
         #expect(DetectingMixerDriver.ports(for: MixerEndpoint(host: "10.0.0.20", port: 9000)) == [9000])
     }
+
+    @Test("Each family is asked on its own port, the given one first; a port no family owns is asked the X Air's way (#442)")
+    func candidates() {
+        let at10023 = DetectingMixerDriver.candidates(for: MixerEndpoint(host: "10.0.0.20", port: 10023))
+        #expect(at10023.map(\.family) == [.x32, .xAir])
+        #expect(at10023.map(\.port) == [10023, 10024])
+        let at9000 = DetectingMixerDriver.candidates(for: MixerEndpoint(host: "10.0.0.20", port: 9000))
+        #expect(at9000.map(\.family) == [.xAir])
+        #expect(at9000.map(\.port) == [9000])
+    }
+
+    @Test("Once found, an X32 keeps the X32 driver when asked again: its gain control is the X32's")
+    func keepsDriverOnReidentify() async throws {
+        let x32 = try await FakeXAirMixer(.x32())
+        let driver = DetectingMixerDriver(host: "127.0.0.1", ports: [x32.port], timeout: .seconds(1))
+
+        _ = try await driver.identify()
+        let again = try await driver.identify()
+
+        #expect(again.model == "X32")
+        #expect(driver.gainControl is X32Driver)
+    }
 }

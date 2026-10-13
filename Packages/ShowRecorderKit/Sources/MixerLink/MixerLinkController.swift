@@ -32,8 +32,7 @@ public final class MixerLinkController {
 
     /// The linked Mixer's gain control for auto-gain (#155), while the Link is up and its driver can set gain.
     public var gainControl: (any GainControl)? {
-        guard identity != nil, let driver else { return nil }
-        return (driver as? DetectingMixerDriver)?.gainControl ?? driver as? any GainControl
+        identity != nil ? driver?.gainControl : nil
     }
 
     /// The identified Mixer, while the Link is up.
@@ -198,7 +197,7 @@ extension MixerEndpoint {
         let parts = trimmed.split(separator: ":", omittingEmptySubsequences: false)
         guard parts.count == 1 || parts.count == 2 else { return nil }
         let host = String(parts[0])
-        var port: UInt16 = 10024
+        var port = MixerEndpoint.defaultPort
         if parts.count == 2 {
             guard let parsed = UInt16(parts[1]), parsed > 0 else { return nil }
             port = parsed

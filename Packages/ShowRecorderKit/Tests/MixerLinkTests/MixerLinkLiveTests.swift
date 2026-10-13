@@ -1,111 +1,81 @@
 import MixerLink
 import Testing
 
+/// Live updates through the Mixer Link controller, against an in-memory Mixer driver (#442). How each family's driver
+/// turns what its Mixer pushes into Source changes is in `XAirDriverTests` and `X32DriverTests`.
 @MainActor
 @Suite("Mixer Link live updates")
 struct MixerLinkLiveTests {
-    /// Waits until `condition` holds, or gives up after `seconds`.
-    func eventually(_ seconds: Double = 3, _ condition: () -> Bool) async -> Bool {
-        let deadline = ContinuousClock.now + .seconds(seconds)
-        while ContinuousClock.now < deadline {
-            if condition() { return true }
-            try? await Task.sleep(for: .milliseconds(20))
-        }
-        return condition()
-    }
-
     @Test("A rename on the Mixer reaches the Sources while the Link is up")
-    func renameShowsUp() async throws {
-        var state = FakeXAirMixer.State()
-        state.channels[1] = .init(name: "Snare", color: 2)
-        let mixer = try await FakeXAirMixer(state)
-        let link = MixerLinkController()
-        await link.connect(to: "127.0.0.1:\(mixer.port)", usbChannelCount: 18)
+    func renameShowsUp() async {
+        var state = FakeMixerDriver.State()
+        state.names[2] = "Snare"
+        let driver = FakeMixerDriver(state)
+        let link = MixerLinkController(makeDriver: { _, _ in driver })
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
 
-        #expect(await eventually { mixer.queries.contains("/xremote") })
-        mixer.rename(channel: 2, to: "Snare Top")
+        driver.push(SourceChange(usbChannel: 2, name: "Snare Top"))
 
         #expect(await eventually { link.sources[safe: 1]?.name == "Snare Top" })
         #expect(link.sources[safe: 1]?.hasMixerName == true)
     }
 
-    @Test("The Link renews /xremote before it runs out, so renames keep arriving long after the first one lapsed")
-    func renewsXremote() async throws {
-        // Wide margins so a slow CI runner can't make it flaky (#283): renewals every 0.1 s against a 2 s lifetime,
-        // and the rename only after the first registration has run out. It waits on conditions, not fixed sleeps.
-        var state = FakeXAirMixer.State()
-        state.xremoteLifetime = 2
-        let mixer = try await FakeXAirMixer(state)
-        let link = MixerLinkController(renewEvery: .milliseconds(100))
-        let connected = ContinuousClock.now
-        await link.connect(to: "127.0.0.1:\(mixer.port)", usbChannelCount: 18)
+    @Test("While the Link is up it keeps renewing the Mixer's live updates, so changes keep arriving")
+    func keepsRenewing() async {
+        let driver = FakeMixerDriver()
+        let link = MixerLinkController(renewEvery: .milliseconds(10), makeDriver: { _, _ in driver })
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
 
-        #expect(await eventually(10) { mixer.queries.filter { $0 == "/xremote" }.count >= 4 })
-        // Past the first registration's lifetime, so only a renewal can deliver the rename.
-        let lapsed = connected + .milliseconds(2_300)
-        if ContinuousClock.now < lapsed { try await Task.sleep(until: lapsed) }
-        mixer.rename(channel: 3, to: "Hat")
+        #expect(await eventually { driver.state.withLock { $0.renewals } >= 4 })
+        driver.push(SourceChange(usbChannel: 3, name: "Hat"))
 
-        #expect(await eventually(10) { link.sources[safe: 2]?.name == "Hat" })
+        #expect(await eventually { link.sources[safe: 2]?.name == "Hat" })
+        #expect(link.identity != nil)
     }
 
-    @Test("When the Mixer goes quiet the Link goes down, and when it is back the Sources are read again, including renames it missed")
-    func lossAndResync() async throws {
-        var state = FakeXAirMixer.State()
-        state.channels[0] = .init(name: "Kick", color: 1)
-        let mixer = try await FakeXAirMixer(state)
-        // Margins wide enough for a busy machine: each read may take up to 500 ms, and every wait allows 10 s.
-        let link = MixerLinkController(timeout: .milliseconds(500), renewEvery: .milliseconds(100))
-        await link.connect(to: "127.0.0.1:\(mixer.port)", usbChannelCount: 18)
+    @Test(
+        "When the Mixer stops answering the Link goes down, and when it is back the Sources are read again, including renames it missed",
+        arguments: [MixerLinkProblem.noReply(host: "10.0.0.20"), .networkUnreachable]
+    )
+    func lossAndResync(problem: MixerLinkProblem) async {
+        var state = FakeMixerDriver.State()
+        state.names[1] = "Kick"
+        let driver = FakeMixerDriver(state)
+        let link = MixerLinkController(renewEvery: .milliseconds(10), makeDriver: { _, _ in driver })
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
         #expect(link.sources[safe: 0]?.name == "Kick")
 
-        mixer.update { $0.answers = false }
-        #expect(await eventually(10) { link.status == .down(.noReply(host: "127.0.0.1")) })
-        mixer.update { $0.channels[0].name = "Bass Drum" }  // renamed while nobody could hear it
-        mixer.update { $0.answers = true }
+        driver.state.withLock { $0.problem = problem }
+        #expect(await eventually { link.status == .down(problem) })
+        #expect(link.sources.isEmpty)
+        driver.state.withLock { $0.names[1] = "Bass Drum" }  // renamed while nobody could hear it
+        driver.state.withLock { $0.problem = nil }
 
-        #expect(await eventually(10) { link.identity != nil && link.sources.count == 18 })
-        #expect(link.sources.count == 18)
+        #expect(await eventually { link.identity != nil && link.sources.count == 18 })
         #expect(link.sources[safe: 0]?.name == "Bass Drum")
-        mixer.rename(channel: 2, to: "Snare")  // and live updates work again
-        #expect(await eventually(10) { link.sources[safe: 1]?.name == "Snare" })
+        #expect(driver.state.withLock { $0.sourceReads.last } == 16, "as many as before, up to what the driver names")
+        driver.push(SourceChange(usbChannel: 2, name: "Snare"))  // and live updates work again
+        #expect(await eventually { link.sources[safe: 1]?.name == "Snare" })
     }
 
-    @Test("After the Mixer is switched off and on again, the Link comes back by itself with the Sources read again")
-    func powerCycle() async throws {
-        var state = FakeXAirMixer.State()
-        state.channels[0] = .init(name: "Kick", color: 1)
-        let mixer = try await FakeXAirMixer(state)
-        let link = MixerLinkController(timeout: .milliseconds(500), renewEvery: .milliseconds(100))
-        await link.connect(to: "127.0.0.1:\(mixer.port)", usbChannelCount: 18)
-        #expect(link.sources[safe: 0]?.name == "Kick")
+    @Test("Color changes are applied, a cleared name goes back to the USB default, and each USB Channel takes its own change")
+    func colorAndClearedName() async {
+        var state = FakeMixerDriver.State()
+        state.names[4] = "Tom"
+        let driver = FakeMixerDriver(state)
+        let link = MixerLinkController(makeDriver: { _, _ in driver })
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
 
-        mixer.powerOff()
-        #expect(await eventually(10) { if case .down = link.status { true } else { false } })
-        mixer.update { $0.channels[0].name = "Bass Drum" }
-        try await mixer.powerOn()
-
-        #expect(await eventually(10) { link.sources[safe: 0]?.name == "Bass Drum" })
-        mixer.rename(channel: 2, to: "Snare")
-        #expect(await eventually(10) { link.sources[safe: 1]?.name == "Snare" })
-    }
-
-    @Test("Color changes and aux return renames are applied too, and a cleared name goes back to the USB default")
-    func colorAuxAndClearedName() async throws {
-        var state = FakeXAirMixer.State()
-        state.channels[3] = .init(name: "Tom", color: 1)
-        let mixer = try await FakeXAirMixer(state)
-        let link = MixerLinkController()
-        await link.connect(to: "127.0.0.1:\(mixer.port)", usbChannelCount: 18)
-        #expect(await eventually { mixer.queries.contains("/xremote") })
-
-        mixer.recolor(channel: 4, to: 10)
-        mixer.renameAuxReturn(to: "Playback")
-        mixer.rename(channel: 4, to: "")
+        driver.push(SourceChange(usbChannel: 4, color: MixerColor(hue: .green, inverted: true)))
+        driver.push(SourceChange(usbChannel: 4, name: ""))
+        driver.push(SourceChange(usbChannel: 17, name: "Playback"))
+        driver.push(SourceChange(usbChannel: 18, name: "Playback"))
+        driver.push(SourceChange(usbChannel: 19, name: "Beyond the device"))  // no such USB Channel: ignored
 
         #expect(await eventually { link.sources[safe: 16]?.name == "Playback" && link.sources[safe: 17]?.name == "Playback" })
-        #expect(await eventually { link.sources[safe: 3]?.name == "USB 04" })
+        #expect(link.sources[safe: 3]?.name == "USB 04")
         #expect(link.sources[safe: 3]?.hasMixerName == false)
         #expect(link.sources[safe: 3]?.color == MixerColor(hue: .green, inverted: true))
+        #expect(link.sources.count == 18)
     }
 }

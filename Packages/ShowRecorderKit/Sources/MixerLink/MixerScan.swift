@@ -45,35 +45,40 @@ public struct FoundMixer: Equatable, Sendable {
     }
 }
 
-/// Asks many addresses for `/xinfo` at once and lists the X-Air and X32 mixers that answer (#289, #199). Unicast only,
-/// from one UDP socket, paced, then listens for `timeout` after the last query. It sends nothing but `/xinfo`.
+/// Asks many addresses at once who they are, each family's way, and lists the Mixers that answer (#289, #199, #442).
+/// Unicast only, from one UDP socket, paced, then listens for `timeout` after the last query. It sends nothing but
+/// each family's probe (`/xinfo` for the X-Air and the X32).
 public enum MixerScanner {
-    /// The X-Air's port and the X32's: each address is asked on both.
-    public static let defaultPorts: [UInt16] = [10024, 10023]
+    /// Every family's port: each address is asked on all of them.
+    public static var defaultPorts: [UInt16] { MixerFamily.probes.map(\.port) }
 
-    public static func scan(hosts: [String], ports: [UInt16] = defaultPorts, timeout: Duration = .seconds(1)) async -> [FoundMixer] {
+    public static func scan(hosts: [String], probes: [MixerProbe] = MixerFamily.probes, timeout: Duration = .seconds(1)) async -> [FoundMixer] {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                continuation.resume(returning: scanBlocking(hosts: hosts, ports: ports, timeout: timeout))
+                continuation.resume(returning: scanBlocking(hosts: hosts, probes: probes, timeout: timeout))
             }
         }
     }
 
-    private static func scanBlocking(hosts: [String], ports: [UInt16], timeout: Duration) -> [FoundMixer] {
+    /// Asks `/xinfo` on each of `ports`.
+    public static func scan(hosts: [String], ports: [UInt16], timeout: Duration = .seconds(1)) async -> [FoundMixer] {
+        await scan(hosts: hosts, probes: ports.map(MixerProbe.xinfo), timeout: timeout)
+    }
+
+    private static func scanBlocking(hosts: [String], probes: [MixerProbe], timeout: Duration) -> [FoundMixer] {
         let fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
         guard fd >= 0 else { return [] }
         defer { close(fd) }
         _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
 
-        let query = OSCMessage("/xinfo").encoded()
         var found: [String: MixerIdentity] = [:]
         // Paced, about 2 ms an address: each query to a new address also makes the system look the address up (ARP),
         // and a burst of a thousand lookups is dropped on Wi-Fi, so a cold scan finds nothing (seen on the XR18).
         for host in hosts {
-            for port in ports { send(query, to: host, port: port, on: fd) }
-            collect(on: fd, into: &found, until: ContinuousClock.now + .milliseconds(2))
+            for probe in probes { send(probe.request, to: host, port: probe.port, on: fd) }
+            collect(on: fd, probes: probes, into: &found, until: ContinuousClock.now + .milliseconds(2))
         }
-        collect(on: fd, into: &found, until: ContinuousClock.now + timeout)
+        collect(on: fd, probes: probes, into: &found, until: ContinuousClock.now + timeout)
         return found
             .map { FoundMixer(host: $0.key, identity: $0.value) }
             .sorted { (ScanRange.parse($0.host) ?? 0) < (ScanRange.parse($1.host) ?? 0) }
@@ -100,8 +105,9 @@ public enum MixerScanner {
         }
     }
 
-    /// Reads `/xinfo` replies until `deadline`, keyed by the address they came from.
-    private static func collect(on fd: Int32, into found: inout [String: MixerIdentity], until deadline: ContinuousClock.Instant) {
+    /// Reads replies until `deadline`, keyed by the address they came from. A reply is read by the probe for the port
+    /// it came from, or by any probe that can read it.
+    private static func collect(on fd: Int32, probes: [MixerProbe], into found: inout [String: MixerIdentity], until deadline: ContinuousClock.Instant) {
         var buffer = [UInt8](repeating: 0, count: 2048)
         while ContinuousClock.now < deadline {
             var from = sockaddr_in()
@@ -113,19 +119,14 @@ public enum MixerScanner {
                 usleep(2_000)
                 continue
             }
-            guard let identity = identity(in: Array(buffer[0..<count])) else { continue }
+            let reply = Array(buffer[0..<count])
+            let port = UInt16(bigEndian: from.sin_port)
+            let readers = probes.filter { $0.port == port } + probes.filter { $0.port != port }
+            guard let identity = readers.lazy.compactMap({ $0.identity(reply) }).first else { continue }
             var text = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
             inet_ntop(AF_INET, &from.sin_addr, &text, socklen_t(INET_ADDRSTRLEN))
             found[String(cString: text)] = identity
         }
-    }
-
-    /// An `/xinfo` reply: the Mixer's IP, network name, model and firmware.
-    static func identity(in data: [UInt8]) -> MixerIdentity? {
-        guard let message = (try? OSCPacket(decoding: data))?.messages.first(where: { $0.address == "/xinfo" }) else { return nil }
-        let strings = message.arguments.compactMap { if case .string(let value) = $0 { value } else { nil } }
-        guard strings.count >= 4 else { return nil }
-        return MixerIdentity(networkName: strings[1], model: strings[2], firmware: strings[3])
     }
 }
 

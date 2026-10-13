@@ -181,4 +181,38 @@ struct XAirDriverTests {
         #expect(await changes.next() == SourceChange(usbChannel: 2, name: "Snare"))
         #expect(await changes.next() == SourceChange(usbChannel: 1, name: "Snare"))
     }
+
+    @Test("Pushed changes: a color reaches its USB Channel, a cleared name comes through empty, an aux return rename reaches USB 17 and 18")
+    func pushedColorClearedNameAndAuxReturn() async throws {
+        var state = FakeXAirMixer.State()
+        state.usbRouting = Self.defaultRouting
+        state.channels[3] = .init(name: "Tom", color: 1)
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+        _ = try await driver.sources(usbChannelCount: 18)   // as the Link does before live updates
+        var changes = driver.sourceChanges().makeAsyncIterator()
+        try await driver.renewLiveUpdates()
+
+        mixer.recolor(channel: 4, to: 10)
+        #expect(await changes.next() == SourceChange(usbChannel: 4, color: MixerColor(hue: .green, inverted: true)))
+        mixer.rename(channel: 4, to: "")
+        #expect(await changes.next() == SourceChange(usbChannel: 4, name: ""))
+        mixer.renameAuxReturn(to: "Playback")
+        #expect(await changes.next() == SourceChange(usbChannel: 17, name: "Playback"))
+        #expect(await changes.next() == SourceChange(usbChannel: 18, name: "Playback"))
+    }
+
+    @Test("Asked for no Sources, as for a Mixer without multichannel USB, the driver asks the Mixer for no channel")
+    func noSourcesAsksNothing() async throws {
+        var state = FakeXAirMixer.State()
+        state.model = "XR16"
+        state.channels[0] = .init(name: "Kick", color: 1)
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+
+        let sources = try await driver.sources(usbChannelCount: 0)
+
+        #expect(sources.isEmpty)
+        #expect(!mixer.queries.contains { $0.hasPrefix("/ch/") })
+    }
 }
