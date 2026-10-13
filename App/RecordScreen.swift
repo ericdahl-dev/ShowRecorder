@@ -1262,13 +1262,16 @@ final class RecordScreenModel {
         Task { await offerDemoSignalIfAvailable() }
         // `-demoDrive` (screenshots) uses a folder in the app's own container as the Drive, so the shots show a second
         // Copy instead of a "No Drive" warning.
-        if launchFlag("-demoDrive") {
+        // Both touch the container's data (the Drive bookmark, saved names), so they act only in the screenshot build,
+        // whose bundle ID ends in ".screens": never in the real app's container.
+        let isScreenshotBuild = Bundle.main.bundleIdentifier?.hasSuffix(".screens") == true
+        if launchFlag("-demoDrive"), isScreenshotBuild {
             let folder = URL.documentsDirectory.appending(path: "Show SSD", directoryHint: .isDirectory)
             try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             drive.choose(folder)
         }
         // `-demoNames` names the Demo signal's channels like a band's, for screenshots (typed names, in that Show only).
-        if launchFlag("-demoNames") {
+        if launchFlag("-demoNames"), isScreenshotBuild {
             Task {
                 try? await Task.sleep(for: .seconds(1))
                 for (index, name) in Self.demoChannelNames.enumerated() { recorder.setChannelName(name, forChannel: index + 1) }

@@ -130,7 +130,7 @@ In [`docs/images/app-store-mac/`](../images/app-store-mac/), 2560 × 1600 each, 
 
 The Demo signal runs hot, so several meters read red: honest for what it is, but a real mixer's levels look calmer. A Mixer Link shot needs an X Air or X32 on this Mac's USB.
 
-To take them again: a Debug build with its own bundle ID, so its container is empty and the real app's Shows are untouched (`xcodebuild … PRODUCT_BUNDLE_IDENTIFIER=dev.ericdahl.ShowRecorder.screens`), launched with `-demoSignal -demoNames -demoDrive -demoRecord -screenshotWindow`, plus `-lightScheme` for the light set or `-showList` for the list; Sunlight is the appearance setting in that container's preferences. `-screenshotWindow` makes a 1280 × 800 window on a Retina screen (2560 × 1600); 2880 × 1800 needs a screen with at least 900 points of usable height. Capture the window alone with `screencapture -o -l<window id>`.
+To take them again: a Debug build with its own bundle ID, so its container is empty and the real app's Shows are untouched (`xcodebuild … PRODUCT_BUNDLE_IDENTIFIER=dev.ericdahl.ShowRecorder.screens`), launched with `-demoSignal -demoNames -demoDrive -demoRecord -screenshotWindow`, plus `-lightScheme` for the light set or `-showList` for the list; Sunlight is the appearance setting in that container's preferences. `-demoDrive` and `-demoNames` act only in a build whose bundle ID ends in `.screens`. `-screenshotWindow` makes a 1280 × 800 window on a Retina screen (2560 × 1600); 2880 × 1800 would need its size changed in `ShowRecorderApp.swift` and a screen with at least 900 points of usable height. Capture the window alone with `screencapture -o -l<window id>`.
 
 ## Decided (Eric, 2026-10-11)
 
