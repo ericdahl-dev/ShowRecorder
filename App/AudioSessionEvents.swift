@@ -7,40 +7,13 @@ import AVFAudio
 
 /// Keeps a Take going through screen locks, backgrounding and audio session interruptions.
 ///
-/// `InterruptionPolicy` decides; this carries its decisions out on the recorder and logs them.
+/// `InterruptionPolicy` decides and the `TakeSequencer` carries it out; this turns the system's notifications into events.
 extension RecordScreenModel {
     static let sessionLog = Logger(subsystem: "dev.ericdahl.ShowRecorder", category: "AudioSession")
 
-    /// Feeds one event to the policy and carries out what it decides.
+    /// Feeds one event to the policy; the `TakeSequencer` carries out what it decides.
     func handle(_ event: InterruptionPolicy.Event) {
-        let response = interruptions.handle(event, isRecording: recorder.isRecording)
-        if let line = response.log { Self.sessionLog.notice("\(line, privacy: .public)") }
-        switch response.action {
-        case .none:
-            break
-        case .restartInput:
-            do {
-                try recorder.restartInput()
-                handle(.restarted)
-            } catch {
-                handle(.restartFailed(String(describing: error)))
-            }
-        case .replaceDevice:
-            guard let choice = devices.first(where: { $0.id == selectedDeviceID }) else {
-                handle(.restartFailed("no audio interface is selected"))
-                return
-            }
-            do {
-                let wasRecording = recorder.isRecording
-                // The replacement keeps the rate the recorder runs at, so a running Take can continue.
-                let device = try choice.make(recorder.sampleRate ?? sampleRateChoice, false)
-                let continued = try recorder.restartInput(on: device)
-                noteOfferedChannels(of: device)
-                handle(wasRecording && !continued ? .takeEndedByReset : .restarted)
-            } catch {
-                handle(.restartFailed(String(describing: error)))
-            }
-        }
+        sequencer.handle(event)
     }
 
     #if os(iOS)

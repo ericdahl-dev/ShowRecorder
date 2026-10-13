@@ -535,6 +535,12 @@ extension StatusChip.Kind {
 /// The Audio interfaces this device offers: Core Audio on the Mac, the audio session on iOS, and the Demo signal.
 struct AppInputDevices: InputDeviceSource {
     func devices() -> [DeviceChoice] { RecordScreenModel.availableDevices() }
+
+    #if os(iOS)
+    func currentRouteDevice(sampleRate: Int?) throws -> any AudioIODevice {
+        try SessionAudioDevice.current(sampleRate: sampleRate)
+    }
+    #endif
 }
 
 @MainActor
@@ -857,8 +863,8 @@ final class RecordScreenModel {
         UserDefaults.standard.set(mixerAddress, forKey: Self.mixerAddressKey)
     }
 
-    /// What to do about audio interruptions, and the banner they leave (see AudioSessionEvents.swift).
-    var interruptions = InterruptionPolicy()
+    /// What to do about audio interruptions, and the banner they leave. The `TakeSequencer` keeps it.
+    var interruptions: InterruptionPolicy { sequencer.interruptions }
 
     init() {
         let drive = DriveFolderModel()
@@ -879,6 +885,7 @@ final class RecordScreenModel {
             SampleRateSetting.load(platformDefault: 48_000)
             #endif
         }()
+        sequencer.log = { line in Self.sessionLog.notice("\(line, privacy: .public)") }
         sequencer.didArm = { [unowned self] device in
             if let device {
                 noteOfferedChannels(of: device)
@@ -908,7 +915,6 @@ final class RecordScreenModel {
         // Freeze whatever the Mixer Link knows right now, and what the tier allows, into the Take (Show-Safe
         // Promise: judged only here, never during the Take).
         guard sequencer.record(sources: linkedSources, allowance: currentAllowance()) else { return }
-        handle(.takeStarted)
         followLiveActivity()
     }
 
@@ -1038,9 +1044,7 @@ final class RecordScreenModel {
     /// The known tier changed (the App Store answered, a purchase, a refund): re-Arm between Takes if the rate the
     /// input may run at changed (#316). A Take that's running keeps its rate; the change applies at the next Arm.
     private func tierChanged() {
-        guard recorder.isArmed, !recorder.isRecording, let rate = recorder.sampleRate else { return }
-        let capped = pro.license().capsAt48k
-        if (capped && rate > 48_000) || (!capped && (sampleRateChoice ?? rate) > rate) { armSelectedDevice() }
+        sequencer.tierChanged()
     }
 
     /// At launch with no Show open: the default Template readies the next Show (its channel names now, its name when
@@ -1120,7 +1124,7 @@ final class RecordScreenModel {
     func preRollChanged() {
         PreRollSetting.save(preRollSeconds)
         recorder.preRollSeconds = preRollSeconds
-        if recorder.isArmed { armSelectedDevice() }
+        sequencer.settingsChanged()
     }
 
     /// What the chosen Pre-roll length costs in memory for the Armed input (or an 18-channel one before
@@ -1275,33 +1279,7 @@ final class RecordScreenModel {
             guard Self.isRouteInput(selectedDeviceID) else { continue }
             // Whatever iOS just routed to is now the selection; re-arming must not pull it back.
             selectCurrentRouteInput()
-            switch interruptions.routeChanged(isRecording: recorder.isRecording) {
-            case .none: break
-            case .rearm: armSelectedDevice()
-            case .moveInput: moveTakeToCurrentRoute()
-            }
-        }
-    }
-
-    /// Moves a running Take onto the new route, keeping it if the format still matches (#10).
-    private func moveTakeToCurrentRoute() {
-        let wasStopped = interruptions.isInputStopped
-        do {
-            // Ask for the rate the Take runs at (#195): the default 48 kHz would end a 96 or 44.1 kHz Take.
-            let device = try SessionAudioDevice.current(sampleRate: recorder.sampleRate)
-            let continued = try recorder.restartInput(on: device)
-            noteOfferedChannels(of: device)
-            armedDevice = devices.first { $0.id == selectedDeviceID }?.info
-            meterModel.reset(channelCount: recorder.usbChannelCount)
-            Self.sessionLog.notice("Input route changed during a Take; \(continued ? "the Take continues" : "the format changed, so the Take was stopped and saved", privacy: .public)")
-            if !continued {
-                recordError = TakeEnd.Reason.inputChanged.message
-            }
-            // A retry that works ends the "input is stopped" state the failed move left behind.
-            if wasStopped { handle(.restarted) }
-        } catch {
-            // The policy says what's missing and tries again on the next route change or foreground.
-            handle(.moveFailed(String(describing: error)))
+            sequencer.routeChanged()
         }
     }
 
@@ -1336,35 +1314,9 @@ final class RecordScreenModel {
         }
     }
 
-    /// Re-reads the device list and keeps, switches, re-arms or disarms as `InputDeviceChange` decides.
+    /// Re-reads the device list; the `TakeSequencer` keeps, switches, re-Arms or disarms as `InputDeviceChange` decides.
     private func applyDeviceListChange() {
-        let fresh = Self.availableDevices()
-        let change = InputDeviceChange.decide(
-            old: devices.map(\.info), new: fresh.map(\.info),
-            selectedID: selectedDeviceID,
-            armed: recorder.isArmed ? armedDevice : nil,
-            isRecording: recorder.isRecording)
-        devices = fresh
-        if change.stopsTake {
-            do {
-                try recorder.stopTake()
-                recordError = change.message
-            } catch {
-                recordError = "\(change.message ?? "The input device changed during the Take.") But the Take didn't finish cleanly: \(error.localizedDescription)"
-            }
-        }
-        selectedDeviceID = change.selectedID
-        switch change.action {
-        case .none:
-            break
-        case .arm:
-            armSelectedDevice()
-        case .disarm:
-            recorder.disarm()
-            armedDevice = nil
-            meterModel.reset(channelCount: 0)
-            if !change.stopsTake { armError = change.message }
-        }
+        sequencer.deviceListChanged()
     }
     #endif
 
@@ -1388,7 +1340,7 @@ final class RecordScreenModel {
     /// The rate choice changed in Settings: keep it and, if Armed, Arm again at it. Settings is locked during a Take.
     func sampleRateChanged() {
         SampleRateSetting.save(sampleRateChoice)
-        if recorder.isArmed { armSelectedDevice() }
+        sequencer.settingsChanged()
     }
 
     /// What the rate picker offers for the selected input: "Interface" and each rate it offers, or just "Interface"

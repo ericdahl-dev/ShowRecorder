@@ -28,6 +28,14 @@ public struct DeviceChoice: Identifiable {
 @MainActor
 public protocol InputDeviceSource {
     func devices() -> [DeviceChoice]
+    /// iOS: the input the current route provides, opened at `sampleRate` (nil: the route's own).
+    func currentRouteDevice(sampleRate: Int?) throws -> any AudioIODevice
+}
+
+extension InputDeviceSource {
+    public func currentRouteDevice(sampleRate: Int?) throws -> any AudioIODevice {
+        throw CocoaError(.featureUnsupported)
+    }
 }
 
 /// What happened to the recorder, for whoever follows Takes.
@@ -36,12 +44,18 @@ public enum TakeEvent: Equatable, Sendable {
     case takeStarted(take: Int)
     case takeEnded(TakeEnd)
     case disarmed(reason: DisarmReason)
+    /// The system stopped input (an interruption, a failed restart); the Take, if any, is still running.
+    case inputStopped
+    /// Input is back after being stopped.
+    case inputRestarted
 
     public enum DisarmReason: Equatable, Sendable {
         /// The screen showing the recorder went away with no Take running.
         case screenGone
         /// The app sat in the background for 30 minutes with no Take (`IdleDisarm`).
         case idle
+        /// The Armed Audio interface was disconnected.
+        case deviceLost
     }
 }
 
@@ -72,15 +86,21 @@ public final class TakeSequencer {
     public private(set) var takeStartedAt: Date?
     /// Whether the recorder was disarmed for sitting idle, so coming back should Arm it again.
     public private(set) var disarmedForIdle = false
+    /// What to do about audio interruptions, and the banner they leave.
+    public private(set) var interruptions = InterruptionPolicy()
+    @ObservationIgnored private var toldInputStopped = false
 
-    /// Called after each attempt to Arm an interface: with the device when it worked, nil when it failed. The App
-    /// resets its meters and reads what the system offered here.
+    /// Called after each attempt to Arm an interface, or to move input to a new one: with the device when it worked,
+    /// nil when it failed. The App resets its meters and reads what the system offered here.
     @ObservationIgnored public var didArm: (_ device: (any AudioIODevice)?) -> Void = { _ in }
+    /// A line worth logging about input (an interruption, a restart, a route change).
+    @ObservationIgnored public var log: (String) -> Void = { _ in }
     /// Everything that happens, in order. One listener. With no one listening only the newest
     /// `eventBufferSize` are kept, so a stream nobody reads never grows. It ends when the sequencer goes away.
-    /// Every Take start and end is told. Arm and disarm are told for the sequencer's own Arming; a device-list,
-    /// route or media-reset change still re-Arms from the App and isn't told yet (#301 slices 5-7).
+    /// Every Take start and end is told, every Arm, each input stop and restart, and a disarm when the screen goes,
+    /// the app sits idle or the Armed interface is lost. Arming with no interface selected disarms without telling.
     public let events: AsyncStream<TakeEvent>
+    @ObservationIgnored private let source: any InputDeviceSource
     public static let eventBufferSize = 32
     @ObservationIgnored private let emit: AsyncStream<TakeEvent>.Continuation
 
@@ -89,6 +109,7 @@ public final class TakeSequencer {
         self.now = now
         self.capsAt48k = capsAt48k
         (events, emit) = AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(Self.eventBufferSize))
+        source = devices
         self.devices = devices.devices()
         selectedDeviceID = self.devices.first?.id
         recorder.onTakeEnded = { [weak self] end in self?.takeEnded(end) }
@@ -181,6 +202,7 @@ public final class TakeSequencer {
             takeStartedAt = now()
             recordError = nil
             tellTakeStart()
+            handle(.takeStarted)
             return true
         } catch {
             recordError = "Couldn't start recording: \(error.localizedDescription)"
@@ -222,6 +244,128 @@ public final class TakeSequencer {
         if disarmedForIdle {
             disarmedForIdle = false
             arm()
+        }
+    }
+
+    /// The Pre-roll length or the sample rate choice changed: re-Arm so the input uses it. Only between Takes; a
+    /// running Take keeps what it started with (Show-Safe Promise).
+    public func settingsChanged() {
+        if recorder.isArmed, !recorder.isRecording { arm() }
+    }
+
+    /// The tier changed (the App Store answered, a purchase, a refund): re-Arm between Takes when the 48 kHz cap now
+    /// differs from the rate the input runs at (#316). A running Take keeps its rate; the change applies at the next Arm.
+    public func tierChanged() {
+        guard recorder.isArmed, !recorder.isRecording, let rate = recorder.sampleRate else { return }
+        let capped = capsAt48k()
+        if (capped && rate > 48_000) || (!capped && (sampleRateChoice ?? rate) > rate) { arm() }
+    }
+
+    /// The list of Audio interfaces changed (the Mac): keeps, switches, re-Arms or disarms as `InputDeviceChange`
+    /// decides. A Take on an interface that went away or changed format ends as an input change, with its message.
+    public func deviceListChanged() {
+        let fresh = source.devices()
+        let change = InputDeviceChange.decide(
+            old: devices.map(\.info), new: fresh.map(\.info),
+            selectedID: selectedDeviceID,
+            armed: recorder.isArmed ? armedDevice : nil,
+            isRecording: recorder.isRecording)
+        devices = fresh
+        if change.stopsTake {
+            do {
+                try recorder.stopTake(because: .inputChanged)
+                recordError = change.message
+            } catch {
+                recordError = "\(change.message ?? "The input device changed during the Take.") But the Take didn't finish cleanly: \(error.localizedDescription)"
+            }
+        }
+        selectedDeviceID = change.selectedID
+        switch change.action {
+        case .none:
+            break
+        case .arm:
+            arm()
+        case .disarm:
+            recorder.disarm()
+            armedDevice = nil
+            didArm(nil)
+            emit.yield(.disarmed(reason: .deviceLost))
+            if !change.stopsTake { armError = change.message }
+        }
+    }
+
+    /// The iOS input route really changed (the App filters out its own changes and selects the route's input first):
+    /// re-Arm between Takes, move a running Take onto the new route, as `InterruptionPolicy.routeChanged` decides.
+    public func routeChanged() {
+        switch interruptions.routeChanged(isRecording: recorder.isRecording) {
+        case .none: break
+        case .rearm: arm()
+        case .moveInput: moveTakeToCurrentRoute()
+        }
+    }
+
+    /// Moves a running Take onto the current route, keeping it if the format still matches (#10). It asks for the
+    /// Take's rate (#195): the default 48 kHz would end a 96 or 44.1 kHz Take.
+    private func moveTakeToCurrentRoute() {
+        let wasStopped = interruptions.isInputStopped
+        do {
+            let device = try source.currentRouteDevice(sampleRate: recorder.sampleRate)
+            let continued = try recorder.restartInput(on: device)
+            armedDevice = devices.first { $0.id == selectedDeviceID }?.info
+            if !continued, let armedDevice { emit.yield(.armed(armedDevice)) }
+            didArm(device)
+            log("Input route changed during a Take; \(continued ? "the Take continues" : "the format changed, so the Take was stopped and saved")")
+            if !continued { recordError = TakeEnd.Reason.inputChanged.message }
+            // A retry that works ends the "input is stopped" state the failed move left behind.
+            if wasStopped { handle(.restarted) }
+        } catch {
+            // The policy says what's missing and tries again on the next route change or foreground.
+            handle(.moveFailed(String(describing: error)))
+        }
+    }
+
+    /// An audio session interruption, a media services reset or a change of app state: `InterruptionPolicy` decides,
+    /// and this carries it out on the recorder. Nothing here ends a Take, except a reset whose new input can't take it.
+    public func handle(_ event: InterruptionPolicy.Event) {
+        // Told against what was last told, not the state on entry: `handle` calls itself for a restart.
+        defer {
+            if interruptions.isInputStopped != toldInputStopped {
+                toldInputStopped = interruptions.isInputStopped
+                emit.yield(toldInputStopped ? .inputStopped : .inputRestarted)
+            }
+        }
+        let response = interruptions.handle(event, isRecording: recorder.isRecording)
+        if let line = response.log { log(line) }
+        switch response.action {
+        case .none:
+            break
+        case .restartInput:
+            do {
+                try recorder.restartInput()
+                handle(.restarted)
+            } catch {
+                handle(.restartFailed(String(describing: error)))
+            }
+        case .replaceDevice:
+            guard let choice = devices.first(where: { $0.id == selectedDeviceID }) else {
+                handle(.restartFailed("no audio interface is selected"))
+                return
+            }
+            do {
+                let wasRecording = recorder.isRecording
+                // The replacement keeps the rate the recorder runs at, uncapped, so a running Take can continue.
+                let device = try choice.make(recorder.sampleRate ?? sampleRateChoice, false)
+                let continued = try recorder.restartInput(on: device)
+                if !continued {
+                    // A new format re-Armed the recorder on the new device.
+                    armedDevice = choice.info
+                    emit.yield(.armed(choice.info))
+                }
+                didArm(device)
+                handle(wasRecording && !continued ? .takeEndedByReset : .restarted)
+            } catch {
+                handle(.restartFailed(String(describing: error)))
+            }
         }
     }
 
