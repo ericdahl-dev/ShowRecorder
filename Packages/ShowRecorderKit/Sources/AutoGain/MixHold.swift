@@ -84,6 +84,9 @@ public enum MixHold {
         case own
         /// Another channel's signal: its threshold follows that channel's preamp.
         case channel(Int)
+        /// An input (the X32 keys from a source, not a channel): its threshold follows the preamp of any channel moving
+        /// with this one that takes that input (`ChannelState.source`).
+        case source(Int)
         /// Something no preamp feeds directly, such as a bus or an FX return.
         case elsewhere
     }
@@ -97,6 +100,8 @@ public enum MixHold {
         /// that preamp: its own signal, or a channel moving with it (#497).
         public var gateKey: Key = .own
         public var compressorKey: Key = .own
+        /// The input the channel takes, where keys name inputs (the X32); nil where they name channels.
+        public var source: Int?
         public var mainFaderDb: Double?
         public var otherMainsDb: [Int: Double]
         public var sends: [Send]
@@ -354,6 +359,7 @@ public enum MixHold {
                 switch key {
                 case .own: true
                 case .channel(let other): moved.contains(other)
+                case .source(let input): channels.contains { $0.source == input }
                 case .elsewhere: false
                 }
             }

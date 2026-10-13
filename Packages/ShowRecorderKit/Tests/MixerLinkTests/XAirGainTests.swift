@@ -228,4 +228,20 @@ struct XAirGainTests {
         #expect(!step.changes.contains { $0.setting == MixHold.Setting(channel: 2, parameter: .compressorThreshold) })
         #expect(try await driver.mixHoldState(ofChannel: 2).compressorThresholdDb == -30)
     }
+    @Test("Channel 2's compressor keyed from channel 1: move 1, move 2, undo 1, and channel 2's own move stays (#497)")
+    func undoOneKeepsTheOther() async throws {
+        let mixer = try await FakeXAirMixer(Self.kickDesk())
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+        let before = try await driver.mixHoldState(ofChannel: 2)
+
+        let first = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+        _ = try await driver.applyMixHold(channel: 2, gainChangeDb: 4)
+        let afterTwo = try await driver.mixHoldState(ofChannel: 2)
+        try await driver.undo(first)
+
+        let now = try await driver.mixHoldState(ofChannel: 2)
+        #expect(now.compressorThresholdDb == before.compressorThresholdDb, "channel 1's share is gone")
+        #expect(now.mainFaderDb == afterTwo.mainFaderDb, "channel 2's own move stays")
+        #expect(now.mainFaderDb != before.mainFaderDb)
+    }
 }

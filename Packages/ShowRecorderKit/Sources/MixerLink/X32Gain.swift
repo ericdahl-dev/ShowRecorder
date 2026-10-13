@@ -29,23 +29,19 @@ extension X32Driver {
         }
         var state = MixHold.ChannelState(channel: channel, gateThresholdDb: gate, compressorThresholdDb: compressor,
                                          mainFaderDb: fader, otherMainsDb: [1: mono], sends: sends)
-        state.gateKey = try await key(Int(try await queries.int(at: base + "/gate/keysrc")), of: channel)
-        state.compressorKey = try await key(Int(try await queries.int(at: base + "/dyn/keysrc")), of: channel)
+        let source = Int(try await queries.int(at: base + "/config/source"))
+        state.source = source
+        state.gateKey = Self.key(Int(try await queries.int(at: base + "/gate/keysrc")), source: source)
+        state.compressorKey = Self.key(Int(try await queries.int(at: base + "/dyn/keysrc")), source: source)
         return state
     }
 
-    /// What an X32 key source means for `channel`. The X32 keys from a source, not a channel: 0 is the channel's own
-    /// signal, and so is its own input (two channels on one headamp share it). The input of its stereo-linked partner,
-    /// which moves with it, is that channel. Anything else (another input, a bus, an FX return) no preamp moved
-    /// with this one feeds. From the X32 OSC docs and the emulator; not yet checked on a real X32.
-    func key(_ source: Int, of channel: Int) async throws(MixerLinkProblem) -> MixHold.Key {
-        if source == 0 { return .own }
-        let sourceAddress = { (channel: Int) in String(format: "/ch/%02d/config/source", channel) }
-        if Int(try await queries.int(at: sourceAddress(channel))) == source { return .own }
-        if let partner = try await linkedPartner(of: channel), Int(try await queries.int(at: sourceAddress(partner))) == source {
-            return .channel(partner)
-        }
-        return .elsewhere
+    /// What an X32 key source means for a channel taking input `source`. The X32 keys from a source, not a channel:
+    /// 0 is the channel's own signal, and so is its own input; any other is that input, which moves with this preamp
+    /// when a channel moving with it takes it (a stereo-linked partner, another channel on the same headamp). From the
+    /// X32 OSC docs and the emulator; not yet checked on a real X32.
+    static func key(_ key: Int, source: Int) -> MixHold.Key {
+        key == 0 || key == source ? .own : .source(key)
     }
 
     /// Gates and compressors on other channels whose key source is `channel`'s input, read fresh. The X32 keys from a

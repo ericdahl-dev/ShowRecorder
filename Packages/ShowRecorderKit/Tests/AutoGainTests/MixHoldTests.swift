@@ -377,4 +377,17 @@ struct MixHoldLoopTests {
         #expect(first.changes.contains { $0.setting == threshold })
         #expect(!second.changes.contains { $0.setting == threshold }, "so undoing either never undoes the other's")
     }
+    @Test("Keyed from an input (the X32 keys from a source): it moves when a channel moving with this preamp takes that input")
+    func keyedFromSource() {
+        var one = channel(1)
+        one.source = 1
+        var nine = channel(9)
+        nine.source = 9
+        nine.gateKey = .source(1)   // In01, which channel 1 takes, on the same headamp
+        var alone = channel(9)
+        alone.gateKey = .source(1)
+        let gate = MixHold.Setting(channel: 9, parameter: .gateThreshold)
+        #expect(MixHold.plan(headamp: 1, gainChangeDb: 5, channels: [one, nine], ranges: x32Ranges).changes.contains { $0.setting == gate })
+        #expect(!MixHold.plan(headamp: 9, gainChangeDb: 5, channels: [alone], ranges: x32Ranges).changes.contains { $0.setting == gate })
+    }
 }
