@@ -111,6 +111,7 @@ final class Capture: Sendable {
 
     /// Empties `feed`'s ring and says which Take frame its Copy starts at: nil until the real-time thread picks one.
     func begin(_ feed: CopyFeed, joinedAt: Int?) {
+        precondition(feed.slot >= 0, "a feed this Capture doesn't own")
         feed.reset(joinedAt: joinedAt)
     }
 

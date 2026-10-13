@@ -415,8 +415,9 @@ final class TakeSession {
             // A Take folder that was rejoined already has its Take.json.
             if old == nil { try metadata.write(to: folder) }
 
-            // The Drive's feed is the one after the Device's.
-            let feed = old?.feed ?? capture.feeds[copies.count]
+            // The Drive's feed is the second, after the Device's. A Drive joins for the first time only beside the Device.
+            precondition(old != nil || copies.count == 1, "a Drive joining beside more than the Device")
+            let feed = old?.feed ?? capture.feeds[1]
             let writer = makeWriter(feed: feed, stems: sinks, markers: stemMarkers)
             capture.attachMidTake(feed)
             writer.start()
