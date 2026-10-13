@@ -36,6 +36,30 @@ expect "docs/release-notes/v1.1.2.md" "spelling site"
 # Nothing changed: run everything, as a plain "is main green?" check.
 expect "" "$ALL"
 
+# VERIFY_QUICK=1 leaves the macOS and iOS app builds to CI: everything else as usual, and it says so.
+expect_quick() {
+  files=$1; want=$2
+  out=$(VERIFY_QUICK=1 VERIFY_ALL=0 VERIFY_FILES="$files" VERIFY_PLAN_ONLY=1 ./scripts/verify.sh)
+  got=$(printf '%s\n' "$out" | sed -n 's/^== Plan: //p')
+  if [ "$got" != "$want" ]; then
+    printf 'FAIL (quick) for files:\n%s\n  want: %s\n  got:  %s\n' "$files" "$want" "$got"
+    fail=1
+  fi
+  case "$want" in
+    *app*) ;;
+    *) case "$files" in
+         App/* | Packages/* | project.yml | "") printf '%s\n' "$out" | grep -q "CI runs the macOS and iOS app builds" ||
+           { echo "FAIL (quick): doesn't say CI runs the app builds, for: $files"; fail=1; } ;;
+       esac ;;
+  esac
+}
+expect_quick "App/RecordView.swift" "spelling vocab"
+expect_quick "project.yml" "spelling"
+expect_quick "Packages/ShowRecorderKit/Sources/Kit/Take.swift" "spelling vocab package"
+expect_quick "website/app/page.tsx" "spelling site"
+expect_quick "scripts/verify.sh" "spelling vocab package site"
+expect_quick "" "spelling vocab package site"
+
 # CI picks its site job with its own pattern (.github/workflows/ci.yml); it must agree for the release notes.
 site_pattern=$(grep "site=true; fi" .github/workflows/ci.yml | sed -n "s/.*grep -qE '\([^']*\)'.*/\1/p")
 if [ "$(grep -c "site=true; fi" .github/workflows/ci.yml)" != 1 ] || [ -z "$site_pattern" ]; then
