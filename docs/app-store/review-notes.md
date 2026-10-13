@@ -1,6 +1,6 @@
-# App Review notes (paste into App Store Connect, version 1.0, App Review Information > Notes)
+# App Review notes (paste into App Store Connect, version 1.1, App Review Information > Notes; 1.0 notes in git history)
 
-ShowRecorder records a live multitrack from a Behringer X Air mixer (XR18 / MR18) connected over USB: one WAV file per mixer channel. No account and no sign-in.
+ShowRecorder records a live multitrack from a mixer connected over USB: a Behringer X Air (XR18 / MR18, 18 channels) or, new in 1.1, a Behringer X32 or Midas M32 (32 channels). One WAV file per mixer channel. No account and no sign-in. The same app runs on iPhone, iPad and Mac (macOS 26); on the Mac, the gear at the top right of the window opens Settings, as on iPhone and iPad.
 
 Testing without a mixer:
 1. Open Settings (the gear, top right) > Recording > Audio interface and choose "Demo signal (18 channels)". It plays a test signal on 18 channels so every screen works without hardware. (If that option isn't listed, the app records from the built-in microphone, which works the same way with one channel.)
@@ -13,6 +13,8 @@ In-app purchases:
 - Restore Purchases is in Settings > Pro.
 - Free and Pro differ only when record is pressed. A recording in progress is never stopped or cut short by a Trial ending or by the Free limit.
 
-Network: the optional Mixer Link talks to the mixer on the local network (OSC over UDP port 10024) to read channel names; Find Mixers asks the local network for X Air mixers. Nothing is sent to the internet and no data is collected.
+What needs a mixer: the 32 channels of an X32 or M32, channel names from the Mixer Link, and Auto-gain (only shown with an X Air or X32 connected over USB and Mixer Link up; it moves the mixer's preamps, never during a recording). The Demo signal shows every other screen.
+
+Network: the optional Mixer Link talks to the mixer on the local network (OSC over UDP port 10024 for X Air mixers, 10023 for the X32 and M32) to read channel names; Find Mixers asks the local network for X Air and X32 mixers. Nothing is sent to the internet and no data is collected.
 
 Microphone permission is used to record the USB audio input (and the built-in microphone if the user chooses it).
