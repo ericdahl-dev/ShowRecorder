@@ -147,6 +147,53 @@ struct ClipProtectionTests {
         #expect(control.gainDb == [1: 26, 2: 26])
     }
 
+    @Test("Reconnected to the same Mixer mid-Take, turn-downs go through the new link (#554)")
+    func followsTheSameMixer() async {
+        let old = control, new = FakeGainControl(gainDb: [1: 30, 2: 30], channelOfUSB: [1: 1, 2: 2, 3: 1])
+        var current = old
+        let protection = ClipProtection(currentControl: { current }, mixer: { "FOH · XR18" }, sampleRate: 48_000)
+
+        current = new                                       // the Mixer Link reconnected: a new driver, same Mixer
+        await Self.feed(protection, Self.hot)
+
+        #expect(new.gainDb[1] == 26)
+        #expect(old.moveStarts == 0 && old.gainDb[1] == 30)
+    }
+
+    @Test("Linked to another Mixer mid-Take, nothing is written or logged; back on the first Mixer, it tries again after the 5 s rest (#554)")
+    func refusesAnotherMixer() async {
+        var mixer = "FOH · XR18"
+        var logged: [TakeMetadata.GainChange] = []
+        let protection = ClipProtection(currentControl: { [control] in control }, mixer: { mixer }, sampleRate: 48_000,
+                                        log: { logged.append($0) })
+
+        mixer = "Monitors · X32"                            // the Mixer Link moved to another desk
+        await Self.feed(protection, Self.hot)
+        #expect(control.moveStarts == 0 && logged.isEmpty, "nothing written to, or logged for, the other Mixer")
+
+        mixer = "FOH · XR18"                                // back on the first Mixer
+        await Self.feed(protection, Self.hot)               // 0.3 s later: still within the rest
+        #expect(control.moveStarts == 0, "it waits out the rest, as after a Mixer that didn't answer")
+        await Self.feed(protection, Windows.repeating(Windows.at(-2), 150))   // 5 s more of a hot channel
+        #expect(control.gainDb[1] == 26 && logged.count == 1)
+    }
+
+    @Test("With the Mixer Link down mid-Take, nothing is written or logged; it tries again after the rest, once the Link is back (#554)")
+    func refusesWhileLinkIsDown() async {
+        var linked: FakeGainControl? = control
+        var logged: [TakeMetadata.GainChange] = []
+        let protection = ClipProtection(currentControl: { linked }, mixer: { linked == nil ? nil : "FOH · XR18" },
+                                        sampleRate: 48_000, log: { logged.append($0) })
+
+        linked = nil                                        // the Mixer Link dropped
+        await Self.feed(protection, Self.hot)
+        #expect(control.moveStarts == 0 && logged.isEmpty)
+
+        linked = control                                    // back
+        await Self.feed(protection, Windows.repeating(Windows.at(-2), 160))
+        #expect(control.gainDb[1] == 26 && logged.count == 1)
+    }
+
     @Test("After a move the channel is left alone for 5 s, then may move again")
     func rateLimit() async {
         let protection = ClipProtection(control: control, sampleRate: 48_000)

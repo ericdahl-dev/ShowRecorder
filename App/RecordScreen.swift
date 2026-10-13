@@ -690,8 +690,10 @@ final class RecordScreenModel {
     /// Clip protection on the linked Mixer, at the rate the input runs at, logging each move in the Take with a
     /// Marker (#450). Nil when the Mixer can't set gain.
     private func makeClipProtection() -> ClipProtection? {
-        guard let control = mixerLink.gainControl, let rate = recorder.sampleRate else { return nil }
-        return ClipProtection(control: control, sampleRate: Double(rate), log: { [weak self] change in self?.recorder.logGainChange(change) })
+        guard mixerLink.gainControl != nil, let rate = recorder.sampleRate else { return nil }
+        // The Mixer Link's gain control at each move, as long as it is the Mixer the Take started on (#554, as #508).
+        return ClipProtection(currentControl: { [weak self] in self?.mixerLink.gainControl }, mixer: { [weak self] in self?.linkedMixer },
+                              sampleRate: Double(rate), log: { [weak self] change in self?.recorder.logGainChange(change) })
     }
 
     /// The one listener to the sequencer's events (an AsyncStream takes one, and ending it ends the stream), for the

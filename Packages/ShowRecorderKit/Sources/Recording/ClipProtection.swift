@@ -90,7 +90,11 @@ public final class ClipProtection {
         return min(0, max(-largestStepDb, (exact * 2).rounded(.down) / 2))
     }
 
-    private let control: any GainControl
+    /// The linked Mixer's gain control, asked for at every move, as long as it is the Mixer the Take started on
+    /// (#554, as #508): after a reconnect to that Mixer, the new driver; on another Mixer or with the Link down, nothing
+    /// is written, and it tries again after the rest.
+    private let link: SameMixerControl
+    private var control: any GainControl { link.control }
     private let sampleRate: Double
     /// Told about every gain change (#450): the Recorder logs it in the Take, with a Marker, or in the Show.
     private let log: (TakeMetadata.GainChange) -> Void
@@ -101,11 +105,25 @@ public final class ClipProtection {
     /// When each preamp last moved, by `GainControl.preamp(ofChannel:)` (#458): two Mixer channels on one preamp,
     /// a shared X32 headamp or a stereo-linked pair, are one preamp here.
     private var lastMove: [Int: Double] = [:]
+    /// When a move was last refused because the Mixer Link was down or on another Mixer: none is tried again until the
+    /// rest has passed, as after a Mixer that didn't answer.
+    private var refusedAt: Double?
     /// How far each preamp has been turned down since the Take started.
     private var turnedDown: [Int: Double] = [:]
 
-    public init(control: any GainControl, sampleRate: Double, log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }) {
-        self.control = control
+    public convenience init(control: any GainControl, sampleRate: Double, log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }) {
+        self.init(currentControl: { control }, mixer: { nil }, sampleRate: sampleRate, log: log)
+    }
+
+    /// - Parameters:
+    ///   - currentControl: the linked Mixer's gain control now, or nil while the Mixer Link is down.
+    ///   - mixer: which Mixer is linked now ("FOH · XR18"), or nil while the Link is down. The one linked now is the
+    ///     one this protects; on any other, it writes nothing.
+    public init(
+        currentControl: @escaping () -> (any GainControl)?, mixer: @escaping () -> String?, sampleRate: Double,
+        log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }
+    ) {
+        link = SameMixerControl(currentControl: currentControl, mixer: mixer)
         self.sampleRate = sampleRate
         self.log = log
     }
@@ -135,6 +153,13 @@ public final class ClipProtection {
         // Every preamp behind a channel that fired is read at once, then which ones move is settled in USB Channel
         // order (so of two channels on one preamp the lower moves it, as before), then they all move at once (#554):
         // a second hot preamp doesn't wait for the first's ramp.
+        guard !fired.isEmpty else { return }
+        if let refusedAt, clock - refusedAt < Self.restSeconds { return }
+        // Nothing is written to, or logged for, another Mixer, or with the Link down (#554, as #508).
+        if link.isRefusing {
+            refusedAt = clock
+            return
+        }
         var targets: [(usbChannel: Int, channel: Int, peak: Double)] = []
         for (usbChannel, peak) in fired {
             if let channel = control.channel(forUSBChannel: usbChannel) { targets.append((usbChannel, channel, peak)) }
