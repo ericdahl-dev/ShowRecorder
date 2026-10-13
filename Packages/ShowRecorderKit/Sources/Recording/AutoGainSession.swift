@@ -21,6 +21,8 @@ public final class AutoGainSession {
         case stopped(usbChannel: Int, channel: Int)
         /// The Mixer didn't do what was asked (it stopped answering, say); whatever gain it set stays, for Undo.
         case error(usbChannel: Int, channel: Int, problem: MixerLinkProblem)
+        /// A Take started, so the run stopped at once: no gain moves during a Take. Whatever gain it set stays, for Undo.
+        case haltedForTake(usbChannel: Int, channel: Int)
     }
 
     public enum Skip: Equatable, Sendable {
@@ -45,6 +47,15 @@ public final class AutoGainSession {
     static let followToleranceDb = 6.0
 
     private struct LevelDidNotFollow: Error {}
+    private struct StoppedForTake: Error {}
+    /// Set by `stop()`: no more gain moves in this run.
+    private var stopRequested = false
+
+    /// Stops a run under way at once, before its next gain move (a Take started). The channel it was on says so;
+    /// channels after it are left alone. Every move made stays for Undo.
+    public func stop() {
+        stopRequested = true
+    }
     /// Every gain step taken, by USB Channel, for Undo.
     public private(set) var steps: [Int: [GainStep]] = [:]
 
@@ -62,10 +73,12 @@ public final class AutoGainSession {
 
     /// Runs auto-gain on each of `usbChannels` and says what happened to each.
     public func run(usbChannels: [Int]) async -> [Result] {
+        stopRequested = false
         var results: [Result] = []
         var done: [Int: Int] = [:]   // Mixer channel -> the USB Channel that moved it
         var donePreamps: [Int: Int] = [:]   // preamp -> the USB Channel that moved it
         for usbChannel in usbChannels {
+            if stopRequested { break }
             guard let channel = control.channel(forUSBChannel: usbChannel) else {
                 results.append(.skipped(usbChannel: usbChannel, reason: .noChannel))
                 continue
@@ -104,6 +117,7 @@ public final class AutoGainSession {
                         return level
                     },
                     adjust: { db in
+                        if stopRequested { throw StoppedForTake() }
                         let step: GainStep
                         do throws(MixerLinkProblem) {
                             step = try await control.applyReGain(channel: channel, gainChangeDb: db, scopes: .all)
@@ -128,6 +142,10 @@ public final class AutoGainSession {
                     },
                     settle: { await settle() }
                 )
+            } catch is StoppedForTake {
+                steps[usbChannel, default: []] += taken
+                results.append(.haltedForTake(usbChannel: usbChannel, channel: channel))
+                break
             } catch is LevelDidNotFollow {
                 // Newest first; a step the Mixer wouldn't take back stays for Undo, with every older one, and the
                 // result is the Mixer's problem rather than "stopped", which says the gain was put back.

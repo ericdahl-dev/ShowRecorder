@@ -109,6 +109,29 @@ struct AutoGainSessionTests {
         #expect(control.gainDb[1] == 22)
     }
 
+    @Test("Stopped mid-run (a Take started): no gain moves after it, the channel says so and keeps its moves for Undo, later channels are left alone")
+    func stopMidRun() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
+        var session: AutoGainSession!
+        var measured = 0
+        // The level follows 80% of each move, so USB 1 needs a second move to land; the Take starts before it.
+        session = AutoGainSession(control: control, measure: { usb in
+            measured += 1
+            if measured == 2 { session.stop() }
+            return -40 + 0.8 * (control.gainDb[control.channelOfUSB[usb] ?? usb] ?? 0)
+        })
+
+        let results = await session.run(usbChannels: [1, 2])
+
+        #expect(results == [.haltedForTake(usbChannel: 1, channel: 1)])
+        #expect(control.gainDb[2] == 0, "USB 2 never moved")
+        let moved = try #require(control.gainDb[1])
+        #expect(moved != 0)
+        #expect(session.steps[1]?.isEmpty == false, "kept for Undo")
+        try await session.undo(usbChannel: 1)
+        #expect(control.gainDb[1] == 0)
+    }
+
     @Test("All channels: silent ones, ones with no Mixer channel, and a second USB Channel on a channel already moved are skipped")
     func skips() async throws {
         let control = FakeGainControl(gainDb: [1: 0, 2: 0, 3: 0], channelOfUSB: [1: 1, 2: 2, 3: 3, 4: 1])
