@@ -346,4 +346,48 @@ struct MixHoldLoopTests {
         #expect(plan.gainChangeDb == allowedDb)
         #expect(plan.limitedBy == MixHold.Limit(setting: .init(channel: 1, parameter: parameter), endDb: endDb))
     }
+    @Test("A gate or compressor keyed from another channel hears that channel, not this preamp: its threshold stays (#497)")
+    func keyedElsewhereStays() {
+        var state = channel(2)
+        state.compressorKey = .channel(1)
+        state.gateKey = .elsewhere   // a bus, say
+        let plan = MixHold.plan(headamp: 2, gainChangeDb: 5, channels: [state], ranges: x32Ranges)
+        #expect(!plan.changes.contains { $0.setting.parameter == .compressorThreshold })
+        #expect(!plan.changes.contains { $0.setting.parameter == .gateThreshold })
+        #expect(plan.changes.contains { $0.setting.parameter == .mainFader }, "the rest still moves")
+    }
+
+    @Test("Keyed from a channel that moves with it (a stereo-linked partner on one preamp), the threshold moves once")
+    func keyedFromPartnerMoves() {
+        var partner = channel(2)
+        partner.compressorKey = .channel(1)
+        let plan = MixHold.plan(headamp: 1, gainChangeDb: 5, channels: [channel(1), partner], ranges: x32Ranges)
+        #expect(plan.changes.filter { $0.setting == .init(channel: 2, parameter: .compressorThreshold) }
+                == [MixHold.Change(setting: .init(channel: 2, parameter: .compressorThreshold), fromDb: -30, toDb: -25)])
+    }
+
+    @Test("Channel 2's compressor keyed from channel 1: moving each preamp in turn moves that threshold once, with channel 1 (#497)")
+    func keyedThresholdMovedByOneChannelOnly() {
+        var two = channel(2)
+        two.compressorKey = .channel(1)
+        let keyed = [MixHold.KeyedDynamics(channel: 2, dynamics: .compressor, thresholdDb: -30, keyChannel: 1)]
+        let first = MixHold.plan(headamp: 1, gainChangeDb: 5, channels: [channel(1)], ranges: x32Ranges, keyed: keyed)
+        let second = MixHold.plan(headamp: 2, gainChangeDb: 3, channels: [two], ranges: x32Ranges)
+        let threshold = MixHold.Setting(channel: 2, parameter: .compressorThreshold)
+        #expect(first.changes.contains { $0.setting == threshold })
+        #expect(!second.changes.contains { $0.setting == threshold }, "so undoing either never undoes the other's")
+    }
+    @Test("Keyed from an input (the X32 keys from a source): it moves when a channel moving with this preamp takes that input")
+    func keyedFromSource() {
+        var one = channel(1)
+        one.source = 1
+        var nine = channel(9)
+        nine.source = 9
+        nine.gateKey = .source(1)   // In01, which channel 1 takes, on the same headamp
+        var alone = channel(9)
+        alone.gateKey = .source(1)
+        let gate = MixHold.Setting(channel: 9, parameter: .gateThreshold)
+        #expect(MixHold.plan(headamp: 1, gainChangeDb: 5, channels: [one, nine], ranges: x32Ranges).changes.contains { $0.setting == gate })
+        #expect(!MixHold.plan(headamp: 9, gainChangeDb: 5, channels: [alone], ranges: x32Ranges).changes.contains { $0.setting == gate })
+    }
 }

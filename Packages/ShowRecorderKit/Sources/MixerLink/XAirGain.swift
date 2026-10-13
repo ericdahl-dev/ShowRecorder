@@ -31,8 +31,20 @@ extension XAirDriver: GainControl, MixHoldDesk {
             let level = X32Values.level.db(ofOSC: try await queries.float(at: address + "/level"))
             sends.append(MixHold.Send(bus: bus, levelDb: level, preFader: preFader))
         }
-        return MixHold.ChannelState(channel: channel, gateThresholdDb: gate, compressorThresholdDb: compressor,
-                                   mainFaderDb: fader, otherMainsDb: [:], sends: sends)
+        var state = MixHold.ChannelState(channel: channel, gateThresholdDb: gate, compressorThresholdDb: compressor,
+                                         mainFaderDb: fader, otherMainsDb: [:], sends: sends)
+        state.gateKey = Self.key(Int(try await queries.int(at: base + "/gate/keysrc")), of: channel)
+        state.compressorKey = Self.key(Int(try await queries.int(at: base + "/dyn/keysrc")), of: channel)
+        return state
+    }
+
+    /// What an X-Air key source means for `channel`: 0 is its own signal, 1-16 a channel, 17 and up a bus.
+    static func key(_ source: Int, of channel: Int) -> MixHold.Key {
+        switch source {
+        case 0, channel: .own
+        case 1...16: .channel(source)
+        default: .elsewhere
+        }
     }
 
     /// Gates and compressors on other channels keyed from `channel`. On the X-Air a key is a channel (1-16; 17-22 are

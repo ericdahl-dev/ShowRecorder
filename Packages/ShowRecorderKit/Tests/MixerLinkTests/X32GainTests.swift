@@ -336,4 +336,33 @@ struct X32GainTests {
         #expect(step.changes.contains { $0.setting == MixHold.Setting(channel: 4, parameter: .mainFader) })
         #expect(!step.changes.contains { $0.setting.channel == 5 })
     }
+    @Test("Reads what each gate and compressor listens to: its own input, its linked partner's, or another source (#497)")
+    func readsKeys() async throws {
+        var state = Self.kickDesk()                  // channel 2's compressor keyed from In01: channel 1's input
+        state.channels[4].gateKey = 5                // channel 5's gate keyed from In05: its own input
+        state.channels[3].compressorKey = 3          // channel 4's compressor keyed from In03: its linked partner's
+        state.set["/config/chlink/3-4"] = .int(1)
+        state.set["/config/linkcfg/hadly"] = .int(1)
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        #expect(try await driver.mixHoldState(ofChannel: 1).gateKey == .own)
+        #expect(try await driver.mixHoldState(ofChannel: 2).compressorKey == .source(1))
+        #expect(try await driver.mixHoldState(ofChannel: 2).source == 2)
+        #expect(try await driver.mixHoldState(ofChannel: 5).gateKey == .own)
+        #expect(try await driver.mixHoldState(ofChannel: 4).compressorKey == .source(3))
+    }
+    @Test("Two channels on one headamp through different inputs: a gate keyed from the other's input still moves (#497 review)")
+    func keyedFromSharedHeadampInput() async throws {
+        var state = Self.kickDesk()
+        state.set["/-ha/08/index"] = .int(0)          // channel 9 (In09) is on headamp 0 too, as channel 1 (In01)
+        state.channels[8].gateKey = 1                 // channel 9's gate keyed from In01
+        state.channels[8].gateThreshold = 0.5         // -40 dB
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+
+        #expect(step.changes.filter { $0.setting == MixHold.Setting(channel: 9, parameter: .gateThreshold) }.count == 1)
+    }
 }

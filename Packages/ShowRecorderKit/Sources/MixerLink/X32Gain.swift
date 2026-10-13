@@ -27,8 +27,21 @@ extension X32Driver {
             let level = X32Values.level.db(ofOSC: try await queries.float(at: address + "/level"))
             sends.append(MixHold.Send(bus: bus, levelDb: level, preFader: preFader))
         }
-        return MixHold.ChannelState(channel: channel, gateThresholdDb: gate, compressorThresholdDb: compressor,
-                                   mainFaderDb: fader, otherMainsDb: [1: mono], sends: sends)
+        var state = MixHold.ChannelState(channel: channel, gateThresholdDb: gate, compressorThresholdDb: compressor,
+                                         mainFaderDb: fader, otherMainsDb: [1: mono], sends: sends)
+        let source = Int(try await queries.int(at: base + "/config/source"))
+        state.source = source
+        state.gateKey = Self.key(Int(try await queries.int(at: base + "/gate/keysrc")), source: source)
+        state.compressorKey = Self.key(Int(try await queries.int(at: base + "/dyn/keysrc")), source: source)
+        return state
+    }
+
+    /// What an X32 key source means for a channel taking input `source`. The X32 keys from a source, not a channel:
+    /// 0 is the channel's own signal, and so is its own input; any other is that input, which moves with this preamp
+    /// when a channel moving with it takes it (a stereo-linked partner, another channel on the same headamp). From the
+    /// X32 OSC docs and the emulator; not yet checked on a real X32.
+    static func key(_ key: Int, source: Int) -> MixHold.Key {
+        key == 0 || key == source ? .own : .source(key)
     }
 
     /// Gates and compressors on other channels whose key source is `channel`'s input, read fresh. The X32 keys from a
