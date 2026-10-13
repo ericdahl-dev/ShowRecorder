@@ -33,16 +33,16 @@ struct TakeRepairTests {
         }
     }
 
-    func folders(_ name: String, deviceFrames: Int = 0, driveFrames: Int = 0) throws -> [URL] {
-        try [("Device", deviceFrames), ("Drive", driveFrames)].map { copy, frames in
+    func folders(_ name: String, deviceFrames: Int = 0, driveFrames: Int = 0) throws -> [DestinationKind: URL] {
+        try Dictionary(uniqueKeysWithValues: [(DestinationKind.device, "Device", deviceFrames), (.drive, "Drive", driveFrames)].map { kind, copy, frames in
             let folder = root.appending(path: "\(name)/\(copy)")
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             let info = StemWriter.Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: RecordingTakeTests.showDay)
             let stem = try StemWriter.open(url: folder.appending(path: "01 USB 01.wav"), info: info, resumingAt: nil)
             try [Float](repeating: 0.1, count: frames).withUnsafeBufferPointer { try stem.append($0) }
             try stem.finalize()
-            return folder
-        }
+            return (kind, folder)
+        })
     }
 
     func metadata(take: Int, gaps: [TakeMetadata.Gap]) -> TakeMetadata {
@@ -154,7 +154,7 @@ struct TakeRepairTests {
         try metadata.write(to: drive)
 
         let queue = TakeRepair(freeSpace: { _ in .max })
-        queue.enqueue(metadata, folders: [device, drive], holding: nil)
+        queue.enqueue(metadata, folders: [.device: device, .drive: drive], holding: nil)
         await queue.wait()
 
         let whole = root.appending(path: "whole.wav")
@@ -186,7 +186,7 @@ struct TakeRepairTests {
         try metadata.write(to: device)
 
         let queue = TakeRepair(freeSpace: { _ in .max })
-        queue.enqueue(metadata, folders: [device, drive], holding: nil)
+        queue.enqueue(metadata, folders: [.device: device, .drive: drive], holding: nil)
         await queue.wait()
 
         #expect(queue.outcomes[.drive] == .repairFailed)
@@ -214,7 +214,7 @@ struct TakeRepairTests {
         try metadata.write(to: device)
 
         let queue = TakeRepair(freeSpace: { _ in .max })
-        queue.enqueue(metadata, folders: [device, drive], holding: nil)
+        queue.enqueue(metadata, folders: [.device: device, .drive: drive], holding: nil)
         await queue.wait()
 
         #expect(queue.outcomes[.drive] == .repairFailed)

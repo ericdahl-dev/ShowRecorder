@@ -52,7 +52,7 @@ final class TakeSession {
     /// What Repair needs once the Take has ended.
     struct Finished {
         var metadata: TakeMetadata
-        var folders: [URL]
+        var folders: [DestinationKind: URL]
         var access: DriveAccess?
         var statuses: [DestinationKind: CopyStatus]
         var signal: TakeSignal
@@ -351,8 +351,11 @@ final class TakeSession {
             // A Copy can fail while its writer drains at stop.
             statuses[copy.kind] = .interrupted
         }
+        var folders: [DestinationKind: URL] = [:]
+        folders[.device] = standby?.folder
+        for copy in copies { folders[copy.kind] = copy.folder }
         return Finished(
-            metadata: metadata, folders: (standby.map { [$0.folder] } ?? []) + copies.map(\.folder), access: copies.lazy.compactMap(\.access).first, statuses: statuses,
+            metadata: metadata, folders: folders, access: copies.lazy.compactMap(\.access).first, statuses: statuses,
             signal: TakeSignal(recorded: metadata.usbChannels.count, withSignal: levels.channelsWithSignal(), loudest: levels.loudest()),
             abandoned: Set(copies.filter { $0.writer.wasAbandoned }.map(\.kind)))
     }

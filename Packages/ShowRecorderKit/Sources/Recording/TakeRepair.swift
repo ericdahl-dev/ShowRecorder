@@ -38,9 +38,9 @@ final class TakeRepair {
     /// records the result in `Take.json`. `access` (the Drive's folder) is held until it's done.
     /// A Take with no Gaps has nothing to repair; its outcomes are complete and `access` is released.
     /// - Parameter abandoned: Copies Stop gave up on (#320), left as they are.
-    func enqueue(_ metadata: TakeMetadata, folders: [URL], holding access: DriveAccess?, abandoned: Set<DestinationKind> = []) {
+    func enqueue(_ metadata: TakeMetadata, folders: [DestinationKind: URL], holding access: DriveAccess?, abandoned: Set<DestinationKind> = []) {
         func outcomes(_ metadata: TakeMetadata) -> [DestinationKind: CopyOutcome] {
-            Dictionary(uniqueKeysWithValues: folders.indices.map { (DestinationKind(index: $0), metadata.outcome(ofCopy: DestinationKind(index: $0))) })
+            Dictionary(uniqueKeysWithValues: folders.keys.map { ($0, metadata.outcome(ofCopy: $0)) })
         }
         generation += 1
         let mine = generation
@@ -48,16 +48,16 @@ final class TakeRepair {
         onChange()
         guard !metadata.gaps.isEmpty else {
             // Drive only: a Drive that faltered but then caught up has the whole Take, so its stand-in is a spare.
-            if metadata.standIns != nil, folders.count > 1, !abandoned.contains(.drive) {
-                try? FileManager.default.removeItem(at: folders[DestinationKind.device.index])
+            if metadata.standIns != nil, let device = folders[.device], let drive = folders[.drive], !abandoned.contains(.drive) {
+                try? FileManager.default.removeItem(at: device)
                 var done = metadata
                 done.standIns = nil
-                try? done.write(to: folders[DestinationKind.drive.index])
+                try? done.write(to: drive)
             }
             access?.end()
             return
         }
-        let copies = folders.indices.map { Copy(kind: DestinationKind(index: $0), folder: folders[$0]) }
+        let copies = DestinationKind.allCases.compactMap { kind in folders[kind].map { Copy(kind: kind, folder: $0) } }
         // Repair must not fill a Destination past the space reserve: a Copy stopped for being nearly
         // full stays as it is, with its Gaps.
         let reserve = SpaceReserve(channelCount: metadata.usbChannels.count, sampleRate: metadata.sampleRate)
