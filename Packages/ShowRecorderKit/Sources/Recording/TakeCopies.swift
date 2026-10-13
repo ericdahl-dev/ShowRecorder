@@ -21,6 +21,11 @@ public enum CopyState: Equatable, Sendable {
     case repaired
     /// Repair tried and failed.
     case repairFailed
+    /// Drive only (#196, ADR 0006): a Stand-in whose audio Repair put on the Drive and then removed from the Device.
+    case moved
+    /// Drive only (#196, ADR 0006): a Stand-in whose audio stays on the Device after Repair (the Drive was given up
+    /// or had no room), until it can be moved to the Drive.
+    case standInKept
 }
 
 /// Copies of a Take (#550): what each Destination's Copy of one Take is doing, or ended as, keyed by Destination.
@@ -59,7 +64,8 @@ extension CopyState {
     /// How the Copy ended, once the Take has; nil while it runs or for a Copy that never started.
     var outcome: CopyOutcome? {
         switch self {
-        case .complete: .complete
+        // A moved Stand-in's audio is whole on the Drive, so the Device's part ended complete.
+        case .complete, .moved, .standInKept: .complete
         case .hasGaps: .hasGaps
         case .repaired: .repaired
         case .repairFailed: .repairFailed

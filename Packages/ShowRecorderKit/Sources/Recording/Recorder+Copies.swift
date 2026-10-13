@@ -7,7 +7,9 @@ extension Recorder {
         // While a Take runs, its Copies' running words; after it, how each ended (a Copy that never started stays
         // missing). The last Take's outcomes are kept while the next runs, but a running Take reads its own.
         if isRecording, let session { return session.takeCopies }
-        return TakeCopies(isRunning: isRecording) { kind in
+        return TakeCopies(isRunning: isRecording, isDriveOnly: lastTakeWasDriveOnly) { kind in
+            if !isRecording, kind == .device, lastTakeStandInMoved { return .moved }
+            if !isRecording, kind == .device, lastTakeStandInKept { return .standInKept }
             let ended = isRecording ? nil : lastTakeOutcomes[kind].map(CopyState.init)
             return ended ?? CopyState(copyStatus(kind))
         }

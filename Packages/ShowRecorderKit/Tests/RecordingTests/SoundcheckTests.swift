@@ -213,4 +213,11 @@ struct SoundcheckTests {
         #expect(!Soundcheck.shouldOffer(alreadyOffered: false, isRecording: true, setupHintShowing: false))
         #expect(!Soundcheck.shouldOffer(alreadyOffered: false, isRecording: false, setupHintShowing: true))
     }
+
+    @Test("A Drive only test Take whose stand-in Repair moved to the Drive passes (#550)")
+    func driveOnlyMovedTakePasses() {
+        let step = Soundcheck.judgeTake(copies: takeCopies(running: false, driveOnly: true, device: .moved, drive: .repaired), driveChosen: true)
+        #expect(step.passed)
+        #expect(step.message == "Written to the Device and the Drive.")
+    }
 }
