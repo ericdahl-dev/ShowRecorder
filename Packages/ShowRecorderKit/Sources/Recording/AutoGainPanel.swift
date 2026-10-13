@@ -13,6 +13,23 @@ public final class AutoGainPanel {
     public private(set) var results: [Int: AutoGainSession.Result] = [:]
     /// USB Channels with a run or an Undo under way.
     public private(set) var running: Set<Int> = []
+    /// Where each USB Channel of the run under way is: waiting, measuring, adjusting. Empty when no run is going.
+    public private(set) var phases: [Int: AutoGainSession.Phase] = [:]
+    /// How far a run has got: channels done of all it was asked to run.
+    public struct Progress: Equatable, Sendable {
+        public var done: Int
+        public var total: Int
+        /// "7 of 16 channels done".
+        public var text: String { "\(done) of \(total) \(total == 1 ? "channel" : "channels") done" }
+    }
+    /// The run under way, or nil.
+    public var progress: Progress? {
+        phases.isEmpty ? nil : Progress(done: phases.values.filter { if case .done = $0 { true } else { false } }.count,
+                                        total: phases.count)
+    }
+    /// Runs finished so far, and how many channels the last one had: the sheet tells VoiceOver when one finishes.
+    public private(set) var finishedRuns = 0
+    public private(set) var lastRunTotal = 0
     /// A Take is running: nothing may move a preamp.
     public private(set) var isTakeRunning = false
     /// The session on the linked Mixer, made at the first run and kept for Undo.
@@ -35,7 +52,17 @@ public final class AutoGainPanel {
         guard !isLocked, let session = session ?? makeSession() else { return }
         self.session = session
         running.formUnion(usbChannels)
+        for usb in usbChannels { phases[usb] = .waiting }
+        session.onPhase = { [weak self] usb, phase in
+            self?.phases[usb] = phase
+            // Each result shows as soon as its channel is done, not when the whole run is.
+            if case .done(let result) = phase { self?.results[usb] = result }
+        }
         for result in await session.run(usbChannels: usbChannels) { results[result.usbChannel] = result }
+        session.onPhase = nil
+        lastRunTotal = phases.count
+        finishedRuns += 1
+        phases = [:]
         running.subtract(usbChannels)
     }
 
@@ -122,6 +149,18 @@ extension AutoGainSession.Result {
         switch self {
         case .set(let usb, _, _, _, _), .skipped(let usb, _), .failed(let usb, _, _, _), .stopped(let usb, _),
              .error(let usb, _, _), .haltedForTake(let usb, _): usb
+        }
+    }
+}
+
+extension AutoGainSession.Phase {
+    /// Where a channel is, in plain words, for its row: nil once it's done, when the row shows its result.
+    public var label: String? {
+        switch self {
+        case .waiting: "Waiting…"
+        case .measuring: "Listening…"
+        case .adjusting: "Setting the gain…"
+        case .done: nil
         }
     }
 }

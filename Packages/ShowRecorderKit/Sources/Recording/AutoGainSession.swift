@@ -28,6 +28,8 @@ public final class AutoGainSession {
     public enum Skip: Equatable, Sendable {
         /// Nothing on it to measure.
         case noSignal
+        /// Its level was already in the target band: nothing moved.
+        case alreadyOnTarget(levelDbfs: Double)
         /// No Mixer input channel is routed to it (an output, say, or a digital source).
         case noChannel
         /// It carries the same Mixer channel as an earlier USB Channel, whose preamp already moved.
@@ -36,6 +38,21 @@ public final class AutoGainSession {
         /// preamp already moved (#458).
         case samePreamp(asUSBChannel: Int)
     }
+
+    /// Where a USB Channel is in a run, for the progress the sheet shows.
+    public enum Phase: Equatable, Sendable {
+        /// Waiting for the run to reach it.
+        case waiting
+        /// Its meters are being read.
+        case measuring
+        /// Its preamp is moving, or waiting for its turn on the Mixer.
+        case adjusting
+        /// Finished, with what happened.
+        case done(Result)
+    }
+
+    /// Told each time a USB Channel in a run moves to another phase.
+    public var onPhase: ((Int, Phase) -> Void)?
 
     private let control: any GainControl
     private let rule: AutoGainRule
@@ -109,10 +126,16 @@ public final class AutoGainSession {
             toRun.append((results.count, usbChannel, channel))
             results.append(nil)
         }
+        for result in results.compactMap({ $0 }) { onPhase?(result.usbChannel, .done(result)) }
+        for item in toRun { onPhase?(item.usbChannel, .waiting) }
         // Then every channel at once, each in its own Task on the main actor; canceling the run cancels them all.
         // (Stopped during the first pass, nothing has moved yet and none of them runs.)
         let running = stopRequested ? [] : toRun.map { item in
-            (item.index, Task { await self.runOne(usbChannel: item.usbChannel, channel: item.channel) })
+            (item.index, Task {
+                let result = await self.runOne(usbChannel: item.usbChannel, channel: item.channel)
+                self.onPhase?(item.usbChannel, .done(result))   // as soon as it's done, not in the order asked
+                return result
+            })
         }
         await withTaskCancellationHandler {
             for (index, task) in running { results[index] = await task.value }
@@ -122,8 +145,8 @@ public final class AutoGainSession {
         return results.compactMap { $0 }
     }
 
-    /// Runs the rule on one USB Channel, moving its Mixer channel's preamp. Nil when it was already on target.
-    private func runOne(usbChannel: Int, channel: Int) async -> Result? {
+    /// Runs the rule on one USB Channel, moving its Mixer channel's preamp.
+    private func runOne(usbChannel: Int, channel: Int) async -> Result {
         var taken: [GainStep] = []
         var expected: Double?   // where the last move should have put the level
         var lastLevel = 0.0
@@ -132,6 +155,7 @@ public final class AutoGainSession {
         do {
             outcome = try await rule.run(
                 measure: {
+                    onPhase?(usbChannel, .measuring)
                     let level = await measure(usbChannel)
                     // Our meters measure what's recorded: if the level didn't follow the gain, the wrong preamp moved.
                     if let expected, abs(level - expected) > Self.followToleranceDb { throw LevelDidNotFollow() }
@@ -139,6 +163,7 @@ public final class AutoGainSession {
                     return level
                 },
                 adjust: { db in
+                    onPhase?(usbChannel, .adjusting)
                     let moved: GainStep?
                     do throws(MixerLinkProblem) {
                         // Checked again once it's this channel's turn on the Mixer: a stop while it waited means no move.
@@ -201,16 +226,16 @@ public final class AutoGainSession {
         steps[usbChannel, default: []] += taken
         switch outcome {
         case .onTarget(let level, _, _):
-            if let first = taken.first, let last = taken.last {
-                return .set(usbChannel: usbChannel, channel: channel, fromGainDb: first.fromGainDb, toGainDb: last.toGainDb, levelDbfs: level)
+            guard let first = taken.first, let last = taken.last else {
+                return .skipped(usbChannel: usbChannel, reason: .alreadyOnTarget(levelDbfs: level))
             }
+            return .set(usbChannel: usbChannel, channel: channel, fromGainDb: first.fromGainDb, toGainDb: last.toGainDb, levelDbfs: level)
         case .failed(.noSignal, _):
             return .skipped(usbChannel: usbChannel, reason: .noSignal)
         case .failed(let failure, _):
             let limitedBy: ReGain.Limit? = if case .rangeReached = failure { limit } else { nil }
             return .failed(usbChannel: usbChannel, channel: channel, failure: failure, limitedBy: limitedBy)
         }
-        return nil
     }
 
     /// Puts back every gain step taken on `usbChannel`, newest first.
