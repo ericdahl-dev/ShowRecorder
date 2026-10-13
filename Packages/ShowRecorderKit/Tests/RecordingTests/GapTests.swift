@@ -12,6 +12,8 @@ final class FailingStem: StemSink, @unchecked Sendable {
     private let healthyFrames: Int
     private var frames = 0
     var frameCount: UInt64 { real.frameCount }
+    /// Its Destination fails but loses nothing: what was appended is all on disk (`LossyStem` loses the rest).
+    var committedFrameCount: UInt64 { real.frameCount }
 
     init(_ real: StemWriter, healthyFrames: Int) {
         self.real = real

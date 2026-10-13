@@ -26,6 +26,7 @@ struct OneCopyDropoutTests {
         let gate: Gate
         init(_ inner: StemWriter, gate: Gate) { self.inner = inner; self.gate = gate }
         var frameCount: UInt64 { inner.frameCount }
+        var committedFrameCount: UInt64 { inner.committedFrameCount }
         func append(_ samples: UnsafeBufferPointer<Float>) throws { gate.wait(); try inner.append(samples) }
         func commitHeader() throws { try inner.commitHeader() }
         func finalize() throws { try inner.finalize() }

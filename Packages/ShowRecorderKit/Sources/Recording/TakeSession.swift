@@ -21,6 +21,7 @@ final class DiscardingSink: StemSink {
     }
 
     func append(_ samples: UnsafeBufferPointer<Float>) throws { frameCount += UInt64(samples.count) }
+    var committedFrameCount: UInt64 { frameCount }
     func commitHeader() throws {}
     func finalize() throws {}
     func setMarkers(_ markers: [StemMarker]) throws -> Int { markers.count }
@@ -283,7 +284,7 @@ final class TakeSession {
     private var coverage: CopyCoverage {
         var all = copies.map { copy in
             CopyCoverage.Copy(
-                kind: copy.kind, written: copy.writer.framesWritten, dropped: copy.writer.dropouts,
+                kind: copy.kind, written: copy.writer.framesKept, dropped: copy.writer.dropouts,
                 silence: copy.gaps, stoppedEarly: copy.writer.hasFailed || copy.writer.neverJoined)
         }
         // Drive only: the standby holds the audio from where its stand-in starts, and nothing before.
@@ -415,7 +416,7 @@ final class TakeSession {
                 }
                 try show.useDrive(access.folder)
             }
-            let counts = old?.writer.stemFrameCounts
+            let counts = old?.writer.stemFramesKept
             let sinks: [any StemSink] = try stems.enumerated().map { index, spec in
                 spec.isRecorded
                     ? try makeStem(folder.appending(path: spec.file), info.described(spec.description), counts?[index])

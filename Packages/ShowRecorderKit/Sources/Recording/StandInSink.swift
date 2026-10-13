@@ -10,6 +10,7 @@ final class StandInSink: StemSink, @unchecked Sendable {
     /// Take frames appended so far, written to a file or not. Read from any thread.
     var frameCount: UInt64 { appended.load(ordering: .acquiring) }
     private let appended = Atomic<UInt64>(0)
+    var committedFrameCount: UInt64 { frameCount }
 
     private let heldFrames: Int
     /// The last `heldFrames` samples, oldest overwritten first; `frameCount` is one past the newest.

@@ -78,6 +78,13 @@ final class TakeWriter: @unchecked Sendable {
     /// Samples in each Stem, in channel order. Read once the writer has stopped.
     var stemFrameCounts: [UInt64] { stems.map(\.frameCount) }
 
+    /// Samples in each Stem that are sure to be there: for a Copy whose write failed, only what the last header
+    /// commit made durable, since the rest may have gone with the Destination (#595); otherwise all of them.
+    var stemFramesKept: [UInt64] { failed.load(ordering: .acquiring) ? stems.map(\.committedFrameCount) : stemFrameCounts }
+
+    /// Frames every Stem is sure to have, as `stemFramesKept` counts them.
+    var framesKept: Int { Int(stemFramesKept.min() ?? 0) }
+
     /// Stretches written as silence because the ring had no room for that audio.
     var dropouts: [Range<Int>] { dropoutRanges.withLock { $0 } }
 
