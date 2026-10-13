@@ -108,3 +108,15 @@ describe("the X32 page's call to action", () => {
     expect(read("components", "AppStoreBadge.tsx")).toMatch(/beta/);
   });
 });
+
+describe("mixer page screenshots", () => {
+  it("the XR18 page shows the recording screen and the Mixer Link settings, each with a caption", () => {
+    expect(xr18Page).toMatch(/<Screenshot shot=\{SHOTS\.heroPhone\}/);
+    expect(xr18Page).toMatch(/<Screenshot shot=\{SHOTS\.mixerLink\}/);
+    expect(xr18Page.match(/<figure className="shot">[\s\S]*?<figcaption>[^<]+<\/figcaption>[\s\S]*?<\/figure>/g)).toHaveLength(2);
+  });
+
+  it("the X32 page shows no screenshot: none were made with an X32", () => {
+    expect(x32Page).not.toMatch(/Screenshot|<figure/);
+  });
+});
