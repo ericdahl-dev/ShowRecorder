@@ -13,7 +13,8 @@ enum StemFileName {
         let unsafe = CharacterSet(charactersIn: "/\\:*?\"<>|").union(.controlCharacters)
         let replaced = String(sourceName.unicodeScalars.map { unsafe.contains($0) ? "-" : Character($0) })
         let trimmed = replaced.trimmingCharacters(in: CharacterSet(charactersIn: " .").union(.whitespacesAndNewlines))
-        let name = trimmed.isEmpty ? "USB \(number)" : String(trimmed.prefix(maxNameLength))
+        // At most 64 characters and `NameLimit`'s bytes, so "NN <name>.wav" stays under the file systems' 255 bytes.
+        let name = trimmed.isEmpty ? "USB \(number)" : NameLimit.cut(String(trimmed.prefix(maxNameLength)))
         return "\(number) \(name).wav"
     }
 }
