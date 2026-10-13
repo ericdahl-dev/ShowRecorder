@@ -177,12 +177,8 @@ public final class ClipProtection {
             }
         }
         guard !targets.isEmpty else { return nil }
-        let channels = Set(targets.map(\.channel))
-        pending.formUnion(channels)
-        return Task {
-            await turnDown(targets)
-            pending.subtract(channels)                      // when stopped before any lane ran
-        }
+        pending.formUnion(targets.map(\.channel))
+        return Task { await turnDown(targets) }
     }
 
     /// Mixer channels whose turn-down is done, or was never made: they may turn down again.
@@ -208,7 +204,10 @@ public final class ClipProtection {
             }
         }
         // The wait for the Mixer can outlast the Take.
-        guard !stopped else { return }
+        guard !stopped else {
+            release(Set(targets.map(\.channel)))
+            return
+        }
         var moves: [(usbChannel: Int, channel: Int, preamp: Int, lane: Lane, gainChangeDb: Double)] = []
         for (index, target) in targets.enumerated() {
             let preamp = preamps[index]
