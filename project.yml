@@ -42,6 +42,8 @@ targets:
         product: Destinations
       - package: ShowRecorderKit
         product: TakeActivity
+      - package: ShowRecorderKit
+        product: WatchRemote
       # The Live Activity (#136): iPhone only, so the Mac app embeds no extension and needs no profile for it.
       - target: ShowRecorderLiveActivity
         destinationFilters: [iOS]

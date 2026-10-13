@@ -39,6 +39,8 @@ public final class WatchRemoteModel {
     public static let openPhoneText = "Open ShowRecorder on your iPhone"
     public static let tooLateText = "Too late: the link dropped"
     public static let unconfirmedText = "Not confirmed: check the iPhone"
+    /// The most the two clocks are taken to differ by; see `received`.
+    static let maxClockOffset: TimeInterval = 60
 
     /// The last status from the iPhone.
     public private(set) var status: WatchStatus?
@@ -77,7 +79,10 @@ public final class WatchRemoteModel {
     public func received(_ new: WatchStatus) {
         if new.problems.contains(where: { !toldProblems.contains($0) }) { haptic(.problem) }
         toldProblems = Set(new.problems)
-        clockOffset = new.sentAt.timeIntervalSince(now())
+        // A paired iPhone and watch keep their clocks within a second or so; a bigger difference means this status was
+        // delivered late (the watch app opened long after it was sent), so it says nothing about the clocks.
+        let offset = new.sentAt.timeIntervalSince(now())
+        if abs(offset) <= Self.maxClockOffset { clockOffset = offset }
         status = new
     }
 

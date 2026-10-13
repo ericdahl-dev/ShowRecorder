@@ -564,6 +564,8 @@ final class RecordScreenModel {
     #if os(iOS)
     /// The running Take in the Dynamic Island and on the Lock Screen.
     @ObservationIgnored private let liveActivity = TakeLiveActivity()
+    /// The Apple Watch remote (#100).
+    @ObservationIgnored private var watchLink: WatchLink?
     #endif
     /// Landscape: the transport column on the leading edge instead of the trailing one (left-handed).
     var transportLeading: Bool = UserDefaults.standard.bool(forKey: RecordScreenModel.transportLeadingKey)
@@ -963,6 +965,10 @@ final class RecordScreenModel {
             }
             meterModel.reset(channelCount: recorder.usbChannelCount)
         }
+        #if os(iOS)
+        watchLink = WatchLink(status: { [unowned self] in watchStatus }, actions: watchActions)
+        watchLink?.start()
+        #endif
         // `-demoSignal` starts on the 18-channel demo signal, for screenshots and layout checks.
         if launchFlag("-demoSignal"), devices.contains(where: { $0.id == "demo" }) { selectedDeviceID = "demo" }
     }
