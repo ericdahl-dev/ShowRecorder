@@ -24,9 +24,17 @@ fi
 
 # At most build_jobs compile jobs, right after the subcommand (so swift run doesn't pass it to the program), unless
 # the caller gave a count.
+# Only swift's own options count: none after `--`, or after swift run's program, which are the program's.
 given=0
+sub=""
 for arg in "$@"; do
-  case "$arg" in -j | -j[0-9]* | --jobs | --jobs=*) given=1 ;; esac
+  case "$arg" in
+    --) break ;;
+    -j | -j[0-9]* | --jobs | --jobs=*) given=1 ;;
+    -*) ;;
+    *) if [ "$sub" = run ]; then break; fi
+       [ -z "$sub" ] && sub=$arg ;;
+  esac
 done
 if [ "$given" = 0 ]; then
   jobs=$(build_jobs)

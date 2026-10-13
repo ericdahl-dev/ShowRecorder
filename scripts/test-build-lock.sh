@@ -139,6 +139,15 @@ expect "a build inside verify.sh's lock is capped too (output: $out)" has "ran s
 timed env SHOWRECORDER_BUILD_JOBS=3 "$repo/scripts/bin/swift" --version
 expect "light commands get no -j (output: $out)" has "ran swift --version\$"
 
+timed env SHOWRECORDER_BUILD_JOBS=3 "$repo/scripts/bin/swift" run Tool -j 4
+expect "a -j for the program, after it, doesn't turn the cap off (output: $out)" has "ran swift run -j 3 Tool -j 4\$"
+timed env SHOWRECORDER_BUILD_JOBS=3 "$repo/scripts/bin/xcodebuild" -create-xcframework -framework A.framework -output A.xcframework
+expect "xcodebuild without a build action gets no -jobs (output: $out)" has "ran xcodebuild -create-xcframework -framework A.framework -output A.xcframework\$"
+for bad in abc 0; do
+  timed env SHOWRECORDER_BUILD_JOBS=$bad "$repo/scripts/bin/swift" build
+  expect "SHOWRECORDER_BUILD_JOBS=$bad falls back to the default (output: $out)" has "ran swift build -j $default\$"
+done
+
 # verify.sh runs the package tests and both app builds at once: each gets a third of N.
 : > "$work/args"
 out=$(SHOWRECORDER_BUILD_JOBS=6 VERIFY_FILES="Packages/ShowRecorderKit/Sources/Recording/AutoGainSession.swift" ./scripts/verify.sh 2>&1) || true

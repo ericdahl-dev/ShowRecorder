@@ -4,8 +4,9 @@
 # Sourced by verify.sh and the scripts/bin shims. A build that finds the lock taken waits, and says so.
 #   SHOWRECORDER_BUILD_LOCK=<file>   use this lock file instead (scripts/test-build-lock.sh)
 #   SHOWRECORDER_BUILD_LOCK_HELD=1   set while the lock is held: builds started inside it don't take it again
-#   SHOWRECORDER_BUILD_JOBS=<n>      compile jobs per build (default: this Mac's cores less 4, at least 1), so one
-#                                    build alone doesn't take the whole CPU either
+#   SHOWRECORDER_BUILD_JOBS=<n>      compile jobs for a build (default: this Mac's cores less 4, at least 1), so one
+#                                    build alone doesn't take the whole CPU either. verify.sh takes it as its total
+#                                    and gives each of the builds it runs at once a share.
 # Stop a locked build with Ctrl-C, or by signaling its whole process group (kill -- -PGID): lockf holds the lock and
 # runs the build as its child, so a signal to lockf alone frees the lock while the build goes on.
 
@@ -39,10 +40,11 @@ common_git_dir() {
 
 # How many compile jobs a build may use.
 build_jobs() {
-  if [ -n "${SHOWRECORDER_BUILD_JOBS:-}" ]; then
-    printf '%s\n' "$SHOWRECORDER_BUILD_JOBS"
-    return
-  fi
+  # A whole number of at least 1; anything else is ignored.
+  case "${SHOWRECORDER_BUILD_JOBS:-}" in
+    "" | *[!0-9]* | 0 | 0*) ;;
+    *) printf '%s\n' "$SHOWRECORDER_BUILD_JOBS"; return ;;
+  esac
   cores=$(sysctl -n hw.ncpu 2>/dev/null || echo 5)
   [ "$cores" -gt 5 ] && echo $((cores - 4)) || echo 1
 }

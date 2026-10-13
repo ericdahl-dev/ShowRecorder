@@ -16,12 +16,17 @@ if [ "$light" = 1 ] || ! in_showrecorder; then
   exec "$real" "$@"
 fi
 
-# At most build_jobs compile jobs, unless the caller gave a count.
+# At most build_jobs compile jobs for a build action, unless the caller gave a count. Other modes (-create-xcframework,
+# say) don't take -jobs.
 given=0
+action=0
 for arg in "$@"; do
-  [ "$arg" = -jobs ] && given=1
+  case "$arg" in
+    -jobs) given=1 ;;
+    build | build-for-testing | test | test-without-building | analyze | archive | install | docbuild) action=1 ;;
+  esac
 done
-[ "$given" = 0 ] && set -- "$@" -jobs "$(build_jobs)"
+[ "$given" = 0 ] && [ "$action" = 1 ] && set -- "$@" -jobs "$(build_jobs)"
 
 if [ "${SHOWRECORDER_BUILD_LOCK_HELD:-0}" = 1 ]; then
   exec "$real" "$@"
