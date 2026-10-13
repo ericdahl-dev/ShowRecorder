@@ -110,7 +110,7 @@ First release.
 
 ## Screenshots (to take)
 
-6.9" iPhone (required) and 13" iPad. Captions, in order:
+6.9" iPhone (required), 13" iPad, and for the Mac (1.1) 16:10 at 2880 × 1800 (or 1280 × 800, 1440 × 900, 2560 × 1600). Captions, in order:
 
 1. Every channel, its own file (the record screen during a Take, 18 named meters)
 2. Named from your mixer (the Mixer Link and Find Mixers)

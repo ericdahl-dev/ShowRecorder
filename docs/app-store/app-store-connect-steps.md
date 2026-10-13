@@ -57,5 +57,24 @@ An agent can create these two through the API once step 1 is Active: say "create
 
 ## 5. Decisions only you can make
 
-- [ ] **The Mac app at v1, or iPhone and iPad only?** If the Mac ships, it needs its own build in CI, Mac screenshots and a Mac category. If not, the "Universal Purchase" promise waits for a later version.
+- [x] **The Mac app:** iPhone and iPad first at 1.0 (Eric, 2026-10-11); **1.1 goes to the Mac App Store too** (Eric, 2026-10-13). See section 6.
 - [ ] **Release:** manual, or automatic once approved. Manual is safer for timing the launch price.
+
+## 6. Mac App Store (1.1, #374)
+
+Already done:
+
+- [x] **Add Platform > macOS** on the app record (2026-10-12). One bundle ID, so Pro and the Trial are a Universal Purchase with Family Sharing, as on iPhone and iPad.
+- [x] **CI uploads a Mac build** on every tag (a missing installer certificate fails the Mac job, and the run logs the certificate's expiry): the Mac Installer Distribution certificate is in the GitHub secrets `MAC_INSTALLER_CERT_P12_BASE64` and `MAC_INSTALLER_CERT_PASSWORD` (since 2026-10-12). v1.1.2 uploaded Mac build 29.1, and its signed archive passed `scripts/preflight.sh`: App Sandbox, the Music category, the icon, the privacy manifest and the usage strings.
+
+Your steps:
+
+- [ ] **Infisical:** make sure the installer certificate and its password are also in project `showrecorder`, environment `prod`, under the same two names. GitHub has them; Infisical is where they're kept (docs/DEVELOPING.md). Never paste either value into a chat.
+- [ ] **Renewal:** note the installer certificate's expiry date (Keychain Access, or the Certificates page in the developer account). Like the Apple Distribution certificate, it lasts a year, and an expired one stops the Mac upload.
+- [ ] **TestFlight on a Mac:** once 1.1.2's beta review passes, install it on a Mac and run #327's Mac checks on this release build: the XR18 over USB, Mixer Link and Find Mixers, a Drive folder on an external disk, and a Take recorded and played back.
+- [ ] **macOS 1.1 version page:** **Apps → ShowRecorder → macOS App → 1.1.** Paste the promotional text, description and keywords from [`listing.md`](listing.md) (the Mac is in them since #512), and the notes from [`review-notes.md`](review-notes.md). Each platform's version has its own Support URL (`https://ericdahl.dev/showrecorder/support`), copyright and App Review contact (your name, phone and email); App Privacy and the age rating are shared.
+- [ ] **Mac screenshots:** 1 to 10 at 16:10, one of 1280 × 800, 1440 × 900, 2560 × 1600 or 2880 × 1800. An agent can take them from the Mac app; you upload or approve them.
+- [ ] **Category:** Music. The category is set once for the app; the Mac app's Info.plist already says `public.app-category.music`.
+- [ ] **Build:** the Mac build of the 1.1 tag. One App Review submission can carry the iOS and macOS 1.1 versions together, or each can go on its own.
+- [ ] **In-app purchases:** nothing new. Pro and the Trial already cover the Mac.
+
