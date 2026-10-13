@@ -137,11 +137,13 @@ struct TakeSessionTests {
         // It joined at 480 and failed on its first audio: it has the silence and nothing more.
         let failedAt = Int(session.copies[1].writer.stemFrameCounts[0])
         #expect(failedAt == 480)
+        // None of it was committed after the opening commit, so the Stems resume from the start (#595).
+        let committed = 0
 
         let check = session.checkDestinations(drive: { DriveAccess(folder: drive, stop: { secondReleased.increment() }) })
 
         #expect(check == .carryOn)
-        #expect(opened.resumes.last == UInt64(failedAt))
+        #expect(opened.resumes.last == UInt64(committed))
         #expect(session.status(.drive) == .recording)
         #expect(session.copies.count == 2)
         // The earlier access is let go; the new one is held to the end.
@@ -152,7 +154,7 @@ struct TakeSessionTests {
         try await deliver(480)
         let finished = session.finish()
 
-        #expect(finished.metadata.gaps == [.init(copy: .drive, start: 0, end: 480), .init(copy: .drive, start: failedAt, end: rejoinFrame)])
+        #expect(finished.metadata.gaps == [.init(copy: .drive, start: committed, end: rejoinFrame)])
         #expect(finished.statuses[.drive] == .recording)
         #expect(secondReleased.count == 0)
     }
@@ -161,38 +163,41 @@ struct TakeSessionTests {
     func driveRejoinsTwice() async throws {
         let opened = Opened()
         let capture = capture
-        // The first two Drive writers fail: the first on its first audio, the second after 480 frames of it.
+        // The first two Drive writers fail: the first on its first audio, the second after 120 000 frames of it, past
+        // its 2 s header commit, so the second rejoin resumes after the first rejoin and that earlier Gap is kept (#595).
         let session = try session(opened: opened, wrap: { url, real in
             let driveOpens = opened.resumes.count - 1
             guard url.path.contains("/Drive/"), driveOpens <= 2 else { return real }
             let leadIn = capture.takeFrameCount - Int(opened.resumes.last! ?? 0)
-            return FailingStem(real, healthyFrames: leadIn + (driveOpens == 2 ? 480 : 0))
+            return FailingStem(real, healthyFrames: leadIn + (driveOpens == 2 ? 120_000 : 0))
         })
         let drive = drive
         try await deliver(480)
         _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
         for _ in 0..<4 { try await deliver(480) }
         try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
-        let firstFailedAt = Int(session.copies[1].writer.stemFrameCounts[0])
 
         _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
         let firstRejoin = capture.takeFrameCount
-        for _ in 0..<4 { try await deliver(480) }
+        for _ in 0..<3 { try await deliver(48_000) }
         try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
         let secondFailedAt = Int(session.copies[1].writer.stemFrameCounts[0])
-        #expect(secondFailedAt == firstRejoin + 480)
 
         _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
         let secondRejoin = capture.takeFrameCount
+        // The second writer resumes at its last commit: after the first rejoin, before where it failed.
+        let committed2 = Int(try #require(opened.resumes.last ?? nil))
+        #expect(committed2 > firstRejoin && committed2 < secondFailedAt)
         #expect(session.status(.drive) == .recording)
         try await deliver(480)
         let finished = session.finish()
 
         #expect(opened.resumes.count == 4)
+        // The first writer kept nothing past its opening commit, so the first rejoin's Gap runs from the start and
+        // takes in the join Gap before it.
         #expect(finished.metadata.gaps == [
-            .init(copy: .drive, start: 0, end: 480),
-            .init(copy: .drive, start: firstFailedAt, end: firstRejoin),
-            .init(copy: .drive, start: secondFailedAt, end: secondRejoin),
+            .init(copy: .drive, start: 0, end: firstRejoin),
+            .init(copy: .drive, start: committed2, end: secondRejoin),
         ])
         #expect(finished.statuses[.drive] == .recording)
     }
@@ -261,13 +266,13 @@ struct TakeSessionTests {
         _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
         for _ in 0..<4 { try await deliver(480) }
         try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
-        let failedAt = Int(session.copies[1].writer.stemFrameCounts[0])
 
         _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
         let takeEnd = capture.takeFrameCount
         let finished = session.finish()
 
-        #expect(finished.metadata.gaps == [.init(copy: .drive, start: 0, end: 480), .init(copy: .drive, start: failedAt, end: takeEnd)])
+        // Nothing past the opening commit was kept, so the Gap runs from the start (#595).
+        #expect(finished.metadata.gaps == [.init(copy: .drive, start: 0, end: takeEnd)])
     }
 
     @Test("A Marker lands in Take.json and in the Copy that joins after it")

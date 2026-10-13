@@ -283,7 +283,9 @@ final class TakeSession {
     private var coverage: CopyCoverage {
         var all = copies.map { copy in
             CopyCoverage.Copy(
-                kind: copy.kind, written: copy.writer.framesWritten, dropped: copy.writer.dropouts,
+                // A Drive that went away may have lost what it wrote since its last commit (#595); a Device keeps it.
+                kind: copy.kind, written: copy.kind == .drive ? copy.writer.framesKept : copy.writer.framesWritten,
+                dropped: copy.writer.dropouts,
                 silence: copy.gaps, stoppedEarly: copy.writer.hasFailed || copy.writer.neverJoined)
         }
         // Drive only: the standby holds the audio from where its stand-in starts, and nothing before.
@@ -415,7 +417,10 @@ final class TakeSession {
                 }
                 try show.useDrive(access.folder)
             }
-            let counts = old?.writer.stemFrameCounts
+            // Each Stem resumes at its last commit (#595): what was written after it may never have reached the Drive,
+            // so it is cut off and left to Repair. A Drive that failed but stayed mounted loses that stretch too, until
+            // resuming at the frames really on disk (#602).
+            let counts = old?.writer.stemFramesKept
             let sinks: [any StemSink] = try stems.enumerated().map { index, spec in
                 spec.isRecorded
                     ? try makeStem(folder.appending(path: spec.file), info.described(spec.description), counts?[index])
@@ -430,8 +435,11 @@ final class TakeSession {
             let writer = makeWriter(feed: feed, stems: sinks, markers: stemMarkers)
             capture.attachMidTake(feed)
             writer.start()
+            // The rejoin's own Gap starts where the Stems resume, so earlier Gaps stop there (#595).
+            let resume = Int(counts?.min() ?? 0)
+            let earlierGaps = (old?.gaps ?? []).filter { $0.lowerBound < resume }.map { $0.clamped(to: 0..<resume) }
 
-            let record = CopyRecord(kind: .drive, folder: folder, feed: feed, writer: writer, earlierGaps: old?.gaps ?? [], access: access)
+            let record = CopyRecord(kind: .drive, folder: folder, feed: feed, writer: writer, earlierGaps: earlierGaps, access: access)
             if old == nil { copies.append(record) } else { copies[copies.firstIndex { $0.kind == .drive }!] = record }
             old?.access?.end()
             self.show = show

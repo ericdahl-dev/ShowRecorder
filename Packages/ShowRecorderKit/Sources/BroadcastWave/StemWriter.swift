@@ -38,6 +38,8 @@ public final class StemWriter: StemSink {
 
     public let url: URL
     public private(set) var frameCount: UInt64 = 0
+    /// Samples the last header commit flushed to disk.
+    public private(set) var committedFrameCount: UInt64 = 0
 
     /// Whether the Stem has been promoted to RF64.
     private(set) var isRF64 = false
@@ -91,6 +93,7 @@ public final class StemWriter: StemSink {
         isRF64 = try handle.read(upToCount: 4) == Data("RF64".utf8)
         try handle.seek(toOffset: end)
         self.frameCount = frameCount
+        committedFrameCount = frameCount
     }
 
     /// Replaces the bext description (the Source name) in place; the audio and everything else are untouched.
@@ -196,6 +199,7 @@ public final class StemWriter: StemSink {
         let end = try handle.offset()
         try writeSizes(dataBytes: frameCount * UInt64(Self.bytesPerSample), riffEnd: end)
         try handle.synchronize()
+        committedFrameCount = frameCount
         try handle.seek(toOffset: end)
     }
 
