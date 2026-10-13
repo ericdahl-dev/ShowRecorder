@@ -3,23 +3,27 @@ import { TESTFLIGHT_URL } from "@/lib/site";
 
 export const metadata = pageMetadata(PAGES.mixersX32);
 
-# Record a Behringer X32 or Midas M32 on iPhone or iPad
+# Multitrack record a Behringer X32 or Midas M32 on iPhone or iPad
 
 ShowRecorder records every USB Channel of an X32 or M32 straight to an iPhone or iPad: one WAV file per channel, named after the channel on the mixer. No laptop at front of house.
 
 **X32 and M32 support is in the public beta.** The App Store release of ShowRecorder 1.0 is for the Behringer X Air XR18 and MR18 and other class-compliant USB audio interfaces. The X32 and M32 come to the App Store in a later update. Until then, <a href={TESTFLIGHT_URL ?? "/"}>join the public beta</a> to record yours.
 
+## Record without a laptop
+
+Most X32 and M32 shows are recorded to a laptop running a DAW, or to SD cards. ShowRecorder replaces the laptop with the iPhone or iPad you already carry, and gives you named WAV files when the show ends.
+
 ## What you get
 
 - **All 32 USB Channels** from the mixer's USB card, recorded in step with each other, at the mixer's sample rate.
-- **Files named from the mixer.** Over the Mixer Link, ShowRecorder reads each channel's name and color, and follows renames within a second or two.
+- **Files named from the mixer.** Over the Mixer Link, ShowRecorder reads each channel's name and color, and follows renames on the mixer as they happen.
 - **Named after what's really patched.** If you re-patch the card's outputs (a bus or another channel on USB 1), each file is named after what is actually routed to that USB Channel, not after its number.
 - **A second copy as you record**, on a USB drive through a hub, so one failure doesn't lose the show.
-- **Markers, Pre-roll, a Show report and a Reaper project**, as on every mixer.
+- **Markers and Pre-roll**, and with Pro a Show report and a Reaper project, as on every mixer.
 
 ## What you need
 
-- An X32 or M32 (full size, Compact, Producer or Rack) with a USB card: the **X-USB** card on the X32, the **DN32-USB** on the M32.
+- An X32 or M32 (full size, Compact, Producer or Rack) with a USB card: the **X-USB** card on the X32, the **DN32-USB** on the M32. Using an X-LIVE or DN32-LIVE card? Tell us how it goes.
 - A USB-C iPhone (iPhone 15 or later) or an iPad. A powered USB-C hub lets it charge through a long show.
 - For names and colors: a Wi-Fi router plugged into the mixer's **Ethernet** port (the X32 and M32 have no Wi-Fi of their own), with your iPhone or iPad on its network. Recording itself needs only the USB cable.
 
@@ -34,8 +38,12 @@ ShowRecorder records every USB Channel of an X32 or M32 straight to an iPhone or
 
 ## Free, Trial and Pro
 
-ShowRecorder is free to download. Free records 2 USB Channels of your choice, with names and colors from the mixer. The 14-day Trial and Pro, a one-time purchase, record all 32. No subscription.
+ShowRecorder is free to download. Free records 2 USB Channels of your choice, with names and colors from the mixer. The [14-day Trial and Pro](/docs/pricing), a one-time purchase, record all 32. No subscription.
+
+## Can I get it from the App Store?
+
+Not yet for the X32 or M32. The App Store version records the XR18 and MR18. X32 and M32 recording is in the public beta now and comes to the App Store in a later update.
 
 ## Tell us how it goes
 
-The X32 and M32 are new to ShowRecorder. If you try one, write to us at the address on the [Support](/support) page with what worked and what didn't. See [Supported mixers](/features#mixers) for every mixer and what comes next.
+The X32 and M32 are new to ShowRecorder: the beta is the first build that talks to a real one. If you try one, write to us at the address on the [Support](/support) page with what worked and what didn't. See [Supported mixers](/features#mixers) for every mixer and what comes next.
