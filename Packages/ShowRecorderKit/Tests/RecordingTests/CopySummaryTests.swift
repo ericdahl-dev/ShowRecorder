@@ -76,4 +76,35 @@ struct CopySummaryTests {
         #expect(CopySummary.ofLastTake(takeCopies(running: false, device: .complete, drive: .missing), dropoutCount: 0)?.text
                 == "Device copy: complete (no Drive)")
     }
+
+    @Test("Drive only: the Drive Copy ended reads as the Drive's word alone, with no device-copy note (#550)")
+    func driveOnlyDriveCopy() {
+        let summary = CopySummary(copies: takeCopies(running: false, driveOnly: true, device: .complete, drive: .complete), dropoutCount: 0)
+        #expect(summary.text == "Drive copy: complete")
+        #expect(!summary.isProblem)
+        #expect(CopySummary(copies: takeCopies(running: false, driveOnly: true, device: .missing, drive: .hasGaps), dropoutCount: 1).text
+                == "Drive copy: has Gaps · 1 Dropout")
+    }
+
+    @Test("Drive only: a Take the Drive never got is on this iPhone until the Drive is back (#550)")
+    func driveOnlyOnDevice() {
+        let copies = takeCopies(running: false, driveOnly: true, device: .complete, drive: .missing)
+        #expect(CopySummary.ofLastTake(copies, dropoutCount: 0)?.text == "On this iPhone until the Drive is back")
+        #expect(CopySummary(copies: copies, dropoutCount: 2).text == "On this iPhone until the Drive is back · 2 Dropouts")
+    }
+
+    @Test("Drive only: a stand-in Repair moved to the Drive says it moved from this iPhone (#550)")
+    func driveOnlyMoved() {
+        let copies = takeCopies(running: false, driveOnly: true, device: .moved, drive: .repaired)
+        #expect(CopySummary.ofLastTake(copies, dropoutCount: 0)?.text == "Drive copy: Repaired · moved from this iPhone")
+        #expect(CopySummary(copies: copies, dropoutCount: 1).text == "Drive copy: Repaired · moved from this iPhone · 1 Dropout")
+    }
+
+    @Test("Drive only: the lines name the device the app runs on (#550)")
+    func driveOnlyDeviceWord() {
+        #expect(CopySummary.ofLastTake(takeCopies(running: false, driveOnly: true, device: .complete, drive: .missing), dropoutCount: 0, deviceWord: "Mac")?.text
+                == "On this Mac until the Drive is back")
+        #expect(CopySummary(copies: takeCopies(running: false, driveOnly: true, device: .moved, drive: .repaired), dropoutCount: 0, deviceWord: "Mac").text
+                == "Drive copy: Repaired · moved from this Mac")
+    }
 }

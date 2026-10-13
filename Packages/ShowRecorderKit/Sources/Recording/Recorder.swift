@@ -97,6 +97,10 @@ public final class Recorder {
     /// The host clock's ticks per second, for spotting a stop in the input (#317). Tests set it.
     @ObservationIgnored private let hostTicksPerSecond: Double
     @ObservationIgnored private var finishedCopies: [DestinationKind: CopyStatus] = [:]
+    /// Whether the last Take was Drive only (#196, ADR 0006), Drive or not: its summary speaks of the Drive alone.
+    private(set) var lastTakeWasDriveOnly = false
+    /// Whether Repair moved the last Take's stand-in to the Drive and off the Device.
+    private(set) var lastTakeStandInMoved = false
 
     /// - Parameters:
     ///   - deviceFolder: where the Device Copy of every Show goes.
@@ -129,6 +133,7 @@ public final class Recorder {
         self.now = now
         repair.onChange = { [unowned self] in
             lastTakeOutcomes = repair.outcomes
+            lastTakeStandInMoved = repair.moved
             isRepairing = repair.isRunning
         }
         repair.jobDone = { [unowned self] in regenerateReports() }
@@ -727,6 +732,7 @@ public final class Recorder {
         session.accumulate(capture?.meters.takeLevels() ?? [])
         let finished = session.finish()
         finishedCopies = finished.statuses
+        lastTakeWasDriveOnly = session.driveOnly
         lastTakeSignal = finished.signal
         dropoutCount = finished.metadata.dropoutCount
         refreshMarkers(from: finished.metadata)

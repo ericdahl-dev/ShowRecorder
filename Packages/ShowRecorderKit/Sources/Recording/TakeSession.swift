@@ -80,7 +80,7 @@ final class TakeSession {
     /// in for the Drive once it is lost. Nil for a Take with two Copies.
     private var standby: Standby?
     /// Drive only (#196, ADR 0006): the Take was started to be written to the Drive alone.
-    private let driveOnly: Bool
+    let driveOnly: Bool
     /// How long the Drive's writer may go without writing while audio arrives before it counts as lost (a pulled
     /// Drive can hang rather than fail).
     var driveStallLimit: Duration = .seconds(2)
