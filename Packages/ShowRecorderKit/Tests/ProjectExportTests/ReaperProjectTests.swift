@@ -2,7 +2,7 @@ import AudioIO
 import Foundation
 import MixerLink
 import ProjectExport
-import Recording
+@testable import Recording
 import Testing
 
 @MainActor

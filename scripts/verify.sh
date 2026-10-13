@@ -1,6 +1,7 @@
 #!/bin/sh
 # Runs the checks CI runs, but only the ones the changed files need:
 #   spelling scripts/spelling-check.sh   every plan: CI's American spelling check, on the whole repo
+#   take     grep                        every plan: Take control on the recorder only in TakeSequencer (#551)
 #   vocab    scripts/vocab-check.sh      App/, package Sources/, CONTEXT.md, scripts/vocab-*
 #   package  swift test                  Packages/
 #   app      macOS and iOS Simulator     App/, Packages/, project.yml, ShowRecorder.xcodeproj/
@@ -114,6 +115,13 @@ fi
 
 echo "== American spelling (CI's check)"
 ./scripts/spelling-check.sh
+
+echo "== Take control (#551)"
+if grep -rnE 'recorder\.(startTake|stopTake|addMarker|endShow|startNewShow|prepareNextShow)\(' App Packages/ShowRecorderKit/Sources \
+  --include='*.swift' | grep -vE '^Packages/ShowRecorderKit/Sources/Recording/(TakeSequencer|Recorder)\.swift:'; then
+  echo "Take control goes through TakeSequencer (#551)"
+  exit 1
+fi
 
 if [ $vocab = 1 ]; then
   echo "== Vocabulary (CONTEXT.md)"

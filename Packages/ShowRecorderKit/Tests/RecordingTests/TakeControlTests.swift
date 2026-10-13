@@ -276,4 +276,22 @@ struct TakeControlTests {
         #expect(!take.message.contains("couldn't be recorded"), "the Take was recorded: \(take.message)")
         #expect(sequencer.recordError == nil, "the Soundcheck leaves the record screen's error as it found it")
     }
+
+    // MARK: - One way in (PR 4)
+
+    @Test("No synthetic Take start: a Take started on the recorder itself is never told as started, by a tick or at its end")
+    func noSyntheticStart() async throws {
+        let (sequencer, recorder, source) = makeSequencer()
+        sequencer.arm()
+        var events = sequencer.events.makeAsyncIterator()
+        _ = await events.next()  // .armed
+
+        try recorder.startTake()
+        try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
+        sequencer.tick()
+        sequencer.stop()
+
+        let next = await events.next(isolation: #isolation)
+        #expect(next == .takeEnded(TakeEnd(take: 1, reason: .stopped)), "only the end is told: every Take that's told started went through record()")
+    }
 }

@@ -640,10 +640,7 @@ final class RecordScreenModel {
         get { sequencer.armError }
         set { sequencer.armError = newValue }
     }
-    private(set) var recordError: String? {
-        get { sequencer.recordError }
-        set { sequencer.recordError = newValue }
-    }
+    var recordError: String? { sequencer.recordError }
     /// The device as it was when last Armed, to tell a format change from a new device.
     private var armedDevice: InputDeviceInfo? {
         get { sequencer.armedDevice }
