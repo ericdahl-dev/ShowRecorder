@@ -57,4 +57,21 @@ struct MixerScanTests {
     func defaultPorts() {
         #expect(MixerScanner.defaultPorts == [10024, 10023])
     }
+
+    @Test("Find mixers asks each family its own way: a family probed with plain text, not /xinfo, is found too (#442)")
+    func findsAFamilyWithItsOwnProbe() async throws {
+        let mixer = try await FakeTextMixer(answering: "WHO?", with: "FOH,TEST,1.0")
+        let probe = MixerProbe(port: mixer.port, request: Array("WHO?".utf8)) { data in
+            let parts = String(decoding: data, as: UTF8.self).split(separator: ",").map(String.init)
+            return parts.count == 3 ? MixerIdentity(networkName: parts[0], model: parts[1], firmware: parts[2]) : nil
+        }
+        let found = await MixerScanner.scan(hosts: ["127.0.0.1"], probes: [probe], timeout: .seconds(1))
+        #expect(found == [FoundMixer(host: "127.0.0.1", identity: MixerIdentity(networkName: "FOH", model: "TEST", firmware: "1.0"))])
+        #expect(mixer.requests == ["WHO?"])
+    }
+
+    @Test("By default Find mixers asks every family in the registry")
+    func defaultProbes() {
+        #expect(MixerScanner.defaultPorts == MixerFamily.probes.map(\.port))
+    }
 }
