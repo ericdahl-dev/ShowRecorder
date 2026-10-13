@@ -62,20 +62,20 @@ struct SoundcheckTests {
 
     @Test("Take: every Copy complete (or Repaired) passes and names where it went")
     func takePass() {
-        #expect(Soundcheck.judgeTake(outcomes: [.device: .complete, .drive: .repaired], driveChosen: true)
+        #expect(Soundcheck.judgeTake(copies: takeCopies(running: false, device: .complete, drive: .repaired), driveChosen: true)
             == .init(kind: .take, passed: true, message: "Written to the Device and the Drive."))
-        #expect(Soundcheck.judgeTake(outcomes: [.device: .complete], driveChosen: false)
+        #expect(Soundcheck.judgeTake(copies: takeCopies(running: false, device: .complete, drive: .missing), driveChosen: false)
             == .init(kind: .take, passed: true, message: "Written to the Device. No Drive is chosen, so there is one Copy."))
     }
 
     @Test("Take: not run, a Copy with Gaps, or a chosen Drive that wasn't written each fails")
     func takeProblems() {
-        #expect(Soundcheck.judgeTake(outcomes: [:], driveChosen: false).message == "The test Take didn't run.")
-        #expect(Soundcheck.judgeTake(outcomes: [.device: .complete, .drive: .hasGaps], driveChosen: true).message
+        #expect(Soundcheck.judgeTake(copies: takeCopies(running: false, device: .missing, drive: .missing), driveChosen: false).message == "The test Take didn't run.")
+        #expect(Soundcheck.judgeTake(copies: takeCopies(running: false, device: .complete, drive: .hasGaps), driveChosen: true).message
             == "The Drive copy has Gaps: the Drive stopped during the test. Check its cable and space.")
-        #expect(Soundcheck.judgeTake(outcomes: [.device: .repairFailed, .drive: .complete], driveChosen: true).message
+        #expect(Soundcheck.judgeTake(copies: takeCopies(running: false, device: .repairFailed, drive: .complete), driveChosen: true).message
             == "The Device copy couldn't be Repaired. Check the Device's free space.")
-        #expect(Soundcheck.judgeTake(outcomes: [.device: .complete], driveChosen: true).message
+        #expect(Soundcheck.judgeTake(copies: takeCopies(running: false, device: .complete, drive: .missing), driveChosen: true).message
             == "Nothing was written to the Drive. Check it in Settings, under Drive.")
     }
 

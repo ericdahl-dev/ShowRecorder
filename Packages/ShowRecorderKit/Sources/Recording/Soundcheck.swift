@@ -74,8 +74,13 @@ public enum Soundcheck {
         return Step(kind: .channels, passed: true, message: "\(usbChannelCount) USB Channels, \(signal.withSignal) with signal.")
     }
 
-    /// - Parameter driveChosen: whether a Drive folder is chosen, so the Take should have a Drive copy.
-    public static func judgeTake(outcomes: [DestinationKind: CopyOutcome], driveChosen: Bool) -> Step {
+    /// - Parameters:
+    ///   - copies: the test Take's Copies (#550); a Copy with no ended state isn't counted.
+    ///   - driveChosen: whether a Drive folder is chosen, so the Take should have a Drive copy.
+    public static func judgeTake(copies: TakeCopies, driveChosen: Bool) -> Step {
+        let outcomes: [DestinationKind: CopyOutcome] = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.compactMap { kind in
+            copies[kind].outcome.map { (kind, $0) }
+        })
         guard let device = outcomes[.device] else {
             return Step(kind: .take, passed: false, message: "The test Take didn't run.")
         }
@@ -160,7 +165,7 @@ public enum Soundcheck {
         progress(.channels)
         let channelsStep = judgeChannels(usbChannelCount: recorder.usbChannelCount, expected: expectedUSBChannels, signal: takeError == nil ? recorder.lastTakeSignal : nil)
         let takeStep = takeError.map { Step(kind: .take, passed: false, message: $0) }
-            ?? judgeTake(outcomes: recorder.lastTakeOutcomes, driveChosen: driveChosen)
+            ?? judgeTake(copies: recorder.copies, driveChosen: driveChosen)
         result(channelsStep)
         result(takeStep)
 
