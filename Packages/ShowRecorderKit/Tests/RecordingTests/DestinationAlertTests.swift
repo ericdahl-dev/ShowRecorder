@@ -58,25 +58,34 @@ struct DestinationAlertTests {
         #expect(alert.text == "No Drive: recording to this iPhone; it moves to the Drive when one is connected.")
     }
 
-    @Test("Drive only, the Drive stops and the Device stands in: recording to this iPhone until the Drive is back, with Check Drive (#550)")
+    @Test("Drive only, the Drive stops and the Device stands in: recording to this iPhone for the rest of the Take, no Check Drive (#550)")
     func driveOnlyDriveStopped() throws {
         let alert = try #require(DestinationAlert.make(copies: takeCopies(driveOnly: true, device: .standingIn, drive: .interrupted)))
 
         #expect(alert.id == "drive-stopped")
         #expect(alert.tone == .critical)
         #expect(alert.priority == .destination)
-        #expect(alert.action == .checkDrive)
-        #expect(alert.text == "The Drive stopped. Recording to this iPhone until it's back; the audio moves to the Drive after the Take.")
+        #expect(alert.action == nil)
+        #expect(alert.text == "The Drive stopped. Recording to this iPhone for the rest of the Take; the audio moves to the Drive after it.")
     }
 
-    @Test("Drive only, the check found no Drive: the stand-in alert says 'Still not found.' first (#550)")
-    func driveOnlyStillNotFound() throws {
+    @Test("Drive only, the Device stands in after a stall while the Drive still says recording: the same stand-in alert (#550)")
+    func driveOnlyStallStandIn() throws {
+        let alert = try #require(DestinationAlert.make(copies: takeCopies(driveOnly: true, device: .standingIn, drive: .recording)))
+
+        #expect(alert.id == "drive-stopped")
+        #expect(alert.tone == .critical)
+        #expect(alert.action == nil)
+        #expect(alert.text == "The Drive stopped. Recording to this iPhone for the rest of the Take; the audio moves to the Drive after it.")
+    }
+
+    @Test("Drive only never rejoins the Drive mid-Take, so the stand-in alert has no 'Still not found.' (#550)")
+    func driveOnlyNoStillNotFound() throws {
         let alert = try #require(DestinationAlert.make(
             copies: takeCopies(driveOnly: true, device: .standingIn, drive: .interrupted), checkedAndNotFound: true))
 
-        #expect(alert.action == .checkDrive)
-        #expect(alert.text
-                == "Still not found. The Drive stopped. Recording to this iPhone until it's back; the audio moves to the Drive after the Take.")
+        #expect(alert.action == nil)
+        #expect(alert.text == "The Drive stopped. Recording to this iPhone for the rest of the Take; the audio moves to the Drive after it.")
     }
 
     @Test("Drive only on a Mac: both alerts say 'this Mac' (#550)")
@@ -87,7 +96,7 @@ struct DestinationAlertTests {
 
         let stopped = try #require(DestinationAlert.make(
             copies: takeCopies(driveOnly: true, device: .standingIn, drive: .interrupted), deviceWord: "Mac"))
-        #expect(stopped.text == "The Drive stopped. Recording to this Mac until it's back; the audio moves to the Drive after the Take.")
+        #expect(stopped.text == "The Drive stopped. Recording to this Mac for the rest of the Take; the audio moves to the Drive after it.")
     }
 
     @Test("Losing the Device Copy, or both, is critical too")
