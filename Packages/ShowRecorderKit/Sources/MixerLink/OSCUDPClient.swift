@@ -64,9 +64,12 @@ actor OSCUDPClient {
         do {
             return try await withCheckedThrowingContinuation { continuation in
                 pending.append(Pending(id: id, address: replyAddress ?? message.address, continuation: continuation))
+                let connection = connection
                 connection.send(content: Data(message.encoded()), completion: .contentProcessed { [weak self] error in
                     guard let error, let self else { return }
-                    Task { await self.fail(id, with: MixerLinkProblem(error, path: nil, host: self.endpoint.host)) }
+                    // With the path, a send refused for Local Network access says so, not "join the Wi-Fi".
+                    let problem = MixerLinkProblem(error, path: connection.currentPath, host: self.endpoint.host, port: self.endpoint.port)
+                    Task { await self.fail(id, with: problem) }
                 })
                 Task { [weak self] in
                     try? await Task.sleep(for: timeout)
@@ -90,7 +93,7 @@ actor OSCUDPClient {
             switch state {
             case .waiting(let error):
                 // Waiting recovers by itself (the network comes back); fail requests meanwhile.
-                let problem = MixerLinkProblem(error, path: connection.currentPath, host: self.endpoint.host)
+                let problem = MixerLinkProblem(error, path: connection.currentPath, host: self.endpoint.host, port: self.endpoint.port)
                 Task { await self.connectionWaiting(problem, generation: generation) }
             case .failed(let error):
                 Task { await self.connectionFailed(error, path: connection.currentPath, generation: generation) }
@@ -159,7 +162,7 @@ actor OSCUDPClient {
     /// The connection failed for good. Pending requests fail with the problem; the next one opens a new connection.
     func connectionFailed(_ error: NWError, path: NWPath? = nil, generation: Int? = nil) {
         guard generation ?? self.generation == self.generation else { return }
-        failPending(with: MixerLinkProblem(error, path: path, host: endpoint.host))
+        failPending(with: MixerLinkProblem(error, path: path, host: endpoint.host, port: endpoint.port))
         needsRebuild = true
     }
 
@@ -181,7 +184,7 @@ actor OSCUDPClient {
 
 extension MixerLinkProblem {
     /// Maps a Network.framework error (and the path, when known) to something an operator can act on.
-    init(_ error: NWError, path: NWPath?, host: String) {
+    init(_ error: NWError, path: NWPath?, host: String, port: UInt16) {
         if path?.unsatisfiedReason == .localNetworkDenied {
             self = .localNetworkDenied
             return
@@ -189,12 +192,17 @@ extension MixerLinkProblem {
         switch error {
         case .posix(.ENETUNREACH), .posix(.EHOSTUNREACH), .posix(.ENETDOWN), .posix(.EHOSTDOWN):
             self = .networkUnreachable
-        case .posix(.ECONNREFUSED):  // the host is there but nothing listens on the port
+        case .posix(.ECONNREFUSED),  // the host is there but nothing listens on the port
+             .posix(.ETIMEDOUT), .posix(.ECONNRESET):
             self = .noReply(host: host)
+        case .posix(.EADDRNOTAVAIL):  // this device's address went away: the Wi-Fi changed or dropped
+            self = .networkUnreachable
         case .dns(-65570):  // kDNSServiceErr_PolicyDenied: local network access refused
             self = .localNetworkDenied
+        case .dns(-65554), .dns(-65538), .dns(-65568):  // no such record, no such name, timed out
+            self = .hostNotFound(host)
         default:
-            self = .other(error.localizedDescription)
+            self = .cantConnect(host: host, port: port, code: Int(error.errorCode))
         }
     }
 }
