@@ -417,9 +417,10 @@ final class TakeSession {
             // The Drive's feed is the one after the Device's.
             let feed = old?.feed ?? capture.feeds[copies.count]
             let writer = makeWriter(feed: feed, stems: sinks)
+            // The Markers are waiting before the Copy can join, so its first audio is written with them.
+            if !stemMarkers.isEmpty { writer.setMarkers(stemMarkers) }
             capture.attachMidTake(feed)
             writer.start()
-            if !stemMarkers.isEmpty { writer.setMarkers(stemMarkers) }
 
             let record = CopyRecord(kind: .drive, folder: folder, feed: feed, writer: writer, earlierGaps: old?.gaps ?? [], access: access)
             if old == nil { copies.append(record) } else { copies[copies.firstIndex { $0.kind == .drive }!] = record }
