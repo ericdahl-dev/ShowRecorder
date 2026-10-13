@@ -46,6 +46,10 @@ final class DemoStemsDevice: AudioIODevice, @unchecked Sendable {
         for stem in layout.order {
             channels += Self.read(folder.appending(path: stem.file), channels: stem.channels)
         }
+        // Every channel exactly `seconds` long, padded with silence: a short, unreadable or odd file can't leave
+        // channels of different lengths, which the playback loop and `FakeAudioDevice` need to match.
+        let frames = Int(48_000 * Self.seconds)
+        channels = channels.map { Array($0.prefix(frames)) + [Float](repeating: 0, count: max(0, frames - $0.count)) }
         self.channels = channels
         inputChannelCount = channels.count
         fake = FakeAudioDevice(inputChannelCount: channels.count)

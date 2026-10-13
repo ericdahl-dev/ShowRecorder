@@ -1287,8 +1287,8 @@ final class RecordScreenModel {
                 for (index, name) in names.enumerated() { recorder.setChannelName(name, forChannel: index + 1) }
             }
         }
-        // `-demoRecord` starts a Take once Armed, for screenshots. With `-demoSignal` only on the Demo signal, never the
-        // built-in microphone a slow launch may Arm first; if the Demo signal never Arms, nothing is recorded.
+        // `-demoRecord` starts a Take once Armed, for screenshots (the iOS ones in the Simulator too). With `-demoSignal`
+        // or `-demoStems`, only once a demo input is Armed, never a microphone a slow launch may Arm first.
         if launchFlag("-demoRecord") {
             Task {
                 for _ in 0..<60 {
