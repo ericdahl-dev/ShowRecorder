@@ -70,8 +70,6 @@ public final class TakeSequencer {
     public let recorder: Recorder
     @ObservationIgnored private let capsAt48k: () -> Bool
     @ObservationIgnored private let now: () -> Date
-    /// Whether the running Take has been told to the events stream, and its end not yet.
-    @ObservationIgnored private var toldTakeStarted = false
     /// Set once the first Arm has been tried, so a screen appearing before that doesn't Arm early.
     @ObservationIgnored private var didStart = false
     @ObservationIgnored private var idle = IdleDisarm()
@@ -205,7 +203,7 @@ public final class TakeSequencer {
             try recorder.startTake(sources: sources, allowance: allowance)
             takeStartedAt = now()
             recordError = nil
-            tellTakeStart()
+            emit.yield(.takeStarted(take: recorder.currentShow?.takeCount ?? 0))
             handle(.takeStarted)
             return true
         } catch {
@@ -264,9 +262,9 @@ public final class TakeSequencer {
         }
     }
 
-    /// About once a second: tells a Take started elsewhere (the Soundcheck).
+    /// About once a second: clears the start time once no Take runs, and disarms an idle recorder. Every Take starts
+    /// through `record`, which tells its start (#551).
     public func tick() {
-        if recorder.isRecording { tellTakeStart() }
         if !recorder.isRecording { takeStartedAt = nil }
         disarmIfIdle()
     }
@@ -422,21 +420,12 @@ public final class TakeSequencer {
         emit.yield(.disarmed(reason: .idle))
     }
 
-    private func tellTakeStart() {
-        guard !toldTakeStarted else { return }
-        toldTakeStarted = true
-        emit.yield(.takeStarted(take: recorder.currentShow?.takeCount ?? 0))
-    }
-
-    /// The recorder ended a Take, whoever ended it: told at once, not on the next tick. A Take started elsewhere that
-    /// ended before a tick saw it is told as started first.
+    /// The recorder ended a Take, whoever ended it: told at once, not on the next tick.
     private func takeEnded(_ end: TakeEnd) {
         takeStartedAt = nil
         // A Take the recorder ended (out of space, no Destination) says why (#551). An input change is told by whoever
         // noticed it (a device-list or route change sets its own message, a media reset its notice), never twice.
         if end.reason != .inputChanged, let message = end.reason.message { recordError = message }
-        if !toldTakeStarted { emit.yield(.takeStarted(take: end.take)) }
-        toldTakeStarted = false
         emit.yield(.takeEnded(end))
     }
 }

@@ -36,7 +36,7 @@ public final class Recorder {
     /// (docs/adr/0005-level-meter-scale.md).
     nonisolated public static let clipLevel: Float = 0.999
     /// Which Take ended last and why. Nil until a Take has ended.
-    public private(set) var lastTakeEnd: TakeEnd?
+    private(set) var lastTakeEnd: TakeEnd?
     /// Told each Take end as it happens, whoever ended it (record stopped, a full or failed Destination, an input
     /// change), once `lastTakeEnd` says so. One listener, the `TakeSequencer`, so it stays inside the module;
     /// others follow Take ends through the sequencer's events.
@@ -257,7 +257,7 @@ public final class Recorder {
 
     /// Starts a Show on purpose, with a name and a venue, ending the open Show if there is one. The folder is
     /// "YYYY-MM-DD Name" ("YYYY-MM-DD Show" for no name). The next Take lands in it.
-    public func startNewShow(name: String, venue: String) throws {
+    func startNewShow(name: String, venue: String) throws {
         guard !isRecording else { throw RecorderError.takeRunning }
         let date = now()
         nextShow = nil
@@ -270,7 +270,7 @@ public final class Recorder {
 
     /// Starts a Show from a Template (#33): named after it, at its venue, with its channel names, ending the open Show.
     /// The names are set as if typed, so they come back as chips. Pre-roll and the Mixer are the app's to apply.
-    public func startNewShow(from template: Template) throws {
+    func startNewShow(from template: Template) throws {
         try startNewShow(name: template.name, venue: template.venue ?? "")
         naming.replace(with: [:])
         for (channel, name) in template.channelNames.sorted(by: { $0.key < $1.key }) {
@@ -286,7 +286,7 @@ public final class Recorder {
     /// venue when a record press starts it. Only when no Show is open (an idle one is ended first) and between Takes;
     /// returns whether it did.
     @discardableResult
-    public func prepareNextShow(from template: Template) -> Bool {
+    func prepareNextShow(from template: Template) -> Bool {
         guard !isRecording else { return false }
         endIdleShow(at: now())
         guard currentShow == nil else { return false }
@@ -299,7 +299,7 @@ public final class Recorder {
     }
 
     /// Ends the open Show, so the next record starts a new one. Nothing happens when no Show is open.
-    public func endShow() throws {
+    func endShow() throws {
         guard !isRecording else { throw RecorderError.takeRunning }
         if currentShow != nil { naming.replace(with: [:]) }
         currentShow?.end(at: now())
@@ -417,7 +417,7 @@ public final class Recorder {
     /// `sources` are frozen into the Take: Stem names and bext descriptions use them, and later
     /// changes on the Mixer don't touch this Take's files. USB Channels without a Source get "USB NN".
     /// - Parameter allowance: what this Take may do, frozen at the press (ADR 0004). Nil records every USB Channel.
-    public func startTake(sources: [Source] = [], allowance: TakeAllowance? = nil) throws {
+    func startTake(sources: [Source] = [], allowance: TakeAllowance? = nil) throws {
         guard let device, let capture else { throw RecorderError.notArmed }
         guard !isRecording else { return }
         let date = now()
@@ -614,7 +614,7 @@ public final class Recorder {
 
     /// Places a Marker at the Take's current sample position (frames written so far), in every Stem
     /// of every Copy and in `Take.json`. Does nothing when no Take is running.
-    public func addMarker(named name: String? = nil) {
+    func addMarker(named name: String? = nil) {
         guard isRecording, let session else { return }
         session.addMarker(named: name)
         refreshMarkers(from: session.metadata)
@@ -712,7 +712,7 @@ public final class Recorder {
 
     /// Stops the Take and waits until every Stem is written and finalized.
     /// A Copy that failed during the Take doesn't make this throw; see `copyStatus(_:)`.
-    public func stopTake() throws {
+    func stopTake() throws {
         try stopTake(because: .stopped)
     }
 

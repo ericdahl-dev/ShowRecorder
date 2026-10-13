@@ -1,6 +1,6 @@
 import AudioIO
 import Foundation
-import Recording
+@testable import Recording
 import Testing
 
 @MainActor

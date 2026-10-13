@@ -1,6 +1,6 @@
 import AudioIO
 import Foundation
-import Recording
+@testable import Recording
 import Testing
 
 /// When the system stops input mid-Take (a phone call, Siri, a media services reset), the recorder

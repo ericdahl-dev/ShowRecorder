@@ -1,7 +1,7 @@
 import AudioIO
 import Foundation
 import MixerLink
-import Recording
+@testable import Recording
 import Testing
 
 @MainActor

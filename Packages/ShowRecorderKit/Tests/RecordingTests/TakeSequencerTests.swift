@@ -1,6 +1,6 @@
 import AudioIO
 import Foundation
-import Recording
+@testable import Recording
 import Testing
 
 /// The Audio interfaces a test offers the sequencer, each backed by a `FakeAudioDevice`.
@@ -233,22 +233,6 @@ struct TakeSequencerTests {
 
         sequencer.stop()
 
-        #expect(await events.next() == .takeEnded(TakeEnd(take: 1, reason: .stopped)))
-    }
-
-    @Test("A Take started without the sequencer (the Soundcheck) is told on the next tick, once")
-    func takeStartedElsewhere() async throws {
-        let (sequencer, recorder) = makeSequencer()
-        sequencer.arm()
-        var events = sequencer.events.makeAsyncIterator()
-        _ = await events.next()  // .armed
-
-        try recorder.startTake()
-        sequencer.tick()
-        sequencer.tick()
-        sequencer.stop()
-
-        #expect(await events.next() == .takeStarted(take: 1))
         #expect(await events.next() == .takeEnded(TakeEnd(take: 1, reason: .stopped)))
     }
 
@@ -526,23 +510,6 @@ struct TakeSequencerTests {
 
         #expect(await told(&events, through: .disarmed(reason: .screenGone)) == [
             .takeEnded(TakeEnd(take: 1, reason: .inputChanged)), .disarmed(reason: .screenGone),
-        ])
-    }
-
-    @Test("A Take started elsewhere that starts and ends between two ticks is still told, start then end")
-    func takeBetweenTicks() async throws {
-        let (sequencer, recorder) = makeSequencer()
-        sequencer.start()
-        var events = sequencer.events.makeAsyncIterator()
-        _ = await events.next()  // .armed
-
-        try recorder.startTake()
-        try recorder.stopTake()
-        sequencer.tick()
-        sequencer.screenDisappeared()
-
-        #expect(await told(&events, through: .disarmed(reason: .screenGone)) == [
-            .takeStarted(take: 1), .takeEnded(TakeEnd(take: 1, reason: .stopped)), .disarmed(reason: .screenGone),
         ])
     }
 
