@@ -83,8 +83,26 @@ extension ReGainDesk {
 
         var held: [ReGain.Setting: Double] = [:]
         for (setting, db) in plan.values { held[setting] = Self.scale(of: setting.parameter).snap(db) }
-        try await ramp(headamp: headamp, gainFrom: from, gainTo: to,
-                       moves: plan.changes.map { ReGainMove(setting: $0.setting, fromDb: $0.fromDb, toDb: $0.toDb) })
+        var sent: [String: Float] = [:]
+        do throws(MixerLinkProblem) {
+            try await ramp(headamp: headamp, gainFrom: from, gainTo: to,
+                           moves: plan.changes.map { ReGainMove(setting: $0.setting, fromDb: $0.fromDb, toDb: $0.toDb) }, sent: &sent)
+        } catch {
+            guard !sent.isEmpty else { throw error }
+            // Partway: report what was written, so it is logged and Undo can take it back (#450).
+            let gainAddress = Self.gainAddress(headamp)
+            let partialTo = sent[gainAddress].map { gainScale.db(ofOSC: $0) } ?? from
+            var partialHeld: [ReGain.Setting: Double] = [:]
+            var partialChanges: [ReGain.Change] = []
+            for change in plan.changes {
+                guard let value = sent[Self.address(of: change.setting)] else { continue }
+                let db = Self.scale(of: change.setting.parameter).db(ofOSC: value)
+                partialHeld[change.setting] = db
+                partialChanges.append(ReGain.Change(setting: change.setting, fromDb: change.fromDb, toDb: db))
+            }
+            throw .gainMoveInterrupted(GainStep(channel: channel, headamp: headamp, fromGainDb: from, toGainDb: partialTo,
+                                                changes: partialChanges, held: partialHeld, limitedBy: plan.limitedBy, restore: restore))
+        }
         return GainStep(channel: channel, headamp: headamp, fromGainDb: from, toGainDb: to, changes: plan.changes, held: held,
                         limitedBy: plan.limitedBy, restore: restore)
     }
@@ -92,8 +110,10 @@ extension ReGainDesk {
     /// Puts back every value `result` changed: ramps back the way it came, then writes the exact values read before.
     func undoReGain(_ result: GainStep) async throws(MixerLinkProblem) {
         let gainAddress = Self.gainAddress(result.headamp)
+        var sent: [String: Float] = [:]
         try await ramp(headamp: result.headamp, gainFrom: result.toGainDb, gainTo: result.fromGainDb,
-                       moves: result.changes.map { ReGainMove(setting: $0.setting, fromDb: result.held[$0.setting] ?? $0.toDb, toDb: $0.fromDb) })
+                       moves: result.changes.map { ReGainMove(setting: $0.setting, fromDb: result.held[$0.setting] ?? $0.toDb, toDb: $0.fromDb) },
+                       sent: &sent)
         // The exact raw values, in the same safe order: when the gain went back down, it goes first.
         let others = result.restore.filter { $0.key != gainAddress }
         let lowering = result.toGainDb > result.fromGainDb
@@ -108,7 +128,10 @@ extension ReGainDesk {
     /// gain last; lowering it does the gain first. A query between the two halves makes the desk apply the first half
     /// before the second arrives. In-between values round down (a level never rounds up); the last step lands exactly
     /// on the plan's values.
-    private func ramp(headamp: Int, gainFrom: Double, gainTo: Double, moves: [ReGainMove]) async throws(MixerLinkProblem) {
+    /// `sent` gets every value written, by address, as it goes: if the desk stops answering partway, it is what the
+    /// desk was last told.
+    private func ramp(headamp: Int, gainFrom: Double, gainTo: Double, moves: [ReGainMove],
+                      sent: inout [String: Float]) async throws(MixerLinkProblem) {
         let gainAddress = Self.gainAddress(headamp)
         let gainScale = Self.gainScale(headamp)
         let count = max(1, Int((abs(gainTo - gainFrom) / Self.rampStepDb).rounded(.up)))
@@ -124,16 +147,22 @@ extension ReGainDesk {
                 let level = move.setting.parameter.isLevel
                 return OSCMessage(Self.address(of: move.setting), [.float(last || !level ? scale.oscFloat(db) : scale.oscFloatBelow(db))])
             }
+            let gainMessage = OSCMessage(gainAddress, [.float(gain)])
             if raising {
-                for message in others { await client.send(message) }
+                for message in others { await send(message, recordingIn: &sent) }
                 _ = try await identify()
-                await client.send(OSCMessage(gainAddress, [.float(gain)]))
+                await send(gainMessage, recordingIn: &sent)
             } else {
-                await client.send(OSCMessage(gainAddress, [.float(gain)]))
+                await send(gainMessage, recordingIn: &sent)
                 _ = try await identify()
-                for message in others { await client.send(message) }
+                for message in others { await send(message, recordingIn: &sent) }
             }
         }
         _ = try await identify()   // the desk answers, so every write reached it
+    }
+
+    private func send(_ message: OSCMessage, recordingIn sent: inout [String: Float]) async {
+        await client.send(message)
+        if case .float(let value)? = message.arguments.first { sent[message.address] = value }
     }
 }

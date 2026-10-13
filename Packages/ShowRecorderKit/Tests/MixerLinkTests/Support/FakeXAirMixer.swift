@@ -59,6 +59,9 @@ final class FakeXAirMixer: Sendable {
         var writes: [(address: String, value: OSCArgument)] = []
         /// Values set by a client: a later query of that address answers with it.
         var set: [String: OSCArgument] = [:]
+        /// When set, the mixer stops answering anything once it has taken this many sets, as a desk that drops off the
+        /// network partway through a gain change.
+        var stopsAnsweringAfterWrites: Int?
         /// Like the real XR18 (firmware 1.26): every set is echoed back to its sender, with no arguments.
         var echoesSets = false
 
@@ -213,6 +216,7 @@ final class FakeXAirMixer: Sendable {
                     // A set: remember it; the X32 answers nothing, the XR18 echoes the address with no arguments.
                     let echo = state.withLock { state -> Bool in
                         state.writes.append((message.address, value)); state.set[message.address] = value
+                        if let limit = state.stopsAnsweringAfterWrites, state.writes.count >= limit { state.answers = false }
                         return state.echoesSets
                     }
                     if echo { connection.send(content: Data(OSCMessage(message.address).encoded()), completion: .contentProcessed { _ in }) }

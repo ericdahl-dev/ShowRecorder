@@ -104,7 +104,17 @@ public final class AutoGainSession {
                         return level
                     },
                     adjust: { db in
-                        let step = try await control.applyReGain(channel: channel, gainChangeDb: db, scopes: .all)
+                        let step: GainStep
+                        do throws(MixerLinkProblem) {
+                            step = try await control.applyReGain(channel: channel, gainChangeDb: db, scopes: .all)
+                        } catch {
+                            // Stopped partway: what was written is logged and kept for Undo (#450), then the run ends.
+                            if case .gainMoveInterrupted(let partial) = error {
+                                taken.append(partial)
+                                log(Self.change(partial, usbChannel: usbChannel, reason: .autoGain))
+                            }
+                            throw error
+                        }
                         let applied = step.toGainDb - step.fromGainDb
                         limit = step.limitedBy
                         // A step that moved nothing changed nothing: there's nothing to log or undo. A setting can move

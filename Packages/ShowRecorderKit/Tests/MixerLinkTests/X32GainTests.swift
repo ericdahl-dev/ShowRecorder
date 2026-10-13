@@ -268,4 +268,31 @@ struct X32GainTests {
         try await driver.undo(step)
         #expect(mixer.writes.last { $0.address == "/ch/17/mix/fader" }?.value == .float(0.75), "Undo puts channel 17 back too")
     }
+
+    @Test("A gain move the mixer stops answering partway says what it wrote, and Undo puts that back exactly (#450)")
+    func interruptedMoveReportsWhatItWrote() async throws {
+        var state = FakeXAirMixer.State.x32()
+        state.stopsAnsweringAfterWrites = 9   // a few ramp steps into a +6 dB move
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: .milliseconds(300))
+        let before = try await driver.reGainState(ofChannel: 1)
+        let gainBefore = try await driver.gainDb(ofHeadamp: 0)
+
+        var interrupted: GainStep?
+        do {
+            _ = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
+        } catch {
+            if case .gainMoveInterrupted(let step) = error { interrupted = step }
+        }
+
+        let step = try #require(interrupted)
+        #expect(step.fromGainDb == gainBefore)
+        #expect(step.toGainDb > gainBefore && step.toGainDb < gainBefore + 6, "partway: what was written, not the plan")
+        let fader = try #require(step.changes.first { $0.setting == ReGain.Setting(channel: 1, parameter: .mainFader) })
+        #expect(step.held[fader.setting] == fader.toDb)
+        mixer.update { $0.answers = true; $0.stopsAnsweringAfterWrites = nil }
+        try await driver.undo(step)
+        #expect(try await driver.reGainState(ofChannel: 1) == before)
+        #expect(try await driver.gainDb(ofHeadamp: 0) == gainBefore)
+    }
 }
