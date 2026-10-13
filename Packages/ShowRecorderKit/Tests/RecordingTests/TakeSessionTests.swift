@@ -34,7 +34,7 @@ struct TakeSessionTests {
         free: @escaping (URL) -> Int64 = { _ in .max }
     ) throws -> TakeSession {
         var show = try Show.create(in: device, drive: withDrive ? drive : nil, on: RecordingTakeTests.showDay)
-        let folders = try show.createNextTakeFolder()
+        let folders = Dictionary(uniqueKeysWithValues: zip(DestinationKind.allCases, try show.createNextTakeFolder()))
         let metadata = TakeMetadata(
             show: show.name, take: show.takeCount, startedAt: RecordingTakeTests.showDay, sampleRate: 48_000, timeReference: 0,
             usbChannels: [.init(usbChannel: 1, stemFile: "01 USB 01.wav", source: .fallback(usbChannel: 1))])
@@ -79,6 +79,20 @@ struct TakeSessionTests {
         let stem = try ParsedStem(contentsOf: finished.folders[.drive]!.appending(path: "01 USB 01.wav"))
         #expect(stem.samples.count == 960)
         #expect(session.show.driveFolder != nil)
+    }
+
+    @Test("A running Take's Copies read as each Copy's status, a failed Drive interrupted")
+    func takeCopiesMatchStatus() async throws {
+        let session = try session(withDrive: true, wrap: { url, real in
+            url.path.contains("/Drive/") ? FailingStem(real, healthyFrames: 480) as any StemSink : real
+        })
+        for _ in 0..<2 { try await deliver(480) }
+        try await waitUntil { session.status(.drive) == .interrupted }
+
+        #expect(session.takeCopies.isRunning)
+        for kind in DestinationKind.allCases { #expect(session.takeCopies[kind] == CopyState(session.status(kind))) }
+        #expect(session.takeCopies[.drive] == .interrupted)
+        _ = session.finish()
     }
 
     @Test("A Drive is asked for only while it could join or rejoin")

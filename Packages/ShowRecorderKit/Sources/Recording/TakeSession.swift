@@ -94,10 +94,10 @@ final class TakeSession {
     private let makeStem: (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink
     private let freeSpace: (URL) -> Int64
 
-    /// Opens the Stems in each of `folders` (one per Copy, the Device first), writes `Take.json` there
+    /// Opens the Stems in each of `folders` (one per Copy, keyed by its kind), writes `Take.json` there
     /// and starts capturing. `drive` is the access held for the Drive Copy, when there is one.
     init(
-        show: Show, folders: [URL], drive: DriveAccess?, metadata: TakeMetadata, stems: [StemSpec],
+        show: Show, folders: [DestinationKind: URL], drive: DriveAccess?, metadata: TakeMetadata, stems: [StemSpec],
         info: StemWriter.Info, capture: Capture, preRollFrames: Int = 0,
         makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink,
         freeSpace: @escaping (URL) -> Int64, driveOnly: Bool = false
@@ -122,7 +122,7 @@ final class TakeSession {
             } : nil
         var records: [CopyRecord] = []
         // Drive only, with a Drive: the Device's ring feeds the standby, which writes nothing until the Drive is lost.
-        let standingBy = driveOnly && folders.count > 1
+        let standingBy = driveOnly && folders[.device] != nil && folders[.drive] != nil
         if standingBy {
             let held = Int(Double(info.sampleRate) * Self.standbySeconds)
             // An unrecorded USB Channel is never stood in for, so it holds nothing.
@@ -132,17 +132,17 @@ final class TakeSession {
                 capture.disable(copy: DestinationKind.device.index)
                 Task { @MainActor in self?.onCopyFailed() }
             }, head: head)
-            standby = Standby(folder: folders[0], writer: writer, sinks: sinks)
+            standby = Standby(folder: folders[.device]!, writer: writer, sinks: sinks)
         }
-        for (index, folder) in folders.enumerated() where !(standingBy && index == DestinationKind.device.index) {
-            let kind = DestinationKind(index: index)
+        for kind in DestinationKind.allCases where !(standingBy && kind == .device) {
+            guard let folder = folders[kind] else { continue }
             let sinks: [any StemSink] = try stems.map { spec in
                 spec.isRecorded ? try makeStem(folder.appending(path: spec.file), info.described(spec.description), nil) : DiscardingSink()
             }
             try metadata.write(to: folder)
             records.append(CopyRecord(
-                kind: kind, folder: folder, ring: capture.rings[index],
-                writer: makeWriter(ring: capture.rings[index], kind: kind, stems: sinks, head: head),
+                kind: kind, folder: folder, ring: capture.rings[kind.index],
+                writer: makeWriter(ring: capture.rings[kind.index], kind: kind, stems: sinks, head: head),
                 access: kind == .drive ? drive : nil))
         }
         for record in records { begin(record.writer, on: record.ring, joinFrame: head == nil ? 0 : -1) }
@@ -238,6 +238,11 @@ final class TakeSession {
         return copy.writer.hasFailed ? .interrupted : .recording
     }
 
+    /// Copies of the running Take (#550), from each Copy's status.
+    var takeCopies: TakeCopies {
+        TakeCopies(isRunning: true) { CopyState(status($0)) }
+    }
+
     /// How many places in the Take lost audio (one Dropout Marker each).
     var dropoutCount: Int { metadata.dropoutCount }
 
@@ -305,11 +310,12 @@ final class TakeSession {
             }
             standInIfDriveLost()
         } else {
-            if copies.count == 1, let access = drive() {
+            let driveCopy = copies.first { $0.kind == .drive }
+            if driveCopy == nil, let access = drive() {
                 attachDrive(access, replacing: nil, reserve: reserve)
             }
-            if copies.count == 2, copies[1].writer.isFinished, copies[1].writer.hasFailed, let access = drive() {
-                attachDrive(access, replacing: copies[1], reserve: reserve)
+            if let driveCopy, driveCopy.writer.isFinished, driveCopy.writer.hasFailed, let access = drive() {
+                attachDrive(access, replacing: driveCopy, reserve: reserve)
             }
         }
         collectDropouts()
@@ -400,7 +406,7 @@ final class TakeSession {
             capture.requestJoin(copy: DestinationKind.drive.index)
 
             let record = CopyRecord(kind: .drive, folder: folder, ring: ring, writer: writer, access: access)
-            if old == nil { copies.append(record) } else { copies[1] = record }
+            if old == nil { copies.append(record) } else { copies[copies.firstIndex { $0.kind == .drive }!] = record }
             old?.access?.end()
             self.show = show
         } catch {

@@ -83,7 +83,7 @@ public final class Recorder {
     public private(set) var sampleRate: Int?
     @ObservationIgnored private var capture: Capture?
     /// The running Take's Copies.
-    @ObservationIgnored private var session: TakeSession?
+    @ObservationIgnored private(set) var session: TakeSession?
     @ObservationIgnored private var lastTake: LastTake?
     /// Repairs ended Takes; its result is published as `lastTakeOutcomes` and `isRepairing`.
     @ObservationIgnored private let repair: TakeRepair
@@ -533,7 +533,7 @@ public final class Recorder {
             let specs = zip(channels, resolved).map { StemSpec(file: $0.stemFile, description: $1.name, isRecorded: recorded.contains($0.usbChannel)) }
             let info = StemWriter.Info(sampleRate: sampleRate, description: "", originator: "ShowRecorder", timeReference: timeReference, originationDate: date)
             return try TakeSession(
-                show: show, folders: takeFolders, drive: takeFolders.count > 1 ? drive : nil, metadata: metadata, stems: specs,
+                show: show, folders: Dictionary(uniqueKeysWithValues: zip(DestinationKind.allCases, takeFolders)), drive: takeFolders.count > 1 ? drive : nil, metadata: metadata, stems: specs,
                 info: info, capture: capture, preRollFrames: preRollFrames, makeStem: makeStem, freeSpace: freeSpace,
                 driveOnly: recordsToDriveOnly)
         }
