@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 fail=0
 expect() {
   files=$1; want=$2
-  got=$(VERIFY_FILES="$files" VERIFY_PLAN_ONLY=1 ./scripts/verify.sh | sed -n 's/^== Plan: //p')
+  got=$(VERIFY_ALL=0 VERIFY_FILES="$files" VERIFY_PLAN_ONLY=1 ./scripts/verify.sh | sed -n 's/^== Plan: //p')
   if [ "$got" != "$want" ]; then
     printf 'FAIL for files:\n%s\n  want: %s\n  got:  %s\n' "$files" "$want" "$got"
     fail=1
