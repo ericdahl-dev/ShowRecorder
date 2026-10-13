@@ -117,14 +117,17 @@ public enum DriveStatus: Equatable, Sendable {
 /// The operator's Drive folder: chosen once, remembered with a security-scoped bookmark.
 public struct DriveFolderStore: Sendable {
     private let storage: any BookmarkStorage
+    /// The folder's name as the system shows it, nil when it can't say (`shownName(of:)`).
+    private let shownName: @Sendable (URL) -> String?
 
-    public init(storage: any BookmarkStorage = UserDefaultsBookmarkStorage()) {
+    public init(storage: any BookmarkStorage = UserDefaultsBookmarkStorage(), shownName: @escaping @Sendable (URL) -> String? = Self.shownName(of:)) {
         self.storage = storage
+        self.shownName = shownName
     }
 
     /// Remembers `folder` (from the system folder picker) after checking it can be written to.
     public func choose(_ folder: URL) throws(DriveProblem) {
-        let name = folder.lastPathComponent
+        let name = Self.withAccess(to: folder) { shownName($0) } ?? folder.lastPathComponent
         let bookmark: Data
         do {
             bookmark = try Self.withAccess(to: folder) { url in
@@ -154,10 +157,16 @@ public struct DriveFolderStore: Sendable {
             guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
                 return .unavailable(.notConnected(name: stored.name))
             }
+            // Only a name the system gave is saved: when it can't say (the Drive still mounting), the path's last
+            // component on an iPhone is a UUID, and the name remembered for when it's unplugged is better.
+            let shown = shownName(url)
+            let name = shown ?? stored.name
             if isStale, let fresh = try? url.bookmarkData(options: Self.creationOptions, includingResourceValuesForKeys: nil, relativeTo: nil) {
-                storage.save(StoredDriveFolder(bookmark: fresh, name: stored.name))
+                storage.save(StoredDriveFolder(bookmark: fresh, name: name))
+            } else if shown != nil, name != stored.name {
+                storage.save(StoredDriveFolder(bookmark: stored.bookmark, name: name))
             }
-            return .available(Drive(folder: url, name: stored.name, availableBytes: Self.availableBytes(at: url)))
+            return .available(Drive(folder: url, name: name, availableBytes: Self.availableBytes(at: url)))
         }
     }
 
@@ -173,6 +182,14 @@ public struct DriveFolderStore: Sendable {
     }
 
     // MARK: - Helpers
+
+    /// The folder's name as the system shows it; nil when it can't say. An iPhone's or iPad's SSD is mounted at a UUID
+    /// ("7651E04F-…"), so the path's last component isn't its name; the localized name is the volume's ("T7 Shield")
+    /// at its root, and the folder's own name inside it.
+    public static func shownName(of folder: URL) -> String? {
+        let shown = try? folder.resourceValues(forKeys: [.localizedNameKey]).localizedName
+        return shown.flatMap { $0.isEmpty ? nil : $0 }
+    }
 
     #if os(macOS)
     private static let creationOptions: URL.BookmarkCreationOptions = [.withSecurityScope]
