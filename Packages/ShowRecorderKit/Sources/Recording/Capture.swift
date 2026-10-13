@@ -59,7 +59,7 @@ final class Capture: Sendable {
     /// One feed per Copy: the Device, then the Drive.
     let feeds: [CopyFeed]
     /// The feeds' rings, slot for slot, for the real-time thread.
-    let rings: [SampleRing]
+    private let rings: [SampleRing]
     /// Which Copies are being captured, one bit per ring (bit 0 the Device, bit 1 the Drive); 0 when not recording.
     private let capturing = Atomic<Int>(0)
     /// Copies waiting for the real-time thread to start feeding them, one bit per ring.
@@ -136,15 +136,16 @@ final class Capture: Sendable {
     /// Frames delivered since the Take started.
     var takeFrameCount: Int { takeFrames.load(ordering: .acquiring) }
 
-    /// Asks the real-time thread to start feeding one Copy's ring from its next block, and to record
-    /// the Take frame it starts at in its feed.
-    func requestJoin(copy: Int) {
-        joinRequests.bitwiseOr(1 << copy, ordering: .acquiringAndReleasing)
+    /// Brings a Copy into the running Take: empties its ring, forgets any join frame, then asks the real-time
+    /// thread to start feeding it from its next block and to record the Take frame it starts at in `feed`.
+    func attachMidTake(_ feed: CopyFeed) {
+        feed.reset(joinedAt: nil)
+        joinRequests.bitwiseOr(1 << feed.slot, ordering: .acquiringAndReleasing)
     }
 
-    /// Stops feeding one Copy's ring (its writer failed).
-    func disable(copy: Int) {
-        capturing.bitwiseAnd(~(1 << copy), ordering: .acquiringAndReleasing)
+    /// Stops feeding one Copy's ring (its writer failed, or it retired).
+    func stopFeeding(_ feed: CopyFeed) {
+        capturing.bitwiseAnd(~(1 << feed.slot), ordering: .acquiringAndReleasing)
     }
 
     func stopCapturing() {

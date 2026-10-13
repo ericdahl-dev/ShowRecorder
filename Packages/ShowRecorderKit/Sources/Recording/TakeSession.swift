@@ -82,6 +82,7 @@ final class TakeSession {
 
     struct Standby {
         let folder: URL
+        let feed: CopyFeed
         let writer: TakeWriter
         let sinks: [StandInSink]
         /// Where the stand-in starts, once the Drive is lost.
@@ -121,32 +122,41 @@ final class TakeSession {
                 return capture.preRoll?.read(frames: (start - preRollFrames)..<start)
             } : nil
         var records: [CopyRecord] = []
+        // Each Copy's feed, paired with its kind in order: Capture's feeds, like the kinds, put the Device first.
+        let feeds = Dictionary(uniqueKeysWithValues: zip(DestinationKind.allCases, capture.feeds))
         // Drive only, with a Drive: the Device's ring feeds the standby, which writes nothing until the Drive is lost.
         let standingBy = driveOnly && folders[.device] != nil && folders[.drive] != nil
         if standingBy {
             let held = Int(Double(info.sampleRate) * Self.standbySeconds)
             // An unrecorded USB Channel is never stood in for, so it holds nothing.
             let sinks = stems.map { StandInSink(heldFrames: $0.isRecorded ? held : 1) }
-            let feed = capture.feeds[DestinationKind.device.index]
+            let feed = feeds[.device]!
             let writer = TakeWriter(feed: feed, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] in
-                capture.disable(copy: DestinationKind.device.index)
+                capture.stopFeeding(feed)
                 Task { @MainActor in self?.onCopyFailed() }
             }, head: head)
-            standby = Standby(folder: folders[.device]!, writer: writer, sinks: sinks)
+            standby = Standby(folder: folders[.device]!, feed: feed, writer: writer, sinks: sinks)
         }
         for kind in DestinationKind.allCases where !(standingBy && kind == .device) {
             guard let folder = folders[kind] else { continue }
+            let feed = feeds[kind]!
             let sinks: [any StemSink] = try stems.map { spec in
                 spec.isRecorded ? try makeStem(folder.appending(path: spec.file), info.described(spec.description), nil) : DiscardingSink()
             }
             try metadata.write(to: folder)
             records.append(CopyRecord(
-                kind: kind, folder: folder, feed: capture.feeds[kind.index],
-                writer: makeWriter(feed: capture.feeds[kind.index], kind: kind, stems: sinks, head: head),
+                kind: kind, folder: folder, feed: feed,
+                writer: makeWriter(feed: feed, stems: sinks, head: head),
                 access: kind == .drive ? drive : nil))
         }
-        for record in records { begin(record.writer, on: record.feed, joinedAt: head == nil ? 0 : nil) }
-        if let standby { begin(standby.writer, on: capture.feeds[DestinationKind.device.index], joinedAt: head == nil ? 0 : nil) }
+        for record in records {
+            capture.begin(record.feed, joinedAt: head == nil ? 0 : nil)
+            record.writer.start()
+        }
+        if let standby {
+            capture.begin(standby.feed, joinedAt: head == nil ? 0 : nil)
+            standby.writer.start()
+        }
         copies = records
         capture.startCapturing(copies: folders.count, preRollFrames: head == nil ? 0 : preRollFrames)
     }
@@ -296,7 +306,7 @@ final class TakeSession {
         if !low.isEmpty {
             if low.count == healthy.count { return .outOfSpace }
             for copy in low {
-                capture.disable(copy: copy.kind.index)
+                capture.stopFeeding(copy.feed)
                 copy.writer.retire()
             }
         }
@@ -305,7 +315,7 @@ final class TakeSession {
             // is gone too, the Take ends.
             if standby.start != nil, !standby.writer.hasFailed, reserve.isLow(free: freeSpace(standby.folder)) {
                 if healthy.isEmpty { return .outOfSpace }
-                capture.disable(copy: DestinationKind.device.index)
+                capture.stopFeeding(standby.feed)
                 standby.writer.retire()
             }
             standInIfDriveLost()
@@ -399,11 +409,12 @@ final class TakeSession {
             // A Take folder that was rejoined already has its Take.json.
             if old == nil { try metadata.write(to: folder) }
 
-            let feed = capture.feeds[DestinationKind.drive.index]
-            let writer = makeWriter(feed: feed, kind: .drive, stems: sinks, priorGaps: old?.writer.gaps ?? [])
-            begin(writer, on: feed, joinedAt: nil)
+            // The Drive's feed is the one after the Device's.
+            let feed = old?.feed ?? capture.feeds[copies.count]
+            let writer = makeWriter(feed: feed, stems: sinks, priorGaps: old?.writer.gaps ?? [])
+            capture.attachMidTake(feed)
+            writer.start()
             if !stemMarkers.isEmpty { writer.setMarkers(stemMarkers) }
-            capture.requestJoin(copy: DestinationKind.drive.index)
 
             let record = CopyRecord(kind: .drive, folder: folder, feed: feed, writer: writer, access: access)
             if old == nil { copies.append(record) } else { copies[copies.firstIndex { $0.kind == .drive }!] = record }
@@ -417,20 +428,13 @@ final class TakeSession {
     // MARK: - Helpers
 
     private func makeWriter(
-        feed: CopyFeed, kind: DestinationKind, stems sinks: [any StemSink], priorGaps: [Range<Int>] = [],
+        feed: CopyFeed, stems sinks: [any StemSink], priorGaps: [Range<Int>] = [],
         head: (() -> [[Float]]?)? = nil
     ) -> TakeWriter {
         TakeWriter(feed: feed, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] in
-            capture.disable(copy: kind.index)
+            capture.stopFeeding(feed)
             Task { @MainActor in self?.onCopyFailed() }
         }, priorGaps: priorGaps, head: head)
-    }
-
-    /// Empties `feed`'s ring, says which Take frame its Copy starts at (nil until the real-time thread picks
-    /// one for a Copy that joins mid-Take) and starts its writer.
-    private func begin(_ writer: TakeWriter, on feed: CopyFeed, joinedAt: Int?) {
-        capture.begin(feed, joinedAt: joinedAt)
-        writer.start()
     }
 
     /// The Markers the Stems carry as cue points. Each writer adds its own Dropout Markers.
@@ -464,7 +468,7 @@ final class TakeSession {
         // A Drive too slow to keep up drops audio but carries on: the standby stands in for it from the first drop,
         // and the Drive isn't given up, so Repair can fill it later.
         // The ring's overflow shows at once; the writer only logs the Dropout once it wakes, which a stuck write delays.
-        let overflowed = capture.rings[DestinationKind.drive.index].overflowedFrames.load(ordering: .relaxed) > 0
+        let overflowed = drive.feed.ring.overflowedFrames.load(ordering: .relaxed) > 0
         let firstDrop = drive.writer.dropouts.map(\.lowerBound).min()
         guard drive.writer.hasFailed || stalled || overflowed || firstDrop != nil else { return }
         // A stalled Drive isn't given up: one that only paused (waking up, a busy moment) carries on, and Repair fills

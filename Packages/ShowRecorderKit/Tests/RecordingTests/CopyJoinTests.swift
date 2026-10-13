@@ -27,7 +27,7 @@ struct CopyJoinTests {
         let capture = capture()
         capture.startCapturing(copies: 1)
         receive(capture)
-        capture.requestJoin(copy: 1)
+        capture.attachMidTake(capture.feeds[1])
         #expect(capture.feeds[1].joinedAt == nil, "nothing before the real-time thread picks it up")
         #expect(capture.feeds[1].ring.availableFrames == 0)
 
@@ -45,7 +45,7 @@ struct CopyJoinTests {
         let capture = capture()
         capture.startCapturing(copies: 2)
         receive(capture)
-        capture.disable(copy: 0)
+        capture.stopFeeding(capture.feeds[0])
         receive(capture)
         #expect(capture.feeds[0].ring.availableFrames == 480)
         #expect(capture.feeds[1].ring.availableFrames == 960)
@@ -74,7 +74,7 @@ struct CopyJoinTests {
         let capture = capture()
         capture.startCapturing(copies: 1)
         receive(capture, at: 1)
-        capture.requestJoin(copy: 1)
+        capture.attachMidTake(capture.feeds[1])
 
         receive(capture, at: 1 + 480 + 4_800)               // 4,800 frames of input lost
 
