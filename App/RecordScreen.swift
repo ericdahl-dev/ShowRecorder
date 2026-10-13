@@ -741,7 +741,7 @@ final class RecordScreenModel {
     /// The Take's Copies (#550), refreshed about once a second.
     private var takeCopies = TakeCopies.none
     /// The Copies as last refreshed; when a Take has started or stopped since, the Recorder's own straight away.
-    var copies: TakeCopies { takeCopies.isRunning == recorder.isRecording ? takeCopies : recorder.copies }
+    var copies: TakeCopies { takeCopies.current(isRecording: recorder.isRecording, recorder.copies) }
     /// The Drive stopped and Check Drive found nothing, until it comes back.
     private var driveCheckedAndNotFound = false
     private var driveRejoin = DriveRejoinNotice()

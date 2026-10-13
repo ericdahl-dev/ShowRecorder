@@ -31,6 +31,11 @@ public struct TakeCopies: Equatable, Sendable {
         states = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.map { ($0, state($0)) })
     }
 
+    /// This snapshot while the Take is as it was when taken; once one has started or stopped since, `live`.
+    public func current(isRecording: Bool, _ live: @autoclosure () -> TakeCopies) -> TakeCopies {
+        isRunning == isRecording ? self : live()
+    }
+
     /// Before any Take: none running, and every Copy missing.
     public static let none = TakeCopies(isRunning: false) { _ in .missing }
 
