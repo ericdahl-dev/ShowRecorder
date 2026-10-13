@@ -124,7 +124,7 @@ public struct DriveFolderStore: Sendable {
 
     /// Remembers `folder` (from the system folder picker) after checking it can be written to.
     public func choose(_ folder: URL) throws(DriveProblem) {
-        let name = folder.lastPathComponent
+        let name = Self.withAccess(to: folder) { Self.name(of: $0) }
         let bookmark: Data
         do {
             bookmark = try Self.withAccess(to: folder) { url in
@@ -154,10 +154,13 @@ public struct DriveFolderStore: Sendable {
             guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
                 return .unavailable(.notConnected(name: stored.name))
             }
+            let name = Self.name(of: url)
             if isStale, let fresh = try? url.bookmarkData(options: Self.creationOptions, includingResourceValuesForKeys: nil, relativeTo: nil) {
-                storage.save(StoredDriveFolder(bookmark: fresh, name: stored.name))
+                storage.save(StoredDriveFolder(bookmark: fresh, name: name))
+            } else if name != stored.name {
+                storage.save(StoredDriveFolder(bookmark: stored.bookmark, name: name))
             }
-            return .available(Drive(folder: url, name: stored.name, availableBytes: Self.availableBytes(at: url)))
+            return .available(Drive(folder: url, name: name, availableBytes: Self.availableBytes(at: url)))
         }
     }
 
@@ -173,6 +176,14 @@ public struct DriveFolderStore: Sendable {
     }
 
     // MARK: - Helpers
+
+    /// The folder's name as the system shows it. An iPhone's or iPad's SSD is mounted at a UUID ("7651E04F-…"), so
+    /// the path's last component isn't its name; the localized name is the volume's ("T7 Shield") at its root, and
+    /// the folder's own name inside it.
+    static func name(of folder: URL) -> String {
+        let shown = try? folder.resourceValues(forKeys: [.localizedNameKey]).localizedName
+        return shown.flatMap { $0.isEmpty ? nil : $0 } ?? folder.lastPathComponent
+    }
 
     #if os(macOS)
     private static let creationOptions: URL.BookmarkCreationOptions = [.withSecurityScope]

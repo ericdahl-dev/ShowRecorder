@@ -28,6 +28,20 @@ struct DriveFolderStoreTests {
         #expect(drive.availableBytes > 0)
     }
 
+    @Test("A Drive remembered under its mount point's UUID (as 1.1.x saved an iPhone's SSD) shows the name the system gives it")
+    func uuidNameIsReplaced() throws {
+        try DriveFolderStore(storage: storage).choose(folder)
+        let saved = try #require(storage.load())
+        storage.save(StoredDriveFolder(bookmark: saved.bookmark, name: "7651E04F-85E1-4466-9F7F-F59B8ED0EA24"))
+
+        guard case .available(let drive) = DriveFolderStore(storage: storage).status() else {
+            Issue.record("expected available")
+            return
+        }
+        #expect(drive.name == "Gig Drive")
+        #expect(storage.load()?.name == "Gig Drive", "kept, for when the Drive is unplugged")
+    }
+
     @Test("Before a folder is chosen, the status says so")
     func notChosenByDefault() {
         #expect(DriveFolderStore(storage: storage).status() == .notChosen)
