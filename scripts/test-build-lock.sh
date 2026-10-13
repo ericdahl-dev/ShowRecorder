@@ -30,6 +30,7 @@ echo "start \$\$ \$(date +%s)" >> "$log"
 sleep \${STUB_SLEEP:-1}
 echo "end \$\$ \$(date +%s)" >> "$log"
 echo "ran $tool \$*"
+echo "$tool \$*" >> "$work/args"
 STUB
   chmod +x "$work/real-$tool"
 done
@@ -118,6 +119,31 @@ timed sh -c "cd '$work/other-repo' && '$repo/scripts/bin/swift' build"
 release_lock
 expect "another git repo doesn't wait (took ${elapsed}s)" [ "$elapsed" -lt 10 ]
 expect "another git repo still runs the real tool" has "ran swift build"
+
+# 6. Every heavy build is capped at N compile jobs: SHOWRECORDER_BUILD_JOBS, or the Mac's cores less 4 (at least 1).
+#    A count the caller gave is kept, light commands get none, and builds inside verify.sh are capped too.
+cores=$(sysctl -n hw.ncpu)
+default=$(( cores > 5 ? cores - 4 : 1 ))
+timed "$repo/scripts/bin/swift" build
+expect "swift build gets -j <cores - 4> by default (output: $out)" has "ran swift build -j $default\$"
+timed env SHOWRECORDER_BUILD_JOBS=3 "$repo/scripts/bin/xcodebuild" -scheme ShowRecorder build
+expect "xcodebuild gets -jobs from SHOWRECORDER_BUILD_JOBS (output: $out)" has "ran xcodebuild -scheme ShowRecorder build -jobs 3\$"
+timed env SHOWRECORDER_BUILD_JOBS=3 "$repo/scripts/bin/swift" run Tool -- --verbose
+expect "swift run gets -j before the program's own arguments (output: $out)" has "ran swift run -j 3 Tool -- --verbose\$"
+timed env SHOWRECORDER_BUILD_JOBS=3 "$repo/scripts/bin/swift" build -j 2
+expect "a -j the caller gave is kept (output: $out)" has "ran swift build -j 2\$"
+timed env SHOWRECORDER_BUILD_JOBS=3 "$repo/scripts/bin/xcodebuild" build -jobs 5
+expect "a -jobs the caller gave is kept (output: $out)" has "ran xcodebuild build -jobs 5\$"
+timed env SHOWRECORDER_BUILD_JOBS=3 SHOWRECORDER_BUILD_LOCK_HELD=1 "$repo/scripts/bin/swift" test
+expect "a build inside verify.sh's lock is capped too (output: $out)" has "ran swift test -j 3\$"
+timed env SHOWRECORDER_BUILD_JOBS=3 "$repo/scripts/bin/swift" --version
+expect "light commands get no -j (output: $out)" has "ran swift --version\$"
+
+# verify.sh runs the package tests and both app builds at once: each gets a third of N.
+: > "$work/args"
+out=$(SHOWRECORDER_BUILD_JOBS=6 VERIFY_FILES="Packages/ShowRecorderKit/Sources/Recording/AutoGainSession.swift" ./scripts/verify.sh 2>&1) || true
+expect "verify.sh's package tests get N/3 (args: $(cat "$work/args"))" grep -q "^swift test -j 2 --parallel\$" "$work/args"
+expect "verify.sh's app builds get N/3 each" [ "$(grep -c -- "-jobs 2\$" "$work/args")" = 2 ]
 
 [ $fail = 0 ] && echo "build lock: all checks passed"
 exit $fail
