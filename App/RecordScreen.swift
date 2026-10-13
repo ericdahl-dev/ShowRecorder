@@ -631,8 +631,9 @@ final class RecordScreenModel {
 
     /// Why auto-gain can't run right now; nil when it can.
     var autoGainUnavailable: AutoGainAvailability.Unavailable? {
-        AutoGainAvailability.whyNot(hasMixerLink: mixerLink.identity != nil, canSetGain: mixerLink.gainControl != nil,
-                                    isRecording: recorder.isRecording)
+        let isConnecting = if case .connecting = mixerLink.status { true } else { false }
+        return AutoGainAvailability.whyNot(hasMixerLink: mixerLink.identity != nil, isConnecting: isConnecting,
+                                           canSetGain: mixerLink.gainControl != nil, isRecording: recorder.isRecording)
     }
 
     /// Auto-gain's state (#155): kept here, not in the sheet, so Undo survives closing it; locked during a Take.

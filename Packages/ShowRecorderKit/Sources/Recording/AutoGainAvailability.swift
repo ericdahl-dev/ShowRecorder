@@ -11,6 +11,8 @@ extension AutoGainAvailability {
     public enum Unavailable: Equatable, Sendable {
         /// Moving a preamp mid-Take would make the recorded level jump.
         case takeRunning
+        /// Mixer Link is still connecting.
+        case connecting
         /// No Mixer to move the preamps on.
         case noMixerLink
         /// The linked Mixer's preamps can't be set from ShowRecorder.
@@ -20,6 +22,8 @@ extension AutoGainAvailability {
             switch self {
             case .takeRunning:
                 "Not during a Take: moving a preamp would make the recorded level jump. Stop the Take first."
+            case .connecting:
+                "Connecting to the Mixer. Auto-gain is ready once Mixer Link is up."
             case .noMixerLink:
                 "Auto-gain moves the preamps on the Mixer. Connect to it in Settings › Mixer Link first."
             case .cantSetGain:
@@ -29,9 +33,9 @@ extension AutoGainAvailability {
     }
 
     /// Nil when auto-gain can run; otherwise the reason, a running Take first.
-    public static func whyNot(hasMixerLink: Bool, canSetGain: Bool, isRecording: Bool) -> Unavailable? {
+    public static func whyNot(hasMixerLink: Bool, isConnecting: Bool = false, canSetGain: Bool, isRecording: Bool) -> Unavailable? {
         if isRecording { return .takeRunning }
-        if !hasMixerLink { return .noMixerLink }
+        if !hasMixerLink { return isConnecting ? .connecting : .noMixerLink }
         if !canSetGain { return .cantSetGain }
         return nil
     }

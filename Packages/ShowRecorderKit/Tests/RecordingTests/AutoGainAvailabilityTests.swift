@@ -26,5 +26,11 @@ struct AutoGainAvailabilityTests {
         #expect(AutoGainAvailability.Unavailable.noMixerLink.message.contains("Settings › Mixer Link"))
         #expect(!AutoGainAvailability.Unavailable.cantSetGain.message.isEmpty)
     }
-}
 
+    @Test("While Mixer Link is still connecting, it says so instead of asking to connect")
+    func connecting() {
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: false, isConnecting: true, canSetGain: false, isRecording: false) == .connecting)
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: false, isConnecting: true, canSetGain: false, isRecording: true) == .takeRunning)
+        #expect(AutoGainAvailability.Unavailable.connecting.message.contains("Connecting"))
+    }
+}
