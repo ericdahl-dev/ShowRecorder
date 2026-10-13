@@ -80,11 +80,12 @@ jobs:
         run: swift test
 
       # TestFlight builds are Release. Mixer detection once worked in Debug but opened port 0 in Release (v1.1.1,
-      # EINVAL on the iPhone): its tests run optimized too, in their own leg so CI doesn't take longer.
-      - name: Package tests, Release (Mixer detection)
+      # EINVAL on the iPhone), so every package test also runs optimized, in its own leg so CI doesn't take longer.
+      # `swift test` keeps @testable imports in Release; `swift build -c release --build-tests` alone doesn't (#505).
+      - name: Package tests, Release
         if: matrix.check == 'package tests (Release)'
         working-directory: Packages/ShowRecorderKit
-        run: swift test -c release --filter DetectingMixerDriver
+        run: swift test -c release
 
       - name: Build for macOS
         if: matrix.check == 'macOS build'
