@@ -165,11 +165,8 @@ What each Copy of a Take holds: the one place Gaps and Dropouts are worked out f
 **Copies of a Take**:
 What each Destination's Copy of one Take is doing, or ended as, keyed by Destination: the one answer every screen reads (#550). Its Gaps come from Copy coverage.
 
-**Given up**:
-A Drive Copy stopped mid-Take because the Drive hung, without waiting for it (planned with Drive only, #196). Unlike a failed Copy, the Drive may come back.
-
 **Abandoned**:
-A Copy that Stop couldn't finish writing in time: the Take ends without waiting for it. Not the same as Given up, which happens mid-Take.
+A Copy that Stop couldn't finish writing in time: the Take ends without waiting for it. With Drive only, a Drive that stalled mid-Take and never came back ends this way; the stall itself only starts the Stand-in.
 
 **Mixer family**:
 Mixers one driver reads, such as the X Air (XR18, MR18) or the X32 (X32, M32). The family is recognized from the Audio interface's name (for Mixer packs) and from the Mixer's own model (for the Mixer Link), and each family knows the port it is asked on and makes its driver.
