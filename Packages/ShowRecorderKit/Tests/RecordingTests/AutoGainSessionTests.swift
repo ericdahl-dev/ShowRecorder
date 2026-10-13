@@ -472,6 +472,8 @@ struct AutoGainSessionTests {
         try await second.value
 
         #expect(control.gainDb[2] == 22, "USB 2's Undo never reached the Mixer")
+    }
+
     @Test("The result can say what Re-Gain compensated on each USB Channel, until Undo puts it back (#155, #393)")
     func compensated() async throws {
         let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
