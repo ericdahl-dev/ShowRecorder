@@ -13,9 +13,7 @@ build_lock_path() {
     printf '%s\n' "$SHOWRECORDER_BUILD_LOCK"
     return
   fi
-  common=$(git rev-parse --git-common-dir) || return 1
-  # Relative from the main checkout (".git"), absolute from a worktree.
-  case "$common" in /*) ;; *) common="$(pwd)/$common" ;; esac
+  common=$(common_git_dir .) || return 1
   printf '%s\n' "$common/verify.lock"
 }
 
@@ -29,8 +27,17 @@ build_lock_exec() {
   exec lockf -k "$lock" env SHOWRECORDER_BUILD_LOCK_HELD=1 nice -n 10 "$@"
 }
 
-# Whether the current folder is in a ShowRecorder checkout.
+# The absolute git folder every worktree of the repo at or above $1 shares, or nothing outside a git repo.
+common_git_dir() {
+  dir=$(cd "$1" 2>/dev/null && git rev-parse --git-common-dir 2>/dev/null) || return 1
+  # Relative to $1 from the main checkout (".git"), absolute from a worktree.
+  (cd "$1" && cd "$dir" && pwd -P)
+}
+
+# Whether the current folder is in a checkout of the repo this script is in: any worktree, even one made before the
+# lock existed, which has no scripts/build-lock.sh of its own.
 in_showrecorder() {
-  top=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
-  [ -f "$top/scripts/build-lock.sh" ] && [ -d "$top/Packages/ShowRecorderKit" ]
+  here=$(common_git_dir .) || return 1
+  ours=$(common_git_dir "$(dirname "$0")/../..") || return 1
+  [ "$here" = "$ours" ]
 }

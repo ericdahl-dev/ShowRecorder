@@ -93,5 +93,23 @@ expect "outside the repo, swift build doesn't wait (took ${elapsed}s)" [ "$elaps
 expect "outside the repo, the real tool still runs" has "ran swift build"
 release_lock
 
+# 5. A worktree of this repo made before the lock existed (no scripts/build-lock.sh of its own) still takes it; another
+#    git repo doesn't. The old worktree is a bare, unchecked-out one, made here and removed at the end.
+old="$work/old-worktree"
+git worktree add -q --detach --no-checkout "$old" HEAD
+mkdir -p "$old/Packages/ShowRecorderKit"
+hold_lock
+timed sh -c "cd '$old/Packages/ShowRecorderKit' && '$repo/scripts/bin/swift' build"
+release_lock
+expect "an old worktree without build-lock.sh still waits for the lock (took ${elapsed}s)" has "Waiting for another build"
+git worktree remove --force "$old"
+mkdir "$work/other-repo"
+git -C "$work/other-repo" init -q
+hold_lock
+timed sh -c "cd '$work/other-repo' && '$repo/scripts/bin/swift' build"
+release_lock
+expect "another git repo doesn't wait (took ${elapsed}s)" [ "$elapsed" -lt 10 ]
+expect "another git repo still runs the real tool" has "ran swift build"
+
 [ $fail = 0 ] && echo "build lock: all checks passed"
 exit $fail
