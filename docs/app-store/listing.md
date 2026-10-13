@@ -1,6 +1,6 @@
 # App Store listing (1.1 draft for Eric's review, #411; 1.0 was #64)
 
-Paste into App Store Connect > ShowRecorder > the 1.1 version (and App Information for the name and subtitle). The number after each heading is Apple's character limit; every field here is within it (checked 2026-10-13: subtitle 30, promotional text 170, keywords 100, description 3662 with the auto-gain block and 3418 without, What's New 387).
+Paste into App Store Connect > ShowRecorder > the 1.1 version (and App Information for the name and subtitle). The number after each heading is Apple's character limit; every field here is within it (checked 2026-10-13, with the Apple Watch: subtitle 30, promotional text 170, keywords 100, description 3878 with the auto-gain block and 3634 without, What's New 605).
 
 Brand names (Behringer, Midas, X Air, XR18, MR18, X32, M32) appear only as compatibility text in the description and What's New. They are not in the name, subtitle or keywords (Guideline 2.3.7).
 
@@ -13,7 +13,7 @@ Brand names (Behringer, Midas, X Air, XR18, MR18, X32, M32) appear only as compa
 ## Still to decide before submitting 1.1
 
 - **Auto-gain.** The AUTO-GAIN block, its What's New line and the Auto-gain sentence in review-notes.md are only for a 1.1 that ships it (#494, after the live XR18 test). Delete all three otherwise.
-- **A video for App Review.** The Demo signal can't show 32 channels, names from the mixer or Auto-gain. Film them on a real mixer (XR18 names, an Auto-gain run with Undo, the X32 if it stays) and add an unlisted link to the review notes, or attach the file under App Review Information. This heads off a 2.1 "can't test" rejection.
+- ~~A video for App Review~~: decided (Eric, 2026-10-13), no video. The review notes point to the Demo signal, and [`review-reply-2.1.md`](review-reply-2.1.md) is ready if App Review rejects under 2.1 for needing hardware.
 
 ## Name (30)
 
@@ -64,6 +64,9 @@ Big level meters with a target band, clip marks you can see across the room, a S
 AUTO-GAIN
 With an X Air or X32 mixer, Auto-gain sets each channel's preamp so it records at a healthy level, and moves the faders, sends and thresholds to match so the mix stays where you set it. One tap puts it all back. Never during a Take.
 
+ON YOUR WRIST
+With an Apple Watch, see that you're recording and for how long, drop Markers, and start or stop a Take from the stage. Stop takes a press and hold, so a stray tap can't end a song. Free for everyone.
+
 THE SHOW-SAFE PROMISE
 A Take never stops, and your audio is never held back, because of a Trial, a limit or a license. Limits are checked only when you press record. Your past Shows are never locked.
 
@@ -90,6 +93,8 @@ ShowRecorder is not affiliated with or endorsed by Behringer, Midas or Music Tri
 - Files are named after what's really routed to each USB channel on X Air and X32 mixers, even after a re-patch.
 - Auto-gain sets each channel's preamp on an X Air or X32 and keeps the mix the same, with one-tap Undo.
 - Settings shows your USB drive by its name.
+- An Apple Watch app: see the Take and drop Markers from your wrist, start a Take, and stop with a press and hold. Free.
+- If the mixer's USB routing changes during a Take, ShowRecorder warns you and marks the moment.
 
 ## What's New (1.0)
 
@@ -118,6 +123,15 @@ First release.
 4. Markers as you record
 5. Ready to mix (a Show with its report and Reaper project)
 6. Sunlight for bright stages
+
+### Apple Watch set (1.1, #100)
+
+1.1 includes a watch app, so the version page needs Apple Watch screenshots: one size is enough; App Store Connect shows the sizes it takes. Take them from the watchOS Simulator with the `-watchDemo` launch flag, which shows a sample Recording (the 42 and 49 mm shots in [`docs/images/`](../images/) were taken that way). Captions:
+
+1. Markers from your wrist (Recording, the elapsed time, Marker and Stop)
+2. Stop takes a press and hold (the ring half full)
+
+Boot one watch Simulator at a time, and shut it down and delete it when done (CLAUDE.md).
 
 ### Mac set (taken 2026-10-13, #374)
 
