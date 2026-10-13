@@ -153,7 +153,7 @@ public final class Recorder {
         show.noteTakeEnded(at: found.endedAt)
         currentShow = show
         regenerateReports()
-        if found.metadata.gaps.isEmpty || found.folders.count < 2 {
+        if found.metadata.gaps.isEmpty || found.folders[.drive] == nil {
             access?.end()
         } else {
             repair.enqueue(found.metadata, folders: found.folders, holding: access)
@@ -732,8 +732,8 @@ public final class Recorder {
         refreshMarkers(from: finished.metadata)
         lastTakeEnd = TakeEnd(take: finished.metadata.take, reason: reason)
         lastTake = LastTake(
-            showName: session.show.name, takeNumber: finished.metadata.take, deviceFolder: finished.folders[0],
-            hadDrive: finished.folders.count > 1)
+            showName: session.show.name, takeNumber: finished.metadata.take, deviceFolder: finished.folders[.device]!,
+            hadDrive: finished.folders[.drive] != nil)
         currentShow = session.show
         currentShow?.setChannelNames(channelNames)
         currentShow?.noteTakeEnded(at: now())

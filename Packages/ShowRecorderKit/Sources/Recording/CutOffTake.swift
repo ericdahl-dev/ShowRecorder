@@ -15,7 +15,7 @@ import TakeFile
 enum CutOffTake {
     struct Found {
         var metadata: TakeMetadata
-        var folders: [URL]
+        var folders: [DestinationKind: URL]
         /// When the Take ended, from its longest Copy.
         var endedAt: Date
     }
@@ -52,7 +52,7 @@ enum CutOffTake {
         }
         for copy in copies { try? metadata.write(to: copy.folder) }
         let seconds = metadata.sampleRate > 0 ? Double(longest) / Double(metadata.sampleRate) : 0
-        return Found(metadata: metadata, folders: copies.map(\.folder), endedAt: metadata.startedAt.addingTimeInterval(seconds))
+        return Found(metadata: metadata, folders: Dictionary(uniqueKeysWithValues: copies.map { ($0.kind, $0.folder) }), endedAt: metadata.startedAt.addingTimeInterval(seconds))
     }
 
     /// Rewrites the Stem's header to cover its whole samples on disk, unless it already does. Returns its frames,

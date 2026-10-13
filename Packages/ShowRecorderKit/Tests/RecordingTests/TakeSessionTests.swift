@@ -76,7 +76,7 @@ struct TakeSessionTests {
 
         #expect(finished.metadata.gaps == [.init(copy: .drive, start: 0, end: 480)])
         #expect(finished.folders.count == 2)
-        let stem = try ParsedStem(contentsOf: finished.folders[1].appending(path: "01 USB 01.wav"))
+        let stem = try ParsedStem(contentsOf: finished.folders[.drive]!.appending(path: "01 USB 01.wav"))
         #expect(stem.samples.count == 960)
         #expect(session.show.driveFolder != nil)
     }
@@ -228,7 +228,7 @@ struct TakeSessionTests {
         try await deliver(480)
         let finished = session.finish()
 
-        for folder in finished.folders {
+        for folder in finished.folders.values {
             let json = try Data(contentsOf: folder.appending(path: "Take.json"))
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
@@ -247,7 +247,7 @@ struct TakeSessionTests {
         #expect(finished.metadata.dropouts == [.init(copy: .device, start: 480, end: 200_480)])
         #expect(finished.metadata.markers == [.init(position: 480, name: "Dropout", origin: .dropout)])
         // The Stem is as long as the Take: the silence is in it, and the Marker is in its cue points.
-        let stemURL = finished.folders[0].appending(path: "01 USB 01.wav")
+        let stemURL = finished.folders[.device]!.appending(path: "01 USB 01.wav")
         #expect(try ParsedStem(contentsOf: stemURL).samples.count == 200_960)
         #expect(try cuePoints(stemURL) == [CuePoint(position: 480, label: "Dropout")])
     }
@@ -313,7 +313,7 @@ struct TakeSessionTests {
         let finished = session.finish()
 
         #expect(finished.folders.count == 2)
-        for folder in finished.folders {
+        for folder in finished.folders.values {
             #expect(try cuePoints(folder.appending(path: "01 USB 01.wav")) == [CuePoint(position: 480, label: "Chorus")], "\(folder.path)")
             let json = try Data(contentsOf: folder.appending(path: "Take.json"))
             let decoder = JSONDecoder()
