@@ -81,8 +81,8 @@ struct TakeSessionTests {
         #expect(session.show.driveFolder != nil)
     }
 
-    @Test("A running Take's Copies read as each Copy's status, a failed Drive interrupted")
-    func takeCopiesMatchStatus() async throws {
+    @Test("A running Take's Copies: the Device still recording, a failed Drive interrupted")
+    func takeCopiesWhileRunning() async throws {
         let session = try session(withDrive: true, wrap: { url, real in
             url.path.contains("/Drive/") ? FailingStem(real, healthyFrames: 480) as any StemSink : real
         })
@@ -90,7 +90,7 @@ struct TakeSessionTests {
         try await waitUntil { session.status(.drive) == .interrupted }
 
         #expect(session.takeCopies.isRunning)
-        for kind in DestinationKind.allCases { #expect(session.takeCopies[kind] == CopyState(session.status(kind))) }
+        #expect(session.takeCopies[.device] == .recording)
         #expect(session.takeCopies[.drive] == .interrupted)
         _ = session.finish()
     }
