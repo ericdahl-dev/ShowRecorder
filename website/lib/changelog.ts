@@ -14,6 +14,20 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.3",
+    date: "2026-10-13",
+    channel: "TestFlight beta",
+    summary: "An Apple Watch app, free for everyone.",
+    changes: [
+      "From your wrist: see whether the iPhone is Armed or recording and for how long, drop Markers, start a Take while the iPhone is Armed, and stop with a press and hold so a stray tap can't end a song.",
+      "The Take you're recording also shows in the watch's Smart Stack.",
+      "If the mixer's USB routing changes during a Take, the record screen warns you and a Marker marks the moment. The Take carries on.",
+      "The Marker list shows gain and routing Markers as themselves, not as Dropouts.",
+      "The Drive shows by its name, and Mixer Link problems are in plain words.",
+      "On the X32 and M32, the X-LIVE card is recognized as well as the X-USB.",
+    ],
+  },
+  {
     version: "1.1.2",
     date: "2026-10-13",
     channel: "TestFlight beta",
