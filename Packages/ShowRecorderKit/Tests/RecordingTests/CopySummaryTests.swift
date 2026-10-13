@@ -63,4 +63,9 @@ struct CopySummaryTests {
         let summary = CopySummary(copies: takeCopies(running: false, device: .complete, drive: .interrupted), dropoutCount: 0)
         #expect(summary.text == "Device copy: complete (no Drive)")
     }
+
+    @Test("A Repair that failed is a problem")
+    func repairFailedIsAProblem() {
+        #expect(CopySummary(copies: takeCopies(running: false, device: .complete, drive: .repairFailed), dropoutCount: 0).isProblem)
+    }
 }
