@@ -438,8 +438,8 @@ final class TakeSession {
 
     // MARK: - Drive only
 
-    /// Starts the stand-in once the Drive is lost: its writer failed, or wrote nothing for `driveStallLimit` while
-    /// audio arrived. A Drive that hangs is given up, so Stop never waits on it.
+    /// Starts the stand-in once the Drive falters: its writer failed, wrote nothing for `driveStallLimit` while audio
+    /// arrived (a pulled Drive can hang rather than fail), or its ring overflowed (too slow to keep up).
     private func standInIfDriveLost() {
         guard var standby, standby.start == nil, !capture.awaitingFirstBlock,
               let drive = copies.first(where: { $0.kind == .drive }) else { return }
@@ -459,10 +459,9 @@ final class TakeSession {
         let overflowed = capture.rings[DestinationKind.drive.index].overflowedFrames.load(ordering: .relaxed) > 0
         let firstDrop = drive.writer.dropouts.map(\.lowerBound).min()
         guard drive.writer.hasFailed || stalled || overflowed || firstDrop != nil else { return }
-        if stalled {
-            capture.disable(copy: DestinationKind.drive.index)
-            drive.writer.giveUp()
-        }
+        // A stalled Drive isn't given up: one that only paused (waking up, a busy moment) carries on, and Repair fills
+        // what it dropped from the stand-in. One that never comes back is abandoned at Stop, which never waits on it
+        // longer than `stopTimeout` (#320).
         // The earliest frame the standby will still hold when its writer next appends: a tenth of a second of margin
         // for the blocks that arrive meanwhile. Audio the Drive lost before that stays a Gap no stand-in covers.
         let held = Int(Double(info.sampleRate) * Self.standbySeconds)

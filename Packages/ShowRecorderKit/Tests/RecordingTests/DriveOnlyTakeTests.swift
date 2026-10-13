@@ -91,7 +91,7 @@ struct DriveOnlyTakeTests {
         @discardableResult func setMarkers(_ markers: [StemMarker]) throws -> Int { try inner.setMarkers(markers) }
     }
 
-    @Test("A Drive that hangs mid-Take is given up: the Device stands in from where it stopped, and Stop doesn't wait on it")
+    @Test("A Drive that hangs mid-Take: the Device stands in, Stop doesn't wait on the Drive, and the stand-in stays on the Device")
     func driveHangs() async throws {
         let gate = StopNeverBlocksTests.Gate()
         defer { gate.open() }
@@ -144,22 +144,23 @@ struct DriveOnlyTakeTests {
         #expect(FileManager.default.fileExists(atPath: drive.appending(path: "2026-10-06 Show/Take 02/01 USB 01.wav").path))
     }
 
-    /// A Drive Stem that stalls once, for `pause`, on its first write past `healthyFrames`, then carries on.
+    /// A Drive Stem that stalls once, on its first write past `healthyFrames`, until the gate opens, then carries on: a
+    /// Drive too slow to keep up for a while, without a race against the clock.
     final class SlowStem: StemSink, @unchecked Sendable {
         let inner: StemWriter
         let healthyFrames: Int
-        let pause: TimeInterval
+        let gate: StopNeverBlocksTests.Gate
         private var paused = false
-        init(_ inner: StemWriter, healthyFrames: Int, pause: TimeInterval) {
+        init(_ inner: StemWriter, healthyFrames: Int, gate: StopNeverBlocksTests.Gate) {
             self.inner = inner
             self.healthyFrames = healthyFrames
-            self.pause = pause
+            self.gate = gate
         }
         var frameCount: UInt64 { inner.frameCount }
         func append(_ samples: UnsafeBufferPointer<Float>) throws {
             if !paused, Int(inner.frameCount) + samples.count > healthyFrames {
                 paused = true
-                Thread.sleep(forTimeInterval: pause)
+                gate.wait()
             }
             try inner.append(samples)
         }
@@ -171,22 +172,56 @@ struct DriveOnlyTakeTests {
     @Test("A Drive too slow to keep up drops audio but isn't given up: the Device stands in from the drop, and Repair fills the Drive")
     func slowDrive() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
         // The stall limit is long, so only the drop (the Drive's 4 s ring overflowing) brings the standby in.
-        let recorder = recorder(driveStem: { SlowStem($0, healthyFrames: 4_800, pause: 0.5) }, stallLimit: .seconds(60))
+        let recorder = recorder(driveStem: { SlowStem($0, healthyFrames: 4_800, gate: gate) }, stallLimit: .seconds(60))
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
-        // 5 s of audio arrive while the Drive is paused: more than its ring holds.
+        // 5 s of audio arrive while the Drive is paused: more than its ring holds. A second at a time, as fast as the
+        // standby keeps up with (audio never arrives faster than real time), so only the paused Drive drops.
         let total = 10 * 480 + 240_000
-        deliver(240_000, from: 4_800, to: audio, block: 480, sample: counting())
+        for second in 0..<5 {
+            deliver(48_000, from: 4_800 + second * 48_000, to: audio, block: 480, sample: counting())
+            try await Task.sleep(for: .milliseconds(100))
+        }
         try await waitUntil { recorder.droppedFrameCount > 0 }
         recorder.checkDestinations()
+        // The Drive catches up and carries on.
+        gate.open()
         try await waitUntil { recorder.bufferedFrameCount == 0 }
         try recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(recorder.lastTakeOutcomes[.drive] == .repaired)
         #expect(try driveSamples(frames: total) == (0..<total).map { counting()($0, 0) }, "the Drive has the whole Take")
+        #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "nothing of the Take is left on the Device")
+    }
+
+    @Test("A Drive that pauses past the stall limit and then carries on isn't given up: the Take ends whole on the Drive, nothing on the Device")
+    func drivePausesThenResumes() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
+        let recorder = recorder(driveStem: { SlowStem($0, healthyFrames: 4_800, gate: gate) }, stallLimit: .milliseconds(100))
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        // The Drive pauses (a healthy one waking up, say) while audio keeps coming, for longer than the stall limit.
+        for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
+        recorder.checkDestinations()
+        try await Task.sleep(for: .milliseconds(250))
+        deliver(480, from: 20 * 480, to: audio, sample: counting())
+        recorder.checkDestinations()
+        // Then it carries on.
+        gate.open()
+        try await deliverBlocks(9, from: 21 * 480, to: audio, recorder, sample: counting())
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+
+        #expect(try driveSamples(frames: 14_400) == (0..<14_400).map { counting()($0, 0) }, "the Drive has the whole Take")
+        #expect(recorder.lastTakeOutcomes[.drive] != .repairFailed)
         #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "nothing of the Take is left on the Device")
     }
 }
