@@ -41,7 +41,7 @@ public struct WatchStatus: Codable, Equatable, Sendable {
     public static let currentVersion = 1
 
     public var version = Self.currentVersion
-    /// The iPhone's clock when it sent this, so the watch stamps commands in the iPhone's time.
+    /// When the iPhone sent this. It can arrive much later (the watch app opened after), so it isn't the time now.
     public var sentAt: Date
     public var state: State
     public var problems: [Problem]

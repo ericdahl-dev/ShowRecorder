@@ -41,8 +41,6 @@ public final class WatchRemoteModel {
     public static let openPhoneText = "Open ShowRecorder on your iPhone"
     public static let tooLateText = "Too late: the link dropped"
     public static let unconfirmedText = "Not confirmed: check the iPhone"
-    /// The most the two clocks are taken to differ by; see `received`.
-    static let maxClockOffset: TimeInterval = 60
     /// How long a raised wrist shows Connecting before it says no link.
     static let connectingSeconds: TimeInterval = 3
     /// How long a command shows Sending before it's unconfirmed (WatchConnectivity can take far longer to give up).
@@ -62,8 +60,6 @@ public final class WatchRemoteModel {
     /// Set when the app comes to the front, until a status arrives or a few seconds pass.
     private var connecting = false
     @ObservationIgnored private var connectingSince = 0
-    /// The iPhone's clock less the watch's, from the last status: commands are stamped in the iPhone's time.
-    @ObservationIgnored private var clockOffset: TimeInterval = 0
     /// The latest command of each kind: only its answer sets what shows.
     @ObservationIgnored private var latest: [WatchCommand.Kind: UUID] = [:]
     /// Problems already tapped on the wrist, kept across a dropped link so they don't tap again.
@@ -110,10 +106,6 @@ public final class WatchRemoteModel {
     public func received(_ new: WatchStatus) {
         if new.problems.contains(where: { !toldProblems.contains($0) }) { haptic(.problem) }
         toldProblems = Set(new.problems)
-        // A paired iPhone and watch keep their clocks within a second or so; a bigger difference means this status was
-        // delivered late (the watch app opened long after it was sent), so it says nothing about the clocks.
-        let offset = new.sentAt.timeIntervalSince(now())
-        if abs(offset) <= Self.maxClockOffset { clockOffset = offset }
         status = new
         connecting = false
     }
@@ -134,7 +126,9 @@ public final class WatchRemoteModel {
             return
         }
         commands[kind] = .pending
-        let command = WatchCommand(kind: kind, sentAt: now().addingTimeInterval(clockOffset))
+        // Stamped with the watch's own clock: a paired iPhone and watch keep the same time, and the iPhone allows a few
+        // seconds either way. A status's time says when it was sent, not what time it is now (it can arrive late).
+        let command = WatchCommand(kind: kind, sentAt: now())
         latest[kind] = command.id
         link.send(command) { [weak self] reply in
             self?.answered(command, reply)
