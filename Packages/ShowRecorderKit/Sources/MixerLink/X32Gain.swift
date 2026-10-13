@@ -52,6 +52,16 @@ extension X32Driver {
         return keyed
     }
 
+    /// Every input channel (1–32) on `headamp`, `channel` first: on the X32 several channels can take one headamp,
+    /// such as two channels on local input 1 (#473). Read fresh, one query a channel.
+    public func channels(onHeadamp headamp: Int, movedWith channel: Int) async throws(MixerLinkProblem) -> [Int] {
+        var channels = [channel]
+        for other in 1...Self.channelCount where other != channel {
+            if Int(try await queries.int(at: String(format: "/-ha/%02d/index", other - 1))) == headamp { channels.append(other) }
+        }
+        return channels
+    }
+
     /// The gain of preamp `headamp` (0–127), in dB.
     public func gainDb(ofHeadamp headamp: Int) async throws(MixerLinkProblem) -> Double {
         try await deskGainDb(ofHeadamp: headamp)

@@ -347,6 +347,9 @@ public enum ReGain {
         for dynamics in keyed where moved.contains(dynamics.keyChannel) && !moved.contains(dynamics.channel) {
             let parameter: Parameter = dynamics.dynamics == .gate ? .gateThreshold : .compressorThreshold
             guard scopes.contains(scope(of: parameter)) else { continue }
+            // Keyed from two moved channels (they share an input): one setting, moved once.
+            let setting = Setting(channel: dynamics.channel, parameter: parameter)
+            guard !items.contains(where: { $0.setting == setting }) else { continue }
             let range = dynamics.dynamics == .gate ? ranges.gateThreshold : ranges.compressorThreshold
             items.append(Item(setting: Setting(channel: dynamics.channel, parameter: parameter), valueDb: dynamics.thresholdDb,
                               direction: 1, range: range))

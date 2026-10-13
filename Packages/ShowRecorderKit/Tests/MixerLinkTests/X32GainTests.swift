@@ -246,4 +246,26 @@ struct X32GainTests {
         mixer.update { $0.set["/config/linkcfg/hadly"] = .int(1) }
         #expect(try await driver.preamp(ofChannel: 4) == driver.preamp(ofChannel: 3))
     }
+
+    @Test("Two channels on one headamp: Re-Gain compensates both, so the other channel's level in the mix stays put (#473)")
+    func sharedHeadampCompensatesBoth() async throws {
+        var state = FakeXAirMixer.State.x32()
+        state.headampOfChannel[16] = 0   // channel 17 on local input 1, like channel 1
+        state.channels[16].inputSource = 1
+        state.channels[4].gateKey = 1    // channel 5's gate keyed from In01, which both channels take
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))
+
+        let step = try await driver.applyReGain(channel: 1, gainChangeDb: 6)
+        #expect(step.changes.filter { $0.setting == ReGain.Setting(channel: 5, parameter: .gateThreshold) }.count == 1)
+
+        let fader17 = try #require(step.changes.first { $0.setting == ReGain.Setting(channel: 17, parameter: .mainFader) })
+        #expect(abs(fader17.toDb - (fader17.fromDb - 6)) < 0.05)
+        #expect(step.changes.contains { $0.setting == ReGain.Setting(channel: 17, parameter: .gateThreshold) })
+        #expect(mixer.writes.contains { $0.address == "/ch/17/mix/fader" })
+        #expect(!step.changes.contains { $0.setting.channel == 2 }, "channel 2 is on its own headamp")
+
+        try await driver.undo(step)
+        #expect(mixer.writes.last { $0.address == "/ch/17/mix/fader" }?.value == .float(0.75), "Undo puts channel 17 back too")
+    }
 }

@@ -13,6 +13,9 @@ protocol ReGainDesk: GainControl {
     func keyedDynamics(from channel: Int) async throws(MixerLinkProblem) -> [ReGain.KeyedDynamics]
     /// Where the Mixer says whether a stereo link also links the preamps (`/config/linkcfg/…`).
     static var preampLinkAddress: String { get }
+    /// Every input channel a move of `headamp` changes, `channel` (the one asked for) first. Most desks give each
+    /// channel its own preamp; on the X32 several channels can take one headamp (#473).
+    func channels(onHeadamp headamp: Int, movedWith channel: Int) async throws(MixerLinkProblem) -> [Int]
     static func gainAddress(_ headamp: Int) -> String
     static func gainScale(_ headamp: Int) -> X32Values
     static func address(of setting: ReGain.Setting) -> String
@@ -27,6 +30,10 @@ struct ReGainMove {
 }
 
 extension ReGainDesk {
+    public func channels(onHeadamp headamp: Int, movedWith channel: Int) async throws(MixerLinkProblem) -> [Int] {
+        [channel]
+    }
+
     /// The most the gain moves in one ramp step, in dB.
     static var rampStepDb: Double { 1.0 }
 
@@ -57,10 +64,15 @@ extension ReGainDesk {
         let gainScale = Self.gainScale(headamp)
         let from = try await deskGainDb(ofHeadamp: headamp)
         let reachable = gainScale.snap(from + gainChangeDb) - from
-        let state = try await reGainState(ofChannel: channel)
-        let keyed = try await keyedDynamics(from: channel)
+        // Every channel on this preamp moves with it, so Re-Gain compensates each of them (#473).
+        var states: [ReGain.ChannelState] = []
+        var keyed: Set<ReGain.KeyedDynamics> = []
+        for moved in try await channels(onHeadamp: headamp, movedWith: channel) {
+            states.append(try await reGainState(ofChannel: moved))
+            keyed.formUnion(try await keyedDynamics(from: moved))
+        }
         let ranges = Self.reGainRanges
-        let plan = ReGain.plan(headamp: headamp, gainChangeDb: reachable, channels: [state], ranges: ranges, scopes: scopes, keyed: keyed)
+        let plan = ReGain.plan(headamp: headamp, gainChangeDb: reachable, channels: states, ranges: ranges, scopes: scopes, keyed: Array(keyed))
         let to = gainScale.snap(from + plan.gainChangeDb)
 
         // The raw value of every address about to change, so undo restores it exactly.

@@ -67,7 +67,7 @@ public final class X32Driver: MixerDriver {
     }
 
     /// Input channels, and USB Channels on an X-USB card.
-    private static let channelCount = 32
+    static let channelCount = 32
 
     /// /xremote makes the X32 push changes to this sender for 10 seconds, as on the X-Air. It has no reply, so /xinfo
     /// is asked too, to know the Mixer is still there.
