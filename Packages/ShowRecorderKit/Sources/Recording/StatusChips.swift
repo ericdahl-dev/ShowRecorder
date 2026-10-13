@@ -39,7 +39,7 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
     /// The chips for the current Destinations and Mixer Link, in the order they're shown.
     ///
     /// - Parameters:
-    ///   - copies: how each Copy of the running Take is doing; empty when no Take is running.
+    ///   - copies: the Take's Copies (#550): one that stopped mid-Take says so while the Take runs.
     ///   - sampleRate: the Armed input's rate, for the time left (#298); 48 kHz when nothing is Armed.
     ///   - mixer: nil when the input isn't an X Air or X32: Mixer Link isn't offered, so there's no Mixer chip (#365).
     public static func make(
@@ -47,9 +47,10 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         deviceAvailableBytes: Int64,
         drive: DriveStatus,
         mixer: MixerLinkStatus?,
-        copies: [DestinationKind: CopyStatus],
+        copies: TakeCopies,
         sampleRate: Int = 48_000
     ) -> [StatusChip] {
+        func stopped(_ kind: DestinationKind) -> Bool { copies.isRunning && copies[kind] == .interrupted }
         func timeLeft(_ bytes: Int64) -> TimeLeft {
             TimeLeft(availableBytes: bytes, usbChannelCount: usbChannelCount, sampleRate: sampleRate)
         }
@@ -58,7 +59,7 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
 
         let deviceLeft = timeLeft(deviceAvailableBytes)
         var device = StatusChip(kind: .device, text: "Device \(deviceLeft)", state: isLow(deviceLeft) ? .attention : .ok)
-        if copies[.device] == .interrupted { device = StatusChip(kind: .device, text: "Device stopped", state: .failed) }
+        if stopped(.device) { device = StatusChip(kind: .device, text: "Device stopped", state: .failed) }
 
         var driveChip: StatusChip
         switch drive {
@@ -70,7 +71,7 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         case .unavailable:
             driveChip = StatusChip(kind: .drive, text: "Drive missing", state: .attention)
         }
-        if copies[.drive] == .interrupted { driveChip = StatusChip(kind: .drive, text: "Drive stopped", state: .failed) }
+        if stopped(.drive) { driveChip = StatusChip(kind: .drive, text: "Drive stopped", state: .failed) }
 
         guard let mixer else { return [device, driveChip] }
         let mixerChip: StatusChip
@@ -90,5 +91,20 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
             mixerChip = StatusChip(kind: .mixer, text: "Mixer down", state: .attention)
         }
         return [device, driveChip, mixerChip]
+    }
+
+    /// Today's call with the running words (empty when no Take is running), until the record screen reads
+    /// `TakeCopies` itself (#550).
+    public static func make(
+        usbChannelCount: Int,
+        deviceAvailableBytes: Int64,
+        drive: DriveStatus,
+        mixer: MixerLinkStatus?,
+        copies: [DestinationKind: CopyStatus],
+        sampleRate: Int = 48_000
+    ) -> [StatusChip] {
+        make(usbChannelCount: usbChannelCount, deviceAvailableBytes: deviceAvailableBytes, drive: drive, mixer: mixer,
+             copies: TakeCopies(isRunning: !copies.isEmpty) { copies[$0].map(CopyState.init) ?? .recording },
+             sampleRate: sampleRate)
     }
 }

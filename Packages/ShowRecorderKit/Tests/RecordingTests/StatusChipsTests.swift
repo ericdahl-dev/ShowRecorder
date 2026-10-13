@@ -15,8 +15,10 @@ struct StatusChipsTests {
         mixer: MixerLinkStatus = .idle,
         copies: [DestinationKind: CopyStatus] = [:]
     ) -> [StatusChip.Kind: StatusChip] {
-        Dictionary(uniqueKeysWithValues: StatusChip.make(
-            usbChannelCount: 18, deviceAvailableBytes: deviceBytes, drive: drive, mixer: mixer, copies: copies
+        // No running words is no Take running, as the record screen passes them today.
+        let take = TakeCopies(isRunning: !copies.isEmpty) { copies[$0].map(CopyState.init) ?? .recording }
+        return Dictionary(uniqueKeysWithValues: StatusChip.make(
+            usbChannelCount: 18, deviceAvailableBytes: deviceBytes, drive: drive, mixer: mixer, copies: take
         ).map { ($0.kind, $0) })
     }
 
@@ -108,5 +110,13 @@ struct StatusChipsTests {
         #expect(chips(drive: .unavailable(.notConnected(name: "SSD")))[.drive]?.shortText == "Drive missing")
         let stopped = chips(drive: drive(bytes: StatusChipsTests.anHour), copies: [.drive: .interrupted])
         #expect(stopped[.drive]?.shortText == "Drive stopped")
+    }
+
+    @Test("After a Take, a Copy that stopped during it no longer shows as stopped: the chips are back to time left")
+    func stoppedOnlyWhileRunning() {
+        let ended = TakeCopies(isRunning: false) { _ in .interrupted }
+        let shown = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour),
+                                    mixer: nil, copies: ended).map(\.text)
+        #expect(shown == ["Device 1 h 00 min", "Drive 1 h 00 min"])
     }
 }
