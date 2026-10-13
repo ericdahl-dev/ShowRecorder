@@ -14,6 +14,16 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.1",
+    date: "2026-10-12",
+    channel: "TestFlight beta",
+    changes: [
+      "Behringer X32 and Midas M32 in the beta: names and colors for all 32 USB Channels over Mixer Link.",
+      "Each Stem is named after what's actually patched to its USB channel, on the X32, M32, XR18 and MR18.",
+      "On Free, the Channel names page says that files use the mixer's names.",
+    ],
+  },
+  {
     version: "1.1.0",
     date: "2026-10-12",
     channel: "TestFlight beta",
