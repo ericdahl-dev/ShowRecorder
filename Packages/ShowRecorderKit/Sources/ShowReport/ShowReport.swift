@@ -33,6 +33,9 @@ public struct ShowReport: Equatable, Sendable {
             public var to: String
         }
 
+        /// Preamp gains ShowRecorder changed on the Mixer during the Take (#450).
+        public var gainChanges: [GainChange] = []
+
         /// Stretches of the Take missing from one Copy, held there as silence.
         public var gaps: [Gap] = []
 
@@ -95,6 +98,33 @@ public struct ShowReport: Equatable, Sendable {
 
     public var showName: String
     public var takes: [Take]
+    /// Preamp gains ShowRecorder changed on the Mixer between Takes, from `Show.json` (#450).
+    public var gainChangesBetweenTakes: [GainChange] = []
+
+    /// One preamp gain change on the Mixer and what Re-Gain moved with it. `seconds` is from the Take's audio start,
+    /// for a change during a Take; between Takes it is nil and `at` says when.
+    public struct GainChange: Equatable, Sendable {
+        public var seconds: Double?
+        public var at: Date?
+        public var usbChannel: Int
+        public var channel: Int
+        public var fromGainDb: Double
+        public var toGainDb: Double
+        /// "auto-gain", "clip protection" or "undo".
+        public var reason: String
+        public var compensations: [TakeMetadata.GainChange.Compensation]
+
+        init(_ change: TakeMetadata.GainChange, seconds: Double?) {
+            self.seconds = seconds
+            at = change.at
+            usbChannel = change.usbChannel
+            channel = change.channel
+            fromGainDb = change.fromGainDb
+            toGainDb = change.toGainDb
+            reason = change.reason.word
+            compensations = change.compensations
+        }
+    }
 
     /// Reads every Take folder in `showFolder` that has a `Take.json`, in Take order.
     public init(showFolder: URL) throws {
@@ -107,6 +137,16 @@ public struct ShowReport: Equatable, Sendable {
         }
         self.showName = showFolder.lastPathComponent
         self.takes = takes.sorted { $0.number < $1.number }
+        gainChangesBetweenTakes = (Self.showGainChanges(in: showFolder) ?? []).map { GainChange($0, seconds: nil) }
+    }
+
+    /// The gain changes `Show.json` logged between Takes; nil when there is no file or no log.
+    private static func showGainChanges(in showFolder: URL) -> [TakeMetadata.GainChange]? {
+        struct ShowLog: Decodable { var gainChanges: [TakeMetadata.GainChange]? }
+        guard let data = try? Data(contentsOf: showFolder.appending(path: "Show.json")) else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return (try? decoder.decode(ShowLog.self, from: data))?.gainChanges
     }
 
     /// Writes `Report.html` and `Channels.csv` into `showFolder`, replacing any earlier ones.
@@ -169,6 +209,9 @@ public struct ShowReport: Equatable, Sendable {
         for take in takes {
             out += section(for: take)
         }
+        if !gainChangesBetweenTakes.isEmpty {
+            out += "<section>\n<h2>Gain changes between Takes</h2>\n" + Self.gainTable(gainChangesBetweenTakes, betweenTakes: true) + "</section>\n"
+        }
         out += "</body>\n</html>\n"
         return out
     }
@@ -226,6 +269,9 @@ public struct ShowReport: Equatable, Sendable {
             }
             out += "</tbody>\n</table></div>\n"
         }
+        if !take.gainChanges.isEmpty {
+            out += "<h3>Gain changes</h3>\n" + Self.gainTable(take.gainChanges, betweenTakes: false)
+        }
         if !take.gaps.isEmpty {
             out += "<h3>Gaps</h3>\n<p class=\"note\">Missing from that Copy and held as silence until repaired from the other Copy.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>Copy</th><th>From</th><th>To</th><th>Result</th></tr></thead>\n<tbody>\n"
             for gap in take.gaps {
@@ -242,6 +288,22 @@ public struct ShowReport: Equatable, Sendable {
         }
         out += "</section>\n"
         return out
+    }
+
+    /// The gain changes as a table: when, USB Channel, gain from and to, why, and what Re-Gain moved.
+    static func gainTable(_ changes: [GainChange], betweenTakes: Bool) -> String {
+        var out = "<p class=\"note\">Preamp gain ShowRecorder changed on the Mixer. Re-Gain moved the thresholds, fader and sends to keep the mix the same.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>Time</th><th>USB Channel</th><th>Gain</th><th>Why</th><th>Re-Gain</th></tr></thead>\n<tbody>\n"
+        let clock = DateFormatter()
+        clock.dateFormat = "HH:mm:ss"
+        for change in changes {
+            let time = betweenTakes ? (change.at.map { clock.string(from: $0) } ?? "") : change.seconds.map(markerClock) ?? ""
+            let gain = String(format: "%+.1f dB → %+.1f dB", change.fromGainDb, change.toGainDb)
+            let moved = change.compensations.map { comp in
+                (comp.channel == change.channel ? "" : "ch \(comp.channel) ") + comp.setting + String(format: " %.1f → %.1f dB", comp.fromDb, comp.toDb)
+            }.joined(separator: "; ")
+            out += "<tr><td class=\"num\">\(time)</td><td class=\"num\">\(change.usbChannel)</td><td class=\"num\">\(gain)</td><td>\(escape(change.reason))</td><td>\(escape(moved))</td></tr>\n"
+        }
+        return out + "</tbody>\n</table></div>\n"
     }
 
     /// What Repair did about a Gap, in words.
@@ -365,6 +427,7 @@ extension ShowReport.Take {
             },
             markers: file.markers.map { Marker(seconds: seconds($0.position), name: $0.name) },
             renames: (file.renames ?? []).map { Rename(seconds: seconds($0.position), usbChannel: $0.usbChannel, from: $0.from, to: $0.to) },
+            gainChanges: (file.gainChanges ?? []).map { ShowReport.GainChange($0, seconds: $0.position.map(seconds)) },
             gaps: file.gaps.map { gap in
                 let repair = file.repairs.first { $0.copy == gap.copy && $0.start == gap.start && $0.end == gap.end }
                 return Gap(copy: gap.copy, startSeconds: Double(gap.start) / rate, endSeconds: Double(gap.end) / rate, repair: repair?.outcome)

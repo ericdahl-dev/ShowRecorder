@@ -522,6 +522,20 @@ public final class Recorder {
         }
     }
 
+    /// Logs a gain change ShowRecorder made on the Mixer (#450): during a Take in its `Take.json`, with a Marker such
+    /// as "Kick: gain +3.0 dB (auto-gain)"; between Takes in the Show's `Show.json`.
+    public func logGainChange(_ change: TakeMetadata.GainChange) {
+        var change = change
+        change.at = now()
+        if let session {
+            let name = session.channelName(change.usbChannel) ?? String(format: "USB %02d", change.usbChannel)
+            let marker = String(format: "%@: gain %+.1f dB (%@)", name, change.toGainDb - change.fromGainDb, change.reason.word)
+            session.logGainChange(change, markerName: marker)
+        } else {
+            currentShow?.logGainChange(change)
+        }
+    }
+
     /// started with real names stays frozen. Touches no audio and no files while recording.
     public func offerSources(_ sources: [Source]) {
         guard isRecording else { return }

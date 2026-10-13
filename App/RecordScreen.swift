@@ -612,10 +612,12 @@ final class RecordScreenModel {
     /// Auto-gain (#155) is offered with Mixer Link, when the Mixer can set gain (the X32 today), and never during a Take.
     var offersAutoGain: Bool { offersMixerLink && mixerLink.gainControl != nil && !recorder.isRecording }
 
-    /// A new auto-gain session on the linked Mixer, measuring with the record screen's own meters.
+    /// A new auto-gain session on the linked Mixer, measuring with the record screen's own meters. Every gain change it
+    /// makes or undoes is logged in the Show (#450).
     func makeAutoGainSession() -> AutoGainSession? {
         guard let control = mixerLink.gainControl else { return nil }
-        return AutoGainSession(control: control, measure: { [weak self] usb in await self?.averageLevel(usbChannel: usb) ?? -120 })
+        return AutoGainSession(control: control, measure: { [weak self] usb in await self?.averageLevel(usbChannel: usb) ?? -120 },
+                               log: { [weak self] change in self?.recorder.logGainChange(change) })
     }
 
     /// A USB Channel's Average level over about 2 s, after half a second for the meter to follow a gain move.

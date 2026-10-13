@@ -1,5 +1,6 @@
 import AutoGain
 import MixerLink
+import TakeFile
 
 /// Auto-gain on the record screen (#155): brings USB Channels to the target level by moving their preamps on the
 /// Mixer with Re-Gain, so the mix stays the same. It measures with our own meters, the level actually recorded.
@@ -34,6 +35,8 @@ public final class AutoGainSession {
     private let rule: AutoGainRule
     private let measure: (Int) async -> Double
     private let settle: () async -> Void
+    /// Told about every gain change made and undone (#450): the Recorder logs it in the Take or the Show.
+    private let log: (TakeMetadata.GainChange) -> Void
     /// A level that misses where a gain move should have put it by more than this means the move went elsewhere.
     static let followToleranceDb = 6.0
 
@@ -45,8 +48,9 @@ public final class AutoGainSession {
     ///   - measure: a USB Channel's Average level now, in dBFS, from the meters.
     ///   - settle: waits for the meters to follow a gain move before measuring again.
     public init(control: any GainControl, rule: AutoGainRule = AutoGainRule(), measure: @escaping (Int) async -> Double,
-                settle: @escaping () async -> Void = {}) {
+                settle: @escaping () async -> Void = {}, log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }) {
         self.control = control
+        self.log = log
         self.rule = rule
         self.measure = measure
         self.settle = settle
@@ -82,6 +86,7 @@ public final class AutoGainSession {
                     adjust: { db in
                         let step = try await control.applyReGain(channel: channel, gainChangeDb: db, scopes: .all)
                         taken.append(step)
+                        log(Self.change(step, usbChannel: usbChannel, reason: .autoGain))
                         let applied = step.toGainDb - step.fromGainDb
                         expected = lastLevel + applied
                         return applied
@@ -89,7 +94,9 @@ public final class AutoGainSession {
                     settle: { await settle() }
                 )
             } catch is LevelDidNotFollow {
-                for step in taken.reversed() { try? await control.undo(step) }
+                for step in taken.reversed() where (try? await control.undo(step)) != nil {
+                    log(Self.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
+                }
                 steps[usbChannel] = []
                 results.append(.stopped(usbChannel: usbChannel, channel: channel))
                 continue
@@ -119,12 +126,42 @@ public final class AutoGainSession {
 
     /// Puts back every gain step taken on `usbChannel`, newest first.
     public func undo(usbChannel: Int) async throws(MixerLinkProblem) {
-        for step in (steps[usbChannel] ?? []).reversed() { try await control.undo(step) }
+        for step in (steps[usbChannel] ?? []).reversed() {
+            try await control.undo(step)
+            log(Self.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
+        }
         steps[usbChannel] = []
     }
 
     /// Puts back every gain step of the run.
     public func undoAll() async throws(MixerLinkProblem) {
         for usbChannel in steps.keys.sorted().reversed() { try await undo(usbChannel: usbChannel) }
+    }
+
+    /// A gain step as the log records it: the gain and every compensated setting from and to (reversed for an undo).
+    static func change(_ step: GainStep, usbChannel: Int, reason: TakeMetadata.GainChange.Reason, undoing: Bool = false) -> TakeMetadata.GainChange {
+        let compensations = step.changes.map { change in
+            let held = step.held[change.setting] ?? change.toDb
+            return TakeMetadata.GainChange.Compensation(
+                channel: change.setting.channel, setting: change.setting.parameter.logName,
+                fromDb: undoing ? held : change.fromDb, toDb: undoing ? change.fromDb : held)
+        }
+        return TakeMetadata.GainChange(
+            usbChannel: usbChannel, channel: step.channel, headamp: step.headamp,
+            fromGainDb: undoing ? step.toGainDb : step.fromGainDb, toGainDb: undoing ? step.fromGainDb : step.toGainDb,
+            reason: reason, compensations: compensations)
+    }
+}
+
+extension ReGain.Parameter {
+    /// "gate threshold", "fader", "send 3", as the gain log names it.
+    var logName: String {
+        switch self {
+        case .gateThreshold: "gate threshold"
+        case .compressorThreshold: "compressor threshold"
+        case .mainFader: "fader"
+        case .otherMain(let main): main == 1 ? "mono" : "main \(main)"
+        case .send(let bus): "send \(bus)"
+        }
     }
 }

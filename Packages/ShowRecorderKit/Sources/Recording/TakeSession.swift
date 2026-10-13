@@ -134,6 +134,21 @@ final class TakeSession {
         return marker
     }
 
+    /// Logs a gain change on the Mixer at the Take's current sample position, in `Take.json` of every Copy, with a
+    /// Marker named `markerName` there (not a cue in the Stems: only the operator's Markers are).
+    func logGainChange(_ change: TakeMetadata.GainChange, markerName: String) {
+        var change = change
+        change.position = capture.takeFrameCount
+        metadata.gainChanges = (metadata.gainChanges ?? []) + [change]
+        metadata.markers.append(.init(position: capture.takeFrameCount, name: markerName, origin: .gain))
+        writeMetadata()
+    }
+
+    /// The name of USB Channel `usbChannel` in this Take ("Kick", or "USB 01").
+    func channelName(_ usbChannel: Int) -> String? {
+        metadata.usbChannels.first { $0.usbChannel == usbChannel }?.name
+    }
+
     /// Logs that a Mixer renamed a Source, at the Take's current sample position, in `Take.json` of every
     /// Copy. Touches no audio and no Stem.
     func logRename(usbChannel: Int, from: String, to: String) {
