@@ -36,9 +36,15 @@ public final class SessionAudioDevice: AudioIODevice, @unchecked Sendable {
     ///
     /// With `preferredInputUID`, first asks iOS to use that input (a USB interface rather than the
     /// built-in microphone). iOS decides, so the route afterwards may still differ.
-    public static func current(preferredInputUID: String? = nil, sampleRate: Int? = 48_000) throws -> SessionAudioDevice {
+    ///
+    /// `plan` is `.recording` for every normal Take: record only, exactly as before. The headphone monitor experiment
+    /// (#233) passes `.monitorExperiment`: play and record, with Bluetooth headphones allowed for output only (A2DP,
+    /// never the headset's HFP mic) and never the phone's speaker. The chosen input is still asked for either way.
+    public static func current(
+        preferredInputUID: String? = nil, sampleRate: Int? = 48_000, plan: AudioSessionPlan = .recording
+    ) throws -> SessionAudioDevice {
         let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.record, mode: .measurement, options: [])
+        try audioSession.setCategory(Self.category(for: plan), mode: .measurement, options: Self.options(for: plan))
         if let preferredInputUID, let port = audioSession.availableInputs?.first(where: { $0.uid == preferredInputUID }) {
             try audioSession.setPreferredInput(port)
         }
@@ -57,6 +63,18 @@ public final class SessionAudioDevice: AudioIODevice, @unchecked Sendable {
             inputChannelCount: audioSession.inputNumberOfChannels,
             maximumInputChannelCount: maximum,
             sampleRate: audioSession.sampleRate)
+    }
+
+    /// `.record` unless the plan plays output.
+    static func category(for plan: AudioSessionPlan) -> AVAudioSession.Category {
+        plan.playsOutput ? .playAndRecord : .record
+    }
+
+    /// None for `.recording`. Bluetooth only as A2DP output; HFP (`.allowBluetoothHFP`) and `.defaultToSpeaker` are
+    /// never set, whatever the plan says, so a headset's mic can't replace the recorded input.
+    static func options(for plan: AudioSessionPlan) -> AVAudioSession.CategoryOptions {
+        guard plan.playsOutput else { return [] }
+        return plan.allowsBluetoothOutput ? [.allowBluetoothA2DP] : []
     }
 
     /// Starts input. Also reactivates the audio session, which an interruption deactivates, so this

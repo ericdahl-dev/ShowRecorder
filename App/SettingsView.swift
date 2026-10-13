@@ -67,6 +67,14 @@ struct SettingsView: View {
                     .onChange(of: model.preRollSeconds) { model.preRollChanged() }
                     .disabled(locked(.preRoll))
                     Text(model.preRollNote).font(.footnote).secondaryText()
+                    #if DEBUG && os(iOS)
+                    // Debug only, never in TestFlight: play the input to Bluetooth headphones while recording (#233).
+                    Toggle("Monitor experiment (#233)", isOn: Binding(
+                        get: { MonitorExperiment.shared.isEnabled },
+                        set: { MonitorExperiment.shared.isEnabled = $0; model.monitorExperimentChanged() }
+                    ))
+                    .disabled(locked(.input))
+                    #endif
                     // A dropdown menu. The choice is stored the moment it is picked (in the binding's setter), so it does
                     // not depend on the screen redrawing when the appearance changes under the open menu.
                     Picker("Appearance", selection: Binding(
