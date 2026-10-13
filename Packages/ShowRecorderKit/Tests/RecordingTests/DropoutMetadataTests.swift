@@ -42,4 +42,12 @@ struct DropoutMetadataTests {
         #expect(take.dropouts.isEmpty)
         #expect(take.markers.first?.origin == .operator)
     }
+
+    @Test("Drive only: a Take's stand-ins survive Take.json, and a Take without them has none (#196)")
+    func roundTripsStandIns() throws {
+        var take = metadata()
+        take.standIns = [.init(start: 3_000, end: 7_000), .init(start: 9_000, end: 9_500)]
+        #expect(try roundTrip(take).standIns == take.standIns)
+        #expect(try roundTrip(metadata()).standIns == nil)
+    }
 }

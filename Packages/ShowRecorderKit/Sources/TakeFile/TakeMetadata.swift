@@ -377,7 +377,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     public private(set) var unknownFields: UnknownFields?
 
     enum CodingKeys: String, CodingKey, CaseIterable {
-        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames, gainChanges, routingChanges
+        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames, gainChanges, routingChanges, standIns
     }
 
     public init(from decoder: any Decoder) throws {
@@ -396,6 +396,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         renames = try c.decodeIfPresent([Rename].self, forKey: .renames)
         gainChanges = try c.decodeIfPresent([GainChange].self, forKey: .gainChanges)
         routingChanges = try c.decodeIfPresent([RoutingChange].self, forKey: .routingChanges)
+        standIns = try c.decodeIfPresent([StandIn].self, forKey: .standIns)
     }
 
     public init(show: String, take: Int, startedAt: Date, sampleRate: Int, timeReference: UInt64, usbChannels: [USBChannel], markers: [Marker] = []) {

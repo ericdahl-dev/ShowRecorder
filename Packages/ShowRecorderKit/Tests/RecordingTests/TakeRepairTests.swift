@@ -163,6 +163,7 @@ struct TakeRepairTests {
         #expect(queue.outcomes[.drive] == .repaired)
         #expect(!FileManager.default.fileExists(atPath: device.path), "nothing of the Take is left on the Device")
         #expect(try TakeMetadata.read(fromTakeFolder: drive).outcome(ofCopy: .drive) == .repaired)
+        #expect(try TakeMetadata.read(fromTakeFolder: drive).standIns == nil, "the moved stand-ins are no longer named")
     }
 
     @Test("Drive only: a Gap the stand-ins don't fully cover is Repair failed, and the stand-in stays on the Device")
@@ -190,5 +191,33 @@ struct TakeRepairTests {
 
         #expect(queue.outcomes[.drive] == .repairFailed)
         #expect(FileManager.default.fileExists(atPath: device.appending(path: metadata.standIns![0].folderName).appending(path: stem).path))
+    }
+
+    @Test("Drive only: overlapping stand-ins with a hole between them don't count as covering the Gap")
+    func overlappingStandInsWithAHole() async throws {
+        let stem = "01 USB 01.wav"
+        let info = StemWriter.Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: RecordingTakeTests.showDay)
+        func write(_ frames: Int, to url: URL) throws {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let writer = try StemWriter.open(url: url, info: info, resumingAt: nil)
+            try [Float](repeating: 0.1, count: frames).withUnsafeBufferPointer { try writer.append($0) }
+            try writer.finalize()
+        }
+        let device = root.appending(path: "Device/Take 01")
+        let drive = root.appending(path: "Drive/Take 01")
+        try write(10_000, to: drive.appending(path: stem))
+        // Gap 3,000 to 7,000. Stand-ins cover 3,000 to 5,000 twice (overlapping) and nothing of 5,000 to 7,000:
+        // their lengths add up to the Gap's, but half of it is missing.
+        var metadata = metadata(take: 1, gaps: [.init(copy: .drive, start: 3_000, end: 7_000)])
+        metadata.standIns = [.init(start: 3_000, end: 5_000), .init(start: 3_000, end: 5_000)]
+        for standIn in metadata.standIns! { try write(2_000, to: device.appending(path: standIn.folderName).appending(path: stem)) }
+        try metadata.write(to: device)
+
+        let queue = TakeRepair(freeSpace: { _ in .max })
+        queue.enqueue(metadata, folders: [device, drive], holding: nil)
+        await queue.wait()
+
+        #expect(queue.outcomes[.drive] == .repairFailed)
+        #expect(FileManager.default.fileExists(atPath: device.path))
     }
 }

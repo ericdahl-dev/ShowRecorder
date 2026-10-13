@@ -69,8 +69,12 @@ final class TakeRepair {
             done.repairs = repairs
             // Drive only: once the Drive Copy has everything, nothing of the Take stays on the Device.
             let moved = metadata.standIns != nil && done.outcome(ofCopy: .drive) == .repaired
-            for (index, folder) in folders.enumerated() {
-                if moved, DestinationKind(index: index) == .device {
+            // The stand-ins' folders are gone once moved, so the Take no longer names them.
+            if moved { done.standIns = nil }
+            for copy in copies {
+                let folder = copy.folder
+                // A lone folder is never removed: Copies are named by position, so it could be the Drive's.
+                if moved, copy.kind == .device, copies.contains(where: { $0.kind == .drive }) {
                     try? FileManager.default.removeItem(at: folder)
                 } else {
                     try? done.write(to: folder)
@@ -124,6 +128,16 @@ final class TakeRepair {
         }
     }
 
+    /// Whether every frame of `range` is in one of `parts`, which may overlap or come in any order.
+    nonisolated static func covers(_ parts: [Range<Int>], _ range: Range<Int>) -> Bool {
+        var next = range.lowerBound
+        for part in parts.map({ $0.clamped(to: range) }).filter({ !$0.isEmpty }).sorted(by: { $0.lowerBound < $1.lowerBound }) {
+            guard part.lowerBound <= next else { return false }
+            next = max(next, part.upperBound)
+        }
+        return next >= range.upperBound
+    }
+
     /// Repairs every Copy that has Gaps from the other Copy and returns what happened to each Gap.
     /// A Gap is repaired only if the other Copy has the samples; where both Copies are missing the
     /// same stretch it stays silence and is reported as failed. Copies named in `skip` are left alone
@@ -166,10 +180,8 @@ final class TakeRepair {
             }
             for gap in gaps {
                 let range = gap.start..<gap.end
-                let sourceHasIt = standIns.map { standIns in
-                    // Every frame of the Gap is in some stand-in.
-                    standIns.reduce(into: range.count) { left, standIn in left -= range.clamped(to: standIn.start..<standIn.end).count } == 0
-                } ?? !sourceGaps.contains { $0.overlaps(range) }
+                let sourceHasIt = standIns.map { Self.covers($0.map { $0.start..<$0.end }, range) }
+                    ?? !sourceGaps.contains { $0.overlaps(range) }
                 repairs.append(.init(copy: gap.copy, start: gap.start, end: gap.end, outcome: copied && sourceHasIt ? .repaired : .failed))
             }
         }
