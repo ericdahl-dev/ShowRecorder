@@ -32,7 +32,7 @@ With X32 support coming (#199), the second family is here, so the single-family 
 - **Show-Safe:** a pack is judged only when record is pressed, from the Armed input, like Pro.
 - **Generic interfaces need full Pro** (an EVO 4, or anything without a family): there is no pack for them, because their channel count can't be assumed.
 - **The Trial** stays everything, any input, for 14 days.
-- **Upgrading:** pack owners get a separate "Pro upgrade" purchase priced at Pro minus what they paid ($9.99 after an X Air or X32 pack, $12.99 after a DJM pack), offered only to them. Owners of two or more packs get the cheapest upgrade, $2.99.
+- **Upgrading:** pack owners get a separate "Pro upgrade" purchase priced at Pro minus what they paid ($9.99 after an X Air or X32 pack, $12.99 after a DJM pack), offered only to them. Owners of two or more packs get the cheapest upgrade, $2.99. An upgrade counts as Pro only while a qualifying pack is still owned: a refunded or revoked pack takes it back too (Eric, 2026-10-13).
 - **Paywall:** the connected mixer's pack first, with Pro beside it; a generic input is offered only Pro.
 
 ## Consequences
@@ -40,4 +40,4 @@ With X32 support coming (#199), the second family is here, so the single-family 
 - Family Sharing can't be turned off for an in-app purchase once enabled; a church team on one family plan shares one unlock.
 - Apple's volume purchasing doesn't cover in-app purchases. If organizations need purchase orders, that needs a paid-upfront option later (a separate listing risks Guideline 4.3).
 - Future paid features (virtual soundcheck, AAF/Logic export) are separate add-ons or an optional subscription, never taken away from Pro.
-- **Update 2026-10-12 (Eric, #199):** X32/M32 support is **part of Pro**, not an add-on. It ships in 1.1.x. Free still records 2 USB Channels, so an X32 user needs Pro (or the Trial) for all 32. Whether single-family unlocks come later is still open.
+- **Pro and the upgrade prices are linked:** the Pro upgrades are priced at Pro minus a pack. If Pro's price changes, reprice all three upgrades with it.
