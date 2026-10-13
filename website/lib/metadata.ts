@@ -39,7 +39,7 @@ export const PAGES = {
   },
   mixersX32: {
     path: "/mixers/x32",
-    title: "Record a Behringer X32 or Midas M32 on iPhone - ShowRecorder",
+    title: "X32 and M32 multitrack recording on iPhone - ShowRecorder",
     description:
       "Multitrack all 32 USB Channels of an X32 or M32 to iPhone or iPad, each file named from the mixer. In the public beta now; the App Store later.",
   },
