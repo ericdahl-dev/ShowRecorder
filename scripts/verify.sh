@@ -20,7 +20,8 @@
 # One heavy build at a time on this Mac (scripts/build-lock.sh): a second verify.sh, or a swift build/test or
 # xcodebuild through scripts/bin, waits for the first to finish, and says so. verify.sh runs at low priority with
 # SHOWRECORDER_BUILD_LOCK_HELD=1, so its own side-by-side builds don't wait for it. A queued run can take longer than
-# an agent's 10-minute command limit: run it as a background task. VERIFY_PLAN_ONLY=1 never waits.
+# an agent's 10-minute command limit: run it as a background task. VERIFY_PLAN_ONLY=1 never waits. Builds are capped
+# at SHOWRECORDER_BUILD_JOBS compile jobs (default: cores less 4), split between the builds that run at once.
 #   VERIFY_LOCK_PROBE=<sh>  once the lock is held, run this instead of the checks (scripts/test-verify-lock.sh)
 # With DEVICE_ID set (an iOS device id from `xcodebuild -showdestinations`) and DEVELOPMENT_TEAM,
 # the app step also builds a signed app for that device.
@@ -103,16 +104,30 @@ fi
 # A signed device build needs a team; say so now rather than after the other steps.
 [ $app = 1 ] && [ -n "${DEVICE_ID:-}" ] && : "${DEVELOPMENT_TEAM:?set DEVELOPMENT_TEAM}"
 
+# The builds go through the shims (scripts/bin), so each is capped at its share of the compile jobs even when
+# scripts/bin isn't on PATH: the package tests and the app builds run at once, so they split SHOWRECORDER_BUILD_JOBS
+# (by default this Mac's cores less 4) between them.
+. ./scripts/build-lock.sh
+swift="$(pwd)/scripts/bin/swift"
+xcodebuild="$(pwd)/scripts/bin/xcodebuild"
+heavy=$((package + app * 2))
+[ $app = 1 ] && [ -n "${DEVICE_ID:-}" ] && heavy=$((heavy + 1))
+if [ $heavy -gt 1 ]; then
+  share=$(( $(build_jobs) / heavy ))
+  [ $share -ge 1 ] || share=1
+  export SHOWRECORDER_BUILD_JOBS=$share
+fi
+
 # Each xcodebuild has its own build folder, so they don't wait on each other's locks.
 steps_start
-[ $package = 1 ] && run_step "Package tests" sh -c 'cd Packages/ShowRecorderKit && swift test --parallel'
+[ $package = 1 ] && run_step "Package tests" sh -c 'cd Packages/ShowRecorderKit && "$1" test --parallel' sh "$swift"
 if [ $app = 1 ]; then
-  run_step "macOS build" xcodebuild -quiet -project ShowRecorder.xcodeproj -scheme ShowRecorder -destination 'platform=macOS' \
+  run_step "macOS build" "$xcodebuild" -quiet -project ShowRecorder.xcodeproj -scheme ShowRecorder -destination 'platform=macOS' \
     -derivedDataPath "$DD-mac" CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build
-  run_step "iOS Simulator build" xcodebuild -quiet -project ShowRecorder.xcodeproj -scheme ShowRecorder \
+  run_step "iOS Simulator build" "$xcodebuild" -quiet -project ShowRecorder.xcodeproj -scheme ShowRecorder \
     -destination 'generic/platform=iOS Simulator' -derivedDataPath "$DD-ios" CODE_SIGNING_ALLOWED=NO build
   if [ -n "${DEVICE_ID:-}" ]; then
-    run_step "Signed device build for $DEVICE_ID" xcodebuild -quiet -project ShowRecorder.xcodeproj -scheme ShowRecorder \
+    run_step "Signed device build for $DEVICE_ID" "$xcodebuild" -quiet -project ShowRecorder.xcodeproj -scheme ShowRecorder \
       -destination "platform=iOS,id=$DEVICE_ID" -derivedDataPath "$DD-device" -allowProvisioningUpdates \
       DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" build
   fi
