@@ -112,16 +112,11 @@ struct StatusChipsTests {
         #expect(stopped[.drive]?.shortText == "Drive stopped")
     }
 
-    @Test("Today's call with the running words gives the same chips as one with the Take's Copies (until the screen moves over)")
-    func adapterSaysTheSame() {
-        let words: [CopyStatus] = [.recording, .interrupted, .missing]
-        let runs: [[DestinationKind: CopyStatus]] = [[:]] + words.flatMap { d in words.map { [.device: d, .drive: $0] } }
-        for copies in runs {
-            for drive in [DriveStatus.notChosen, .unavailable(.notConnected(name: "SSD")), drive(bytes: Self.anHour), drive(bytes: 1_000)] {
-                let old = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive, mixer: .idle, copies: copies)
-                let take = TakeCopies(isRunning: !copies.isEmpty) { copies[$0].map(CopyState.init) ?? .recording }
-                #expect(old == StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive, mixer: .idle, copies: take))
-            }
-        }
+    @Test("After a Take, a Copy that stopped during it no longer shows as stopped: the chips are back to time left")
+    func stoppedOnlyWhileRunning() {
+        let ended = TakeCopies(isRunning: false) { _ in .interrupted }
+        let shown = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour),
+                                    mixer: nil, copies: ended).map(\.text)
+        #expect(shown == ["Device 1 h 00 min", "Drive 1 h 00 min"])
     }
 }
