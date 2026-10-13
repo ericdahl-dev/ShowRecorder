@@ -46,11 +46,12 @@ struct TakeLiveActivityWidget: Widget {
             }
         }
         // The same Live Activity in the Apple Watch's Smart Stack (#100): recording status on the wrist at a glance.
+        // CarPlay uses this small presentation too.
         .supplementalActivityFamilies([.small])
     }
 }
 
-/// The Lock Screen banner, or on the Apple Watch's Smart Stack (the small family) a compact one.
+/// The Lock Screen banner, or a compact one in the small family: the Apple Watch's Smart Stack, and CarPlay.
 private struct TakeActivityView: View {
     let take: TakeActivityContent
     @Environment(\.activityFamily) private var family
@@ -75,9 +76,8 @@ private struct WatchStackView: View {
             Label("Recording", systemImage: "record.circle.fill")
                 .labelStyle(RecordingLabelStyle())
                 .font(.caption)
-            Elapsed(since: take.startedAt)
+            Elapsed(since: take.startedAt, alignment: .leading)
                 .font(.title3.weight(.semibold))
-                .frame(maxWidth: .infinity, alignment: .leading)
             Text(take.takeTitle).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
         }
     }
@@ -107,11 +107,13 @@ private struct LockScreenView: View {
 /// Counts up on its own, with no updates from the app.
 private struct Elapsed: View {
     let since: Date
+    /// The timer text fills the width it's given, so where its digits sit is set here, not outside.
+    var alignment: TextAlignment = .trailing
 
     var body: some View {
         Text(timerInterval: since...Date.distantFuture, countsDown: false)
             .monospacedDigit()
-            .multilineTextAlignment(.trailing)
+            .multilineTextAlignment(alignment)
     }
 }
 
