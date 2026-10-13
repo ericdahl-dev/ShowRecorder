@@ -52,9 +52,7 @@ public final class TakeSequencer {
     public let recorder: Recorder
     @ObservationIgnored private let capsAt48k: () -> Bool
     @ObservationIgnored private let now: () -> Date
-    /// The last Take end told to the events stream, so each is told once.
-    @ObservationIgnored private var toldTakeEnd: TakeEnd?
-    /// Whether the running Take has been told to the events stream.
+    /// Whether the running Take has been told to the events stream, and its end not yet.
     @ObservationIgnored private var toldTakeStarted = false
     /// Set once the first Arm has been tried, so a screen appearing before that doesn't Arm early.
     @ObservationIgnored private var didStart = false
@@ -85,7 +83,6 @@ public final class TakeSequencer {
     public init(recorder: Recorder, devices: any InputDeviceSource, capsAt48k: @escaping () -> Bool, now: @escaping () -> Date = Date.init) {
         self.recorder = recorder
         self.now = now
-        toldTakeEnd = recorder.lastTakeEnd
         self.capsAt48k = capsAt48k
         (events, emit) = AsyncStream.makeStream()
         self.devices = devices.devices()
@@ -170,6 +167,8 @@ public final class TakeSequencer {
     /// Returns whether it started.
     @discardableResult
     public func record(sources: [Source], allowance: TakeAllowance?) -> Bool {
+        // A Take the recorder ended on its own since the last tick is told before the new one starts.
+        tellTakeEnd()
         do {
             try recorder.startTake(sources: sources, allowance: allowance)
             takeStartedAt = now()
@@ -237,8 +236,7 @@ public final class TakeSequencer {
     }
 
     private func tellTakeEnd() {
-        guard let end = recorder.lastTakeEnd, end != toldTakeEnd else { return }
-        toldTakeEnd = end
+        guard toldTakeStarted, !recorder.isRecording, let end = recorder.lastTakeEnd else { return }
         toldTakeStarted = false
         emit.yield(.takeEnded(end))
     }

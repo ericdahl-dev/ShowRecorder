@@ -448,4 +448,25 @@ struct TakeSequencerTests {
 
         #expect(await events.next() == .disarmed(reason: .idle))
     }
+
+    @Test("Take 01 of a new Show is told too, though it ends like Take 01 of the last one")
+    func sameTakeNumberInANewShow() async throws {
+        let (sequencer, recorder) = makeSequencer()
+        sequencer.start()
+        var events = sequencer.events.makeAsyncIterator()
+        _ = await events.next()  // .armed
+        sequencer.record(sources: [], allowance: nil)
+        sequencer.stop()
+        try recorder.endShow()
+
+        sequencer.record(sources: [], allowance: nil)
+        sequencer.stop()
+        sequencer.record(sources: [], allowance: nil)
+
+        #expect(await events.next() == .takeStarted(take: 1))
+        #expect(await events.next() == .takeEnded(TakeEnd(take: 1, reason: .stopped)))
+        #expect(await events.next() == .takeStarted(take: 1))
+        #expect(await events.next() == .takeEnded(TakeEnd(take: 1, reason: .stopped)))
+        #expect(await events.next() == .takeStarted(take: 2))
+    }
 }
