@@ -35,8 +35,8 @@ final class WatchLink: NSObject {
     private func follow() {
         withObservationTracking {
             push(status())
-        } onChange: {
-            Task { @MainActor [weak self] in self?.follow() }
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.follow() }
         }
     }
 

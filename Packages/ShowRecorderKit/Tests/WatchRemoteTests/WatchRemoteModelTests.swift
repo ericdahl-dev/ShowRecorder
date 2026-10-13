@@ -99,14 +99,23 @@ struct WatchRemoteModelTests {
         model.received(status)
         #expect(haptics == [.problem])
     }
-    @Test("Commands are stamped in the iPhone's time, from the last status, so the two clocks needn't agree")
-    func phoneTime() {
+    @Test("A Marker after a status that arrived 30 s late still lands: commands carry the watch's own clock")
+    func markerAfterLateStatus() {
         let link = Link()
-        let watchNow = Date(timeIntervalSince1970: 5_000)
-        let model = WatchRemoteModel(link: link, now: { watchNow })
-        model.received(WatchStatus(state: .armed, sentAt: watchNow.addingTimeInterval(-30)))   // the iPhone is 30 s behind
-        model.send(.start)
-        #expect(link.sent.first?.sentAt == watchNow.addingTimeInterval(-30))
+        let now = Date(timeIntervalSince1970: 5_000)   // the iPhone and the watch keep the same time
+        let model = WatchRemoteModel(link: link, now: { now })
+        model.received(WatchStatus(state: .recording(startedAt: now.addingTimeInterval(-600), takeTitle: "Take 01", markerCount: 0),
+                                   sentAt: now.addingTimeInterval(-30)))   // sent 30 s ago, nothing changed since
+        var markers = 0
+        let desk = WatchCommandDesk(now: { now }, actions: .init(start: { nil }, stop: { true }, marker: { markers += 1; return true }))
+
+        model.send(.marker)
+        let reply = desk.handle(link.sent[0])
+        link.replies[0](reply)
+
+        #expect(reply == .done)
+        #expect(markers == 1)
+        #expect(model.commands[.marker] == .confirmed)
     }
 
     @Test("Only the latest command of a kind sets what shows: an older one's late answer doesn't")
