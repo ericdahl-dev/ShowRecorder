@@ -71,12 +71,16 @@ public final class AutoGainSession {
         self.settle = settle
     }
 
-    /// Runs auto-gain on each of `usbChannels` and says what happened to each.
+    /// Runs auto-gain on each of `usbChannels` and says what happened to each, in the order asked. The channels are
+    /// measured and stepped together: each USB Channel is measured on its own, and each moves its own preamp.
+    /// `stop()` halts every channel still moving before its next move.
     public func run(usbChannels: [Int]) async -> [Result] {
         stopRequested = false
-        var results: [Result] = []
-        var done: [Int: Int] = [:]   // Mixer channel -> the USB Channel that moved it
-        var donePreamps: [Int: Int] = [:]   // preamp -> the USB Channel that moved it
+        // First, which Mixer channel and preamp each USB Channel moves, so no preamp is moved by two at once.
+        var results: [Result?] = []
+        var toRun: [(index: Int, usbChannel: Int, channel: Int)] = []
+        var done: [Int: Int] = [:]   // Mixer channel -> the USB Channel that moves it
+        var donePreamps: [Int: Int] = [:]   // preamp -> the USB Channel that moves it
         for usbChannel in usbChannels {
             if stopRequested { break }
             guard let channel = control.channel(forUSBChannel: usbChannel) else {
@@ -102,94 +106,107 @@ public final class AutoGainSession {
                 }
                 donePreamps[preamp] = usbChannel
             }
-            var taken: [GainStep] = []
-            var expected: Double?   // where the last move should have put the level
-            var lastLevel = 0.0
-            var limit: ReGain.Limit?   // what limited the latest step, if anything did
-            let outcome: AutoGainRule.Outcome
-            do {
-                outcome = try await rule.run(
-                    measure: {
-                        let level = await measure(usbChannel)
-                        // Our meters measure what's recorded: if the level didn't follow the gain, the wrong preamp moved.
-                        if let expected, abs(level - expected) > Self.followToleranceDb { throw LevelDidNotFollow() }
-                        lastLevel = level
-                        return level
-                    },
-                    adjust: { db in
-                        if stopRequested { throw StoppedForTake() }
-                        let step: GainStep
-                        do throws(MixerLinkProblem) {
-                            step = try await control.applyReGain(channel: channel, gainChangeDb: db, scopes: .all)
-                        } catch {
-                            // Stopped partway: what was written is logged and kept for Undo (#450), then the run ends.
-                            if case .gainMoveInterrupted(let partial) = error {
-                                taken.append(partial)
-                                log(Self.change(partial, usbChannel: usbChannel, reason: .autoGain))
-                            }
-                            throw error
-                        }
-                        let applied = step.toGainDb - step.fromGainDb
-                        limit = step.limitedBy
-                        // A step that moved nothing changed nothing: there's nothing to log or undo. A setting can move
-                        // while the gain snaps back to where it was, so that counts as a move.
-                        if applied != 0 || step.changes.contains(where: { step.held[$0.setting] ?? $0.toDb != $0.fromDb }) {
-                            taken.append(step)
-                            log(Self.change(step, usbChannel: usbChannel, reason: .autoGain))
-                        }
-                        expected = lastLevel + applied
-                        return applied
-                    },
-                    settle: { await settle() }
-                )
-            } catch is StoppedForTake {
-                steps[usbChannel, default: []] += taken
-                results.append(.haltedForTake(usbChannel: usbChannel, channel: channel))
-                break
-            } catch is LevelDidNotFollow {
-                // Newest first; a step the Mixer wouldn't take back stays for Undo, with every older one, and the
-                // result is the Mixer's problem rather than "stopped", which says the gain was put back.
-                var undoProblem: MixerLinkProblem?
-                while undoProblem == nil, let step = taken.last {
-                    do throws(MixerLinkProblem) {
-                        try await control.undo(step)
-                        taken.removeLast()
-                        log(Self.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
-                    } catch {
-                        undoProblem = error
-                    }
-                }
-                steps[usbChannel, default: []] += taken
-                if let undoProblem {
-                    results.append(.error(usbChannel: usbChannel, channel: channel, problem: undoProblem))
-                } else {
-                    results.append(.stopped(usbChannel: usbChannel, channel: channel))
-                }
-                continue
-            } catch let problem as MixerLinkProblem {
-                steps[usbChannel, default: []] += taken
-                results.append(.error(usbChannel: usbChannel, channel: channel, problem: problem))
-                continue
-            } catch {
-                steps[usbChannel, default: []] += taken
-                results.append(.error(usbChannel: usbChannel, channel: channel, problem: .other(String(describing: error))))
-                continue
-            }
-            // Added to any earlier run's steps on this USB Channel, so Undo goes all the way back.
-            steps[usbChannel, default: []] += taken
-            switch outcome {
-            case .onTarget(let level, _, _):
-                if let first = taken.first, let last = taken.last {
-                    results.append(.set(usbChannel: usbChannel, channel: channel, fromGainDb: first.fromGainDb, toGainDb: last.toGainDb, levelDbfs: level))
-                }
-            case .failed(.noSignal, _):
-                results.append(.skipped(usbChannel: usbChannel, reason: .noSignal))
-            case .failed(let failure, _):
-                let limitedBy: ReGain.Limit? = if case .rangeReached = failure { limit } else { nil }
-                results.append(.failed(usbChannel: usbChannel, channel: channel, failure: failure, limitedBy: limitedBy))
-            }
+            toRun.append((results.count, usbChannel, channel))
+            results.append(nil)
         }
-        return results
+        // Then every channel at once, each in its own Task on the main actor; cancelling the run cancels them all.
+        // (Stopped during the first pass, nothing has moved yet and none of them runs.)
+        let running = stopRequested ? [] : toRun.map { item in
+            (item.index, Task { await self.runOne(usbChannel: item.usbChannel, channel: item.channel) })
+        }
+        await withTaskCancellationHandler {
+            for (index, task) in running { results[index] = await task.value }
+        } onCancel: {
+            for (_, task) in running { task.cancel() }
+        }
+        return results.compactMap { $0 }
+    }
+
+    /// Runs the rule on one USB Channel, moving its Mixer channel's preamp. Nil when it was already on target.
+    private func runOne(usbChannel: Int, channel: Int) async -> Result? {
+        var taken: [GainStep] = []
+        var expected: Double?   // where the last move should have put the level
+        var lastLevel = 0.0
+        var limit: ReGain.Limit?   // what limited the latest step, if anything did
+        let outcome: AutoGainRule.Outcome
+        do {
+            outcome = try await rule.run(
+                measure: {
+                    let level = await measure(usbChannel)
+                    // Our meters measure what's recorded: if the level didn't follow the gain, the wrong preamp moved.
+                    if let expected, abs(level - expected) > Self.followToleranceDb { throw LevelDidNotFollow() }
+                    lastLevel = level
+                    return level
+                },
+                adjust: { db in
+                    if stopRequested { throw StoppedForTake() }
+                    let step: GainStep
+                    do throws(MixerLinkProblem) {
+                        step = try await control.applyReGain(channel: channel, gainChangeDb: db, scopes: .all)
+                    } catch {
+                        // Stopped partway: what was written is logged and kept for Undo (#450), then the run ends.
+                        if case .gainMoveInterrupted(let partial) = error {
+                            taken.append(partial)
+                            log(Self.change(partial, usbChannel: usbChannel, reason: .autoGain))
+                        }
+                        throw error
+                    }
+                    let applied = step.toGainDb - step.fromGainDb
+                    limit = step.limitedBy
+                    // A step that moved nothing changed nothing: there's nothing to log or undo. A setting can move
+                    // while the gain snaps back to where it was, so that counts as a move.
+                    if applied != 0 || step.changes.contains(where: { step.held[$0.setting] ?? $0.toDb != $0.fromDb }) {
+                        taken.append(step)
+                        log(Self.change(step, usbChannel: usbChannel, reason: .autoGain))
+                    }
+                    expected = lastLevel + applied
+                    return applied
+                },
+                settle: { await settle() }
+            )
+        } catch is StoppedForTake {
+            steps[usbChannel, default: []] += taken
+            return .haltedForTake(usbChannel: usbChannel, channel: channel)
+        } catch is LevelDidNotFollow {
+            // Newest first; a step the Mixer wouldn't take back stays for Undo, with every older one, and the
+            // result is the Mixer's problem rather than "stopped", which says the gain was put back.
+            var undoProblem: MixerLinkProblem?
+            while undoProblem == nil, let step = taken.last {
+                do throws(MixerLinkProblem) {
+                    try await control.undo(step)
+                    taken.removeLast()
+                    log(Self.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
+                } catch {
+                    undoProblem = error
+                }
+            }
+            steps[usbChannel, default: []] += taken
+            if let undoProblem {
+                return .error(usbChannel: usbChannel, channel: channel, problem: undoProblem)
+            } else {
+                return .stopped(usbChannel: usbChannel, channel: channel)
+            }
+        } catch let problem as MixerLinkProblem {
+            steps[usbChannel, default: []] += taken
+            return .error(usbChannel: usbChannel, channel: channel, problem: problem)
+        } catch {
+            steps[usbChannel, default: []] += taken
+            return .error(usbChannel: usbChannel, channel: channel, problem: .other(String(describing: error)))
+        }
+        // Added to any earlier run's steps on this USB Channel, so Undo goes all the way back.
+        steps[usbChannel, default: []] += taken
+        switch outcome {
+        case .onTarget(let level, _, _):
+            if let first = taken.first, let last = taken.last {
+                return .set(usbChannel: usbChannel, channel: channel, fromGainDb: first.fromGainDb, toGainDb: last.toGainDb, levelDbfs: level)
+            }
+        case .failed(.noSignal, _):
+            return .skipped(usbChannel: usbChannel, reason: .noSignal)
+        case .failed(let failure, _):
+            let limitedBy: ReGain.Limit? = if case .rangeReached = failure { limit } else { nil }
+            return .failed(usbChannel: usbChannel, channel: channel, failure: failure, limitedBy: limitedBy)
+        }
+        return nil
     }
 
     /// Puts back every gain step taken on `usbChannel`, newest first.
