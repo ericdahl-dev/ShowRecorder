@@ -1,6 +1,6 @@
 # App Review notes (paste into App Store Connect, version 1.1, App Review Information > Notes; 1.0 notes in git history)
 
-ShowRecorder records a live multitrack from a mixer connected over USB: a Behringer X Air (XR18 / MR18, 18 channels) or, new in 1.1, a Behringer X32 or Midas M32 (32 channels). One WAV file per mixer channel. No account and no sign-in.
+ShowRecorder records a live multitrack from a mixer connected over USB: a Behringer X Air (XR18 / MR18, 18 channels) or, new in 1.1, a Behringer X32 or Midas M32 (32 channels). One WAV file per mixer channel. No account and no sign-in. The same app runs on iPhone, iPad and Mac (macOS 26); on the Mac, the gear at the top right of the window opens Settings, as on iPhone and iPad.
 
 Testing without a mixer:
 1. Open Settings (the gear, top right) > Recording > Audio interface and choose "Demo signal (18 channels)". It plays a test signal on 18 channels so every screen works without hardware. (If that option isn't listed, the app records from the built-in microphone, which works the same way with one channel.)
