@@ -10,7 +10,7 @@ public struct WatchStatus: Codable, Equatable, Sendable {
         case recording(startedAt: Date, takeTitle: String, markerCount: Int)
     }
 
-    /// Something that needs attention, shown as a symbol and a few words so it reads without colour. Not the whole
+    /// Something that needs attention, shown as a symbol and a few words so it reads without color. Not the whole
     /// banner set from the record screen.
     public enum Problem: String, Codable, CaseIterable, Sendable {
         case deviceLowSpace, driveLowSpace, copyStopped, gapOrDropout, mixerLinkLost

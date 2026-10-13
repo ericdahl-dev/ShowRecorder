@@ -24,7 +24,7 @@ struct WatchStatusTests {
         #expect(throws: (any Error).self) { try WatchCommand(message: [:]) }
     }
 
-    @Test("Each problem reads without colour: a symbol and a few words", arguments: WatchStatus.Problem.allCases)
+    @Test("Each problem reads without color: a symbol and a few words", arguments: WatchStatus.Problem.allCases)
     func problemText(problem: WatchStatus.Problem) {
         #expect(!problem.symbol.isEmpty)
         #expect(!problem.text.isEmpty && problem.text.count <= 20, "fits the wrist: \(problem.text)")
