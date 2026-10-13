@@ -80,7 +80,7 @@ final class TakeRepair {
             if moved { done.standIns = nil }
             for copy in copies {
                 let folder = copy.folder
-                // A lone folder is never removed: Copies are named by position, so it could be the Drive's.
+                // The Device's folder goes only when the Drive has the moved audio; a lone Copy is never removed.
                 if moved, copy.kind == .device, copies.contains(where: { $0.kind == .drive }) {
                     try? FileManager.default.removeItem(at: folder)
                 } else {
