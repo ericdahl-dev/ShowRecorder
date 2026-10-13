@@ -32,6 +32,9 @@ struct GainLogTests {
         for _ in 0..<3 { device.deliver(Array(repeating: [0, 0, 0, 0], count: 2)) }
 
         recorder.logGainChange(Self.change)
+        // Listed at once as a gain Marker, not as a Dropout (#528).
+        #expect(recorder.markerEntries.map(\.kind) == [.gain])
+        #expect(recorder.markerEntries.map(\.isDropout) == [false])
         try recorder.stopTake()
         await recorder.waitForRepair()
 

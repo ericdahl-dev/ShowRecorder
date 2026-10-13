@@ -112,7 +112,9 @@ struct ShowDetailView: View {
                 .buttonStyle(.plain)
                 .accessibilityHint("Renames this Marker")
         } else {
-            content.accessibilityHint("Can't be renamed")
+            content
+                .accessibilityElement(children: .combine)
+                .accessibilityHint("Can't be renamed")
         }
     }
 

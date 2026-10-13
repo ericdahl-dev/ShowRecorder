@@ -40,6 +40,16 @@ struct MarkerListView: View {
         }
     }
 
+    /// The icon for a Marker the recorder placed, other than a Dropout: a gain change, a routing change, or a kind
+    /// from a newer version.
+    private static func symbol(_ kind: TakeMetadata.Marker.Origin) -> String {
+        switch kind {
+        case .gain: "slider.vertical.3"
+        case .routing: "arrow.triangle.branch"
+        default: "mappin"
+        }
+    }
+
     @ViewBuilder
     private func row(_ entry: MarkerEntry) -> some View {
         let label = HStack {
@@ -50,7 +60,7 @@ struct MarkerListView: View {
             if entry.isDropout {
                 Label("Dropout: audio was lost here", systemImage: "waveform.badge.exclamationmark")
             } else if entry.operatorIndex == nil {
-                Label(entry.name, systemImage: entry.kind == .routing ? "arrow.triangle.branch" : "slider.vertical.3")
+                Label(entry.name, systemImage: Self.symbol(entry.kind))
             } else {
                 Text(entry.name)
                 Spacer()
@@ -59,7 +69,11 @@ struct MarkerListView: View {
         }
         .frame(minHeight: 44)
         if entry.operatorIndex == nil {
-            label.accessibilityHint("Can't be renamed")
+            // One element, so VoiceOver reads the time and the name together, then the hint once.
+            label
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(entry.isDropout ? "Dropout: audio was lost here" : entry.name), at \(ElapsedTime.format(seconds: Int(entry.secondsSincePress)))")
+                .accessibilityHint("Can't be renamed")
         } else {
             Button {
                 draft = entry.name

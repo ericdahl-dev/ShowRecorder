@@ -539,6 +539,7 @@ public final class Recorder {
             let name = session.channelName(change.usbChannel) ?? String(format: "USB %02d", change.usbChannel)
             let marker = String(format: "%@: gain %+.1f dB (%@)", name, change.toGainDb - change.fromGainDb, change.reason.word)
             session.logGainChange(change, markerName: marker)
+            refreshMarkers(from: session.metadata)
         } else {
             currentShow?.logGainChange(change)
         }
