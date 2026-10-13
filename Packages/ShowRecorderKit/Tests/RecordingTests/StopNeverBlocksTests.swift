@@ -68,6 +68,34 @@ struct StopNeverBlocksTests {
         await recorder.waitForRepair()
     }
 
+    @Test("When Stop gives up on a stuck Drive Copy, it writes the report and Reaper project on the Device Copy only")
+    func stuckDriveGetsNoReport() async throws {
+        let device = root.appending(path: "Device")
+        let drive = root.appending(path: "Drive")
+        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
+        let gate = Gate()
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            makeStem: { url, info, resume in
+                let writer = try StemWriter.open(url: url, info: info, resumingAt: resume)
+                return url.path.hasPrefix(drive.path) ? HangingStem(writer, gate: gate) : writer
+            },
+            destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300))
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0.25, count: 4_800)])
+        try await Task.sleep(for: .milliseconds(100))
+        try recorder.stopTake()
+
+        #expect(FileManager.default.fileExists(atPath: device.appending(path: "\(show)/Report.html").path))
+        #expect(FileManager.default.fileExists(atPath: device.appending(path: "\(show)/\(show).RPP").path))
+        #expect(!FileManager.default.fileExists(atPath: drive.appending(path: "\(show)/Report.html").path))
+        #expect(!FileManager.default.fileExists(atPath: drive.appending(path: "\(show)/\(show).RPP").path))
+        gate.open()
+        await recorder.waitForRepair()
+    }
+
     @Test("The report and Reaper project are never written during a Take: a Repair that finishes mid-Take leaves them for the Take's end")
     func noReportsMidTake() async throws {
         let device = root.appending(path: "Device")
