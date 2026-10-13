@@ -46,12 +46,11 @@ struct TakeLiveActivityWidget: Widget {
             }
         }
         // The same Live Activity in the Apple Watch's Smart Stack (#100): recording status on the wrist at a glance.
-        // CarPlay uses this small presentation too.
         .supplementalActivityFamilies([.small])
     }
 }
 
-/// The Lock Screen banner, or a compact one in the small family: the Apple Watch's Smart Stack, and CarPlay.
+/// The Lock Screen banner, or on the Apple Watch's Smart Stack (the small family) a compact one.
 private struct TakeActivityView: View {
     let take: TakeActivityContent
     @Environment(\.activityFamily) private var family
