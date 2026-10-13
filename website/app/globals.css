@@ -603,6 +603,16 @@ html:not([data-js]) .theme-toggle {
   gap: 12px;
 }
 
+/* A mixer page's hero (#482): the home hero without the screenshots, lined up with the page body (.doc). */
+.mixer-hero .inner {
+  max-width: 680px;
+  margin-inline: auto;
+}
+
+.mixer-hero {
+  padding-block: 32px 40px;
+}
+
 .hero-actions .price {
   color: var(--ink);
 }
