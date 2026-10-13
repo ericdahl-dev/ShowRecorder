@@ -57,8 +57,8 @@ struct TakeControlTests {
         _ = await Soundcheck.run(
             sequencer: sequencer, mixer: nil, sources: [], expectedUSBChannels: nil, driveChosen: false, takeLength: .milliseconds(200))
 
-        let seen = await told(&events, through: .takeEnded(TakeEnd(take: 1, reason: .stopped)))
-        #expect(seen == [.takeStarted(take: 1), .takeEnded(TakeEnd(take: 1, reason: .stopped))])
+        let seen = await told(&events, through: .takeEnded(TakeEnd(take: 1, reason: .stopped, isSoundcheck: true)))
+        #expect(seen == [.takeStarted(take: 1), .takeEnded(TakeEnd(take: 1, reason: .stopped, isSoundcheck: true))])
     }
 
     @Test("A Take the recorder ends out of space is told once, with its reason")
@@ -293,5 +293,33 @@ struct TakeControlTests {
 
         let next = await events.next(isolation: #isolation)
         #expect(next == .takeEnded(TakeEnd(take: 1, reason: .stopped)), "only the end is told: every Take that's told started went through record()")
+    }
+
+    @Test("The Soundcheck Take's end is told as the Soundcheck's, so nothing after it offers Pro; any other Take's isn't")
+    func soundcheckEndIsMarked() async throws {
+        let (sequencer, recorder, source) = makeSequencer()
+        sequencer.arm()
+        var events = sequencer.events.makeAsyncIterator()
+        _ = await events.next()  // .armed
+        let audio = try #require(source.opened.last)
+        let feeding = Task { @MainActor in
+            while !Task.isCancelled {
+                audio.deliver([[Float](repeating: 0.5, count: 480), [Float](repeating: 0.5, count: 480)])
+                try? await Task.sleep(for: .milliseconds(5))
+            }
+        }
+        defer { feeding.cancel() }
+
+        _ = await Soundcheck.run(
+            sequencer: sequencer, mixer: nil, sources: [], expectedUSBChannels: nil, driveChosen: false,
+            takeLength: .milliseconds(200))
+        let soundcheck = await told(&events, through: .takeEnded(TakeEnd(take: 1, reason: .stopped, isSoundcheck: true)))
+        #expect(soundcheck.last == .takeEnded(TakeEnd(take: 1, reason: .stopped, isSoundcheck: true)))
+
+        sequencer.record(sources: [], allowance: nil)
+        try await deliverBlocks(2, to: audio, recorder)
+        sequencer.stop()
+        let next = await told(&events, through: .takeEnded(TakeEnd(take: 1, reason: .stopped)))
+        #expect(next.last == .takeEnded(TakeEnd(take: 1, reason: .stopped)), "the next Take isn't the Soundcheck's")
     }
 }

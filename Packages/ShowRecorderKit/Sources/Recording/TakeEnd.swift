@@ -24,9 +24,12 @@ public struct TakeEnd: Equatable, Sendable {
 
     public var take: Int
     public var reason: Reason
+    /// Whether it was the Soundcheck's Take, which offers no Pro (#551).
+    public var isSoundcheck: Bool
 
-    public init(take: Int, reason: Reason) {
+    public init(take: Int, reason: Reason, isSoundcheck: Bool = false) {
         self.take = take
         self.reason = reason
+        self.isSoundcheck = isSoundcheck
     }
 }

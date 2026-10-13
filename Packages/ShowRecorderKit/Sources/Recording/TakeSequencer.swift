@@ -91,6 +91,8 @@ public final class TakeSequencer {
     /// What to do about audio interruptions, and the banner they leave.
     public private(set) var interruptions = InterruptionPolicy()
     @ObservationIgnored private var toldInputStopped = false
+    /// Whether the running Take is the Soundcheck's, so its end says so (#551).
+    @ObservationIgnored private var soundcheckTake = false
 
     /// Called after each attempt to Arm an interface, or to move input to a new one: with the device when it worked,
     /// nil when it failed. The App resets its meters and reads what the system offered here.
@@ -198,9 +200,10 @@ public final class TakeSequencer {
     /// Starts a Take with what the Mixer Link and the tier say right now (the Show-Safe Promise: judged only here).
     /// Returns whether it started.
     @discardableResult
-    public func record(sources: [Source], allowance: TakeAllowance?) -> Bool {
+    public func record(sources: [Source], allowance: TakeAllowance?, soundcheck: Bool = false) -> Bool {
         do {
             try recorder.startTake(sources: sources, allowance: allowance)
+            soundcheckTake = soundcheck
             takeStartedAt = now()
             recordError = nil
             emit.yield(.takeStarted(take: recorder.currentShow?.takeCount ?? 0))
@@ -426,6 +429,9 @@ public final class TakeSequencer {
         // A Take the recorder ended (out of space, no Destination) says why (#551). An input change is told by whoever
         // noticed it (a device-list or route change sets its own message, a media reset its notice), never twice.
         if end.reason != .inputChanged, let message = end.reason.message { recordError = message }
+        var end = end
+        end.isSoundcheck = soundcheckTake
+        soundcheckTake = false
         emit.yield(.takeEnded(end))
     }
 }
