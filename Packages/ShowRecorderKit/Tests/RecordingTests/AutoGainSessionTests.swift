@@ -14,6 +14,9 @@ final class FakeGainControl: GainControl {
     var movesInstead: [Int: Int] = [:]
     /// When set, every gain move fails with it (the Mixer stopped answering).
     var problem: MixerLinkProblem?
+    /// When set, undo fails with it from this many undos on (0: the first fails), as a Mixer that stops answering.
+    var undoFailsAfter: Int?
+    private(set) var undos = 0
     /// When set, each gain move waits on it first, as a slow Mixer does.
     var answer: (@Sendable () async -> Void)?
     let gainRange: ClosedRange<Double> = -12...60
@@ -48,7 +51,13 @@ final class FakeGainControl: GainControl {
     }
 
     nonisolated func undo(_ step: GainStep) async throws(MixerLinkProblem) {
-        await MainActor.run { gainDb[step.headamp] = step.fromGainDb }
+        let fails = await MainActor.run { () -> Bool in
+            if let after = undoFailsAfter, undos >= after { return true }
+            undos += 1
+            gainDb[step.headamp] = step.fromGainDb
+            return false
+        }
+        if fails { throw .noReply(host: "fake") }
     }
 }
 
@@ -204,5 +213,41 @@ struct AutoGainSessionTests {
                        "Channel 2's send 4 is at its end stop (+10 dB)")])
     func limitText(limit: ReGain.Limit, text: String) {
         #expect(limit.explanation == text)
+    }
+
+    @Test("An Undo the Mixer stops answering halfway keeps the steps it didn't undo, and a second Undo finishes the job")
+    func undoFailsHalfway() async throws {
+        let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]))
+        control.reGainCeilingDb = 10
+        _ = await session.run(usbChannels: [1])          // 0 -> 10
+        control.reGainCeilingDb = 20
+        _ = await session.run(usbChannels: [1])          // 10 -> 20
+        control.undoFailsAfter = 1
+
+        await #expect(throws: MixerLinkProblem.self) { try await session.undo(usbChannel: 1) }
+        #expect(control.gainDb[1] == 10)
+        #expect(session.steps[1]?.count == 1)
+        control.undoFailsAfter = nil
+        try await session.undo(usbChannel: 1)
+
+        #expect(control.gainDb[1] == 0)
+        #expect(session.steps[1]?.isEmpty ?? true)
+    }
+
+    @Test("When the level doesn't follow and putting the gain back fails, the move stays for Undo instead of being forgotten")
+    func stoppedUndoFails() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1])
+        control.movesInstead = [1: 2]   // the gain lands on another channel, so USB 1's level doesn't follow
+        control.undoFailsAfter = 0
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]))
+
+        let results = await session.run(usbChannels: [1])
+
+        #expect(results == [.stopped(usbChannel: 1, channel: 1)])
+        #expect(session.steps[1]?.count == 1)
+        control.undoFailsAfter = nil
+        try await session.undo(usbChannel: 1)
+        #expect(control.gainDb[2] == 0)
     }
 }

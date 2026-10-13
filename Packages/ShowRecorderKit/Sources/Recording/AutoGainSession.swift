@@ -100,9 +100,12 @@ public final class AutoGainSession {
                     settle: { await settle() }
                 )
             } catch is LevelDidNotFollow {
-                for step in taken.reversed() where (try? await control.undo(step)) != nil {
+                // Newest first; a step the Mixer wouldn't take back stays for Undo, with every older one.
+                while let step = taken.last, (try? await control.undo(step)) != nil {
+                    taken.removeLast()
                     log(Self.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
                 }
+                steps[usbChannel, default: []] += taken
                 results.append(.stopped(usbChannel: usbChannel, channel: channel))
                 continue
             } catch let problem as MixerLinkProblem {
@@ -132,9 +135,12 @@ public final class AutoGainSession {
     }
 
     /// Puts back every gain step taken on `usbChannel`, newest first.
+    /// Each step is dropped as soon as it is undone, so when the Mixer stops answering partway the rest stay for
+    /// another Undo, and none is undone twice.
     public func undo(usbChannel: Int) async throws(MixerLinkProblem) {
-        for step in (steps[usbChannel] ?? []).reversed() {
+        while let step = steps[usbChannel]?.last {
             try await control.undo(step)
+            steps[usbChannel]?.removeLast()
             log(Self.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
         }
         steps[usbChannel] = []
