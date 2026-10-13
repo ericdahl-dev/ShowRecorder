@@ -19,6 +19,10 @@ struct AutoGainSheet: View {
                 channels: isDemo ? AutoGainList.demoChannels : (1...max(1, model.meterModel.channelCount)).map { ($0, model.channelLabel($0)) },
                 results: isDemo ? AutoGainList.demoResults : autoGain.results,
                 running: isDemo ? [5] : autoGain.running,
+                phases: isDemo ? AutoGainList.demoPhases : autoGain.phases,
+                progress: isDemo ? AutoGainPanel.Progress(done: 4, total: 6) : autoGain.progress,
+                finishedRuns: isDemo ? 0 : autoGain.finishedRuns,
+                lastRunTotal: isDemo ? 0 : autoGain.lastRunTotal,
                 locked: isDemo || autoGain.isLocked,
                 runAll: { Task { await autoGain.run(Array(1...model.meterModel.channelCount)) } },
                 runOne: { usb in Task { await autoGain.run([usb]) } },
@@ -46,6 +50,13 @@ struct AutoGainList: View {
     let channels: [(number: Int, name: String)]
     let results: [Int: AutoGainSession.Result]
     let running: Set<Int>
+    /// Where each channel of the run under way is.
+    let phases: [Int: AutoGainSession.Phase]
+    /// How far the run under way has got, or nil.
+    let progress: AutoGainPanel.Progress?
+    /// Runs finished, and the last one's channel count, for VoiceOver.
+    var finishedRuns = 0
+    var lastRunTotal = 0
     let locked: Bool
     let runAll: () -> Void
     let runOne: (Int) -> Void
@@ -56,10 +67,26 @@ struct AutoGainList: View {
     /// What moved to keep the mix on a USB Channel, in plain words, while it can still be undone.
     let compensation: (Int) -> String?
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         List {
             Section {
-                Button("Auto-gain all channels", action: runAll).disabled(locked)
+                // While a run of several channels goes, its progress takes the place of the button that started it.
+                // One channel's own run says where it is on its row.
+                if let progress, progress.total > 1 {
+                    ProgressView(value: Double(progress.done), total: Double(progress.total)) {
+                        Text("Auto-gain is running")
+                    } currentValueLabel: {
+                        Text(progress.text)
+                    }
+                    .progressViewStyle(.linear)
+                    .accessibilityValue(progress.text)
+                    // VoiceOver reads the count live while the bar has focus.
+                    .accessibilityAddTraits(.updatesFrequently)
+                } else {
+                    Button("Auto-gain all channels", action: runAll).disabled(locked)
+                }
                 Button("Undo all", role: .destructive, action: undoAll).disabled(locked || !canUndoAll)
                 #if os(macOS)
                 // A Mac list cuts a footer to one line, so the explanation is a row there.
@@ -75,8 +102,10 @@ struct AutoGainList: View {
                     HStack(alignment: .firstTextBaseline) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(channel.number). \(channel.name)")
-                            if running.contains(channel.number) {
-                                Text("Measuring…").font(.caption).foregroundStyle(.secondary)
+                            if let label = phases[channel.number]?.label {
+                                Text(label).font(.caption).foregroundStyle(.secondary)
+                            } else if running.contains(channel.number), phases[channel.number] == nil {
+                                Text("Putting the gain back…").font(.caption).foregroundStyle(.secondary)
                             } else if let result = results[channel.number] {
                                 Text(result.summary).font(.caption).foregroundStyle(result.isProblem ? .orange : .secondary)
                                 if let moved = compensation(channel.number) {
@@ -94,6 +123,12 @@ struct AutoGainList: View {
                     }
                 }
             }
+        }
+        .animation(reduceMotion ? nil : .default, value: progress)
+        // Channels finish in bursts, too fast to announce each; VoiceOver hears when the whole run is done.
+        .onChange(of: finishedRuns) {
+            AccessibilityNotification.Announcement(
+                "Auto-gain finished on \(lastRunTotal) \(lastRunTotal == 1 ? "channel" : "channels")").post()
         }
     }
 }
@@ -115,6 +150,8 @@ extension AutoGainSession.Result {
             return "Channel \(channel): gain \(db(from)) to \(db(to)), now \(dbfs(level))"
         case .skipped(_, .noSignal):
             return "No signal, left alone"
+        case .skipped(_, .alreadyOnTarget(let level)):
+            return "Already at \(dbfs(level)), left alone"
         case .skipped(_, .noChannel):
             return "No Mixer channel on this USB Channel"
         case .skipped(_, .sameChannel(let earlier)):
@@ -159,12 +196,13 @@ extension AutoGainList {
     static let demoCompensation: [Int: String] = [
         1: "To keep the mix: fader, 6 sends and 2 thresholds moved -25.0 dB",
     ]
+    static let demoPhases: [Int: AutoGainSession.Phase] = [5: .adjusting]
 }
 
 #Preview("Auto-gain results") {
     AutoGainList(
         channels: AutoGainList.demoChannels, results: AutoGainList.demoResults,
-        running: [5], locked: true, runAll: {}, runOne: { _ in }, undoOne: { _ in }, undoAll: {},
+        running: [5], phases: AutoGainList.demoPhases, progress: AutoGainPanel.Progress(done: 4, total: 6), locked: true, runAll: {}, runOne: { _ in }, undoOne: { _ in }, undoAll: {},
         canUndo: { AutoGainList.demoUndoable.contains($0) }, canUndoAll: true,
         compensation: { AutoGainList.demoCompensation[$0] })
 }

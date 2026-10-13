@@ -145,4 +145,55 @@ struct AutoGainPanelTests {
         #expect(AutoGainPanel.compensationSummary(moved, channel: 1)
                 == "To keep the mix: fader -80.0 to -90.0 dB, send 3 +5.0 to -20.0 dB")
     }
+
+    @Test("While a run goes, the panel counts channels done of the run's total, each row has its phase, and results land as each finishes (#155)")
+    func progress() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
+        let meters = AutoGainSessionTests.meters(control, source: [1: -40])
+        var panel: AutoGainPanel!
+        var seen: [(progress: AutoGainPanel.Progress?, phase1: AutoGainSession.Phase?, result2: Bool)] = []
+        panel = AutoGainPanel(makeSession: {
+            AutoGainSession(control: control, measure: { usb in
+                if usb == 1 { seen.append((panel.progress, panel.phases[1], panel.results[2] != nil)) }
+                return await meters(usb)
+            }, settle: { await Task.yield() })
+        })
+
+        await panel.run([1, 2])
+
+        #expect(seen.first?.progress == AutoGainPanel.Progress(done: 0, total: 2))
+        #expect(seen.first?.phase1 == .measuring)
+        #expect(seen.last?.progress == AutoGainPanel.Progress(done: 1, total: 2), "USB 2 had no signal and finished first")
+        #expect(seen.last?.result2 == true, "its result showed before the run ended")
+        #expect(panel.progress == nil)
+        #expect(panel.phases.isEmpty)
+        #expect(panel.results.count == 2)
+        #expect(panel.finishedRuns == 1, "VoiceOver hears the run finish")
+        #expect(panel.lastRunTotal == 2)
+    }
+    @Test("Progress reads in plain words", arguments: [(0, 16, "0 of 16 channels done"), (7, 16, "7 of 16 channels done"),
+                                                      (0, 1, "0 of 1 channel done")])
+    func progressText(done: Int, total: Int, text: String) {
+        #expect(AutoGainPanel.Progress(done: done, total: total).text == text)
+    }
+
+    @Test("A row says where its channel is in plain words; a done one shows its result instead",
+          arguments: [(AutoGainSession.Phase.waiting, "Waiting…" as String?), (.measuring, "Listening…"),
+                      (.adjusting, "Setting the gain…"),
+                      (.done(.skipped(usbChannel: 1, reason: .noSignal)), nil)])
+    func phaseLabel(phase: AutoGainSession.Phase, label: String?) {
+        #expect(phase.label == label)
+    }
+    @Test("A Take that starts while a run is still working out its channels leaves no row waiting and moves nothing")
+    func stopDuringFirstPass() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
+        let panel = makePanel(control, source: [1: -40, 2: -40])
+        control.preampAnswer = { await MainActor.run { panel.handle(.takeStarted(take: 1)) } }
+
+        await panel.run([1, 2])
+
+        #expect(panel.phases.isEmpty)
+        #expect(panel.progress == nil)
+        #expect(control.gainDb == [1: 0, 2: 0])
+    }
 }

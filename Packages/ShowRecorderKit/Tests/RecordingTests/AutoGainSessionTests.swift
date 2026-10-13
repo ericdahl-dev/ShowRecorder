@@ -487,4 +487,29 @@ struct AutoGainSessionTests {
         try await session.undo(usbChannel: 1)
         #expect(session.compensated(usbChannel: 1).isEmpty)
     }
+
+    @Test("Each channel says where it is as it goes: waiting, measuring, adjusting, then done with its result (#155)")
+    func phases() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]))
+        var seen: [Int: [AutoGainSession.Phase]] = [:]
+        session.onPhase = { usb, phase in seen[usb, default: []].append(phase) }
+
+        _ = await session.run(usbChannels: [1, 2, 3])
+
+        #expect(seen[1] == [.waiting, .measuring, .adjusting, .measuring,
+                            .done(.set(usbChannel: 1, channel: 1, fromGainDb: 0, toGainDb: 22, levelDbfs: -18))])
+        #expect(seen[2] == [.waiting, .measuring, .done(.skipped(usbChannel: 2, reason: .noSignal))])
+        #expect(seen[3] == [.done(.skipped(usbChannel: 3, reason: .noChannel))])
+    }
+    @Test("A channel already at the target is left alone and says so, rather than giving no result (#155)")
+    func alreadyOnTarget() async throws {
+        let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -18]))
+
+        let results = await session.run(usbChannels: [1])
+
+        #expect(results == [.skipped(usbChannel: 1, reason: .alreadyOnTarget(levelDbfs: -18))])
+        #expect(session.steps[1, default: []].isEmpty, "nothing to undo")
+    }
 }
