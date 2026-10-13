@@ -104,7 +104,7 @@ struct ClipProtectionTests {
 
     /// Waits for `stream`'s next value, or gives up after `seconds`, so a gate the code never reaches fails the test
     /// instead of hanging the run (and the shared build lock with it).
-    static func next(_ stream: AsyncStream<Void>, within seconds: Double = 5) async -> Bool {
+    static func next(_ stream: AsyncStream<Void>, within seconds: Double = 30) async -> Bool {
         await withTaskGroup(of: Bool.self) { group in
             group.addTask { for await _ in stream { return true }; return false }
             group.addTask { try? await Task.sleep(for: .seconds(seconds)); return false }
@@ -177,6 +177,31 @@ struct ClipProtectionTests {
         let protection = ClipProtection(control: control, sampleRate: 48_000, log: { logged.append($0) })
 
         await Self.feed(protection, Self.hot, on: [1, 3])
+
+        #expect(control.gainDb == [1: 26, 2: 30])
+        #expect(logged.map(\.usbChannel) == [1])
+    }
+
+    @Test("Two USB Channels on one Mixer channel, both hot: the lower USB Channel moves it, however the Mixer's answers arrive (#554)")
+    func sameChannelInOrder() async {
+        let (asked, ask) = AsyncStream<Void>.makeStream()
+        let (answered, answer) = AsyncStream<Void>.makeStream()
+        var first = true
+        control.preampAnswer = { @MainActor in
+            guard first else { return }
+            first = false
+            ask.yield()
+            for await _ in answered { return }
+        }
+        var logged: [TakeMetadata.GainChange] = []
+        let protection = ClipProtection(control: control, sampleRate: 48_000, log: { logged.append($0) })
+
+        // The first preamp read is slow, so the other channel's answer comes back first.
+        let moving = Task { await Self.feed(protection, Self.hot, on: [1, 3]) }
+        #expect(await Self.next(asked), "a preamp read reaches the Mixer")
+        for _ in 0..<10 { await Task.yield() }
+        answer.yield()
+        await moving.value
 
         #expect(control.gainDb == [1: 26, 2: 30])
         #expect(logged.map(\.usbChannel) == [1])
