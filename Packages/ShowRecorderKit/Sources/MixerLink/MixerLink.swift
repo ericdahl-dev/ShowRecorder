@@ -73,7 +73,7 @@ public enum MixerLinkProblem: Error, Equatable, Sendable {
         case .noPreamp(let channel):
             "Channel \(channel) on the Mixer has no preamp (its input is digital), so its gain can't be set."
         case .cantConnect(let host, let port, let code):
-            "ShowRecorder couldn't open a connection to the Mixer at \(host):\(port) (error \(code)). Check the address in Settings › Mixer Link and tap Connect again."
+            "ShowRecorder couldn't open a connection to the Mixer at \(host):\(port) (error \(code)). Check the address in Settings › Mixer Link and try Connect again."
         case .other(let description):
             "The mixer connection failed: \(description)"
         }
