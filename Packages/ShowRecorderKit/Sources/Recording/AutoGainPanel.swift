@@ -19,6 +19,10 @@ public final class AutoGainPanel {
     public struct Progress: Equatable, Sendable {
         public var done: Int
         public var total: Int
+        public init(done: Int, total: Int) {
+            self.done = done
+            self.total = total
+        }
         /// "7 of 16 channels done".
         public var text: String { "\(done) of \(total) \(total == 1 ? "channel" : "channels") done" }
     }
