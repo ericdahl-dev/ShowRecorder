@@ -39,4 +39,12 @@ struct WatchStatusMakerTests {
             driveAvailable: false, copies: [.drive: .missing], dropoutCount: 0, mixerDown: false)
         #expect(status.problems.isEmpty)
     }
+    @Test("A chip for a Copy that stopped (failed) isn't low space: it's a Copy stopped")
+    func stoppedIsNotLowSpace() {
+        let take = WatchStatusMaker.Take(startedAt: Self.started, title: "Take 02", markerCount: 0)
+        let status = WatchStatusMaker.make(
+            isArmed: true, take: take, chips: [Self.chip(.device, .failed), Self.chip(.drive, .failed)],
+            driveAvailable: true, copies: [.device: .interrupted, .drive: .interrupted])
+        #expect(status.problems == [.copyStopped])
+    }
 }

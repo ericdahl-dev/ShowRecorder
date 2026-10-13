@@ -19,7 +19,8 @@ public enum WatchStatusMaker {
     }
 
     /// - Parameters:
-    ///   - chips: the status strip's chips; one needing attention for the Device or an available Drive is low space.
+    ///   - chips: the status strip's chips; one needing attention for the Device or an available Drive is low space
+    ///     (a failed one is a Copy that stopped, told by `copies`).
     ///   - driveAvailable: whether the Drive is there at all (a missing Drive isn't "low on space").
     ///   - copies: each Copy of the running Take; one interrupted is a Copy stopped.
     public static func make(
@@ -34,7 +35,7 @@ public enum WatchStatusMaker {
             .notArmed
         }
         func needsAttention(_ kind: StatusChip.Kind) -> Bool {
-            chips.contains { $0.kind == kind && ($0.state == .attention || $0.state == .failed) }
+            chips.contains { $0.kind == kind && $0.state == .attention }
         }
         var problems: [WatchStatus.Problem] = []
         if needsAttention(.device) { problems.append(.deviceLowSpace) }

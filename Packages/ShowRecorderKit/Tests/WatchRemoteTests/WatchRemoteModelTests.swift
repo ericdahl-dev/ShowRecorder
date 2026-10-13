@@ -150,4 +150,13 @@ struct WatchRemoteModelTests {
         link.replies[1](.tooLate)
         #expect(model.commands[.stop] == .failed(WatchRemoteModel.tooLateText))
     }
+    @Test("A status delivered late (sent an hour ago) doesn't set the clock: commands aren't stamped an hour back")
+    func lateStatusKeepsClock() {
+        let link = Link()
+        let watchNow = Date(timeIntervalSince1970: 50_000)
+        let model = WatchRemoteModel(link: link, now: { watchNow })
+        model.received(WatchStatus(state: .armed, sentAt: watchNow.addingTimeInterval(-3_600)))
+        model.send(.start)
+        #expect(link.sent.first?.sentAt == watchNow)
+    }
 }

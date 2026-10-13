@@ -83,6 +83,12 @@ extension WatchLink: WCSessionDelegate {
         Task { @MainActor in self.activated() }
     }
 
+    /// The watch app came to the front: send what's true now, with the time now, rather than leave it an old status.
+    nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
+        guard session.isReachable else { return }
+        Task { @MainActor in self.activated() }
+    }
+
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any],
                              replyHandler: @escaping ([String: Any]) -> Void) {
         let reply = ReplyHandler(send: replyHandler)
