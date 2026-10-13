@@ -31,6 +31,9 @@ public struct TakeCopies: Equatable, Sendable {
         states = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.map { ($0, state($0)) })
     }
 
+    /// Before any Take: none running, and every Copy missing.
+    public static let none = TakeCopies(isRunning: false) { _ in .missing }
+
     public subscript(_ kind: DestinationKind) -> CopyState { states[kind] ?? .missing }
 
     /// The Copies that stopped mid-Take, while it runs; none once it has ended.

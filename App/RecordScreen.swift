@@ -738,9 +738,10 @@ final class RecordScreenModel {
     func channelLabel(_ usbChannel: Int) -> String {
         recorder.naming.displayName(usbChannel, sources: linkedSources)
     }
-    /// How each Copy of the running Take is doing, refreshed about once a second.
-    private(set) var deviceCopy: CopyStatus = .missing
-    private(set) var driveCopy: CopyStatus = .missing
+    /// The Take's Copies (#550), refreshed about once a second.
+    private var takeCopies = TakeCopies.none
+    /// The Copies as last refreshed; when a Take has started or stopped since, the Recorder's own straight away.
+    var copies: TakeCopies { takeCopies.isRunning == recorder.isRecording ? takeCopies : recorder.copies }
     /// The Drive stopped and Check Drive found nothing, until it comes back.
     private var driveCheckedAndNotFound = false
     private var driveRejoin = DriveRejoinNotice()
@@ -751,9 +752,7 @@ final class RecordScreenModel {
     var copySummary: (text: String, isProblem: Bool)? {
         if recorder.isRecording { return nil }
         if recorder.isRepairing { return ("Repairing Gaps from the other Copy…", false) }
-        let outcomes = recorder.lastTakeOutcomes
-        guard !outcomes.isEmpty else { return nil }
-        let summary = CopySummary(outcomes: outcomes, dropoutCount: recorder.dropoutCount)
+        guard let summary = CopySummary.ofLastTake(recorder.copies, dropoutCount: recorder.dropoutCount) else { return nil }
         return (summary.text, summary.isProblem)
     }
 
@@ -791,10 +790,9 @@ final class RecordScreenModel {
 
     private func refreshDestinations() {
         refreshShowTotal()
-        deviceCopy = recorder.copyStatus(.device)
-        driveCopy = recorder.copyStatus(.drive)
-        if driveCopy != .interrupted { driveCheckedAndNotFound = false }
-        driveRejoin.update(isRecording: recorder.isRecording, drive: driveCopy)
+        takeCopies = recorder.copies
+        if takeCopies[.drive] != .interrupted { driveCheckedAndNotFound = false }
+        driveRejoin.update(copies: takeCopies)
         if let end = recorder.lastTakeEnd, end != toldTakeEnd {
             toldTakeEnd = end
             // An input change is told where it happens (a route move, a device change, a media reset's notice).
@@ -843,7 +841,7 @@ final class RecordScreenModel {
             deviceAvailableBytes: drive.deviceAvailableBytes,
             drive: drive.status,
             mixer: offersMixerLink ? mixerLink.status : nil,
-            copies: recorder.isRecording ? [.device: deviceCopy, .drive: driveCopy] : [:],
+            copies: copies,
             sampleRate: recorder.sampleRate ?? 48_000)
     }
 
@@ -858,7 +856,7 @@ final class RecordScreenModel {
         if let error = recordError {
             list.append(ScreenAlert(id: "record", priority: .cannotRecord, tone: .critical, text: error))
         }
-        if let alert = DestinationAlert.make(isRecording: recorder.isRecording, device: deviceCopy, drive: driveCopy, checkedAndNotFound: driveCheckedAndNotFound) {
+        if let alert = DestinationAlert.make(copies: copies, checkedAndNotFound: driveCheckedAndNotFound) {
             list.append(alert)
         }
         if let rejoined = driveRejoin.alert { list.append(rejoined) }
@@ -931,7 +929,7 @@ final class RecordScreenModel {
             drive.refresh()
             recorder.checkDestinations()
             refreshDestinations()
-            driveCheckedAndNotFound = driveCopy == .interrupted
+            driveCheckedAndNotFound = takeCopies[.drive] == .interrupted
         }
     }
 

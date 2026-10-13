@@ -68,4 +68,12 @@ struct CopySummaryTests {
     func repairFailedIsAProblem() {
         #expect(CopySummary(copies: takeCopies(running: false, device: .complete, drive: .repairFailed), dropoutCount: 0).isProblem)
     }
+
+    @Test("No summary while a Take runs, or when no Copy of the last Take ended (there was no Take)")
+    func noSummaryWithoutEndedCopies() {
+        #expect(CopySummary.ofLastTake(takeCopies(running: true, device: .recording, drive: .recording), dropoutCount: 0) == nil)
+        #expect(CopySummary.ofLastTake(takeCopies(running: false, device: .missing, drive: .missing), dropoutCount: 0) == nil)
+        #expect(CopySummary.ofLastTake(takeCopies(running: false, device: .complete, drive: .missing), dropoutCount: 0)?.text
+                == "Device copy: complete (no Drive)")
+    }
 }

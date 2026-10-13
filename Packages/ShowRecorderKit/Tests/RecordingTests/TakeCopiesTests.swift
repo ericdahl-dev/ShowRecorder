@@ -82,4 +82,11 @@ extension GapTests {
         #expect(recorder.copies[.drive] == .recording)
         try recorder.stopTake()
     }
+
+    @Test("Before any Take: none running, every Copy missing, none stopped")
+    func noTake() {
+        #expect(!TakeCopies.none.isRunning)
+        #expect(DestinationKind.allCases.allSatisfy { TakeCopies.none[$0] == .missing })
+        #expect(TakeCopies.none.stopped.isEmpty)
+    }
 }
