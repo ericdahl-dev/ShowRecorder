@@ -14,6 +14,14 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.2",
+    date: "2026-10-13",
+    channel: "TestFlight beta",
+    changes: [
+      "Mixer Link connects again on iPhone and iPad. In 1.1.1 it failed with \"error 22 - Invalid argument\" even when Find Mixers found the mixer.",
+    ],
+  },
+  {
     version: "1.1.1",
     date: "2026-10-12",
     channel: "TestFlight beta",
