@@ -16,6 +16,8 @@ public protocol WatchLinkTransport: AnyObject {
 @Observable
 public final class WatchRemoteModel {
     public enum Display: Equatable {
+        /// Just raised: the link comes back when the app is in front, so give it a moment before saying no link.
+        case connecting
         case noLink
         case status(WatchStatus)
     }
@@ -41,6 +43,10 @@ public final class WatchRemoteModel {
     public static let unconfirmedText = "Not confirmed: check the iPhone"
     /// The most the two clocks are taken to differ by; see `received`.
     static let maxClockOffset: TimeInterval = 60
+    /// How long a raised wrist shows Connecting before it says no link.
+    static let connectingSeconds: TimeInterval = 3
+    /// How long a command shows Sending before it's unconfirmed (WatchConnectivity can take far longer to give up).
+    static let sendTimeoutSeconds: TimeInterval = 5
 
     /// The last status from the iPhone.
     public private(set) var status: WatchStatus?
@@ -52,6 +58,10 @@ public final class WatchRemoteModel {
 
     @ObservationIgnored private let link: any WatchLinkTransport
     @ObservationIgnored private let now: () -> Date
+    @ObservationIgnored private let after: (TimeInterval, @escaping @MainActor () -> Void) -> Void
+    /// Set when the app comes to the front, until a status arrives or a few seconds pass.
+    private var connecting = false
+    @ObservationIgnored private var connectingSince = 0
     /// The iPhone's clock less the watch's, from the last status: commands are stamped in the iPhone's time.
     @ObservationIgnored private var clockOffset: TimeInterval = 0
     /// The latest command of each kind: only its answer sets what shows.
@@ -59,15 +69,36 @@ public final class WatchRemoteModel {
     /// Problems already tapped on the wrist, kept across a dropped link so they don't tap again.
     @ObservationIgnored private var toldProblems: Set<WatchStatus.Problem> = []
 
-    public init(link: any WatchLinkTransport, now: @escaping () -> Date = Date.init) {
+    /// - Parameter after: runs work after a delay (a fake clock in tests).
+    public init(link: any WatchLinkTransport, now: @escaping () -> Date = Date.init,
+                after: @escaping (TimeInterval, @escaping @MainActor () -> Void) -> Void = WatchRemoteModel.afterDelay) {
         self.link = link
         self.now = now
+        self.after = after
         isReachable = link.isReachable
     }
 
+    public nonisolated static func afterDelay(_ seconds: TimeInterval, _ work: @escaping @MainActor () -> Void) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(seconds))
+            work()
+        }
+    }
+
     public var display: Display {
-        guard isReachable, let status else { return .noLink }
+        guard isReachable, let status else { return connecting ? .connecting : .noLink }
         return .status(status)
+    }
+
+    /// The app came to the front (a raised wrist): show Connecting for a moment while the link comes back.
+    public func appBecameActive() {
+        connecting = true
+        connectingSince += 1
+        let attempt = connectingSince
+        after(Self.connectingSeconds) { [weak self] in
+            guard let self, connectingSince == attempt else { return }
+            connecting = false
+        }
     }
 
     /// Start needs the iPhone Armed: it can't open the mic from the background.
@@ -84,6 +115,7 @@ public final class WatchRemoteModel {
         let offset = new.sentAt.timeIntervalSince(now())
         if abs(offset) <= Self.maxClockOffset { clockOffset = offset }
         status = new
+        connecting = false
     }
 
     /// A dropped link forgets the last status: when it's back, nothing shows until the iPhone says what's true now.
@@ -106,6 +138,10 @@ public final class WatchRemoteModel {
         latest[kind] = command.id
         link.send(command) { [weak self] reply in
             self?.answered(command, reply)
+        }
+        after(Self.sendTimeoutSeconds) { [weak self] in
+            guard let self, latest[kind] == command.id, commands[kind] == .pending else { return }
+            commands[kind] = .unconfirmed
         }
     }
 

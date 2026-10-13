@@ -159,4 +159,49 @@ struct WatchRemoteModelTests {
         model.send(.start)
         #expect(link.sent.first?.sentAt == watchNow)
     }
+    /// Runs scheduled work when the test says, not after real time.
+    final class Clock {
+        var pending: [(TimeInterval, @MainActor () -> Void)] = []
+        func schedule(_ delay: TimeInterval, _ work: @escaping @MainActor () -> Void) { pending.append((delay, work)) }
+        @MainActor func runAll() {
+            let due = pending
+            pending = []
+            for (_, work) in due { work() }
+        }
+    }
+
+    @Test("Raising the wrist shows Connecting for a moment, not No link, while the iPhone sends what's true now")
+    func connecting() {
+        let link = Link()
+        let clock = Clock()
+        let model = WatchRemoteModel(link: link, after: clock.schedule)
+        link.isReachable = false
+        model.reachabilityChanged()
+        model.appBecameActive()
+        #expect(model.display == .connecting)
+        link.isReachable = true
+        model.reachabilityChanged()
+        model.received(Self.recording)
+        #expect(model.display == .status(Self.recording))
+        let other = WatchRemoteModel(link: link, after: clock.schedule)
+        link.isReachable = false
+        other.reachabilityChanged()
+        other.appBecameActive()
+        clock.runAll()
+        #expect(other.display == .noLink, "after a few seconds with nothing, it's no link")
+    }
+
+    @Test("A command with no answer after a few seconds stops saying Sending: it's unconfirmed")
+    func sendTimeout() {
+        let link = Link()
+        let clock = Clock()
+        let model = WatchRemoteModel(link: link, after: clock.schedule)
+        model.received(Self.recording)
+        model.send(.marker)
+        #expect(model.commands[.marker] == .pending)
+        clock.runAll()
+        #expect(model.commands[.marker] == .unconfirmed)
+        link.replies[0](.done)
+        #expect(model.commands[.marker] == .confirmed, "a late answer still counts")
+    }
 }

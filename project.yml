@@ -4,6 +4,7 @@ options:
   deploymentTarget:
     iOS: "26.0"
     macOS: "26.0"
+    watchOS: "26.0"
   createIntermediateGroups: true
 
 packages:
@@ -46,6 +47,9 @@ targets:
         product: WatchRemote
       # The Live Activity (#136): iPhone only, so the Mac app embeds no extension and needs no profile for it.
       - target: ShowRecorderLiveActivity
+        destinationFilters: [iOS]
+      # The Apple Watch remote (#100): iPhone only, embedded as the iPhone app's watch app.
+      - target: ShowRecorderWatch
         destinationFilters: [iOS]
     entitlements:
       path: App/ShowRecorder.entitlements
@@ -119,3 +123,30 @@ targets:
         GENERATE_INFOPLIST_FILE: false
         CODE_SIGN_STYLE: Automatic
         SKIP_INSTALL: true
+
+  # The Apple Watch remote (#100): status, Start, Stop and Markers from the wrist, over WatchConnectivity. A
+  # single-target watchOS app embedded in the iPhone app; it needs the iPhone (it records nothing itself).
+  ShowRecorderWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - path: Watch
+    dependencies:
+      - package: ShowRecorderKit
+        product: WatchRemote
+    info:
+      path: Watch/Info.plist
+      properties:
+        CFBundleDisplayName: ShowRecorder
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: dev.ericdahl.ShowRecorder
+        WKRunsIndependentlyOfCompanionApp: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.ericdahl.ShowRecorder.watchkitapp
+        PROVISIONING_PROFILE_SPECIFIER: $(WATCH_PROFILE_NAME)
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: false
+        CODE_SIGN_STYLE: Automatic

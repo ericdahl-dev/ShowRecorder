@@ -34,6 +34,9 @@ jobs:
             # The Live Activity widget extension (#136), embedded in the iPhone app only.
             extension_bundle_id: dev.ericdahl.ShowRecorder.LiveActivity
             extension_profile_name: ShowRecorder CI Live Activity App Store
+            # The Apple Watch remote (#100), embedded in the iPhone app only.
+            watch_bundle_id: dev.ericdahl.ShowRecorder.watchkitapp
+            watch_profile_name: ShowRecorder CI Watch App Store
           - platform: macos
             destination: generic/platform=macOS
             profile_type: MAC_APP_STORE
@@ -41,6 +44,8 @@ jobs:
             asc_platform: MAC_OS
             extension_bundle_id: ''
             extension_profile_name: ''
+            watch_bundle_id: ''
+            watch_profile_name: ''
     # Standard GitHub-hosted runner, as in ci.yml. Avoid -large/-xlarge (always billed).
     runs-on: macos-26
     timeout-minutes: 60
@@ -54,6 +59,8 @@ jobs:
       PROFILE_TYPE: ${{ matrix.profile_type }}
       EXTENSION_BUNDLE_ID: ${{ matrix.extension_bundle_id }}
       EXTENSION_PROFILE_NAME: ${{ matrix.extension_profile_name }}
+      WATCH_BUNDLE_ID: ${{ matrix.watch_bundle_id }}
+      WATCH_PROFILE_NAME: ${{ matrix.watch_profile_name }}
       PLATFORM: ${{ matrix.asc_platform }}
       HAS_MAC_INSTALLER_CERT: ${{ secrets.MAC_INSTALLER_CERT_P12_BASE64 != '' }}
     steps:
@@ -143,6 +150,11 @@ jobs:
             BUNDLE_ID="$EXTENSION_BUNDLE_ID" PROFILE_NAME="$EXTENSION_PROFILE_NAME" CREATE_BUNDLE_ID=1 \
               BUNDLE_NAME="ShowRecorder Live Activity" python3 scripts/ci_profile.py
           fi
+          # So does the watch app (#100). Its bundle ID is an iOS one in App Store Connect.
+          if [ -n "$WATCH_BUNDLE_ID" ]; then
+            BUNDLE_ID="$WATCH_BUNDLE_ID" PROFILE_NAME="$WATCH_PROFILE_NAME" CREATE_BUNDLE_ID=1 \
+              BUNDLE_NAME="ShowRecorder Watch" python3 scripts/ci_profile.py
+          fi
 
       - name: Archive
         run: |
@@ -154,6 +166,7 @@ jobs:
             DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             APP_PROFILE_NAME="$PROFILE_NAME" EXTENSION_PROFILE_NAME="$EXTENSION_PROFILE_NAME" \
+            WATCH_PROFILE_NAME="$WATCH_PROFILE_NAME" \
             OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN" \
             MARKETING_VERSION="$MARKETING_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             2>&1 | tee "$RUNNER_TEMP/archive.log"
@@ -171,6 +184,9 @@ jobs:
           EXTENSION_PROFILE=""
           if [ -n "$EXTENSION_BUNDLE_ID" ]; then
             EXTENSION_PROFILE="<key>${EXTENSION_BUNDLE_ID}</key><string>${EXTENSION_PROFILE_NAME}</string>"
+          fi
+          if [ -n "$WATCH_BUNDLE_ID" ]; then
+            EXTENSION_PROFILE="${EXTENSION_PROFILE}<key>${WATCH_BUNDLE_ID}</key><string>${WATCH_PROFILE_NAME}</string>"
           fi
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
