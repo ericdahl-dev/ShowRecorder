@@ -32,6 +32,8 @@ public struct ScreenAlert: Equatable, Identifiable, Sendable {
         case arm
         /// Open the Soundcheck (#63).
         case soundcheck
+        /// Hide the routing change warning (#21) until the Mixer is re-patched again.
+        case dismissRoutingChange
     }
 
     public var id: String

@@ -825,6 +825,11 @@ final class RecordScreenModel {
         if let notice = interruptions.notice {
             list.append(ScreenAlert(id: "interruption", priority: .input, tone: .warning, text: notice))
         }
+        // A re-patch on the Mixer during the Take (#21), until the Take ends or the operator has seen it.
+        let routing = recorder.routingChanges
+        if recorder.isRecording, routing.last != routingChangeSeen, let text = RoutingChangeNotice.message(for: routing) {
+            list.append(ScreenAlert(id: "routing", priority: .input, tone: .warning, text: text, action: .dismissRoutingChange))
+        }
         list += power.status.alerts
         if let summary = copySummary, !recorder.isRecording {
             list.append(ScreenAlert(id: "copies", priority: .copyResult, tone: summary.isProblem ? .warning : .ok, text: summary.text))
@@ -860,6 +865,9 @@ final class RecordScreenModel {
         !setupHintDismissed && !recorder.isRecording && drive.status == .notChosen && mixerAddress.isEmpty
     }
 
+    /// The routing change the operator dismissed the warning at: a later re-patch, or the next Take's, warns again.
+    private var routingChangeSeen: TakeMetadata.RoutingChange?
+
     func perform(_ action: ScreenAlert.Action) {
         switch action {
         case .openSystemSettings: openSystemSettings()
@@ -871,6 +879,8 @@ final class RecordScreenModel {
             sequencer.armAgain()
         case .soundcheck:
             showingSoundcheck = true
+        case .dismissRoutingChange:
+            routingChangeSeen = recorder.routingChanges.last
         case .checkDrive:
             // Look again now, and say so if it's still not there.
             drive.refresh()

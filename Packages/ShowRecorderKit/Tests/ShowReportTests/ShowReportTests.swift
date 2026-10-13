@@ -259,6 +259,27 @@ struct ShowReportTests {
         #expect(report.html.contains("fader -6.2 → -9.2 dB"))
     }
 
+    @Test("Routing changes on the Mixer are listed with their time, USB Channel, old and new Source (#21)")
+    func routingChangesInReport() async throws {
+        let device = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
+        try recorder.arm(device)
+        var kick = Source(name: "Kick", color: .off); kick.routedFrom = "ch:1"
+        var tom = Source(name: "Tom", color: .off); tom.routedFrom = "ch:4"
+        try recorder.startTake(sources: [kick])
+        device.deliver([Array(repeating: 0, count: 24_000)])  // 0.5 s
+        recorder.offerSources([tom])
+        device.deliver([Array(repeating: 0, count: 24_000)])
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+
+        let report = try ShowReport(showFolder: show)
+        let change = try #require(report.takes.first?.routingChanges.first)
+        #expect(change.seconds == 0.5 && change.usbChannel == 1 && change.from == "Kick" && change.to == "Tom")
+        #expect(report.html.contains("<h3>Routing changes on the Mixer</h3>"))
+        #expect(report.takes.first?.renames.isEmpty == true)
+    }
+
     @Test("A Take with no renames has no renames section")
     func noRenamesSection() async throws {
         try await record(channels: 1, sources: [], takes: [480])

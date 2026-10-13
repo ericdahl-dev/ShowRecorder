@@ -26,6 +26,10 @@ public struct ShowReport: Equatable, Sendable {
         /// new name. The Stems keep the names they started with.
         public var renames: [Rename] = []
 
+        /// USB Channels re-patched on the Mixer during the Take (#21): seconds from its start, USB Channel, the Source
+        /// it carried and the one it carries from then on. The Stem keeps the name it started with.
+        public var routingChanges: [Rename] = []
+
         public struct Rename: Equatable, Sendable {
             public var seconds: Double
             public var usbChannel: Int
@@ -269,6 +273,13 @@ public struct ShowReport: Equatable, Sendable {
             }
             out += "</tbody>\n</table></div>\n"
         }
+        if !take.routingChanges.isEmpty {
+            out += "<h3>Routing changes on the Mixer</h3>\n<p class=\"note\">USB Channels re-patched on the Mixer during the Take. The Stem keeps its first name and goes on with the new Source; the Reaper project splits it at the change.</p>\n<div class=\"scroll\"><table>\n<thead><tr><th>Time</th><th>USB Channel</th><th>From</th><th>To</th></tr></thead>\n<tbody>\n"
+            for change in take.routingChanges {
+                out += "<tr><td class=\"num\">\(Self.markerClock(change.seconds))</td><td class=\"num\">\(change.usbChannel)</td><td class=\"source\">\(Self.escape(change.from))</td><td class=\"source\">\(Self.escape(change.to))</td></tr>\n"
+            }
+            out += "</tbody>\n</table></div>\n"
+        }
         if !take.gainChanges.isEmpty {
             out += "<h3>Gain changes</h3>\n" + Self.gainTable(take.gainChanges, betweenTakes: false)
         }
@@ -427,6 +438,7 @@ extension ShowReport.Take {
             },
             markers: file.markers.map { Marker(seconds: seconds($0.position), name: $0.name) },
             renames: (file.renames ?? []).map { Rename(seconds: seconds($0.position), usbChannel: $0.usbChannel, from: $0.from, to: $0.to) },
+            routingChanges: (file.routingChanges ?? []).map { Rename(seconds: seconds($0.position), usbChannel: $0.usbChannel, from: $0.from, to: $0.to) },
             gainChanges: (file.gainChanges ?? []).map { ShowReport.GainChange($0, seconds: $0.position.map(seconds)) },
             gaps: file.gaps.map { gap in
                 let repair = file.repairs.first { $0.copy == gap.copy && $0.start == gap.start && $0.end == gap.end }

@@ -41,13 +41,30 @@ public struct ShowTimeline: Equatable, Sendable {
         public var stems: [Stem]
         /// Markers placed during the Take, in samples from its start.
         public var markers: [Marker]
+        /// Where a USB Channel was re-patched on the Mixer (#21): its Stem goes on with another Source from there.
+        public var routingChanges: [RoutingChange]
 
-        public init(number: Int, sampleRate: Int, frameCount: UInt64, stems: [Stem], markers: [Marker] = []) {
+        public init(number: Int, sampleRate: Int, frameCount: UInt64, stems: [Stem], markers: [Marker] = [],
+                    routingChanges: [RoutingChange] = []) {
             self.number = number
             self.sampleRate = sampleRate
             self.frameCount = frameCount
             self.stems = stems
             self.markers = markers
+            self.routingChanges = routingChanges
+        }
+
+        /// From `position` (samples from the Take's start), USB Channel `usbChannel` carries the Source `name`.
+        public struct RoutingChange: Equatable, Sendable {
+            public var usbChannel: Int
+            public var position: Int
+            public var name: String
+
+            public init(usbChannel: Int, position: Int, name: String) {
+                self.usbChannel = usbChannel
+                self.position = position
+                self.name = name
+            }
         }
 
         public struct Marker: Equatable, Sendable {

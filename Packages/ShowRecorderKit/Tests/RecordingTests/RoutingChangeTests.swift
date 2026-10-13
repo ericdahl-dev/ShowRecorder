@@ -66,3 +66,18 @@ struct RoutingChangeTests {
         #expect(try metadata().markers.allSatisfy { $0.origin != .routing })
     }
 }
+
+/// What the record screen's warning says about routing changes (#21).
+@Suite("Routing change notice")
+struct RoutingChangeNoticeTests {
+    @Test("One change names the USB Channel, the new and old Source, and what happens to the Stem; several are counted")
+    func message() {
+        let one = TakeMetadata.RoutingChange(position: 4_800, usbChannel: 3, from: "Kick", to: "Snare")
+        #expect(RoutingChangeNotice.message(for: []) == nil)
+        #expect(RoutingChangeNotice.message(for: [one]) ==
+            "USB 3 now carries Snare (was Kick). Its Stem keeps the name Kick; a Marker marks the change.")
+        let two = TakeMetadata.RoutingChange(position: 9_600, usbChannel: 5, from: "Tom", to: "Bus 1")
+        #expect(RoutingChangeNotice.message(for: [one, two]) ==
+            "2 USB Channels were re-patched during this Take. Their Stems keep their names; Markers mark each change.")
+    }
+}

@@ -31,7 +31,8 @@ extension Show {
             }
             return ShowTimeline.Take(
                 number: entry.take.take, sampleRate: entry.take.sampleRate, frameCount: frameCount, stems: stems,
-                markers: entry.take.markers.map { .init(position: $0.position, name: $0.name) })
+                markers: entry.take.markers.map { .init(position: $0.position, name: $0.name) },
+                routingChanges: (entry.take.routingChanges ?? []).map { .init(usbChannel: $0.usbChannel, position: $0.position, name: $0.to) })
         }
         return ShowTimeline(showName: name, usbChannels: channels.values.sorted { $0.number < $1.number }, takes: takes)
     }
