@@ -905,7 +905,7 @@ final class RecordScreenModel {
         await Soundcheck.run(
             recorder: recorder, mixer: offersMixerLink ? mixerLink.status : nil, sources: linkedSources,
             expectedUSBChannels: mixerLink.capabilities?.usbChannelCount, driveChosen: drive.status != .notChosen,
-            progress: progress, result: result)
+            allowance: currentAllowance(), progress: progress, result: result)
     }
 
     /// A first-run nudge, once: neither a Drive nor a Mixer is set up yet.

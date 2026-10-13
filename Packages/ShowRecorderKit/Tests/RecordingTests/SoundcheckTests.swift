@@ -2,6 +2,7 @@ import Destinations
 import AudioIO
 import Foundation
 import MixerLink
+import ShowReport
 @testable import Recording
 import Testing
 
@@ -128,6 +129,48 @@ struct SoundcheckTests {
         #expect(!recorder.isRecording)
         let shows = try FileManager.default.contentsOfDirectory(atPath: root.path)
         #expect(shows.contains { $0.contains("Soundcheck") })
+    }
+
+    /// A Soundcheck run on a 4-channel input with tone on every channel, under `allowance`; returns its steps and where it recorded.
+    @MainActor
+    func runFree(_ allowance: TakeAllowance?) async throws -> (steps: [Soundcheck.Step], take: URL) {
+        let root = FileManager.default.temporaryDirectory.appending(path: "SoundcheckFree-\(UUID().uuidString)")
+        let audio = FakeAudioDevice(inputChannelCount: 4)
+        let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        try recorder.arm(audio)
+        let feeding = Task { @MainActor in
+            while !Task.isCancelled {
+                audio.deliver((0..<4).map { _ in [Float](repeating: 0.5, count: 480) })
+                try? await Task.sleep(for: .milliseconds(5))
+            }
+        }
+        defer { feeding.cancel() }
+        let steps = await Soundcheck.run(
+            recorder: recorder, mixer: nil, sources: [], expectedUSBChannels: nil, driveChosen: false, allowance: allowance,
+            takeLength: .milliseconds(300))
+        let show = try #require(try FileManager.default.contentsOfDirectory(atPath: root.path).first { $0.contains("Soundcheck") })
+        return (steps, root.appending(path: "\(show)/Take 01"))
+    }
+
+    @Test("On Free, the test Take records only Free's USB Channels, as a Take would (#558)")
+    @MainActor
+    func freeRecordsFreeChannels() async throws {
+        let free = Entitlement.allowance(for: .free, channelCount: 4, freeChoice: [1, 2])
+        let (_, take) = try await runFree(free)
+        let stems = try FileManager.default.contentsOfDirectory(atPath: take.path).filter { $0.hasSuffix(".wav") }
+        #expect(stems.count == 2)
+    }
+
+    @Test("On Free, the test Take writes no Show report or Reaper project, and the files step doesn't fail for it (#558)")
+    @MainActor
+    func freeWritesNoProExtras() async throws {
+        let free = Entitlement.allowance(for: .free, channelCount: 4, freeChoice: [1, 2])
+        let (steps, take) = try await runFree(free)
+        let show = take.deletingLastPathComponent()
+        #expect(!FileManager.default.fileExists(atPath: show.appending(path: ShowReport.htmlFileName).path))
+        let files = try #require(steps.first { $0.kind == .files })
+        #expect(files.passed)
+        #expect(files.message == "Free writes no Show report or Reaper project; the Takes are in the Show folder.")
     }
 
     @Test("A run never starts during a Take")
