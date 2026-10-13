@@ -36,14 +36,21 @@ public struct AudioSessionPlan: Equatable, Sendable {
     public var allowsBluetoothInput: Bool
     /// Play through the phone's speaker when nothing is plugged in.
     public var defaultToSpeaker: Bool
+    /// Ask iOS for the chosen input. Not for the monitor experiment: on an iPhone, asking for the built-in mic while
+    /// playing too takes the whole built-in route, so the output stays on the receiver instead of the headphones
+    /// (#233, first device run). With no Bluetooth input allowed, the built-in mic is the input anyway.
+    public var pinsPreferredInput: Bool
 
-    public init(playsOutput: Bool, allowsBluetoothOutput: Bool, allowsBluetoothInput: Bool, defaultToSpeaker: Bool) {
+    public init(playsOutput: Bool, allowsBluetoothOutput: Bool, allowsBluetoothInput: Bool, defaultToSpeaker: Bool, pinsPreferredInput: Bool) {
         self.playsOutput = playsOutput
         self.allowsBluetoothOutput = allowsBluetoothOutput
         self.allowsBluetoothInput = allowsBluetoothInput
         self.defaultToSpeaker = defaultToSpeaker
+        self.pinsPreferredInput = pinsPreferredInput
     }
 
-    public static let recording = AudioSessionPlan(playsOutput: false, allowsBluetoothOutput: false, allowsBluetoothInput: false, defaultToSpeaker: false)
-    public static let monitorExperiment = AudioSessionPlan(playsOutput: true, allowsBluetoothOutput: true, allowsBluetoothInput: false, defaultToSpeaker: false)
+    public static let recording = AudioSessionPlan(
+        playsOutput: false, allowsBluetoothOutput: false, allowsBluetoothInput: false, defaultToSpeaker: false, pinsPreferredInput: true)
+    public static let monitorExperiment = AudioSessionPlan(
+        playsOutput: true, allowsBluetoothOutput: true, allowsBluetoothInput: false, defaultToSpeaker: false, pinsPreferredInput: false)
 }

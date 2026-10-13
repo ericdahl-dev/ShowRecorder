@@ -23,10 +23,18 @@ struct MonitorTapTests {
         #expect(out == [1, 2, 3])
     }
 
+    @Test("A normal Take asks iOS for the chosen input; the monitor experiment doesn't, so the built-in mic doesn't pull the output to the receiver (#233)")
+    func preferredInput() {
+        #expect(AudioSessionPlan.recording.pinsPreferredInput)
+        #expect(!AudioSessionPlan.monitorExperiment.pinsPreferredInput)
+    }
+
     @Test("The plan for a normal Take records only; the monitor experiment plays to Bluetooth headphones but never takes their mic")
     func sessionPlans() {
-        #expect(AudioSessionPlan.recording == .init(playsOutput: false, allowsBluetoothOutput: false, allowsBluetoothInput: false, defaultToSpeaker: false))
-        #expect(AudioSessionPlan.monitorExperiment == .init(playsOutput: true, allowsBluetoothOutput: true, allowsBluetoothInput: false, defaultToSpeaker: false))
+        #expect(AudioSessionPlan.recording.playsOutput == false && !AudioSessionPlan.recording.allowsBluetoothOutput)
+        #expect(!AudioSessionPlan.recording.allowsBluetoothInput && !AudioSessionPlan.recording.defaultToSpeaker)
+        #expect(AudioSessionPlan.monitorExperiment.playsOutput && AudioSessionPlan.monitorExperiment.allowsBluetoothOutput)
+        #expect(!AudioSessionPlan.monitorExperiment.allowsBluetoothInput && !AudioSessionPlan.monitorExperiment.defaultToSpeaker)
     }
 }
 
