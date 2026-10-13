@@ -14,6 +14,8 @@ final class TakeRepair {
     private(set) var outcomes: [DestinationKind: CopyOutcome] = [:]
     /// Drive only: whether Repair moved the latest Take's stand-in to the Drive and off the Device.
     private(set) var moved = false
+    /// Drive only: whether the latest Take's stand-in is still on the Device after its Repair.
+    private(set) var standInKept = false
     /// Whether any Repair is still queued or running.
     private(set) var isRunning = false
     /// Called after `outcomes` or `isRunning` changes.
@@ -48,6 +50,7 @@ final class TakeRepair {
         let mine = generation
         self.outcomes = outcomes(metadata)
         moved = false
+        standInKept = false
         onChange()
         guard !metadata.gaps.isEmpty else {
             // Drive only: a Drive that faltered but then caught up has the whole Take, so its stand-in is a spare.
@@ -97,6 +100,7 @@ final class TakeRepair {
             if mine == generation {
                 self.outcomes = outcomes(done)
                 self.moved = moved
+                standInKept = done.standIns != nil
             }
             jobDone()
             access?.end()

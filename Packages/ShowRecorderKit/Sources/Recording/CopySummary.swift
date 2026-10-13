@@ -23,7 +23,8 @@ public struct CopySummary: Equatable, Sendable {
             self.init(outcomes: outcomes, dropoutCount: dropoutCount)
             return
         }
-        let line = outcomes[.drive].map { "Drive copy: \($0.word)" } ?? "On this \(deviceWord) until the Drive is back"
+        let onDevice = "On this \(deviceWord) until the Drive is back"
+        let line = copies[.device] == .standInKept ? onDevice : outcomes[.drive].map { "Drive copy: \($0.word)" } ?? onDevice
         let moved = copies[.device] == .moved ? ["moved from this \(deviceWord)"] : []
         self.init(parts: [line] + moved, outcomes: outcomes, dropoutCount: dropoutCount)
     }

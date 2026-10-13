@@ -101,6 +101,8 @@ public final class Recorder {
     private(set) var lastTakeWasDriveOnly = false
     /// Whether Repair moved the last Take's stand-in to the Drive and off the Device.
     private(set) var lastTakeStandInMoved = false
+    /// Whether the last Take's stand-in is still on the Device after Repair.
+    private(set) var lastTakeStandInKept = false
 
     /// - Parameters:
     ///   - deviceFolder: where the Device Copy of every Show goes.
@@ -134,6 +136,7 @@ public final class Recorder {
         repair.onChange = { [unowned self] in
             lastTakeOutcomes = repair.outcomes
             lastTakeStandInMoved = repair.moved
+            lastTakeStandInKept = repair.standInKept
             isRepairing = repair.isRunning
         }
         repair.jobDone = { [unowned self] in regenerateReports() }

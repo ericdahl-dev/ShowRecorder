@@ -216,6 +216,28 @@ struct DriveOnlyTakeTests {
         #expect(recorder.lastTakeOutcomes[.drive] != .repaired)
     }
 
+    @Test("After a Drive given up at Stop, its stand-in stays on the Device and the summary says so (#550)")
+    func summaryStandInStays() async throws {
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(driveStem: { BlockingStem($0, gate: gate, healthyFrames: 4_800) }, stallLimit: .milliseconds(100))
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
+        recorder.checkDestinations()
+        try await Task.sleep(for: .milliseconds(250))
+        deliver(480, from: 20 * 480, to: audio, sample: counting())
+        recorder.checkDestinations()
+        for block in 21..<30 { deliver(480, from: block * 480, to: audio, sample: counting()) }
+        try await Task.sleep(for: .milliseconds(200))
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+
+        #expect(CopySummary.ofLastTake(recorder.copies, dropoutCount: 0)?.text == "On this iPhone until the Drive is back")
+    }
+
     @Test("After a relaunch the next Take gets a new number, though the Device has no folder for the last one")
     func takeNumberSurvivesRelaunch() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
@@ -315,5 +337,27 @@ struct DriveOnlyTakeTests {
         #expect(try driveSamples(frames: 14_400) == (0..<14_400).map { counting()($0, 0) }, "the Drive has the whole Take")
         #expect(recorder.lastTakeOutcomes[.drive] != .repairFailed)
         #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "nothing of the Take is left on the Device")
+    }
+
+    @Test("After a Drive that paused and caught up, its spare stand-in is gone and the summary says the Drive is complete (#550)")
+    func summarySpareStandIn() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
+        let recorder = recorder(driveStem: { SlowStem($0, healthyFrames: 4_800, gate: gate) }, stallLimit: .milliseconds(100))
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
+        recorder.checkDestinations()
+        try await Task.sleep(for: .milliseconds(250))
+        deliver(480, from: 20 * 480, to: audio, sample: counting())
+        recorder.checkDestinations()
+        gate.open()
+        try await deliverBlocks(9, from: 21 * 480, to: audio, recorder, sample: counting())
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+
+        #expect(CopySummary.ofLastTake(recorder.copies, dropoutCount: 0)?.text == "Drive copy: complete")
     }
 }
