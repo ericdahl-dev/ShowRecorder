@@ -76,7 +76,7 @@ export default function FeaturesPage() {
       <section id="mixers" aria-labelledby="mixers-title" className="feature-group">
         <div className="section-head">
           <h2 id="mixers-title">Supported mixers</h2>
-          <p>What works in the App Store version, what is in the public beta, what is planned next, and what is being looked at. Planned support has no dates yet.</p>
+          <p>What works in the first App Store release, what is in the public beta, what is planned next, and what is being looked at. Planned support has no dates yet.</p>
         </div>
         <h3 className="mixers-sub">Works now</h3>
         <ul className="cards cards--3">

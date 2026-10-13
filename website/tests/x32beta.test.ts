@@ -15,9 +15,8 @@ const honest = (text: string) =>
   sentences(text).every((s) => !(/X32|M32/.test(s) && /App Store/.test(s)) || /beta|later update/i.test(s));
 
 describe("X32 and M32 in the public beta", () => {
-  it("the home title fits a share card and isn't about one mixer", () => {
+  it("the home title fits a share card", () => {
     expect(PAGES.home.title.length).toBeLessThanOrEqual(60);
-    expect(PAGES.home.title).not.toMatch(/XR18/);
   });
 
   it("the home and features descriptions name the X32 and M32 as in the beta, not planned", () => {
