@@ -72,10 +72,14 @@ public final class TakeSequencer {
     public private(set) var takeStartedAt: Date?
     /// Whether the recorder was disarmed for sitting idle, so coming back should Arm it again.
     public private(set) var disarmedForIdle = false
+    /// What to do about audio interruptions, and the banner they leave.
+    public private(set) var interruptions = InterruptionPolicy()
 
-    /// Called after each attempt to Arm an interface: with the device when it worked, nil when it failed. The App
-    /// resets its meters and reads what the system offered here.
+    /// Called after each attempt to Arm an interface, or to move input to a new one: with the device when it worked,
+    /// nil when it failed. The App resets its meters and reads what the system offered here.
     @ObservationIgnored public var didArm: (_ device: (any AudioIODevice)?) -> Void = { _ in }
+    /// A line worth logging about input (an interruption, a restart, a route change).
+    @ObservationIgnored public var log: (String) -> Void = { _ in }
     /// Everything that happens, in order. One listener. With no one listening only the newest
     /// `eventBufferSize` are kept, so a stream nobody reads never grows. It ends when the sequencer goes away.
     /// Every Take start and end is told. Arm and disarm are told for the sequencer's own Arming; a device-list,
@@ -222,6 +226,39 @@ public final class TakeSequencer {
         if disarmedForIdle {
             disarmedForIdle = false
             arm()
+        }
+    }
+
+    /// An audio session interruption, a media services reset or a change of app state: `InterruptionPolicy` decides,
+    /// and this carries it out on the recorder. Nothing here ends a Take, except a reset whose new input can't take it.
+    public func handle(_ event: InterruptionPolicy.Event) {
+        let response = interruptions.handle(event, isRecording: recorder.isRecording)
+        if let line = response.log { log(line) }
+        switch response.action {
+        case .none:
+            break
+        case .restartInput:
+            do {
+                try recorder.restartInput()
+                handle(.restarted)
+            } catch {
+                handle(.restartFailed(String(describing: error)))
+            }
+        case .replaceDevice:
+            guard let choice = devices.first(where: { $0.id == selectedDeviceID }) else {
+                handle(.restartFailed("no audio interface is selected"))
+                return
+            }
+            do {
+                let wasRecording = recorder.isRecording
+                // The replacement keeps the rate the recorder runs at, uncapped, so a running Take can continue.
+                let device = try choice.make(recorder.sampleRate ?? sampleRateChoice, false)
+                let continued = try recorder.restartInput(on: device)
+                didArm(device)
+                handle(wasRecording && !continued ? .takeEndedByReset : .restarted)
+            } catch {
+                handle(.restartFailed(String(describing: error)))
+            }
         }
     }
 

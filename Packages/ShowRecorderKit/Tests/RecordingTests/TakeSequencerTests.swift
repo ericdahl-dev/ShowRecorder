@@ -11,6 +11,8 @@ final class FakeInputDevices: InputDeviceSource {
     var opened: [FakeAudioDevice] = []
     /// What each `make` was asked for: the rate choice and whether it was capped at 48 kHz.
     var asked: [(chosen: Int?, capAt48k: Bool)] = []
+    /// USB Channels an interface sends when it is opened again, where that changed (a reset, a new mixer setup).
+    var reopensWith: [String: Int] = [:]
 
     init(_ specs: [(id: String, channels: Int)] = [("xr18", 18)]) {
         choices = []
@@ -25,7 +27,7 @@ final class FakeInputDevices: InputDeviceSource {
                 asked.append((chosen, capAt48k))
                 struct Refused: Error {}
                 if fails { throw Refused() }
-                let device = FakeAudioDevice(name: id, inputChannelCount: channels)
+                let device = FakeAudioDevice(name: id, inputChannelCount: reopensWith[id] ?? channels)
                 opened.append(device)
                 return device
             })
@@ -526,5 +528,74 @@ struct TakeSequencerTests {
         #expect(await told(&events, through: .disarmed(reason: .screenGone)) == [
             .takeStarted(take: 1), .takeEnded(TakeEnd(take: 1, reason: .stopped)), .disarmed(reason: .screenGone),
         ])
+    }
+
+    // MARK: - Interruptions
+
+    @Test("An interruption during a Take stops input; when it ends, input restarts on the same device and the Take goes on")
+    func interruptionDuringATake() throws {
+        let source = FakeInputDevices()
+        let (sequencer, recorder) = makeSequencer(source)
+        sequencer.start()
+        let device = try #require(source.opened.last)
+        sequencer.record(sources: [], allowance: nil)
+
+        sequencer.handle(.interruptionBegan)
+        device.stop()  // The system stops input.
+        sequencer.handle(.interruptionEnded(shouldResume: true))
+
+        #expect(device.isRunning)
+        #expect(recorder.isRecording)
+        #expect(!sequencer.interruptions.isInputStopped)
+        #expect(sequencer.interruptions.notice == "Input is back. Audio from the interruption is missing from this Take.")
+    }
+
+    @Test("A restart that fails leaves input stopped and says so in the notice")
+    func failedRestart() {
+        let (sequencer, _) = makeSequencer()  // Nothing Armed, so there's nothing to restart.
+
+        sequencer.handle(.interruptionBegan)
+        sequencer.handle(.interruptionEnded(shouldResume: true))
+
+        #expect(sequencer.interruptions.isInputStopped)
+        #expect(sequencer.interruptions.notice?.hasPrefix("Couldn't restart audio input: ") == true)
+    }
+
+    @Test("A media reset during a Take opens the interface again at the Take's rate, uncapped, and the Take goes on when the format matches")
+    func mediaResetSameFormat() throws {
+        let source = FakeInputDevices()
+        let (sequencer, recorder) = makeSequencer(source, capsAt48k: true)
+        sequencer.start()
+        sequencer.record(sources: [], allowance: nil)
+        var heard: [String?] = []
+        sequencer.didArm = { device in heard.append(device?.name) }
+
+        sequencer.handle(.mediaServicesReset)
+
+        #expect(source.opened.count == 2)
+        #expect(source.asked.last?.chosen == 48_000)
+        #expect(source.asked.last?.capAt48k == false)
+        #expect(try #require(source.opened.last).isRunning)
+        #expect(recorder.isRecording)
+        #expect(!sequencer.interruptions.isInputStopped)
+        #expect(heard == ["xr18"])
+    }
+
+    @Test("A media reset that brings the input back in another format ends the Take as an input change, told once by the notice")
+    func mediaResetOtherFormat() async throws {
+        let source = FakeInputDevices()
+        let (sequencer, recorder) = makeSequencer(source)
+        sequencer.start()
+        sequencer.record(sources: [], allowance: nil)
+        source.reopensWith["xr18"] = 2
+
+        sequencer.handle(.mediaServicesReset)
+
+        #expect(!recorder.isRecording)
+        #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .inputChanged))
+        #expect(recorder.isArmed)
+        #expect(recorder.usbChannelCount == 2)
+        #expect(sequencer.interruptions.notice == "The system reset its audio and the input changed, so the Take ended and was saved. Press record to start the next Take.")
+        #expect(sequencer.recordError == nil)
     }
 }
