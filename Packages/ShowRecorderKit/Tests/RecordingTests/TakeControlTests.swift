@@ -249,4 +249,31 @@ struct TakeControlTests {
         #expect(startedWhileRecording)
         #expect(sequencer.takeStartedAt == nil, "and none once it ended")
     }
+
+    @Test("A Soundcheck Take the recorder ends out of space is judged from its Copies, as before, and leaves no record error behind")
+    func soundcheckOutOfSpace() async throws {
+        let free = FreeSpace()
+        let (sequencer, recorder, source) = makeSequencer(free: free)
+        sequencer.arm()
+        let audio = try #require(source.opened.last)
+        let feeding = Task { @MainActor in
+            while !Task.isCancelled {
+                audio.deliver([[Float](repeating: 0.5, count: 480), [Float](repeating: 0.5, count: 480)])
+                if recorder.isRecording, recorder.takeMarkers.isEmpty {
+                    free.bytes = 0
+                    recorder.checkDestinations()
+                }
+                try? await Task.sleep(for: .milliseconds(5))
+            }
+        }
+        defer { feeding.cancel() }
+
+        let steps = await Soundcheck.run(
+            sequencer: sequencer, mixer: nil, sources: [], expectedUSBChannels: nil, driveChosen: false,
+            takeLength: .milliseconds(300))
+
+        let take = try #require(steps.first { $0.kind == .take })
+        #expect(!take.message.contains("couldn't be recorded"), "the Take was recorded: \(take.message)")
+        #expect(sequencer.recordError == nil, "the Soundcheck leaves the record screen's error as it found it")
+    }
 }

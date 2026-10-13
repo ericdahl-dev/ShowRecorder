@@ -151,6 +151,8 @@ public enum Soundcheck {
 
         progress(.take)
         var takeError: String?
+        // The Soundcheck leaves the record screen's error as it found it (#551).
+        let before = sequencer.recordError
         do {
             try sequencer.startNewShow(name: "Soundcheck", venue: "")
             // The test Take records what a Take would under the License: Free's USB Channels, no Pro extras (#558).
@@ -159,13 +161,13 @@ public enum Soundcheck {
                 try? await Task.sleep(for: takeLength)
                 sequencer.stop()
                 await recorder.waitForRepair()
-            }
-            if let failed = sequencer.recordError {
+            } else if let failed = sequencer.recordError {
                 takeError = "The test Take couldn't be recorded: \(failed)"
             }
         } catch {
             takeError = "The test Take couldn't be recorded: \(error.localizedDescription)"
         }
+        sequencer.recordError = before
         let showFolder = recorder.currentShow?.folder
 
         progress(.channels)
