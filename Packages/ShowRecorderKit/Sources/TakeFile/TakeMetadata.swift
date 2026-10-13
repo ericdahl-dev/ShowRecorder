@@ -80,6 +80,25 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         }
     }
 
+    /// Drive only (#196, ADR 0006): the stretches the Device recorded because the Drive couldn't take them, in
+    /// order. Each is its own folder of Stems in the Device's Take folder, whose first frame is the stretch's
+    /// start; Repair moves them into the Drive Copy and removes the Take from the Device. Nil for a Take with
+    /// two Copies.
+    public var standIns: [StandIn]?
+
+    public struct StandIn: Codable, Equatable, Sendable {
+        public var start: Int
+        public var end: Int
+
+        public init(start: Int, end: Int) {
+            self.start = start
+            self.end = end
+        }
+
+        /// The folder, in the Device's Take folder, holding this stretch's Stems.
+        public var folderName: String { "Stand-in \(start)" }
+    }
+
     /// Stretches of one Copy that were lost because its writer couldn't keep up, written as silence of the
     /// exact length so the Stems stay as long as the Take. Unlike a Gap, Repair doesn't fill them (yet).
     public var dropouts: [Dropout] = []
@@ -358,7 +377,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     public private(set) var unknownFields: UnknownFields?
 
     enum CodingKeys: String, CodingKey, CaseIterable {
-        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames, gainChanges, routingChanges
+        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames, gainChanges, routingChanges, standIns
     }
 
     public init(from decoder: any Decoder) throws {
@@ -377,6 +396,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         renames = try c.decodeIfPresent([Rename].self, forKey: .renames)
         gainChanges = try c.decodeIfPresent([GainChange].self, forKey: .gainChanges)
         routingChanges = try c.decodeIfPresent([RoutingChange].self, forKey: .routingChanges)
+        standIns = try c.decodeIfPresent([StandIn].self, forKey: .standIns)
     }
 
     public init(show: String, take: Int, startedAt: Date, sampleRate: Int, timeReference: UInt64, usbChannels: [USBChannel], markers: [Marker] = []) {
