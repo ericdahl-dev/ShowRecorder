@@ -166,3 +166,39 @@ describe("the beta Trial line", () => {
     });
   }
 });
+
+// #482 D: the facts a buyer checks before trying it.
+describe("mixer page facts", () => {
+  // A section between two headings; a renamed heading fails here instead of slicing the wrong text.
+  const section = (body: string, from: string, to: string) => {
+    expect(body).toContain(from);
+    expect(body).toContain(to);
+    return body.slice(body.indexOf(from), body.indexOf(to));
+  };
+
+  for (const slug of ["x32", "xr18"]) {
+    const body = readFileSync(path.join(ROOT, "app", "mixers", slug, "content.mdx"), "utf8");
+
+    it(`/mixers/${slug} names the cable, the hub for long shows, the iOS and iPadOS version, and the Mac in testing`, () => {
+      const needs = section(body, "## What you need", "## Set it up");
+      expect(needs).toMatch(/USB-B to USB-C cable/);
+      expect(needs).toMatch(/powered USB-C hub/);
+      expect(needs).toMatch(/iOS 26/);
+      expect(needs).toMatch(/USB-C iPad on iPadOS 26/);
+      expect(needs).toMatch(/A Mac version is in testing \(macOS 26\)/);
+    });
+
+    it(`/mixers/${slug} gives Pro's price, one time, without making the Trial sound paid`, () => {
+      const pricing = section(body, "## Free, Trial and Pro", "## Where to get it");
+      expect(pricing).toMatch(/Pro is a one-time \$19\.99 purchase/);
+      expect(pricing).not.toMatch(/Trial and Pro\]\(\/docs\/pricing\), a one-time/);
+    });
+  }
+
+  it("the X32 page names the M32 models by their Midas names, and which card each has", () => {
+    const x32 = readFileSync(path.join(ROOT, "app", "mixers", "x32", "content.mdx"), "utf8");
+    expect(x32).toMatch(/M32, M32R or M32C/);
+    expect(x32).toMatch(/M32 LIVE and M32R LIVE/);
+    expect(x32).not.toMatch(/M32 \(full size, Compact, Producer or Rack\)/);
+  });
+});
