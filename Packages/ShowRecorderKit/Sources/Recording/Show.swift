@@ -24,6 +24,9 @@ public struct Show: Sendable, Equatable {
     /// "Drive not connected now" from "never written" later.
     public private(set) var driveCopyWritten = false
 
+    /// Fields of `Show.json` from a newer ShowRecorder, kept from a resumed Show's file to every save of it.
+    var newerFields: UnknownFields?
+
     /// How long a Show can go with no Take before the next record starts a new one.
     static let idleLimit: TimeInterval = 6 * 3600
 
@@ -100,7 +103,7 @@ public struct Show: Sendable, Equatable {
         ShowFile(
             name: name, startedAt: startedAt, endedAt: endedAt, venue: venue, lastTakeEndedAt: lastTakeEndedAt,
             channelNames: channelNames.isEmpty ? nil : Dictionary(uniqueKeysWithValues: channelNames.map { (String($0.key), $0.value) }),
-            driveCopyWritten: driveCopyWritten ? true : nil)
+            driveCopyWritten: driveCopyWritten ? true : nil, unknownFields: newerFields)
     }
 
     /// Adopts `names` for later Takes without rewriting the files (they were written when the names were typed).
@@ -150,10 +153,12 @@ public struct Show: Sendable, Equatable {
         }
         let takes = ((try? fm.contentsOfDirectory(atPath: newest.folder.path)) ?? [])
             .compactMap { $0.hasPrefix("Take ") ? Int($0.dropFirst(5)) : nil }
-        return Show(name: newest.file.name, folder: newest.folder, takeCount: takes.max() ?? 0, startedAt: newest.file.startedAt,
+        var show = Show(name: newest.file.name, folder: newest.folder, takeCount: takes.max() ?? 0, startedAt: newest.file.startedAt,
                     venue: newest.file.venue, lastTakeEndedAt: newest.file.lastTakeEndedAt,
                     channelNames: newest.file.channelNames?.reduce(into: [:]) { if let number = Int($1.key) { $0[number] = $1.value } } ?? [:],
                     driveCopyWritten: newest.file.driveCopyWritten ?? false)
+        show.newerFields = newest.file.unknownFields
+        return show
     }
 
     /// The Show that started most recently before `show`, in `deviceParent`, read from its `Show.json`.
@@ -207,12 +212,19 @@ struct ShowFile: Codable, Equatable {
     var channelNames: [String: String]?
     /// True once a Drive Copy of the Show was created. Nil in Shows from before this, where it isn't known.
     var driveCopyWritten: Bool?
+    /// Fields from a newer ShowRecorder, kept from `read` to `write`. Nil in a Show this version wrote.
+    var unknownFields: UnknownFields?
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case name, startedAt, endedAt, venue, lastTakeEndedAt, channelNames, driveCopyWritten
+    }
 
     func write(to showFolder: URL) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        try encoder.encode(self).write(to: showFolder.appending(path: Self.fileName), options: .atomic)
+        let data = try encoder.encode(self)
+        try (unknownFields?.merged(into: data) ?? data).write(to: showFolder.appending(path: Self.fileName), options: .atomic)
     }
 
     /// The file in `showFolder`, or nil when it is missing or can't be read.
@@ -220,6 +232,8 @@ struct ShowFile: Codable, Equatable {
         guard let data = try? Data(contentsOf: showFolder.appending(path: fileName)) else { return nil }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try? decoder.decode(ShowFile.self, from: data)
+        guard var file = try? decoder.decode(ShowFile.self, from: data) else { return nil }
+        file.unknownFields = UnknownFields.find(in: data, known: Set(CodingKeys.allCases.map(\.rawValue)))
+        return file
     }
 }
