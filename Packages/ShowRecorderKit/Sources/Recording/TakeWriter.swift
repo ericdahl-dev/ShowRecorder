@@ -30,7 +30,7 @@ final class TakeWriter: @unchecked Sendable {
     /// The operator's Markers, last set by `setMarkers`. Only the writer thread uses it.
     private var operatorMarkers: [StemMarker] = []
     /// Markers waiting to be written into the Stems by the writer thread.
-    private let pendingMarkers = Mutex<[StemMarker]?>(nil)
+    private let pendingMarkers: Mutex<[StemMarker]?>
     /// Where the Copy's first frames come from, when it starts with Pre-roll: asked once, after the
     /// real-time thread has said which Take frame the live audio starts at. Returns one array of samples
     /// per channel, as long as the frames before that point, or nil if they are no longer there.
@@ -40,10 +40,12 @@ final class TakeWriter: @unchecked Sendable {
 
     init(
         feed: CopyFeed, stems: [any StemSink], commitInterval: Int, onFailure: @escaping @Sendable () -> Void = {},
-        head: (() -> [[Float]]?)? = nil,
+        head: (() -> [[Float]]?)? = nil, markers: [StemMarker] = [],
         joinPause: @escaping () -> Void = { Thread.sleep(forTimeInterval: 0.002) }
     ) {
         self.head = head
+        // Markers given here are waiting before the writer starts, so they are in the Stems before its first audio.
+        pendingMarkers = Mutex(markers.isEmpty ? nil : markers)
         self.joinPause = joinPause
         self.onFailure = onFailure
         self.feed = feed

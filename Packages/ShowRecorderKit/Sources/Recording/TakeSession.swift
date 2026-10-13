@@ -416,9 +416,7 @@ final class TakeSession {
 
             // The Drive's feed is the one after the Device's.
             let feed = old?.feed ?? capture.feeds[copies.count]
-            let writer = makeWriter(feed: feed, stems: sinks)
-            // The Markers are waiting before the Copy can join, so its first audio is written with them.
-            if !stemMarkers.isEmpty { writer.setMarkers(stemMarkers) }
+            let writer = makeWriter(feed: feed, stems: sinks, markers: stemMarkers)
             capture.attachMidTake(feed)
             writer.start()
 
@@ -433,11 +431,13 @@ final class TakeSession {
 
     // MARK: - Helpers
 
-    private func makeWriter(feed: CopyFeed, stems sinks: [any StemSink], head: (() -> [[Float]]?)? = nil) -> TakeWriter {
+    private func makeWriter(
+        feed: CopyFeed, stems sinks: [any StemSink], head: (() -> [[Float]]?)? = nil, markers: [StemMarker] = []
+    ) -> TakeWriter {
         TakeWriter(feed: feed, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] in
             capture.stopFeeding(feed)
             Task { @MainActor in self?.onCopyFailed() }
-        }, head: head)
+        }, head: head, markers: markers)
     }
 
     /// The Markers the Stems carry as cue points. Each writer adds its own Dropout Markers.

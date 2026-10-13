@@ -1,4 +1,5 @@
 import AudioIO
+import BroadcastWave
 import Foundation
 @testable import Recording
 import Testing
@@ -136,5 +137,60 @@ struct CopyJoinTests {
         #expect(capture.feeds[1].joinedAt == nil)
         #expect(stem.samples.isEmpty)
         #expect(writer.leadGap == nil)
+    }
+
+    /// A Stem that logs what the writer asks of it, in order.
+    final class LoggingStem: StemSink, @unchecked Sendable {
+        enum Call: Equatable {
+            case append(first: Float, count: Int)
+            case setMarkers
+        }
+        private let lock = NSLock()
+        private var _calls: [Call] = []
+        private var frames: UInt64 = 0
+        var calls: [Call] { lock.withLock { _calls } }
+        var frameCount: UInt64 { lock.withLock { frames } }
+        func append(_ samples: UnsafeBufferPointer<Float>) throws {
+            lock.withLock {
+                _calls.append(.append(first: samples.first ?? 0, count: samples.count))
+                frames += UInt64(samples.count)
+            }
+        }
+        func commitHeader() throws {}
+        func finalize() throws {}
+        @discardableResult func setMarkers(_ markers: [StemMarker]) throws -> Int {
+            lock.withLock { _calls.append(.setMarkers) }
+            return markers.count
+        }
+    }
+
+    @Test("A Copy attached mid-Take with Markers puts them in its Stems before any of its captured audio")
+    func markersBeforeFirstAudio() {
+        let capture = capture()
+        capture.startCapturing(copies: 1)
+        receive(capture)
+        let stem = LoggingStem()
+        let joinedInPause = DispatchSemaphore(value: 0)
+        var pauses = 0
+        let writer = TakeWriter(
+            feed: capture.feeds[1], stems: [stem], commitInterval: 48_000, markers: [StemMarker(position: 100, label: "Marker 1")],
+            joinPause: {
+                pauses += 1
+                guard pauses == 1 else { return }
+                receive(capture)
+                joinedInPause.signal()
+            })
+        capture.attachMidTake(capture.feeds[1])
+        writer.start()
+        joinedInPause.wait()
+        writer.stop()
+
+        let calls = stem.calls
+        let firstMarkers = calls.firstIndex(of: .setMarkers)
+        let firstAudio = calls.firstIndex(of: .append(first: 0.25, count: 480))
+        #expect(firstMarkers != nil && firstAudio != nil)
+        if let firstMarkers, let firstAudio { #expect(firstMarkers < firstAudio) }
+        // Only the silence before the join frame comes before them.
+        #expect(calls.prefix(while: { $0 != .setMarkers }) == [.append(first: 0, count: 480)])
     }
 }
