@@ -42,6 +42,33 @@ struct DriveFolderStoreTests {
         #expect(storage.load()?.name == "Gig Drive", "kept, for when the Drive is unplugged")
     }
 
+    @Test("When the system can't say the Drive's name (still mounting, say), the remembered name stays: never the UUID")
+    func nameLookupFails() throws {
+        try DriveFolderStore(storage: storage).choose(folder)
+        let saved = try #require(storage.load())
+        storage.save(StoredDriveFolder(bookmark: saved.bookmark, name: "ShowRecorder"))
+
+        let status = DriveFolderStore(storage: storage, shownName: { _ in nil }).status()
+
+        guard case .available(let drive) = status else {
+            Issue.record("expected available")
+            return
+        }
+        #expect(drive.name == "ShowRecorder")
+        #expect(storage.load()?.name == "ShowRecorder")
+    }
+
+    @Test("Asking the status again and again doesn't write anything while the name is unchanged")
+    func noWritesWhenUnchanged() throws {
+        let counting = CountingStorage()
+        try DriveFolderStore(storage: counting).choose(folder)
+        let saves = counting.saves
+
+        for _ in 0..<5 { _ = DriveFolderStore(storage: counting).status() }
+
+        #expect(counting.saves == saves)
+    }
+
     @Test("Before a folder is chosen, the status says so")
     func notChosenByDefault() {
         #expect(DriveFolderStore(storage: storage).status() == .notChosen)
@@ -111,5 +138,17 @@ struct DriveFolderStoreTests {
 
         #expect(DriveFolderStore.availableBytes(forFolder: shows) > 0)
         #expect(DriveFolderStore.availableBytes(forFolder: folder) > 0)
+    }
+}
+
+/// Remembers the Drive folder in memory and counts the saves.
+final class CountingStorage: BookmarkStorage, @unchecked Sendable {
+    private let inner = InMemoryBookmarkStorage()
+    private(set) var saves = 0
+
+    func load() -> StoredDriveFolder? { inner.load() }
+    func save(_ folder: StoredDriveFolder?) {
+        saves += 1
+        inner.save(folder)
     }
 }
