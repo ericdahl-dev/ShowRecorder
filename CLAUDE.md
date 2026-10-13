@@ -18,3 +18,4 @@
 - Eric tests on a real iPhone through TestFlight. Say plainly when something has only been checked in the Simulator or by tests.
 - Open pull requests with `gh pr merge --auto --squash`.
 - `./scripts/verify.sh` must pass before a PR.
+- One heavy build at a time on this Mac (since 2026-10-13): `verify.sh`, `swift build`/`swift test` and `xcodebuild` share one lock (the `scripts/bin` shims; see docs/DEVELOPING.md). Run them as background tasks: a build waiting its turn can pass the 10-minute command timeout.
