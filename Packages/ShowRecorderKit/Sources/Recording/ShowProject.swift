@@ -6,7 +6,7 @@ import ShowReport
 
 extension Show {
     /// Reads the Show folder: every Take folder's `Take.json`, with each Take's length taken from
-    /// its Stems. USB Channels are named and colored from the latest Take they appear in.
+    /// its Stems, or its kept stand-ins when they run longer (#629). USB Channels are named and colored from the latest Take they appear in.
     /// Take folders without a readable `Take.json` are left out.
     public func timeline() throws -> ShowTimeline {
         let entries = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
@@ -28,6 +28,11 @@ extension Show {
                 guard let frames = try? StemFile.inspect(entry.folder.appending(path: channel.stemFile)).frameCount else { continue }
                 frameCount = max(frameCount, frames)
                 stems.append(.init(usbChannel: channel.usbChannel, path: "\(folderName)/\(channel.stemFile)", name: channel.name))
+            }
+            // A kept stand-in's Stems are under `Stand-in N/` and aren't items yet; the Take is still as long as its
+            // stand-ins, so later Takes don't overlap it (#629).
+            if let standIns = entry.take.standIns {
+                frameCount = max(frameCount, UInt64(clamping: standIns.map(\.end).max() ?? 0))
             }
             return ShowTimeline.Take(
                 number: entry.take.take, sampleRate: entry.take.sampleRate, frameCount: frameCount, stems: stems,
