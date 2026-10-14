@@ -85,8 +85,9 @@ public final class AutoGainSession {
     ///   - measure: a USB Channel's Average level now, in dBFS, from the meters; nil when the audio stopped.
     ///   - settle: waits for the meters to follow a gain move before measuring again.
     public convenience init(control: any GainControl, rule: AutoGainRule = AutoGainRule(), measure: @escaping (Int) async -> Double?,
-                            settle: @escaping () async -> Void = {}, log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }) {
-        self.init(currentControl: { control }, rule: rule, measure: measure, settle: settle, log: log)
+                            settle: @escaping () async -> Void = {}, queue: MixerQueue = MixerQueue(),
+                            log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }) {
+        self.init(currentControl: { control }, rule: rule, measure: measure, settle: settle, queue: queue, log: log)
     }
 
     /// - Parameter currentControl: the linked Mixer's gain control now, or nil while the Mixer Link is down or the Armed
@@ -96,12 +97,14 @@ public final class AutoGainSession {
     ///     was made.
     public init(currentControl: @escaping () -> (any GainControl)?, mixer: @escaping () -> String? = { nil },
                 rule: AutoGainRule = AutoGainRule(), measure: @escaping (Int) async -> Double?,
-                settle: @escaping () async -> Void = {}, log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }) {
+                settle: @escaping () async -> Void = {}, queue: MixerQueue = MixerQueue(),
+                log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }) {
         link = SameMixerControl(currentControl: currentControl, mixer: mixer)
         self.log = log
         self.rule = rule
         self.measure = measure
         self.settle = settle
+        mixerQueue = queue
     }
 
     /// Runs auto-gain on each of `usbChannels` and says what happened to each, in the order asked. The channels are
@@ -258,8 +261,9 @@ public final class AutoGainSession {
         }
     }
 
-    /// One gain move or undo on the Mixer at a time, in the order asked (`MixerQueue`).
-    private let mixerQueue = MixerQueue()
+    /// One gain move or undo on the Mixer at a time, in the order asked (`MixerQueue`): the Mixer's queue, shared with
+    /// clip protection.
+    private let mixerQueue: MixerQueue
 
     private func onMixer<T>(_ body: () async throws(MixerLinkProblem) -> T) async throws(MixerLinkProblem) -> T {
         try await mixerQueue.run(body)

@@ -595,6 +595,42 @@ struct ClipProtectionTests {
         #expect(control.moveStarts == 0)
         #expect(control.gainDb == [1: 30, 2: 30])
     }
+
+    @Test("An auto-gain Undo step under way when a Take starts finishes on the Mixer before clip protection's first turn-down (#554)")
+    func autoGainFirstOnSharedQueue() async throws {
+        let queue = MixerQueue()
+        let session = AutoGainSession(control: control, measure: AutoGainSessionTests.meters(control, source: [2: -40]), queue: queue)
+        _ = await session.run(usbChannels: [2])
+        // The Undo steps written when each turn-down reached the Mixer.
+        let (turnDowns, turnDown) = AsyncStream<Int>.makeStream()
+        let (probed, probe) = AsyncStream<Void>.makeStream()
+        control.answer = { [control] in
+            turnDown.yield(await control.undos)
+            probe.yield()
+        }
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        control.undoAnswer = {
+            enter.yield()
+            for await _ in released { return }
+        }
+        let undoing = Task { try await session.undo(usbChannel: 2) }
+        #expect(await Self.next(entered), "the Undo step is on the Mixer")
+        session.stop()                                      // a Take starts
+        let protection = ClipProtection(control: control, sampleRate: 48_000, queue: queue)
+
+        let moving = Task { await Self.feed(protection, Self.hot) }
+        // Without a shared queue the turn-down reaches the Mixer in milliseconds.
+        #expect(await Self.next(probed, within: 1) == false, "the turn-down waits for the Undo step")
+        release.yield()
+        try await undoing.value
+        await moving.value
+        turnDown.finish()
+        var written: [Int] = []
+        for await undos in turnDowns { written.append(undos) }
+        #expect(written == [1], "the Undo step was written before the turn-down")
+        #expect(control.gainDb[1] == 26)
+    }
 }
 
 @Suite("Clip protection setting")
