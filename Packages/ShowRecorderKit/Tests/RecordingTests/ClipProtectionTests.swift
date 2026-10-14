@@ -619,10 +619,16 @@ struct ClipProtectionTests {
         session.stop()                                      // a Take starts
         let protection = ClipProtection(control: control, sampleRate: 48_000, queue: queue)
 
+        // The preamp read is the turn-down's last call before the queue.
+        let (reached, reach) = AsyncStream<Void>.makeStream()
+        control.preampAnswer = { reach.yield() }
+
         let moving = Task { await Self.feed(protection, Self.hot) }
+        #expect(await Self.next(reached), "the turn-down reaches the queue")
         // Without a shared queue the turn-down reaches the Mixer in milliseconds.
         #expect(await Self.next(probed, within: 1) == false, "the turn-down waits for the Undo step")
         release.yield()
+        release.finish()                                    // a looping Undo can't hang on a second step
         try await undoing.value
         await moving.value
         turnDown.finish()
