@@ -142,6 +142,7 @@ extension GapTests {
         let take = "2026-10-06 Show/Take 01"
         #expect(try ParsedStem(contentsOf: device.appending(path: "\(take)/01 USB 01.wav")).samples.count == 4 * 480)
         #expect(recorder.copies[.device] == .hasGaps)
+        #expect(recorder.copies[.drive] == .complete)
     }
 
     @Test("The last Take's outcome isn't overwritten by an earlier Take's Repair finishing late")

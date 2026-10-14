@@ -152,10 +152,10 @@ struct TakeSessionTests {
 
         let rejoinFrame = capture.takeFrameCount
         try await deliver(480)
+        #expect(session.status(.drive) == .recording)
         let finished = session.finish()
 
         #expect(finished.metadata.gaps == [.init(copy: .drive, start: committed, end: rejoinFrame)])
-        #expect(finished.statuses[.drive] == .recording)
         #expect(secondReleased.count == 0)
     }
 
@@ -188,8 +188,8 @@ struct TakeSessionTests {
         // The second writer resumes at its last commit: after the first rejoin, before where it failed.
         let committed2 = Int(try #require(opened.resumes.last ?? nil))
         #expect(committed2 > firstRejoin && committed2 < secondFailedAt)
-        #expect(session.status(.drive) == .recording)
         try await deliver(480)
+        #expect(session.status(.drive) == .recording)
         let finished = session.finish()
 
         #expect(opened.resumes.count == 4)
@@ -199,7 +199,6 @@ struct TakeSessionTests {
             .init(copy: .drive, start: 0, end: firstRejoin),
             .init(copy: .drive, start: committed2, end: secondRejoin),
         ])
-        #expect(finished.statuses[.drive] == .recording)
     }
 
     @Test("The last healthy Copy running low ends the Take; a Copy running low while another has room retires")
@@ -233,9 +232,8 @@ struct TakeSessionTests {
         #expect(session.gaps(takeEnd: 1920) == [.init(copy: .device, start: 480, end: 1920)])
         // With every Copy failed capture stops counting, so the Take ends where the frames stopped.
         let takeEnd = capture.takeFrameCount
+        #expect(session.status(.drive) == .missing)
         let finished = session.finish()
-        #expect(finished.statuses[.device] == .interrupted)
-        #expect(finished.statuses[.drive] == .missing)
         #expect(finished.metadata.gaps == [.init(copy: .device, start: 480, end: takeEnd)])
     }
 
