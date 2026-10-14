@@ -86,6 +86,10 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     /// two Copies.
     public var standIns: [StandIn]?
 
+    /// Drive only (#630): true for a Take recorded with Drive only on, so one the Device holds can be found and moved to
+    /// the Drive later. Nil (left out of Take.json) for any other Take, and for one recorded before this field.
+    public var driveOnly: Bool?
+
     public struct StandIn: Codable, Equatable, Sendable {
         public var start: Int
         public var end: Int
@@ -377,7 +381,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     public private(set) var unknownFields: UnknownFields?
 
     enum CodingKeys: String, CodingKey, CaseIterable {
-        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames, gainChanges, routingChanges, standIns
+        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames, gainChanges, routingChanges, standIns, driveOnly
     }
 
     public init(from decoder: any Decoder) throws {
@@ -397,6 +401,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         gainChanges = try c.decodeIfPresent([GainChange].self, forKey: .gainChanges)
         routingChanges = try c.decodeIfPresent([RoutingChange].self, forKey: .routingChanges)
         standIns = try c.decodeIfPresent([StandIn].self, forKey: .standIns)
+        driveOnly = try c.decodeIfPresent(Bool.self, forKey: .driveOnly)
     }
 
     public init(show: String, take: Int, startedAt: Date, sampleRate: Int, timeReference: UInt64, usbChannels: [USBChannel], markers: [Marker] = []) {
