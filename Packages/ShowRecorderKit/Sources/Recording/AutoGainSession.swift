@@ -59,7 +59,7 @@ public final class AutoGainSession {
     private let link: SameMixerControl
     private var control: any GainControl { link.control }
     private let rule: AutoGainRule
-    private let measure: (Int) async -> Double
+    private let measure: (Int) async -> Double?
     private let settle: () async -> Void
     /// Told about every gain change made and undone (#450): the Recorder logs it in the Take or the Show.
     private let log: (TakeMetadata.GainChange) -> Void
@@ -68,6 +68,8 @@ public final class AutoGainSession {
 
     private struct LevelDidNotFollow: Error {}
     private struct StoppedForTake: Error {}
+    /// The audio stopped while measuring (disarmed, a sample-rate change): nothing to measure (#554).
+    private struct AudioStopped: Error {}
     /// Set by `stop()`: no more gain moves in this run.
     private var stopRequested = false
 
@@ -80,9 +82,9 @@ public final class AutoGainSession {
     public private(set) var steps: [Int: [GainStep]] = [:]
 
     /// - Parameters:
-    ///   - measure: a USB Channel's Average level now, in dBFS, from the meters.
+    ///   - measure: a USB Channel's Average level now, in dBFS, from the meters; nil when the audio stopped.
     ///   - settle: waits for the meters to follow a gain move before measuring again.
-    public convenience init(control: any GainControl, rule: AutoGainRule = AutoGainRule(), measure: @escaping (Int) async -> Double,
+    public convenience init(control: any GainControl, rule: AutoGainRule = AutoGainRule(), measure: @escaping (Int) async -> Double?,
                             settle: @escaping () async -> Void = {}, log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }) {
         self.init(currentControl: { control }, rule: rule, measure: measure, settle: settle, log: log)
     }
@@ -93,7 +95,7 @@ public final class AutoGainSession {
     ///   - mixer: which Mixer is linked now, its network name and model; the session keeps to the one linked when it
     ///     was made.
     public init(currentControl: @escaping () -> (any GainControl)?, mixer: @escaping () -> String? = { nil },
-                rule: AutoGainRule = AutoGainRule(), measure: @escaping (Int) async -> Double,
+                rule: AutoGainRule = AutoGainRule(), measure: @escaping (Int) async -> Double?,
                 settle: @escaping () async -> Void = {}, log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }) {
         link = SameMixerControl(currentControl: currentControl, mixer: mixer)
         self.log = log
@@ -170,7 +172,7 @@ public final class AutoGainSession {
             outcome = try await rule.run(
                 measure: {
                     onPhase?(usbChannel, .measuring)
-                    let level = await measure(usbChannel)
+                    guard let level = await measure(usbChannel) else { throw AudioStopped() }
                     // Our meters measure what's recorded: if the level didn't follow the gain, the wrong preamp moved.
                     if let expected, abs(level - expected) > Self.followToleranceDb { throw LevelDidNotFollow() }
                     lastLevel = level
@@ -210,6 +212,10 @@ public final class AutoGainSession {
         } catch is StoppedForTake {
             steps[usbChannel, default: []] += taken
             return .haltedForTake(usbChannel: usbChannel, channel: channel)
+        } catch is AudioStopped {
+            // Nothing was measured wrong, so nothing is put back: every move made stays for Undo.
+            steps[usbChannel, default: []] += taken
+            return .skipped(usbChannel: usbChannel, reason: .noSignal)
         } catch is LevelDidNotFollow {
             // Newest first; a step the Mixer wouldn't take back stays for Undo, with every older one, and the
             // result is the Mixer's problem rather than "stopped", which says the gain was put back.
