@@ -35,25 +35,34 @@ public final class MixerSession {
     /// while it isn't, though the Link itself may still be up.
     public var isOffered: Bool { family != nil }
 
-    /// The Link's status, while Mixer Link is offered.
+    /// The Link's status, while Mixer Link is offered, whichever Mixer it's to: Settings shows where the Link is and
+    /// lets the operator connect to the Armed Mixer instead (#589).
     public var status: MixerLinkStatus? { isOffered ? link.status : nil }
 
-    /// One Source per USB Channel while the Link is up and offered.
-    public var sources: [Source] { isOffered ? link.sources : [] }
+    /// Whether Mixer Link is offered and the linked Mixer is the Armed input's family (#589): an XR18's Link says
+    /// nothing about an Armed X32.
+    private var linkedMixerIsArmed: Bool {
+        isOffered && link.identity.map { MixerFamily.reading(model: $0.model) } == family
+    }
 
-    /// The linked Mixer's gain control, while Mixer Link is offered, read fresh each time (#508). Never a stale Link's:
-    /// with another input Armed, nothing moves a Mixer's gain.
-    public var gainControl: (any GainControl)? { isOffered ? link.gainControl : nil }
+    /// One Source per USB Channel while the Link is up, offered and to the Armed Mixer's family (#589).
+    public var sources: [Source] { linkedMixerIsArmed ? link.sources : [] }
 
-    /// The linked Mixer's identity, while Mixer Link is offered (#556).
-    public var identity: MixerIdentity? { isOffered ? link.identity : nil }
+    /// The linked Mixer's gain control, while Mixer Link is offered and the linked Mixer is the Armed family, read
+    /// fresh each time (#508). Never a stale Link's: with another input Armed, or another Mixer family (#589), nothing
+    /// moves a Mixer's gain.
+    public var gainControl: (any GainControl)? { linkedMixerIsArmed ? link.gainControl : nil }
+
+    /// The linked Mixer's identity, while Mixer Link is offered and the linked Mixer is the Armed family (#556, #589).
+    public var identity: MixerIdentity? { linkedMixerIsArmed ? link.identity : nil }
 
     /// The linked Mixer's network name, kept for saving a Template even while Mixer Link isn't offered (nothing Armed,
     /// another input), so a Template keeps finding its Mixer by name (#33, #556). Read only: nothing is sent to the Mixer.
     public var networkNameForTemplates: String? { link.identity?.networkName }
 
-    /// What the linked Mixer sends over USB, while Mixer Link is offered (#556).
-    public var capabilities: MixerCapabilities? { isOffered ? link.capabilities : nil }
+    /// What the linked Mixer sends over USB, while Mixer Link is offered and the linked Mixer is the Armed family
+    /// (#556, #589).
+    public var capabilities: MixerCapabilities? { linkedMixerIsArmed ? link.capabilities : nil }
 
     /// The Armed input changed: its name as the system gives it, and how many USB Channels it sends. Callers pass nil
     /// when nothing is Armed, or the Armed input has no Mixer family (the App's rule: `recorder.isArmed &&

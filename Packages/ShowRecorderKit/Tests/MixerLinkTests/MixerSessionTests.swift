@@ -33,6 +33,23 @@ struct MixerSessionTests {
         #expect(link.identity != nil, "the Link stays up, hidden")
     }
 
+    @Test("With an X32 Armed while the Link is still on an XR18, nothing of the XR18 is used: no gain control, Sources, identity or capabilities (#589)")
+    func otherMixerFamilyHidesTheLinkedMixer() async {
+        let (session, link) = session()
+        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+        #expect(session.gainControl != nil)
+
+        await session.armed(interfaceName: "X-USB", usbChannelCount: 32)
+
+        #expect(session.isOffered, "Settings still offers connecting to the X32")
+        #expect(session.status != nil, "Settings shows where the Link is")
+        #expect(session.gainControl == nil, "the XR18's preamps must not move for the X32's audio")
+        #expect(session.sources.isEmpty)
+        #expect(session.identity == nil)
+        #expect(session.capabilities == nil)
+    }
+
     @Test("The Mixer's identity and what it sends over USB show while Mixer Link is offered, and hide with another input Armed")
     func identityAndCapabilitiesGated() async {
         let (session, link) = session()
@@ -45,6 +62,11 @@ struct MixerSessionTests {
 
         #expect(session.identity == nil)
         #expect(session.capabilities == nil)
+
+        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+
+        #expect(session.gainControl != nil, "the XR18 Armed again is the linked Mixer again")
+        #expect(session.identity?.model == "XR18")
     }
 
     @Test("The linked Mixer's network name is still there for a Template while nothing is Armed")
