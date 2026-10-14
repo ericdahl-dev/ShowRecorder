@@ -658,7 +658,8 @@ final class RecordScreenModel {
     var autoGainUnavailable: AutoGainAvailability.Unavailable? {
         let isConnecting = if case .connecting = mixer.status { true } else { false }
         return AutoGainAvailability.whyNot(hasMixerLink: mixer.identity != nil, isConnecting: isConnecting,
-                                           canSetGain: mixer.gainControl != nil, isRecording: recorder.isRecording)
+                                           canSetGain: mixer.gainControl != nil, isRecording: recorder.isRecording,
+                                           otherMixer: mixer.otherMixerLinked?.nameAndModel)
     }
 
     /// Auto-gain's state (#155): kept here, not in the sheet, so Undo survives closing it; locked during a Take.
@@ -830,7 +831,8 @@ final class RecordScreenModel {
             drive: drive.status,
             mixer: mixer.status,
             copies: copies,
-            sampleRate: recorder.sampleRate ?? 48_000)
+            sampleRate: recorder.sampleRate ?? 48_000,
+            otherMixer: mixer.otherMixerLinked)
     }
 
     /// Everything the record screen has to say, most urgent first, but the warnings swiped away (#644); it shows one
@@ -902,7 +904,7 @@ final class RecordScreenModel {
         await Soundcheck.run(
             sequencer: sequencer, mixer: mixer.status, sources: linkedSources,
             expectedUSBChannels: mixer.capabilities?.usbChannelCount, driveChosen: drive.status != .notChosen,
-            allowance: currentAllowance(), progress: progress, result: result)
+            otherMixer: mixer.otherMixerLinked, allowance: currentAllowance(), progress: progress, result: result)
     }
 
     /// A first-run nudge, once: neither a Drive nor a Mixer is set up yet.

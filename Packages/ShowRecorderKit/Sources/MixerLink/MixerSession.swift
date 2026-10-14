@@ -56,6 +56,10 @@ public final class MixerSession {
     /// The linked Mixer's identity, while Mixer Link is offered and the linked Mixer is the Armed family (#556, #589).
     public var identity: MixerIdentity? { linkedMixerIsArmed ? link.identity : nil }
 
+    /// The linked Mixer's identity when Mixer Link is offered but the Link is to another Mixer family than the Armed
+    /// input's (#647), so the Soundcheck, auto-gain and the status chip say the Link is on another Mixer; nil otherwise.
+    public var otherMixerLinked: MixerIdentity? { isOffered && !linkedMixerIsArmed ? link.identity : nil }
+
     /// The linked Mixer's network name, kept for saving a Template even while Mixer Link isn't offered (nothing Armed,
     /// another input), so a Template keeps finding its Mixer by name (#33, #556). Read only: nothing is sent to the Mixer.
     public var networkNameForTemplates: String? { link.identity?.networkName }

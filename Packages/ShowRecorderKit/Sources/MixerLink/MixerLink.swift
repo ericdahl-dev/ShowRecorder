@@ -24,6 +24,12 @@ public struct MixerIdentity: Equatable, Sendable {
         self.model = model
         self.firmware = firmware
     }
+
+    /// "FOH (XR18)", or the model alone when the Mixer has no network name (#647).
+    public var nameAndModel: String {
+        let name = networkName.trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? model : "\(name) (\(model))"
+    }
 }
 
 /// What one Mixer model can do over USB, as its driver knows it.

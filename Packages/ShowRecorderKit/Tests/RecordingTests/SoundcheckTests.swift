@@ -18,15 +18,31 @@ struct SoundcheckTests {
         #expect(step.message == "FOH (XR18) is linked, with 1 channel named.")
     }
 
+    @Test("Mixer: up with no network name says the model alone (#647)")
+    func mixerUpUnnamed() {
+        let unnamed = MixerIdentity(networkName: "", model: "XR18", firmware: "1.26")
+        let step = Soundcheck.judgeMixer(status: .up(unnamed, path: .wifi), sources: [Source(name: "Kick", color: .off)])
+        #expect(step.message == "XR18 is linked, with 1 channel named.")
+    }
+
     @Test("Mixer: not set, down, or up with no names each fails with what to do")
     func mixerProblems() {
-        #expect(Soundcheck.judgeMixer(status: .idle, sources: []) == .init(kind: .mixer, passed: false, message: "No Mixer linked. Add its address in Settings, under Mixer."))
+        #expect(Soundcheck.judgeMixer(status: .idle, sources: []) == .init(kind: .mixer, passed: false, message: "No Mixer linked. Add its address in Settings › Mixer Link."))
         let down = Soundcheck.judgeMixer(status: .down(.noReply(host: "10.0.0.9")), sources: [])
         #expect(!down.passed)
         #expect(down.message == MixerLinkProblem.noReply(host: "10.0.0.9").message)
         let unnamed = Soundcheck.judgeMixer(status: .up(Self.xr18, path: .wifi), sources: [.fallback(usbChannel: 1)])
         #expect(!unnamed.passed)
         #expect(unnamed.message == "FOH (XR18) is linked, but none of its channels has a name. Name them on the Mixer to have them on the Stems.")
+    }
+
+    @Test("Mixer: a Link on another Mixer than the Armed one fails and says which, and where to connect (#647)")
+    func mixerOtherLinked() {
+        let other = Soundcheck.judgeMixer(status: .up(Self.xr18, path: .wifi), sources: [], otherMixer: Self.xr18)
+        #expect(other == .init(kind: .mixer, passed: false, message: "The Mixer Link is on FOH (XR18), not the Armed Mixer. Connect to the Armed Mixer in Settings › Mixer Link."))
+        let unnamed = MixerIdentity(networkName: "", model: "XR18", firmware: "1.26")
+        let step = Soundcheck.judgeMixer(status: .up(unnamed, path: .wifi), sources: [], otherMixer: unnamed)
+        #expect(step.message == "The Mixer Link is on XR18, not the Armed Mixer. Connect to the Armed Mixer in Settings › Mixer Link.")
     }
 
     @Test("Channels: as many as the Mixer sends, with signal, passes and counts them")

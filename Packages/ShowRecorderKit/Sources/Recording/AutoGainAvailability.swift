@@ -15,6 +15,8 @@ extension AutoGainAvailability {
         case connecting
         /// No Mixer to move the preamps on.
         case noMixerLink
+        /// The Link is on another Mixer than the Armed one (#647): "FOH (XR18)".
+        case otherMixerLinked(String)
         /// The linked Mixer's preamps can't be set from ShowRecorder.
         case cantSetGain
 
@@ -26,6 +28,8 @@ extension AutoGainAvailability {
                 "Connecting to the Mixer. Auto-gain is ready once Mixer Link is up."
             case .noMixerLink:
                 "Auto-gain moves the preamps on the Mixer. Connect to it in Settings › Mixer Link first."
+            case .otherMixerLinked(let which):
+                "The Mixer Link is on \(which), not the Armed Mixer. Connect to the Armed Mixer in Settings › Mixer Link first."
             case .cantSetGain:
                 "ShowRecorder can't set this Mixer's preamp gain yet."
             }
@@ -33,9 +37,13 @@ extension AutoGainAvailability {
     }
 
     /// Nil when auto-gain can run; otherwise the reason, a running Take first.
-    public static func whyNot(hasMixerLink: Bool, isConnecting: Bool = false, canSetGain: Bool, isRecording: Bool) -> Unavailable? {
+    public static func whyNot(hasMixerLink: Bool, isConnecting: Bool = false, canSetGain: Bool, isRecording: Bool,
+                              otherMixer: String? = nil) -> Unavailable? {
         if isRecording { return .takeRunning }
-        if !hasMixerLink { return isConnecting ? .connecting : .noMixerLink }
+        if !hasMixerLink {
+            if let otherMixer { return .otherMixerLinked(otherMixer) }
+            return isConnecting ? .connecting : .noMixerLink
+        }
         if !canSetGain { return .cantSetGain }
         return nil
     }

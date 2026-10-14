@@ -50,6 +50,29 @@ struct MixerSessionTests {
         #expect(session.capabilities == nil)
     }
 
+    @Test("With an X32 Armed while the Link is still on an XR18, the session names the XR18 as the other Mixer linked (#647)")
+    func otherMixerLinkedNamesTheLinkedMixer() async {
+        let driver = FakeMixerDriver(gainControl: StubGainControl())
+        let (session, link) = session(driver)
+        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+        #expect(session.otherMixerLinked == nil, "the linked Mixer is the Armed family")
+
+        await session.armed(interfaceName: "X-USB", usbChannelCount: 32)
+        #expect(session.otherMixerLinked?.networkName == "FOH")
+        #expect(session.otherMixerLinked?.model == "XR18")
+
+        driver.state.withLock { $0.problem = .noReply(host: "10.0.0.20") }
+        await link.connect(to: "10.0.0.20", usbChannelCount: 32)
+        guard case .down = link.status else { Issue.record("the Link should be down: \(link.status)"); return }
+        #expect(session.otherMixerLinked == nil, "a Link that's down is on no Mixer")
+        driver.state.withLock { $0.problem = nil }
+        await link.connect(to: "10.0.0.20", usbChannelCount: 32)
+
+        await session.armed(interfaceName: "EVO 4", usbChannelCount: 2)
+        #expect(session.otherMixerLinked == nil, "Mixer Link isn't offered")
+    }
+
     @Test("The Mixer's identity and what it sends over USB show while Mixer Link is offered, and hide with another input Armed")
     func identityAndCapabilitiesGated() async {
         let (session, link) = session()

@@ -197,4 +197,19 @@ struct StatusChipsTests {
                                     mixer: .idle, copies: takeCopies(driveOnly: true, device: .standingBy, drive: .recording))
         #expect(shown.map(\.text) == ["Drive 2 h 00 min", "Mixer not linked"])
     }
+
+    @Test("A Link up on another Mixer than the Armed one asks for attention and names that Mixer (#647)")
+    func otherMixerLinked() {
+        func mixerChip(_ identity: MixerIdentity) -> StatusChip? {
+            StatusChip.make(usbChannelCount: 32, deviceAvailableBytes: Self.anHour, drive: .notChosen,
+                            mixer: .up(identity, path: .wifi), copies: .none, otherMixer: identity).last
+        }
+        let foh = MixerIdentity(networkName: "FOH", model: "XR18", firmware: "1.26")
+        #expect(mixerChip(foh) == StatusChip(kind: .mixer, text: "Other Mixer linked", state: .attention, detail: "FOH · XR18"))
+        let unnamed = MixerIdentity(networkName: "", model: "XR18", firmware: "1.26")
+        #expect(mixerChip(unnamed) == StatusChip(kind: .mixer, text: "Other Mixer linked", state: .attention, detail: "XR18"))
+        let blank = MixerIdentity(networkName: " ", model: "XR18", firmware: "1.26")
+        #expect(mixerChip(blank)?.detail == "XR18", "a name of only spaces is no name")
+        #expect(blank.nameAndModel == "XR18")
+    }
 }
