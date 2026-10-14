@@ -5,13 +5,17 @@ import Testing
 /// that never came (#323).
 struct WaitTimedOut: Error {}
 
+/// The bound that turns a hang into a failure, not a timing budget: a wait returns as soon as its event comes. Under
+/// load the shared main actor can hold an event back for tens of seconds (#646), so the guard sits well above that.
+let hangGuard: Duration = .seconds(120)
+
 /// Waits until `condition` holds, checking every 5 ms. If it doesn't by `timeout`, the test fails at the caller's line
-/// and this throws. The timeout is generous: under a loaded machine a short one is what made tests flaky. It also
-/// looks at least once per 5 ms of `timeout` before giving up, so a starved Mac, where each look is slow, still gets
-/// all its looks (#462).
+/// and this throws. The timeout defaults to `hangGuard`: under a loaded machine a short one is what made tests flaky.
+/// It also looks at least once per 5 ms of `timeout`, up to 2,000 looks, before giving up, so a starved Mac, where
+/// each look is slow, still gets its looks (#462) without a failing wait holding the build lock for many minutes.
 /// It runs on the caller's actor (`isolation`), so a main-actor test can check main-actor state.
 func waitUntil(
-    timeout: Duration = .seconds(10), isolation: isolated (any Actor)? = #isolation,
+    timeout: Duration = hangGuard, isolation: isolated (any Actor)? = #isolation,
     sourceLocation: SourceLocation = #_sourceLocation, _ condition: () -> Bool
 ) async throws {
     let deadline = ContinuousClock.now + timeout
@@ -28,7 +32,7 @@ func waitUntil(
 
 /// The same, for code off the main actor that can't await (it sleeps the thread).
 func waitUntilBlocking(
-    timeout: Duration = .seconds(10), sourceLocation: SourceLocation = #_sourceLocation, _ condition: () -> Bool
+    timeout: Duration = hangGuard, sourceLocation: SourceLocation = #_sourceLocation, _ condition: () -> Bool
 ) throws {
     let deadline = ContinuousClock.now + timeout
     var looks = 0
@@ -42,7 +46,7 @@ func waitUntilBlocking(
     }
 }
 
-/// One look per 5 ms of `timeout`, the most an unloaded Mac would have made.
+/// One look per 5 ms of `timeout`, the most an unloaded Mac would have made, capped at 2,000.
 private func minimumLooks(_ timeout: Duration) -> Int {
-    Int(timeout / .milliseconds(5))
+    min(Int(timeout / .milliseconds(5)), 2_000)
 }

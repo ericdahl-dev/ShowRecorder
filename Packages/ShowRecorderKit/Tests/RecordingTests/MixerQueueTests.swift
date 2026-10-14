@@ -22,7 +22,7 @@ struct MixerQueueTests {
                 events.append("first ends")
             }
         }
-        for await _ in entered { break }
+        try #require(await ClipProtectionTests.next(entered), "the first job is under way")
         let second = Task { @MainActor in try await queue.run { events.append("second") } }
         let third = Task { @MainActor in try await queue.run { events.append("third") } }
         await Task.yield()
@@ -46,7 +46,7 @@ struct MixerQueueTests {
                 throw MixerLinkProblem.networkUnreachable
             }
         }
-        for await _ in entered { break }
+        try #require(await ClipProtectionTests.next(entered), "the first job is under way")
         let second = Task { @MainActor in try await queue.run { "second ran" } }
         await Task.yield()
         release.yield()

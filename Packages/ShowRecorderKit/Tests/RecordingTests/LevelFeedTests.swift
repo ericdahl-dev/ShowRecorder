@@ -16,28 +16,28 @@ struct LevelFeedTests {
     }
 
     /// Starts measuring `usbChannel` and waits until the measurement is registered, so no window fed after it is
-    /// missed; fails after 30 s rather than hanging (the main actor can be busy for seconds in a full run).
+    /// missed; fails after `hangGuard` rather than hanging (the main actor can be busy for seconds in a full run).
     static func start(_ feed: LevelFeed, usbChannel: Int = 1) async -> Task<Double?, Never> {
         let task = Task { await feed.measure(usbChannel: usbChannel) }
-        let deadline = ContinuousClock.now + .seconds(30)
+        let deadline = ContinuousClock.now + hangGuard
         while !feed.isMeasuring(usbChannel: usbChannel) {
             guard ContinuousClock.now < deadline else {
                 Issue.record("the measurement never registered")
                 break
             }
-            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(5))
         }
         return task
     }
 
-    /// The measurement's result, or `.timedOut` after `seconds`, so a measurement that never ends fails the test
-    /// instead of hanging the run (and the shared build lock with it).
+    /// The measurement's result, or `.timedOut` after `timeout` (default `hangGuard`), so a measurement that never ends
+    /// fails the test instead of hanging the run (and the shared build lock with it).
     enum Outcome: Equatable { case level(Double?), timedOut }
     /// Not a task group: that waits for every child, so a measurement that never ends would hang it anyway.
-    static func result(_ task: Task<Double?, Never>, within seconds: Double = 30) async -> Outcome {
+    static func result(_ task: Task<Double?, Never>, within timeout: Duration = hangGuard) async -> Outcome {
         let (outcomes, sink) = AsyncStream<Outcome>.makeStream()
         Task { sink.yield(.level(await task.value)) }
-        let timer = Task { try? await Task.sleep(for: .seconds(seconds)); sink.yield(.timedOut) }
+        let timer = Task { try? await Task.sleep(for: timeout); sink.yield(.timedOut) }
         var first = outcomes.makeAsyncIterator()
         let outcome = await first.next() ?? .timedOut
         timer.cancel()

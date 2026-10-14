@@ -525,7 +525,7 @@ struct AutoGainSessionTests {
         }
 
         let first = Task { try await session.undo(usbChannel: 1) }
-        for await _ in entered { break }
+        try #require(await ClipProtectionTests.next(entered), "the first Undo is on the Mixer")
         let second = Task { try await session.undo(usbChannel: 2) }   // waits for the Mixer
         await Task.yield()
         session.stop()

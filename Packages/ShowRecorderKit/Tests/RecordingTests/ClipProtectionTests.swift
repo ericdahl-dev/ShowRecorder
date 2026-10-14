@@ -102,12 +102,13 @@ struct ClipProtectionTests {
 
     static let hot = Windows.repeating(Windows.at(-2), 10)
 
-    /// Waits for `stream`'s next value, or gives up after `seconds`, so a gate the code never reaches fails the test
-    /// instead of hanging the run (and the shared build lock with it).
-    static func next(_ stream: AsyncStream<Void>, within seconds: Double = 30) async -> Bool {
+    /// Waits for `stream`'s next value, or gives up after `timeout`, so a gate the code never reaches fails the test
+    /// instead of hanging the run (and the shared build lock with it). The default, `hangGuard`, is not a timing
+    /// budget: the wait returns as soon as the value comes.
+    static func next(_ stream: AsyncStream<Void>, within timeout: Duration = hangGuard) async -> Bool {
         await withTaskGroup(of: Bool.self) { group in
             group.addTask { for await _ in stream { return true }; return false }
-            group.addTask { try? await Task.sleep(for: .seconds(seconds)); return false }
+            group.addTask { try? await Task.sleep(for: timeout); return false }
             let first = await group.next() ?? false
             group.cancelAll()
             return first
@@ -473,7 +474,7 @@ struct ClipProtectionTests {
     }
 
     @Test("A meter read while a slow Mixer is still answering, a disarm leaving no channels, doesn't crash or move twice")
-    func readDuringMove() async {
+    func readDuringMove() async throws {
         let (entered, enter) = AsyncStream<Void>.makeStream()
         let (released, release) = AsyncStream<Void>.makeStream()
         control.answer = {
@@ -483,7 +484,7 @@ struct ClipProtectionTests {
         let protection = ClipProtection(control: control, sampleRate: 48_000)
 
         let moving = Task { await Self.feed(protection, Self.hot + Self.hot) }
-        for await _ in entered { break }
+        try #require(await Self.next(entered), "the slow Mixer is answering")
         await protection.observe([])
         release.yield()
         await moving.value
@@ -529,7 +530,7 @@ struct ClipProtectionTests {
 
         let moving = Task { await Self.feed(protection, Self.hot) }
         // Without the queue the move reaches the Mixer in milliseconds.
-        #expect(await Self.next(probed, within: 1) == false, "the turn-down waits for the whole-Mixer job")
+        #expect(await Self.next(probed, within: .seconds(1)) == false, "the turn-down waits for the whole-Mixer job")
         release.yield()
         #expect(await Self.next(moved), "then it reaches the Mixer")
         try await wholeMixer.value
@@ -554,7 +555,7 @@ struct ClipProtectionTests {
         let protection = ClipProtection(control: control, sampleRate: 48_000, queue: queue)
 
         let moving = Task { await Self.feed(protection, Self.hot) }
-        #expect(await Self.next(probed, within: 1) == false, "the turn-down waits in the queue")
+        #expect(await Self.next(probed, within: .seconds(1)) == false, "the turn-down waits in the queue")
         protection.stop()                                   // the Take ended
         release.yield()
         try await wholeMixer.value
