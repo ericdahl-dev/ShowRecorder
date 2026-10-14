@@ -12,7 +12,7 @@ struct StatusChipsTests {
     func chips(
         deviceBytes: Int64 = StatusChipsTests.anHour,
         drive: DriveStatus = .notChosen,
-        mixer: MixerLinkStatus = .idle,
+        mixer: MixerLinkState = .notLinked,
         copies: TakeCopies = .none
     ) -> [StatusChip.Kind: StatusChip] {
         Dictionary(uniqueKeysWithValues: StatusChip.make(
@@ -28,7 +28,7 @@ struct StatusChipsTests {
     func timeLeftAtInputRate() {
         func texts(_ rate: Int) -> [String] {
             StatusChip.make(
-                usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour), mixer: .idle,
+                usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour), mixer: .notLinked,
                 copies: .none, sampleRate: rate
             ).filter { $0.kind != .mixer }.map(\.text)
         }
@@ -89,19 +89,19 @@ struct StatusChipsTests {
         }
     }
 
-    @Test("Mixer chip: not linked, connecting, up and down")
+    @Test("Mixer chip: not linked, connecting, linked and down")
     func mixerStates() {
-        #expect(chips(mixer: .idle)[.mixer]?.text == "Mixer not linked")
-        #expect(chips(mixer: .idle)[.mixer]?.state == .neutral)
+        #expect(chips(mixer: .notLinked)[.mixer]?.text == "Mixer not linked")
+        #expect(chips(mixer: .notLinked)[.mixer]?.state == .neutral)
         #expect(chips(mixer: .connecting(host: "10.0.0.9"))[.mixer]?.text == "Mixer connecting")
 
         // The Mixer's own network name, so two XR18s on one network can be told apart (#328); the model and path
         // go to VoiceOver and stay as the text when the Mixer has no name.
-        let up = chips(mixer: .up(MixerIdentity(networkName: "FOH", model: "XR18", firmware: "1.0"), path: .wifi))[.mixer]
+        let up = chips(mixer: .linked(MixerIdentity(networkName: "FOH", model: "XR18", firmware: "1.0"), path: .wifi))[.mixer]
         #expect(up?.text == "FOH")
         #expect(up?.detail == "XR18 · Wi-Fi")
         #expect(up?.state == .ok)
-        let unnamed = chips(mixer: .up(MixerIdentity(networkName: "  ", model: "XR18", firmware: "1.0"), path: .wifi))[.mixer]
+        let unnamed = chips(mixer: .linked(MixerIdentity(networkName: "  ", model: "XR18", firmware: "1.0"), path: .wifi))[.mixer]
         #expect(unnamed?.text == "XR18 · Wi-Fi")
         #expect(unnamed?.detail == nil)
 
@@ -134,7 +134,7 @@ struct StatusChipsTests {
     @Test("Drive only between Takes, the Drive there: one chip, the Drive's, beside the Mixer's (#550)")
     func driveOnlyBetweenTakesDrive() {
         let shown = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour * 2),
-                                    mixer: .idle, copies: .none, driveOnly: true).map(\.text)
+                                    mixer: .notLinked, copies: .none, driveOnly: true).map(\.text)
         #expect(shown == ["Drive 2 h 00 min", "Mixer not linked"])
     }
 
@@ -194,7 +194,7 @@ struct StatusChipsTests {
     @Test("A Drive-only Take with a Mixer: one of the Device and Drive chips, then the Mixer's (#550)")
     func driveOnlyTakeWithMixer() {
         let shown = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour * 2),
-                                    mixer: .idle, copies: takeCopies(driveOnly: true, device: .standingBy, drive: .recording))
+                                    mixer: .notLinked, copies: takeCopies(driveOnly: true, device: .standingBy, drive: .recording))
         #expect(shown.map(\.text) == ["Drive 2 h 00 min", "Mixer not linked"])
     }
 
@@ -202,7 +202,7 @@ struct StatusChipsTests {
     func otherMixerLinked() {
         func mixerChip(_ identity: MixerIdentity) -> StatusChip? {
             StatusChip.make(usbChannelCount: 32, deviceAvailableBytes: Self.anHour, drive: .notChosen,
-                            mixer: .up(identity, path: .wifi), copies: .none, otherMixer: identity).last
+                            mixer: .otherMixer(identity), copies: .none).last
         }
         let foh = MixerIdentity(networkName: "FOH", model: "XR18", firmware: "1.26")
         #expect(mixerChip(foh) == StatusChip(kind: .mixer, text: "Other Mixer linked", state: .attention, detail: "FOH · XR18"))

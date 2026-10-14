@@ -73,6 +73,30 @@ struct MixerSessionTests {
         #expect(session.otherMixerLinked == nil, "Mixer Link isn't offered")
     }
 
+    @Test("The session's Mixer state: nil while not offered, not linked when idle, linked on the Armed family, the other Mixer on another family, down with its problem (#556)")
+    func mixerState() async {
+        let driver = FakeMixerDriver(gainControl: StubGainControl())
+        let (session, link) = session(driver)
+        #expect(session.state == nil, "Mixer Link isn't offered")
+
+        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        #expect(session.state == .notLinked)
+
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+        let identity = driver.state.withLock { $0.identity }
+        #expect(session.state == .linked(identity, path: .wifi))
+
+        await session.armed(interfaceName: "X-USB", usbChannelCount: 32)
+        #expect(session.state == .otherMixer(identity))
+
+        driver.state.withLock { $0.problem = .noReply(host: "10.0.0.20") }
+        await link.connect(to: "10.0.0.20", usbChannelCount: 32)
+        #expect(session.state == .down(.noReply(host: "10.0.0.20")))
+
+        await session.armed(interfaceName: "EVO 4", usbChannelCount: 2)
+        #expect(session.state == nil, "Mixer Link isn't offered")
+    }
+
     @Test("The Mixer's identity and what it sends over USB show while Mixer Link is offered, and hide with another input Armed")
     func identityAndCapabilitiesGated() async {
         let (session, link) = session()
@@ -279,6 +303,7 @@ struct MixerSessionTests {
 
         let arming = Task { await session.armed(interfaceName: "XR18", usbChannelCount: 18) }
         while link.status == .idle { await Task.yield() }
+        #expect(session.state == .connecting(host: "10.0.0.20"))
         await session.armed(interfaceName: "XR18", usbChannelCount: 12)
         driver.releaseIdentify()
         await arming.value

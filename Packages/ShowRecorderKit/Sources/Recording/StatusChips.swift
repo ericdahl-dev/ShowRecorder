@@ -48,11 +48,10 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         usbChannelCount: Int,
         deviceAvailableBytes: Int64,
         drive: DriveStatus,
-        mixer: MixerLinkStatus?,
+        mixer: MixerLinkState?,
         copies: TakeCopies,
         sampleRate: Int = 48_000,
-        driveOnly: Bool = false,
-        otherMixer: MixerIdentity? = nil
+        driveOnly: Bool = false
     ) -> [StatusChip] {
         func stopped(_ kind: DestinationKind) -> Bool { copies.isRunning && copies[kind] == .interrupted }
         func timeLeft(_ bytes: Int64) -> TimeLeft {
@@ -87,19 +86,18 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         }
 
         guard let mixer else { return chips }
-        // The Link is on another Mixer than the Armed one (#647): not a healthy chip.
-        if let otherMixer {
-            let name = otherMixer.networkName.trimmingCharacters(in: .whitespaces)
-            let detail = name.isEmpty ? otherMixer.model : "\(name) · \(otherMixer.model)"
-            return chips + [StatusChip(kind: .mixer, text: "Other Mixer linked", state: .attention, detail: detail)]
-        }
         let mixerChip: StatusChip
         switch mixer {
-        case .idle:
+        case .otherMixer(let otherMixer):
+            // The Link is on another Mixer than the Armed one (#647): not a healthy chip.
+            let name = otherMixer.networkName.trimmingCharacters(in: .whitespaces)
+            let detail = name.isEmpty ? otherMixer.model : "\(name) · \(otherMixer.model)"
+            mixerChip = StatusChip(kind: .mixer, text: "Other Mixer linked", state: .attention, detail: detail)
+        case .notLinked:
             mixerChip = StatusChip(kind: .mixer, text: "Mixer not linked", state: .neutral)
         case .connecting:
             mixerChip = StatusChip(kind: .mixer, text: "Mixer connecting", state: .neutral)
-        case .up(let identity, let path):
+        case .linked(let identity, let path):
             // The Mixer's network name tells two of the same model apart (#328); without one, its model and path.
             let modelAndPath = "\(identity.model) · \(path.name)"
             let name = identity.networkName.trimmingCharacters(in: .whitespaces)
