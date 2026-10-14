@@ -117,7 +117,7 @@ struct DriveOnlyTakeTests {
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
-        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
         recorder.checkDestinations()
 
         #expect(recorder.copies.isDriveOnly)
@@ -134,14 +134,14 @@ struct DriveOnlyTakeTests {
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
-        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
         recorder.checkDestinations()
         try await deliverBlocks(5, from: 10 * 480, to: audio, recorder, sample: counting())
         try recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(try driveSamples(frames: 7_200) == (0..<7_200).map { counting()($0, 0) }, "the Drive has the whole Take")
-        #expect(recorder.lastTakeOutcomes[.drive] == .repaired)
+        #expect(recorder.copies[.drive] == .repaired)
         #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "nothing of the Take is left on the Device")
     }
 
@@ -152,7 +152,7 @@ struct DriveOnlyTakeTests {
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
-        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
         recorder.checkDestinations()
         try await deliverBlocks(5, from: 10 * 480, to: audio, recorder, sample: counting())
         try recorder.stopTake()
@@ -213,7 +213,8 @@ struct DriveOnlyTakeTests {
         let standIn = device.appending(path: "\(take)/Stand-in 0/01 USB 01.wav")
         #expect(try StemWriter.readSamples(url: standIn, frames: 0..<14_400) == (0..<14_400).map { counting()($0, 0) })
         #expect(try StemFile.inspect(standIn).frameCount == 14_400, "the stand-in's Stem is finalized")
-        #expect(recorder.lastTakeOutcomes[.drive] != .repaired)
+        #expect(recorder.copies[.drive] == .hasGaps)
+        #expect(recorder.copies[.device] == .standInKept)
     }
 
     @Test("After a Drive given up at Stop, its stand-in stays on the Device and the summary says so (#550)")
@@ -308,7 +309,7 @@ struct DriveOnlyTakeTests {
         try recorder.stopTake()
         await recorder.waitForRepair()
 
-        #expect(recorder.lastTakeOutcomes[.drive] == .repaired)
+        #expect(recorder.copies[.drive] == .repaired)
         #expect(try driveSamples(frames: total) == (0..<total).map { counting()($0, 0) }, "the Drive has the whole Take")
         #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "nothing of the Take is left on the Device")
     }
@@ -335,7 +336,7 @@ struct DriveOnlyTakeTests {
         await recorder.waitForRepair()
 
         #expect(try driveSamples(frames: 14_400) == (0..<14_400).map { counting()($0, 0) }, "the Drive has the whole Take")
-        #expect(recorder.lastTakeOutcomes[.drive] != .repairFailed)
+        #expect(recorder.copies[.drive] == .complete)
         #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "nothing of the Take is left on the Device")
     }
 
