@@ -33,8 +33,10 @@ final class MixerQueue {
 
     /// Whether a job in `lane` (nil: the whole Mixer) may start now, with `ahead` asked for before it and still waiting.
     private func canStart(_ lane: AnyHashable?, behind ahead: ArraySlice<(lane: AnyHashable?, go: CheckedContinuation<Void, Never>)>) -> Bool {
-        guard let lane else { return !whole && ahead.isEmpty }
-        return !lanes.contains(lane) && !ahead.contains { $0.lane == lane }
+        guard !whole else { return false }
+        // A whole-Mixer job waits for every lane job under way; one waiting holds every job asked for after it.
+        guard let lane else { return lanes.isEmpty && ahead.isEmpty }
+        return !lanes.contains(lane) && !ahead.contains { $0.lane == nil || $0.lane == lane }
     }
 
     /// Marks a job in `lane` under way, before it starts, so no other job takes its place meanwhile.

@@ -115,4 +115,61 @@ struct MixerQueueTests {
         try await third.value
         #expect(events == ["first starts", "first ends", "second", "third"])
     }
+
+    @Test("A whole-Mixer job waits for a lane job under way, and a lane job asked for after it waits for it, in any lane")
+    func wholeMixerWaitsAndIsWaitedFor() async throws {
+        let queue = MixerQueue()
+        var events: [String] = []
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (asked, ask) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        let laneJob = Task { @MainActor in
+            try await queue.run(lane: 1) {
+                enter.yield()
+                for await _ in released { break }
+                events.append("lane 1 ends")
+            }
+        }
+        #expect(await ClipProtectionTests.next(entered), "the lane job starts")
+        let wholeJob = Task { @MainActor in
+            ask.yield()
+            try await queue.run { events.append("whole Mixer") }
+        }
+        #expect(await ClipProtectionTests.next(asked))
+        // Another lane: only the whole-Mixer job ahead of it can hold it.
+        let later = Task { @MainActor in
+            ask.yield()
+            try await queue.run(lane: 2) { events.append("lane 2") }
+        }
+        #expect(await ClipProtectionTests.next(asked))
+        release.yield()
+        try await laneJob.value
+        try await wholeJob.value
+        try await later.value
+        #expect(events == ["lane 1 ends", "whole Mixer", "lane 2"])
+    }
+
+    @Test("A lane job that fails frees its lane: the one waiting in it runs")
+    func laneFailureFreesTheLane() async throws {
+        let queue = MixerQueue()
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (asked, ask) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        let first = Task { @MainActor in
+            try await queue.run(lane: 1) { () throws(MixerLinkProblem) in
+                enter.yield()
+                for await _ in released { break }
+                throw MixerLinkProblem.networkUnreachable
+            }
+        }
+        #expect(await ClipProtectionTests.next(entered), "the first job starts")
+        let second = Task { @MainActor in
+            ask.yield()
+            return try await queue.run(lane: 1) { "second ran" }
+        }
+        #expect(await ClipProtectionTests.next(asked))
+        release.yield()
+        await #expect(throws: MixerLinkProblem.self) { try await first.value }
+        #expect(try await second.value == "second ran")
+    }
 }
