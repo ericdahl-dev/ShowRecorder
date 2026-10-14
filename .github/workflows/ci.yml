@@ -100,6 +100,15 @@ jobs:
           -destination 'platform=macOS' -derivedDataPath build/dd
           CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build
 
+      # AppTests (#679), hosted on the Mac app just built, signed ad hoc like it: no team, no Simulator.
+      - name: App tests (macOS)
+        if: matrix.check == 'macOS build'
+        timeout-minutes: 10
+        run: >
+          xcodebuild -project ShowRecorder.xcodeproj -scheme ShowRecorder
+          -destination 'platform=macOS' -derivedDataPath build/dd
+          CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= test
+
       - name: Build for iOS Simulator
         if: matrix.check == 'iOS Simulator build'
         run: >

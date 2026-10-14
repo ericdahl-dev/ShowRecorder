@@ -30,6 +30,7 @@ targets:
         buildPhase: none
     scheme:
       storeKitConfiguration: App/ShowRecorder.storekit
+      testTargets: [AppTests]
     dependencies:
       - package: ShowRecorderKit
         product: AudioIO
@@ -95,6 +96,22 @@ targets:
         GENERATE_INFOPLIST_FILE: false
         CODE_SIGN_STYLE: Automatic
         ENABLE_HARDENED_RUNTIME: true
+
+  # Unit tests of the glue that stays in App/ (#679), hosted on the Mac app so they never need a Simulator.
+  AppTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: AppTests
+    dependencies:
+      - target: ShowRecorder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.ericdahl.ShowRecorder.AppTests
+        GENERATE_INFOPLIST_FILE: true
+        # XcodeGen writes the iOS path for a multi-platform host; the Mac app's binary is under Contents/MacOS.
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/ShowRecorder.app/Contents/MacOS/ShowRecorder
+        BUNDLE_LOADER: $(TEST_HOST)
 
   # The running Take's Live Activity in the Dynamic Island and on the Lock Screen (#136).
   ShowRecorderLiveActivity:
