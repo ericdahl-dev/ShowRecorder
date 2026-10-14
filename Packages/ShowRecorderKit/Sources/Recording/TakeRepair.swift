@@ -42,8 +42,14 @@ final class TakeRepair {
     /// records the result in `Take.json`. `access` (the Drive's folder) is held until it's done.
     /// A Take with no Gaps has nothing to repair; its outcomes are complete (but a spare Drive only stand-in is removed,
     /// so the Device has none) and `access` is released.
-    /// - Parameter abandoned: Copies Stop gave up on (#320), left as they are.
-    func enqueue(_ metadata: TakeMetadata, folders: [DestinationKind: URL], holding access: DriveAccess?, abandoned: Set<DestinationKind> = []) {
+    /// - Parameters:
+    ///   - abandoned: Copies Stop gave up on (#320), left as they are.
+    ///   - keepsStandIns: a Drive only stand-in stays on the Device even once the Drive has its audio: a Take cut off
+    ///     by a crash may not know all its Gaps, so its stand-in may hold the only copy of some audio (#626).
+    func enqueue(
+        _ metadata: TakeMetadata, folders: [DestinationKind: URL], holding access: DriveAccess?, abandoned: Set<DestinationKind> = [],
+        keepsStandIns: Bool = false
+    ) {
         func outcomes(_ metadata: TakeMetadata) -> [DestinationKind: CopyOutcome] {
             Dictionary(uniqueKeysWithValues: folders.keys.map { ($0, metadata.outcome(ofCopy: $0)) })
         }
@@ -55,7 +61,7 @@ final class TakeRepair {
         onChange()
         guard !metadata.gaps.isEmpty else {
             // Drive only: a Drive that faltered but then caught up has the whole Take, so its stand-in is a spare.
-            if metadata.standIns != nil, let device = folders[.device], let drive = folders[.drive], !abandoned.contains(.drive) {
+            if !keepsStandIns, metadata.standIns != nil, let device = folders[.device], let drive = folders[.drive], !abandoned.contains(.drive) {
                 try? FileManager.default.removeItem(at: device)
                 var done = metadata
                 done.standIns = nil
@@ -85,7 +91,7 @@ final class TakeRepair {
             var done = metadata
             done.repairs = repairs
             // Drive only: once the Drive Copy has everything, nothing of the Take stays on the Device.
-            let moved = metadata.standIns != nil && done.outcome(ofCopy: .drive) == .repaired
+            let moved = !keepsStandIns && metadata.standIns != nil && done.outcome(ofCopy: .drive) == .repaired
             // The stand-ins' folders are gone once moved, so the Take no longer names them.
             if moved { done.standIns = nil }
             for copy in copies {

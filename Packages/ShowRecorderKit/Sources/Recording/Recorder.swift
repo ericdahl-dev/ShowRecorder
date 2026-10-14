@@ -166,7 +166,7 @@ public final class Recorder {
         if found.metadata.gaps.isEmpty || found.folders[.drive] == nil {
             access?.end()
         } else {
-            repair.enqueue(found.metadata, folders: found.folders, holding: access)
+            repair.enqueue(found.metadata, folders: found.folders, holding: access, keepsStandIns: true)
         }
     }
 

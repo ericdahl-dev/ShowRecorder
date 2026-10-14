@@ -618,4 +618,176 @@ struct DriveOnlyTakeTests {
         // Take 01: 4 800 frames, only on the Drive.
         #expect(abs((relaunched.showRecordedSeconds(leavingOut: nil) ?? 0) - 0.1) < 0.000_1)
     }
+
+    /// Removes the Show's report and project in both Copies, so the next launch must write them again.
+    func removeReports() {
+        for parent in [device, drive] {
+            let folder = parent.appending(path: "2026-10-06 Show")
+            try? FileManager.default.removeItem(at: folder.appending(path: "Report.html"))
+            try? FileManager.default.removeItem(at: folder.appending(path: "2026-10-06 Show.RPP"))
+        }
+    }
+
+    /// The next launch over a Take a crash cut off (the crashed recorder is left running, so its files are what a crash
+    /// mid-Take leaves), once its Repair is done.
+    func launch(withDrive: Bool = true) async throws -> Recorder {
+        let next = withDrive
+            ? recorder()
+            : Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        try await waitUntil { !next.isRepairing }
+        await next.waitForRepair()
+        return next
+    }
+
+    /// A Drive only Take whose Drive failed and the Device stood in, cut off mid-Take. Returns the crashed recorder.
+    func crashAfterStandIn() async throws -> Recorder {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let crashed = recorder { FailingStem($0, healthyFrames: 480) }
+        try crashed.arm(audio)
+        try crashed.startTake()
+        try await deliverBlocks(10, to: audio, crashed, sample: counting())
+        try await waitUntil { crashed.copies[.drive] == .interrupted }
+        crashed.checkDestinations()
+        try await deliverBlocks(5, from: 10 * 480, to: audio, crashed, sample: counting())
+        try await waitUntil { crashed.bufferedFrameCount == 0 }
+        removeReports()
+        return crashed
+    }
+
+    @Test("A Drive only Take cut off before any stand-in is finished at the next launch, with nothing left on the Device (#626)")
+    func cutOffWithoutStandIn() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let crashed = recorder()
+        try crashed.arm(audio)
+        try crashed.startTake()
+        try await deliverBlocks(10, to: audio, crashed, sample: counting())
+        try await waitUntil { crashed.bufferedFrameCount == 0 }
+        removeReports()
+
+        let next = try await launch()
+
+        #expect(try StemFile.inspect(drive.appending(path: "\(take)/01 USB 01.wav")).frameCount == 4_800, "the header covers the audio on disk")
+        for parent in [device, drive] {
+            let folder = parent.appending(path: "2026-10-06 Show")
+            #expect(ShowFile.read(from: folder)?.lastTakeEndedAt != nil, "\(parent.lastPathComponent) Show knows the Take ended")
+        }
+        #expect(FileManager.default.fileExists(atPath: drive.appending(path: "2026-10-06 Show/Report.html").path))
+        #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "no Take folder on the Device")
+        #expect(next.copies[.device] == .missing)
+    }
+
+    @Test("A Drive only Take cut off after its stand-in started is finished at the next launch: Repair fills the Drive from the stand-in, which stays (#626)")
+    func cutOffAfterStandIn() async throws {
+        let crashed = try await crashAfterStandIn()
+
+        let next = try await launch()
+
+        #expect(try driveSamples(frames: 7_200) == (0..<7_200).map { counting()($0, 0) }, "the Drive has the whole Take")
+        #expect(try StemFile.inspect(drive.appending(path: "\(take)/01 USB 01.wav")).frameCount == 7_200, "the Take ends where the stand-in does")
+        let metadata = try TakeMetadata.read(fromTakeFolder: drive.appending(path: take))
+        #expect(!metadata.gaps.contains { $0.copy == .device }, "no Device Gap")
+        #expect(!metadata.repairs.contains { $0.outcome == .failed }, "\(metadata.repairs)")
+        #expect(next.copies[.drive] == .repaired)
+        #expect(next.copies[.device] == .standInKept, "a cut-off stand-in is never removed at launch")
+        try expectStandInKept()
+        #expect(ShowFile.read(from: drive.appending(path: "2026-10-06 Show"))?.lastTakeEndedAt != nil)
+        _ = crashed
+    }
+
+    /// A Drive only Take whose Drive paused past the stall limit, so the Device stood in, and then caught up, cut off
+    /// mid-Take. Returns the crashed recorder.
+    func crashAfterSpareStandIn() async throws -> Recorder {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
+        let crashed = recorder(driveStem: { SlowStem($0, healthyFrames: 4_800, gate: gate) }, stallLimit: .milliseconds(100))
+        try crashed.arm(audio)
+        try crashed.startTake()
+        try await deliverBlocks(10, to: audio, crashed, sample: counting())
+        for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
+        crashed.checkDestinations()
+        try await Task.sleep(for: .milliseconds(250))
+        deliver(480, from: 20 * 480, to: audio, sample: counting())
+        crashed.checkDestinations()
+        gate.open()
+        try await deliverBlocks(9, from: 21 * 480, to: audio, crashed, sample: counting())
+        try await waitUntil { crashed.bufferedFrameCount == 0 }
+        removeReports()
+        return crashed
+    }
+
+    /// Where the cut-off Take's stand-in starts, from the Device's Take.json.
+    func standInStart() throws -> Int {
+        try #require(TakeMetadata.read(fromTakeFolder: device.appending(path: take)).standIns?.first).start
+    }
+
+    /// The cut-off Take's stand-in is still on the Device: its folder and Stems, listed in both Copies' Take.json.
+    func expectStandInKept(sourceLocation: SourceLocation = #_sourceLocation) throws {
+        let start = try standInStart()
+        let folder = device.appending(path: "\(take)/\(TakeMetadata.StandIn(start: start, end: start).folderName)")
+        #expect(FileManager.default.fileExists(atPath: folder.appending(path: "01 USB 01.wav").path), "the stand-in's Stem is kept", sourceLocation: sourceLocation)
+        #expect(try TakeMetadata.read(fromTakeFolder: drive.appending(path: take)).standIns?.first?.start == start, sourceLocation: sourceLocation)
+    }
+
+    @Test("A Drive only Take cut off after a stand-in the Drive caught up with keeps the stand-in at the next launch (#626)")
+    func cutOffAfterSpareStandIn() async throws {
+        let crashed = try await crashAfterSpareStandIn()
+
+        _ = try await launch()
+
+        #expect(try driveSamples(frames: 14_400) == (0..<14_400).map { counting()($0, 0) }, "the Drive has the whole Take")
+        try expectStandInKept()
+        _ = crashed
+    }
+
+    @Test("A cut-off Drive only Take whose Drive wrote silence over the stand-in's stretch, with no Gap in Take.json yet, keeps the stand-in (#626)")
+    func cutOffDriveSilenceOverStandIn() async throws {
+        let crashed = try await crashAfterSpareStandIn()
+        // What a Drive whose ring overflowed writes (silence for the dropped frames) before its Gap reaches Take.json.
+        let start = try standInStart()
+        try silence(drive.appending(path: "\(take)/01 USB 01.wav"), from: start, frames: 14_400 - start)
+
+        _ = try await launch()
+
+        // The audio is safe on the Device; the Drive keeps the silence until a kept stand-in is moved (#630).
+        try expectStandInKept()
+        _ = crashed
+    }
+
+    @Test("A cut-off Drive only Take whose standby dropped audio the Drive has leaves the Drive's audio alone, and the stand-in stays (#626)")
+    func cutOffStandInSilenceOverDrive() async throws {
+        let crashed = try await crashAfterSpareStandIn()
+        let start = try standInStart()
+        let standIn = device.appending(path: "\(take)/\(TakeMetadata.StandIn(start: start, end: start).folderName)/01 USB 01.wav")
+        try silence(standIn, from: 0, frames: 14_400 - start)
+
+        _ = try await launch()
+
+        #expect(try driveSamples(frames: 14_400) == (0..<14_400).map { counting()($0, 0) }, "the Drive's audio is unchanged")
+        try expectStandInKept()
+        _ = crashed
+    }
+
+    /// Writes `frames` of silence into the Stem at `url` from `frame` (relative to the Stem), leaving its header alone.
+    func silence(_ url: URL, from frame: Int, frames: Int) throws {
+        let handle = try FileHandle(forWritingTo: url)
+        try handle.seek(toOffset: UInt64(StemWriter.dataStart + frame * StemWriter.bytesPerSample))
+        try handle.write(contentsOf: Data(count: frames * StemWriter.bytesPerSample))
+        try handle.close()
+    }
+
+    @Test("A Drive only Take cut off after its stand-in started, with no Drive at the next launch, keeps its finished stand-in on the Device (#626)")
+    func cutOffAfterStandInNoDrive() async throws {
+        let crashed = try await crashAfterStandIn()
+        let start = try standInStart()
+
+        _ = try await launch(withDrive: false)
+
+        let metadata = try TakeMetadata.read(fromTakeFolder: device.appending(path: take))
+        #expect(metadata.standIns == [.init(start: start, end: 7_200)])
+        let stem = device.appending(path: "\(take)/\(TakeMetadata.StandIn(start: start, end: 7_200).folderName)/01 USB 01.wav")
+        #expect(try StemFile.inspect(stem).frameCount == UInt64(7_200 - start), "the stand-in's header covers its audio on disk")
+        #expect(ShowFile.read(from: device.appending(path: "2026-10-06 Show"))?.lastTakeEndedAt != nil, "the Take is noted ended")
+        _ = crashed
+    }
 }
