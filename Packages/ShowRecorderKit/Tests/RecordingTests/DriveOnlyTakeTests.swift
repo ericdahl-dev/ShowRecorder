@@ -363,6 +363,56 @@ struct DriveOnlyTakeTests {
         #expect(channel.stemFile == "01 Lead Vocal.wav")
     }
 
+    /// A Drive only Take of 14,400 frames whose Drive hangs after 4,800 and is given up at Stop, so the stand-in
+    /// is kept on the Device. The hung Drive Stem waits on `gate`, which the caller opens when done.
+    func recordStandInKeptTake(gate: StopNeverBlocksTests.Gate) async throws -> Recorder {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(driveStem: { BlockingStem($0, gate: gate, healthyFrames: 4_800) }, stallLimit: .milliseconds(100))
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
+        recorder.checkDestinations()
+        try await Task.sleep(for: .milliseconds(250))
+        deliver(480, from: 20 * 480, to: audio, sample: counting())
+        recorder.checkDestinations()
+        for block in 21..<30 { deliver(480, from: block * 480, to: audio, sample: counting()) }
+        try await Task.sleep(for: .milliseconds(200))
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+        #expect(recorder.copies[.device] == .standInKept)
+        return recorder
+    }
+
+    @Test("After a Drive given up at Stop, deleting a Stem removes the stand-in's file on the Device too (#627)")
+    func deleteStemStandInKept() async throws {
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
+        let recorder = try await recordStandInKeptTake(gate: gate)
+        try recorder.endShow()
+        let standIn = device.appending(path: "\(take)/Stand-in 0/01 USB 01.wav")
+        #expect(FileManager.default.fileExists(atPath: standIn.path))
+
+        let outcome = recorder.deleteChannel(1, inTake: 1, ofShow: "2026-10-06 Show", from: [.device, .drive])
+
+        #expect(outcome.deleted == [.device, .drive])
+        #expect(!FileManager.default.fileExists(atPath: standIn.path), "the stand-in's Stem is gone")
+        #expect(!FileManager.default.fileExists(atPath: drive.appending(path: "\(take)/01 USB 01.wav").path))
+        #expect(try TakeMetadata.read(fromTakeFolder: device.appending(path: take)).usbChannels.isEmpty)
+        #expect(try TakeMetadata.read(fromTakeFolder: drive.appending(path: take)).usbChannels.isEmpty)
+    }
+
+    @Test("After a Drive given up at Stop, the Copy check fails for the Drive's Gaps and the stand-in, not for reading the Device's Stems (#627)")
+    func copyCheckStandInKept() async throws {
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
+        let recorder = try await recordStandInKeptTake(gate: gate)
+
+        let result = CopyCheck.verify(show: "2026-10-06 Show", device: device, drive: drive)
+
+        #expect(result == .failed(["Take 01 on the Drive still has Gaps.", "Take 01 still has audio only on the Device."]))
+    }
+
     @Test("After a Drive given up at Stop, its stand-in stays on the Device and the summary says so (#550)")
     func summaryStandInStays() async throws {
         let gate = StopNeverBlocksTests.Gate()

@@ -34,9 +34,20 @@ public enum CopyCheck {
             if outcome == .hasGaps || outcome == .repairFailed {
                 problems.append("\(name) on the \(DestinationKind.drive.name) still \(CopyOutcome.hasGaps.word).")
             }
+            // Audio the Device stood in for isn't on the Drive yet, whatever the Drive's Take says (#627).
+            let standIns = deviceTake.standIns.flatMap { $0.isEmpty ? nil : $0 }
+            if standIns != nil { problems.append("\(name) still has audio only on the \(DestinationKind.device.name).") }
             for channel in deviceTake.usbChannels {
                 guard let match = driveTake.usbChannels.first(where: { $0.usbChannel == channel.usbChannel }) else {
                     problems.append("\(name), channel \(channel.usbChannel) is missing on the Drive.")
+                    continue
+                }
+                // A stand-in kept on the Device holds only a stretch of the Take, in its own folder: it can only be
+                // read, not compared with the Drive's Stem (#627).
+                if let standIns {
+                    if standIns.contains(where: { (try? StemFile.inspect(deviceFolder.appending(path: $0.folderName).appending(path: channel.stemFile))) == nil }) {
+                        problems.append("\(name), channel \(channel.usbChannel) can't be read on the Device.")
+                    }
                     continue
                 }
                 let deviceStem = deviceFolder.appending(path: channel.stemFile)

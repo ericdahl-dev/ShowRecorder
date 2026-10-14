@@ -58,6 +58,23 @@ struct CopyCheckTests {
         #expect(failures(verify()) == ["The Drive doesn't have this Show."])
     }
 
+    @Test("While the Device holds a stand-in the check fails, even with the Drive's Take complete (#627)")
+    func standInOnDeviceFails() throws {
+        try record()
+        let takeFolder = device.appending(path: "\(show)/Take 01")
+        var take = try TakeMetadata.read(fromTakeFolder: takeFolder)
+        let standIn = TakeMetadata.StandIn(start: 0, end: 4_800)
+        take.standIns = [standIn]
+        try take.write(to: takeFolder)
+        let standInFolder = takeFolder.appending(path: standIn.folderName)
+        try FileManager.default.createDirectory(at: standInFolder, withIntermediateDirectories: true)
+        for channel in take.usbChannels {
+            try FileManager.default.moveItem(at: takeFolder.appending(path: channel.stemFile), to: standInFolder.appending(path: channel.stemFile))
+        }
+
+        #expect(failures(verify()) == ["Take 01 still has audio only on the Device."])
+    }
+
     @Test("A Drive Copy with Gaps left fails; once Repaired it passes")
     func gaps() throws {
         try record()
