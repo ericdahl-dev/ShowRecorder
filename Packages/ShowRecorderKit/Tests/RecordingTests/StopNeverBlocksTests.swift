@@ -69,6 +69,34 @@ struct StopNeverBlocksTests {
         #expect(recorder.copies[.drive] == .hasGaps)
     }
 
+    @Test("Stop waits on every stuck Copy at once, not one after the other (#652)", .timeLimit(.minutes(1)))
+    func stuckDeviceAndDrive() async throws {
+        let device = root.appending(path: "Device")
+        let drive = root.appending(path: "Drive")
+        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
+        let gate = Gate()
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            makeStem: { url, info, resume in HangingStem(try StemWriter.open(url: url, info: info, resumingAt: resume), gate: gate) },
+            destinationCheckInterval: nil, writerStopTimeout: .seconds(3))
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0.25, count: 4_800)])
+        try await Task.sleep(for: .milliseconds(100))
+
+        // One after the other, two stuck Copies hold Stop for at least 6 s; at once, about 3 s.
+        let started = ContinuousClock.now
+        try recorder.stopTake()
+        let elapsed = ContinuousClock.now - started
+        #expect(elapsed >= .seconds(3), "Stop didn't wait on the stuck Copies")
+        #expect(elapsed < .seconds(5), "Stop waited on the stuck Copies one after the other")
+        #expect(recorder.copies[.device] == .hasGaps)
+        #expect(recorder.copies[.drive] == .hasGaps)
+        gate.open()
+        await recorder.waitForRepair()
+    }
+
     @Test("When Stop gives up on a stuck Drive Copy, it writes the report and Reaper project on the Device Copy only")
     func stuckDriveGetsNoReport() async throws {
         let device = root.appending(path: "Device")

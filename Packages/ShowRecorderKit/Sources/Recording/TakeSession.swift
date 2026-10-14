@@ -361,8 +361,14 @@ final class TakeSession {
     /// A Copy that failed during the Take doesn't make this throw.
     func finish() -> Finished {
         capture.stopCapturing()
-        for copy in copies { copy.writer.stop(timeout: stopTimeout) }
-        standby?.writer.stop(timeout: stopTimeout)
+        // Every writer is told to stop first, then all are waited on against one deadline, so two stuck Copies
+        // hold Stop for one timeout, not two (#652). The deadline is taken after every stop request, so each writer
+        // still gets the full timeout from its own request (#320).
+        for copy in copies { copy.writer.requestStop() }
+        standby?.writer.requestStop()
+        let deadline = stopTimeout.map(TakeWriter.deadline)
+        for copy in copies { copy.writer.waitStopped(until: deadline) }
+        standby?.writer.waitStopped(until: deadline)
         // A standby is a Copy only if it stood in or its folder is kept: its empty folder isn't one, even if removing it fails.
         var standbyFolder = standby?.folder
         if let standby {
