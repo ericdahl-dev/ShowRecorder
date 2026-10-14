@@ -223,7 +223,9 @@ struct AutoGainSessionTests {
         _ = await session.run(usbChannels: [1])
         #expect(session.steps[1]?.count == 2)
 
-        await #expect(throws: MixerLinkProblem.self) { try await session.undo(usbChannel: 1) }
+        await #expect(throws: MixerLinkProblem.other("The Mixer Link is on another Mixer now, so nothing more was written.")) {
+            try await session.undo(usbChannel: 1)
+        }
 
         #expect(mon.gainDb[1] == 5, "nothing written to the other Mixer")
         #expect(session.steps[1]?.count == 1, "the step left stays, for the first Mixer")
@@ -239,7 +241,7 @@ struct AutoGainSessionTests {
         current = nil
 
         await #expect(throws: MixerLinkProblem.other(
-            "The Mixer Link isn't connected to the Armed input's Mixer, so nothing was written.")) {
+            "The Mixer Link isn't connected to the Armed input's Mixer, so nothing more was written.")) {
             try await session.undo(usbChannel: 1)
         }
     }

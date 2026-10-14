@@ -2,12 +2,12 @@ import AutoGain
 import MixerLink
 
 /// The Mixer's gain control as long as it is the same Mixer (#508, #554): after the Mixer Link reconnects, the new
-/// driver, asked for at every step; while the Link is down or on another Mixer, a stand-in that refuses, so nothing
-/// meant for the first Mixer is ever written to another one.
+/// driver, asked for at every step; while the Link is down, on another Mixer, or the Armed input isn't the linked
+/// Mixer, a stand-in that refuses, so nothing meant for the first Mixer is ever written to another one.
 struct SameMixerControl {
     /// The Mixer's gain control now; nil while the Link is down or the Armed input isn't the linked Mixer.
     let currentControl: () -> (any GainControl)?
-    /// Which Mixer is linked now ("FOH · XR18": its network name and model); nil while the Link is down.
+    /// Which Mixer is linked now ("FOH · XR18": its network name and model); nil while the Link is down or isn't offered.
     let mixer: () -> String?
     /// The Mixer the moves are made on: the one linked when this was made.
     let madeOn: String?
@@ -18,20 +18,22 @@ struct SameMixerControl {
         madeOn = mixer()
     }
 
-    /// The linked Mixer's control, or a stand-in that refuses while the Link is down or on another Mixer.
+    /// The linked Mixer's control, or a stand-in that refuses while the Link is down, on another Mixer, or the Armed
+    /// input isn't the linked Mixer.
     var control: any GainControl {
         if let madeOn, let now = mixer(), now != madeOn { return NoMixerLink(problem: NoMixerLink.anotherMixer) }
         return currentControl() ?? NoMixerLink()
     }
 
-    /// Whether moves are refused now: the Link is down or on another Mixer.
+    /// Whether moves are refused now: the Link is down, on another Mixer, or the Armed input isn't the linked Mixer.
     var isRefusing: Bool { control is NoMixerLink }
 }
 
-/// Stands in while the Mixer Link is down: nothing can move a preamp, and Undo says why and stays offered.
+/// Stands in while the Mixer Link is down or the Armed input isn't the linked Mixer: nothing can move a preamp, and
+/// Undo says why and stays offered.
 struct NoMixerLink: GainControl {
-    static let linkDown = MixerLinkProblem.other("The Mixer Link isn't connected to the Armed input's Mixer, so nothing was written.")
-    static let anotherMixer = MixerLinkProblem.other("The Mixer Link is on another mixer now, so nothing was written.")
+    static let linkDown = MixerLinkProblem.other("The Mixer Link isn't connected to the Armed input's Mixer, so nothing more was written.")
+    static let anotherMixer = MixerLinkProblem.other("The Mixer Link is on another Mixer now, so nothing more was written.")
     var problem = Self.linkDown
     func channel(forUSBChannel usbChannel: Int) -> Int? { nil }
     func preamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? { throw problem }
