@@ -15,10 +15,18 @@ struct LevelFeedTests {
                      frames: Int(seconds * Double(rate)))
     }
 
-    /// Starts measuring `usbChannel` and lets the measurement register before any window is fed.
+    /// Starts measuring `usbChannel` and waits until the measurement is registered, so no window fed after it is
+    /// missed; fails after 30 s rather than hanging (the main actor can be busy for seconds in a full run).
     static func start(_ feed: LevelFeed, usbChannel: Int = 1) async -> Task<Double?, Never> {
         let task = Task { await feed.measure(usbChannel: usbChannel) }
-        for _ in 0..<5 { await Task.yield() }
+        let deadline = ContinuousClock.now + .seconds(30)
+        while !feed.isMeasuring(usbChannel: usbChannel) {
+            guard ContinuousClock.now < deadline else {
+                Issue.record("the measurement never registered")
+                break
+            }
+            await Task.yield()
+        }
         return task
     }
 
@@ -80,7 +88,7 @@ struct LevelFeedTests {
         feed.meters([Self.window(-20, seconds: 1)], sampleRate: Self.rate)
         feed.meters([], sampleRate: Self.rate)
 
-        #expect(await Self.result(task, within: 5) == .level(nil))
+        #expect(await Self.result(task) == .level(nil))
     }
 
     @Test("A sample-rate change mid-measure, or no sample rate (disarmed), ends it at once with no level")
@@ -89,12 +97,23 @@ struct LevelFeedTests {
         let changed = await Self.start(feed)
         feed.meters([Self.window(-20, seconds: 1)], sampleRate: Self.rate)
         feed.meters([Self.window(-20, seconds: 0.5)], sampleRate: 44_100)
-        #expect(await Self.result(changed, within: 5) == .level(nil))
+        #expect(await Self.result(changed) == .level(nil))
 
         let none = await Self.start(feed)
         feed.meters([Self.window(-20, seconds: 1)], sampleRate: Self.rate)
         feed.meters([], sampleRate: nil)
-        #expect(await Self.result(none, within: 5) == .level(nil))
+        #expect(await Self.result(none) == .level(nil))
+    }
+
+    @Test("A change in the number of USB Channels mid-measure (another input) ends it at once with no level")
+    func channelCountChange() async throws {
+        let feed = LevelFeed()
+        let task = await Self.start(feed)
+
+        feed.meters([Self.window(-20, seconds: 1), Self.window(-20, seconds: 1)], sampleRate: Self.rate)
+        feed.meters(Array(repeating: Self.window(-20, seconds: 1), count: 3), sampleRate: Self.rate)
+
+        #expect(await Self.result(task) == .level(nil))
     }
 
     @Test("Canceling the measuring Task (the run was canceled) ends it at once with no level")
@@ -105,6 +124,6 @@ struct LevelFeedTests {
 
         task.cancel()
 
-        #expect(await Self.result(task, within: 5) == .level(nil))
+        #expect(await Self.result(task) == .level(nil))
     }
 }

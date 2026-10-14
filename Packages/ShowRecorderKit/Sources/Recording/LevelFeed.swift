@@ -9,6 +9,8 @@ public final class LevelFeed {
         let continuation: CheckedContinuation<Double?, Never>
         /// The input's sample rate at its first window.
         var sampleRate: Int?
+        /// How many USB Channels the input had at its first window.
+        var channels: Int?
         var skipped = 0
         var counted = 0
         var sum = 0.0
@@ -37,12 +39,15 @@ public final class LevelFeed {
         }
         for (id, var measurement) in measurements {
             let index = measurement.usbChannel - 1
-            // The audio stopped (disarmed, or the sample rate changed): it ends at once, with no level.
-            guard levels.indices.contains(index), measurement.sampleRate ?? sampleRate == sampleRate else {
+            // The audio stopped (disarmed, or the sample rate or the number of USB Channels changed): it ends at
+            // once, with no level.
+            guard levels.indices.contains(index), measurement.sampleRate ?? sampleRate == sampleRate,
+                  measurement.channels ?? levels.count == levels.count else {
                 finish(id, level: nil)
                 continue
             }
             measurement.sampleRate = sampleRate
+            measurement.channels = levels.count
             let frames = levels[index].frames
             // Whole windows only: one that ends past the half second is still skipped.
             if Double(measurement.skipped) < Self.settleSeconds * Double(sampleRate) {
@@ -72,6 +77,11 @@ public final class LevelFeed {
             // Runs after the measurement is in place, even when the Task was already canceled: this waits its turn.
             Task { @MainActor in self.finish(id, level: nil) }
         }
+    }
+
+    /// Whether a measurement on `usbChannel` is under way, for tests to feed windows only once it is.
+    func isMeasuring(usbChannel: Int) -> Bool {
+        measurements.values.contains { $0.usbChannel == usbChannel }
     }
 
     private func finish(_ id: Int, level: Double?) {
