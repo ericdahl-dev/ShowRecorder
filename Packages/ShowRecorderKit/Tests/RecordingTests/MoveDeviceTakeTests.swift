@@ -135,4 +135,44 @@ extension DriveOnlyTakeTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: twoCopies.path).sorted() == before)
         #expect(try Data(contentsOf: twoCopies.appending(path: "01 USB 01.wav")) == stem)
     }
+
+    @Test("A move cut off after setting the Device's Take aside is finished by the next move with the Drive, not without it (#630)")
+    func nextMoveFinishesACutOffMove() async throws {
+        let switched = DriveSwitch()
+        let recorder = try await recordDeviceOnlyTake(switched)
+        #expect(await recorder.moveDriveOnlyTakes().map(\.outcome) == [.moved])
+        // As a crash leaves it: the Take set aside on the Device, not yet deleted.
+        let setAside = device.appending(path: "2026-10-06 Show/.moved Take 01")
+        try FileManager.default.copyItem(at: drive.appending(path: take), to: setAside)
+        switched.connected = false
+
+        #expect(await recorder.moveDriveOnlyTakes().isEmpty, "nothing without the Drive")
+        #expect(FileManager.default.fileExists(atPath: setAside.path))
+
+        switched.connected = true
+        let results = await recorder.moveDriveOnlyTakes()
+
+        #expect(results == [.init(show: "2026-10-06 Show", take: 1, outcome: .moved)])
+        #expect(!FileManager.default.fileExists(atPath: setAside.path))
+    }
+
+    @Test("A Drive the Drive joined mid-Take whose Repair at Stop didn't run is filled from the Device and the Device's Take removed (#630)")
+    func joinMidTakeUnrepaired() async throws {
+        let recorder = try await recordJoinMidTake()
+        // As if Repair at Stop had been skipped: the Drive's lead is still silence and its Gap unrepaired.
+        var onDrive = try TakeMetadata.read(fromTakeFolder: drive.appending(path: take))
+        onDrive.repairs = []
+        try onDrive.write(to: drive.appending(path: take))
+        let stem = drive.appending(path: "\(take)/01 USB 01.wav")
+        let handle = try FileHandle(forWritingTo: stem)
+        try handle.seek(toOffset: UInt64(StemWriter.dataStart))
+        try handle.write(contentsOf: Data(count: 4_800 * StemWriter.bytesPerSample))
+        try handle.close()
+
+        let results = await recorder.moveDriveOnlyTakes()
+
+        #expect(results == [.init(show: "2026-10-06 Show", take: 1, outcome: .moved)])
+        #expect(try driveSamples(frames: 9_600) == (0..<9_600).map { counting()($0, 0) })
+        #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path))
+    }
 }

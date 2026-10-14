@@ -38,18 +38,28 @@ enum DeviceTakeMove {
             }
             hook(.filled)
         }
+        // A Drive Take left with Gaps not yet repaired (a move or Stop's Repair a crash cut off): its known Gaps are filled
+        // from the Device's whole Copy, and nothing else on the Drive is written.
+        var finished: TakeMetadata?
+        if made == nil {
+            switch fillKnownGaps(metadata, from: deviceTake, to: driveTake, shouldStop: shouldStop) {
+            case .success(let filled): finished = filled
+            case .failure(let failure): return failure.outcome
+            }
+        }
         // The pair check comes first: two different recordings, links or one folder twice are never compared or written.
-        if case .failed(let reasons) = CopyCheck.verifyTake(device: deviceTake, drive: driveTake, checksDriveOutcome: made == nil) {
+        let recording = made?.metadata ?? finished
+        if case .failed(let reasons) = CopyCheck.verifyTake(device: deviceTake, drive: driveTake, checksDriveOutcome: recording == nil) {
             made?.discard(driveTake)
             return .kept(reasons)
         }
-        if let made {
-            guard (try? made.metadata.write(to: driveTake)) != nil else {
-                made.discard(driveTake)
+        if let recording {
+            guard (try? recording.write(to: driveTake)) != nil else {
+                made?.discard(driveTake)
                 return .kept(["\(name)'s Take.json couldn't be written on the Drive."])
             }
-            if made.metadata.repairs.contains(where: { $0.outcome == .failed }) {
-                made.discard(driveTake)
+            if recording.repairs.contains(where: { $0.outcome == .failed }) {
+                made?.discard(driveTake)
                 return .kept(["\(name) couldn't be copied whole to the Drive."])
             }
         }
@@ -97,17 +107,62 @@ enum DeviceTakeMove {
         }
     }
 
+    /// A channel whose Stem on the Device is shorter than the rest of the Take, if one is: a Take a crash cut off doesn't
+    /// hold all of itself.
+    private static func shortChannel(_ metadata: TakeMetadata, in deviceTake: URL) -> String? {
+        let lengths = metadata.usbChannels.map { ($0.usbChannel, (try? StemFile.inspect(deviceTake.appending(path: $0.stemFile)))?.framesOnDisk ?? 0) }
+        let longest = lengths.map(\.1).max() ?? 0
+        guard let short = lengths.first(where: { $0.1 < longest }) else { return nil }
+        return "\(deviceTake.lastPathComponent), channel \(short.0) is shorter than the rest of the Take on the Device."
+    }
+
+    /// Fills the Drive Take's Gaps not yet repaired from the Device's whole Copy, one Stem at a time, through Repair.
+    /// Returns the Drive's Take.json with that Repair, to write once the copy is checked; nil when the Drive has no such
+    /// Gap; or what to report. Nothing is written before the two are checked to be the same recording, the Device's Stems
+    /// all one length and named on the Drive as on the Device.
+    private static func fillKnownGaps(
+        _ metadata: TakeMetadata, from deviceTake: URL, to driveTake: URL, shouldStop: () -> Bool
+    ) -> Result<TakeMetadata?, Failure> {
+        let name = deviceTake.lastPathComponent
+        guard var onDrive = try? TakeMetadata.read(fromTakeFolder: driveTake) else { return .success(nil) }
+        let unrepaired = onDrive.gaps.filter { gap in
+            gap.copy == .drive && !onDrive.repairs.contains { $0.copy == .drive && $0.start == gap.start && $0.end == gap.end && $0.outcome == .repaired }
+        }
+        guard !unrepaired.isEmpty else { return .success(nil) }
+        if let problem = CopyCheck.takePairProblem(device: deviceTake, drive: driveTake) { return .failure(.init(.kept([problem]))) }
+        if let problem = shortChannel(metadata, in: deviceTake) { return .failure(.init(.kept([problem]))) }
+        for channel in metadata.usbChannels where !onDrive.usbChannels.contains(where: { $0.usbChannel == channel.usbChannel && $0.stemFile == channel.stemFile }) {
+            return .failure(.init(.kept(["\(name), channel \(channel.usbChannel) isn't under the same name on the Drive."])))
+        }
+        // Only the Drive's unrepaired Gaps are filled; the Device's own Gaps say where it hasn't the audio either.
+        var known = onDrive
+        known.gaps = unrepaired + (metadata.gaps + onDrive.gaps).filter { $0.copy == .device }
+        let copies = [TakeRepair.Copy(kind: .device, folder: deviceTake), TakeRepair.Copy(kind: .drive, folder: driveTake)]
+        var repairs: [TakeMetadata.Repair] = []
+        for channel in metadata.usbChannels {
+            if shouldStop() { return .failure(.init(.stopped)) }
+            var one = known
+            one.usbChannels = [channel]
+            for repair in TakeRepair.fill(copies: copies, metadata: one, skip: [.device]) {
+                if let index = repairs.firstIndex(where: { $0.copy == repair.copy && $0.start == repair.start && $0.end == repair.end }) {
+                    if repair.outcome == .failed { repairs[index].outcome = .failed }
+                } else {
+                    repairs.append(repair)
+                }
+            }
+        }
+        onDrive.repairs = onDrive.repairs.filter { old in !repairs.contains { $0.copy == old.copy && $0.start == old.start && $0.end == old.end } }
+            + repairs
+        return .success(onDrive)
+    }
+
     /// Why nothing should be made on the Drive for the Device's Take, if so: Stems of unequal length (a Take a crash
     /// cut off doesn't hold all of itself), a Drive Show that isn't a folder of its own, or whose Show.json can't be
     /// read or is another Show's.
     private static func problemBeforeCopying(_ metadata: TakeMetadata, from deviceTake: URL, to driveTake: URL) -> String? {
         let name = deviceTake.lastPathComponent
         let fm = FileManager.default
-        let lengths = metadata.usbChannels.map { ($0.usbChannel, (try? StemFile.inspect(deviceTake.appending(path: $0.stemFile)))?.framesOnDisk ?? 0) }
-        let longest = lengths.map(\.1).max() ?? 0
-        if let short = lengths.first(where: { $0.1 < longest }) {
-            return "\(name), channel \(short.0) is shorter than the rest of the Take on the Device."
-        }
+        if let problem = shortChannel(metadata, in: deviceTake) { return problem }
         // Nothing is written to the Drive through a link or into something that isn't a folder of its own.
         let driveShow = driveTake.deletingLastPathComponent()
         guard (try? fm.attributesOfItem(atPath: driveShow.path)) != nil else { return nil }

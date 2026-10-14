@@ -41,6 +41,12 @@ public enum CopyCheck {
         return problems.isEmpty ? .passed : .failed(problems)
     }
 
+    /// `pairProblem` for the Device's Take at `device`, read from its Take.json (#630).
+    static func takePairProblem(device: URL, drive: URL) -> String? {
+        guard let deviceTake = try? TakeMetadata.read(fromTakeFolder: device) else { return "\(device.lastPathComponent) can't be read on the Device." }
+        return pairProblem(deviceTake, device: device, drive: drive)
+    }
+
     /// Why two Take folders can't be compared at all, if they can't: a Take with no channels (nothing to compare would
     /// pass), a folder that is a link or missing, the same folder twice, or two different recordings.
     private static func pairProblem(_ deviceTake: TakeMetadata, device: URL, drive: URL) -> String? {

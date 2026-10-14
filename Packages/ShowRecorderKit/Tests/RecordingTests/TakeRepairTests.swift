@@ -220,4 +220,26 @@ struct TakeRepairTests {
         #expect(queue.outcomes[.drive] == .repairFailed)
         #expect(FileManager.default.fileExists(atPath: device.path))
     }
+
+    @Test("Where the Device has a Gap of its own inside the Drive's, Repair leaves the Drive's frames there as they are, and fails")
+    func sourceGapInsideTargetGap() throws {
+        let folders = try folders("a")
+        let info = StemWriter.Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: RecordingTakeTests.showDay)
+        func write(_ copy: DestinationKind, silent: Range<Int>) throws {
+            let stem = try StemWriter.open(url: folders[copy]!.appending(path: "01 USB 01.wav"), info: info, resumingAt: nil)
+            try (0..<4_800).map { silent.contains($0) ? 0 : counting()($0, 0) }.withUnsafeBufferPointer { try stem.append($0) }
+            try stem.finalize()
+        }
+        // The Drive has real frames from 2 000 inside its Gap (it resumed there); the Device lost 2 000..<2 100.
+        try write(.device, silent: 2_000..<2_100)
+        try write(.drive, silent: 1_000..<2_000)
+        let metadata = metadata(take: 1, gaps: [.init(copy: .drive, start: 1_000, end: 2_500), .init(copy: .device, start: 2_000, end: 2_100)])
+
+        let repairs = TakeRepair.fill(copies: [.init(kind: .device, folder: folders[.device]!), .init(kind: .drive, folder: folders[.drive]!)], metadata: metadata, skip: [.device])
+
+        let drive = try StemWriter.readSamples(url: folders[.drive]!.appending(path: "01 USB 01.wav"), frames: 0..<4_800)
+        #expect(Array(drive[2_000..<2_100]) == (2_000..<2_100).map { counting()($0, 0) }, "the Drive's own frames stay")
+        #expect(Array(drive[1_000..<2_000]) == (1_000..<2_000).map { counting()($0, 0) }, "the rest of the Gap is filled")
+        #expect(repairs == [.init(copy: .drive, start: 1_000, end: 2_500, outcome: .failed)])
+    }
 }

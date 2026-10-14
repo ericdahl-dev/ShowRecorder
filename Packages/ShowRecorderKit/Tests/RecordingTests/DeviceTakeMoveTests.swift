@@ -253,4 +253,64 @@ struct DeviceTakeMoveTests {
         #expect(reasons.contains { $0.contains("channel 2") }, "\(reasons)")
         #expect(try Data(contentsOf: deviceTake.appending(path: "02 USB 02.wav")) == before)
     }
+
+    /// A Drive Take a crash cut off while a move made it: its Take.json lists the Drive Gap over `gap`, unrepaired, and its
+    /// Stem holds the Take only before `gap`, silent from there.
+    func makeHalfMadeDriveTake(_ metadata: TakeMetadata, gap: Range<Int> = 1_000..<4_800, frames: Int = 1_000) throws {
+        var onDrive = metadata
+        onDrive.gaps = [.init(copy: .drive, start: gap.lowerBound, end: gap.upperBound)]
+        try FileManager.default.createDirectory(at: driveTake, withIntermediateDirectories: true)
+        try onDrive.write(to: driveTake)
+        try writeStem(driveStem(), frames: frames, channel: 1, silent: gap)
+    }
+
+    @Test("A Drive Take a crash left half-made is filled in its known Gap from the Device, and the Device's Take removed")
+    func halfMadeDriveTakeIsFinished() throws {
+        let metadata = try make()
+        try makeHalfMadeDriveTake(metadata)
+
+        #expect(run() == .moved)
+        #expect(try StemWriter.readSamples(url: driveStem(), frames: 0..<4_800) == (0..<4_800).map { counting()($0, 0) })
+        #expect(try TakeMetadata.read(fromTakeFolder: driveTake).outcome(ofCopy: .drive) == .repaired)
+        #expect(!FileManager.default.fileExists(atPath: deviceTake.path))
+    }
+
+    @Test("Drive audio outside the known Gap is never overwritten: one that differs keeps the Device's Take")
+    func driveAudioOutsideTheKnownGap() throws {
+        let metadata = try make()
+        try makeHalfMadeDriveTake(metadata, frames: 4_800)
+        try writeStem(driveStem(), frames: 4_800, channel: 1, silent: 0..<100)
+        let outside = try StemWriter.readSamples(url: driveStem(), frames: 0..<1_000)
+
+        #expect(!reasons(run()).isEmpty)
+        #expect(try StemWriter.readSamples(url: driveStem(), frames: 0..<1_000) == outside)
+        #expect(FileManager.default.fileExists(atPath: deviceTake.appending(path: "Take.json").path))
+    }
+
+    @Test("A Device Take with Gaps of its own doesn't finish a half-made Drive Take: it is kept")
+    func deviceWithItsOwnGaps() throws {
+        var metadata = try make()
+        metadata.gaps = [.init(copy: .device, start: 2_000, end: 2_100)]
+        try metadata.write(to: deviceTake)
+        try writeStem(deviceTake.appending(path: "01 USB 01.wav"), frames: 4_800, channel: 1, silent: 2_000..<2_100)
+        try makeHalfMadeDriveTake(metadata)
+
+        #expect(!reasons(run()).isEmpty)
+        #expect(FileManager.default.fileExists(atPath: deviceTake.appending(path: "Take.json").path))
+    }
+
+    @Test("A half-made Drive Take holding frames inside its Gap where the Device has a Gap keeps them, and the Take is kept")
+    func driveFramesInsideAnOverlappingGap() throws {
+        var metadata = try make()
+        metadata.gaps = [.init(copy: .device, start: 2_000, end: 2_100)]
+        try metadata.write(to: deviceTake)
+        try writeStem(deviceTake.appending(path: "01 USB 01.wav"), frames: 4_800, channel: 1, silent: 2_000..<2_100)
+        try makeHalfMadeDriveTake(metadata, frames: 4_800)
+        try writeStem(driveStem(), frames: 4_800, channel: 1, silent: 1_000..<2_000)
+        let inside = try StemWriter.readSamples(url: driveStem(), frames: 2_000..<2_100)
+
+        #expect(!reasons(run()).isEmpty)
+        #expect(try StemWriter.readSamples(url: driveStem(), frames: 2_000..<2_100) == inside)
+        #expect(FileManager.default.fileExists(atPath: deviceTake.appending(path: "Take.json").path))
+    }
 }
