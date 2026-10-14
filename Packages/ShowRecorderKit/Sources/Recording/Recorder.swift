@@ -85,6 +85,14 @@ public final class Recorder {
     /// The running Take's Copies.
     @ObservationIgnored private(set) var session: TakeSession?
     @ObservationIgnored private var lastTake: LastTake?
+    /// Counts the Takes that became the last Take, so a move started before another one doesn't touch it (#630).
+    @ObservationIgnored private var lastTakeGeneration = 0
+    /// Set while a Take runs: a move of a kept stand-in stops at the next Stem (#630).
+    @ObservationIgnored let moveStop = StandInMove.StopSignal()
+    /// Whether a move of kept stand-ins is running, so another asked for meanwhile adds nothing (#630).
+    @ObservationIgnored private var movingStandIns = false
+    /// What came of each kept stand-in a move took up, oldest first (#630).
+    private(set) var standInMoves: [StandInMove.Result] = []
     /// Repairs ended Takes; its result is published through `copies` (from `lastTakeOutcomes`) and `isRepairing`.
     @ObservationIgnored private let repair: TakeRepair
     /// How long Stop waits on a Copy's writer before giving that Copy up (#320).
@@ -163,6 +171,7 @@ public final class Recorder {
         show.noteTakeEnded(at: found.endedAt)
         // The summary of a Drive only Take speaks of the Drive, at a launch as at Stop (#630).
         lastTakeWasDriveOnly = found.metadata.standIns != nil || found.metadata.driveOnly == true
+        lastTakeGeneration += 1
         currentShow = show
         regenerateReports()
         if found.metadata.gaps.isEmpty || found.folders[.drive] == nil {
@@ -477,6 +486,7 @@ public final class Recorder {
             .compactMapValues { $0 }
         routingChanges = []
         isRecording = true
+        moveStop.set(true)
         if let destinationCheckInterval {
             destinationChecks = Task { [weak self] in
                 while !Task.isCancelled {
@@ -737,6 +747,7 @@ public final class Recorder {
         guard isRecording, let session else { return }
         // Not recording from here on, so a Copy that fails while draining doesn't stop the Take again.
         isRecording = false
+        moveStop.set(false)
         self.session = nil
         destinationChecks?.cancel()
         destinationChecks = nil
@@ -751,6 +762,7 @@ public final class Recorder {
         lastTake = LastTake(
             showName: session.show.name, takeNumber: finished.metadata.take, deviceFolder: finished.folders[.device],
             hadDrive: finished.folders[.drive] != nil)
+        lastTakeGeneration += 1
         currentShow = session.show
         currentShow?.setChannelNames(channelNames)
         currentShow?.noteTakeEnded(at: now())
@@ -799,6 +811,48 @@ public final class Recorder {
             if allowance?.showReport ?? true { try? ShowReport.write(showFolder: copy.folder) }
             if allowance?.reaperExport ?? true { try? copy.writeProjects() }
         }
+    }
+
+    /// Drive only (#630): moves every stand-in the Device keeps, in any Show, into its Take on the Drive, and removes
+    /// the Device's Take once the Drive is checked to hold it. Does nothing during a Take or with no Drive; a Take
+    /// started meanwhile stops it at the next Stem, and one asked for while another runs does nothing. Returns what
+    /// came of each Take it took up.
+    /// - Parameter shouldStop: replaces `moveStop` in tests.
+    @discardableResult
+    func moveKeptStandIns(shouldStop: (@Sendable () -> Bool)? = nil) async -> [StandInMove.Result] {
+        guard !isRecording, !movingStandIns, let access = driveFolder() else { return [] }
+        movingStandIns = true
+        defer { movingStandIns = false }
+        let device = deviceFolder, drive = access.folder
+        let found = await Task.detached { TakeMover.find(deviceFolder: device, driveFolder: drive) }.value.filter { $0.kind == .standIn }
+        guard !found.isEmpty, !isRecording else {
+            access.end()
+            return []
+        }
+        let first = standInMoves.count
+        let generation = lastTakeGeneration
+        let stop = moveStop
+        repair.move(found, holding: access, shouldStop: shouldStop ?? { stop.isSet }) { [weak self] movable, outcome in
+            let driveTake = drive.appending(path: movable.show).appending(path: movable.deviceFolder.lastPathComponent)
+            self?.standInMoved(movable, outcome, driveTake: driveTake, generation: generation)
+        }
+        await repair.wait()
+        return Array(standInMoves[first...])
+    }
+
+    /// Notes what came of moving a kept stand-in, and, when it was the last Take's and nothing has replaced that Take
+    /// since, shows it moved in `copies`.
+    private func standInMoved(_ movable: TakeMover.Movable, _ outcome: StandInMove.Outcome, driveTake: URL, generation: Int) {
+        standInMoves.append(.init(show: movable.show, take: movable.take, outcome: outcome))
+        guard outcome == .moved else { return }
+        if movable.show == currentShow?.name { regenerateReports() }
+        guard !isRecording, generation == lastTakeGeneration, lastTake?.showName == movable.show, lastTake?.takeNumber == movable.take else {
+            return
+        }
+        lastTakeStandInMoved = true
+        lastTakeStandInKept = false
+        lastTake?.deviceFolder = nil
+        lastTakeOutcomes[.drive] = Self.readTake(at: driveTake)?.outcome(ofCopy: .drive)
     }
 
     /// Waits for Repair of the last Take to finish.
