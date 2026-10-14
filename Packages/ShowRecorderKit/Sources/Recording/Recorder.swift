@@ -161,6 +161,8 @@ public final class Recorder {
         }
         if let driveShow { try? show.useDrive(driveShow.deletingLastPathComponent()) }
         show.noteTakeEnded(at: found.endedAt)
+        // The summary of a Drive only Take speaks of the Drive, at a launch as at Stop (#630).
+        lastTakeWasDriveOnly = found.metadata.standIns != nil || found.metadata.driveOnly == true
         currentShow = show
         regenerateReports()
         if found.metadata.gaps.isEmpty || found.folders[.drive] == nil {

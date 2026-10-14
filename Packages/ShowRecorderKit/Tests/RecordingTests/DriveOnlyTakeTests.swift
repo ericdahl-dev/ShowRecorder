@@ -889,4 +889,62 @@ struct DriveOnlyTakeTests {
         #expect(try driveOnlyField(in: device) == nil)
         #expect(try driveOnlyField(in: drive) == nil)
     }
+
+    @Test("After a launch that finished a cut-off Drive only Take with a stand-in, the summary speaks of Drive only (#630)")
+    func cutOffSummaryIsDriveOnly() async throws {
+        let crashed = try await crashAfterStandIn()
+
+        let next = try await launch()
+
+        #expect(next.copies.isDriveOnly)
+        #expect(CopySummary.ofLastTake(next.copies, dropoutCount: 0)?.text == "On this iPhone until the Drive is back")
+        _ = crashed
+    }
+
+    /// A Take cut off mid-Take with no stand-in: Drive only or not, with the Drive at the press or none. Returns the
+    /// crashed recorder.
+    func crashMidTake(driveOnly: Bool, withDrive: Bool) async throws -> Recorder {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let drive = drive
+        let crashed = Recorder(
+            deviceFolder: device, driveFolder: { withDrive ? DriveAccess(folder: drive) : nil }, now: { RecordingTakeTests.showDay },
+            destinationCheckInterval: nil)
+        crashed.recordsToDriveOnly = driveOnly
+        try crashed.arm(audio)
+        try crashed.startTake()
+        try await deliverBlocks(10, to: audio, crashed, sample: counting())
+        try await waitUntil { crashed.bufferedFrameCount == 0 }
+        removeReports()
+        return crashed
+    }
+
+    @Test("After a launch that finished a cut-off Drive only Take the Drive took whole, the Copies say Drive only (#630)")
+    func cutOffDriveWholeIsDriveOnly() async throws {
+        let crashed = try await crashMidTake(driveOnly: true, withDrive: true)
+
+        let next = try await launch()
+
+        #expect(next.copies.isDriveOnly)
+        _ = crashed
+    }
+
+    @Test("After a launch that finished a cut-off Drive only Take recorded with no Drive, the Copies say Drive only (#630)")
+    func cutOffNoDriveIsDriveOnly() async throws {
+        let crashed = try await crashMidTake(driveOnly: true, withDrive: false)
+
+        let next = try await launch()
+
+        #expect(next.copies.isDriveOnly)
+        _ = crashed
+    }
+
+    @Test("After a launch that finished a cut-off ordinary Take, the Copies don't say Drive only (#630)")
+    func cutOffOrdinaryIsNotDriveOnly() async throws {
+        let crashed = try await crashMidTake(driveOnly: false, withDrive: true)
+
+        let next = try await launch()
+
+        #expect(!next.copies.isDriveOnly)
+        _ = crashed
+    }
 }
