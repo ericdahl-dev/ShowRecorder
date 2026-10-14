@@ -14,10 +14,6 @@ public enum DestinationKind: String, Codable, Sendable, Hashable, CaseIterable {
         }
     }
 
-    public init(index: Int) {
-        self = index == 0 ? .device : .drive
-    }
-
     /// "Device" or "Drive", as the operator reads it.
     public var name: String {
         switch self {
