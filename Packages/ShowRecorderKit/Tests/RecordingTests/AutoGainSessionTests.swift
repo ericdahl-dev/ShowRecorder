@@ -229,6 +229,21 @@ struct AutoGainSessionTests {
         #expect(session.steps[1]?.count == 1, "the step left stays, for the first Mixer")
     }
 
+    @Test("An Undo with no gain control (Link down, or the Armed input isn't the linked Mixer) says so honestly (#589)")
+    func undoWithNoGainControlSaysWhy() async throws {
+        let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
+        var current: FakeGainControl? = control
+        let session = AutoGainSession(currentControl: { current }, mixer: { "FOH · XR18" },
+                                      measure: { usb in -40 + (control.gainDb[usb] ?? 0) })
+        _ = await session.run(usbChannels: [1])
+        current = nil
+
+        await #expect(throws: MixerLinkProblem.other(
+            "The Mixer Link isn't connected to the Armed input's Mixer, so nothing was written.")) {
+            try await session.undo(usbChannel: 1)
+        }
+    }
+
     @Test("All channels: silent ones, ones with no Mixer channel, and a second USB Channel on a channel already moved are skipped")
     func skips() async throws {
         let control = FakeGainControl(gainDb: [1: 0, 2: 0, 3: 0], channelOfUSB: [1: 1, 2: 2, 3: 3, 4: 1])
