@@ -59,8 +59,12 @@ public final class MixerGain {
     /// A new session on the linked Mixer moving gain through the given queue, or nil when there is none. Set by
     /// whoever owns this.
     @ObservationIgnored public var makeSession: (MixerQueue) -> AutoGainSession?
-    /// Whether clip protection is switched on, read when each Take starts.
-    @ObservationIgnored public var isClipProtectionOn: () -> Bool = { ClipProtectionSetting.isOffered() && ClipProtectionSetting.isOn() }
+    /// Whether clip protection is switched on, read when each Take starts; it protects only where it is offered.
+    @ObservationIgnored public var isClipProtectionOn: () -> Bool = { ClipProtectionSetting.isOn() }
+    /// The Mixer session the Gain button follows; nil until whoever owns this sets it.
+    @ObservationIgnored public var mixer: MixerSession?
+    /// Whether this is a Debug build: where auto-gain and clip protection are offered for now.
+    @ObservationIgnored public var isDebugBuild = LaunchFlags.isDebugBuild
     /// Clip protection on the linked Mixer moving gain through the given queue, or nil when it can't set gain.
     @ObservationIgnored public var makeProtection: (MixerQueue) -> ClipProtection? = { _ in nil }
     /// Protecting the running Take; nil between Takes.
@@ -69,6 +73,25 @@ public final class MixerGain {
     public init(makeSession: @escaping (MixerQueue) -> AutoGainSession? = { _ in nil }) {
         self.makeSession = makeSession
     }
+
+    /// Whether the record screen shows the Gain button (#155): while an X Air or X32 is Armed, Debug builds only for now
+    /// (`AutoGainAvailability`). When auto-gain can't run (a Take, no Mixer Link, a Mixer whose gain can't be set), the
+    /// button stays and its sheet says why (`autoGainUnavailable`) instead of the button disappearing.
+    public var offersAutoGain: Bool {
+        AutoGainAvailability.isOffered(available: AutoGainAvailability.isAvailable(isDebugBuild: isDebugBuild),
+                                       mixerLinkOffered: mixer?.isOffered ?? false)
+    }
+
+    /// Why auto-gain can't run right now, said on its sheet while the Gain button stays; nil when it can.
+    public var autoGainUnavailable: AutoGainAvailability.Unavailable? {
+        let isConnecting = if case .connecting = mixer?.status { true } else { false }
+        return AutoGainAvailability.whyNot(hasMixerLink: mixer?.identity != nil, isConnecting: isConnecting,
+                                           canSetGain: mixer?.gainControl != nil, isRecording: isRecording(),
+                                           otherMixer: mixer?.otherMixerLinked?.nameAndModel)
+    }
+
+    /// Whether Settings offers clip protection's switch (`ClipProtectionSetting.isOffered`).
+    public var offersClipProtection: Bool { ClipProtectionSetting.isOffered(isDebugBuild: isDebugBuild) }
 
     /// The sheet's buttons wait: a Take is running, or a run or Undo is under way.
     public var isLocked: Bool { isTakeRunning || isRecording() || !running.isEmpty }
@@ -126,7 +149,7 @@ public final class MixerGain {
         case .takeStarted:
             isTakeRunning = true
             session?.stop()
-            protection = isClipProtectionOn() ? makeProtection(queue) : nil
+            protection = offersClipProtection && isClipProtectionOn() ? makeProtection(queue) : nil
             protection?.takeStarted()
         case .takeEnded:
             isTakeRunning = false

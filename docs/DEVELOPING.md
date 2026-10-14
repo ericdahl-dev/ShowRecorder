@@ -48,7 +48,7 @@ Several agents often work on this Mac at once, in their own worktrees. Builds ru
 
 ### Code coverage
 
-CI's package-tests leg runs `swift test --enable-code-coverage` and puts a coverage table in the job's summary on GitHub: lines and functions per Kit module, a total, and the ten files with the least line coverage. It is a report only: nothing is uploaded, and no number fails a build.
+CI's package-tests leg runs `swift test --enable-code-coverage` and prints a coverage table in the log and the job's summary on GitHub: lines and functions per Kit module, a total, and the ten files with the least line coverage. It also keeps the run's `kit-coverage` artifact for 30 days: the table (`kit-coverage.md`) and llvm-cov's per-file summary (`kit-coverage.json`). Fetch it with `gh run download <run-id> -n kit-coverage` to find the least-tested files. It is a report only: nothing leaves GitHub, and no number fails a build.
 
 To see it on this Mac, from a clean build so no earlier run's profiles count:
 

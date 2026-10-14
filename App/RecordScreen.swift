@@ -45,7 +45,7 @@ struct RecordScreen: View {
         if showingMonitor { return true }
         #endif
         return showingSettings || showingMarkers || showingNewShow || showingShowList || showingChannelNames || showingAutoGain
-            || showingTrialOffer || model.showingSoundcheck || shownPaywall != nil
+            || showingTrialOffer || model.showingSoundcheck || model.showingMoves || shownPaywall != nil
     }
 
     /// Shows a paywall that came due, else the first-launch Trial offer, once no other sheet is up.
@@ -120,6 +120,7 @@ struct RecordScreen: View {
         #endif
         .sheet(isPresented: $showingNewShow) { NewShowSheet(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $model.showingSoundcheck) { SoundcheckView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
+        .sheet(isPresented: $model.showingMoves) { MoveReportSheet(recorder: model.recorder).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingShowList) { ShowListView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingAutoGain) { AutoGainSheet(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
@@ -319,7 +320,7 @@ struct RecordScreen: View {
                 Button { open(.channelNames) } label: { Text("Names").tapTarget() }
                     .buttonStyle(.plain)
                     .foregroundStyle(.tint)
-                if model.offersAutoGain {
+                if model.mixerGain.offersAutoGain {
                     Button { showingAutoGain = true } label: { Text("Gain").tapTarget() }
                         .padding(.leading, 12)
                         .buttonStyle(.plain)
@@ -394,7 +395,7 @@ struct RecordScreen: View {
                     Button { open(.channelNames) } label: { Text("Names").tapTarget() }
                         .buttonStyle(.plain)
                         .foregroundStyle(.tint)
-                    if model.offersAutoGain {
+                    if model.mixerGain.offersAutoGain {
                         Button { showingAutoGain = true } label: { Text("Gain").tapTarget() }
                             .buttonStyle(.plain)
                             .foregroundStyle(.tint)
@@ -651,21 +652,6 @@ final class RecordScreenModel {
     /// Mixer's names.
     var linkedSources: [Source] { mixer.sources }
 
-    /// The Gain button (#155) shows while an X Air or X32 is Armed; when auto-gain can't run (a Take, no Mixer Link, a
-    /// Mixer whose gain can't be set) its sheet says why instead of the button disappearing. Debug builds only for now
-    /// (`AutoGainAvailability`).
-    var offersAutoGain: Bool {
-        AutoGainAvailability.isOffered(available: AutoGainAvailability.isAvailable(), mixerLinkOffered: offersMixerLink)
-    }
-
-    /// Why auto-gain can't run right now; nil when it can.
-    var autoGainUnavailable: AutoGainAvailability.Unavailable? {
-        let isConnecting = if case .connecting = mixer.status { true } else { false }
-        return AutoGainAvailability.whyNot(hasMixerLink: mixer.identity != nil, isConnecting: isConnecting,
-                                           canSetGain: mixer.gainControl != nil, isRecording: recorder.isRecording,
-                                           otherMixer: mixer.otherMixerLinked?.nameAndModel)
-    }
-
     /// Gain on the Mixer (#554): auto-gain's state (#155), kept here, not in the sheet, so Undo survives closing it,
     /// locked during a Take; and clip protection (#448), only during a Take, only when switched on.
     let mixerGain = MixerGain()
@@ -882,6 +868,10 @@ final class RecordScreenModel {
         if let summary = copySummary, !recorder.isRecording {
             list.append(ScreenAlert(id: "copies", priority: .copyResult, tone: summary.isProblem ? .warning : .ok, text: summary.text))
         }
+        // Drive only Takes moving to the Drive (#630), where Drive only is offered; tap for each Take and why one stays.
+        if let alert = recorder.moveReport.alert(isOffered: recorder.movesDriveOnlyTakes, isRecording: recorder.isRecording) {
+            list.append(alert)
+        }
         if showSetupHint {
             list.append(ScreenAlert(id: "hint", priority: .hint, tone: .info, text: offersMixerLink ? "Choose the audio interface, Drive and Mixer in Settings (the gear)." : "Choose the audio interface and Drive in Settings (the gear).", action: .dismissHint))
         }
@@ -899,6 +889,8 @@ final class RecordScreenModel {
     private static let soundcheckOfferedKey = "soundcheckOffered"
     /// The Soundcheck sheet over the record screen.
     var showingSoundcheck = false
+    /// What the latest move to the Drive did, Take by Take (#630).
+    var showingMoves = false
 
     /// Runs the Soundcheck with what the Mixer Link and the Drive know right now.
     func runSoundcheck(progress: (Soundcheck.Step.Kind) -> Void, result: (Soundcheck.Step) -> Void) async -> [Soundcheck.Step] {
@@ -930,6 +922,8 @@ final class RecordScreenModel {
             showingSoundcheck = true
         case .dismissRoutingChange:
             routingChangeSeen = (takeNumber, recorder.routingChanges)
+        case .showMoves:
+            showingMoves = true
         case .checkDrive:
             // Look again now, and say so if it's still not there.
             drive.refresh()
@@ -990,6 +984,7 @@ final class RecordScreenModel {
         sequencer.log = { line in Self.sessionLog.notice("\(line, privacy: .public)") }
         mixerGain.makeSession = { [weak self] queue in self?.makeAutoGainSession(queue: queue) }
         mixerGain.isRecording = { [weak self] in self?.recorder.isRecording ?? false }
+        mixerGain.mixer = mixer
         mixerGain.mixerName = { [weak self] in self?.linkedMixer }
         mixerGain.makeProtection = { [weak self] queue in self?.makeClipProtection(queue: queue) }
         followTakes()

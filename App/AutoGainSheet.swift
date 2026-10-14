@@ -31,7 +31,7 @@ struct AutoGainSheet: View {
                 canUndo: { isDemo ? AutoGainList.demoUndoable.contains($0) : autoGain.canUndo($0) },
                 canUndoAll: isDemo || autoGain.canUndoAll,
                 compensation: { isDemo ? AutoGainList.demoCompensation[$0] : autoGain.compensationSummary($0) },
-                unavailable: isDemo ? nil : model.autoGainUnavailable,
+                unavailable: isDemo ? nil : model.mixerGain.autoGainUnavailable,
                 notice: isDemo ? nil : autoGain.notice)
                 .navigationTitle("Auto-gain")
                 #if os(iOS)

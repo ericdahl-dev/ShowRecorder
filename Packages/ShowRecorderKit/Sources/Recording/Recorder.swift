@@ -96,6 +96,13 @@ public final class Recorder {
     public var movesDriveOnlyTakes = false {
         didSet { if movesDriveOnlyTakes, !oldValue { driveMayHaveConnected() } }
     }
+    /// Drive only (#630): what the screen says about moving Takes to the Drive: the latest move that found something.
+    public var moveReport: MoveReport { MoveReport(isMoving: foundTakesToMove, moves: lastMoveRun.moves, skips: lastMoveRun.skips) }
+    /// Whether the running move has found Takes to move or a cut-off move to finish: until then it says nothing (#630).
+    private var foundTakesToMove = false
+    /// What the latest move did, while it has something to say: one with nothing to do clears it, and one where every
+    /// Take moved is cleared when the next Take starts (#630).
+    private var lastMoveRun: (moves: [StandInMove.Result], skips: [TakeMover.Movable]) = ([], [])
     /// The Takes the last move found but left where they are, with why (`TakeMover.Movable.Kind.skipped`) (#630).
     public private(set) var driveOnlySkips: [TakeMover.Movable] = []
     /// The move a trigger started (#630).
@@ -503,6 +510,8 @@ public final class Recorder {
         routingChanges = []
         isRecording = true
         moveStop.takeStarted()
+        // An all-moved line has been seen; a warning stays until a move changes it (#630).
+        if !moveReport.isProblem { lastMoveRun = ([], []) }
         if let destinationCheckInterval {
             destinationChecks = Task { [weak self] in
                 while !Task.isCancelled {
@@ -846,6 +855,7 @@ public final class Recorder {
         isMoving = true
         defer {
             isMoving = false
+            foundTakesToMove = false
             let waiting = moveWaiters
             moveWaiters = []
             for waiter in waiting { waiter.resume() }
@@ -864,7 +874,9 @@ public final class Recorder {
         // A Take started from now on stops the move, even if it ends before the move asks.
         let shouldStop = shouldStop ?? moveStop.latch()
         // A move a crash cut off after setting the Device's Take aside is finished or undone first.
-        for result in await repair.recover(deviceFolder: device, driveFolder: drive, shouldStop: shouldStop) {
+        let recovered = await repair.recover(deviceFolder: device, driveFolder: drive, shouldStop: shouldStop)
+        if !recovered.isEmpty { foundTakesToMove = true }
+        for result in recovered {
             let deviceTake = device.appending(path: result.show).appending(path: TakeMetadata.name(take: result.take))
             let driveTake = drive.appending(path: result.show).appending(path: TakeMetadata.name(take: result.take))
             driveOnlyTakeMoved(
@@ -877,14 +889,23 @@ public final class Recorder {
         let found = all.filter { $0.kind == .standIn || $0.kind == .deviceOnly || $0.kind == .redundant }
         guard !found.isEmpty, !isRecording else {
             access.end()
-            return Array(driveOnlyMoves[first...])
+            return finishMoveRun(from: first)
         }
+        foundTakesToMove = true
         repair.move(found, holding: access, shouldStop: shouldStop) { [weak self] movable, outcome in
             let driveTake = drive.appending(path: movable.show).appending(path: movable.deviceFolder.lastPathComponent)
             self?.driveOnlyTakeMoved(movable, outcome, driveTake: driveTake, generation: generation)
         }
         await repair.wait()
-        return Array(driveOnlyMoves[first...])
+        return finishMoveRun(from: first)
+    }
+
+    /// What this move did, from `first` in `driveOnlyMoves`; kept for `moveReport` when it found something to say.
+    private func finishMoveRun(from first: Int) -> [StandInMove.Result] {
+        let moves = Array(driveOnlyMoves[first...])
+        // Nothing to say clears what an earlier move said.
+        lastMoveRun = moves.contains(where: { $0.outcome != .gone }) || !driveOnlySkips.isEmpty ? (moves, driveOnlySkips) : ([], [])
+        return moves
     }
 
     /// Notes what came of moving a Drive only Take (a kept stand-in, or a Take the Device held whole), and, when it was
