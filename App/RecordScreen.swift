@@ -424,9 +424,10 @@ struct RecordScreen: View {
                             .secondaryText()
                             .multilineTextAlignment(.center)
                             .lineLimit(3)
-                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .buttonStyle(.plain)
+                    // On a short screen the note truncates, so the column never outgrows it (#645).
+                    .layoutPriority(-1)
                 }
             }
             // Only this spacer flexes, so Marker and Record stay put when the note above comes and goes.
