@@ -121,10 +121,10 @@ public struct Show: Sendable, Equatable {
     /// Adopts `names` for later Takes without rewriting the files (they were written when the names were typed).
     mutating func keepChannelNames(_ names: [Int: String]) { channelNames = names }
 
-    /// Keeps the typed channel names in `Show.json` in every Copy. A Copy that can't be written is skipped.
-    mutating func setChannelNames(_ names: [Int: String]) {
+    /// Keeps the typed channel names in `Show.json` in every Copy but `skipped`. A Copy that can't be written is skipped.
+    mutating func setChannelNames(_ names: [Int: String], skipping skipped: Set<DestinationKind> = []) {
         channelNames = names
-        for copy in [folder] + (driveFolder.map { [$0] } ?? []) { try? file.write(to: copy) }
+        for kind in DestinationKind.allCases where !skipped.contains(kind) { if let copy = copies[kind] { try? file.write(to: copy.folder) } }
     }
 
     /// Whether the Show has had no Take for the idle limit as of `date`.
@@ -132,10 +132,10 @@ public struct Show: Sendable, Equatable {
         date.timeIntervalSince(lastTakeEndedAt ?? startedAt) >= Self.idleLimit
     }
 
-    /// Records when a Take ended, in every Copy, for the idle rule.
-    mutating func noteTakeEnded(at date: Date) {
+    /// Records when a Take ended, in every Copy but `skipped`, for the idle rule.
+    mutating func noteTakeEnded(at date: Date, skipping skipped: Set<DestinationKind> = []) {
         lastTakeEndedAt = date
-        for copy in [folder] + (driveFolder.map { [$0] } ?? []) { try? file.write(to: copy) }
+        for kind in DestinationKind.allCases where !skipped.contains(kind) { if let copy = copies[kind] { try? file.write(to: copy.folder) } }
     }
 
     /// Marks the Show ended in every Copy it has. A Copy that can't be written is skipped: the Show ends anyway.

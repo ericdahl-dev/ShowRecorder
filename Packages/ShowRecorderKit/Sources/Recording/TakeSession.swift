@@ -471,7 +471,8 @@ final class TakeSession {
     }
 
     private func writeMetadata() {
-        for copy in copies { try? metadata.write(to: copy.folder) }
+        // A Copy Stop gave up on (set only at Stop) may hang on any file operation: Repair writes its Take.json off the main thread (#652).
+        for copy in copies where !copy.writer.wasAbandoned { try? metadata.write(to: copy.folder) }
         // A stand-in's Take.json lets a crash mid-Take find it (and Repair it) on the next launch.
         if let standby, standby.start != nil { try? metadata.write(to: standby.folder) }
     }
