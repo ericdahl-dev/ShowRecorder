@@ -551,4 +551,71 @@ struct DriveOnlyTakeTests {
         #expect(try TakeMetadata.read(fromTakeFolder: drive.appending(path: take)).markers.map(\.name) == ["Intro"])
         #expect(recorder.markerEntries.map(\.name) == ["Intro"])
     }
+
+    /// A Drive only Show of two Takes (#625): Take 01 the Drive took whole (nothing on the Device), Take 02 on a Drive
+    /// that hung, so its stand-in (0..<14 400) is kept on the Device and the Drive's Stems stop short.
+    func recordWholeThenKeptStandIn(gate: StopNeverBlocksTests.Gate) async throws -> Recorder {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(driveStem: { BlockingStem($0, gate: gate, healthyFrames: 4_800) }, stallLimit: .milliseconds(100))
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
+        recorder.checkDestinations()
+        try await Task.sleep(for: .milliseconds(250))
+        deliver(480, from: 20 * 480, to: audio, sample: counting())
+        recorder.checkDestinations()
+        for block in 21..<30 { deliver(480, from: block * 480, to: audio, sample: counting()) }
+        try await Task.sleep(for: .milliseconds(200))
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+        #expect(recorder.copies[.device] == .standInKept)
+        return recorder
+    }
+
+    @Test("A Drive only Show's recorded time counts the Takes on the Drive and a kept stand-in's whole length (#625)")
+    func recordedSecondsDriveOnly() async throws {
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
+        let recorder = try await recordWholeThenKeptStandIn(gate: gate)
+
+        let show = try #require(recorder.currentShow)
+        // Take 01: 4 800 frames on the Drive; Take 02: its stand-in's 14 400 frames, at 48 kHz.
+        #expect(abs(try show.recordedSeconds(leavingOut: nil) - 0.4) < 0.000_1)
+        #expect(abs(try show.recordedSeconds(leavingOut: 2) - 0.1) < 0.000_1)
+    }
+
+    @Test("A Drive only Show lists every Take, on the Drive or kept as a stand-in on the Device, with its whole length (#625)")
+    func showListDriveOnly() async throws {
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
+        _ = try await recordWholeThenKeptStandIn(gate: gate)
+
+        let show = try #require(ShowList.read(device: device, drive: drive).first)
+        #expect(show.takeCount == 2)
+        // Both Takes start at the same (fixed) clock time; the longer is Take 02's 14 400 frames.
+        #expect(abs(show.duration - 0.3) < 0.000_1)
+    }
+
+    @Test("Relaunched into an open Drive only Show, the record screen's total reads the Drive's Takes under Drive access (#625)")
+    func showTotalAfterRelaunch() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let first = recorder()
+        try first.arm(audio)
+        try first.startTake()
+        try await deliverBlocks(10, to: audio, first)
+        try first.stopTake()
+        await first.waitForRepair()
+        first.disarm()
+
+        let relaunched = recorder()
+        #expect(relaunched.currentShow?.driveFolder == nil, "a relaunch doesn't know the Drive until the next record press")
+        // Take 01: 4 800 frames, only on the Drive.
+        #expect(abs((relaunched.showRecordedSeconds(leavingOut: nil) ?? 0) - 0.1) < 0.000_1)
+    }
 }

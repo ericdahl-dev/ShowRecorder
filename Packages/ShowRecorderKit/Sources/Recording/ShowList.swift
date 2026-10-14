@@ -78,7 +78,9 @@ public enum ShowList {
         return Set(names(in: device) + names(in: drive)).map { name in
             let folder = device.appending(path: name, directoryHint: .isDirectory)
             let driveFolder = drive?.appending(path: name, directoryHint: .isDirectory)
-            let takes = takeFolders(in: folder).isEmpty ? driveFolder.map(takeFolders(in:)) ?? [] : takeFolders(in: folder)
+            let takes = takeLengths(deviceShow: folder, driveShow: driveFolder).map { take, frames in
+                (start: take.startedAt, end: take.startedAt.addingTimeInterval(Double(frames) / Double(max(take.sampleRate, 1))))
+            }
             let file = ShowFile.read(from: folder) ?? driveFolder.flatMap { ShowFile.read(from: $0) }
             let first = takes.map(\.start).min()
             let start = file?.startedAt ?? first ?? dateInName(name) ?? .distantPast
@@ -116,12 +118,26 @@ public enum ShowList {
         }
     }
 
-    /// When each Take of a Show started and ended.
-    private static func takeFolders(in showFolder: URL) -> [(start: Date, end: Date)] {
-        takeMetadata(in: showFolder).map { folder, take in
-            let frames = take.usbChannels.compactMap { try? StemFile.inspect(folder.appending(path: $0.stemFile)).frameCount }.max() ?? 0
-            let seconds = Double(frames) / Double(max(take.sampleRate, 1))
-            return (take.startedAt, take.startedAt.addingTimeInterval(seconds))
+    /// Each Take of a Show with its length in frames, from whichever Copy has it (#625). A Take whose Device `Take.json`
+    /// has no stand-ins is read from the Device only, as before Drive only, and never falls back to the Drive. Under
+    /// Drive only (ADR 0006) the Drive holds the audio: a Take with no Device folder is read from the Drive, and one the
+    /// Device keeps only as stand-ins is as long as the longer of the Drive's Stems and its stand-ins, whose Stems cover
+    /// only `start..<end`.
+    static func takeLengths(deviceShow: URL, driveShow: URL?) -> [(take: TakeMetadata, frames: UInt64)] {
+        func frames(_ folder: URL, _ take: TakeMetadata) -> UInt64 {
+            take.usbChannels.compactMap { try? StemFile.inspect(folder.appending(path: $0.stemFile)).frameCount }.max() ?? 0
         }
+        let device = takeMetadata(in: deviceShow)
+        var lengths: [Int: (take: TakeMetadata, frames: UInt64)] = [:]
+        for (folder, take) in device where take.standIns == nil { lengths[take.take] = (take, frames(folder, take)) }
+        for (folder, take) in driveShow.map(takeMetadata(in:)) ?? [] where lengths[take.take] == nil {
+            lengths[take.take] = (take, frames(folder, take))
+        }
+        for (_, take) in device {
+            guard let standIns = take.standIns else { continue }
+            let end = UInt64(clamping: standIns.map(\.end).max() ?? 0)
+            lengths[take.take] = (take, max(lengths[take.take]?.frames ?? 0, end))
+        }
+        return lengths.values.sorted { $0.take.take < $1.take.take }
     }
 }
