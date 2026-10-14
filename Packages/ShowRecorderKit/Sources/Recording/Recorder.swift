@@ -135,6 +135,8 @@ public final class Recorder {
         repair.onChange = { [unowned self] in
             lastTakeOutcomes = repair.outcomes
             lastTakeStandInMoved = repair.moved
+            // Repair moved the last Take's stand-in to the Drive and removed its Device folder (#618).
+            if repair.moved { lastTake?.deviceFolder = nil }
             lastTakeStandInKept = repair.standInKept
             isRepairing = repair.isRunning
         }
@@ -757,8 +759,12 @@ public final class Recorder {
         namingTask = Task { @MainActor in
             await previous?.value
             await repair.wait()
+            // Repair may have moved this Take off the Device meanwhile (#618). If a later Take has ended since,
+            // `lastTake` describes it, so this Take's own folders are used.
+            var current = take
+            if let last = lastTake, last.showName == take.showName, last.takeNumber == take.takeNumber { current = last }
             var copies: [DestinationKind: URL] = [:]
-            copies[.device] = take.deviceFolder
+            copies[.device] = current.deviceFolder
             var access: DriveAccess?
             if take.hadDrive {
                 access = driveFolder()
