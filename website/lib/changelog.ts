@@ -14,6 +14,19 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.4",
+    date: "2026-10-14",
+    channel: "TestFlight beta",
+    summary: "A steadier Drive during a Take.",
+    changes: [
+      "A Drive pulled during a Take and plugged back in no longer loses the seconds before it was pulled; Repair fills the whole Gap.",
+      "Plugging a Drive in during a Take is steadier.",
+      "Clip protection turns down two hot channels together, and stays with the same mixer through a reconnect.",
+      "Auto-gain measures in audio time, so a busy phone no longer shortens its measurement.",
+      "A stale Mixer Link never moves gain.",
+    ],
+  },
+  {
     version: "1.1.3",
     date: "2026-10-13",
     channel: "TestFlight beta",
