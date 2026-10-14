@@ -200,6 +200,33 @@ struct ClipProtectionTests {
         #expect(control.gainDb[2] == 26)
     }
 
+    @Test("A channel hot again while a strip-linked partner's move still waits on the Mixer is turned down, not skipped (#554)")
+    func hotAgainWhilePartnerHeld() async {
+        control.laneOf = [1: 1, 2: 1]
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        control.channelAnswer = { channel in
+            guard channel == 2 else { return }
+            enter.yield()
+            for await _ in released { return }
+        }
+        let (logged, log) = AsyncStream<Void>.makeStream()
+        let protection = ClipProtection(control: control, sampleRate: 48_000, log: { _ in log.yield() })
+        let quiet = Windows.at(-30)
+
+        // One read turns down channels 1 and 2, one lane: channel 1's move is done, then channel 2's waits on the Mixer.
+        let both = (0..<10).compactMap { _ in protection.meters([Windows.at(-2), Windows.at(-2), quiet]) }
+        #expect(await Self.next(logged), "channel 1's move is done")
+        #expect(await Self.next(entered), "channel 2's move reaches the Mixer")
+        // Past channel 1's 5 s rest, then 333 ms hot: its trigger fires once, and that must start a turn-down.
+        for _ in 0..<160 { _ = protection.meters([quiet, quiet, quiet]) }
+        let again = (0..<10).compactMap { _ in protection.meters([Windows.at(-2), quiet, quiet]) }
+        #expect(!again.isEmpty, "channel 1's second turn-down starts while channel 2's move still waits")
+        release.yield()
+        for task in both + again { await task.value }
+        #expect(control.gainDb == [1: 22, 2: 26])
+    }
+
     @Test("A read's last lane finishing never frees a channel a later turn-down holds (#554)")
     func laneDoneKeepsLaterTurnDown() async {
         let (entered2, enter2) = AsyncStream<Void>.makeStream()

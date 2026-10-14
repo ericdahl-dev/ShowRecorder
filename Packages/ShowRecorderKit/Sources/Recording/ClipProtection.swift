@@ -237,13 +237,13 @@ public final class ClipProtection {
         }
     }
 
-    /// Moves one lane's turn-downs one after the other. A lane done frees its channels, though another lane from the same
-    /// read still waits on the Mixer.
+    /// Moves one lane's turn-downs one after the other. A move done frees its channel, though a later move in its lane, or
+    /// another lane from the same read, still waits on the Mixer.
     private func move(_ lane: [(usbChannel: Int, channel: Int, preamp: Int, lane: Lane, gainChangeDb: Double)]) async {
         for move in lane {
             await turnDown(move.usbChannel, channel: move.channel, preamp: move.preamp, lane: move.lane, by: move.gainChangeDb)
+            release([move.channel])
         }
-        release(Set(lane.map(\.channel)))
     }
 
     /// Moves in one lane go one after the other: a strip-linked pair (by its first channel), or else one preamp.
