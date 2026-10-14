@@ -20,11 +20,12 @@ final class TakeRepair {
     private(set) var isRunning = false
     /// Called after `outcomes` or `isRunning` changes.
     var onChange: () -> Void = {}
-    /// Called after each Repair has written its result into the Take's folders.
-    var jobDone: () -> Void = {}
+    /// Called after each Repair has written its result into the Take's folders, with the Copies Stop gave up on in it.
+    var jobDone: (_ abandoned: Set<DestinationKind>) -> Void = { _ in }
 
     private let freeSpace: (URL) -> Int64
     private let run: Run
+    private let writeAbandoned: @Sendable (TakeMetadata, URL) -> Void
     private var task: Task<Void, Never>?
     /// Counts enqueued Takes, so only the latest one's Repair sets `outcomes`.
     private var generation = 0
@@ -33,15 +34,20 @@ final class TakeRepair {
     /// - Parameters:
     ///   - freeSpace: free bytes on a Destination, read when a Take is enqueued.
     ///   - run: does the Repair; replaced in tests.
-    init(freeSpace: @escaping (URL) -> Int64, run: @escaping Run = { TakeRepair.fill(copies: $0, metadata: $1, skip: $2) }) {
+    ///   - writeAbandoned: writes `Take.json` to a Copy Stop gave up on, off the main thread; replaced in tests.
+    init(
+        freeSpace: @escaping (URL) -> Int64, run: @escaping Run = { TakeRepair.fill(copies: $0, metadata: $1, skip: $2) },
+        writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) }
+    ) {
         self.freeSpace = freeSpace
         self.run = run
+        self.writeAbandoned = writeAbandoned
     }
 
     /// Queues Repair of an ended Take: fills its Gaps from the other Copy, off the main thread, and
     /// records the result in `Take.json`. `access` (the Drive's folder) is held until it's done.
     /// A Take with no Gaps has nothing to repair; its outcomes are complete (but a spare Drive only stand-in is removed,
-    /// so the Device has none) and `access` is released.
+    /// so the Device has none) and `access` is released, once the `Take.json` of any Copy Stop gave up on is written.
     /// - Parameters:
     ///   - abandoned: Copies Stop gave up on (#320), left as they are.
     ///   - keepsStandIns: a Drive only stand-in stays on the Device even once the Drive has its audio: a Take cut off
@@ -59,6 +65,18 @@ final class TakeRepair {
         moved = false
         standInKept = false
         onChange()
+        // A Copy Stop gave up on (#320) may hang on any file operation, so its Take.json is written off the main thread, as a
+        // step of this queue: Repair's own write, and renames that wait for Repair, come after it (#652). If that Drive hangs for
+        // good, the queue waits on it: later Repairs, renames, Drive only moves and anything awaiting Repair (Soundcheck's
+        // `waitForRepair`) stall behind it, as Repair of its Gaps already did. Accepted until option A.
+        let abandonedFolders = abandoned.compactMap { folders[$0] }
+        if !abandonedFolders.isEmpty {
+            let previous = task, write = writeAbandoned
+            task = Task {
+                await previous?.value
+                await Task.detached { for folder in abandonedFolders { write(metadata, folder) } }.value
+            }
+        }
         guard !metadata.gaps.isEmpty else {
             // Drive only: a Drive that faltered but then caught up has the whole Take, so its stand-in is a spare.
             if !keepsStandIns, metadata.standIns != nil, let device = folders[.device], let drive = folders[.drive], !abandoned.contains(.drive) {
@@ -70,21 +88,28 @@ final class TakeRepair {
                 self.outcomes[.device] = nil
                 onChange()
             }
-            access?.end()
+            if abandonedFolders.isEmpty {
+                access?.end()
+            } else {
+                // Held until the abandoned Copies' Take.json is written.
+                let previous = task
+                task = Task { await previous?.value; access?.end() }
+            }
             return
         }
         let copies = DestinationKind.allCases.compactMap { kind in folders[kind].map { Copy(kind: kind, folder: $0) } }
         // Repair must not fill a Destination past the space reserve: a Copy stopped for being nearly
-        // full stays as it is, with its Gaps.
+        // full stays as it is, with its Gaps. A Copy Stop gave up on isn't read here, on the main thread (#652).
         let reserve = SpaceReserve(channelCount: metadata.usbChannels.count, sampleRate: metadata.sampleRate)
-        let skip = Set(copies.filter { copy in
-            reserve.wouldBreach(free: freeSpace(copy.folder), adding: Self.bytesToExtend(copy, in: copies, metadata: metadata))
+        let healthy = copies.filter { !abandoned.contains($0.kind) }
+        let skip = Set(healthy.filter { copy in
+            reserve.wouldBreach(free: freeSpace(copy.folder), adding: Self.bytesToExtend(copy, in: healthy, metadata: metadata))
         }.map(\.kind)).union(abandoned)
         pending += 1
         isRunning = true
         onChange()
         let previous = task
-        let run = run
+        let run = run, write = writeAbandoned
         task = Task { [weak self] in
             await previous?.value
             let repairs = await Task.detached { run(copies, metadata, skip) }.value
@@ -99,6 +124,8 @@ final class TakeRepair {
                 // The Device's folder goes only when the Drive has the moved audio; a lone Copy is never removed.
                 if moved, copy.kind == .device, copies.contains(where: { $0.kind == .drive }) {
                     try? FileManager.default.removeItem(at: folder)
+                } else if abandoned.contains(copy.kind) {
+                    await Task.detached { [done] in write(done, folder) }.value
                 } else {
                     try? done.write(to: folder)
                 }
@@ -112,7 +139,7 @@ final class TakeRepair {
                 self.moved = moved
                 standInKept = done.standIns != nil
             }
-            jobDone()
+            jobDone(abandoned)
             access?.end()
             pending -= 1
             isRunning = pending > 0

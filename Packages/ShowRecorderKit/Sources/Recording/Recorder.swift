@@ -134,7 +134,8 @@ public final class Recorder {
         destinationCheckInterval: Duration? = .seconds(1),
         hostTicksPerSecond: Double? = nil,
         writerStopTimeout: Duration = .seconds(5),
-        driveStallLimit: Duration = .seconds(2)
+        driveStallLimit: Duration = .seconds(2),
+        writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) }
     ) {
         self.destinationCheckInterval = destinationCheckInterval
         self.driveStallLimit = driveStallLimit
@@ -144,7 +145,7 @@ public final class Recorder {
         savedChannelNames = SavedChannelNames.load(from: savedNames)
         self.freeSpace = freeSpace
         self.preRollSeconds = preRollSeconds
-        repair = TakeRepair(freeSpace: freeSpace)
+        repair = TakeRepair(freeSpace: freeSpace, writeAbandoned: writeAbandoned)
         self.makeStem = makeStem
         self.deviceFolder = deviceFolder
         self.driveFolder = driveFolder
@@ -158,7 +159,7 @@ public final class Recorder {
             lastTakeStandInKept = repair.standInKept
             isRepairing = repair.isRunning
         }
-        repair.jobDone = { [unowned self] in regenerateReports() }
+        repair.jobDone = { [unowned self] in regenerateReports(skipping: $0) }
         // A Show left open by a crash or an earlier launch is the open Show again.
         currentShow = Show.findOpen(in: deviceFolder)
         naming = ChannelNaming(typed: currentShow?.channelNames ?? [:])
@@ -780,8 +781,9 @@ public final class Recorder {
             hadDrive: finished.folders[.drive] != nil)
         lastTakeGeneration += 1
         currentShow = session.show
-        currentShow?.setChannelNames(channelNames)
-        currentShow?.noteTakeEnded(at: now())
+        // A Copy Stop gave up on may hang on any file operation, so the main thread leaves it alone (#652).
+        currentShow?.setChannelNames(channelNames, skipping: finished.abandoned)
+        currentShow?.noteTakeEnded(at: now(), skipping: finished.abandoned)
         // The Takes are safe either way; the report and project are regenerated next time.
         regenerateReports(skipping: finished.abandoned)
         repair.enqueue(finished.metadata, folders: finished.folders, holding: finished.access, abandoned: finished.abandoned)

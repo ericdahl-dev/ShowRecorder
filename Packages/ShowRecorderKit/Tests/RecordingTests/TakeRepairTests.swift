@@ -68,6 +68,20 @@ struct TakeRepairTests {
         #expect(runner.takes.isEmpty)
     }
 
+    @Test("A Take with no Gaps holds the Drive's access until the Take.json of a Copy Stop gave up on is written (#652)", .timeLimit(.minutes(1)))
+    func noGapsAbandonedHoldsAccess() async throws {
+        let released = ReleaseCounter()
+        let seen = ReleaseCounter()
+        let queue = TakeRepair(freeSpace: { _ in .max }, writeAbandoned: { _, _ in if released.count > 0 { seen.increment() } })
+        queue.enqueue(
+            metadata(take: 1, gaps: []), folders: try folders("a"), holding: DriveAccess(folder: root, stop: { released.increment() }),
+            abandoned: [.drive])
+        await queue.wait()
+
+        #expect(seen.count == 0, "the access was released before the abandoned Copy's Take.json was written")
+        #expect(released.count == 1)
+    }
+
     @Test("A Take with Gaps shows them as unrepaired until Repair has run, then holds its access to the end")
     func repairsAndReleases() async throws {
         let runner = Runner()
@@ -94,7 +108,7 @@ struct TakeRepairTests {
         runner.held = true
         let queue = TakeRepair(freeSpace: { _ in .max }, run: runner.run)
         var seenWhenFirstDone: [DestinationKind: CopyOutcome]?
-        queue.jobDone = { if seenWhenFirstDone == nil { seenWhenFirstDone = queue.outcomes } }
+        queue.jobDone = { _ in if seenWhenFirstDone == nil { seenWhenFirstDone = queue.outcomes } }
 
         queue.enqueue(metadata(take: 1, gaps: [driveGap]), folders: try folders("a", deviceFrames: 4800, driveFrames: 480), holding: nil)
         queue.enqueue(metadata(take: 2, gaps: [driveGap]), folders: try folders("b", deviceFrames: 4800, driveFrames: 480), holding: nil)
