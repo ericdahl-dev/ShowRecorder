@@ -536,6 +536,32 @@ struct ClipProtectionTests {
         await moving.value
         #expect(control.gainDb == [1: 26, 2: 30])
     }
+
+    @Test("Stopped while a turn-down waits behind a whole-Mixer job, it doesn't start (#554)")
+    func stoppedWhileQueued() async throws {
+        let queue = MixerQueue()
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        let (probed, probe) = AsyncStream<Void>.makeStream()
+        control.answer = { probe.yield() }
+        let wholeMixer = Task { @MainActor in
+            try await queue.run {
+                enter.yield()
+                for await _ in released { break }
+            }
+        }
+        #expect(await Self.next(entered), "the whole-Mixer job is under way")
+        let protection = ClipProtection(control: control, sampleRate: 48_000, queue: queue)
+
+        let moving = Task { await Self.feed(protection, Self.hot) }
+        #expect(await Self.next(probed, within: 1) == false, "the turn-down waits in the queue")
+        protection.stop()                                   // the Take ended
+        release.yield()
+        try await wholeMixer.value
+        await moving.value
+        #expect(control.moveStarts == 0)
+        #expect(control.gainDb == [1: 30, 2: 30])
+    }
 }
 
 @Suite("Clip protection setting")

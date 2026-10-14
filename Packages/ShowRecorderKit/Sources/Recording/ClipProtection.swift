@@ -270,9 +270,12 @@ public final class ClipProtection {
         guard !stopped else { return }
         let step: GainStep
         do throws(MixerLinkProblem) {
-            step = try await queue.run(lane: lane) { () throws(MixerLinkProblem) in
-                try await control.applyMixHold(channel: channel, gainChangeDb: gainChangeDb, scopes: .all)
-            }
+            // So can the wait in the queue.
+            guard let moved = try await queue.run(lane: lane, { () throws(MixerLinkProblem) -> GainStep? in
+                guard !stopped else { return nil }
+                return try await control.applyMixHold(channel: channel, gainChangeDb: gainChangeDb, scopes: .all)
+            }) else { return }
+            step = moved
         } catch {
             // Stopped partway: whatever was written still counts and is logged (#450); otherwise nothing moved.
             guard case .gainMoveInterrupted(let partial) = error else { return }
