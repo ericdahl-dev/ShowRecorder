@@ -81,10 +81,12 @@ public enum Soundcheck {
         let outcomes: [DestinationKind: CopyOutcome] = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.compactMap { kind in
             copies[kind].outcome.map { (kind, $0) }
         })
-        guard let device = outcomes[.device] else {
+        // Drive only: a Take the Drive took whole leaves no Device Copy, so it is judged by the Drive.
+        let device = outcomes[.device]
+        guard device != nil || (copies.isDriveOnly && outcomes[.drive] != nil) else {
             return Step(kind: .take, passed: false, message: "The test Take didn't run.")
         }
-        for (kind, outcome) in [(DestinationKind.device, device)] + (outcomes[.drive].map { [(.drive, $0)] } ?? []) {
+        for (kind, outcome) in (device.map { [(DestinationKind.device, $0)] } ?? []) + (outcomes[.drive].map { [(.drive, $0)] } ?? []) {
             switch outcome {
             case .complete, .repaired:
                 continue
@@ -99,6 +101,7 @@ public enum Soundcheck {
         if driveChosen, outcomes[.drive] == nil {
             return Step(kind: .take, passed: false, message: "Nothing was written to the Drive. Check it in Settings, under Drive.")
         }
+        if device == nil { return Step(kind: .take, passed: true, message: "Written to the Drive.") }
         return outcomes[.drive] == nil
             ? Step(kind: .take, passed: true, message: "Written to the Device. No Drive is chosen, so there is one Copy.")
             : Step(kind: .take, passed: true, message: "Written to the Device and the Drive.")

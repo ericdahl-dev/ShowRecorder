@@ -48,7 +48,7 @@ public enum MarkerRenamer {
         for kind in renamed {
             Show.refreshExtras(showFolder: copies[kind]!.deletingLastPathComponent(), allowed: allowsProExtras)
         }
-        let result: MarkerRename = !renamed.isEmpty ? .renamed : markerMissing == failed.count ? .noSuchMarker : .noCopyUpdated
+        let result: MarkerRename = !renamed.isEmpty ? .renamed : markerMissing > 0 && markerMissing == failed.count ? .noSuchMarker : .noCopyUpdated
         return Outcome(result: result, renamed: renamed, failed: failed)
     }
 

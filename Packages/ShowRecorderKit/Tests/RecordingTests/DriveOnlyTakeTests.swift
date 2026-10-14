@@ -65,6 +65,67 @@ struct DriveOnlyTakeTests {
         #expect(CopySummary.ofLastTake(recorder.copies, dropoutCount: recorder.dropoutCount)?.text == "Drive copy: complete")
     }
 
+    @Test("After a Drive only Take the Drive took whole, the Device has no Copy: it reads missing (#618)")
+    func deviceMissingAfterDriveTookWhole() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder()
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+
+        #expect(recorder.copies[.device] == .missing)
+        #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "no Take folder on the Device")
+    }
+
+    @Test("After a Drive only Take the Drive took whole, a Marker is renamed in the Drive Copy, with no Device Copy to fail (#618)")
+    func renameMarkerAfterDriveTookWhole() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder()
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        recorder.addMarker()
+        try await deliverBlocks(1, from: 10 * 480, to: audio, recorder, sample: counting())
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+
+        let outcome = await recorder.renameLastTakeMarker(at: 0, to: "Intro")
+
+        #expect(outcome.result == .renamed)
+        #expect(outcome.renamed == [.drive])
+        #expect(outcome.failed.isEmpty)
+        #expect(try TakeMetadata.read(fromTakeFolder: drive.appending(path: take)).markers.map(\.name) == ["Intro"])
+        #expect(recorder.markerEntries.map(\.name) == ["Intro"])
+    }
+
+    @Test("After a Drive only Take the Drive took whole, with the Drive gone at rename time, no Copy is renamed and the Drive is named (#618)")
+    func renameMarkerDriveGone() async throws {
+        final class Flag: @unchecked Sendable { var available = true }
+        let flag = Flag()
+        let drive = drive
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { flag.available ? DriveAccess(folder: drive) : nil },
+            now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        recorder.recordsToDriveOnly = true
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        recorder.addMarker()
+        try await deliverBlocks(1, from: 10 * 480, to: audio, recorder, sample: counting())
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+        flag.available = false
+
+        let outcome = await recorder.renameLastTakeMarker(at: 0, to: "Intro")
+
+        #expect(outcome.result == .noCopyUpdated)
+        #expect(outcome.renamed.isEmpty)
+        #expect(outcome.failed.map(\.copy) == [.drive])
+    }
+
     @Test("With its Drive, a Drive only Take's Copies say Drive only: the Device is standing by, the Drive recording")
     func copiesStandingBy() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)

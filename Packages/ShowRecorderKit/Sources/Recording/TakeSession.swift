@@ -360,12 +360,15 @@ final class TakeSession {
         capture.stopCapturing()
         for copy in copies { copy.writer.stop(timeout: stopTimeout) }
         standby?.writer.stop(timeout: stopTimeout)
+        // A standby is a Copy only if it stood in or its folder is kept: its empty folder isn't one, even if removing it fails.
+        var standbyFolder = standby?.folder
         if let standby {
             if let start = standby.start {
                 metadata.standIns = [.init(start: start, end: max(start, standby.writer.framesWritten))]
             } else if (try? FileManager.default.contentsOfDirectory(atPath: standby.folder.path).isEmpty) == true {
                 // The Drive took the whole Take: the Device's Take folder this press made stays empty, so it goes.
                 try? FileManager.default.removeItem(at: standby.folder)
+                standbyFolder = nil
             }
         }
         collectDropouts()
@@ -379,7 +382,7 @@ final class TakeSession {
         // A Take whose Copies were never fed a first block is empty, not missing everything.
         persistGaps(takeEnd: capture.awaitingFirstBlock ? 0 : capture.takeFrameCount)
         var folders: [DestinationKind: URL] = [:]
-        folders[.device] = standby?.folder
+        folders[.device] = standbyFolder
         for copy in copies { folders[copy.kind] = copy.folder }
         return Finished(
             metadata: metadata, folders: folders, access: copies.lazy.compactMap(\.access).first,
