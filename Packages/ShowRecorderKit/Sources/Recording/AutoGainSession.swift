@@ -89,9 +89,9 @@ public final class AutoGainSession {
         self.init(currentControl: { control }, rule: rule, measure: measure, settle: settle, log: log)
     }
 
-    /// - Parameter currentControl: the linked Mixer's gain control now, or nil while the Mixer Link is down. Runs and
-    ///   Undo use whatever it gives at each step, so a reconnect's new driver is used, and Undo steps (the Mixer's own
-    ///   values) still put the gain back through it.
+    /// - Parameter currentControl: the linked Mixer's gain control now, or nil while the Mixer Link is down or the Armed
+    ///   input isn't the linked Mixer. Runs and Undo use whatever it gives at each step, so a reconnect's new driver is
+    ///   used, and Undo steps (the Mixer's own values) still put the gain back through it.
     ///   - mixer: which Mixer is linked now, its network name and model; the session keeps to the one linked when it
     ///     was made.
     public init(currentControl: @escaping () -> (any GainControl)?, mixer: @escaping () -> String? = { nil },

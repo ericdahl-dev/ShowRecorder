@@ -121,7 +121,8 @@ public final class ClipProtection {
     }
 
     /// - Parameters:
-    ///   - currentControl: the linked Mixer's gain control now, or nil while the Mixer Link is down.
+    ///   - currentControl: the linked Mixer's gain control now, or nil while the Mixer Link is down or the Armed input
+    ///     isn't the linked Mixer.
     ///   - mixer: which Mixer is linked now ("FOH · XR18"), or nil while the Link is down. The one linked now is the
     ///     one this protects; on any other, it writes nothing.
     ///   - queue: the Mixer's queue every turn-down waits its turn in, in its lane.
