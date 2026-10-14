@@ -33,4 +33,11 @@ struct AutoGainAvailabilityTests {
         #expect(AutoGainAvailability.whyNot(hasMixerLink: false, isConnecting: true, canSetGain: false, isRecording: true) == .takeRunning)
         #expect(AutoGainAvailability.Unavailable.connecting.message.contains("Connecting"))
     }
+
+    @Test("With the Link on another Mixer than the Armed one, it says which instead of asking to connect, a Take still first (#647)")
+    func otherMixerLinked() {
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: false, canSetGain: false, isRecording: false, otherMixer: "FOH (XR18)") == .otherMixerLinked("FOH (XR18)"))
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: false, canSetGain: false, isRecording: true, otherMixer: "FOH (XR18)") == .takeRunning)
+        #expect(AutoGainAvailability.Unavailable.otherMixerLinked("FOH (XR18)").message == "The Mixer Link is on FOH (XR18), not the Armed Mixer. Connect to the Armed Mixer in Settings › Mixer Link first.")
+    }
 }

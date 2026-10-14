@@ -31,16 +31,21 @@ public enum Soundcheck {
         }
     }
 
-    public static func judgeMixer(status: MixerLinkStatus, sources: [Source]) -> Step {
+    /// - Parameter otherMixer: the Mixer the Link is on when it isn't the Armed Mixer's family (#647); set only while
+    ///   the Link is up on that other Mixer.
+    public static func judgeMixer(status: MixerLinkStatus, sources: [Source], otherMixer: MixerIdentity? = nil) -> Step {
+        if let otherMixer {
+            return Step(kind: .mixer, passed: false, message: "The Mixer Link is on \(otherMixer.nameAndModel), not the Armed Mixer. Connect to the Armed Mixer in Settings › Mixer Link.")
+        }
         switch status {
         case .idle:
-            return Step(kind: .mixer, passed: false, message: "No Mixer linked. Add its address in Settings, under Mixer.")
+            return Step(kind: .mixer, passed: false, message: "No Mixer linked. Add its address in Settings › Mixer Link.")
         case .connecting(let host):
             return Step(kind: .mixer, passed: false, message: "Still connecting to \(host). Check the address and the network.")
         case .down(let problem):
             return Step(kind: .mixer, passed: false, message: problem.message)
         case .up(let identity, _):
-            let which = "\(identity.networkName.isEmpty ? identity.model : identity.networkName) (\(identity.model))"
+            let which = identity.nameAndModel
             let named = sources.filter(\.hasMixerName).count
             guard named > 0 else {
                 return Step(kind: .mixer, passed: false, message: "\(which) is linked, but none of its channels has a name. Name them on the Mixer to have them on the Stems.")
@@ -132,6 +137,7 @@ public enum Soundcheck {
     @MainActor
     public static func run(
         sequencer: TakeSequencer, mixer: MixerLinkStatus?, sources: [Source], expectedUSBChannels: Int?, driveChosen: Bool,
+        otherMixer: MixerIdentity? = nil,
         allowance: TakeAllowance? = nil, takeLength: Duration = Soundcheck.takeLength, progress: (Step.Kind) -> Void = { _ in },
         result: (Step) -> Void = { _ in }
     ) async -> [Step] {
@@ -142,7 +148,7 @@ public enum Soundcheck {
         var mixerSteps: [Step] = []
         if let mixer {
             progress(.mixer)
-            let mixerStep = judgeMixer(status: mixer, sources: sources)
+            let mixerStep = judgeMixer(status: mixer, sources: sources, otherMixer: otherMixer)
             result(mixerStep)
             mixerSteps = [mixerStep]
         }

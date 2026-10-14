@@ -51,7 +51,8 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         mixer: MixerLinkStatus?,
         copies: TakeCopies,
         sampleRate: Int = 48_000,
-        driveOnly: Bool = false
+        driveOnly: Bool = false,
+        otherMixer: MixerIdentity? = nil
     ) -> [StatusChip] {
         func stopped(_ kind: DestinationKind) -> Bool { copies.isRunning && copies[kind] == .interrupted }
         func timeLeft(_ bytes: Int64) -> TimeLeft {
@@ -86,6 +87,12 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         }
 
         guard let mixer else { return chips }
+        // The Link is on another Mixer than the Armed one (#647): not a healthy chip.
+        if let otherMixer {
+            let name = otherMixer.networkName.trimmingCharacters(in: .whitespaces)
+            let detail = name.isEmpty ? otherMixer.model : "\(name) · \(otherMixer.model)"
+            return chips + [StatusChip(kind: .mixer, text: "Other Mixer linked", state: .attention, detail: detail)]
+        }
         let mixerChip: StatusChip
         switch mixer {
         case .idle:
