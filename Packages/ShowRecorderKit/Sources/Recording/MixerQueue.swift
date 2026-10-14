@@ -3,13 +3,15 @@ import MixerLink
 /// One gain move or undo on the Mixer at a time, in the order asked (#554): each Mix Hold plan reads the Mixer, ramps
 /// and writes, so two at once could both rewrite a setting they both compensate (a keyed threshold) and lose one move.
 @MainActor
-final class MixerQueue {
+public final class MixerQueue {
     /// A whole-Mixer job is under way.
     private var whole = false
     /// The lanes with a job under way.
     private var lanes: Set<AnyHashable> = []
     /// Jobs waiting, in the order asked: each in its lane, or nil for a whole-Mixer job.
     private var waiting: [(lane: AnyHashable?, go: CheckedContinuation<Void, Never>)] = []
+
+    public init() {}
 
     /// Runs `body` once the Mixer is free, and frees it after, even when `body` throws.
     func run<T>(_ body: () async throws(MixerLinkProblem) -> T) async throws(MixerLinkProblem) -> T {
