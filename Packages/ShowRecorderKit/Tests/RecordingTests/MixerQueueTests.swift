@@ -62,4 +62,57 @@ struct MixerQueueTests {
         }
         #expect(try await queue.run { 42 } == 42)
     }
+
+    @Test("Jobs in different lanes run at once: the second starts while the first is still on the Mixer")
+    func lanesAtOnce() async throws {
+        let queue = MixerQueue()
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        let first = Task { @MainActor in
+            try await queue.run(lane: 1) {
+                enter.yield()
+                for await _ in released { break }
+            }
+        }
+        #expect(await ClipProtectionTests.next(entered), "the first lane's job starts")
+        let second = Task { @MainActor in try await queue.run(lane: 2) { enter.yield() } }
+        #expect(await ClipProtectionTests.next(entered), "the second lane's job starts while the first is under way")
+        release.yield()
+        try await first.value
+        try await second.value
+    }
+
+    @Test("Jobs in one lane go one at a time, in the order asked")
+    func oneLaneInOrder() async throws {
+        let queue = MixerQueue()
+        var events: [String] = []
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (asked, ask) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        let first = Task { @MainActor in
+            try await queue.run(lane: 1) {
+                events.append("first starts")
+                enter.yield()
+                for await _ in released { break }
+                events.append("first ends")
+            }
+        }
+        #expect(await ClipProtectionTests.next(entered), "the first job starts")
+        // Each job is in the queue once it has said it asks: nothing suspends between the two.
+        let second = Task { @MainActor in
+            ask.yield()
+            try await queue.run(lane: 1) { events.append("second") }
+        }
+        #expect(await ClipProtectionTests.next(asked))
+        let third = Task { @MainActor in
+            ask.yield()
+            try await queue.run(lane: 1) { events.append("third") }
+        }
+        #expect(await ClipProtectionTests.next(asked))
+        release.yield()
+        try await first.value
+        try await second.value
+        try await third.value
+        #expect(events == ["first starts", "first ends", "second", "third"])
+    }
 }
