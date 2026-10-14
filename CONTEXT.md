@@ -171,5 +171,8 @@ A Copy that Stop couldn't finish writing in time: the Take ends without waiting 
 **Mixer family**:
 Mixers one driver reads, such as the X Air (XR18, MR18) or the X32 (X32, M32). The family is recognized from the Audio interface's name (for Mixer packs) and from the Mixer's own model (for the Mixer Link), and each family knows the port it is asked on and makes its driver.
 
+**Mixer gain**:
+The one object that moves preamp gain on the linked Mixer: auto-gain between Takes and clip protection during them. Every move and Undo goes through one queue, one at a time per preamp lane, so the two never move the same preamp at once.
+
 **Take sequencer**:
 The one place that Arms, re-Arms, moves and restarts input, and starts and stops Takes, from operator and system events. The Record screen forwards events to it and shows its state.
