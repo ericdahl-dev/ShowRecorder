@@ -9,7 +9,7 @@ struct AutoGainSheet: View {
     let model: RecordScreenModel
     @Environment(\.dismiss) private var dismiss
     /// Kept by the record screen, so closing the sheet loses nothing and Undo is still offered when it opens again.
-    private var autoGain: AutoGainPanel { model.autoGain }
+    private var autoGain: MixerGain { model.mixerGain }
     /// The `-autoGainDemo` screenshot flag shows sample results with no Mixer: there's nothing to Undo for real.
     private let isDemo = launchFlag("-autoGainDemo")
 
@@ -20,7 +20,7 @@ struct AutoGainSheet: View {
                 results: isDemo ? AutoGainList.demoResults : autoGain.results,
                 running: isDemo ? [5] : autoGain.running,
                 phases: isDemo ? AutoGainList.demoPhases : autoGain.phases,
-                progress: isDemo ? AutoGainPanel.Progress(done: 4, total: 6) : autoGain.progress,
+                progress: isDemo ? MixerGain.Progress(done: 4, total: 6) : autoGain.progress,
                 finishedRuns: isDemo ? 0 : autoGain.finishedRuns,
                 lastRunTotal: isDemo ? 0 : autoGain.lastRunTotal,
                 locked: isDemo || autoGain.isLocked,
@@ -55,7 +55,7 @@ struct AutoGainList: View {
     /// Where each channel of the run under way is.
     let phases: [Int: AutoGainSession.Phase]
     /// How far the run under way has got, or nil.
-    let progress: AutoGainPanel.Progress?
+    let progress: MixerGain.Progress?
     /// Runs finished, and the last one's channel count, for VoiceOver.
     var finishedRuns = 0
     var lastRunTotal = 0
@@ -217,7 +217,7 @@ extension AutoGainList {
 #Preview("Auto-gain results") {
     AutoGainList(
         channels: AutoGainList.demoChannels, results: AutoGainList.demoResults,
-        running: [5], phases: AutoGainList.demoPhases, progress: AutoGainPanel.Progress(done: 4, total: 6), locked: true, runAll: {}, runOne: { _ in }, undoOne: { _ in }, undoAll: {},
+        running: [5], phases: AutoGainList.demoPhases, progress: MixerGain.Progress(done: 4, total: 6), locked: true, runAll: {}, runOne: { _ in }, undoOne: { _ in }, undoAll: {},
         canUndo: { AutoGainList.demoUndoable.contains($0) }, canUndoAll: true,
         compensation: { AutoGainList.demoCompensation[$0] })
 }

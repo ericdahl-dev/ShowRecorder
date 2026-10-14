@@ -219,3 +219,25 @@ public final class MixerGain {
         return "To keep the mix: " + list + String(format: " moved %+.1f dB", amount)
     }
 }
+
+extension AutoGainSession.Result {
+    /// The USB Channel the result is for.
+    public var usbChannel: Int {
+        switch self {
+        case .set(let usb, _, _, _, _), .skipped(let usb, _), .failed(let usb, _, _, _), .stopped(let usb, _),
+             .error(let usb, _, _), .haltedForTake(let usb, _): usb
+        }
+    }
+}
+
+extension AutoGainSession.Phase {
+    /// Where a channel is, in plain words, for its row: nil once it's done, when the row shows its result.
+    public var label: String? {
+        switch self {
+        case .waiting: "Waiting…"
+        case .measuring: "Listening…"
+        case .adjusting: "Setting the gain…"
+        case .done: nil
+        }
+    }
+}

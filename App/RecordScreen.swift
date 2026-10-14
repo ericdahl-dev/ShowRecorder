@@ -662,28 +662,27 @@ final class RecordScreenModel {
                                            otherMixer: mixer.otherMixerLinked?.nameAndModel)
     }
 
-    /// Auto-gain's state (#155): kept here, not in the sheet, so Undo survives closing it; locked during a Take.
-    let autoGain = AutoGainPanel()
+    /// Gain on the Mixer (#554): auto-gain's state (#155), kept here, not in the sheet, so Undo survives closing it,
+    /// locked during a Take; and clip protection (#448), only during a Take, only when switched on.
+    let mixerGain = MixerGain()
     /// What auto-gain measures from (#554): every meter tick's windows, so it measures in audio time.
     let levelFeed = LevelFeed()
-    /// Clip protection (#448): turns a hot channel's preamp down, only during a Take, only when switched on.
-    let clipGuard = ClipGuard()
     /// Clip protection's switch in Settings (Debug builds for now), read when each Take starts. Off by default.
     var clipProtectionOn: Bool = ClipProtectionSetting.isOn() {
         didSet {
             ClipProtectionSetting.save(clipProtectionOn)
-            if !clipProtectionOn { clipGuard.switchedOff() }
+            if !clipProtectionOn { mixerGain.switchedOff() }
         }
     }
 
     /// Clip protection on the linked Mixer, at the rate the input runs at, logging each move in the Take with a
-    /// Marker (#450). Nil when the Mixer can't set gain.
-    private func makeClipProtection() -> ClipProtection? {
+    /// Marker (#450), through `queue`, the one Mixer gain gives auto-gain too. Nil when the Mixer can't set gain.
+    private func makeClipProtection(queue: MixerQueue) -> ClipProtection? {
         guard mixer.gainControl != nil, let rate = recorder.sampleRate else { return nil }
         // The gain control at each move, only while Mixer Link is offered and on the Mixer the Take started on
         // (#554, as #508): a new input mid-Take means nothing is written to the old Mixer (#589).
         return ClipProtection(currentControl: { [weak self] in self?.mixer.gainControl }, mixer: { [weak self] in self?.linkedMixer },
-                              sampleRate: Double(rate), log: { [weak self] change in self?.recorder.logGainChange(change) })
+                              sampleRate: Double(rate), queue: queue, log: { [weak self] change in self?.recorder.logGainChange(change) })
     }
 
     /// The one listener to the sequencer's events (an AsyncStream takes one, and ending it ends the stream), for the
@@ -692,8 +691,7 @@ final class RecordScreenModel {
         let events = sequencer.events
         Task { [weak self] in
             for await event in events {
-                self?.autoGain.handle(event)
-                self?.clipGuard.handle(event)
+                self?.mixerGain.handle(event)
                 #if DEBUG && os(iOS)
                 if case .disarmed = event { MonitorExperiment.shared.disarmed() }
                 // An interruption's restart reuses the input without `didArm`; the output unit iOS stopped needs a restart.
@@ -720,12 +718,12 @@ final class RecordScreenModel {
         mixer.identity.map { "\($0.networkName) · \($0.model)" }
     }
 
-    func makeAutoGainSession() -> AutoGainSession? {
+    func makeAutoGainSession(queue: MixerQueue) -> AutoGainSession? {
         guard mixer.gainControl != nil else { return nil }
         // The Mixer Link's gain control at each step, so a reconnect's new driver is used, Undo included (#508).
         return AutoGainSession(currentControl: { [weak self] in self?.mixer.gainControl },
                                mixer: { [weak self] in self?.linkedMixer }, measure: { [weak self] usb in await self?.levelFeed.measure(usbChannel: usb) },
-                               log: { [weak self] change in self?.recorder.logGainChange(change) })
+                               queue: queue, log: { [weak self] change in self?.recorder.logGainChange(change) })
     }
 
     /// "Kick", or "USB 03" when the channel has no name.
@@ -987,11 +985,10 @@ final class RecordScreenModel {
             #endif
         }()
         sequencer.log = { line in Self.sessionLog.notice("\(line, privacy: .public)") }
-        autoGain.makeSession = { [weak self] in self?.makeAutoGainSession() }
-        autoGain.isRecording = { [weak self] in self?.recorder.isRecording ?? false }
-        autoGain.mixerName = { [weak self] in self?.linkedMixer }
-        clipGuard.makeProtection = { [weak self] in self?.makeClipProtection() }
-        clipGuard.isRecording = { [weak self] in self?.recorder.isRecording ?? false }
+        mixerGain.makeSession = { [weak self] queue in self?.makeAutoGainSession(queue: queue) }
+        mixerGain.isRecording = { [weak self] in self?.recorder.isRecording ?? false }
+        mixerGain.mixerName = { [weak self] in self?.linkedMixer }
+        mixerGain.makeProtection = { [weak self] queue in self?.makeClipProtection(queue: queue) }
         followTakes()
         sequencer.didArm = { [unowned self] device in
             #if DEBUG && os(iOS)
@@ -1399,7 +1396,7 @@ final class RecordScreenModel {
             let fresh = recorder.takeChannelLevels()
             meterModel.update(from: fresh, seconds: seconds)
             // Clip protection reads the same windows at once; a move runs on its own, so it never holds up the meters.
-            clipGuard.meters(fresh)
+            mixerGain.meters(fresh)
             levelFeed.meters(fresh, sampleRate: recorder.sampleRate)
             try? await Task.sleep(for: .milliseconds(33))
         }
