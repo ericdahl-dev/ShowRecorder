@@ -3,12 +3,18 @@ import MixerLink
 import Observation
 import TakeFile
 
+/// Gain on the linked Mixer (#554): auto-gain between Takes and clip protection during them, through one `MixerQueue`,
+/// so their moves and Undo on one Mixer never overlap.
+///
 /// Auto-gain's state on the record screen (#155): what each USB Channel's run did, which are running, and the steps to
 /// Undo. The record screen keeps it, so closing the sheet loses nothing and Undo is still there when it opens again.
 /// Locked while a Take runs: no gain moves during a Take, and a Take that starts mid-run stops it at once.
+///
+/// Clip protection (#448): only during a Take (Eric, 2026-10-13), and only when switched on (off by default).
+/// It follows Takes (`TakeSequencer.events`) and takes every meter read the screen takes.
 @MainActor
 @Observable
-public final class AutoGainPanel {
+public final class MixerGain {
     /// What happened to each USB Channel, last run or Undo.
     public private(set) var results: [Int: AutoGainSession.Result] = [:]
     /// USB Channels with a run or an Undo under way.
@@ -39,17 +45,28 @@ public final class AutoGainPanel {
     /// The session on the linked Mixer, made at the first run and kept for Undo.
     public private(set) var session: AutoGainSession?
     /// Whether the recorder is recording now. Read on every run and Undo, so a Take that has started is respected
-    /// before its event arrives.
+    /// before its event arrives; and on every meter read, so a window read after the recorder stopped, before the
+    /// Take's end arrives, is left alone.
     @ObservationIgnored public var isRecording: () -> Bool = { false }
     /// The linked Mixer's network name now, nil while the Mixer Link is down. Undo belongs to the Mixer it was made on
     /// (#508): its steps are that Mixer's values, so on another Mixer it is dropped, never written.
     @ObservationIgnored public var mixerName: () -> String? = { nil }
     /// The Mixer the session's Undo steps were made on.
     @ObservationIgnored private var sessionMixer: String?
-    /// A new session on the linked Mixer, or nil when there is none. Set by whoever owns the panel.
-    @ObservationIgnored public var makeSession: () -> AutoGainSession?
+    /// The Mixer's one queue, given to every session and clip protection made here: auto-gain's moves and Undo go one
+    /// at a time on the whole Mixer, clip protection's turn-downs one at a time per preamp lane.
+    private let queue = MixerQueue()
+    /// A new session on the linked Mixer moving gain through the given queue, or nil when there is none. Set by
+    /// whoever owns this.
+    @ObservationIgnored public var makeSession: (MixerQueue) -> AutoGainSession?
+    /// Whether clip protection is switched on, read when each Take starts.
+    @ObservationIgnored public var isClipProtectionOn: () -> Bool = { ClipProtectionSetting.isOffered() && ClipProtectionSetting.isOn() }
+    /// Clip protection on the linked Mixer moving gain through the given queue, or nil when it can't set gain.
+    @ObservationIgnored public var makeProtection: (MixerQueue) -> ClipProtection? = { _ in nil }
+    /// Protecting the running Take; nil between Takes.
+    @ObservationIgnored public private(set) var protection: ClipProtection?
 
-    public init(makeSession: @escaping () -> AutoGainSession? = { nil }) {
+    public init(makeSession: @escaping (MixerQueue) -> AutoGainSession? = { _ in nil }) {
         self.makeSession = makeSession
     }
 
@@ -59,7 +76,7 @@ public final class AutoGainPanel {
     /// Runs auto-gain on `usbChannels`. Not during a Take, and not while another run or Undo is under way.
     public func run(_ usbChannels: [Int]) async {
         dropUndoForAnotherMixer()
-        guard !isLocked, let session = session ?? makeSession() else { return }
+        guard !isLocked, let session = session ?? makeSession(queue) else { return }
         if self.session == nil { sessionMixer = mixerName() }
         self.session = session
         running.formUnion(usbChannels)
@@ -102,17 +119,42 @@ public final class AutoGainPanel {
         }
     }
 
-    /// Follows Takes (`TakeSequencer.events`): a Take that starts stops any run at once and locks the panel until it ends.
+    /// Follows Takes (`TakeSequencer.events`): a Take that starts stops any run at once, locks auto-gain until it ends
+    /// and turns clip protection on (when switched on); one that ends turns clip protection off.
     public func handle(_ event: TakeEvent) {
         switch event {
         case .takeStarted:
             isTakeRunning = true
             session?.stop()
+            protection = isClipProtectionOn() ? makeProtection(queue) : nil
+            protection?.takeStarted()
         case .takeEnded:
             isTakeRunning = false
+            protection?.stop()
+            protection = nil
         default:
             break
         }
+    }
+
+    /// Clip protection switched off in Settings: stops at once, mid-Take too, so the operator can always stop it.
+    public func switchedOff() {
+        protection?.stop()
+        protection = nil
+    }
+
+    /// One meter read, every USB Channel's window (USB Channel 1 first), waiting for any turn-down it starts. Nothing
+    /// between Takes. Only tests use it; the record screen calls `meters(_:)`.
+    public func observe(_ levels: [ChannelLevel]) async {
+        guard isRecording() else { return }
+        await protection?.observe(levels)
+    }
+
+    /// The same, at once (#554): a turn-down it starts runs on its own, so the meters never wait on the Mixer.
+    @discardableResult
+    public func meters(_ levels: [ChannelLevel]) -> Task<Void, Never>? {
+        guard let protection, isRecording() else { return nil }
+        return protection.meters(levels)
     }
 
     public func canUndo(_ usbChannel: Int) -> Bool {

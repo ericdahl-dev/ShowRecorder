@@ -41,7 +41,7 @@ struct MixerGainCharacterizationTests {
     @Test("A clip-protection turn-down is logged but never offered for Undo in the Gain sheet")
     func clipMovesAreNotUndoable() async {
         let control = FakeGainControl(gainDb: [1: 30], channelOfUSB: [1: 1])
-        let panel = AutoGainPanel(makeSession: { AutoGainSession(control: control, measure: AutoGainSessionTests.meters(control, source: [1: -40])) })
+        let panel = MixerGain(makeSession: { _ in AutoGainSession(control: control, measure: AutoGainSessionTests.meters(control, source: [1: -40])) })
         var logged: [TakeMetadata.GainChange] = []
         let protection = ClipProtection(control: control, sampleRate: 48_000, log: { logged.append($0) })
 
