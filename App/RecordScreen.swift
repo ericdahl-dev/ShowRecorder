@@ -669,6 +669,8 @@ final class RecordScreenModel {
 
     /// Auto-gain's state (#155): kept here, not in the sheet, so Undo survives closing it; locked during a Take.
     let autoGain = AutoGainPanel()
+    /// What auto-gain measures from (#554): every meter tick's windows, so it measures in audio time.
+    let levelFeed = LevelFeed()
     /// Clip protection (#448): turns a hot channel's preamp down, only during a Take, only when switched on.
     let clipGuard = ClipGuard()
     /// Clip protection's switch in Settings (Debug builds for now), read when each Take starts. Off by default.
@@ -725,15 +727,8 @@ final class RecordScreenModel {
         guard mixer.gainControl != nil else { return nil }
         // The Mixer Link's gain control at each step, so a reconnect's new driver is used, Undo included (#508).
         return AutoGainSession(currentControl: { [weak self] in self?.mixer.gainControl },
-                               mixer: { [weak self] in self?.linkedMixer }, measure: { [weak self] usb in await self?.averageLevel(usbChannel: usb) ?? -120 },
+                               mixer: { [weak self] in self?.linkedMixer }, measure: { [weak self] usb in await self?.levelFeed.measure(usbChannel: usb) },
                                log: { [weak self] change in self?.recorder.logGainChange(change) })
-    }
-
-    /// A USB Channel's Average level over about 2 s, after half a second for the meter to follow a gain move.
-    private func averageLevel(usbChannel: Int) async -> Double {
-        await LevelAverage.measure(reading: { [meterModel] in
-            meterModel.levels.indices.contains(usbChannel - 1) ? meterModel.levels[usbChannel - 1].averageDbfs : nil
-        })
     }
 
     /// "Kick", or "USB 03" when the channel has no name.
@@ -1404,8 +1399,11 @@ final class RecordScreenModel {
             meterModel.update(from: fresh, seconds: seconds)
             // Clip protection reads the same windows at once; a move runs on its own, so it never holds up the meters.
             clipGuard.meters(fresh)
+            levelFeed.meters(fresh, sampleRate: recorder.sampleRate)
             try? await Task.sleep(for: .milliseconds(33))
         }
+        // No more ticks: a measurement under way ends rather than waiting for audio that won't come.
+        levelFeed.meters([], sampleRate: nil)
     }
 
     /// The picker changed. Skips the device the model has just Armed itself after a device change.

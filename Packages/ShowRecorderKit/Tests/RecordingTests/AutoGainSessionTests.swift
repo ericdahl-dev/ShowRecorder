@@ -120,6 +120,23 @@ struct AutoGainSessionTests {
         }
     }
 
+    @Test("Audio that stops after a gain step (disarmed) ends the channel as no signal: no undo, the step kept for Undo (#554)")
+    func audioStopped() async throws {
+        let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
+        var measured = 0
+        let session = AutoGainSession(control: control, measure: { usb in
+            measured += 1
+            return measured == 1 ? -40 + (control.gainDb[usb] ?? 0) : nil
+        })
+
+        let results = await session.run(usbChannels: [1])
+
+        #expect(results == [.skipped(usbChannel: 1, reason: .noSignal)])
+        #expect(control.undos == 0)
+        #expect(control.gainDb[1] != 0)
+        #expect(session.steps[1]?.count == 1)
+    }
+
     @Test("One channel at -40 dBFS is brought to -18 with its preamp")
     func oneChannel() async throws {
         let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
