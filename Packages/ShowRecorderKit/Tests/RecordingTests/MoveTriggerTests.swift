@@ -242,4 +242,90 @@ extension DriveOnlyTakeTests {
         #expect(await moving.value.map(\.outcome) == [.moved])
         #expect(try TakeMetadata.read(fromTakeFolder: drive.appending(path: take)).markers.map(\.name) == ["Intro"])
     }
+
+    @Test("A move that finds nothing to do clears the report (#630)")
+    func emptyMoveClearsTheReport() async throws {
+        let switched = DriveSwitch()
+        try await leaveDeviceOnlyTake(switched)
+        let launched = recorder(drive: switched)
+        #expect(launched.moveReport.line == nil)
+
+        _ = await launched.moveDriveOnlyTakes()
+        #expect(launched.moveReport.line == "1 Take moved to the Drive.")
+
+        _ = await launched.moveDriveOnlyTakes()
+        #expect(launched.moveReport.line == nil, "nothing left to say")
+        #expect(launched.moveReport.entries.isEmpty)
+    }
+
+    @Test("A scan with nothing to move never says it is moving (#630)")
+    func emptyScanNeverSaysMoving() async throws {
+        let switched = DriveSwitch()
+        switched.connected = true
+        let recorder = recorder(drive: switched)
+        let done = Held()
+        let scanning = Task {
+            _ = await recorder.moveDriveOnlyTakes()
+            done.enter()
+        }
+        // Looked at between every step of the scan, on the main actor as the screen does.
+        var lines: Set<String> = []
+        var alerts = 0
+        while !done.entered {
+            if let line = recorder.moveReport.line { lines.insert(line) }
+            if recorder.moveReport.alert(isOffered: true, isRecording: false) != nil { alerts += 1 }
+            await Task.yield()
+        }
+        await scanning.value
+
+        #expect(lines.isEmpty)
+        #expect(alerts == 0)
+    }
+
+    @Test("Once a scan has found a Take to move, the line says it is moving (#630)")
+    func movingLineOnceFound() async throws {
+        let switched = DriveSwitch()
+        let recorder = try await recordDeviceOnlyTake(switched)
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
+        let held = Held()
+        let moving = Task { await recorder.moveDriveOnlyTakes(shouldStop: { held.enter(); gate.wait(); return false }) }
+        try await waitUntil { held.entered }
+
+        #expect(recorder.moveReport.line == "Moving Takes to the Drive…")
+        gate.open()
+        _ = await moving.value
+    }
+
+    @Test("A Take kept on this iPhone and since gone from it: the next scan clears the warning (#630)")
+    func keptThenGoneClears() async throws {
+        let switched = DriveSwitch()
+        try await leaveDeviceOnlyTake(switched)
+        try FileManager.default.createDirectory(at: drive.appending(path: take), withIntermediateDirectories: true)
+        var other = try TakeMetadata.read(fromTakeFolder: device.appending(path: take))
+        other.startedAt = other.startedAt.addingTimeInterval(60)
+        try other.write(to: drive.appending(path: take))
+        let launched = recorder(drive: switched)
+        _ = await launched.moveDriveOnlyTakes()
+        #expect(launched.moveReport.line == "1 Take kept on this iPhone.")
+
+        try FileManager.default.removeItem(at: device.appending(path: take))
+        _ = await launched.moveDriveOnlyTakes()
+
+        #expect(launched.moveReport.line == nil)
+    }
+
+    @Test("An all-moved line goes away when the next Take starts (#630)")
+    func allMovedClearsAtTheNextTake() async throws {
+        let switched = DriveSwitch()
+        let recorder = try await recordDeviceOnlyTake(switched)
+        _ = await recorder.moveDriveOnlyTakes()
+        #expect(recorder.moveReport.line == "1 Take moved to the Drive.")
+
+        try recorder.startTake()
+
+        #expect(recorder.moveReport.entries.isEmpty)
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+    }
 }
