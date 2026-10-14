@@ -196,14 +196,15 @@ public struct Show: Sendable, Equatable {
         return takeFolder
     }
 
-    /// Creates "Take NN" for the next Take in every Copy and returns the folders, the Device first.
-    mutating func createNextTakeFolder() throws -> [URL] {
+    /// Creates "Take NN" for the next Take in every Copy, the Device's first, and returns the folders by Copy.
+    mutating func createNextTakeFolder() throws -> [DestinationKind: URL] {
         takeCount += 1
         let takeName = TakeMetadata.name(take: takeCount)
-        let folders = try ([folder] + (driveFolder.map { [$0] } ?? [])).map { showFolder in
+        var folders: [DestinationKind: URL] = [:]
+        for (kind, showFolder) in [(DestinationKind.device, folder)] + (driveFolder.map { [(.drive, $0)] } ?? []) {
             let takeFolder = showFolder.appending(path: takeName, directoryHint: .isDirectory)
             try FileManager.default.createDirectory(at: takeFolder, withIntermediateDirectories: false)
-            return takeFolder
+            folders[kind] = takeFolder
         }
         // The number is kept in Show.json, so it survives a relaunch even when the Device keeps no folder for it.
         try? file.write(to: folder)
