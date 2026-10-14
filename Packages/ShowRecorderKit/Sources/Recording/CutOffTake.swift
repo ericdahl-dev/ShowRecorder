@@ -29,25 +29,49 @@ enum CutOffTake {
         guard let last = numbers.max() else { return nil }
         let name = TakeMetadata.name(take: last)
         let deviceTake = deviceShow.appending(path: name, directoryHint: .isDirectory)
-        guard var metadata = try? TakeMetadata.read(fromTakeFolder: deviceTake) else { return nil }
+        let driveTake = driveShow.map { $0.appending(path: name, directoryHint: .isDirectory) }
+            .flatMap { fm.fileExists(atPath: $0.path) ? $0 : nil }
+        // Drive only (ADR 0006): a Take that never lost its Drive has no Take.json on the Device, only its standby's
+        // empty folder; the Drive's Take.json says what the Take is.
+        let deviceMetadata = try? TakeMetadata.read(fromTakeFolder: deviceTake)
+        guard var metadata = deviceMetadata ?? driveTake.flatMap({ try? TakeMetadata.read(fromTakeFolder: $0) }) else { return nil }
         if let lastTakeEndedAt, metadata.startedAt <= lastTakeEndedAt { return nil }
 
-        var copies: [(kind: DestinationKind, folder: URL)] = [(.device, deviceTake)]
-        if let driveTake = driveShow?.appending(path: name, directoryHint: .isDirectory), fm.fileExists(atPath: driveTake.path) {
-            copies.append((.drive, driveTake))
+        var copies: [(kind: DestinationKind, folder: URL)] = []
+        // The Device is a Copy when it has the Take's Take.json or Stems (its Take.json may have failed to write).
+        if deviceMetadata != nil || metadata.usbChannels.contains(where: { fm.fileExists(atPath: deviceTake.appending(path: $0.stemFile).path) }) {
+            copies.append((.device, deviceTake))
+        } else if (try? fm.contentsOfDirectory(atPath: deviceTake.path).isEmpty) == true {
+            // The standby's empty folder goes, as at Stop.
+            try? fm.removeItem(at: deviceTake)
         }
+        if let driveTake { copies.append((.drive, driveTake)) }
         let info = StemWriter.Info(
             sampleRate: metadata.sampleRate, description: "", originator: "ShowRecorder",
             timeReference: metadata.timeReference, originationDate: metadata.startedAt)
         var lengths: [DestinationKind: UInt64] = [:]
         for copy in copies {
+            // Drive only: the Device holds stand-ins, each in its own folder from its own Take frame, not a Copy.
+            if copy.kind == .device, let standIns = metadata.standIns {
+                metadata.standIns = standIns.map { standIn in
+                    var standInInfo = info
+                    standInInfo.timeReference += UInt64(standIn.start)
+                    let frames = metadata.usbChannels
+                        .compactMap { finishStem(at: copy.folder.appending(path: standIn.folderName).appending(path: $0.stemFile), info: standInInfo) }
+                        .max() ?? 0
+                    return .init(start: standIn.start, end: standIn.start + Int(frames))
+                }
+                lengths[.device] = UInt64(metadata.standIns?.map(\.end).max() ?? 0)
+                continue
+            }
             lengths[copy.kind] = metadata.usbChannels
                 .compactMap { finishStem(at: copy.folder.appending(path: $0.stemFile), info: info) }
                 .max() ?? 0
         }
         let coverage = CopyCoverage(stemLengths: lengths.mapValues { Int($0) })
         let longest = UInt64(coverage.end)
-        for gap in coverage.gaps(takeEnd: coverage.end) where !metadata.gaps.contains(gap) {
+        // A Drive only Take has no Device Copy to have Gaps in.
+        for gap in coverage.gaps(takeEnd: coverage.end) where !metadata.gaps.contains(gap) && (metadata.standIns == nil || gap.copy != .device) {
             metadata.gaps.append(gap)
         }
         for copy in copies { try? metadata.write(to: copy.folder) }

@@ -17,6 +17,7 @@ Every Take is written to two Destinations at once, the Device and the Drive, and
 ## Consequences
 
 - While the Drive is missing, audio sits on the Device until Repair moves it: the "nothing on the Device" promise holds only once the Drive is back and Repair has run. The record screen and the Show report say where each Take's audio is.
+- A stand-in from a Take cut off by a crash is never removed at the next launch, even if Repair fills the Drive from it: a Gap not yet written to `Take.json` when the app died could make an automatic removal lose audio (#626). It stays on the Device until the move to the Drive (#630) has checked the Drive Copy.
 - With one Copy there is no second Copy to Repair from if the Drive itself is damaged after the Take. Operators who want that net leave Drive only off.
 - Time left is the Drive's while it is connected, and the Device's during a fallback.
 - Hardware check (Eric, with the rig): pull the Drive mid-Take, plug it back, and check the Take ends complete on the Drive and empty on the Device.
