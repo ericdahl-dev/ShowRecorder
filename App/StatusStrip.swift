@@ -9,6 +9,8 @@ struct StatusStrip: View {
     var extras: [PowerStatus.Chip] = []
     /// Landscape iPhone: shorter text, so three chips fit beside the header.
     var compact = false
+    /// Beside the landscape banner (#644): each chip a 44 pt square with its icon alone.
+    var iconOnly = false
     let tap: (StatusChip.Kind) -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.appearanceMode) private var mode
@@ -23,9 +25,9 @@ struct StatusStrip: View {
                         chipLabel(chip, text: chip.shortText).fixedSize(horizontal: true, vertical: false)
                         chipLabel(chip, text: chip.shortText).minimumScaleFactor(0.6)
                     }
-                    .padding(.horizontal, 10)
-                    .frame(minHeight: 44)
-                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, iconOnly ? 0 : 10)
+                    .frame(minWidth: iconOnly ? 44 : nil, minHeight: 44)
+                    .frame(maxWidth: iconOnly ? nil : .infinity)
                     .foregroundStyle(foreground(chip.state))
                     .background(background(chip.state), in: RoundedRectangle(cornerRadius: 10))
                 }
@@ -34,12 +36,12 @@ struct StatusStrip: View {
             }
             ForEach(extras, id: \.symbol) { chip in
                 Label(chip.shortText, systemImage: chip.symbol)
-                    .labelStyle(StripLabelStyle(iconOnly: typeSize.isAccessibilitySize))
+                    .labelStyle(StripLabelStyle(iconOnly: iconOnly || typeSize.isAccessibilitySize))
                     .font(.footnote.weight(.semibold))
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
-                    .padding(.horizontal, 10)
-                    .frame(minHeight: 44)
+                    .padding(.horizontal, iconOnly ? 0 : 10)
+                    .frame(minWidth: iconOnly ? 44 : nil, minHeight: 44)
                     .foregroundStyle(foreground(chip.state))
                     .background(background(chip.state), in: RoundedRectangle(cornerRadius: 10))
                     .accessibilityElement(children: .ignore)
@@ -51,7 +53,7 @@ struct StatusStrip: View {
     /// At the largest text sizes the chip keeps its icon and drops the words (VoiceOver still has them).
     private func chipLabel(_ chip: StatusChip, text: String) -> some View {
         Label(text, systemImage: icon(for: chip))
-            .labelStyle(StripLabelStyle(iconOnly: typeSize.isAccessibilitySize))
+            .labelStyle(StripLabelStyle(iconOnly: iconOnly || typeSize.isAccessibilitySize))
             .font(.footnote.weight(.semibold))
             .lineLimit(1)
     }
@@ -92,13 +94,24 @@ struct AlertSlot: View {
     @State private var listing = false
 
     static let height: CGFloat = 56
-    /// Portrait keeps `height`; landscape overlays a shorter slot.
+    /// Portrait keeps `height`; landscape's top row has a shorter slot.
     var slotHeight: CGFloat = AlertSlot.height
+    /// The banner's lines of text: 1 in landscape's top row.
+    var lines = 2
+    /// Swiping a warning away (#644). A critical alert can't be swiped.
+    var swipe: ((ScreenAlert) -> Void)?
+    @State private var dragX: CGFloat = 0
 
     var body: some View {
         Group {
             if let alert = queue.top {
-                AlertBanner(alert: alert, moreCount: queue.moreCount, perform: perform) { listing = true }
+                let swipeable = swipe != nil && alert.tone == .warning
+                AlertBanner(alert: alert, moreCount: queue.moreCount, lines: lines, perform: perform) { listing = true }
+                    .offset(x: dragX)
+                    .gesture(swipeAway(alert), including: swipeable ? .all : .subviews)
+                    .accessibilityActions {
+                        if swipeable { Button("Dismiss") { swipe?(alert) } }
+                    }
             } else {
                 Color.clear
             }
@@ -118,6 +131,76 @@ struct AlertSlot: View {
             .presentationCompactAdaptation(.sheet)
         }
     }
+
+    /// Past 80 pt sideways the banner slides off and the warning is swiped; short of it, it springs back.
+    private func swipeAway(_ alert: ScreenAlert) -> some Gesture {
+        DragGesture(minimumDistance: 20)
+            .onChanged { drag in
+                if abs(drag.translation.width) > abs(drag.translation.height) { dragX = drag.translation.width }
+            }
+            .onEnded { _ in
+                guard abs(dragX) > 80 else {
+                    withAnimation { dragX = 0 }
+                    return
+                }
+                withAnimation(.easeOut(duration: 0.2)) {
+                    dragX = dragX > 0 ? 1000 : -1000
+                } completion: {
+                    swipe?(alert)
+                    dragX = 0
+                }
+            }
+    }
+}
+
+/// Landscape's top row (#644): the chips, or while a warning or critical alert is up, its banner in their place, so
+/// nothing covers the meters. A chip showing another problem stays beside the banner as its icon. The row swaps with a
+/// cross-fade, and an alert once shown stays at least `AlertHold.minimum`, so a flickering problem doesn't flicker it.
+struct LandscapeAlertRow: View {
+    let alerts: AlertQueue
+    let chips: [StatusChip]
+    let extras: [PowerStatus.Chip]
+    let perform: (ScreenAlert.Action) -> Void
+    let swipe: (ScreenAlert) -> Void
+    let tap: (StatusChip.Kind) -> Void
+    @State private var hold = AlertHold()
+    @State private var shown: ScreenAlert?
+
+    private var urgent: AlertQueue { AlertQueue(alerts.ordered.filter { $0.tone == .critical || $0.tone == .warning }) }
+
+    var body: some View {
+        ZStack {
+            if let shown {
+                HStack(spacing: 8) {
+                    AlertSlot(queue: urgent.top == nil ? AlertQueue([shown]) : urgent, perform: perform, slotHeight: 44, lines: 1) { alert in
+                        hold.release()
+                        self.shown = nil
+                        swipe(alert)
+                    }
+                    StatusStrip(
+                        chips: chips.filter { $0.state.isProblem && !shown.isAbout($0.kind) },
+                        extras: extras.filter { $0.state.isProblem && !shown.isAbout($0) },
+                        iconOnly: true, tap: tap)
+                }
+                .transition(.opacity)
+            } else {
+                StatusStrip(chips: chips, extras: extras, compact: true, tap: tap)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: shown?.id)
+        .task(id: urgent.top) {
+            shown = hold.update(urgent.top, at: .now)
+            // Cleared while held: look again once the hold is over. A change cancels the wait.
+            guard shown != nil, urgent.top == nil,
+                  (try? await Task.sleep(for: .seconds(AlertHold.minimum))) != nil else { return }
+            shown = hold.update(urgent.top, at: .now)
+        }
+    }
+}
+
+private extension StatusChip.State {
+    var isProblem: Bool { self == .attention || self == .failed }
 }
 
 /// A banner with solid fill and high-contrast text; tinted-on-tint fails in sunlight.
@@ -126,6 +209,8 @@ struct AlertBanner: View {
     let moreCount: Int
     /// In the list of every alert: the whole text, however many lines. In the slot: 2 lines, and a tap shows the list.
     var inFull = false
+    /// The slot's lines of text; one line never shrinks.
+    var lines = 2
     let perform: (ScreenAlert.Action) -> Void
     let showMore: () -> Void
     @Environment(\.appearanceMode) private var mode
@@ -162,8 +247,8 @@ struct AlertBanner: View {
     private var text: some View {
         Label(alert.text, systemImage: icon)
             .font(.callout.weight(.medium))
-            .lineLimit(inFull ? nil : 2)
-            .minimumScaleFactor(inFull ? 1 : 0.8)
+            .lineLimit(inFull ? nil : lines)
+            .minimumScaleFactor(inFull || lines == 1 ? 1 : 0.8)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 

@@ -213,7 +213,7 @@ struct RecordScreen: View {
             StatusStrip(chips: model.chips, extras: model.extraChips, tap: chipTapped)
             // `-screenshotWindow` (Debug only): no empty alert band above the meters in a screenshot; the meters take it.
             if !(launchFlag("-screenshotWindow") && model.alerts.top == nil) {
-                AlertSlot(queue: model.alerts, perform: model.perform)
+                AlertSlot(queue: model.alerts, perform: model.perform, swipe: model.swipe)
             }
             MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.linkedSources, typedNames: model.recorder.channelNames, nameChannel: nameChannel)
                 .overlay { if let block = model.recordBlock { DisarmedNotice(block: block, perform: model.perform) } }
@@ -223,13 +223,14 @@ struct RecordScreen: View {
     }
 
     /// Header and status strip share one 44 pt row, the meters take the full height below it, and the
-    /// transport is a column at the trailing edge (or the leading edge, for left-handed use).
+    /// transport is a column at the trailing edge (or the leading edge, for left-handed use). An urgent alert takes
+    /// the status strip's place in the top row, never the meters' (#644).
     private var landscape: some View {
         VStack(spacing: 8) {
             HStack(spacing: 10) {
                 headerSummary(compact: true)
                     .frame(maxWidth: 190, alignment: .leading)
-                StatusStrip(chips: model.chips, extras: model.extraChips, compact: true, tap: chipTapped)
+                LandscapeAlertRow(alerts: model.alerts, chips: model.chips, extras: model.extraChips, perform: model.perform, swipe: model.swipe, tap: chipTapped)
                 markersButton
                 gearButton
             }
@@ -237,13 +238,6 @@ struct RecordScreen: View {
                 if model.transportLeading { transportColumn }
                 MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.linkedSources, typedNames: model.recorder.channelNames, nameChannel: nameChannel, compact: true)
                     .overlay { if let block = model.recordBlock { DisarmedNotice(block: block, perform: model.perform) } }
-                    // Urgent alerts sit over the top of the meters, which aren't tappable and don't move,
-                    // so the chips and the gear stay reachable (the Drive's Reconnect is one of them).
-                    .overlay(alignment: .top) {
-                        let urgent = AlertQueue(model.alerts.ordered.filter { $0.tone == .critical || $0.tone == .warning })
-                        AlertSlot(queue: urgent, perform: model.perform, slotHeight: 44)
-                            .allowsHitTesting(urgent.top != nil)
-                    }
                 if !model.transportLeading { transportColumn }
             }
         }
@@ -839,8 +833,23 @@ final class RecordScreenModel {
             sampleRate: recorder.sampleRate ?? 48_000)
     }
 
-    /// Everything the record screen has to say, most urgent first; it shows one and counts the rest.
-    var alerts: AlertQueue {
+    /// Everything the record screen has to say, most urgent first, but the warnings swiped away (#644); it shows one
+    /// and counts the rest.
+    var alerts: AlertQueue { AlertQueue(swipedAlerts.showing(raisedAlerts)) }
+
+    /// Warnings the operator swiped away, until their message changes or their problem clears.
+    private var swipedAlerts = SwipedAlerts()
+
+    func swipe(_ alert: ScreenAlert) { swipedAlerts.swipe(alert) }
+
+    /// Checked about once a second: a swiped warning whose problem has cleared shows again if it comes back.
+    private func forgetClearedSwipes() {
+        var swiped = swipedAlerts
+        swiped.forget(absentFrom: raisedAlerts)
+        if swiped != swipedAlerts { swipedAlerts = swiped }
+    }
+
+    private var raisedAlerts: [ScreenAlert] {
         var list: [ScreenAlert] = []
         if let error = armError {
             list.append(ScreenAlert(id: "arm", priority: .cannotRecord, tone: .critical, text: error, action: micDenied ? .openSystemSettings : .arm))
@@ -877,7 +886,7 @@ final class RecordScreenModel {
         if Soundcheck.shouldOffer(alreadyOffered: soundcheckOffered, isRecording: recorder.isRecording, setupHintShowing: showSetupHint) {
             list.append(ScreenAlert(id: "soundcheck", priority: .hint, tone: .info, text: "Check your rig with a 30 s Soundcheck.", action: .soundcheck))
         }
-        return AlertQueue(list)
+        return list
     }
 
     /// Whether the Soundcheck has been offered (opened once from the banner or Settings).
@@ -1379,7 +1388,7 @@ final class RecordScreenModel {
         var lastPoll = ContinuousClock.now
         while !Task.isCancelled {
             tick += 1
-            if tick % 30 == 0 { sequencer.tick(); refreshDestinations(); announceChanges() }
+            if tick % 30 == 0 { sequencer.tick(); refreshDestinations(); announceChanges(); forgetClearedSwipes() }
             // Re-check the Drive every few seconds so an unplugged one shows before record is pressed.
             if tick % 90 == 0 { drive.refresh() }
             let now = ContinuousClock.now

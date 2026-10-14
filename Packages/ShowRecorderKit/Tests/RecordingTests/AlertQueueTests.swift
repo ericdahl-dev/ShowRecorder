@@ -55,3 +55,53 @@ struct AlertQueueTests {
         #expect(queue.moreCount == 0)
     }
 }
+
+@Suite("Swiped alerts")
+struct SwipedAlertsTests {
+    let battery = ScreenAlert(id: "battery", priority: .power, tone: .warning, text: "Battery 20%")
+
+    @Test("A swiped warning is no longer shown")
+    func swipedWarningIsHidden() {
+        var swiped = SwipedAlerts()
+        swiped.swipe(battery)
+
+        #expect(swiped.showing([battery]).isEmpty)
+    }
+
+    @Test("A critical alert can't be swiped away")
+    func criticalStays() {
+        let stopped = ScreenAlert(id: "drive-stopped", priority: .destination, tone: .critical, text: "The Drive stopped.")
+        var swiped = SwipedAlerts()
+        swiped.swipe(stopped)
+
+        #expect(swiped.showing([stopped]) == [stopped])
+    }
+
+    @Test("A swiped warning shows again when its message changes")
+    func newTextShowsAgain() {
+        var swiped = SwipedAlerts()
+        swiped.swipe(battery)
+        let lower = ScreenAlert(id: "battery", priority: .power, tone: .warning, text: "Battery 10%")
+
+        #expect(swiped.showing([lower]) == [lower])
+    }
+
+    @Test("A swiped warning shows again when its problem clears and comes back")
+    func clearedAndBackShowsAgain() {
+        var swiped = SwipedAlerts()
+        swiped.swipe(battery)
+        swiped.forget(absentFrom: [])
+
+        #expect(swiped.showing([battery]) == [battery])
+    }
+
+    @Test("Swiping one warning leaves the other alerts showing")
+    func othersUnaffected() {
+        let shortfall = ScreenAlert(id: "shortfall", priority: .input, tone: .warning, text: "8 of 18 channels")
+        var swiped = SwipedAlerts()
+        swiped.swipe(battery)
+        swiped.forget(absentFrom: [battery, shortfall])
+
+        #expect(swiped.showing([battery, shortfall]) == [shortfall])
+    }
+}

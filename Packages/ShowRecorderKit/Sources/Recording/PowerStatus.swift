@@ -27,12 +27,15 @@ public struct PowerStatus: Equatable, Sendable {
         /// An SF Symbol name.
         public var symbol: String
         public var state: StatusChip.State
+        /// The id of the warning this chip goes with ("battery" or "thermal"), if any.
+        public var id: String?
 
-        public init(text: String, shortText: String? = nil, symbol: String, state: StatusChip.State) {
+        public init(text: String, shortText: String? = nil, symbol: String, state: StatusChip.State, id: String? = nil) {
             self.text = text
             self.shortText = shortText ?? text
             self.symbol = symbol
             self.state = state
+            self.id = id
         }
     }
 
@@ -69,9 +72,9 @@ public struct PowerStatus: Equatable, Sendable {
     public static func thermalChip(for thermal: Thermal) -> Chip? {
         switch thermal {
         case .nominal: nil
-        case .fair: Chip(text: "Warm", shortText: "", symbol: "thermometer.medium", state: .neutral)
-        case .serious: Chip(text: "Hot", symbol: "thermometer.high", state: .attention)
-        case .critical: Chip(text: "Very hot", symbol: "thermometer.high", state: .failed)
+        case .fair: Chip(text: "Warm", shortText: "", symbol: "thermometer.medium", state: .neutral, id: "thermal")
+        case .serious: Chip(text: "Hot", symbol: "thermometer.high", state: .attention, id: "thermal")
+        case .critical: Chip(text: "Very hot", symbol: "thermometer.high", state: .failed, id: "thermal")
         }
     }
 
@@ -93,7 +96,8 @@ public struct PowerStatus: Equatable, Sendable {
                 text: text,
                 shortText: "\(percent)%",
                 symbol: Self.batterySymbol(percent: percent, charging: charging == .charging),
-                state: urgent ? .failed : low ? .attention : .ok)
+                state: urgent ? .failed : low ? .attention : .ok,
+                id: "battery")
             if urgent {
                 warnings.append(Warning(
                     id: "battery", tone: .critical,
