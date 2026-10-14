@@ -777,11 +777,13 @@ final class RecordScreenModel {
 
     private func refreshShowTotal() {
         let show = recorder.currentShow
-        let key = show.map { "\($0.folder.path)|\($0.takeCount)|\(recorder.isRecording)" }
+        // The Drive's coming and going is in the key: a relaunch before the SSD mounts re-reads the total once it does (#625).
+        let driveAvailable = if case .available = drive.status { true } else { false }
+        let key = show.map { "\($0.folder.path)|\($0.takeCount)|\(recorder.isRecording)|\(driveAvailable)" }
         guard key != showRecordedKey else { return }
         showRecordedKey = key
         // A running Take's own files are already on disk; leave it out, the screen adds its live time.
-        guard let show, let seconds = try? show.recordedSeconds(leavingOut: recorder.isRecording ? show.takeCount : nil) else {
+        guard let show, let seconds = recorder.showRecordedSeconds(leavingOut: recorder.isRecording ? show.takeCount : nil) else {
             showRecordedSeconds = nil
             return
         }

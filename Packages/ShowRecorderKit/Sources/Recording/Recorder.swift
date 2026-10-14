@@ -380,6 +380,16 @@ public final class Recorder {
         return ShowDeleter.delete(show: name, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
     }
 
+    /// Everything recorded in the open Show, from its files, with `take` left out (#625): the Drive Copy is read under
+    /// Drive access, found by the Show's name, so a Drive only Show counts its Drive Takes even after a relaunch. Nil
+    /// when no Show is open or its Device folder can't be read.
+    public func showRecordedSeconds(leavingOut take: Int?) -> Double? {
+        guard let show = currentShow else { return nil }
+        let access = driveFolder()
+        defer { access?.end() }
+        return try? show.recordedSeconds(leavingOut: take, driveShow: access?.folder.appending(path: show.name, directoryHint: .isDirectory))
+    }
+
     /// Checks that the Drive Copy of Show `show` is whole (see `CopyCheck`). Reads every Stem, off the main thread.
     public func checkDriveCopy(of show: String) async -> CopyCheck.Result {
         guard let access = driveFolder() else { return .failed(["The Drive isn't available."]) }

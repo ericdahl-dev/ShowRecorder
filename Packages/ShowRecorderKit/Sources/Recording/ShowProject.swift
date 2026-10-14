@@ -37,12 +37,20 @@ extension Show {
         return ShowTimeline(showName: name, usbChannels: channels.values.sorted { $0.number < $1.number }, takes: takes)
     }
 
-    /// Everything recorded in the Show, from its Stems: each Take's length at its own sample rate (#328). `take` is left
-    /// out: the running one, whose time the record screen counts live.
+    /// Everything recorded in the Show, from its Stems: each Take's length at its own sample rate (#328), from whichever
+    /// Copy has it, so a Drive only Show counts its Takes on the Drive (#625). `take` is left out: the running one, whose
+    /// time the record screen counts live. Throws when the Device's Show folder can't be read. Reads `driveFolder` without
+    /// its security scope; for the record screen's Drive-aware total use `Recorder.showRecordedSeconds(leavingOut:)`.
     public func recordedSeconds(leavingOut take: Int?) throws -> Double {
-        let timeline = try timeline()
-        return ShowTimeline(showName: timeline.showName, usbChannels: timeline.usbChannels, takes: timeline.takes.filter { $0.number != take })
-            .recordedSeconds
+        try recordedSeconds(leavingOut: take, driveShow: driveFolder)
+    }
+
+    /// `recordedSeconds(leavingOut:)` with the Drive Copy at `driveShow`.
+    func recordedSeconds(leavingOut take: Int?, driveShow: URL?) throws -> Double {
+        _ = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
+        return ShowList.takeLengths(deviceShow: folder, driveShow: driveShow)
+            .filter { $0.take.take != take }
+            .reduce(0) { $0 + ($1.take.sampleRate > 0 ? Double($1.frames) / Double($1.take.sampleRate) : 0) }
     }
 
     /// Writes every DAW project the Show folder carries (Reaper for now). Called when a Take finalizes.
