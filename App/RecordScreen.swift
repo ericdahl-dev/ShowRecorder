@@ -135,6 +135,10 @@ struct RecordScreen: View {
         #endif
         // A Mixer Link that comes up during a Take names its Stems when the Take ends.
         .onChange(of: model.linkedSources) { _, sources in model.recorder.offerSources(sources) }
+        // Drive only Takes left on the Device move when the Drive connects (#630); never during a Take.
+        .onChange(of: model.drive.status) { _, status in
+            if case .available = status { model.recorder.driveMayHaveConnected() }
+        }
         // Locking the screen or leaving the app never ends a Take; becoming active retries input
         // that an interruption left stopped.
         .onChange(of: scenePhase) { _, phase in
@@ -1295,6 +1299,7 @@ final class RecordScreenModel {
         pro.onTierChange = { [weak self] in self?.tierChanged() }
         applyDefaultTemplate()
         Task { await offerDemoSignalIfAvailable() }
+        Task { await offerDriveOnlyMovesIfAvailable() }
         // `-demoDrive` (screenshots) uses a folder in the app's own container as the Drive, so the shots show a second
         // Copy instead of a "No Drive" warning.
         // Both touch the container's data (the Drive bookmark, saved names), so they act only in the screenshot build,
@@ -1358,6 +1363,14 @@ final class RecordScreenModel {
     /// The screen went away: disarm an unused recorder, never a running Take.
     func screenDisappeared() {
         sequencer.screenDisappeared()
+    }
+
+    /// Drive only Takes move to the Drive (#630) where Drive only is offered, which needs StoreKit's answer in a Release
+    /// build. Turning it on moves any the Drive can take now; the Recorder then does after each Take, and
+    /// `driveBecameAvailable` when the Drive connects.
+    private func offerDriveOnlyMovesIfAvailable() async {
+        if !DriveOnlyAvailability.isAvailableInThisBuild { await DemoSignalAvailability.resolveEnvironment() }
+        recorder.movesDriveOnlyTakes = DriveOnlyAvailability.isAvailableInThisBuild
     }
 
     private func run() async {

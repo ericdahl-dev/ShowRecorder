@@ -207,7 +207,11 @@ final class TakeRepair {
     /// A Gap is repaired only if the other Copy has the samples; where both Copies are missing the
     /// same stretch it stays silence and is reported as failed. Copies named in `skip` are left alone
     /// and get no entry: they stay as they were, with their Gaps.
-    nonisolated static func fill(copies: [Copy], metadata: TakeMetadata, skip: Set<DestinationKind> = []) -> [TakeMetadata.Repair] {
+    /// - Parameter shouldStop: asked between pieces of each Stem; a stopped Stem's Gaps are reported failed, so a caller
+    ///   that stopped it leaves them unrecorded for a later Repair (#630).
+    nonisolated static func fill(
+        copies: [Copy], metadata: TakeMetadata, skip: Set<DestinationKind> = [], shouldStop: () -> Bool = { false }
+    ) -> [TakeMetadata.Repair] {
         let markers = metadata.markers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
         let stems = metadata.usbChannels.map(\.stemFile)
         let length = length(copies: copies, metadata: metadata)
@@ -231,14 +235,14 @@ final class TakeRepair {
                                 try StemRepair.fill(
                                     target: target.folder.appending(path: stem),
                                     from: source.folder.appending(path: standIn.folderName).appending(path: stem),
-                                    sourceStart: standIn.start, ranges: ranges, length: length, markers: markers)
+                                    sourceStart: standIn.start, ranges: ranges, length: length, markers: markers, shouldStop: shouldStop)
                             }
                         } else {
                             // Only frames the source holds: inside its own Gaps the target may hold frames it lacks (#630).
                             let ranges = gaps.flatMap { CopyCoverage.subtracting(sourceGaps, from: $0.start..<$0.end) }
                             try StemRepair.fill(
                                 target: target.folder.appending(path: stem), from: source.folder.appending(path: stem),
-                                ranges: ranges, length: length, markers: markers)
+                                ranges: ranges, length: length, markers: markers, shouldStop: shouldStop)
                         }
                     }
                 } catch {

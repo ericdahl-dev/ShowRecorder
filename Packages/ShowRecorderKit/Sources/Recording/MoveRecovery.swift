@@ -26,8 +26,9 @@ enum MoveRecovery {
                 guard ShowDeleter.isRealFolder(setAside) else { continue }
                 let deviceTake = show.appending(path: TakeMetadata.name(take: take), directoryHint: .isDirectory)
                 let driveTake = driveFolder.appending(path: show.lastPathComponent).appending(path: TakeMetadata.name(take: take))
-                let outcome = recover(setAside: setAside, deviceTake: deviceTake, driveTake: driveTake)
+                let outcome = recover(setAside: setAside, deviceTake: deviceTake, driveTake: driveTake, shouldStop: shouldStop)
                 results.append(.init(show: show.lastPathComponent, take: take, outcome: outcome))
+                if outcome == .stopped { return results }
             }
         }
         return results
@@ -49,7 +50,7 @@ enum MoveRecovery {
         return Set(contents).subtracting([TakeMetadata.fileName, ".DS_Store"] + own).sorted()
     }
 
-    private static func recover(setAside: URL, deviceTake: URL, driveTake: URL) -> StandInMove.Outcome {
+    private static func recover(setAside: URL, deviceTake: URL, driveTake: URL, shouldStop: () -> Bool) -> StandInMove.Outcome {
         let fm = FileManager.default
         let name = deviceTake.lastPathComponent
         let setAsideName = setAside.lastPathComponent
@@ -58,9 +59,11 @@ enum MoveRecovery {
         }
         let metadata = try? TakeMetadata.read(fromTakeFolder: setAside)
         let standIns = metadata?.standIns.flatMap { $0.isEmpty ? nil : $0 }
-        var check = standIns != nil
-            ? CopyCheck.verifyStandIn(deviceTake: setAside, driveTake: driveTake)
-            : CopyCheck.verifyTake(device: setAside, drive: driveTake)
+        let checked = standIns != nil
+            ? CopyCheck.verifyStandIn(deviceTake: setAside, driveTake: driveTake, shouldStop: shouldStop)
+            : CopyCheck.verifyTake(device: setAside, drive: driveTake, shouldStop: shouldStop)
+        // Stopped by a Take, it stays set aside for the next move.
+        guard var check = checked else { return .stopped }
         // The folder holds the Take and nothing else that deleting it would delete with it.
         if case .passed = check {
             if let others = otherFiles(in: setAside, metadata: metadata, standIns: standIns) {

@@ -35,11 +35,16 @@ enum StandInMove {
         var outcome: Outcome
     }
 
-    /// Set while a Take runs, so a move stops at the next Stem. Read off the main actor.
+    /// Counts the Takes started, so a move stops once one has, even if it has ended since. Read off the main actor.
     final class StopSignal: Sendable {
-        private let flag = Atomic<Bool>(false)
-        var isSet: Bool { flag.load(ordering: .relaxed) }
-        func set(_ value: Bool) { flag.store(value, ordering: .relaxed) }
+        private let takesStarted = Atomic<Int>(0)
+        /// A Take started.
+        func takeStarted() { takesStarted.add(1, ordering: .relaxed) }
+        /// What a move asks: true from the first Take started after this call, for good.
+        func latch() -> @Sendable () -> Bool {
+            let started = takesStarted.load(ordering: .relaxed)
+            return { [self] in takesStarted.load(ordering: .relaxed) != started }
+        }
     }
 
     /// The folder a move sets the Device's Take aside in before deleting it; readers skip names starting with ".".
@@ -89,14 +94,18 @@ enum StandInMove {
                 do {
                     try StemRepair.fill(
                         target: stem, from: deviceTake.appending(path: standIn.folderName).appending(path: channel.stemFile),
-                        sourceStart: standIn.start, ranges: ranges, length: standIn.end, markers: markers)
+                        sourceStart: standIn.start, ranges: ranges, length: standIn.end, markers: markers, shouldStop: shouldStop)
+                } catch is StemRepair.Stopped {
+                    // Within the Stem: its Gaps stay unrepaired, for a later move.
+                    return .stopped
                 } catch {
                     return .kept(["\(name), channel \(channel.usbChannel) couldn't be written on the Drive."])
                 }
             }
         }
         // Checked before any Repair is recorded, so a stand-in that doesn't hold all it lists is no false Repair.
-        if case .failed(let reasons) = CopyCheck.verifyStandIn(deviceTake: deviceTake, driveTake: driveTake) { return .kept(reasons) }
+        guard let check = CopyCheck.verifyStandIn(deviceTake: deviceTake, driveTake: driveTake, shouldStop: shouldStop) else { return .stopped }
+        if case .failed(let reasons) = check { return .kept(reasons) }
         if !unrepaired.isEmpty {
             let filled = unrepaired.map { gap in
                 TakeMetadata.Repair(
@@ -132,10 +141,15 @@ enum StandInMove {
         var cleared = drive
         cleared.standIns = nil
         guard (try? cleared.write(to: driveTake)) != nil else { return putBack(["\(name)'s Take.json couldn't be written on the Drive."]) }
-        // Once more, against what is now set aside, before anything is deleted.
-        if case .failed(let reasons) = CopyCheck.verifyStandIn(deviceTake: setAside, driveTake: driveTake) {
+        // Once more, against what is now set aside, before anything is deleted. Stopped, it is undone for a later move.
+        let second = CopyCheck.verifyStandIn(deviceTake: setAside, driveTake: driveTake, shouldStop: shouldStop)
+        if second == nil || second != .passed {
             let restored = (try? drive.write(to: driveTake)) != nil
-            return putBack(reasons + (restored ? [] : ["\(name)'s stand-in couldn't be listed again in the Drive's Take.json."]))
+            var reasons: [String] = []
+            if case .failed(let problems) = second { reasons = problems }
+            let outcome = putBack(reasons + (restored ? [] : ["\(name)'s stand-in couldn't be listed again in the Drive's Take.json."]))
+            if second == nil, outcome == .kept([]) { return .stopped }
+            return outcome
         }
         hook(.removing)
         guard (try? fm.removeItem(at: setAside)) != nil else {

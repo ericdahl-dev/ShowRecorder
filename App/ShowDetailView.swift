@@ -132,14 +132,9 @@ struct ShowDetailView: View {
 
     private func rename(_ marker: MarkerDetail, inTake take: Int) async {
         guard let index = marker.operatorIndex else { return }
-        let store = model.drive.store
-        let device = show.folder.deletingLastPathComponent(), name = show.name, newName = newName
-        let allowsProExtras = model.pro.license().allowsProExtras
-        let outcome = await Task.detached { () -> MarkerRenamer.Outcome in
-            let access = store.beginAccess()
-            defer { access?.end() }
-            return ShowDetail.renameMarker(at: index, to: newName, inTake: take, ofShow: name, device: device, drive: access?.folder, allowsProExtras: allowsProExtras)
-        }.value
+        // Through the Recorder, which waits for any move of Drive only Takes to end first (#630).
+        let outcome = await model.recorder.renameMarker(
+            at: index, to: newName, inTake: take, ofShow: show.name, allowsProExtras: model.pro.license().allowsProExtras)
         switch outcome.result {
         case .emptyName: message = "A Marker needs a name."
         case .renamed:

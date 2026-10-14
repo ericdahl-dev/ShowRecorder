@@ -49,7 +49,11 @@ enum DeviceTakeMove {
         }
         // The pair check comes first: two different recordings, links or one folder twice are never compared or written.
         let recording = made?.metadata ?? finished
-        if case .failed(let reasons) = CopyCheck.verifyTake(device: deviceTake, drive: driveTake, checksDriveOutcome: recording == nil) {
+        guard let check = CopyCheck.verifyTake(device: deviceTake, drive: driveTake, checksDriveOutcome: recording == nil, shouldStop: shouldStop) else {
+            made?.discard(driveTake)
+            return .stopped
+        }
+        if case .failed(let reasons) = check {
             made?.discard(driveTake)
             return .kept(reasons)
         }
@@ -70,12 +74,15 @@ enum DeviceTakeMove {
         guard !fm.fileExists(atPath: setAside.path) else { return .kept(["A folder \(setAsideName) from an earlier move is in the way on the Device."]) }
         guard (try? fm.moveItem(at: deviceTake, to: setAside)) != nil else { return .kept(["\(name) couldn't be set aside on the Device."]) }
         hook(.setAside)
-        // Once more, against what is now set aside, before anything is deleted.
-        if case .failed(let reasons) = CopyCheck.verifyTake(device: setAside, drive: driveTake) {
+        // Once more, against what is now set aside, before anything is deleted. Stopped, it is undone for a later move.
+        let second = CopyCheck.verifyTake(device: setAside, drive: driveTake, shouldStop: shouldStop)
+        if second != .passed {
+            var reasons: [String] = []
+            if case .failed(let problems) = second { reasons = problems }
             if fm.fileExists(atPath: deviceTake.path) || (try? fm.moveItem(at: setAside, to: deviceTake)) == nil {
                 return .kept(reasons + ["\(name) couldn't be put back on the Device; it is in \(setAsideName)."])
             }
-            return .kept(reasons)
+            return second == nil ? .stopped : .kept(reasons)
         }
         hook(.removing)
         guard (try? fm.removeItem(at: setAside)) != nil else {
@@ -143,7 +150,10 @@ enum DeviceTakeMove {
             if shouldStop() { return .failure(.init(.stopped)) }
             var one = known
             one.usbChannels = [channel]
-            for repair in TakeRepair.fill(copies: copies, metadata: one, skip: [.device]) {
+            let filled = TakeRepair.fill(copies: copies, metadata: one, skip: [.device], shouldStop: shouldStop)
+            // Stopped within the Stem: nothing is recorded, so its Gaps are filled by a later move.
+            if shouldStop() { return .failure(.init(.stopped)) }
+            for repair in filled {
                 if let index = repairs.firstIndex(where: { $0.copy == repair.copy && $0.start == repair.start && $0.end == repair.end }) {
                     if repair.outcome == .failed { repairs[index].outcome = .failed }
                 } else {
@@ -222,7 +232,12 @@ enum DeviceTakeMove {
             }
             var one = onDrive
             one.usbChannels = [channel]
-            for repair in TakeRepair.fill(copies: copies, metadata: one, skip: [.device]) {
+            let filled = TakeRepair.fill(copies: copies, metadata: one, skip: [.device], shouldStop: shouldStop)
+            if shouldStop() {
+                made.discard(driveTake)
+                return .failure(.init(.stopped))
+            }
+            for repair in filled {
                 if let index = repairs.firstIndex(where: { $0.copy == repair.copy && $0.start == repair.start && $0.end == repair.end }) {
                     if repair.outcome == .failed { repairs[index].outcome = .failed }
                 } else {
