@@ -223,11 +223,14 @@ public final class AutoGainSession {
             // Newest first; a step the Mixer wouldn't take back stays for Undo, with every older one, and the
             // result is the Mixer's problem rather than "stopped", which says the gain was put back.
             // A Take that starts meanwhile doesn't stop it (Eric, #663): it puts back the operator's gain, and it is
-            // bounded. It undoes only this run's steps on this channel, at most `rule.maxPasses` (one per pass), each
-            // a Mixer request bounded by the driver's reply timeout (OSC, 1.5 s). It is one job on the Mixer's queue,
-            // so a clip protection turn-down asked for meanwhile writes right after its last undo; and the run makes
-            // no gain move after a Take started (`stopRequested`).
+            // bounded. It undoes only this run's steps on this channel, at most `rule.maxPasses` (one per pass). Each
+            // undo is a 1 dB ramp of Mixer requests, each limited by the driver's reply timeout (OSC, 1.5 s), and a
+            // request that times out ends the rollback. It is one job on the Mixer's queue, so a clip protection
+            // turn-down asked for meanwhile writes right after its last undo; one queued behind several channels'
+            // rollbacks waits for all of them, first in, first out. The run makes no gain move after a Take started
+            // (`stopRequested`).
             var undoProblem: MixerLinkProblem?
+            // The body catches every Mixer problem into `undoProblem`, so the `try?` hides nothing.
             _ = try? await onMixer { () throws(MixerLinkProblem) in
                 while undoProblem == nil, let step = taken.last {
                     do throws(MixerLinkProblem) {

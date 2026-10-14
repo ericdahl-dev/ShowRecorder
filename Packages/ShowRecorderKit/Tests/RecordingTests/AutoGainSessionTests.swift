@@ -278,7 +278,7 @@ struct AutoGainSessionTests {
     @Test("A level-didn't-follow rollback puts back only this run's steps, at most the rule's passes; an earlier run's stay for Undo (#663)")
     func rollbackBoundedByPasses() async throws {
         let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
-        // First run: one move to target. Second: three moves that follow but stay off target, then one that doesn't.
+        // First run: one move to target. Second: two moves that follow but stay off target, then a third that doesn't.
         var reads = [-40.0, -18, -40, -22, -22, -40]
         let session = AutoGainSession(control: control, rule: AutoGainRule(maxPasses: 3), measure: { _ in reads.removeFirst() })
         _ = await session.run(usbChannels: [1])

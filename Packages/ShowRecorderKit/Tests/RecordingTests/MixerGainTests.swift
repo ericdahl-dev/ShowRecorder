@@ -399,7 +399,7 @@ struct MixerGainClipProtectionTests {
         let (reached, reach) = AsyncStream<Void>.makeStream()
         control.preampAnswer = { reach.yield() }
         let moving = Task { for window in ClipProtectionTests.hot { await mixerGain.observe([window]) } }
-        #expect(await ClipProtectionTests.next(reached), "the turn-down reaches the queue")
+        #expect(await ClipProtectionTests.next(reached), "the turn-down reads its preamp, just before the queue")
         #expect(await ClipProtectionTests.next(probed, within: .seconds(1)) == false, "the turn-down waits for the rollback")
         release.yield()
         release.finish()                                    // the rollback's second undo doesn't wait
