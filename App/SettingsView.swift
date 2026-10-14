@@ -113,7 +113,6 @@ struct SettingsView: View {
                         .textInputAutocapitalization(.never)
                         #endif
                         .onSubmit { model.connectMixer() }
-                        .onChange(of: model.mixerAddress) { model.saveMixerAddress() }
                         .disabled(locked(.mixerLink))
                     Button(isConnecting ? "Connecting…" : "Connect") { model.connectMixer() }
                         .disabled(isConnecting || model.mixerAddress.isEmpty || locked(.mixerLink))

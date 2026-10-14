@@ -133,16 +133,8 @@ struct RecordScreen: View {
         #if os(macOS)
         .background(WindowCloseGuard(model: model))
         #endif
-        // Read Sources for the USB Channels the newly Armed device actually sends.
-        .task(id: model.recorder.usbChannelCount) {
-            await model.mixerLink.refreshSources(usbChannelCount: model.recorder.usbChannelCount)
-        }
         // A Mixer Link that comes up during a Take names its Stems when the Take ends.
         .onChange(of: model.linkedSources) { _, sources in model.recorder.offerSources(sources) }
-        // A remembered Mixer links when an X Air or X32 is Armed (#365).
-        .onChange(of: model.offersMixerLink) { _, offered in
-            if offered, !model.mixerAddress.isEmpty, model.mixerLink.status == .idle { model.connectMixer() }
-        }
         // Locking the screen or leaving the app never ends a Take; becoming active retries input
         // that an interruption left stopped.
         .onChange(of: scenePhase) { _, phase in
@@ -591,8 +583,13 @@ final class RecordScreenModel {
     /// recorder share one state whether or not Settings is open.
     let drive: DriveFolderModel
     let mixerLink = MixerLinkController()
-    /// The Mixer's address, remembered between launches.
-    var mixerAddress: String
+    /// The Mixer Link as the app uses it, on the same Link (#556).
+    let mixer: MixerSession
+    /// The Mixer's address, remembered between launches by the Mixer session (#556).
+    var mixerAddress: String {
+        get { mixer.address }
+        set { mixer.address = newValue }
+    }
     /// Whether the system denied microphone access (shows a button that opens the system settings).
     private(set) var micDenied = false
     /// When the running Take started, for the elapsed time.
@@ -622,7 +619,6 @@ final class RecordScreenModel {
     var templates = TemplateStore()
     private(set) var setupHintDismissed = UserDefaults.standard.bool(forKey: RecordScreenModel.hintKey)
     private static let hintKey = "setupHintDismissed"
-    private static let mixerAddressKey = "mixerAddress"
     var devices: [DeviceChoice] {
         get { sequencer.devices }
         set { sequencer.devices = newValue }
@@ -651,11 +647,11 @@ final class RecordScreenModel {
     /// Mixer Link is offered only while an X Air or X32 is the Armed input (#365). Any other input (a built-in mic,
     /// the Demo signal, an EVO 4, a DJM) has no Mixer Link: Settings hides it, the strip has no Mixer chip and the
     /// Soundcheck skips it. A remembered Mixer stays saved and links again when an X Air or X32 is Armed.
-    var offersMixerLink: Bool { recorder.isArmed && armedFamily != nil }
+    var offersMixerLink: Bool { mixer.isOffered }
 
     /// The Mixer's Sources while Mixer Link is offered; none otherwise, so another input's Stems never get the
     /// Mixer's names.
-    var linkedSources: [Source] { offersMixerLink ? mixerLink.sources : [] }
+    var linkedSources: [Source] { mixer.sources }
 
     /// The Gain button (#155) shows while an X Air or X32 is Armed; when auto-gain can't run (a Take, no Mixer Link, a
     /// Mixer whose gain can't be set) its sheet says why instead of the button disappearing. Debug builds only for now
@@ -667,13 +663,9 @@ final class RecordScreenModel {
     /// Why auto-gain can't run right now; nil when it can.
     var autoGainUnavailable: AutoGainAvailability.Unavailable? {
         let isConnecting = if case .connecting = mixerLink.status { true } else { false }
-        return AutoGainAvailability.whyNot(hasMixerLink: offersMixerLink && mixerLink.identity != nil, isConnecting: isConnecting,
-                                           canSetGain: offeredGainControl != nil, isRecording: recorder.isRecording)
+        return AutoGainAvailability.whyNot(hasMixerLink: mixer.identity != nil, isConnecting: isConnecting,
+                                           canSetGain: mixer.gainControl != nil, isRecording: recorder.isRecording)
     }
-
-    /// The linked Mixer's gain control, only while Mixer Link is offered: a stale Link from an earlier input never moves
-    /// a Mixer's gain (#556).
-    private var offeredGainControl: (any GainControl)? { offersMixerLink ? mixerLink.gainControl : nil }
 
     /// Auto-gain's state (#155): kept here, not in the sheet, so Undo survives closing it; locked during a Take.
     let autoGain = AutoGainPanel()
@@ -690,10 +682,10 @@ final class RecordScreenModel {
     /// Clip protection on the linked Mixer, at the rate the input runs at, logging each move in the Take with a
     /// Marker (#450). Nil when the Mixer can't set gain.
     private func makeClipProtection() -> ClipProtection? {
-        guard offeredGainControl != nil, let rate = recorder.sampleRate else { return nil }
+        guard mixer.gainControl != nil, let rate = recorder.sampleRate else { return nil }
         // The gain control at each move, only while Mixer Link is offered and on the Mixer the Take started on
         // (#554, as #508): a new input mid-Take means nothing is written to the old Mixer (#589).
-        return ClipProtection(currentControl: { [weak self] in self?.offeredGainControl }, mixer: { [weak self] in self?.linkedMixer },
+        return ClipProtection(currentControl: { [weak self] in self?.mixer.gainControl }, mixer: { [weak self] in self?.linkedMixer },
                               sampleRate: Double(rate), log: { [weak self] change in self?.recorder.logGainChange(change) })
     }
 
@@ -710,6 +702,8 @@ final class RecordScreenModel {
                 // An interruption's restart reuses the input without `didArm`; the output unit iOS stopped needs a restart.
                 if case .inputRestarted = event { MonitorExperiment.shared.inputRestarted() }
                 #endif
+                // A disarm hides the Mixer Link at once, whatever the screen does (#556).
+                if case .disarmed = event { Task { await self?.mixer.armed(interfaceName: nil, usbChannelCount: 0) } }
                 // Whoever started or ended the Take: Stop, the watch, or the recorder itself (#551).
                 guard let self else { return }
                 let followUp = TakeFollowUp(event)
@@ -728,9 +722,9 @@ final class RecordScreenModel {
     }
 
     func makeAutoGainSession() -> AutoGainSession? {
-        guard offeredGainControl != nil else { return nil }
+        guard mixer.gainControl != nil else { return nil }
         // The Mixer Link's gain control at each step, so a reconnect's new driver is used, Undo included (#508).
-        return AutoGainSession(currentControl: { [weak self] in self?.offeredGainControl },
+        return AutoGainSession(currentControl: { [weak self] in self?.mixer.gainControl },
                                mixer: { [weak self] in self?.linkedMixer }, measure: { [weak self] usb in await self?.averageLevel(usbChannel: usb) ?? -120 },
                                log: { [weak self] change in self?.recorder.logGainChange(change) })
     }
@@ -841,7 +835,7 @@ final class RecordScreenModel {
             usbChannelCount: recorder.usbChannelCount,
             deviceAvailableBytes: drive.deviceAvailableBytes,
             drive: drive.status,
-            mixer: offersMixerLink ? mixerLink.status : nil,
+            mixer: mixer.status,
             copies: copies,
             sampleRate: recorder.sampleRate ?? 48_000)
     }
@@ -898,7 +892,7 @@ final class RecordScreenModel {
     /// Runs the Soundcheck with what the Mixer Link and the Drive know right now.
     func runSoundcheck(progress: (Soundcheck.Step.Kind) -> Void, result: (Soundcheck.Step) -> Void) async -> [Soundcheck.Step] {
         await Soundcheck.run(
-            sequencer: sequencer, mixer: offersMixerLink ? mixerLink.status : nil, sources: linkedSources,
+            sequencer: sequencer, mixer: mixer.status, sources: linkedSources,
             expectedUSBChannels: mixerLink.capabilities?.usbChannelCount, driveChosen: drive.status != .notChosen,
             allowance: currentAllowance(), progress: progress, result: result)
     }
@@ -955,14 +949,9 @@ final class RecordScreenModel {
     }
 
     func connectMixer() {
-        saveMixerAddress()
         let address = mixerAddress
         let count = recorder.usbChannelCount
         Task { await mixerLink.connect(to: address, usbChannelCount: count) }
-    }
-
-    func saveMixerAddress() {
-        UserDefaults.standard.set(mixerAddress, forKey: Self.mixerAddressKey)
     }
 
     /// What to do about audio interruptions, and the banner they leave. The `TakeSequencer` keeps it.
@@ -981,7 +970,7 @@ final class RecordScreenModel {
         // The screenshot build Arms only demo inputs, never a microphone or USB interface (#374).
         let inputs: any InputDeviceSource = DemoOnlyInputSource.isScreenshotBuild() ? DemoOnlyInputSource(AppInputDevices()) : AppInputDevices()
         sequencer = TakeSequencer(recorder: recorder, devices: inputs, capsAt48k: { pro.license().capsAt48k })
-        mixerAddress = UserDefaults.standard.string(forKey: Self.mixerAddressKey) ?? ""
+        mixer = MixerSession(link: mixerLink)
         sequencer.sampleRateChoice = {
             #if os(macOS)
             SampleRateSetting.load(platformDefault: nil)
@@ -1009,6 +998,11 @@ final class RecordScreenModel {
                 #endif
             }
             meterModel.reset(channelCount: recorder.usbChannelCount)
+            // The Mixer session hears of each Armed input from the model, at launch and after, even with the screen
+            // locked (#556): it re-reads the Sources for a new USB Channel count and links a remembered Mixer when an
+            // X Air or X32 is Armed (#365).
+            let name = device == nil ? nil : armedDevice?.name, count = device == nil ? 0 : recorder.usbChannelCount
+            Task { await mixer.armed(interfaceName: name, usbChannelCount: count) }
         }
         #if os(iOS)
         watchLink = WatchLink(status: { [unowned self] in watchStatus }, actions: watchActions)
@@ -1202,7 +1196,6 @@ final class RecordScreenModel {
         guard offersMixerLink else { return }
         if !template.mixerAddress.isEmpty {
             mixerAddress = template.mixerAddress
-            saveMixerAddress()
             await mixerLink.connect(to: mixerAddress, usbChannelCount: recorder.usbChannelCount)
         }
         guard let name = template.mixerNetworkName, mixerLink.identity?.networkName != name,
@@ -1210,7 +1203,6 @@ final class RecordScreenModel {
         let address = template.connectAddress(found: await MixerScanner.scan(hosts: range.hosts))
         guard address != mixerAddress || mixerLink.identity == nil, !address.isEmpty else { return }
         mixerAddress = address
-        saveMixerAddress()
         await mixerLink.connect(to: address, usbChannelCount: recorder.usbChannelCount)
     }
 
@@ -1278,7 +1270,7 @@ final class RecordScreenModel {
         USBChannelShortfall.check(
             usbChannelCount: recorder.isArmed ? recorder.usbChannelCount : 0,
             offeredChannelCount: offeredChannelCount,
-            mixer: offersMixerLink ? mixerLink.identity : nil, capabilities: offersMixerLink ? mixerLink.capabilities : nil)
+            mixer: mixer.identity, capabilities: mixer.capabilities)
     }
 
     /// Notes what the system offered for `device`, after it was Armed or took over input.
@@ -1382,8 +1374,6 @@ final class RecordScreenModel {
         }
         drive.refresh()
         sequencer.start()
-        // Reconnect to the remembered Mixer. This runs here, not in Settings, so it happens without Settings open.
-        if offersMixerLink, !mixerAddress.isEmpty, mixerLink.status == .idle { connectMixer() }
         #if os(iOS)
         let routeWatcher = Task { await watchRouteChanges() }
         defer { routeWatcher.cancel() }

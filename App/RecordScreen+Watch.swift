@@ -9,7 +9,7 @@ extension RecordScreenModel {
         let take = recorder.isRecording ? takeStartedAt.map {
             WatchStatusMaker.Take(startedAt: $0, title: takeTitle, markerCount: recorder.takeMarkers.count)
         } : nil
-        let mixerDown = if offersMixerLink, case .down = mixerLink.status { true } else { false }
+        let mixerDown = if case .down = mixer.status { true } else { false }
         let driveAvailable = if case .available = drive.status { true } else { false }
         return WatchStatusMaker.make(
             isArmed: recorder.isArmed, take: take, chips: chips, driveAvailable: driveAvailable,

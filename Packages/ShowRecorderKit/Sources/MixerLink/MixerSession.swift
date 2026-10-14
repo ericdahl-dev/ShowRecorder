@@ -45,6 +45,12 @@ public final class MixerSession {
     /// with another input Armed, nothing moves a Mixer's gain.
     public var gainControl: (any GainControl)? { isOffered ? link.gainControl : nil }
 
+    /// The linked Mixer's identity, while Mixer Link is offered (#556).
+    public var identity: MixerIdentity? { isOffered ? link.identity : nil }
+
+    /// What the linked Mixer sends over USB, while Mixer Link is offered (#556).
+    public var capabilities: MixerCapabilities? { isOffered ? link.capabilities : nil }
+
     /// The Armed input changed: its name as the system gives it, and how many USB Channels it sends. Callers pass nil
     /// when nothing is Armed, or the Armed input has no Mixer family (the App's rule: `recorder.isArmed &&
     /// armedFamily != nil`, #556).
