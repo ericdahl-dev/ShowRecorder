@@ -77,13 +77,18 @@ public enum MarkerRenamer {
             .sorted { $0.position < $1.position }
         // Every Stem is tried, so one bad file doesn't leave the others with the old name.
         var unreadable: [String] = []
-        for channel in take.usbChannels {
-            do {
-                let stem = try StemWriter.reopen(url: folder.appending(path: channel.stemFile))
-                try stem.setMarkers(cues)
-                try stem.finalize()
-            } catch {
-                unreadable.append(channel.stemFile)
+        // A stand-in kept on the Device has its Stems in its own folder, counting from its start (#622).
+        let stemFolders = copy == .device ? take.standIns?.map { ($0.folderName + "/", $0.start) } : nil
+        for (subfolder, start) in stemFolders ?? [("", 0)] {
+            for channel in take.usbChannels {
+                let file = subfolder + channel.stemFile
+                do {
+                    let stem = try StemWriter.reopen(url: folder.appending(path: file))
+                    try stem.setMarkers(StandInSink.shifted(cues, by: start))
+                    try stem.finalize()
+                } catch {
+                    unreadable.append(file)
+                }
             }
         }
         if !unreadable.isEmpty { throw RenameError.stemsNotUpdated(unreadable) }

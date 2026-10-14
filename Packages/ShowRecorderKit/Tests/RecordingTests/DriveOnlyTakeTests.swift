@@ -302,6 +302,67 @@ struct DriveOnlyTakeTests {
         #expect(recorder.copies[.device] == .standInKept)
     }
 
+    @Test("After a Drive given up at Stop, a Marker is renamed in the stand-in kept on the Device too (#622)")
+    func renameMarkerStandInKept() async throws {
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(driveStem: { BlockingStem($0, gate: gate, healthyFrames: 4_800) }, stallLimit: .milliseconds(100))
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        recorder.addMarker()
+        for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
+        recorder.checkDestinations()
+        try await Task.sleep(for: .milliseconds(250))
+        deliver(480, from: 20 * 480, to: audio, sample: counting())
+        recorder.checkDestinations()
+        for block in 21..<30 { deliver(480, from: block * 480, to: audio, sample: counting()) }
+        try await Task.sleep(for: .milliseconds(200))
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+        #expect(recorder.copies[.device] == .standInKept)
+        let standIn = device.appending(path: "\(take)/Stand-in 0/01 USB 01.wav")
+        #expect(try cuePoints(standIn).map(\.label) == ["Marker 1"])
+
+        let outcome = await recorder.renameLastTakeMarker(at: 0, to: "Intro")
+
+        #expect(outcome.result == .renamed)
+        #expect(Set(outcome.renamed) == [.device, .drive])
+        #expect(outcome.failed.isEmpty)
+        #expect(try cuePoints(standIn).map(\.label) == ["Intro"])
+        #expect(try TakeMetadata.read(fromTakeFolder: device.appending(path: take)).markers.map(\.name) == ["Intro"])
+    }
+
+    @Test("After a Drive given up at Stop, a Channel name typed during the Take reaches the stand-in kept on the Device (#622)")
+    func nameChannelStandInKept() async throws {
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(driveStem: { BlockingStem($0, gate: gate, healthyFrames: 4_800) }, stallLimit: .milliseconds(100))
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        #expect(recorder.setChannelName("Lead Vocal", forChannel: 1))
+        for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
+        recorder.checkDestinations()
+        try await Task.sleep(for: .milliseconds(250))
+        deliver(480, from: 20 * 480, to: audio, sample: counting())
+        recorder.checkDestinations()
+        for block in 21..<30 { deliver(480, from: block * 480, to: audio, sample: counting()) }
+        try await Task.sleep(for: .milliseconds(200))
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+        #expect(recorder.copies[.device] == .standInKept)
+
+        let standIn = device.appending(path: "\(take)/Stand-in 0")
+        #expect(!FileManager.default.fileExists(atPath: standIn.appending(path: "01 USB 01.wav").path))
+        #expect(try ParsedStem(contentsOf: standIn.appending(path: "01 Lead Vocal.wav")).description == "Lead Vocal")
+        let channel = try TakeMetadata.read(fromTakeFolder: device.appending(path: take)).usbChannels[0]
+        #expect(channel.name == "Lead Vocal")
+        #expect(channel.stemFile == "01 Lead Vocal.wav")
+    }
+
     @Test("After a Drive given up at Stop, its stand-in stays on the Device and the summary says so (#550)")
     func summaryStandInStays() async throws {
         let gate = StopNeverBlocksTests.Gate()

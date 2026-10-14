@@ -33,7 +33,7 @@ public enum ChannelRenamer {
         var failed: [MarkerRenamer.Failure] = []
         for (kind, folder) in copies.sorted(by: { $0.key.index < $1.key.index }) {
             do {
-                try rename(names: names, lateChannels: lateChannels, in: folder)
+                try rename(names: names, lateChannels: lateChannels, in: folder, copy: kind)
                 renamed.append(kind)
             } catch {
                 failed.append(.init(copy: kind, reason: String(describing: error)))
@@ -45,21 +45,25 @@ public enum ChannelRenamer {
         return Outcome(result: renamed.isEmpty ? .noCopyUpdated : .renamed, renamed: renamed, failed: failed)
     }
 
-    private static func rename(names: [Int: String], lateChannels: Set<Int>, in folder: URL) throws {
+    private static func rename(names: [Int: String], lateChannels: Set<Int>, in folder: URL, copy: DestinationKind) throws {
         var take = try TakeMetadata.read(fromTakeFolder: folder)
         let fm = FileManager.default
+        // A stand-in kept on the Device has its Stems in its own folder (#622).
+        let stemFolders = copy == .device ? take.standIns?.map { folder.appending(path: $0.folderName) } : nil
         for index in take.usbChannels.indices {
             let channel = take.usbChannels[index]
             guard let name = names[channel.usbChannel], name != channel.name else { continue }
             let file = StemFileName.make(usbChannel: channel.usbChannel, sourceName: name)
-            let old = folder.appending(path: channel.stemFile), new = folder.appending(path: file)
-            if file != channel.stemFile {
-                guard !fm.fileExists(atPath: new.path) else { throw CocoaError(.fileWriteFileExists, userInfo: [NSFilePathErrorKey: new.path]) }
-                try fm.moveItem(at: old, to: new)
+            for stemFolder in stemFolders ?? [folder] {
+                let old = stemFolder.appending(path: channel.stemFile), new = stemFolder.appending(path: file)
+                if file != channel.stemFile {
+                    guard !fm.fileExists(atPath: new.path) else { throw CocoaError(.fileWriteFileExists, userInfo: [NSFilePathErrorKey: new.path]) }
+                    try fm.moveItem(at: old, to: new)
+                }
+                let stem = try StemWriter.reopen(url: new)
+                try stem.setDescription(name)
+                try stem.finalize()
             }
-            let stem = try StemWriter.reopen(url: new)
-            try stem.setDescription(name)
-            try stem.finalize()
             take.usbChannels[index].stemFile = file
             take.usbChannels[index].name = name
             take.usbChannels[index].hasMixerName = lateChannels.contains(channel.usbChannel)
