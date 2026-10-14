@@ -2,6 +2,7 @@ import AudioIO
 import Destinations
 import Foundation
 @testable import Recording
+import TakeFile
 import Testing
 
 /// Renaming a Marker after the Take, from the files on disk.
@@ -189,5 +190,34 @@ struct MarkerRenamerTests {
         #expect(MarkerRenamer.rename(markerAt: 0, to: "Intro", in: copies, allowsProExtras: true).result == .renamed)
         #expect(MarkerRenamer.rename(markerAt: 0, to: "Verse", in: copies, allowsProExtras: true).result == .renamed)
         #expect(try markerNames(take(drive)) == ["Verse", "Marker 2"])
+    }
+
+    @Test("In a stand-in kept on the Device, a renamed Marker's cue counts from the stand-in's start, and earlier ones stay out (#622)")
+    func standInCuesShifted() throws {
+        try recordTake()
+        // Markers at 2,400 and 7,200; the Device stood in from 4,800 and kept its Stems in the stand-in's folder.
+        for copy in copies.values {
+            var metadata = try TakeMetadata.read(fromTakeFolder: copy)
+            metadata.markers[0].position = 2_400
+            try metadata.write(to: copy)
+        }
+        var deviceTake = try TakeMetadata.read(fromTakeFolder: take(device))
+        let standIn = TakeMetadata.StandIn(start: 4_800, end: 7_680)
+        deviceTake.standIns = [standIn]
+        try deviceTake.write(to: take(device))
+        let standInFolder = take(device).appending(path: standIn.folderName)
+        try FileManager.default.createDirectory(at: standInFolder, withIntermediateDirectories: true)
+        let stems = ["01 USB 01.wav", "02 USB 02.wav"]
+        for stem in stems { try FileManager.default.moveItem(at: take(device).appending(path: stem), to: standInFolder.appending(path: stem)) }
+
+        let outcome = MarkerRenamer.rename(markerAt: 1, to: "Chorus", in: copies, allowsProExtras: true)
+
+        #expect(Set(outcome.renamed) == [.device, .drive])
+        #expect(outcome.failed.isEmpty)
+        for stem in stems {
+            #expect(try cuePoints(standInFolder.appending(path: stem)) == [CuePoint(position: 2_400, label: "Chorus")], "\(stem)")
+            #expect(try cuePoints(take(drive).appending(path: stem))
+                == [CuePoint(position: 2_400, label: "Marker 1"), CuePoint(position: 7_200, label: "Chorus")], "\(stem)")
+        }
     }
 }

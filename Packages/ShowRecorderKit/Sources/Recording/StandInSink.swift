@@ -78,7 +78,7 @@ final class StandInSink: StemSink, @unchecked Sendable {
         if !markers.isEmpty { try stem.setMarkers(Self.shifted(markers, by: start)) }
     }
 
-    private static func shifted(_ markers: [StemMarker], by start: Int) -> [StemMarker] {
+    static func shifted(_ markers: [StemMarker], by start: Int) -> [StemMarker] {
         markers.filter { Int($0.position) >= start }.map { StemMarker(position: $0.position - UInt32(start), label: $0.label) }
     }
 }
