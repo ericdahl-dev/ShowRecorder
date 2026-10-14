@@ -39,10 +39,10 @@ public enum TakeMover {
     /// Every Show on the Device, in Show then Take order. Synchronous file I/O: call it off the main actor.
     /// - Parameters:
     ///   - excluding: the running Take's Device folder, which is never returned.
-    ///   - isDriveOnly: whether a Take was recorded Drive only. A Take with stand-ins always is.
-    ///     TODO(#630): use `TakeMetadata.driveOnly` once it exists; until then nothing else is known to be Drive only.
+    ///   - isDriveOnly: whether a Take was recorded Drive only: its `driveOnly` field by default. A Take with stand-ins
+    ///     always is. A Take recorded before that field existed has none, so it stays an ordinary Device Copy.
     public static func find(
-        deviceFolder: URL, driveFolder: URL, excluding: URL? = nil, isDriveOnly: (TakeMetadata) -> Bool = { _ in false }
+        deviceFolder: URL, driveFolder: URL, excluding: URL? = nil, isDriveOnly: (TakeMetadata) -> Bool = { $0.driveOnly == true }
     ) -> [Movable] {
         let fm = FileManager.default
         // A Drive that can't be listed tells nothing about its Takes (like ShowList's unreadable Drive).
