@@ -1,6 +1,28 @@
 import SwiftUI
 
+/// Under AppTests (#679) the app is only the tests' host: a bare window and nothing else, so no model, audio,
+/// Mixer discovery, Mixer Link, StoreKit or Drive moves, and no `QuitGuard`. Debug only: AppTests run Debug, and a
+/// shipped build has no test host.
 @main
+@MainActor
+enum ShowRecorderMain {
+    static func main() {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            TestHostApp.main()
+            return
+        }
+        #endif
+        ShowRecorderApp.main()
+    }
+}
+
+#if DEBUG
+private struct TestHostApp: App {
+    var body: some Scene { WindowGroup { EmptyView() } }
+}
+#endif
+
 struct ShowRecorderApp: App {
     #if os(macOS)
     @NSApplicationDelegateAdaptor(QuitGuard.self) private var quitGuard

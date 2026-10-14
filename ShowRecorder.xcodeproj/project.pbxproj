@@ -15,6 +15,7 @@
 		1D0AAB2401EFEADA6CDDEB2C /* ShowRecorderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */; };
 		1EB91D2DABB6C18617BA5778 /* TakeLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFEAAED834B651D2EB178389 /* TakeLiveActivityWidget.swift */; };
 		1FACE0728FDD70BD78B138B1 /* DemoStemsDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D92CE73B1DEF77200CB6705 /* DemoStemsDevice.swift */; };
+		201B434DBE445FE432B3A9FB /* MeterGridTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AE3649927662D4F08EC25D9 /* MeterGridTests.swift */; };
 		22EC75DDB2CB8A4F96A23296 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC19F42425E565E8E9DFE2E1 /* WidgetKit.framework */; };
 		255D20FDD3402F29F4A72FE9 /* ShowListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 034579A5DCE44DCC61521CA4 /* ShowListView.swift */; };
 		27511B0372DDD64DA03A84AC /* AudioSessionEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A28ABB2DC3361762848F2190 /* AudioSessionEvents.swift */; };
@@ -63,6 +64,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		3724C2F3BFBC76D467A29796 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9B26EFDEABD4795306767E8B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 82F40D7D48D41E2D14C59F99;
+			remoteInfo = ShowRecorder;
+		};
 		523B58A15B46136C36D3F539 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 9B26EFDEABD4795306767E8B /* Project object */;
@@ -121,6 +129,7 @@
 		3F1B5EEDD8FA484B7416BB0B /* AppearanceStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceStyle.swift; sourceTree = "<group>"; };
 		3F25297D625A2C059541D858 /* StatusStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusStrip.swift; sourceTree = "<group>"; };
 		497820F0F5EF694FC7765883 /* DriveFolderModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveFolderModel.swift; sourceTree = "<group>"; };
+		4AE3649927662D4F08EC25D9 /* MeterGridTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeterGridTests.swift; sourceTree = "<group>"; };
 		5E878A7AD64F581255B82A6E /* ProSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProSection.swift; sourceTree = "<group>"; };
 		625D1286301830679767FD67 /* LaunchFlag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchFlag.swift; sourceTree = "<group>"; };
 		6D7ADCDE507077F908B89E77 /* SoundcheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundcheckView.swift; sourceTree = "<group>"; };
@@ -156,6 +165,7 @@
 		F4BD6DB3A3F8D99EBA48DB48 /* ShowRecorderWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowRecorderWatchApp.swift; sourceTree = "<group>"; };
 		FC19F42425E565E8E9DFE2E1 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		FEA294E3885AFF04F6D8CED9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		FF0B04E1CF1429A9CFCD3954 /* AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -198,6 +208,7 @@
 			isa = PBXGroup;
 			children = (
 				7D29790BDD8606B15D2933AF /* App */,
+				5265FB5C3DDF24A121F5C1B0 /* AppTests */,
 				51D0C7610F65D720293942C0 /* LiveActivity */,
 				CAAD9973D06474139B38A01E /* Packages */,
 				B6E8985F1D71BE844A83E679 /* Watch */,
@@ -213,6 +224,14 @@
 				BFEAAED834B651D2EB178389 /* TakeLiveActivityWidget.swift */,
 			);
 			path = LiveActivity;
+			sourceTree = "<group>";
+		};
+		5265FB5C3DDF24A121F5C1B0 /* AppTests */ = {
+			isa = PBXGroup;
+			children = (
+				4AE3649927662D4F08EC25D9 /* MeterGridTests.swift */,
+			);
+			path = AppTests;
 			sourceTree = "<group>";
 		};
 		7D29790BDD8606B15D2933AF /* App */ = {
@@ -261,6 +280,7 @@
 		8C44A59A53F6658ADC62471D /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				FF0B04E1CF1429A9CFCD3954 /* AppTests.xctest */,
 				DBBDC7B3AA4C8B14B57747DD /* ShowRecorder.app */,
 				EF187F967C613A176A6CB202 /* ShowRecorderLiveActivity.appex */,
 				CAE710202D63B74CD7D41083 /* ShowRecorderWatch.app */,
@@ -371,6 +391,24 @@
 			productReference = CAE710202D63B74CD7D41083 /* ShowRecorderWatch.app */;
 			productType = "com.apple.product-type.application";
 		};
+		FD2C00AA7DFD5D332368FFA6 /* AppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 34B90895A360255C2B5CF7BE /* Build configuration list for PBXNativeTarget "AppTests" */;
+			buildPhases = (
+				13A9A22658F2188A34891053 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8D54A97D51F1CF307F081996 /* PBXTargetDependency */,
+			);
+			name = AppTests;
+			packageProductDependencies = (
+			);
+			productName = AppTests;
+			productReference = FF0B04E1CF1429A9CFCD3954 /* AppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -409,6 +447,7 @@
 			projectRoot = "";
 			targets = (
 				82F40D7D48D41E2D14C59F99 /* ShowRecorder */,
+				FD2C00AA7DFD5D332368FFA6 /* AppTests */,
 				7D1A4F0FF7DB4F8599D67729 /* ShowRecorderLiveActivity */,
 				BB83A03599FDAD999B7DD726 /* ShowRecorderWatch */,
 			);
@@ -436,6 +475,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		13A9A22658F2188A34891053 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				201B434DBE445FE432B3A9FB /* MeterGridTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		30EA3D562AC6351BF6B1A34D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -512,6 +559,11 @@
 			);
 			target = 7D1A4F0FF7DB4F8599D67729 /* ShowRecorderLiveActivity */;
 			targetProxy = 61C048DE63A09A820299E297 /* PBXContainerItemProxy */;
+		};
+		8D54A97D51F1CF307F081996 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 82F40D7D48D41E2D14C59F99 /* ShowRecorder */;
+			targetProxy = 3724C2F3BFBC76D467A29796 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -659,6 +711,23 @@
 			};
 			name = Release;
 		};
+		A6C98F609C66EF3EF1BA1C57 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ericdahl.ShowRecorder.AppTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ShowRecorder.app/Contents/MacOS/ShowRecorder";
+			};
+			name = Debug;
+		};
 		BDFC5A37133E3F97FAA14832 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -677,6 +746,23 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
+		};
+		DA7540F8653623692F3254D7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.ericdahl.ShowRecorder.AppTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ShowRecorder.app/Contents/MacOS/ShowRecorder";
+			};
+			name = Release;
 		};
 		EA49BA5A9E7F1F7966A153D4 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -762,6 +848,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		34B90895A360255C2B5CF7BE /* Build configuration list for PBXNativeTarget "AppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A6C98F609C66EF3EF1BA1C57 /* Debug */,
+				DA7540F8653623692F3254D7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		4A355E5B0F9576171FA15E66 /* Build configuration list for PBXNativeTarget "ShowRecorder" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

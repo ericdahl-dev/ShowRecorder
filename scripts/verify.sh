@@ -4,7 +4,7 @@
 #   take     grep                        every plan: Take control on the recorder only in TakeSequencer (#551)
 #   vocab    scripts/vocab-check.sh      App/, package Sources/, CONTEXT.md, scripts/vocab-*
 #   package  swift test                  Packages/
-#   app      macOS and iOS Simulator     App/, Packages/, project.yml, ShowRecorder.xcodeproj/
+#   app      macOS (with AppTests), iOS  App/, AppTests/, Packages/, project.yml, ShowRecorder.xcodeproj/
 #   site     website lint, tests, build  website/, docs/release-notes/
 # The package tests, the two app builds and the website run side by side, each into its own log; when all have
 # finished each one's result and time is printed, with the log of any that failed (scripts/verify-steps.sh).
@@ -73,7 +73,7 @@ else
       App/*) vocab=1 app=1 ;;
       Packages/*/Sources/*) vocab=1 package=1 app=1 ;;
       Packages/*) package=1 app=1 ;;
-      project.yml | ShowRecorder.xcodeproj/*) app=1 ;;
+      project.yml | ShowRecorder.xcodeproj/* | AppTests/*) app=1 ;;
       CONTEXT.md | scripts/vocab-*) vocab=1 ;;
       website/*) site=1 ;;
       # The site's changelog test reads the release notes.
@@ -149,8 +149,9 @@ fi
 steps_start
 [ $package = 1 ] && run_step "Package tests" sh -c 'cd Packages/ShowRecorderKit && "$1" test --parallel' sh "$swift"
 if [ $app = 1 ]; then
-  run_step "macOS build" "$xcodebuild" -quiet -project ShowRecorder.xcodeproj -scheme ShowRecorder -destination 'platform=macOS' \
-    -derivedDataPath "$DD-mac" CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build
+  # Builds the Mac app and runs AppTests, hosted on it (#679): no Simulator.
+  run_step "macOS build and AppTests" "$xcodebuild" -quiet -project ShowRecorder.xcodeproj -scheme ShowRecorder -destination 'platform=macOS' \
+    -derivedDataPath "$DD-mac" CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= test
   run_step "iOS Simulator build" "$xcodebuild" -quiet -project ShowRecorder.xcodeproj -scheme ShowRecorder \
     -destination 'generic/platform=iOS Simulator' -derivedDataPath "$DD-ios" CODE_SIGNING_ALLOWED=NO build
   if [ -n "${DEVICE_ID:-}" ]; then
