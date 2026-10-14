@@ -640,7 +640,8 @@ public final class Recorder {
     private struct LastTake {
         var showName: String
         var takeNumber: Int
-        var deviceFolder: URL
+        /// Nil when the Take left no Device Copy (Drive only, the Device never stood in).
+        var deviceFolder: URL?
         var hadDrive: Bool
     }
 
@@ -651,7 +652,8 @@ public final class Recorder {
     public func renameLastTakeMarker(at index: Int, to name: String) async -> MarkerRenamer.Outcome {
         await repair.wait()
         guard !isRecording, let take = lastTake else { return MarkerRenamer.Outcome(result: .notRecording, renamed: [], failed: []) }
-        var copies: [DestinationKind: URL] = [.device: take.deviceFolder]
+        var copies: [DestinationKind: URL] = [:]
+        copies[.device] = take.deviceFolder
         var access: DriveAccess?
         if take.hadDrive {
             access = driveFolder()
@@ -662,7 +664,7 @@ public final class Recorder {
         if take.hadDrive, access == nil {
             outcome.failed.append(.init(copy: .drive, reason: "The Drive isn't available, so its Copy still has the old name."))
         }
-        if !outcome.renamed.isEmpty, let metadata = Self.readTake(at: take.deviceFolder) { refreshMarkers(from: metadata) }
+        if !outcome.renamed.isEmpty, let metadata = (copies[.device] ?? copies[.drive]).flatMap(Self.readTake) { refreshMarkers(from: metadata) }
         return outcome
     }
 
@@ -732,7 +734,7 @@ public final class Recorder {
         refreshMarkers(from: finished.metadata)
         lastTakeEnd = TakeEnd(take: finished.metadata.take, reason: reason)
         lastTake = LastTake(
-            showName: session.show.name, takeNumber: finished.metadata.take, deviceFolder: finished.folders[.device]!,
+            showName: session.show.name, takeNumber: finished.metadata.take, deviceFolder: finished.folders[.device],
             hadDrive: finished.folders[.drive] != nil)
         currentShow = session.show
         currentShow?.setChannelNames(channelNames)
@@ -755,7 +757,8 @@ public final class Recorder {
         namingTask = Task { @MainActor in
             await previous?.value
             await repair.wait()
-            var copies: [DestinationKind: URL] = [.device: take.deviceFolder]
+            var copies: [DestinationKind: URL] = [:]
+            copies[.device] = take.deviceFolder
             var access: DriveAccess?
             if take.hadDrive {
                 access = driveFolder()

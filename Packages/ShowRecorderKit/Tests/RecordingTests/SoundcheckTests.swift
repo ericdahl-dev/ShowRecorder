@@ -220,4 +220,11 @@ struct SoundcheckTests {
         #expect(step.passed)
         #expect(step.message == "Written to the Device and the Drive.")
     }
+
+    @Test("A Drive only test Take the Drive took whole passes, with no Device Copy (#618)")
+    func driveOnlyDriveWholeTakePasses() {
+        let step = Soundcheck.judgeTake(copies: takeCopies(running: false, driveOnly: true, device: .missing, drive: .complete), driveChosen: true)
+        #expect(step.passed)
+        #expect(step.message == "Written to the Drive.")
+    }
 }
