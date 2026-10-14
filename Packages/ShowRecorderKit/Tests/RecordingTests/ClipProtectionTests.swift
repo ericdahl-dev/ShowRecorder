@@ -626,7 +626,7 @@ struct ClipProtectionTests {
         let moving = Task { await Self.feed(protection, Self.hot) }
         #expect(await Self.next(reached), "the turn-down reaches the queue")
         // Without a shared queue the turn-down reaches the Mixer in milliseconds.
-        #expect(await Self.next(probed, within: 1) == false, "the turn-down waits for the Undo step")
+        #expect(await Self.next(probed, within: .seconds(1)) == false, "the turn-down waits for the Undo step")
         release.yield()
         release.finish()                                    // a looping Undo can't hang on a second step
         try await undoing.value
