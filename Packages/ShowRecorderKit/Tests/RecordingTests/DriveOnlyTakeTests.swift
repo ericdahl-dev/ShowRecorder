@@ -840,4 +840,53 @@ struct DriveOnlyTakeTests {
         #expect(ShowFile.read(from: device.appending(path: "2026-10-06 Show"))?.lastTakeEndedAt != nil, "the Take is noted ended")
         _ = crashed
     }
+
+    /// The `driveOnly` field of the Take.json in `parent`'s copy of the Take, read raw; nil when it isn't there.
+    func driveOnlyField(in parent: URL) throws -> Bool? {
+        let data = try Data(contentsOf: parent.appending(path: "\(take)/Take.json"))
+        return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])["driveOnly"] as? Bool
+    }
+
+    @Test("A Drive only Take's Take.json on the Drive says it is Drive only (#630)")
+    func takeFileSaysDriveOnly() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder()
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(2, to: audio, recorder, sample: counting())
+
+        #expect(try driveOnlyField(in: drive) == true)
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+    }
+
+    @Test("A Drive only Take with no Drive at record says it is Drive only in the Device's Take.json, from the press (#630)")
+    func takeFileSaysDriveOnlyWithNoDrive() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        recorder.recordsToDriveOnly = true
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(2, to: audio, recorder, sample: counting())
+
+        #expect(try driveOnlyField(in: device) == true, "while the Take runs")
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+        #expect(try driveOnlyField(in: device) == true, "after Stop")
+    }
+
+    @Test("An ordinary Take's Take.json has no driveOnly field in either Copy (#630)")
+    func ordinaryTakeFileHasNoDriveOnly() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder()
+        recorder.recordsToDriveOnly = false
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(2, to: audio, recorder, sample: counting())
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+
+        #expect(try driveOnlyField(in: device) == nil)
+        #expect(try driveOnlyField(in: drive) == nil)
+    }
 }

@@ -110,6 +110,9 @@ final class TakeSession {
         freeSpace: @escaping (URL) -> Int64, driveOnly: Bool = false
     ) throws {
         self.show = show
+        var metadata = metadata
+        // Every Copy's Take.json says the Take is Drive only, so one left on the Device can be found and moved (#630).
+        if driveOnly { metadata.driveOnly = true }
         self.metadata = metadata
         levels = TakeLevels(channelCount: capture.channelCount)
         self.stems = stems

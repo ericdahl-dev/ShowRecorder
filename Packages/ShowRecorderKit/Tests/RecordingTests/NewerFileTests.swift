@@ -47,6 +47,21 @@ struct NewerFileTests {
         #expect(take.gainChanges?.first?.reason.word == "sparkleGain")
     }
 
+    @Test("A Drive only Take's driveOnly field reads and saves again, beside fields this version doesn't know (#630)")
+    func driveOnlyRoundTrip() throws {
+        let json = Self.takeJSON.replacingOccurrences(of: "\"futureLog\"", with: "\"driveOnly\": true, \"futureLog\"")
+        try Data(json.utf8).write(to: folder.appending(path: "Take.json"))
+        let take = try TakeMetadata.read(fromTakeFolder: folder)
+        #expect(take.driveOnly == true)
+        let unknown = try #require(take.unknownFields).merged(into: Data("{}".utf8))
+        #expect(try #require(JSONSerialization.jsonObject(with: unknown) as? [String: Any]).keys.sorted() == ["futureLog"], "driveOnly is a known field")
+        try take.write(to: folder)
+
+        let saved = try savedJSON("Take.json")
+        #expect(saved["driveOnly"] as? Bool == true)
+        #expect(saved["futureLog"] != nil)
+    }
+
     @Test("Saving that Take again keeps the unknown Marker kind, the unknown reason and the fields this version doesn't know")
     func savingKeepsWhatIsUnknown() throws {
         try writeTake()
