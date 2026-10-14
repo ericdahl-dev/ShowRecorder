@@ -30,3 +30,8 @@ for binary in "${binaries[@]:1}"; do args+=(-object "$binary"); done
 
 xcrun llvm-cov export -summary-only -instr-profile="$merged" -ignore-filename-regex='(\.build|/Tests/)' "${args[@]}" \
   | tee "${COVERAGE_JSON:-/dev/null}" | python3 -B "$scripts/coverage_table.py"
+# With COVERAGE_LCOV=<path>, also the line-by-line lcov file (CI uploads it to Codecov).
+if [ -n "${COVERAGE_LCOV:-}" ]; then
+  xcrun llvm-cov export -format=lcov -instr-profile="$merged" -ignore-filename-regex='(\.build|/Tests/)' "${args[@]}" \
+    > "$COVERAGE_LCOV"
+fi

@@ -79,13 +79,14 @@ jobs:
         working-directory: Packages/ShowRecorderKit
         run: swift test --enable-code-coverage
 
-      # Kit code coverage (#576): the table in the log and the job summary, and the per-file JSON as the run's
-      # "kit-coverage" artifact (`gh run download <run> -n kit-coverage`). No floor; nothing leaves GitHub.
+      # Kit code coverage (#576): the table in the log and the job summary, the per-file JSON as the run's
+      # "kit-coverage" artifact (`gh run download <run> -n kit-coverage`), and the lcov file to Codecov. No floor.
       - name: Coverage
         if: matrix.check == 'package tests'
         run: |
           set -o pipefail
-          COVERAGE_JSON="$RUNNER_TEMP/kit-coverage.json" ./scripts/coverage.sh | tee "$RUNNER_TEMP/kit-coverage.md"
+          COVERAGE_JSON="$RUNNER_TEMP/kit-coverage.json" COVERAGE_LCOV="$RUNNER_TEMP/kit-coverage.lcov" \
+            ./scripts/coverage.sh | tee "$RUNNER_TEMP/kit-coverage.md"
           { echo "## Kit code coverage"; echo; cat "$RUNNER_TEMP/kit-coverage.md"; } >> "$GITHUB_STEP_SUMMARY"
       - name: Keep coverage
         if: matrix.check == 'package tests'
@@ -96,6 +97,15 @@ jobs:
             ${{ runner.temp }}/kit-coverage.json
             ${{ runner.temp }}/kit-coverage.md
           retention-days: 30
+      # Report only: an upload problem never fails CI, and codecov.yml keeps its statuses informational.
+      - name: Upload coverage to Codecov
+        if: matrix.check == 'package tests'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ runner.temp }}/kit-coverage.lcov
+          flags: kit
+          fail_ci_if_error: false
 
       # TestFlight builds are Release. Mixer detection once worked in Debug but opened port 0 in Release (v1.1.1,
       # EINVAL on the iPhone), so every package test also runs optimized, in its own leg so CI doesn't take longer.
