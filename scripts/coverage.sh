@@ -2,6 +2,7 @@
 # Kit code coverage (#576): merges what every test bundle recorded and prints a Markdown table, per module and the
 # files with the least. Run after `swift test --enable-code-coverage` in Packages/ShowRecorderKit (a clean build, so no
 # earlier run's profiles count). Report only: no floor, nothing fails on a low number, nothing is uploaded.
+# With COVERAGE_JSON=<path>, also writes llvm-cov's per-file summary there (CI keeps it as the run's coverage artifact).
 # `swift test --show-codecov-path` covers only the last bundle, so this takes only the folder from it and merges every
 # profile there. Toolchains differ (#576): one bundle beside that folder on CI's Xcode, one per test target locally.
 set -euo pipefail
@@ -28,4 +29,4 @@ args=("${binaries[0]}")
 for binary in "${binaries[@]:1}"; do args+=(-object "$binary"); done
 
 xcrun llvm-cov export -summary-only -instr-profile="$merged" -ignore-filename-regex='(\.build|/Tests/)' "${args[@]}" \
-  | python3 -B "$scripts/coverage_table.py"
+  | tee "${COVERAGE_JSON:-/dev/null}" | python3 -B "$scripts/coverage_table.py"

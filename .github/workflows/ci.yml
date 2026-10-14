@@ -79,11 +79,23 @@ jobs:
         working-directory: Packages/ShowRecorderKit
         run: swift test --enable-code-coverage
 
-      # Kit code coverage (#576), in the job summary only: our own script, no upload, no floor.
+      # Kit code coverage (#576): the table in the log and the job summary, and the per-file JSON as the run's
+      # "kit-coverage" artifact (`gh run download <run> -n kit-coverage`). No floor; nothing leaves GitHub.
       - name: Coverage
         if: matrix.check == 'package tests'
         run: |
-          { echo "## Kit code coverage"; echo; ./scripts/coverage.sh; } >> "$GITHUB_STEP_SUMMARY"
+          set -o pipefail
+          COVERAGE_JSON="$RUNNER_TEMP/kit-coverage.json" ./scripts/coverage.sh | tee "$RUNNER_TEMP/kit-coverage.md"
+          { echo "## Kit code coverage"; echo; cat "$RUNNER_TEMP/kit-coverage.md"; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep coverage
+        if: matrix.check == 'package tests'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kit-coverage
+          path: |
+            ${{ runner.temp }}/kit-coverage.json
+            ${{ runner.temp }}/kit-coverage.md
+          retention-days: 30
 
       # TestFlight builds are Release. Mixer detection once worked in Debug but opened port 0 in Release (v1.1.1,
       # EINVAL on the iPhone), so every package test also runs optimized, in its own leg so CI doesn't take longer.
