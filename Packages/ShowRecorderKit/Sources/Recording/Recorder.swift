@@ -434,7 +434,7 @@ public final class Recorder {
         endIdleShow(at: date)
 
         var drive = driveFolder()
-        let opened: (show: Show, session: TakeSession, folders: [URL])
+        let opened: (show: Show, session: TakeSession, folders: [DestinationKind: URL])
         do {
             opened = try openTake(sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: drive)
         } catch where drive != nil {
@@ -448,7 +448,7 @@ public final class Recorder {
         session.onCopyFailed = { [weak self, weak session] in self?.copyFailed(in: session) }
         session.stopTimeout = writerStopTimeout
         session.driveStallLimit = driveStallLimit
-        if takeFolders.count == 1 { drive?.end() }
+        if takeFolders[.drive] == nil { drive?.end() }
         self.session = session
         finishedCopies = [:]
         takeMarkers = []
@@ -481,7 +481,7 @@ public final class Recorder {
     private func openTake(
         sources: [Source], allowance: TakeAllowance?, date: Date,
         device: any AudioIODevice, capture: Capture, drive: DriveAccess?
-    ) throws -> (show: Show, session: TakeSession, folders: [URL]) {
+    ) throws -> (show: Show, session: TakeSession, folders: [DestinationKind: URL]) {
         var show: Show
         do {
             if var open = currentShow {
@@ -502,7 +502,7 @@ public final class Recorder {
         let name = TakeMetadata.name(take: show.takeCount + 1)
         let wanted = ([show.folder] + (show.driveFolder.map { [$0] } ?? [])).map { $0.appending(path: name, directoryHint: .isDirectory) }
         let alreadyThere = Set(wanted.filter { FileManager.default.fileExists(atPath: $0.path) })
-        var takeFolders: [URL] = []
+        var takeFolders: [DestinationKind: URL] = [:]
         do {
             takeFolders = try show.createNextTakeFolder()
             return (show, try makeSession(), takeFolders)
@@ -541,7 +541,7 @@ public final class Recorder {
             let specs = zip(channels, resolved).map { StemSpec(file: $0.stemFile, description: $1.name, isRecorded: recorded.contains($0.usbChannel)) }
             let info = StemWriter.Info(sampleRate: sampleRate, description: "", originator: "ShowRecorder", timeReference: timeReference, originationDate: date)
             return try TakeSession(
-                show: show, folders: Dictionary(uniqueKeysWithValues: zip(DestinationKind.allCases, takeFolders)), drive: takeFolders.count > 1 ? drive : nil, metadata: metadata, stems: specs,
+                show: show, folders: takeFolders, drive: takeFolders[.drive] != nil ? drive : nil, metadata: metadata, stems: specs,
                 info: info, capture: capture, preRollFrames: preRollFrames, makeStem: makeStem, freeSpace: freeSpace,
                 driveOnly: recordsToDriveOnly)
         }

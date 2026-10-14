@@ -62,6 +62,19 @@ struct ShowPersistenceTests {
         }
     }
 
+    @Test("A new Take folder is given by Copy: the Device's in the Show's folder, the Drive's in its Drive folder, and only the Device's without a Drive")
+    func takeFoldersByCopy() throws {
+        var withDrive = try Show.create(in: device, drive: drive, on: RecordingTakeTests.showDay)
+        let folders = try withDrive.createNextTakeFolder()
+        #expect(folders == [
+            .device: withDrive.folder.appending(path: "Take 01", directoryHint: .isDirectory),
+            .drive: try #require(withDrive.driveFolder).appending(path: "Take 01", directoryHint: .isDirectory),
+        ])
+
+        var deviceOnly = try Show.create(in: device, drive: nil, on: RecordingTakeTests.showDay, name: "Device Only")
+        #expect(try deviceOnly.createNextTakeFolder() == [.device: deviceOnly.folder.appending(path: "Take 01", directoryHint: .isDirectory)])
+    }
+
     @Test("With two Shows open, the newest is used and the older one is marked ended")
     func oneShowOpen() throws {
         let older = device.appending(path: "2026-10-04 Show")

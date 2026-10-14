@@ -34,7 +34,7 @@ struct TakeSessionTests {
         free: @escaping (URL) -> Int64 = { _ in .max }
     ) throws -> TakeSession {
         var show = try Show.create(in: device, drive: withDrive ? drive : nil, on: RecordingTakeTests.showDay)
-        let folders = Dictionary(uniqueKeysWithValues: zip(DestinationKind.allCases, try show.createNextTakeFolder()))
+        let folders = try show.createNextTakeFolder()
         let metadata = TakeMetadata(
             show: show.name, take: show.takeCount, startedAt: RecordingTakeTests.showDay, sampleRate: 48_000, timeReference: 0,
             usbChannels: [.init(usbChannel: 1, stemFile: "01 USB 01.wav", source: .fallback(usbChannel: 1))])
