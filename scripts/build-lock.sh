@@ -11,7 +11,8 @@
 #                                    and gives each of the builds it runs at once a share.
 # Stop a locked build with Ctrl-C, or with TERM to its scripts/build-limit.sh (lockf's child): it stops the build's own
 # process group, waits for it, then lockf frees the lock. A signal to lockf alone, or a SIGKILL to build-limit.sh,
-# frees the lock while the build goes on.
+# frees the lock while the build goes on; the next locked build then stops it, from the record build-limit.sh keeps
+# in <lock>.build (#608).
 
 # The lock file: one per repo, in the git folder every worktree shares.
 build_lock_path() {
@@ -35,7 +36,7 @@ build_lock_exec() {
   [ -x "$limit" ] || limit=$(git rev-parse --show-toplevel 2>/dev/null)/scripts/build-limit.sh
   # A checkout without it (one made before #578) still builds, without the limit.
   if [ -x "$limit" ]; then
-    exec lockf -k "$lock" env SHOWRECORDER_BUILD_LOCK_HELD=1 nice -n 10 "$limit" "$@"
+    exec lockf -k "$lock" env SHOWRECORDER_BUILD_LOCK_HELD=1 SHOWRECORDER_BUILD_RECORD="$lock.build" nice -n 10 "$limit" "$@"
   fi
   exec lockf -k "$lock" env SHOWRECORDER_BUILD_LOCK_HELD=1 nice -n 10 "$@"
 }

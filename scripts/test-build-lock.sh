@@ -23,16 +23,17 @@ old="$work/old-worktree"
 # The temporary worktree check 5 makes goes too, even if the test is stopped partway.
 trap '[ -d "$old" ] && git worktree remove --force "$old" 2>/dev/null; rm -rf "$work"' EXIT
 export SHOWRECORDER_BUILD_LOCK="$work/test.lock"
-unset SHOWRECORDER_BUILD_LOCK_HELD || true
+unset SHOWRECORDER_BUILD_LOCK_HELD SHOWRECORDER_BUILD_RECORD || true
 log="$work/runs.log"
 
 # Stand-in tools: say when they start and end, take a second (STUB_SLEEP), and echo their arguments.
 for tool in swift xcodebuild; do
   cat > "$work/real-$tool" <<STUB
 #!/bin/sh
-echo "start \$\$ \$(date +%s)" >> "$log"
-# Stopped, it takes STUB_CLEANUP seconds to clean up (a build writing its last files), then says so.
+# Stopped, it takes STUB_CLEANUP seconds to clean up (a build writing its last files), then says so. Set before "start"
+# is logged, so a stop sent as soon as the test sees it always finds the trap in place.
 trap 'sleep \${STUB_CLEANUP:-0}; echo "cleaned \$\$" >> "$log"; exit 143' TERM
+echo "start \$\$ \$(date +%s)" >> "$log"
 sleep \${STUB_SLEEP:-1}
 echo "end \$\$ \$(date +%s)" >> "$log"
 echo "ran $tool \$*"
@@ -209,14 +210,59 @@ pkill -f "^sleep $hang\$" 2>/dev/null || true
 i=0
 while kill -0 "$shim" 2>/dev/null && [ $i -lt 100 ]; do i=$((i + 1)); sleep 0.1; done
 kill "$shim" 2>/dev/null || true
-expect "a stopped build leaves no timer behind" sh -c "! pgrep -f '^sleep $timer\$' >/dev/null"
-pkill -f "^sleep $timer\$" 2>/dev/null || true
+# No timer behind: nothing of this run's build-limit.sh is still running.
+i=0
+while pgrep -f "build-limit.sh $work/real-swift" >/dev/null && [ $i -lt 50 ]; do i=$((i + 1)); sleep 0.1; done
+expect "a stopped build leaves no timer behind" sh -c "! pgrep -f 'build-limit.sh $work/real-swift' >/dev/null"
+pkill -f "build-limit.sh $work/real-swift" 2>/dev/null || true
 expect "a normal build prints nothing about the time limit (output: $(cat "$work/first.out"))" sh -c "! grep -q 'Terminated' '$work/first.out'"
 
 # 9. Input piped into a locked command still reaches it (`swift run Tool < input`); only a terminal is cut off, so a
 #    build can't stop on reading it.
 out=$(echo piped | "$repo/scripts/build-limit.sh" cat 2>&1) || true
 expect "piped input reaches the command (output: $out)" has "^piped\$"
+
+# 10. A build whose build-limit.sh is force-killed (SIGKILL can't be caught) keeps running with the lock freed; the next
+#     locked build stops it, its whole group, before it starts (#608).
+: > "$log"
+STUB_SLEEP=$hang "$repo/scripts/bin/swift" test > "$work/orphan.out" 2>&1 &
+shim=$!
+i=0
+until grep -q start "$log" 2>/dev/null || [ $i -ge 600 ]; do i=$((i + 1)); sleep 0.1; done
+orphan=$(awk '/^start/ { print $2 }' "$log" | head -1)
+wrapper=$(pgrep -P "$shim" | head -1)
+[ -n "$wrapper" ] && kill -KILL "$wrapper"
+i=0
+until lockf -k -t 0 "$SHOWRECORDER_BUILD_LOCK" true 2>/dev/null || [ $i -ge 100 ]; do i=$((i + 1)); sleep 0.1; done
+expect "the force-killed build is still running, as the gap is (orphan $orphan)" kill -0 "$orphan"
+timed "$repo/scripts/bin/swift" build
+expect "the next locked build stopped the orphan's whole group" sh -c "! kill -0 -- -'$orphan' 2>/dev/null"
+kill -KILL -- -"$orphan" 2>/dev/null || true
+wait "$shim" 2>/dev/null || true
+# Nor does its timer linger: the watchdog of a force-killed wrapper goes too, not 20 minutes later.
+i=0
+while pgrep -f "build-limit.sh $work/real-swift" >/dev/null && [ $i -lt 50 ]; do i=$((i + 1)); sleep 0.1; done
+expect "a force-killed wrapper's timer doesn't linger" sh -c "! pgrep -f 'build-limit.sh $work/real-swift' >/dev/null"
+pkill -f "build-limit.sh $work/real-swift" 2>/dev/null || true
+
+# 11. A recorded group whose PID now belongs to another process (a reused PID, so another start time) is left alone
+#     (#608). The bystander leads its own group, so it would be hit if only the PID were checked.
+set -m
+# A length of its own, so no stand-in cleanup (`pkill -f "^sleep $hang$"`) can reach it.
+sleep $((hang + 1000)) &
+bystander=$!
+set +m
+echo "$bystander Mon Jan  1 00:00:00 2001" > "$SHOWRECORDER_BUILD_LOCK.build"
+timed "$repo/scripts/bin/swift" build
+expect "a reused PID isn't touched" kill -0 "$bystander"
+expect "the stale record is cleared" [ ! -f "$SHOWRECORDER_BUILD_LOCK.build" ]
+kill -KILL -- -"$bystander" 2>/dev/null || true
+wait "$bystander" 2>/dev/null || true
+
+# 12. A build-limit.sh started inside a locked build (verify.sh runs this test inside its own) never stops the build it
+#     runs in, though it inherits that build's environment (#608).
+out=$(SHOWRECORDER_BUILD_RECORD="$work/outer.build" "$repo/scripts/build-limit.sh" sh -c "'$repo/scripts/build-limit.sh' true; echo survived" 2>&1) || true
+expect "a nested build-limit.sh leaves the outer build alone (output: $out)" has "survived"
 
 [ $fail = 0 ] && echo "build lock: all checks passed"
 exit $fail
