@@ -27,12 +27,15 @@ public struct PowerStatus: Equatable, Sendable {
         /// An SF Symbol name.
         public var symbol: String
         public var state: StatusChip.State
+        /// The id of the warning this chip goes with ("battery" or "thermal"), if any.
+        public var id: String?
 
-        public init(text: String, shortText: String? = nil, symbol: String, state: StatusChip.State) {
+        public init(text: String, shortText: String? = nil, symbol: String, state: StatusChip.State, id: String? = nil) {
             self.text = text
             self.shortText = shortText ?? text
             self.symbol = symbol
             self.state = state
+            self.id = id
         }
     }
 
@@ -41,6 +44,8 @@ public struct PowerStatus: Equatable, Sendable {
         public var id: String
         public var tone: ScreenAlert.Tone
         public var text: String
+        /// For the battery, its 10% band: a swiped battery warning shows again only in the next band down.
+        public var swipeKey: String? = nil
     }
 
     /// Nil when the device has no battery.
@@ -56,7 +61,7 @@ public struct PowerStatus: Equatable, Sendable {
     /// The warnings as record-screen alerts, most urgent first. They have no button: they stay while the
     /// condition holds.
     public var alerts: [ScreenAlert] {
-        warnings.map { ScreenAlert(id: $0.id, priority: .power, tone: $0.tone, text: $0.text) }
+        warnings.map { ScreenAlert(id: $0.id, priority: .power, tone: $0.tone, text: $0.text, swipeKey: $0.swipeKey) }
     }
 
     /// Percent at or below which an unplugged device warns, and the lower one at which it is urgent.
@@ -69,9 +74,9 @@ public struct PowerStatus: Equatable, Sendable {
     public static func thermalChip(for thermal: Thermal) -> Chip? {
         switch thermal {
         case .nominal: nil
-        case .fair: Chip(text: "Warm", shortText: "", symbol: "thermometer.medium", state: .neutral)
-        case .serious: Chip(text: "Hot", symbol: "thermometer.high", state: .attention)
-        case .critical: Chip(text: "Very hot", symbol: "thermometer.high", state: .failed)
+        case .fair: Chip(text: "Warm", shortText: "", symbol: "thermometer.medium", state: .neutral, id: "thermal")
+        case .serious: Chip(text: "Hot", symbol: "thermometer.high", state: .attention, id: "thermal")
+        case .critical: Chip(text: "Very hot", symbol: "thermometer.high", state: .failed, id: "thermal")
         }
     }
 
@@ -93,7 +98,8 @@ public struct PowerStatus: Equatable, Sendable {
                 text: text,
                 shortText: "\(percent)%",
                 symbol: Self.batterySymbol(percent: percent, charging: charging == .charging),
-                state: urgent ? .failed : low ? .attention : .ok)
+                state: urgent ? .failed : low ? .attention : .ok,
+                id: "battery")
             if urgent {
                 warnings.append(Warning(
                     id: "battery", tone: .critical,
@@ -101,7 +107,8 @@ public struct PowerStatus: Equatable, Sendable {
             } else if low {
                 warnings.append(Warning(
                     id: "battery", tone: .warning,
-                    text: "Battery at \(percent)% and not charging. Plug in soon."))
+                    text: "Battery at \(percent)% and not charging. Plug in soon.",
+                    swipeKey: "\((percent + 9) / 10)"))
             }
         } else {
             battery = nil
