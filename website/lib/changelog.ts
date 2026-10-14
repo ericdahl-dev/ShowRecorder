@@ -21,9 +21,7 @@ export const RELEASES: readonly Release[] = [
     changes: [
       "A Drive pulled during a Take and plugged back in no longer loses the seconds before it was pulled; Repair fills the whole Gap.",
       "Plugging a Drive in during a Take is steadier.",
-      "Clip protection turns down two hot channels together, and stays with the same mixer through a reconnect.",
-      "Auto-gain measures in audio time, so a busy phone no longer shortens its measurement.",
-      "A stale Mixer Link never moves gain.",
+      "Mixer Link follows the input you Arm and reconnects more reliably.",
     ],
   },
   {
