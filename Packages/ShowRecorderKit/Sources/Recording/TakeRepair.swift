@@ -120,6 +120,27 @@ final class TakeRepair {
         }
     }
 
+    /// Drive only (#630): queues moving the kept stand-ins of `takes` into their Takes on the Drive at `access`, one
+    /// Take at a time after any Repair queued before. Leaves `outcomes`, `moved` and `standInKept` alone: they are the
+    /// latest Take's. `access` is held until the job ends; a `.stopped` Take ends it.
+    func move(
+        _ takes: [TakeMover.Movable], holding access: DriveAccess, shouldStop: @escaping @Sendable () -> Bool,
+        done: @escaping (TakeMover.Movable, StandInMove.Outcome) -> Void
+    ) {
+        let previous = task
+        task = Task {
+            defer { access.end() }
+            await previous?.value
+            for movable in takes {
+                let driveTake = access.folder.appending(path: movable.show).appending(path: movable.deviceFolder.lastPathComponent)
+                let deviceTake = movable.deviceFolder
+                let outcome = await Task.detached { StandInMove.run(deviceTake: deviceTake, driveTake: driveTake, shouldStop: shouldStop) }.value
+                done(movable, outcome)
+                if outcome == .stopped { break }
+            }
+        }
+    }
+
     /// Waits for the latest enqueued Repair to finish (earlier ones finish first).
     func wait() async {
         await task?.value
