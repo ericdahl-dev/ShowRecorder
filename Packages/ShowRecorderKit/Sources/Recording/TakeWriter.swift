@@ -112,14 +112,30 @@ final class TakeWriter: @unchecked Sendable {
     /// Drains whatever is left, finalizes every Stem and waits for the thread to finish.
     /// A failed Copy doesn't throw: it's reported through `hasFailed`.
     func stop(timeout: Duration? = nil) {
+        requestStop()
+        waitStopped(until: timeout.map(Self.deadline))
+    }
+
+    /// Tells the writer to drain and finish, without waiting. Stop tells every Copy first, then waits on them all
+    /// against one deadline (#652).
+    func requestStop() {
         running.store(false, ordering: .releasing)
+    }
+
+    /// The deadline `timeout` from now.
+    static func deadline(_ timeout: Duration) -> DispatchTime {
+        .now() + Double(timeout.components.seconds) + Double(timeout.components.attoseconds) / 1e18
+    }
+
+    /// Waits for the writer to finish, until `deadline` if there is one. Call `requestStop()` first.
+    func waitStopped(until deadline: DispatchTime?) {
+        assert(!running.load(ordering: .relaxed), "waitStopped called before requestStop")
         if done.load(ordering: .acquiring) { return }  // already stopped
-        guard let timeout else {
+        guard let deadline else {
             finished.wait()
             return
         }
-        let seconds = Double(timeout.components.seconds) + Double(timeout.components.attoseconds) / 1e18
-        if finished.wait(timeout: .now() + seconds) == .timedOut {
+        if finished.wait(timeout: deadline) == .timedOut {
             // A Destination that hangs (a Drive pulled mid-write) doesn't hold up Stop (#320): the Copy is abandoned and
             // failed. A write already under way can't be taken back, but the writer starts no new one when it wakes.
             abandoned.store(true, ordering: .releasing)
