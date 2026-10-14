@@ -146,6 +146,18 @@ final class TakeRepair {
         }
     }
 
+    /// Drive only (#630): finishes or undoes the moves a crash cut off (`MoveRecovery`), after any Repair or move queued
+    /// before. The caller holds the Drive's access until it returns. Leaves `outcomes`, `moved` and `standInKept` alone.
+    func recover(deviceFolder: URL, driveFolder: URL, shouldStop: @escaping @Sendable () -> Bool) async -> [StandInMove.Result] {
+        let previous = task
+        let job = Task {
+            await previous?.value
+            return await Task.detached { MoveRecovery.run(deviceFolder: deviceFolder, driveFolder: driveFolder, shouldStop: shouldStop) }.value
+        }
+        task = Task { _ = await job.value }
+        return await job.value
+    }
+
     /// Waits for the latest enqueued Repair to finish (earlier ones finish first).
     func wait() async {
         await task?.value
@@ -222,9 +234,11 @@ final class TakeRepair {
                                     sourceStart: standIn.start, ranges: ranges, length: length, markers: markers)
                             }
                         } else {
+                            // Only frames the source holds: inside its own Gaps the target may hold frames it lacks (#630).
+                            let ranges = gaps.flatMap { CopyCoverage.subtracting(sourceGaps, from: $0.start..<$0.end) }
                             try StemRepair.fill(
                                 target: target.folder.appending(path: stem), from: source.folder.appending(path: stem),
-                                ranges: gaps.map { $0.start..<$0.end }, length: length, markers: markers)
+                                ranges: ranges, length: length, markers: markers)
                         }
                     }
                 } catch {

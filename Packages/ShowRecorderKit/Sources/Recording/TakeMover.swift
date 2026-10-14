@@ -12,7 +12,8 @@ public enum TakeMover {
             case standIn
             /// A Drive only Take recorded with no Drive: the Device holds all of it and the Drive none.
             case deviceOnly
-            /// A Drive only Take the Drive already holds whole: the Device's Copy is left over.
+            /// A Drive only Take the Drive already holds whole, or all but Gaps not yet repaired that the Device's whole Copy
+            /// can fill (a move or Stop's Repair a crash cut off): the Device's Copy is left over.
             case redundant
             /// Left where it is.
             case skipped(SkipReason)
@@ -74,7 +75,7 @@ public enum TakeMover {
                     kind = driveTake == nil ? .skipped(.noDriveTake) : .standIn
                 } else if let driveTake {
                     let outcome = driveTake.outcome(ofCopy: .drive)
-                    kind = outcome == .hasGaps || outcome == .repairFailed ? .skipped(.driveHasGaps) : .redundant
+                    kind = outcome == .repairFailed ? .skipped(.driveHasGaps) : .redundant
                 } else {
                     kind = .deviceOnly
                 }

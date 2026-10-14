@@ -815,8 +815,9 @@ public final class Recorder {
 
     /// Drive only (#630): moves every stand-in the Device keeps, and every Drive only Take it holds whole, in any Show,
     /// to its Take on the Drive, and removes the Device's Take once the Drive is checked to hold it. Does nothing during a Take or with no Drive; a Take
-    /// started meanwhile stops it at the next Stem, and one asked for while another runs does nothing. Returns what
-    /// came of each Take it took up.
+    /// started meanwhile stops it at the next Stem, and one asked for while another runs does nothing. A move a crash cut
+    /// off is finished or undone first (`MoveRecovery`); with no Drive, its set-aside Take stays hidden until the next
+    /// move with one. Returns what came of each Take it took up.
     /// - Parameter shouldStop: replaces `moveStop` in tests.
     @discardableResult
     func moveDriveOnlyTakes(shouldStop: (@Sendable () -> Bool)? = nil) async -> [StandInMove.Result] {
@@ -824,15 +825,24 @@ public final class Recorder {
         movingTakes = true
         defer { movingTakes = false }
         let device = deviceFolder, drive = access.folder
-        let found = await Task.detached { TakeMover.find(deviceFolder: device, driveFolder: drive) }.value.filter { $0.kind == .standIn || $0.kind == .deviceOnly || $0.kind == .redundant }
-        guard !found.isEmpty, !isRecording else {
-            access.end()
-            return []
-        }
         let first = driveOnlyMoves.count
         let generation = lastTakeGeneration
         let stop = moveStop
-        repair.move(found, holding: access, shouldStop: shouldStop ?? { stop.isSet }) { [weak self] movable, outcome in
+        let shouldStop = shouldStop ?? { stop.isSet }
+        // A move a crash cut off after setting the Device's Take aside is finished or undone first.
+        for result in await repair.recover(deviceFolder: device, driveFolder: drive, shouldStop: shouldStop) {
+            let deviceTake = device.appending(path: result.show).appending(path: TakeMetadata.name(take: result.take))
+            let driveTake = drive.appending(path: result.show).appending(path: TakeMetadata.name(take: result.take))
+            driveOnlyTakeMoved(
+                .init(show: result.show, take: result.take, deviceFolder: deviceTake, kind: .redundant), result.outcome,
+                driveTake: driveTake, generation: generation)
+        }
+        let found = await Task.detached { TakeMover.find(deviceFolder: device, driveFolder: drive) }.value.filter { $0.kind == .standIn || $0.kind == .deviceOnly || $0.kind == .redundant }
+        guard !found.isEmpty, !isRecording else {
+            access.end()
+            return Array(driveOnlyMoves[first...])
+        }
+        repair.move(found, holding: access, shouldStop: shouldStop) { [weak self] movable, outcome in
             let driveTake = drive.appending(path: movable.show).appending(path: movable.deviceFolder.lastPathComponent)
             self?.driveOnlyTakeMoved(movable, outcome, driveTake: driveTake, generation: generation)
         }

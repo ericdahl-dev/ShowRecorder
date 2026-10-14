@@ -130,7 +130,7 @@ struct TakeMoverTests {
         #expect(found(isDriveOnly: true) == ["\(show) 1 skipped anotherRecording", "\(show) 2 skipped anotherRecording"])
     }
 
-    @Test("A Drive Take with Gaps left or a failed Repair is skipped; a Repaired one is whole")
+    @Test("A Drive Take with Gaps left is found to be finished from the Device; one with a failed Repair is skipped")
     func driveHasGaps() throws {
         try record()
         try change(take(drive, 1)) { $0.gaps = [.init(copy: .drive, start: 0, end: 10)] }
@@ -138,7 +138,7 @@ struct TakeMoverTests {
             $0.gaps = [.init(copy: .drive, start: 0, end: 10)]
             $0.repairs = [.init(copy: .drive, start: 0, end: 10, outcome: .failed)]
         }
-        #expect(found(isDriveOnly: true) == ["\(show) 1 skipped driveHasGaps", "\(show) 2 skipped driveHasGaps"])
+        #expect(found(isDriveOnly: true) == ["\(show) 1 redundant", "\(show) 2 skipped driveHasGaps"])
 
         try change(take(drive, 1)) { $0.repairs = [.init(copy: .drive, start: 0, end: 10, outcome: .repaired)] }
         #expect(found(isDriveOnly: true).first == "\(show) 1 redundant")
