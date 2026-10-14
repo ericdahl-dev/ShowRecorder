@@ -364,4 +364,53 @@ struct MixerGainClipProtectionTests {
         #expect(written == [1], "the Undo step was written before the turn-down")
         #expect(control.gainDb[1] == 26)
     }
+
+    @Test("A level-didn't-follow rollback under way when a Take starts finishes, no auto-gain move follows, and clip protection's turn-down writes right after its last undo (#663)")
+    func rollbackFinishesBeforeTurnDown() async throws {
+        let control = FakeGainControl(gainDb: [1: 30, 2: 0], channelOfUSB: [1: 1, 2: 2])
+        // USB 2: the first move follows (off target, so a second move), the second doesn't: two steps to put back.
+        var reads = [-40.0, -23, -40]
+        let mixerGain = MixerGain(makeSession: { queue in
+            AutoGainSession(control: control, measure: { _ in reads.removeFirst() }, queue: queue)
+        })
+        mixerGain.makeProtection = { queue in ClipProtection(control: control, sampleRate: 48_000, queue: queue) }
+        mixerGain.isClipProtectionOn = { true }
+        var recording = false
+        mixerGain.isRecording = { recording }
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        control.undoAnswer = {
+            enter.yield()
+            for await _ in released { return }
+        }
+        let running = Task { await mixerGain.run([2]) }
+        #expect(await ClipProtectionTests.next(entered), "the rollback's first undo is on the Mixer")
+        let movesBefore = control.moveStarts
+        recording = true
+        mixerGain.handle(.takeStarted(take: 1))
+
+        // The undos written when each turn-down reached the Mixer.
+        let (turnDowns, turnDown) = AsyncStream<Int>.makeStream()
+        let (probed, probe) = AsyncStream<Void>.makeStream()
+        control.answer = { [control] in
+            turnDown.yield(await control.undos)
+            probe.yield()
+        }
+        let (reached, reach) = AsyncStream<Void>.makeStream()
+        control.preampAnswer = { reach.yield() }
+        let moving = Task { for window in ClipProtectionTests.hot { await mixerGain.observe([window]) } }
+        #expect(await ClipProtectionTests.next(reached), "the turn-down reaches the queue")
+        #expect(await ClipProtectionTests.next(probed, within: .seconds(1)) == false, "the turn-down waits for the rollback")
+        release.yield()
+        release.finish()                                    // the rollback's second undo doesn't wait
+        await running.value
+        await moving.value
+        turnDown.finish()
+        var written: [Int] = []
+        for await undos in turnDowns { written.append(undos) }
+        #expect(written == [2], "both undos were written before the turn-down")
+        #expect(mixerGain.results[2] == .stopped(usbChannel: 2, channel: 2))
+        #expect(control.gainDb == [1: 26, 2: 0], "the operator's gain is back, then the turn-down")
+        #expect(control.moveStarts == movesBefore + 1, "no auto-gain move after the Take started, only the turn-down")
+    }
 }
