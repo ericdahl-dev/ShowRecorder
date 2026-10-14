@@ -429,9 +429,9 @@ final class TakeSession {
             // A Take folder that was rejoined already has its Take.json.
             if old == nil { try metadata.write(to: folder) }
 
-            // The Drive's feed is the second, after the Device's. A Drive joins for the first time only beside the Device.
-            precondition(old != nil || copies.count == 1, "a Drive joining beside more than the Device")
-            let feed = old?.feed ?? capture.feeds[1]
+            // The Drive uses its kind's feed. A Drive joins for the first time only beside the Device.
+            assert(old != nil || copies.count == 1, "a Drive joining beside more than the Device")
+            let feed = old?.feed ?? capture.feeds[DestinationKind.drive.index]
             let writer = makeWriter(feed: feed, stems: sinks, markers: stemMarkers)
             capture.attachMidTake(feed)
             writer.start()
@@ -440,7 +440,7 @@ final class TakeSession {
             let earlierGaps = (old?.gaps ?? []).filter { $0.lowerBound < resume }.map { $0.clamped(to: 0..<resume) }
 
             let record = CopyRecord(kind: .drive, folder: folder, feed: feed, writer: writer, earlierGaps: earlierGaps, access: access)
-            if old == nil { copies.append(record) } else { copies[copies.firstIndex { $0.kind == .drive }!] = record }
+            if old == nil { copies.append(record) } else if let i = copies.firstIndex(where: { $0.kind == .drive }) { copies[i] = record }
             old?.access?.end()
             self.show = show
         } catch {
