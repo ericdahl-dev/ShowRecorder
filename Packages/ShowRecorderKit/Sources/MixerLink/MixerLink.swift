@@ -1,3 +1,5 @@
+import Foundation
+
 /// Where a Mixer listens for OSC. Each family has its own port (`MixerFamily.probe`): X-Air mixers use UDP 10024, the
 /// X32 and M32 10023.
 public struct MixerEndpoint: Equatable, Sendable {
@@ -82,6 +84,14 @@ public enum MixerLinkProblem: Error, Equatable, Sendable {
         case .other(let description):
             "The mixer connection failed: \(description)"
         }
+    }
+}
+
+extension MixerLinkProblem {
+    /// A problem that passes, so connecting tries again before the Link goes down: a busy port (EADDRINUSE), as a
+    /// loaded device sometimes reports for a moment (#655).
+    var isPassing: Bool {
+        if case .cantConnect(_, _, let code) = self { code == Int(EADDRINUSE) } else { false }
     }
 }
 
