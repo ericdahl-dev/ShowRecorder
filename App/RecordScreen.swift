@@ -430,7 +430,7 @@ struct RecordScreen: View {
                     .layoutPriority(-1)
                 }
             }
-            // Only this spacer flexes, so Marker and Record stay put when the note above comes and goes.
+            // This spacer takes the slack and the note truncates first, so Marker and Record stay put when the note comes and goes.
             Spacer(minLength: 8)
             markerButton(size: 64)
             Color.clear.frame(height: 24)
