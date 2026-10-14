@@ -9,116 +9,116 @@ import Testing
 @MainActor
 @Suite("Mixer gain: auto-gain")
 struct MixerGainAutoGainTests {
-    func makePanel(_ control: FakeGainControl, source: [Int: Double]) -> MixerGain {
+    func makeMixerGain(_ control: FakeGainControl, source: [Int: Double]) -> MixerGain {
         MixerGain(makeSession: { _ in AutoGainSession(control: control, measure: AutoGainSessionTests.meters(control, source: source)) })
     }
 
-    @Test("A run's results and its Undo are kept by the panel, not the sheet")
+    @Test("A run's results and its Undo are kept by Mixer gain, not the sheet")
     func keepsResultsAndUndo() async {
         let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
-        let panel = makePanel(control, source: [1: -40])
+        let mixerGain = makeMixerGain(control, source: [1: -40])
 
-        await panel.run([1])
+        await mixerGain.run([1])
 
-        #expect(panel.results[1] == .set(usbChannel: 1, channel: 1, fromGainDb: 0, toGainDb: 22, levelDbfs: -18))
-        #expect(panel.canUndo(1) && panel.canUndoAll)
-        await panel.undo(1)
+        #expect(mixerGain.results[1] == .set(usbChannel: 1, channel: 1, fromGainDb: 0, toGainDb: 22, levelDbfs: -18))
+        #expect(mixerGain.canUndo(1) && mixerGain.canUndoAll)
+        await mixerGain.undo(1)
         #expect(control.gainDb[1] == 0)
-        #expect(panel.results[1] == nil && !panel.canUndo(1))
+        #expect(mixerGain.results[1] == nil && !mixerGain.canUndo(1))
     }
 
-    @Test("A Take that starts mid-run stops it at once and locks the panel; no run or Undo until the Take ends")
+    @Test("A Take that starts mid-run stops it at once and locks auto-gain; no run or Undo until the Take ends")
     func takeStartStopsAndLocks() async {
         let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
-        var panel: MixerGain!
+        var mixerGain: MixerGain!
         var measured = 0
         // The level follows 80% of each move, so USB 1 needs a second move; the Take starts before it.
-        panel = MixerGain(makeSession: { _ in
+        mixerGain = MixerGain(makeSession: { _ in
             AutoGainSession(control: control, measure: { usb in
                 measured += 1
-                if measured == 2 { panel.handle(.takeStarted(take: 1)) }
+                if measured == 2 { mixerGain.handle(.takeStarted(take: 1)) }
                 return -40 + 0.8 * (control.gainDb[control.channelOfUSB[usb] ?? usb] ?? 0)
             })
         })
 
-        await panel.run([1, 2])
+        await mixerGain.run([1, 2])
 
-        #expect(panel.results[1] == .haltedForTake(usbChannel: 1, channel: 1))
+        #expect(mixerGain.results[1] == .haltedForTake(usbChannel: 1, channel: 1))
         #expect(control.gainDb[2] == 0)
-        #expect(panel.isLocked)
+        #expect(mixerGain.isLocked)
         let moved = control.gainDb[1]
-        await panel.undo(1)
-        await panel.run([2])
+        await mixerGain.undo(1)
+        await mixerGain.run([2])
         #expect(control.gainDb[1] == moved && control.gainDb[2] == 0, "nothing moves during a Take")
 
-        panel.handle(.takeEnded(TakeEnd(take: 1, reason: .stopped)))
-        #expect(!panel.isLocked)
-        await panel.undo(1)
+        mixerGain.handle(.takeEnded(TakeEnd(take: 1, reason: .stopped)))
+        #expect(!mixerGain.isLocked)
+        await mixerGain.undo(1)
         #expect(control.gainDb[1] == 0)
     }
 
     @Test("A Take that starts partway through an Undo stops it before the next step; the rest stays for Undo after the Take")
     func takeStartStopsAnUndo() async {
         let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
-        let panel = MixerGain(makeSession: { _ in
+        let mixerGain = MixerGain(makeSession: { _ in
             // 80% follow: two moves to land, so two steps to undo.
             AutoGainSession(control: control, measure: { usb in -40 + 0.8 * (control.gainDb[usb] ?? 0) })
         })
-        await panel.run([1])
+        await mixerGain.run([1])
         let landed = control.gainDb[1]
         // The Take starts while the first undo step is on its way to the Mixer.
-        control.undoAnswer = { await MainActor.run { if control.undos == 0 { panel.handle(.takeStarted(take: 1)) } } }
+        control.undoAnswer = { await MainActor.run { if control.undos == 0 { mixerGain.handle(.takeStarted(take: 1)) } } }
 
-        await panel.undo(1)
+        await mixerGain.undo(1)
 
         #expect(control.undos == 1, "the step on its way lands; no step after it")
         #expect(control.gainDb[1] != 0 && control.gainDb[1] != landed)
-        #expect(panel.canUndo(1))
-        #expect(panel.results[1] == .haltedForTake(usbChannel: 1, channel: 1))
+        #expect(mixerGain.canUndo(1))
+        #expect(mixerGain.results[1] == .haltedForTake(usbChannel: 1, channel: 1))
     }
 
     @Test("A second run or Undo asked for while one is under way is refused, so two never move one session at once")
     func oneAtATime() async {
         let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
-        var panel: MixerGain!
+        var mixerGain: MixerGain!
         var asked = false
-        panel = MixerGain(makeSession: { _ in
+        mixerGain = MixerGain(makeSession: { _ in
             AutoGainSession(control: control, measure: { usb in
-                if !asked { asked = true; await panel.run([2]) }
+                if !asked { asked = true; await mixerGain.run([2]) }
                 return -40 + (control.gainDb[usb] ?? 0)
             })
         })
 
-        await panel.run([1])
+        await mixerGain.run([1])
 
         #expect(control.gainDb[2] == 0, "the second run was refused")
-        #expect(panel.results[2] == nil)
-        #expect(panel.running.isEmpty)
+        #expect(mixerGain.results[2] == nil)
+        #expect(mixerGain.running.isEmpty)
     }
 
     @Test("While the recorder is recording, nothing runs, even before the Take's event arrives")
     func refusedWhileRecording() async {
         let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
-        let panel = makePanel(control, source: [1: -40])
-        panel.isRecording = { true }
+        let mixerGain = makeMixerGain(control, source: [1: -40])
+        mixerGain.isRecording = { true }
 
-        await panel.run([1])
+        await mixerGain.run([1])
 
         #expect(control.gainDb[1] == 0)
-        #expect(panel.isLocked)
+        #expect(mixerGain.isLocked)
     }
     @Test("Each result can say in plain words what moved to keep the mix, until Undo puts it back (#155, #393)")
     func compensationSummary() async throws {
         let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
         control.alsoMoves = MixHold.Change(setting: MixHold.Setting(channel: 1, parameter: .mainFader), fromDb: 0, toDb: -22)
-        let panel = makePanel(control, source: [1: -40])
+        let mixerGain = makeMixerGain(control, source: [1: -40])
 
-        await panel.run([1, 2])
+        await mixerGain.run([1, 2])
 
-        #expect(panel.compensationSummary(1) == "To keep the mix: fader moved -22.0 dB")
-        #expect(panel.compensationSummary(2) == nil)
-        await panel.undo(1)
-        #expect(panel.compensationSummary(1) == nil)
+        #expect(mixerGain.compensationSummary(1) == "To keep the mix: fader moved -22.0 dB")
+        #expect(mixerGain.compensationSummary(2) == nil)
+        await mixerGain.undo(1)
+        #expect(mixerGain.compensationSummary(1) == nil)
     }
 
     typealias Moved = TakeMetadata.GainChange.Compensation
@@ -147,30 +147,30 @@ struct MixerGainAutoGainTests {
                 == "To keep the mix: fader -80.0 to -90.0 dB, send 3 +5.0 to -20.0 dB")
     }
 
-    @Test("While a run goes, the panel counts channels done of the run's total, each row has its phase, and results land as each finishes (#155)")
+    @Test("While a run goes, Mixer gain counts channels done of the run's total, each row has its phase, and results land as each finishes (#155)")
     func progress() async throws {
         let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
         let meters = AutoGainSessionTests.meters(control, source: [1: -40])
-        var panel: MixerGain!
+        var mixerGain: MixerGain!
         var seen: [(progress: MixerGain.Progress?, phase1: AutoGainSession.Phase?, result2: Bool)] = []
-        panel = MixerGain(makeSession: { _ in
+        mixerGain = MixerGain(makeSession: { _ in
             AutoGainSession(control: control, measure: { usb in
-                if usb == 1 { seen.append((panel.progress, panel.phases[1], panel.results[2] != nil)) }
+                if usb == 1 { seen.append((mixerGain.progress, mixerGain.phases[1], mixerGain.results[2] != nil)) }
                 return await meters(usb)
             }, settle: { await Task.yield() })
         })
 
-        await panel.run([1, 2])
+        await mixerGain.run([1, 2])
 
         #expect(seen.first?.progress == MixerGain.Progress(done: 0, total: 2))
         #expect(seen.first?.phase1 == .measuring)
         #expect(seen.last?.progress == MixerGain.Progress(done: 1, total: 2), "USB 2 had no signal and finished first")
         #expect(seen.last?.result2 == true, "its result showed before the run ended")
-        #expect(panel.progress == nil)
-        #expect(panel.phases.isEmpty)
-        #expect(panel.results.count == 2)
-        #expect(panel.finishedRuns == 1, "VoiceOver hears the run finish")
-        #expect(panel.lastRunTotal == 2)
+        #expect(mixerGain.progress == nil)
+        #expect(mixerGain.phases.isEmpty)
+        #expect(mixerGain.results.count == 2)
+        #expect(mixerGain.finishedRuns == 1, "VoiceOver hears the run finish")
+        #expect(mixerGain.lastRunTotal == 2)
     }
     @Test("Progress reads in plain words", arguments: [(0, 16, "0 of 16 channels done"), (7, 16, "7 of 16 channels done"),
                                                       (0, 1, "0 of 1 channel done")])
@@ -188,13 +188,13 @@ struct MixerGainAutoGainTests {
     @Test("A Take that starts while a run is still working out its channels leaves no row waiting and moves nothing")
     func stopDuringFirstPass() async throws {
         let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
-        let panel = makePanel(control, source: [1: -40, 2: -40])
-        control.preampAnswer = { await MainActor.run { panel.handle(.takeStarted(take: 1)) } }
+        let mixerGain = makeMixerGain(control, source: [1: -40, 2: -40])
+        control.preampAnswer = { await MainActor.run { mixerGain.handle(.takeStarted(take: 1)) } }
 
-        await panel.run([1, 2])
+        await mixerGain.run([1, 2])
 
-        #expect(panel.phases.isEmpty)
-        #expect(panel.progress == nil)
+        #expect(mixerGain.phases.isEmpty)
+        #expect(mixerGain.progress == nil)
         #expect(control.gainDb == [1: 0, 2: 0])
     }
 
@@ -203,29 +203,29 @@ struct MixerGainAutoGainTests {
         let foh = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
         let mon = FakeGainControl(gainDb: [1: 5], channelOfUSB: [1: 1])
         var control = foh, mixer: String? = "XR18-FOH"
-        let panel = MixerGain(makeSession: { _ in
+        let mixerGain = MixerGain(makeSession: { _ in
             AutoGainSession(currentControl: { control }, measure: { usb in -40 + (control.gainDb[usb] ?? 0) })
         })
-        panel.mixerName = { mixer }
-        await panel.run([1])
-        #expect(panel.canUndo(1))
+        mixerGain.mixerName = { mixer }
+        await mixerGain.run([1])
+        #expect(mixerGain.canUndo(1))
 
         // The Mixer Link drops and comes back on the same mixer: Undo still there.
         mixer = nil
-        #expect(panel.canUndo(1) && panel.notice == nil)
+        #expect(mixerGain.canUndo(1) && mixerGain.notice == nil)
         mixer = "XR18-FOH"
-        #expect(panel.canUndo(1))
+        #expect(mixerGain.canUndo(1))
 
         // Linked to another mixer: Undo is gone, the sheet says why, and Undo writes nothing to it.
         control = mon; mixer = "XR18-MON"
-        #expect(!panel.canUndo(1) && !panel.canUndoAll)
-        #expect(panel.notice == "Undo was for another mixer (XR18-FOH), so it's gone.")
-        await panel.undo(1)
+        #expect(!mixerGain.canUndo(1) && !mixerGain.canUndoAll)
+        #expect(mixerGain.notice == "Undo was for another mixer (XR18-FOH), so it's gone.")
+        await mixerGain.undo(1)
         #expect(mon.gainDb[1] == 5)
 
         // A new run there starts fresh.
-        await panel.run([1])
-        #expect(panel.notice == nil && panel.canUndo(1))
+        await mixerGain.run([1])
+        #expect(mixerGain.notice == nil && mixerGain.canUndo(1))
     }
 }
 
@@ -235,41 +235,41 @@ struct MixerGainAutoGainTests {
 struct MixerGainClipProtectionTests {
     let control = FakeGainControl(gainDb: [1: 30], channelOfUSB: [1: 1])
 
-    func makeGuard(on: Bool) -> MixerGain {
+    func makeMixerGain(on: Bool) -> MixerGain {
         let control = control
-        let clipGuard = MixerGain()
-        clipGuard.isClipProtectionOn = { on }
-        clipGuard.isRecording = { true }
-        clipGuard.makeProtection = { _ in ClipProtection(control: control, sampleRate: 48_000) }
-        return clipGuard
+        let mixerGain = MixerGain()
+        mixerGain.isClipProtectionOn = { on }
+        mixerGain.isRecording = { true }
+        mixerGain.makeProtection = { _ in ClipProtection(control: control, sampleRate: 48_000) }
+        return mixerGain
     }
 
-    func feedHot(_ clipGuard: MixerGain) async {
-        for window in ClipProtectionTests.hot { await clipGuard.observe([window]) }
+    func feedHot(_ mixerGain: MixerGain) async {
+        for window in ClipProtectionTests.hot { await mixerGain.observe([window]) }
     }
 
     @Test("Only during a Take: between Takes a hot channel is left alone; in a Take it is turned down; after it, left alone")
     func onlyDuringATake() async {
-        let clipGuard = makeGuard(on: true)
+        let mixerGain = makeMixerGain(on: true)
 
-        await feedHot(clipGuard)
+        await feedHot(mixerGain)
         #expect(control.gainDb[1] == 30, "between Takes")
 
-        clipGuard.handle(.takeStarted(take: 1))
-        await feedHot(clipGuard)
+        mixerGain.handle(.takeStarted(take: 1))
+        await feedHot(mixerGain)
         #expect(control.gainDb[1] == 26, "turned down to put the Peak at -6")
 
-        clipGuard.handle(.takeEnded(TakeEnd(take: 1, reason: .stopped)))
-        await feedHot(clipGuard)
-        await feedHot(clipGuard)
+        mixerGain.handle(.takeEnded(TakeEnd(take: 1, reason: .stopped)))
+        await feedHot(mixerGain)
+        await feedHot(mixerGain)
         #expect(control.gainDb[1] == 26, "after the Take")
     }
 
     @Test("Switched off, a Take's hot channel is left alone")
     func offLeavesAlone() async {
-        let clipGuard = makeGuard(on: false)
-        clipGuard.handle(.takeStarted(take: 1))
-        await feedHot(clipGuard)
+        let mixerGain = makeMixerGain(on: false)
+        mixerGain.handle(.takeStarted(take: 1))
+        await feedHot(mixerGain)
         #expect(control.gainDb[1] == 30)
     }
 
@@ -281,24 +281,24 @@ struct MixerGainClipProtectionTests {
 
     @Test("A Take that ends while a move waits on the Mixer: the move never starts, so nothing moves between Takes")
     func takeEndsDuringAWait() async {
-        let clipGuard = makeGuard(on: true)
-        clipGuard.handle(.takeStarted(take: 1))
-        control.preampAnswer = { await MainActor.run { clipGuard.handle(.takeEnded(TakeEnd(take: 1, reason: .stopped))) } }
+        let mixerGain = makeMixerGain(on: true)
+        mixerGain.handle(.takeStarted(take: 1))
+        control.preampAnswer = { await MainActor.run { mixerGain.handle(.takeEnded(TakeEnd(take: 1, reason: .stopped))) } }
 
-        await feedHot(clipGuard)
+        await feedHot(mixerGain)
 
         #expect(control.gainDb[1] == 30)
     }
 
     @Test("Windows read after the recorder stopped, before the Take's end arrives, are left alone")
     func ignoresWindowsAfterTheRecorderStopped() async {
-        let clipGuard = makeGuard(on: true)
+        let mixerGain = makeMixerGain(on: true)
         var recording = true
-        clipGuard.isRecording = { recording }
-        clipGuard.handle(.takeStarted(take: 1))
+        mixerGain.isRecording = { recording }
+        mixerGain.handle(.takeStarted(take: 1))
         recording = false
 
-        let started = ClipProtectionTests.hot.compactMap { clipGuard.meters([$0]) }
+        let started = ClipProtectionTests.hot.compactMap { mixerGain.meters([$0]) }
 
         #expect(started.isEmpty)
 
@@ -307,14 +307,14 @@ struct MixerGainClipProtectionTests {
 
     @Test("Switched off during a Take, it stops at once")
     func switchedOffStopsAtOnce() async {
-        let clipGuard = makeGuard(on: true)
-        clipGuard.handle(.takeStarted(take: 1))
+        let mixerGain = makeMixerGain(on: true)
+        mixerGain.handle(.takeStarted(take: 1))
 
-        clipGuard.switchedOff()
-        await feedHot(clipGuard)
+        mixerGain.switchedOff()
+        await feedHot(mixerGain)
 
         #expect(control.gainDb[1] == 30)
-        #expect(clipGuard.protection == nil)
+        #expect(mixerGain.protection == nil)
     }
 
     @Test("An auto-gain Undo step under way when a Take starts finishes on the Mixer before clip protection's first turn-down (#554)")

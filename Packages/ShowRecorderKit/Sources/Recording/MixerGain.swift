@@ -53,8 +53,8 @@ public final class MixerGain {
     @ObservationIgnored public var mixerName: () -> String? = { nil }
     /// The Mixer the session's Undo steps were made on.
     @ObservationIgnored private var sessionMixer: String?
-    /// The Mixer's one queue, given to every session and clip protection made here: one move or Undo per preamp lane
-    /// at a time.
+    /// The Mixer's one queue, given to every session and clip protection made here: auto-gain's moves and Undo go one
+    /// at a time on the whole Mixer, clip protection's turn-downs one at a time per preamp lane.
     private let queue = MixerQueue()
     /// A new session on the linked Mixer moving gain through the given queue, or nil when there is none. Set by
     /// whoever owns this.
