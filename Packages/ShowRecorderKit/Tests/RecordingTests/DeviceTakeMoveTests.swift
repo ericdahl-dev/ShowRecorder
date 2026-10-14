@@ -313,4 +313,28 @@ struct DeviceTakeMoveTests {
         #expect(try StemWriter.readSamples(url: driveStem(), frames: 2_000..<2_100) == inside)
         #expect(FileManager.default.fileExists(atPath: deviceTake.appending(path: "Take.json").path))
     }
+
+    @Test("A Take started during the fill of a long Stem stops it within the Stem, records nothing, and a later move finishes")
+    func stopWithinAStem() throws {
+        let metadata = try make(frames: 144_000)
+        try makeHalfMadeDriveTake(metadata, gap: 1_000..<144_000, frames: 144_000)
+        var asked = 0
+
+        #expect(run(shouldStop: { asked += 1; return asked > 2 }) == .stopped)
+        #expect(try StemWriter.readSamples(url: driveStem(), frames: 100_000..<100_100) == Array(repeating: 0, count: 100), "not filled past the stop")
+        #expect(try TakeMetadata.read(fromTakeFolder: driveTake).repairs.isEmpty, "nothing recorded")
+        #expect(FileManager.default.fileExists(atPath: deviceTake.appending(path: "Take.json").path))
+
+        #expect(run() == .moved)
+        #expect(try StemWriter.readSamples(url: driveStem(), frames: 0..<144_000) == (0..<144_000).map { counting()($0, 0) })
+    }
+
+    @Test("A check stopped mid-hash is neither passed nor failed")
+    func checkStoppedMidHash() throws {
+        let metadata = try make()
+        try makeDriveTake(metadata)
+
+        #expect(CopyCheck.verifyTake(device: deviceTake, drive: driveTake, shouldStop: { true }) == nil)
+        #expect(CopyCheck.verifyTake(device: deviceTake, drive: driveTake, shouldStop: { false }) == .passed)
+    }
 }

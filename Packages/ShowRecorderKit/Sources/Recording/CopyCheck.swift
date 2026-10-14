@@ -15,6 +15,9 @@ public enum CopyCheck {
         case failed([String])
     }
 
+    /// A check a Take started asked to stop: neither passed nor failed (#630).
+    struct Stopped: Error {}
+
     public static func verify(show: String, device: URL, drive: URL) -> Result {
         let deviceShow = device.appending(path: show, directoryHint: .isDirectory)
         let driveShow = drive.appending(path: show, directoryHint: .isDirectory)
@@ -25,7 +28,8 @@ public enum CopyCheck {
         if deviceTakes.isEmpty { return .failed(["The Device copy has no Takes to compare."]) }
         for (deviceFolder, deviceTake) in deviceTakes {
             let driveFolder = driveShow.appending(path: deviceFolder.lastPathComponent, directoryHint: .isDirectory)
-            problems += self.problems(deviceFolder: deviceFolder, deviceTake: deviceTake, driveFolder: driveFolder)
+            problems += (try? self.problems(deviceFolder: deviceFolder, deviceTake: deviceTake, driveFolder: driveFolder, shouldStop: { false }))
+                ?? ["\(TakeMetadata.name(take: deviceTake.take)) couldn't be checked."]
         }
         return problems.isEmpty ? .passed : .failed(problems)
     }
@@ -33,11 +37,19 @@ public enum CopyCheck {
     /// Checks one Take's Drive Copy against its Device Copy, as `verify` does for each Take of a Show (#630).
     /// - Parameter checksDriveOutcome: false to compare the audio only, before a move has recorded its Repair.
     public static func verifyTake(device: URL, drive: URL, checksDriveOutcome: Bool = true) -> Result {
+        verifyTake(device: device, drive: drive, checksDriveOutcome: checksDriveOutcome, shouldStop: { false }) ?? .failed([])
+    }
+
+    /// `verifyTake` asking `shouldStop` between pieces of every Stem it reads: nil when it stopped, which is neither
+    /// passed nor failed (#630).
+    static func verifyTake(device: URL, drive: URL, checksDriveOutcome: Bool = true, shouldStop: () -> Bool) -> Result? {
         guard let deviceTake = try? TakeMetadata.read(fromTakeFolder: device) else {
             return .failed(["\(device.lastPathComponent) can't be read on the Device."])
         }
         if let problem = pairProblem(deviceTake, device: device, drive: drive) { return .failed([problem]) }
-        let problems = problems(deviceFolder: device, deviceTake: deviceTake, driveFolder: drive, checksDriveOutcome: checksDriveOutcome)
+        guard let problems = try? problems(
+            deviceFolder: device, deviceTake: deviceTake, driveFolder: drive, checksDriveOutcome: checksDriveOutcome, shouldStop: shouldStop)
+        else { return nil }
         return problems.isEmpty ? .passed : .failed(problems)
     }
 
@@ -72,7 +84,9 @@ public enum CopyCheck {
 
     /// One Take's problems. A Device Take with stand-ins always has one ("still has audio only on the Device"): its
     /// stand-ins are checked against the Drive by `verifyStandIn`, which is what moving them relies on (#630).
-    private static func problems(deviceFolder: URL, deviceTake: TakeMetadata, driveFolder: URL, checksDriveOutcome: Bool = true) -> [String] {
+    private static func problems(
+        deviceFolder: URL, deviceTake: TakeMetadata, driveFolder: URL, checksDriveOutcome: Bool = true, shouldStop: () -> Bool
+    ) throws(Stopped) -> [String] {
         var problems: [String] = []
         let name = TakeMetadata.name(take: deviceTake.take)
         guard let driveTake = try? TakeMetadata.read(fromTakeFolder: driveFolder) else {
@@ -110,17 +124,34 @@ public enum CopyCheck {
             }
             if a.length != b.length {
                 problems.append("\(name), channel \(channel.usbChannel) is a different length on the Drive.")
-            } else if hash(deviceStem, a) != hash(driveStem, b) {
-                problems.append("\(name), channel \(channel.usbChannel) has different audio on the Drive.")
+            } else if let problem = try audioProblem(
+                name: name, channel: channel.usbChannel, device: deviceStem, a, drive: driveStem, b, shouldStop: shouldStop) {
+                problems.append(problem)
             }
         }
         return problems
+    }
+
+    /// Why two Stems' samples over `a` and `b` can't be trusted to be the same, if so. Samples that can't be read on
+    /// either Copy are a problem, never a match.
+    static func audioProblem(
+        name: String, channel: Int, device: URL, _ a: (offset: UInt64, length: UInt64), drive: URL, _ b: (offset: UInt64, length: UInt64),
+        shouldStop: () -> Bool
+    ) throws(Stopped) -> String? {
+        guard let onDevice = try hash(device, a, shouldStop: shouldStop) else { return "\(name), channel \(channel) can't be read on the Device." }
+        guard let onDrive = try hash(drive, b, shouldStop: shouldStop) else { return "\(name), channel \(channel) can't be read on the Drive." }
+        return onDevice == onDrive ? nil : "\(name), channel \(channel) has different audio on the Drive."
     }
 
     /// Drive only (#630): whether the Drive holds each stand-in of the Device's Take byte for byte: for every stand-in
     /// and channel, the Drive Stem's samples over `start..<end` are the whole stand-in Stem. Moving a kept stand-in
     /// checks it with this, not with `verifyTake`, which fails for any Take that still has a stand-in.
     public static func verifyStandIn(deviceTake: URL, driveTake: URL) -> Result {
+        verifyStandIn(deviceTake: deviceTake, driveTake: driveTake, shouldStop: { false }) ?? .failed([])
+    }
+
+    /// `verifyStandIn` asking `shouldStop` between pieces of every Stem it reads: nil when it stopped (#630).
+    static func verifyStandIn(deviceTake: URL, driveTake: URL, shouldStop: () -> Bool) -> Result? {
         if let problem = standInProblem(deviceTake: deviceTake, driveTake: driveTake) { return .failed([problem]) }
         guard let take = try? TakeMetadata.read(fromTakeFolder: deviceTake), let standIns = take.standIns,
               let driveMetadata = try? TakeMetadata.read(fromTakeFolder: driveTake) else {
@@ -150,8 +181,12 @@ public enum CopyCheck {
                     problems.append("\(label) isn't all on the Drive.")
                     continue
                 }
-                if !sameBytes(stem, at: a.offset, driveStem, at: b.offset + driveStart, length: length) {
-                    problems.append("\(label) has different audio on the Drive.")
+                do {
+                    if try !sameBytes(stem, at: a.offset, driveStem, at: b.offset + driveStart, length: length, shouldStop: shouldStop) {
+                        problems.append("\(label) has different audio on the Drive.")
+                    }
+                } catch {
+                    return nil
                 }
             }
         }
@@ -189,7 +224,9 @@ public enum CopyCheck {
     }
 
     /// Whether `length` bytes of `a` from `offsetA` equal those of `b` from `offsetB`, read in pieces.
-    private static func sameBytes(_ a: URL, at offsetA: UInt64, _ b: URL, at offsetB: UInt64, length: UInt64) -> Bool {
+    private static func sameBytes(
+        _ a: URL, at offsetA: UInt64, _ b: URL, at offsetB: UInt64, length: UInt64, shouldStop: () -> Bool
+    ) throws(Stopped) -> Bool {
         guard let ha = try? FileHandle(forReadingFrom: a), let hb = try? FileHandle(forReadingFrom: b) else { return false }
         defer {
             try? ha.close()
@@ -200,26 +237,33 @@ public enum CopyCheck {
             try hb.seek(toOffset: offsetB)
             var remaining = length
             while remaining > 0 {
+                if shouldStop() { throw Stopped() }
                 let count = Int(min(remaining, 4 << 20))
                 guard let x = try ha.read(upToCount: count), let y = try hb.read(upToCount: count), x.count == count, x == y else { return false }
                 remaining -= UInt64(count)
             }
             return true
+        } catch let stopped as Stopped {
+            throw stopped
         } catch { return false }
     }
 
     /// A SHA-256 of the samples in `region` of the file, read in pieces.
-    private static func hash(_ url: URL, _ region: (offset: UInt64, length: UInt64)) -> SHA256.Digest? {
+    private static func hash(_ url: URL, _ region: (offset: UInt64, length: UInt64), shouldStop: () -> Bool) throws(Stopped) -> SHA256.Digest? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
         var hasher = SHA256()
         var remaining = region.length
         do {
             try handle.seek(toOffset: region.offset)
-            while remaining > 0, let chunk = try handle.read(upToCount: Int(min(remaining, 4 << 20))), !chunk.isEmpty {
+            while remaining > 0 {
+                if shouldStop() { throw Stopped() }
+                guard let chunk = try handle.read(upToCount: Int(min(remaining, 4 << 20))), !chunk.isEmpty else { break }
                 hasher.update(data: chunk)
                 remaining -= UInt64(chunk.count)
             }
+        } catch let stopped as Stopped {
+            throw stopped
         } catch { return nil }
         return remaining == 0 ? hasher.finalize() : nil
     }

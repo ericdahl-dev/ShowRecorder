@@ -79,19 +79,21 @@ extension DriveOnlyTakeTests {
         _ = (crashed, next)
     }
 
-    @Test("While a Take runs, a move is told to stop (#630)")
-    func moveStopSetDuringATake() async throws {
+    @Test("A Take started during a move tells it to stop, and it stays stopped after the Take ends (#630)")
+    func moveStopLatches() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
-        #expect(!recorder.moveStop.isSet)
+        let latch = recorder.moveStop.latch()
+        #expect(!latch())
         try recorder.arm(audio)
         try recorder.startTake()
-        #expect(recorder.moveStop.isSet)
+        #expect(latch())
         #expect(await recorder.moveDriveOnlyTakes().isEmpty, "no move starts during a Take")
         try await deliverBlocks(2, to: audio, recorder)
         try recorder.stopTake()
         await recorder.waitForRepair()
-        #expect(!recorder.moveStop.isSet)
+        #expect(latch(), "a stop is never taken back")
+        #expect(!recorder.moveStop.latch()(), "a move started now isn't stopped")
     }
 
     @Test("Moving an older Take's stand-in leaves the last Take's summary as it was (#630)")

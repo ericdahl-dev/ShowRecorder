@@ -166,7 +166,8 @@ struct StandInMoveTests {
         try make(channels: 2)
         var asked = 0
 
-        #expect(run(shouldStop: { asked += 1; return asked > 1 }) == .stopped)
+        // Asked before the first Stem and once within it, then before the second.
+        #expect(run(shouldStop: { asked += 1; return asked > 2 }) == .stopped)
         #expect(try samples(driveStem(1), 0..<7_200) == expected(0..<7_200), "the first Stem is filled")
         #expect(try samples(driveStem(2), 2_400..<7_200) == Array(repeating: 0, count: 4_800), "the second isn't yet")
         #expect(FileManager.default.fileExists(atPath: deviceTake.path))

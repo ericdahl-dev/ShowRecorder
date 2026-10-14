@@ -89,8 +89,17 @@ public final class Recorder {
     @ObservationIgnored private var lastTakeGeneration = 0
     /// Set while a Take runs: a move of a Drive only Take stops at the next Stem (#630).
     @ObservationIgnored let moveStop = StandInMove.StopSignal()
-    /// Whether a move of Drive only Takes is running, so another asked for meanwhile adds nothing (#630).
-    @ObservationIgnored private var movingTakes = false
+    /// Whether a move of Drive only Takes is running (#630): another asked for meanwhile adds nothing.
+    public private(set) var isMoving = false
+    /// Drive only (#630): whether Drive only Takes are moved to the Drive: where `DriveOnlyAvailability` offers Drive only.
+    /// Turning it on looks for them at once, as the App does at launch once it knows.
+    public var movesDriveOnlyTakes = false {
+        didSet { if movesDriveOnlyTakes, !oldValue { driveMayHaveConnected() } }
+    }
+    /// The Takes the last move found but left where they are, with why (`TakeMover.Movable.Kind.skipped`) (#630).
+    public private(set) var driveOnlySkips: [TakeMover.Movable] = []
+    /// The move a trigger started (#630).
+    @ObservationIgnored private var moveTrigger: Task<Void, Never>?
     /// What came of each Drive only Take a move took up, oldest first (#630).
     private(set) var driveOnlyMoves: [StandInMove.Result] = []
     /// Repairs ended Takes; its result is published through `copies` (from `lastTakeOutcomes`) and `isRepairing`.
@@ -386,6 +395,8 @@ public final class Recorder {
     public func deleteShow(named name: String, from copies: Set<DestinationKind>) -> ShowDeleter.Outcome {
         let kinds = copies.sorted { $0.index < $1.index }
         guard !isRecording else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "A Take is running.") }) }
+        // A move to the Drive works on these files too (#630).
+        guard !isMoving else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "Takes are moving to the Drive.") }) }
         let access = copies.contains(.drive) ? driveFolder() : nil
         defer { access?.end() }
         return ShowDeleter.delete(show: name, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
@@ -428,6 +439,8 @@ public final class Recorder {
     public func deleteTake(_ take: Int, ofShow show: String, from copies: Set<DestinationKind>) -> ShowDeleter.Outcome {
         let kinds = copies.sorted { $0.index < $1.index }
         guard !isRecording else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "A Take is running.") }) }
+        // A move to the Drive works on these files too (#630).
+        guard !isMoving else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "Takes are moving to the Drive.") }) }
         let access = copies.contains(.drive) ? driveFolder() : nil
         defer { access?.end() }
         return TakeDeleter.delete(take: take, ofShow: show, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
@@ -438,6 +451,8 @@ public final class Recorder {
     public func deleteChannel(_ channel: Int, inTake take: Int, ofShow show: String, from copies: Set<DestinationKind>) -> ShowDeleter.Outcome {
         let kinds = copies.sorted { $0.index < $1.index }
         guard !isRecording else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "A Take is running.") }) }
+        // A move to the Drive works on these files too (#630).
+        guard !isMoving else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "Takes are moving to the Drive.") }) }
         let access = copies.contains(.drive) ? driveFolder() : nil
         defer { access?.end() }
         return StemDeleter.delete(channel: channel, inTake: take, ofShow: show, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
@@ -486,7 +501,7 @@ public final class Recorder {
             .compactMapValues { $0 }
         routingChanges = []
         isRecording = true
-        moveStop.set(true)
+        moveStop.takeStarted()
         if let destinationCheckInterval {
             destinationChecks = Task { [weak self] in
                 while !Task.isCancelled {
@@ -676,6 +691,8 @@ public final class Recorder {
     /// updated. Waits for Repair first, which would otherwise write the old name back.
     public func renameLastTakeMarker(at index: Int, to name: String) async -> MarkerRenamer.Outcome {
         await repair.wait()
+        // A move works on these files too (#630); the rename runs once none is.
+        await waitWhileMoving()
         guard !isRecording, let take = lastTake else { return MarkerRenamer.Outcome(result: .notRecording, renamed: [], failed: []) }
         var copies: [DestinationKind: URL] = [:]
         copies[.device] = take.deviceFolder
@@ -747,7 +764,6 @@ public final class Recorder {
         guard isRecording, let session else { return }
         // Not recording from here on, so a Copy that fails while draining doesn't stop the Take again.
         isRecording = false
-        moveStop.set(false)
         self.session = nil
         destinationChecks?.cancel()
         destinationChecks = nil
@@ -771,6 +787,8 @@ public final class Recorder {
         repair.enqueue(finished.metadata, folders: finished.folders, holding: finished.access, abandoned: finished.abandoned)
         nameChannels(of: finished.metadata)
         onTakeEnded(TakeEnd(take: finished.metadata.take, reason: reason))
+        // A Drive connected during the Take, or a Take left on the Device by it, moves once it is repaired and named.
+        driveMayHaveConnected()
     }
 
     /// Puts the names typed during the Take on its files. Waits for Repair first, which works on the Stems
@@ -784,6 +802,7 @@ public final class Recorder {
         namingTask = Task { @MainActor in
             await previous?.value
             await repair.wait()
+            await waitWhileMoving()
             // Repair may have moved this Take off the Device meanwhile (#618). If a later Take has ended since,
             // `lastTake` describes it, so this Take's own folders are used.
             var current = take
@@ -821,14 +840,27 @@ public final class Recorder {
     /// - Parameter shouldStop: replaces `moveStop` in tests.
     @discardableResult
     func moveDriveOnlyTakes(shouldStop: (@Sendable () -> Bool)? = nil) async -> [StandInMove.Result] {
-        guard !isRecording, !movingTakes, let access = driveFolder() else { return [] }
-        movingTakes = true
-        defer { movingTakes = false }
+        guard !isRecording, !isMoving, let access = driveFolder() else { return [] }
+        isMoving = true
+        defer {
+            isMoving = false
+            let waiting = moveWaiters
+            moveWaiters = []
+            for waiter in waiting { waiter.resume() }
+        }
+        // A Show detail rename already running finishes first; one asked for from now on waits for this move.
+        while editsInProgress > 0 {
+            await withCheckedContinuation { editWaiters.append($0) }
+        }
+        guard !isRecording else {
+            access.end()
+            return []
+        }
         let device = deviceFolder, drive = access.folder
         let first = driveOnlyMoves.count
         let generation = lastTakeGeneration
-        let stop = moveStop
-        let shouldStop = shouldStop ?? { stop.isSet }
+        // A Take started from now on stops the move, even if it ends before the move asks.
+        let shouldStop = shouldStop ?? moveStop.latch()
         // A move a crash cut off after setting the Device's Take aside is finished or undone first.
         for result in await repair.recover(deviceFolder: device, driveFolder: drive, shouldStop: shouldStop) {
             let deviceTake = device.appending(path: result.show).appending(path: TakeMetadata.name(take: result.take))
@@ -837,7 +869,10 @@ public final class Recorder {
                 .init(show: result.show, take: result.take, deviceFolder: deviceTake, kind: .redundant), result.outcome,
                 driveTake: driveTake, generation: generation)
         }
-        let found = await Task.detached { TakeMover.find(deviceFolder: device, driveFolder: drive) }.value.filter { $0.kind == .standIn || $0.kind == .deviceOnly || $0.kind == .redundant }
+        driveOnlyScans += 1
+        let all = await Task.detached { TakeMover.find(deviceFolder: device, driveFolder: drive) }.value
+        driveOnlySkips = all.filter { if case .skipped = $0.kind { true } else { false } }
+        let found = all.filter { $0.kind == .standIn || $0.kind == .deviceOnly || $0.kind == .redundant }
         guard !found.isEmpty, !isRecording else {
             access.end()
             return Array(driveOnlyMoves[first...])
@@ -862,7 +897,80 @@ public final class Recorder {
         lastTakeStandInMoved = true
         lastTakeStandInKept = false
         lastTake?.deviceFolder = nil
+        // Moved there, the Take is on the Drive now, though it may have been recorded with none.
+        lastTake?.hadDrive = true
         lastTakeOutcomes[.drive] = Self.readTake(at: driveTake)?.outcome(ofCopy: .drive)
+    }
+
+    /// Drive only (#630): moves the Drive only Takes of every Show to the Drive, when it is there, outside a Take and once
+    /// Repair and the naming of the last Take are done. The App calls it when the Drive folder becomes available; the
+    /// Recorder after each Take and when moving is turned on. Calls while one runs wait for it, then find nothing left
+    /// to do or what has changed. What came of each Take is in `driveOnlyMoves`.
+    public func driveMayHaveConnected() {
+        // One waiting trigger takes in any more asked for before it starts.
+        guard movesDriveOnlyTakes, !isRecording, !triggerWaiting else { return }
+        triggerWaiting = true
+        let previous = moveTrigger
+        moveTrigger = Task { [weak self] in
+            await previous?.value
+            await self?.waitForRepair()
+            guard let self else { return }
+            triggerWaiting = false
+            guard !isRecording else { return }
+            await moveDriveOnlyTakes()
+        }
+    }
+
+    /// Whether a trigger is waiting to start its move (#630).
+    @ObservationIgnored private var triggerWaiting = false
+    /// Edits waiting for a move to end (#630).
+    @ObservationIgnored private var moveWaiters: [CheckedContinuation<Void, Never>] = []
+
+    /// Returns once no move is running (#630). On the main actor, what the caller does next runs before any move can
+    /// start.
+    func waitWhileMoving() async {
+        while isMoving {
+            await withCheckedContinuation { moveWaiters.append($0) }
+        }
+    }
+
+    /// Counts the scans for Takes to move (#630).
+    @ObservationIgnored private(set) var driveOnlyScans = 0
+
+    /// Renames the operator Marker at `index` in Take `take` of Show `show`, in every Copy it reaches (Show detail).
+    /// A move works on these files too (#630): the rename runs once none is.
+    public func renameMarker(at index: Int, to name: String, inTake take: Int, ofShow show: String, allowsProExtras: Bool) async -> MarkerRenamer.Outcome {
+        await waitWhileMoving()
+        // Counted while its file work runs off the main actor, so a move waits for it before it starts.
+        editsInProgress += 1
+        defer {
+            editsInProgress -= 1
+            if editsInProgress == 0 {
+                let waiting = editWaiters
+                editWaiters = []
+                for waiter in waiting { waiter.resume() }
+            }
+        }
+        let access = driveFolder()
+        let device = deviceFolder, hook = beforeDetachedRename
+        return await Task.detached {
+            defer { access?.end() }
+            hook()
+            return ShowDetail.renameMarker(at: index, to: name, inTake: take, ofShow: show, device: device, drive: access?.folder, allowsProExtras: allowsProExtras)
+        }.value
+    }
+
+    /// Show detail renames whose file work is running (#630).
+    @ObservationIgnored private var editsInProgress = 0
+    /// Moves waiting for those to end (#630).
+    @ObservationIgnored private var editWaiters: [CheckedContinuation<Void, Never>] = []
+
+    /// Run before a Show detail rename's file work, off the main actor; tests hold it there.
+    @ObservationIgnored var beforeDetachedRename: @Sendable () -> Void = {}
+
+    /// Waits for the move a trigger started, if any (#630).
+    func waitForMoves() async {
+        await moveTrigger?.value
     }
 
     /// Waits for Repair of the last Take to finish.

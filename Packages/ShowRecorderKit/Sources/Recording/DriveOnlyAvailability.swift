@@ -6,4 +6,14 @@ public enum DriveOnlyAvailability {
     public static func isAvailable(isDebugBuild: Bool, environment: DistributionEnvironment?) -> Bool {
         isDebugBuild || environment == .sandbox
     }
+
+    /// The answer for the running app, from what `DemoSignalAvailability.resolveEnvironment()` has found so far.
+    public static var isAvailableInThisBuild: Bool {
+        #if DEBUG
+        let isDebugBuild = true
+        #else
+        let isDebugBuild = false
+        #endif
+        return isAvailable(isDebugBuild: isDebugBuild, environment: DemoSignalAvailability.environment)
+    }
 }
