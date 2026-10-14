@@ -47,6 +47,18 @@ struct MixerSessionTests {
         #expect(session.capabilities == nil)
     }
 
+    @Test("The linked Mixer's network name is still there for a Template while nothing is Armed")
+    func networkNameForTemplates() async {
+        let (session, link) = session()
+        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+
+        await session.armed(interfaceName: nil, usbChannelCount: 0)
+
+        #expect(session.identity == nil)
+        #expect(session.networkNameForTemplates == "FOH")
+    }
+
     @Test("A remembered Mixer connects when an X Air is Armed and the Link is idle")
     func rememberedMixerConnectsOnArm() async {
         let driver = FakeMixerDriver()
@@ -136,18 +148,21 @@ struct MixerSessionTests {
         #expect(session.address == "10.0.0.40")
     }
 
-    @Test("A Template's Mixer that answers at its address under another name is looked for by name, and that address remembered")
+    @Test("A Template's Mixer that answers at its address under another name is looked for by name among the Mixers that answer, and that address remembered")
     func templateMixerByName() async {
         let endpoints = Endpoints()
         var mon = FakeMixerDriver.State()
         mon.identity = MixerIdentity(networkName: "MON", model: "XR18", firmware: "1.22")
-        let drivers = ["10.0.0.40": FakeMixerDriver(mon), "10.0.0.41": FakeMixerDriver()]  // the second is "FOH"
+        let bandName = MixerIdentity(networkName: "BAND", model: "XR18", firmware: "1.22")
+        var band = FakeMixerDriver.State()
+        band.identity = bandName
+        let drivers = ["10.0.0.40": FakeMixerDriver(mon), "10.0.0.41": FakeMixerDriver(), "10.0.0.42": FakeMixerDriver(band)]  // .41 is "FOH"
         let link = MixerLinkController(makeDriver: { endpoint, _ in endpoints.add(endpoint); return drivers[endpoint.host]! })
         let store = UserDefaults(suiteName: "MixerSessionTests-\(UUID().uuidString)")!
         let foh = MixerIdentity(networkName: "FOH", model: "XR18", firmware: "1.22")
         let session = MixerSession(
             link: link, store: store, network: { ScanRange(address: "10.0.0.2", netmask: "255.255.255.0") },
-            scan: { _ in [FoundMixer(host: "10.0.0.41", identity: foh)] })
+            scan: { _ in [FoundMixer(host: "10.0.0.42", identity: bandName), FoundMixer(host: "10.0.0.41", identity: foh)] })
         await session.armed(interfaceName: "XR18", usbChannelCount: 18)
 
         await session.follow(mixerAt: "10.0.0.40", named: "FOH")

@@ -582,8 +582,7 @@ final class RecordScreenModel {
     /// The Drive folder and Device free space, kept current here so the status strip, Settings and the
     /// recorder share one state whether or not Settings is open.
     let drive: DriveFolderModel
-    let mixerLink = MixerLinkController()
-    /// The Mixer Link as the app uses it, on the same Link (#556).
+    /// The Mixer Link as the app uses it (#556).
     let mixer: MixerSession
     /// The Mixer's address, remembered between launches by the Mixer session (#556).
     var mixerAddress: String {
@@ -662,7 +661,7 @@ final class RecordScreenModel {
 
     /// Why auto-gain can't run right now; nil when it can.
     var autoGainUnavailable: AutoGainAvailability.Unavailable? {
-        let isConnecting = if case .connecting = mixerLink.status { true } else { false }
+        let isConnecting = if case .connecting = mixer.status { true } else { false }
         return AutoGainAvailability.whyNot(hasMixerLink: mixer.identity != nil, isConnecting: isConnecting,
                                            canSetGain: mixer.gainControl != nil, isRecording: recorder.isRecording)
     }
@@ -704,8 +703,10 @@ final class RecordScreenModel {
                 // An interruption's restart reuses the input without `didArm`; the output unit iOS stopped needs a restart.
                 if case .inputRestarted = event { MonitorExperiment.shared.inputRestarted() }
                 #endif
-                // A disarm hides the Mixer Link at once, whatever the screen does (#556).
-                if case .disarmed = event { Task { await self?.mixer.armed(interfaceName: nil, usbChannelCount: 0) } }
+                // A disarm hides the Mixer Link at once, whatever the screen does (#556); a re-Arm that got there first wins.
+                if case .disarmed = event {
+                    Task { guard let self, !self.recorder.isArmed else { return }; await self.mixer.armed(interfaceName: nil, usbChannelCount: 0) }
+                }
                 // Whoever started or ended the Take: Stop, the watch, or the recorder itself (#551).
                 guard let self else { return }
                 let followUp = TakeFollowUp(event)
@@ -718,9 +719,9 @@ final class RecordScreenModel {
     /// A new auto-gain session on the linked Mixer, measuring with the record screen's own meters. Every gain change it
     /// makes or undoes is logged in the Show (#450).
     /// The linked Mixer as auto-gain tells Mixers apart, "FOH · XR18": its network name and model, so two desks both
-    /// named FOH aren't one. Nil while the Mixer Link is down.
+    /// named FOH aren't one. Nil while the Mixer Link is down or isn't offered.
     var linkedMixer: String? {
-        mixerLink.identity.map { "\($0.networkName) · \($0.model)" }
+        mixer.identity.map { "\($0.networkName) · \($0.model)" }
     }
 
     func makeAutoGainSession() -> AutoGainSession? {
@@ -890,7 +891,7 @@ final class RecordScreenModel {
     func runSoundcheck(progress: (Soundcheck.Step.Kind) -> Void, result: (Soundcheck.Step) -> Void) async -> [Soundcheck.Step] {
         await Soundcheck.run(
             sequencer: sequencer, mixer: mixer.status, sources: linkedSources,
-            expectedUSBChannels: mixerLink.capabilities?.usbChannelCount, driveChosen: drive.status != .notChosen,
+            expectedUSBChannels: mixer.capabilities?.usbChannelCount, driveChosen: drive.status != .notChosen,
             allowance: currentAllowance(), progress: progress, result: result)
     }
 
@@ -941,14 +942,12 @@ final class RecordScreenModel {
             drive.refresh()
             recorder.checkDestinations()
         case .mixer:
-            if case .down = mixerLink.status { connectMixer() }
+            Task { await mixer.retry() }
         }
     }
 
     func connectMixer() {
-        let address = mixerAddress
-        let count = recorder.usbChannelCount
-        Task { await mixerLink.connect(to: address, usbChannelCount: count) }
+        Task { await mixer.connect() }
     }
 
     /// What to do about audio interruptions, and the banner they leave. The `TakeSequencer` keeps it.
@@ -967,7 +966,7 @@ final class RecordScreenModel {
         // The screenshot build Arms only demo inputs, never a microphone or USB interface (#374).
         let inputs: any InputDeviceSource = DemoOnlyInputSource.isScreenshotBuild() ? DemoOnlyInputSource(AppInputDevices()) : AppInputDevices()
         sequencer = TakeSequencer(recorder: recorder, devices: inputs, capsAt48k: { pro.license().capsAt48k })
-        mixer = MixerSession(link: mixerLink)
+        mixer = MixerSession()
         sequencer.sampleRateChoice = {
             #if os(macOS)
             SampleRateSetting.load(platformDefault: nil)
@@ -1125,7 +1124,7 @@ final class RecordScreenModel {
         guard !name.isEmpty else { return }
         templates.save(Template(
             name: name, venue: recorder.currentShow?.venue, channelNames: recorder.channelNames,
-            mixerNetworkName: mixerLink.identity?.networkName, mixerAddress: mixerAddress,
+            mixerNetworkName: mixer.networkNameForTemplates, mixerAddress: mixerAddress,
             preRollSeconds: preRollSeconds))
     }
 
@@ -1175,7 +1174,7 @@ final class RecordScreenModel {
     /// Mixer (#34). Returns what to tell the operator, or nil when it was saved.
     func saveTemplate(fromShow folder: URL, named name: String) -> String? {
         guard var template = Template.fromShow(
-            folder: folder, mixerNetworkName: mixerLink.identity?.networkName,
+            folder: folder, mixerNetworkName: mixer.networkNameForTemplates,
             mixerAddress: mixerAddress, preRollSeconds: preRollSeconds) else { return "This Show's setup couldn't be read." }
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if !name.isEmpty { template.name = name }
@@ -1190,17 +1189,7 @@ final class RecordScreenModel {
 
     private func connectMixer(for template: Template) async {
         // A Template's Mixer stays in it; it links only when the input is an X Air or X32 (#365).
-        guard offersMixerLink else { return }
-        if !template.mixerAddress.isEmpty {
-            mixerAddress = template.mixerAddress
-            await mixerLink.connect(to: mixerAddress, usbChannelCount: recorder.usbChannelCount)
-        }
-        guard let name = template.mixerNetworkName, mixerLink.identity?.networkName != name,
-              let range = ScanRange.currentNetwork() else { return }
-        let address = template.connectAddress(found: await MixerScanner.scan(hosts: range.hosts))
-        guard address != mixerAddress || mixerLink.identity == nil, !address.isEmpty else { return }
-        mixerAddress = address
-        await mixerLink.connect(to: address, usbChannelCount: recorder.usbChannelCount)
+        await mixer.follow(mixerAt: template.mixerAddress, named: template.mixerNetworkName)
     }
 
     /// Renames a Marker in the list, during the Take or after it. Returns what to tell the operator, or nil when

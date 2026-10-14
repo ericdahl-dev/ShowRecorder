@@ -48,6 +48,10 @@ public final class MixerSession {
     /// The linked Mixer's identity, while Mixer Link is offered (#556).
     public var identity: MixerIdentity? { isOffered ? link.identity : nil }
 
+    /// The linked Mixer's network name, kept for saving a Template even while Mixer Link isn't offered (nothing Armed,
+    /// another input), so a Template keeps finding its Mixer by name (#33, #556). Read only: nothing is sent to the Mixer.
+    public var networkNameForTemplates: String? { link.identity?.networkName }
+
     /// What the linked Mixer sends over USB, while Mixer Link is offered (#556).
     public var capabilities: MixerCapabilities? { isOffered ? link.capabilities : nil }
 
