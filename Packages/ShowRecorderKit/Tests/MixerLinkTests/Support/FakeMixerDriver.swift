@@ -16,6 +16,11 @@ final class FakeMixerDriver: MixerDriver {
         var sourceReads: [Int] = []
         /// When set, `identify()` waits for `releaseIdentify()`, as a Mixer slow to answer does.
         var holdsIdentify = false
+        /// What the next `identify()` calls throw, one each and without waiting for `holdsIdentify`, before the Mixer
+        /// answers as usual.
+        var failsIdentify: [MixerLinkProblem] = []
+        /// How many times `identify()` was called, held calls included.
+        var identifies = 0
     }
 
     let state: Mutex<State>
@@ -31,7 +36,12 @@ final class FakeMixerDriver: MixerDriver {
     var gainControl: (any GainControl)? { control }
 
     func identify() async throws(MixerLinkProblem) -> MixerIdentity {
-        if state.withLock({ $0.holdsIdentify }) {
+        let (failure, holds) = state.withLock { state in
+            state.identifies += 1
+            return (state.failsIdentify.isEmpty ? nil : state.failsIdentify.removeFirst(), state.holdsIdentify)
+        }
+        if let failure { throw failure }
+        if holds {
             for await _ in identifyReleases.stream { break }
         }
         let (identity, problem) = state.withLock { ($0.identity, $0.problem) }

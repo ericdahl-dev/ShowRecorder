@@ -1,3 +1,4 @@
+import Foundation
 import MixerLink
 import Synchronization
 import Testing
@@ -154,6 +155,106 @@ struct MixerLinkControllerTests {
         #expect(link.status == .down(.noReply(host: "10.0.0.20")))
         #expect(link.sources.isEmpty)
         #expect(link.capabilities == nil)
+    }
+
+    @Test("A busy port is a passing problem: connecting tries again, and the Link comes up (#655)")
+    func busyPortRetried() async {
+        let busy = MixerLinkProblem.cantConnect(host: "10.0.0.20", port: 10024, code: Int(EADDRINUSE))
+        var state = FakeMixerDriver.State()
+        state.failsIdentify = [busy, busy]
+        let driver = FakeMixerDriver(state)
+        let link = MixerLinkController(makeDriver: { _, _ in driver })
+
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+
+        #expect(link.status == .up(state.identity, path: .wifi))
+        #expect(driver.state.withLock { $0.identifies } == 3)
+    }
+
+    @Test("A port that stays busy leaves the Link down after a few tries (#655)")
+    func busyPortGivesUp() async {
+        let busy = MixerLinkProblem.cantConnect(host: "10.0.0.20", port: 10024, code: Int(EADDRINUSE))
+        var state = FakeMixerDriver.State()
+        state.problem = busy
+        let driver = FakeMixerDriver(state)
+        let link = MixerLinkController(makeDriver: { _, _ in driver })
+
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+
+        #expect(link.status == .down(busy))
+        #expect(driver.state.withLock { $0.identifies } == 3)
+    }
+
+    @Test("Problems other than a busy port take the Link down at once, without trying again (#655)", arguments: [
+        MixerLinkProblem.noReply(host: "10.0.0.20"),
+        MixerLinkProblem.cantConnect(host: "10.0.0.20", port: 10024, code: Int(ECONNABORTED)),
+    ])
+    func otherProblemsNotRetried(problem: MixerLinkProblem) async {
+        var state = FakeMixerDriver.State()
+        state.problem = problem
+        let driver = FakeMixerDriver(state)
+        let link = MixerLinkController(makeDriver: { _, _ in driver })
+
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+
+        #expect(link.status == .down(problem))
+        #expect(driver.state.withLock { $0.identifies } == 1)
+    }
+
+    @Test("A connect still trying a busy port doesn't overwrite a newer connect's Link when it ends (#655)", arguments: [false, true])
+    func newerConnectWins(olderFails: Bool) async {
+        var older = FakeMixerDriver.State()
+        older.identity = MixerIdentity(networkName: "Old", model: "XR18", firmware: "1.22")
+        older.failsIdentify = [.cantConnect(host: "10.0.0.20", port: 10024, code: Int(EADDRINUSE))]
+        older.holdsIdentify = true
+        var newer = FakeMixerDriver.State()
+        newer.names[1] = "Kick"
+        let olderDriver = FakeMixerDriver(older)
+        let newerDriver = FakeMixerDriver(newer)
+        let link = MixerLinkController(makeDriver: { endpoint, _ in endpoint.host == "10.0.0.20" ? olderDriver : newerDriver })
+
+        let olderConnect = Task { await link.connect(to: "10.0.0.20", usbChannelCount: 18) }
+        #expect(await eventually { olderDriver.state.withLock { $0.identifies } == 2 })
+        await link.connect(to: "10.0.0.21", usbChannelCount: 18)
+        #expect(link.status == .up(newer.identity, path: .wifi))
+        if olderFails { olderDriver.state.withLock { $0.problem = .noReply(host: "10.0.0.20") } }
+        olderDriver.releaseIdentify()
+        await olderConnect.value
+
+        #expect(link.status == .up(newer.identity, path: .wifi))
+        #expect(link.sources.count == 18)
+        #expect(link.sources[safe: 0]?.name == "Kick")
+    }
+
+    @Test("A connect canceled while waiting to try a busy port again leaves the Link down, not connecting (#655)")
+    func canceledDuringRetryWait() async {
+        let busy = MixerLinkProblem.cantConnect(host: "10.0.0.20", port: 10024, code: Int(EADDRINUSE))
+        var state = FakeMixerDriver.State()
+        state.problem = busy
+        let driver = FakeMixerDriver(state)
+        let link = MixerLinkController(retryDelay: .seconds(2), makeDriver: { _, _ in driver })
+
+        let connecting = Task { await link.connect(to: "10.0.0.20", usbChannelCount: 18) }
+        #expect(await eventually { driver.state.withLock { $0.identifies } == 1 })
+        connecting.cancel()
+        await connecting.value
+
+        #expect(link.status == .down(busy))
+        #expect(driver.state.withLock { $0.identifies } == 1)
+    }
+
+    @Test("A busy port, then no reply, leaves the Link down with no reply (#655)")
+    func busyThenNoReply() async {
+        var state = FakeMixerDriver.State()
+        state.failsIdentify = [.cantConnect(host: "10.0.0.20", port: 10024, code: Int(EADDRINUSE))]
+        state.problem = .noReply(host: "10.0.0.20")
+        let driver = FakeMixerDriver(state)
+        let link = MixerLinkController(makeDriver: { _, _ in driver })
+
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+
+        #expect(link.status == .down(.noReply(host: "10.0.0.20")))
+        #expect(driver.state.withLock { $0.identifies } == 2)
     }
 
     @Test("Before connecting, the Link is idle")
