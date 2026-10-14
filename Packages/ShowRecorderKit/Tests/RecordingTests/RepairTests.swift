@@ -22,7 +22,7 @@ extension GapTests {
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
-        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
         recorder.checkDestinations()
         try await deliverBlocks(5, to: audio, recorder, sample: counting())
         try recorder.stopTake()
@@ -36,8 +36,8 @@ extension GapTests {
         }
         let take = try decodedTake(device)
         #expect(take.repairs == [.init(copy: .drive, start: 0, end: 4800, outcome: .repaired)])
-        #expect(recorder.lastTakeOutcomes[.device] == .complete)
-        #expect(recorder.lastTakeOutcomes[.drive] == .repaired)
+        #expect(recorder.copies[.device] == .complete)
+        #expect(recorder.copies[.drive] == .repaired)
 
         for copy in [device, drive] {
             let report = try String(contentsOf: copy.appending(path: "2026-10-06 Show/Report.html"), encoding: .utf8)
@@ -54,7 +54,7 @@ extension GapTests {
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting(channelStep: 100_000))
-        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
         try recorder.stopTake()
         await recorder.waitForRepair()
 
@@ -62,7 +62,7 @@ extension GapTests {
         let driveFiles = try takeFiles(in: drive)
         for (name, data) in deviceFiles { #expect(driveFiles[name] == data, "\(name) differs between the Copies") }
         #expect(try ParsedStem(contentsOf: drive.appending(path: "2026-10-06 Show/Take 01/02 USB 02.wav")).samples.count == 4800)
-        #expect(recorder.lastTakeOutcomes[.drive] == .repaired)
+        #expect(recorder.copies[.drive] == .repaired)
     }
 
     @Test("A Drive that joined late is repaired from the Device")
@@ -84,7 +84,7 @@ extension GapTests {
         let deviceFiles = try takeFiles(in: device)
         let driveFiles = try takeFiles(in: drive)
         for (name, data) in deviceFiles { #expect(driveFiles[name] == data, "\(name) differs between the Copies") }
-        #expect(recorder.lastTakeOutcomes[.drive] == .repaired)
+        #expect(recorder.copies[.drive] == .repaired)
     }
 
     @Test("A stretch both Copies are missing stays silence and is reported as Repair failed")
@@ -98,8 +98,8 @@ extension GapTests {
         try await waitUntil { !recorder.isRecording }
         await recorder.waitForRepair()
 
-        #expect(recorder.lastTakeOutcomes[.device] == .repairFailed)
-        #expect(recorder.lastTakeOutcomes[.drive] == .repairFailed)
+        #expect(recorder.copies[.device] == .repairFailed)
+        #expect(recorder.copies[.drive] == .repairFailed)
         #expect(try decodedTake(device).repairs.allSatisfy { $0.outcome == .failed })
     }
 
@@ -114,7 +114,8 @@ extension GapTests {
         try recorder.stopTake()
         await recorder.waitForRepair()
 
-        #expect(recorder.lastTakeOutcomes == [.device: .complete, .drive: .complete])
+        #expect(recorder.copies[.device] == .complete)
+        #expect(recorder.copies[.drive] == .complete)
         #expect(try decodedTake(device).repairs.isEmpty)
     }
 
@@ -140,7 +141,7 @@ extension GapTests {
 
         let take = "2026-10-06 Show/Take 01"
         #expect(try ParsedStem(contentsOf: device.appending(path: "\(take)/01 USB 01.wav")).samples.count == 4 * 480)
-        #expect(recorder.lastTakeOutcomes[.device] == .hasGaps)
+        #expect(recorder.copies[.device] == .hasGaps)
     }
 
     @Test("The last Take's outcome isn't overwritten by an earlier Take's Repair finishing late")
@@ -151,14 +152,15 @@ extension GapTests {
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
-        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
         try recorder.stopTake()  // Take 1 has a Gap: Repair starts
         try recorder.startTake()
         audio.deliver([[0]])
         try recorder.stopTake()  // Take 2 is complete, before Take 1's Repair gets to run
         await recorder.waitForRepair()
 
-        #expect(recorder.lastTakeOutcomes == [.device: .complete, .drive: .complete])
+        #expect(recorder.copies[.device] == .complete)
+        #expect(recorder.copies[.drive] == .complete)
         #expect(!recorder.isRepairing)
     }
 }

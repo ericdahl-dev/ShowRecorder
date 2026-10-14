@@ -42,7 +42,7 @@ extension GapTests {
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
-        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
         #expect(recorder.copies[.drive] == .interrupted)
         try recorder.stopTake()
         await recorder.waitForRepair()

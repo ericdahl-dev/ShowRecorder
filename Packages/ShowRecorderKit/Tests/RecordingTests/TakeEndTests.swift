@@ -75,9 +75,9 @@ struct TakeEndTests {
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder)
         available.isOn = true
-        try await waitUntil { recorder.copyStatus(.drive) == .recording }
+        try await waitUntil { recorder.copies[.drive] == .recording }
 
-        #expect(recorder.copyStatus(.drive) == .recording)
+        #expect(recorder.copies[.drive] == .recording)
         try recorder.stopTake()
     }
 

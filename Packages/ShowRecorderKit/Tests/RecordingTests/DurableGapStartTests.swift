@@ -93,7 +93,7 @@ extension GapTests {
 
         try recorder.startTake()
         try await deliver(144_000, to: audio, recorder, block: 4800, sample: counting())
-        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
         let committed = try #require(lossy.stem).committedFrameCount
         let appended = try #require(lossy.stem).frameCount
         #expect(committed > 0 && committed < appended)
@@ -123,7 +123,7 @@ extension GapTests {
 
         try recorder.startTake()
         try await deliver(144_000, to: audio, recorder, block: 4800, sample: counting())
-        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
         let committed = try #require(lossy.stem).committedFrameCount
         #expect(committed > 0)
         try recorder.stopTake()
@@ -146,7 +146,7 @@ extension GapTests {
 
         try recorder.startTake()
         try await deliver(144_000, to: audio, recorder, block: 4800, sample: counting(channelStep: 100_000))
-        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
         try #require(lossy.stems.count == 2)
         let committed = lossy.stems.map(\.committedFrameCount)
         #expect(committed[0] > committed[1])
@@ -186,7 +186,7 @@ extension GapTests {
 
         try recorder.startTake()
         try await deliver(144_000, to: audio, recorder, block: 4800, sample: counting())
-        try await waitUntil { recorder.copyStatus(.device) == .interrupted }
+        try await waitUntil { recorder.copies[.device] == .interrupted }
         let stem = try #require(keeping.stem)
         #expect(stem.committedFrameCount < stem.frameCount)
         try recorder.stopTake()

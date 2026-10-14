@@ -31,7 +31,7 @@ struct StopNeverBlocksTests {
         @discardableResult func setMarkers(_ markers: [StemMarker]) throws -> Int { try inner.setMarkers(markers) }
     }
 
-    @Test("A Drive stuck on a write doesn't hold up Stop: the Take ends, the Device Copy is complete, the Drive Copy is interrupted and never written again")
+    @Test("A Drive stuck on a write doesn't hold up Stop: the Take ends, the Device Copy is complete, the Drive Copy has Gaps and is never written again")
     func stuckDrive() async throws {
         let device = root.appending(path: "Device")
         let drive = root.appending(path: "Drive")
@@ -54,7 +54,7 @@ struct StopNeverBlocksTests {
         try recorder.stopTake()
         #expect(ContinuousClock.now - started < .seconds(2), "Stop waited on the stuck Drive")
         #expect(!recorder.isRecording)
-        #expect(recorder.copyStatus(.drive) == .interrupted)
+        #expect(recorder.copies[.drive] == .hasGaps)
         let deviceStem = device.appending(path: "\(show)/Take 01/01 USB 01.wav")
         #expect(try StemFile.inspect(deviceStem).frameCount == 4_800)
 
@@ -66,6 +66,7 @@ struct StopNeverBlocksTests {
         try await Task.sleep(for: .milliseconds(300))
         #expect(try StemFile.inspect(driveStem).frameCount == before)
         await recorder.waitForRepair()
+        #expect(recorder.copies[.drive] == .hasGaps)
     }
 
     @Test("When Stop gives up on a stuck Drive Copy, it writes the report and Reaper project on the Device Copy only")
