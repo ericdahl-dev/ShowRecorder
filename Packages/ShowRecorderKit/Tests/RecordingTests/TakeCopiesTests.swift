@@ -83,6 +83,54 @@ extension GapTests {
         try recorder.stopTake()
     }
 
+    @Test("Armed, before any Take, the Recorder has no Take running and every Copy missing")
+    func copiesArmedBeforeAnyTake() throws {
+        let recorder = recorder(failing: [])
+        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+
+        #expect(!recorder.copies.isRunning)
+        #expect(recorder.copies[.device] == .missing)
+        #expect(recorder.copies[.drive] == .missing)
+    }
+
+    @Test("A Device that failed mid-Take ends Repaired from the Drive, which ends complete")
+    func copiesAfterTheDeviceFails() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(failing: [.device])
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        try await waitUntil { recorder.copies[.device] == .interrupted }
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+
+        #expect(recorder.copies[.device] == .repaired)
+        #expect(recorder.copies[.drive] == .complete)
+    }
+
+    @Test("A Drive that joins mid-Take is missing until it joins; after, the Device is complete and the Drive Repaired")
+    func copiesWhenTheDriveJoins() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let available = DriveSwitch()
+        let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } },
+                                now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        #expect(recorder.copies[.drive] == .missing)
+        available.folder = drive
+        recorder.checkDestinations()
+        #expect(recorder.copies[.drive] == .recording)
+        try await deliverBlocks(5, from: 4_800, to: audio, recorder, sample: counting())
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+
+        #expect(recorder.copies[.device] == .complete)
+        #expect(recorder.copies[.drive] == .repaired)
+    }
+
     @Test("Before any Take: none running, every Copy missing, none stopped")
     func noTake() {
         #expect(!TakeCopies.none.isRunning)

@@ -59,7 +59,6 @@ final class TakeSession {
         var metadata: TakeMetadata
         var folders: [DestinationKind: URL]
         var access: DriveAccess?
-        var statuses: [DestinationKind: CopyStatus]
         var signal: TakeSignal
         /// Copies Stop gave up on (#320): their files are left as they are, and Repair doesn't touch them.
         var abandoned: Set<DestinationKind> = []
@@ -251,7 +250,7 @@ final class TakeSession {
     }
 
     /// How `kind`'s Copy is doing. A Copy that never started is missing.
-    func status(_ kind: DestinationKind) -> CopyStatus {
+    func status(_ kind: DestinationKind) -> CopyState {
         if kind == .device, let standby, standby.start != nil { return standby.writer.hasFailed ? .interrupted : .recording }
         guard let copy = copies.first(where: { $0.kind == kind }) else { return .missing }
         return copy.writer.hasFailed ? .interrupted : .recording
@@ -264,7 +263,7 @@ final class TakeSession {
                 if standby.start == nil { return .standingBy }
                 return standby.writer.hasFailed ? .interrupted : .standingIn
             }
-            return CopyState(status(kind))
+            return status(kind)
         }
     }
 
@@ -356,10 +355,9 @@ final class TakeSession {
     }
 
     /// Stops capturing, waits until every Stem is written and finalized and records the Gaps.
-    /// A Copy that failed during the Take doesn't make this throw; see `Finished.statuses`.
+    /// A Copy that failed during the Take doesn't make this throw.
     func finish() -> Finished {
         capture.stopCapturing()
-        var statuses = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.map { ($0, status($0)) })
         for copy in copies { copy.writer.stop(timeout: stopTimeout) }
         standby?.writer.stop(timeout: stopTimeout)
         if let standby {
@@ -380,15 +378,11 @@ final class TakeSession {
         writeMetadata()
         // A Take whose Copies were never fed a first block is empty, not missing everything.
         persistGaps(takeEnd: capture.awaitingFirstBlock ? 0 : capture.takeFrameCount)
-        for copy in copies where statuses[copy.kind] == .recording && copy.writer.hasFailed {
-            // A Copy can fail while its writer drains at stop.
-            statuses[copy.kind] = .interrupted
-        }
         var folders: [DestinationKind: URL] = [:]
         folders[.device] = standby?.folder
         for copy in copies { folders[copy.kind] = copy.folder }
         return Finished(
-            metadata: metadata, folders: folders, access: copies.lazy.compactMap(\.access).first, statuses: statuses,
+            metadata: metadata, folders: folders, access: copies.lazy.compactMap(\.access).first,
             signal: TakeSignal(recorded: metadata.usbChannels.count, withSignal: levels.channelsWithSignal(), loudest: levels.loudest()),
             abandoned: Set(copies.filter { $0.writer.wasAbandoned }.map(\.kind)))
     }

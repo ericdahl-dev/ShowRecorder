@@ -13,12 +13,10 @@ struct StatusChipsTests {
         deviceBytes: Int64 = StatusChipsTests.anHour,
         drive: DriveStatus = .notChosen,
         mixer: MixerLinkStatus = .idle,
-        copies: [DestinationKind: CopyStatus] = [:]
+        copies: TakeCopies = .none
     ) -> [StatusChip.Kind: StatusChip] {
-        // No running words is no Take running, as the record screen passes them today.
-        let take = TakeCopies(isRunning: !copies.isEmpty) { copies[$0].map(CopyState.init) ?? .recording }
-        return Dictionary(uniqueKeysWithValues: StatusChip.make(
-            usbChannelCount: 18, deviceAvailableBytes: deviceBytes, drive: drive, mixer: mixer, copies: take
+        Dictionary(uniqueKeysWithValues: StatusChip.make(
+            usbChannelCount: 18, deviceAvailableBytes: deviceBytes, drive: drive, mixer: mixer, copies: copies
         ).map { ($0.kind, $0) })
     }
 
@@ -71,7 +69,7 @@ struct StatusChipsTests {
 
     @Test("A Copy that stopped during the Take is a failure on its chip")
     func interruptedCopyFails() {
-        let result = chips(drive: drive(bytes: StatusChipsTests.anHour), copies: [.device: .recording, .drive: .interrupted])
+        let result = chips(drive: drive(bytes: StatusChipsTests.anHour), copies: takeCopies(device: .recording, drive: .interrupted))
 
         #expect(result[.drive]?.text == "Drive stopped")
         #expect(result[.drive]?.state == .failed)
@@ -121,7 +119,7 @@ struct StatusChipsTests {
 
         #expect(chips(drive: .notChosen)[.drive]?.shortText == "Drive not set")
         #expect(chips(drive: .unavailable(.notConnected(name: "SSD")))[.drive]?.shortText == "Drive missing")
-        let stopped = chips(drive: drive(bytes: StatusChipsTests.anHour), copies: [.drive: .interrupted])
+        let stopped = chips(drive: drive(bytes: StatusChipsTests.anHour), copies: takeCopies(device: .recording, drive: .interrupted))
         #expect(stopped[.drive]?.shortText == "Drive stopped")
     }
 

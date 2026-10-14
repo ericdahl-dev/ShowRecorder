@@ -42,7 +42,7 @@ public final class Recorder {
     /// others follow Take ends through the sequencer's events.
     @ObservationIgnored var onTakeEnded: (TakeEnd) -> Void = { _ in }
     /// How each Copy of the last Take ended up: complete, has Gaps, Repaired or Repair failed.
-    public private(set) var lastTakeOutcomes: [DestinationKind: CopyOutcome] = [:]
+    private(set) var lastTakeOutcomes: [DestinationKind: CopyOutcome] = [:]
     /// How many USB Channels the last Take recorded and how many carried signal (#62: Free's limit, felt).
     public private(set) var lastTakeSignal: TakeSignal?
     /// Whether Repair is still filling Gaps from the last Take.
@@ -85,7 +85,7 @@ public final class Recorder {
     /// The running Take's Copies.
     @ObservationIgnored private(set) var session: TakeSession?
     @ObservationIgnored private var lastTake: LastTake?
-    /// Repairs ended Takes; its result is published as `lastTakeOutcomes` and `isRepairing`.
+    /// Repairs ended Takes; its result is published through `copies` (from `lastTakeOutcomes`) and `isRepairing`.
     @ObservationIgnored private let repair: TakeRepair
     /// How long Stop waits on a Copy's writer before giving that Copy up (#320).
     @ObservationIgnored private let writerStopTimeout: Duration
@@ -96,7 +96,6 @@ public final class Recorder {
     public var recordsToDriveOnly = false
     /// The host clock's ticks per second, for spotting a stop in the input (#317). Tests set it.
     @ObservationIgnored private let hostTicksPerSecond: Double
-    @ObservationIgnored private var finishedCopies: [DestinationKind: CopyStatus] = [:]
     /// Whether the last Take was Drive only (#196, ADR 0006), Drive or not: its summary speaks of the Drive alone.
     private(set) var lastTakeWasDriveOnly = false
     /// Whether Repair moved the last Take's stand-in to the Drive and off the Device.
@@ -450,7 +449,6 @@ public final class Recorder {
         session.driveStallLimit = driveStallLimit
         if takeFolders[.drive] == nil { drive?.end() }
         self.session = session
-        finishedCopies = [:]
         takeMarkers = []
         markerEntries = []
         dropoutCount = 0
@@ -688,12 +686,6 @@ public final class Recorder {
         }
     }
 
-    /// How `kind`'s Copy of the current (or last) Take is doing. A Copy that never started is missing.
-    public func copyStatus(_ kind: DestinationKind) -> CopyStatus {
-        guard isRecording, let session else { return finishedCopies[kind] ?? .missing }
-        return session.status(kind)
-    }
-
     /// Looks for a Destination that has become available since the Take started. A Drive that appears
     /// joins the running Take: its Stems start with silence up to the join point, which is recorded as
     /// a Gap in `Take.json` on both Copies. Also ends the Take when the last healthy Destination is about to
@@ -719,7 +711,7 @@ public final class Recorder {
     }
 
     /// Stops the Take and waits until every Stem is written and finalized.
-    /// A Copy that failed during the Take doesn't make this throw; see `copyStatus(_:)`.
+    /// A Copy that failed during the Take doesn't make this throw; see `copies`.
     func stopTake() throws {
         try stopTake(because: .stopped)
     }
@@ -734,7 +726,6 @@ public final class Recorder {
         // The last window, which the screen hasn't read yet, is still part of the Take.
         session.accumulate(capture?.meters.takeLevels() ?? [])
         let finished = session.finish()
-        finishedCopies = finished.statuses
         lastTakeWasDriveOnly = session.driveOnly
         lastTakeSignal = finished.signal
         dropoutCount = finished.metadata.dropoutCount
@@ -793,15 +784,6 @@ public final class Recorder {
         await repair.wait()
         await namingTask?.value
     }
-}
-
-/// How one Copy of a Take is doing.
-public enum CopyStatus: Sendable, Equatable {
-    case recording
-    /// Its Destination failed mid-Take. The Take carries on in the other Copy.
-    case interrupted
-    /// It never started: no Destination.
-    case missing
 }
 
 public enum RecorderError: Error, Equatable {
