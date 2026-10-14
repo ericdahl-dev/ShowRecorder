@@ -135,8 +135,9 @@ public final class Recorder {
         repair.onChange = { [unowned self] in
             lastTakeOutcomes = repair.outcomes
             lastTakeStandInMoved = repair.moved
-            // Repair moved the last Take's stand-in to the Drive and removed its Device folder (#618).
-            if repair.moved { lastTake?.deviceFolder = nil }
+            // Repair moved the last Take's stand-in to the Drive and removed its Device folder (#618), or removed it as a
+            // spare (#621). The outcomes are always the last Take's.
+            if repair.moved || repair.outcomes[.device] == nil { lastTake?.deviceFolder = nil }
             lastTakeStandInKept = repair.standInKept
             isRepairing = repair.isRunning
         }
