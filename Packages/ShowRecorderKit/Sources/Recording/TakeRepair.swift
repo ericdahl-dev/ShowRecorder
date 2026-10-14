@@ -40,7 +40,8 @@ final class TakeRepair {
 
     /// Queues Repair of an ended Take: fills its Gaps from the other Copy, off the main thread, and
     /// records the result in `Take.json`. `access` (the Drive's folder) is held until it's done.
-    /// A Take with no Gaps has nothing to repair; its outcomes are complete and `access` is released.
+    /// A Take with no Gaps has nothing to repair; its outcomes are complete (but a spare Drive only stand-in is removed,
+    /// so the Device has none) and `access` is released.
     /// - Parameter abandoned: Copies Stop gave up on (#320), left as they are.
     func enqueue(_ metadata: TakeMetadata, folders: [DestinationKind: URL], holding access: DriveAccess?, abandoned: Set<DestinationKind> = []) {
         func outcomes(_ metadata: TakeMetadata) -> [DestinationKind: CopyOutcome] {
@@ -59,6 +60,9 @@ final class TakeRepair {
                 var done = metadata
                 done.standIns = nil
                 try? done.write(to: drive)
+                // So the Take has no Device Copy (#621).
+                self.outcomes[.device] = nil
+                onChange()
             }
             access?.end()
             return

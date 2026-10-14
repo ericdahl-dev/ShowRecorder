@@ -446,4 +446,48 @@ struct DriveOnlyTakeTests {
 
         #expect(CopySummary.ofLastTake(recorder.copies, dropoutCount: 0)?.text == "Drive copy: complete")
     }
+
+    /// A Drive only Take whose Drive paused past the stall limit (the Device stood in) and caught up, so the Take has
+    /// no Gaps and the stand-in is a spare. Adds a Marker early on.
+    func spareStandInTake() async throws -> Recorder {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
+        let recorder = recorder(driveStem: { SlowStem($0, healthyFrames: 4_800, gate: gate) }, stallLimit: .milliseconds(100))
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        recorder.addMarker()
+        for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
+        recorder.checkDestinations()
+        try await Task.sleep(for: .milliseconds(250))
+        deliver(480, from: 20 * 480, to: audio, sample: counting())
+        recorder.checkDestinations()
+        gate.open()
+        try await deliverBlocks(9, from: 21 * 480, to: audio, recorder, sample: counting())
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+        return recorder
+    }
+
+    @Test("After a Drive that paused and caught up, the spare stand-in leaves no Device Copy: it reads missing (#621)")
+    func spareStandInDeviceMissing() async throws {
+        let recorder = try await spareStandInTake()
+
+        #expect(recorder.copies[.device] == .missing)
+        #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "no Take folder on the Device")
+    }
+
+    @Test("After a Drive that paused and caught up, a Marker is renamed in the Drive Copy, with no Device Copy to fail (#621)")
+    func renameMarkerAfterSpareStandIn() async throws {
+        let recorder = try await spareStandInTake()
+
+        let outcome = await recorder.renameLastTakeMarker(at: 0, to: "Intro")
+
+        #expect(outcome.result == .renamed)
+        #expect(outcome.renamed == [.drive])
+        #expect(outcome.failed.isEmpty)
+        #expect(try TakeMetadata.read(fromTakeFolder: drive.appending(path: take)).markers.map(\.name) == ["Intro"])
+        #expect(recorder.markerEntries.map(\.name) == ["Intro"])
+    }
 }
