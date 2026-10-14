@@ -53,11 +53,4 @@ struct WatchStatusMakerTests {
         let status = WatchStatusMaker.make(isArmed: true, take: nil, copies: takeCopies(running: false, device: .interrupted, drive: .interrupted))
         #expect(status.problems.isEmpty)
     }
-
-    @Test("Today's call with running words, as the record screen passes them: a stopped one is a Copy stopped; none is no Take")
-    func adapter() {
-        #expect(WatchStatusMaker.make(isArmed: true, take: nil, copies: [.device: .recording, .drive: .interrupted]).problems == [.copyStopped])
-        #expect(WatchStatusMaker.make(isArmed: true, take: nil, copies: [.device: .recording, .drive: .missing]).problems.isEmpty)
-        #expect(WatchStatusMaker.make(isArmed: true, take: nil, copies: [:] as [DestinationKind: CopyStatus]).problems.isEmpty)
-    }
 }

@@ -51,10 +51,9 @@ struct CopySummaryTests {
         #expect(summary.isProblem)
     }
 
-    @Test("Today's call with the last Take's outcomes, as the record screen passes them, reads the same")
-    func outcomesCall() {
-        #expect(CopySummary(outcomes: [.device: .complete], dropoutCount: 0).text == "Device copy: complete (no Drive)")
-        #expect(CopySummary(outcomes: [.device: .hasGaps, .drive: .repaired], dropoutCount: 1).text
+    @Test("Gaps, a Repair and a Dropout read together")
+    func gapsRepairAndDropout() {
+        #expect(CopySummary(copies: takeCopies(running: false, device: .hasGaps, drive: .repaired), dropoutCount: 1).text
                 == "Device copy: has Gaps · Drive copy: Repaired · 1 Dropout")
     }
 

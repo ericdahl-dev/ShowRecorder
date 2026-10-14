@@ -31,7 +31,7 @@ struct StatusChipsTests {
         func texts(_ rate: Int) -> [String] {
             StatusChip.make(
                 usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour), mixer: .idle,
-                copies: [:], sampleRate: rate
+                copies: .none, sampleRate: rate
             ).filter { $0.kind != .mixer }.map(\.text)
         }
         #expect(texts(48_000) == ["Device 1 h 00 min", "Drive 1 h 00 min"])
