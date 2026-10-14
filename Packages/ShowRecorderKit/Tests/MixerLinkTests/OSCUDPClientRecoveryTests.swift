@@ -15,11 +15,11 @@ struct OSCUDPClientRecoveryTests {
     func rebuildsAfterFailure() async throws {
         let mixer = try await FakeXAirMixer()
         let client = try client(for: mixer)
-        _ = try await client.request(OSCMessage("/xinfo", []), timeout: .seconds(2))
+        _ = try await client.request(OSCMessage("/xinfo", []), timeout: Loopback.replyTimeout)
 
         await client.connectionFailed(.posix(.ECONNREFUSED))
 
-        let reply = try await client.request(OSCMessage("/xinfo", []), timeout: .seconds(2))
+        let reply = try await client.request(OSCMessage("/xinfo", []), timeout: Loopback.replyTimeout)
         #expect(reply.address == "/xinfo")
     }
 
@@ -27,11 +27,11 @@ struct OSCUDPClientRecoveryTests {
     func receivesAfterReceiveError() async throws {
         let mixer = try await FakeXAirMixer()
         let client = try client(for: mixer)
-        _ = try await client.request(OSCMessage("/xinfo", []), timeout: .seconds(2))
+        _ = try await client.request(OSCMessage("/xinfo", []), timeout: Loopback.replyTimeout)
 
         await client.receiveFailed()
 
-        let reply = try await client.request(OSCMessage("/xinfo", []), timeout: .seconds(2))
+        let reply = try await client.request(OSCMessage("/xinfo", []), timeout: Loopback.replyTimeout)
         #expect(reply.address == "/xinfo")
     }
 }
