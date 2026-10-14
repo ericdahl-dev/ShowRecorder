@@ -239,6 +239,7 @@ struct MixerGainClipProtectionTests {
         let control = control
         let mixerGain = MixerGain()
         mixerGain.isClipProtectionOn = { on }
+        mixerGain.isDebugBuild = true
         mixerGain.isRecording = { true }
         mixerGain.makeProtection = { _ in ClipProtection(control: control, sampleRate: 48_000) }
         return mixerGain
@@ -325,6 +326,7 @@ struct MixerGainClipProtectionTests {
         })
         mixerGain.makeProtection = { queue in ClipProtection(control: control, sampleRate: 48_000, queue: queue) }
         mixerGain.isClipProtectionOn = { true }
+        mixerGain.isDebugBuild = true
         var recording = false
         mixerGain.isRecording = { recording }
         await mixerGain.run([2])
@@ -375,6 +377,7 @@ struct MixerGainClipProtectionTests {
         })
         mixerGain.makeProtection = { queue in ClipProtection(control: control, sampleRate: 48_000, queue: queue) }
         mixerGain.isClipProtectionOn = { true }
+        mixerGain.isDebugBuild = true
         var recording = false
         mixerGain.isRecording = { recording }
         let (entered, enter) = AsyncStream<Void>.makeStream()

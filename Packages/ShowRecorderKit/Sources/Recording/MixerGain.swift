@@ -74,13 +74,15 @@ public final class MixerGain {
         self.makeSession = makeSession
     }
 
-    /// Whether the record screen shows the Gain button (`AutoGainAvailability.isOffered`).
+    /// Whether the record screen shows the Gain button (#155): while an X Air or X32 is Armed, Debug builds only for now
+    /// (`AutoGainAvailability`). When auto-gain can't run (a Take, no Mixer Link, a Mixer whose gain can't be set), the
+    /// button stays and its sheet says why (`autoGainUnavailable`) instead of the button disappearing.
     public var offersAutoGain: Bool {
         AutoGainAvailability.isOffered(available: AutoGainAvailability.isAvailable(isDebugBuild: isDebugBuild),
                                        mixerLinkOffered: mixer?.isOffered ?? false)
     }
 
-    /// Why auto-gain can't run right now; nil when it can.
+    /// Why auto-gain can't run right now, said on its sheet while the Gain button stays; nil when it can.
     public var autoGainUnavailable: AutoGainAvailability.Unavailable? {
         let isConnecting = if case .connecting = mixer?.status { true } else { false }
         return AutoGainAvailability.whyNot(hasMixerLink: mixer?.identity != nil, isConnecting: isConnecting,
