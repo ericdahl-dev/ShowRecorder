@@ -96,6 +96,8 @@ public final class ClipProtection {
     private let link: SameMixerControl
     private var control: any GainControl { link.control }
     private let sampleRate: Double
+    /// One job on the Mixer at a time in each lane (#554), shared with whatever else moves this Mixer's gain.
+    private let queue: MixerQueue
     /// Told about every gain change (#450): the Recorder logs it in the Take, with a Marker, or in the Show.
     private let log: (TakeMetadata.GainChange) -> Void
     /// One trigger per USB Channel, by index (USB Channel 1 at 0).
@@ -111,20 +113,25 @@ public final class ClipProtection {
     /// How far each preamp has been turned down since the Take started.
     private var turnedDown: [Int: Double] = [:]
 
-    public convenience init(control: any GainControl, sampleRate: Double, log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }) {
-        self.init(currentControl: { control }, mixer: { nil }, sampleRate: sampleRate, log: log)
+    public convenience init(
+        control: any GainControl, sampleRate: Double, queue: MixerQueue = MixerQueue(),
+        log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }
+    ) {
+        self.init(currentControl: { control }, mixer: { nil }, sampleRate: sampleRate, queue: queue, log: log)
     }
 
     /// - Parameters:
     ///   - currentControl: the linked Mixer's gain control now, or nil while the Mixer Link is down.
     ///   - mixer: which Mixer is linked now ("FOH · XR18"), or nil while the Link is down. The one linked now is the
     ///     one this protects; on any other, it writes nothing.
+    ///   - queue: the Mixer's queue every turn-down waits its turn in, in its lane.
     public init(
         currentControl: @escaping () -> (any GainControl)?, mixer: @escaping () -> String?, sampleRate: Double,
-        log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }
+        queue: MixerQueue = MixerQueue(), log: @escaping (TakeMetadata.GainChange) -> Void = { _ in }
     ) {
         link = SameMixerControl(currentControl: currentControl, mixer: mixer)
         self.sampleRate = sampleRate
+        self.queue = queue
         self.log = log
     }
 
@@ -234,7 +241,7 @@ public final class ClipProtection {
     /// read still waits on the Mixer.
     private func move(_ lane: [(usbChannel: Int, channel: Int, preamp: Int, lane: Lane, gainChangeDb: Double)]) async {
         for move in lane {
-            await turnDown(move.usbChannel, channel: move.channel, preamp: move.preamp, by: move.gainChangeDb)
+            await turnDown(move.usbChannel, channel: move.channel, preamp: move.preamp, lane: move.lane, by: move.gainChangeDb)
         }
         release(Set(lane.map(\.channel)))
     }
@@ -256,13 +263,19 @@ public final class ClipProtection {
         ((try? await control.preamp(ofChannel: channel)) ?? nil) ?? -channel
     }
 
-    /// Turns `channel`'s preamp down by `gainChangeDb` (negative) with Mix Hold, and logs what moved.
-    private func turnDown(_ usbChannel: Int, channel: Int, preamp: Int, by gainChangeDb: Double) async {
+    /// Turns `channel`'s preamp down by `gainChangeDb` (negative) with Mix Hold, in its lane of the Mixer's queue, and
+    /// logs what moved.
+    private func turnDown(_ usbChannel: Int, channel: Int, preamp: Int, lane: Lane, by gainChangeDb: Double) async {
         // A lane's earlier move can outlast the Take.
         guard !stopped else { return }
         let step: GainStep
         do throws(MixerLinkProblem) {
-            step = try await control.applyMixHold(channel: channel, gainChangeDb: gainChangeDb, scopes: .all)
+            // So can the wait in the queue.
+            guard let moved = try await queue.run(lane: lane, { () throws(MixerLinkProblem) -> GainStep? in
+                guard !stopped else { return nil }
+                return try await control.applyMixHold(channel: channel, gainChangeDb: gainChangeDb, scopes: .all)
+            }) else { return }
+            step = moved
         } catch {
             // Stopped partway: whatever was written still counts and is logged (#450); otherwise nothing moved.
             guard case .gainMoveInterrupted(let partial) = error else { return }
