@@ -87,12 +87,12 @@ public final class Recorder {
     @ObservationIgnored private var lastTake: LastTake?
     /// Counts the Takes that became the last Take, so a move started before another one doesn't touch it (#630).
     @ObservationIgnored private var lastTakeGeneration = 0
-    /// Set while a Take runs: a move of a kept stand-in stops at the next Stem (#630).
+    /// Set while a Take runs: a move of a Drive only Take stops at the next Stem (#630).
     @ObservationIgnored let moveStop = StandInMove.StopSignal()
-    /// Whether a move of kept stand-ins is running, so another asked for meanwhile adds nothing (#630).
-    @ObservationIgnored private var movingStandIns = false
-    /// What came of each kept stand-in a move took up, oldest first (#630).
-    private(set) var standInMoves: [StandInMove.Result] = []
+    /// Whether a move of Drive only Takes is running, so another asked for meanwhile adds nothing (#630).
+    @ObservationIgnored private var movingTakes = false
+    /// What came of each Drive only Take a move took up, oldest first (#630).
+    private(set) var driveOnlyMoves: [StandInMove.Result] = []
     /// Repairs ended Takes; its result is published through `copies` (from `lastTakeOutcomes`) and `isRepairing`.
     @ObservationIgnored private let repair: TakeRepair
     /// How long Stop waits on a Copy's writer before giving that Copy up (#320).
@@ -813,37 +813,37 @@ public final class Recorder {
         }
     }
 
-    /// Drive only (#630): moves every stand-in the Device keeps, in any Show, into its Take on the Drive, and removes
-    /// the Device's Take once the Drive is checked to hold it. Does nothing during a Take or with no Drive; a Take
+    /// Drive only (#630): moves every stand-in the Device keeps, and every Drive only Take it holds whole, in any Show,
+    /// to its Take on the Drive, and removes the Device's Take once the Drive is checked to hold it. Does nothing during a Take or with no Drive; a Take
     /// started meanwhile stops it at the next Stem, and one asked for while another runs does nothing. Returns what
     /// came of each Take it took up.
     /// - Parameter shouldStop: replaces `moveStop` in tests.
     @discardableResult
-    func moveKeptStandIns(shouldStop: (@Sendable () -> Bool)? = nil) async -> [StandInMove.Result] {
-        guard !isRecording, !movingStandIns, let access = driveFolder() else { return [] }
-        movingStandIns = true
-        defer { movingStandIns = false }
+    func moveDriveOnlyTakes(shouldStop: (@Sendable () -> Bool)? = nil) async -> [StandInMove.Result] {
+        guard !isRecording, !movingTakes, let access = driveFolder() else { return [] }
+        movingTakes = true
+        defer { movingTakes = false }
         let device = deviceFolder, drive = access.folder
-        let found = await Task.detached { TakeMover.find(deviceFolder: device, driveFolder: drive) }.value.filter { $0.kind == .standIn }
+        let found = await Task.detached { TakeMover.find(deviceFolder: device, driveFolder: drive) }.value.filter { $0.kind == .standIn || $0.kind == .deviceOnly || $0.kind == .redundant }
         guard !found.isEmpty, !isRecording else {
             access.end()
             return []
         }
-        let first = standInMoves.count
+        let first = driveOnlyMoves.count
         let generation = lastTakeGeneration
         let stop = moveStop
         repair.move(found, holding: access, shouldStop: shouldStop ?? { stop.isSet }) { [weak self] movable, outcome in
             let driveTake = drive.appending(path: movable.show).appending(path: movable.deviceFolder.lastPathComponent)
-            self?.standInMoved(movable, outcome, driveTake: driveTake, generation: generation)
+            self?.driveOnlyTakeMoved(movable, outcome, driveTake: driveTake, generation: generation)
         }
         await repair.wait()
-        return Array(standInMoves[first...])
+        return Array(driveOnlyMoves[first...])
     }
 
-    /// Notes what came of moving a kept stand-in, and, when it was the last Take's and nothing has replaced that Take
-    /// since, shows it moved in `copies`.
-    private func standInMoved(_ movable: TakeMover.Movable, _ outcome: StandInMove.Outcome, driveTake: URL, generation: Int) {
-        standInMoves.append(.init(show: movable.show, take: movable.take, outcome: outcome))
+    /// Notes what came of moving a Drive only Take (a kept stand-in, or a Take the Device held whole), and, when it was
+    /// the last Take and nothing has replaced that Take since, shows it moved in `copies`.
+    private func driveOnlyTakeMoved(_ movable: TakeMover.Movable, _ outcome: StandInMove.Outcome, driveTake: URL, generation: Int) {
+        driveOnlyMoves.append(.init(show: movable.show, take: movable.take, outcome: outcome))
         guard outcome == .moved else { return }
         if movable.show == currentShow?.name { regenerateReports() }
         guard !isRecording, generation == lastTakeGeneration, lastTake?.showName == movable.show, lastTake?.takeNumber == movable.take else {

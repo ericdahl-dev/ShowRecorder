@@ -28,7 +28,7 @@ extension DriveOnlyTakeTests {
         gate.open()
         try await waitForDriveStemToSettle()
 
-        let results = await recorder.moveKeptStandIns()
+        let results = await recorder.moveDriveOnlyTakes()
 
         #expect(results == [.init(show: "2026-10-06 Show", take: 1, outcome: .moved)])
         #expect(try driveSamples(frames: 14_400) == (0..<14_400).map { counting()($0, 0) }, "the Drive has the whole Take")
@@ -47,7 +47,7 @@ extension DriveOnlyTakeTests {
         let standIn = device.appending(path: "\(take)/\(TakeMetadata.StandIn(start: start, end: start).folderName)/01 USB 01.wav")
         try silence(standIn, from: 0, frames: 480)
 
-        let results = await next.moveKeptStandIns()
+        let results = await next.moveDriveOnlyTakes()
 
         let outcome = try #require(results.first?.outcome)
         guard case .kept(let reasons) = outcome else { Issue.record("moved: \(outcome)"); return }
@@ -65,13 +65,13 @@ extension DriveOnlyTakeTests {
         let driveStem = drive.appending(path: "\(take)/01 USB 01.wav")
         let before = try StemFile.inspect(driveStem).framesOnDisk
 
-        let stopped = await moving.moveKeptStandIns(shouldStop: { true })
+        let stopped = await moving.moveDriveOnlyTakes(shouldStop: { true })
 
         #expect(stopped.map(\.outcome) == [.stopped])
         try expectStandInKept()
         #expect(try StemFile.inspect(driveStem).framesOnDisk == before, "the Drive is as it was")
 
-        let resumed = await moving.moveKeptStandIns()
+        let resumed = await moving.moveDriveOnlyTakes()
 
         #expect(resumed.map(\.outcome) == [.moved])
         #expect(try driveSamples(frames: 7_200) == (0..<7_200).map { counting()($0, 0) }, "the Drive has the whole Take")
@@ -87,7 +87,7 @@ extension DriveOnlyTakeTests {
         try recorder.arm(audio)
         try recorder.startTake()
         #expect(recorder.moveStop.isSet)
-        #expect(await recorder.moveKeptStandIns().isEmpty, "no move starts during a Take")
+        #expect(await recorder.moveDriveOnlyTakes().isEmpty, "no move starts during a Take")
         try await deliverBlocks(2, to: audio, recorder)
         try recorder.stopTake()
         await recorder.waitForRepair()
@@ -108,7 +108,7 @@ extension DriveOnlyTakeTests {
         let summary = CopySummary.ofLastTake(recorder.copies, dropoutCount: 0)?.text
         #expect(summary == "Drive copy: complete")
 
-        let results = await recorder.moveKeptStandIns()
+        let results = await recorder.moveDriveOnlyTakes()
 
         #expect(results == [.init(show: "2026-10-06 Show", take: 1, outcome: .moved)])
         #expect(CopySummary.ofLastTake(recorder.copies, dropoutCount: 0)?.text == summary)
@@ -124,8 +124,8 @@ extension DriveOnlyTakeTests {
         gate.open()
         try await waitForDriveStemToSettle()
 
-        async let first = recorder.moveKeptStandIns()
-        async let second = recorder.moveKeptStandIns()
+        async let first = recorder.moveDriveOnlyTakes()
+        async let second = recorder.moveDriveOnlyTakes()
         let all = await first + second
 
         #expect(all == [.init(show: "2026-10-06 Show", take: 1, outcome: .moved)])

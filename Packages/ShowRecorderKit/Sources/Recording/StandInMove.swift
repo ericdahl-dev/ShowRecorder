@@ -25,6 +25,8 @@ enum StandInMove {
         case setAside
         /// Both checks passed; the set-aside folder is about to be removed.
         case removing
+        /// A Drive only Take's copy on the Drive was just filled from the Device (`DeviceTakeMove`).
+        case filled
     }
 
     struct Result: Equatable, Sendable {

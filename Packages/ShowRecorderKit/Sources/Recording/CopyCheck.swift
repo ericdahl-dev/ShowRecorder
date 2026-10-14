@@ -31,12 +31,13 @@ public enum CopyCheck {
     }
 
     /// Checks one Take's Drive Copy against its Device Copy, as `verify` does for each Take of a Show (#630).
-    public static func verifyTake(device: URL, drive: URL) -> Result {
+    /// - Parameter checksDriveOutcome: false to compare the audio only, before a move has recorded its Repair.
+    public static func verifyTake(device: URL, drive: URL, checksDriveOutcome: Bool = true) -> Result {
         guard let deviceTake = try? TakeMetadata.read(fromTakeFolder: device) else {
             return .failed(["\(device.lastPathComponent) can't be read on the Device."])
         }
         if let problem = pairProblem(deviceTake, device: device, drive: drive) { return .failed([problem]) }
-        let problems = problems(deviceFolder: device, deviceTake: deviceTake, driveFolder: drive)
+        let problems = problems(deviceFolder: device, deviceTake: deviceTake, driveFolder: drive, checksDriveOutcome: checksDriveOutcome)
         return problems.isEmpty ? .passed : .failed(problems)
     }
 
@@ -65,14 +66,14 @@ public enum CopyCheck {
 
     /// One Take's problems. A Device Take with stand-ins always has one ("still has audio only on the Device"): its
     /// stand-ins are checked against the Drive by `verifyStandIn`, which is what moving them relies on (#630).
-    private static func problems(deviceFolder: URL, deviceTake: TakeMetadata, driveFolder: URL) -> [String] {
+    private static func problems(deviceFolder: URL, deviceTake: TakeMetadata, driveFolder: URL, checksDriveOutcome: Bool = true) -> [String] {
         var problems: [String] = []
         let name = TakeMetadata.name(take: deviceTake.take)
         guard let driveTake = try? TakeMetadata.read(fromTakeFolder: driveFolder) else {
             return ["\(name) is missing on the Drive."]
         }
         let outcome = driveTake.outcome(ofCopy: .drive)
-        if outcome == .hasGaps || outcome == .repairFailed {
+        if checksDriveOutcome, outcome == .hasGaps || outcome == .repairFailed {
             problems.append("\(name) on the \(DestinationKind.drive.name) still \(CopyOutcome.hasGaps.word).")
         }
         // Audio the Device stood in for isn't on the Drive yet, whatever the Drive's Take says (#627).
