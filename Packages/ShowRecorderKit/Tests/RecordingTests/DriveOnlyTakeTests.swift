@@ -206,6 +206,30 @@ struct DriveOnlyTakeTests {
         #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "nothing of the Take is left on the Device")
     }
 
+    @Test("After Repair moves a stand-in to the Drive, a Marker is renamed in the Drive Copy, with no Device Copy to fail (#618)")
+    func renameMarkerAfterMove() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder { FailingStem($0, healthyFrames: 480) }
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        recorder.addMarker()
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
+        recorder.checkDestinations()
+        try await deliverBlocks(5, from: 10 * 480, to: audio, recorder, sample: counting())
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+        #expect(recorder.copies[.device] == .moved)
+
+        let outcome = await recorder.renameLastTakeMarker(at: 0, to: "Intro")
+
+        #expect(outcome.result == .renamed)
+        #expect(outcome.renamed == [.drive])
+        #expect(outcome.failed.isEmpty)
+        #expect(try TakeMetadata.read(fromTakeFolder: drive.appending(path: take)).markers.map(\.name) == ["Intro"])
+        #expect(recorder.markerEntries.map(\.name) == ["Intro"])
+    }
+
     @Test("After Repair moves a stand-in to the Drive, the summary says it moved from this iPhone (#550)")
     func summaryMoved() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
