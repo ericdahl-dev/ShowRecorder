@@ -151,7 +151,7 @@ struct SettingsView: View {
     }
 
     private var isConnecting: Bool {
-        if case .connecting = model.mixerLink.status { true } else { false }
+        if case .connecting = model.mixer.status { true } else { false }
     }
 
     @ViewBuilder private var driveStatus: some View {
@@ -183,7 +183,7 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var mixerStatus: some View {
-        switch model.mixerLink.status {
+        switch model.mixer.status ?? .idle {
         case .idle:
             Label("Not connected to a Mixer. Stems use USB Channel names.", systemImage: "link")
                 .secondaryText()
