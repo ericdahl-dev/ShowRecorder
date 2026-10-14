@@ -831,10 +831,9 @@ final class RecordScreenModel {
             usbChannelCount: recorder.usbChannelCount,
             deviceAvailableBytes: drive.deviceAvailableBytes,
             drive: drive.status,
-            mixer: mixer.status,
+            mixer: mixer.state,
             copies: copies,
-            sampleRate: recorder.sampleRate ?? 48_000,
-            otherMixer: mixer.otherMixerLinked)
+            sampleRate: recorder.sampleRate ?? 48_000)
     }
 
     /// Everything the record screen has to say, most urgent first, but the warnings swiped away (#644); it shows one
@@ -904,9 +903,9 @@ final class RecordScreenModel {
     /// Runs the Soundcheck with what the Mixer Link and the Drive know right now.
     func runSoundcheck(progress: (Soundcheck.Step.Kind) -> Void, result: (Soundcheck.Step) -> Void) async -> [Soundcheck.Step] {
         await Soundcheck.run(
-            sequencer: sequencer, mixer: mixer.status, sources: linkedSources,
+            sequencer: sequencer, mixer: mixer.state, sources: linkedSources,
             expectedUSBChannels: mixer.capabilities?.usbChannelCount, driveChosen: drive.status != .notChosen,
-            otherMixer: mixer.otherMixerLinked, allowance: currentAllowance(), progress: progress, result: result)
+            allowance: currentAllowance(), progress: progress, result: result)
     }
 
     /// A first-run nudge, once: neither a Drive nor a Mixer is set up yet.

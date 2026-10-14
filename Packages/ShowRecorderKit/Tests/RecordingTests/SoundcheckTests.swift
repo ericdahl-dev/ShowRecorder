@@ -11,37 +11,37 @@ import Testing
 struct SoundcheckTests {
     static let xr18 = MixerIdentity(networkName: "FOH", model: "XR18", firmware: "1.26")
 
-    @Test("Mixer: up with Source names passes and says which Mixer")
+    @Test("Mixer: linked with Source names passes and says which Mixer")
     func mixerUp() {
-        let step = Soundcheck.judgeMixer(status: .up(Self.xr18, path: .wifi), sources: [Source(name: "Kick", color: .off), .fallback(usbChannel: 2)])
+        let step = Soundcheck.judgeMixer(state: .linked(Self.xr18, path: .wifi), sources: [Source(name: "Kick", color: .off), .fallback(usbChannel: 2)])
         #expect(step.passed)
         #expect(step.message == "FOH (XR18) is linked, with 1 channel named.")
     }
 
-    @Test("Mixer: up with no network name says the model alone (#647)")
+    @Test("Mixer: linked with no network name says the model alone (#647)")
     func mixerUpUnnamed() {
         let unnamed = MixerIdentity(networkName: "", model: "XR18", firmware: "1.26")
-        let step = Soundcheck.judgeMixer(status: .up(unnamed, path: .wifi), sources: [Source(name: "Kick", color: .off)])
+        let step = Soundcheck.judgeMixer(state: .linked(unnamed, path: .wifi), sources: [Source(name: "Kick", color: .off)])
         #expect(step.message == "XR18 is linked, with 1 channel named.")
     }
 
-    @Test("Mixer: not set, down, or up with no names each fails with what to do")
+    @Test("Mixer: not set, down, or linked with no names each fails with what to do")
     func mixerProblems() {
-        #expect(Soundcheck.judgeMixer(status: .idle, sources: []) == .init(kind: .mixer, passed: false, message: "No Mixer linked. Add its address in Settings › Mixer Link."))
-        let down = Soundcheck.judgeMixer(status: .down(.noReply(host: "10.0.0.9")), sources: [])
+        #expect(Soundcheck.judgeMixer(state: .notLinked, sources: []) == .init(kind: .mixer, passed: false, message: "No Mixer linked. Add its address in Settings › Mixer Link."))
+        let down = Soundcheck.judgeMixer(state: .down(.noReply(host: "10.0.0.9")), sources: [])
         #expect(!down.passed)
         #expect(down.message == MixerLinkProblem.noReply(host: "10.0.0.9").message)
-        let unnamed = Soundcheck.judgeMixer(status: .up(Self.xr18, path: .wifi), sources: [.fallback(usbChannel: 1)])
+        let unnamed = Soundcheck.judgeMixer(state: .linked(Self.xr18, path: .wifi), sources: [.fallback(usbChannel: 1)])
         #expect(!unnamed.passed)
         #expect(unnamed.message == "FOH (XR18) is linked, but none of its channels has a name. Name them on the Mixer to have them on the Stems.")
     }
 
     @Test("Mixer: a Link on another Mixer than the Armed one fails and says which, and where to connect (#647)")
     func mixerOtherLinked() {
-        let other = Soundcheck.judgeMixer(status: .up(Self.xr18, path: .wifi), sources: [], otherMixer: Self.xr18)
+        let other = Soundcheck.judgeMixer(state: .otherMixer(Self.xr18), sources: [])
         #expect(other == .init(kind: .mixer, passed: false, message: "The Mixer Link is on FOH (XR18), not the Armed Mixer. Connect to the Armed Mixer in Settings › Mixer Link."))
         let unnamed = MixerIdentity(networkName: "", model: "XR18", firmware: "1.26")
-        let step = Soundcheck.judgeMixer(status: .up(unnamed, path: .wifi), sources: [], otherMixer: unnamed)
+        let step = Soundcheck.judgeMixer(state: .otherMixer(unnamed), sources: [])
         #expect(step.message == "The Mixer Link is on XR18, not the Armed Mixer. Connect to the Armed Mixer in Settings › Mixer Link.")
     }
 
@@ -126,7 +126,7 @@ struct SoundcheckTests {
         var resultsWhenTakeStarted: [Soundcheck.Step.Kind] = []
         var results: [Soundcheck.Step.Kind] = []
         let steps = await Soundcheck.run(
-            sequencer: TakeSequencer(recorder: recorder, devices: FakeInputDevices(), capsAt48k: { false }), mixer: .idle, sources: [], expectedUSBChannels: nil, driveChosen: false,
+            sequencer: TakeSequencer(recorder: recorder, devices: FakeInputDevices(), capsAt48k: { false }), mixer: .notLinked, sources: [], expectedUSBChannels: nil, driveChosen: false,
             takeLength: .milliseconds(300),
             progress: { kind in
                 seen.append(kind)
@@ -197,7 +197,7 @@ struct SoundcheckTests {
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         try recorder.arm(audio)
         try recorder.startTake()
-        let steps = await Soundcheck.run(sequencer: TakeSequencer(recorder: recorder, devices: FakeInputDevices(), capsAt48k: { false }), mixer: .idle, sources: [], expectedUSBChannels: nil, driveChosen: false)
+        let steps = await Soundcheck.run(sequencer: TakeSequencer(recorder: recorder, devices: FakeInputDevices(), capsAt48k: { false }), mixer: .notLinked, sources: [], expectedUSBChannels: nil, driveChosen: false)
         #expect(steps == [.init(kind: .take, passed: false, message: "A Take is running. Stop it before the Soundcheck.")])
         #expect(recorder.isRecording)
         try recorder.stopTake()

@@ -2,6 +2,20 @@ import AutoGain
 import Foundation
 import Observation
 
+/// The Mixer Link as the record screen and the Soundcheck read it (#556), from `MixerSession.state`.
+public enum MixerLinkState: Equatable, Sendable {
+    /// No Link: the Link is idle.
+    case notLinked
+    /// Connecting to the Mixer at `host`.
+    case connecting(host: String)
+    /// Down, with the problem the operator reads (the Soundcheck shows its message).
+    case down(MixerLinkProblem)
+    /// Up, on the Armed Mixer's family.
+    case linked(MixerIdentity, path: MixerLinkPath)
+    /// Up, on another Mixer family than the Armed one (#647).
+    case otherMixer(MixerIdentity)
+}
+
 /// The Mixer Link as the app uses it (#556): whether it is offered for the Armed input, and when it connects, decided
 /// here instead of across the app. The Link itself is `MixerLinkController`.
 @MainActor
@@ -59,6 +73,19 @@ public final class MixerSession {
     /// The linked Mixer's identity when Mixer Link is offered but the Link is to another Mixer family than the Armed
     /// input's (#647), so the Soundcheck, auto-gain and the status chip say the Link is on another Mixer; nil otherwise.
     public var otherMixerLinked: MixerIdentity? { isOffered && !linkedMixerIsArmed ? link.identity : nil }
+
+    /// The Mixer Link as the record screen's chip and the Soundcheck read it, while Mixer Link is offered (#556): the
+    /// Link's status, or the other Mixer it's on when that isn't the Armed Mixer's family (#647). Nil while not offered.
+    public var state: MixerLinkState? {
+        guard isOffered else { return nil }
+        if let otherMixerLinked { return .otherMixer(otherMixerLinked) }
+        switch link.status {
+        case .idle: return .notLinked
+        case .connecting(let host): return .connecting(host: host)
+        case .down(let problem): return .down(problem)
+        case .up(let identity, let path): return .linked(identity, path: path)
+        }
+    }
 
     /// The linked Mixer's network name, kept for saving a Template even while Mixer Link isn't offered (nothing Armed,
     /// another input), so a Template keeps finding its Mixer by name (#33, #556). Read only: nothing is sent to the Mixer.
