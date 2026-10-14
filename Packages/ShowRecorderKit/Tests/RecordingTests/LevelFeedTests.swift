@@ -97,8 +97,8 @@ struct LevelFeedTests {
         #expect(await Self.result(none, within: 5) == .level(nil))
     }
 
-    @Test("Cancelling the measuring Task (the run was cancelled) ends it at once with no level")
-    func cancelled() async throws {
+    @Test("Canceling the measuring Task (the run was canceled) ends it at once with no level")
+    func canceled() async throws {
         let feed = LevelFeed()
         let task = await Self.start(feed)
         feed.meters([Self.window(-20, seconds: 1)], sampleRate: Self.rate)

@@ -60,7 +60,7 @@ public final class LevelFeed {
     }
 
     /// A USB Channel's level in dBFS, once enough audio has come in; nil when the audio stopped first, or the Task
-    /// was cancelled.
+    /// was canceled.
     public func measure(usbChannel: Int) async -> Double? {
         let id = nextID
         nextID += 1
@@ -69,7 +69,7 @@ public final class LevelFeed {
                 measurements[id] = Measurement(usbChannel: usbChannel, continuation: continuation)
             }
         } onCancel: {
-            // Runs after the measurement is in place, even when the Task was already cancelled: this waits its turn.
+            // Runs after the measurement is in place, even when the Task was already canceled: this waits its turn.
             Task { @MainActor in self.finish(id, level: nil) }
         }
     }
