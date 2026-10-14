@@ -44,6 +44,8 @@ public struct PowerStatus: Equatable, Sendable {
         public var id: String
         public var tone: ScreenAlert.Tone
         public var text: String
+        /// For the battery, its 10% band: a swiped battery warning shows again only in the next band down.
+        public var swipeKey: String? = nil
     }
 
     /// Nil when the device has no battery.
@@ -59,7 +61,7 @@ public struct PowerStatus: Equatable, Sendable {
     /// The warnings as record-screen alerts, most urgent first. They have no button: they stay while the
     /// condition holds.
     public var alerts: [ScreenAlert] {
-        warnings.map { ScreenAlert(id: $0.id, priority: .power, tone: $0.tone, text: $0.text) }
+        warnings.map { ScreenAlert(id: $0.id, priority: .power, tone: $0.tone, text: $0.text, swipeKey: $0.swipeKey) }
     }
 
     /// Percent at or below which an unplugged device warns, and the lower one at which it is urgent.
@@ -105,7 +107,8 @@ public struct PowerStatus: Equatable, Sendable {
             } else if low {
                 warnings.append(Warning(
                     id: "battery", tone: .warning,
-                    text: "Battery at \(percent)% and not charging. Plug in soon."))
+                    text: "Battery at \(percent)% and not charging. Plug in soon.",
+                    swipeKey: "\((percent + 9) / 10)"))
             }
         } else {
             battery = nil

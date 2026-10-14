@@ -1,6 +1,6 @@
 /// Warnings the operator swiped off the record screen (#644).
 public struct SwipedAlerts: Equatable, Sendable {
-    /// The text each swiped alert had, by id.
+    /// The swipe key (or text) each swiped alert had, by id.
     private var swiped: [String: String] = [:]
 
     public init() {}
@@ -8,12 +8,12 @@ public struct SwipedAlerts: Equatable, Sendable {
     /// Only a warning goes; a critical alert stays until its problem is gone.
     public mutating func swipe(_ alert: ScreenAlert) {
         guard alert.tone == .warning else { return }
-        swiped[alert.id] = alert.text
+        swiped[alert.id] = alert.swipeKey ?? alert.text
     }
 
-    /// The alerts still to show. One whose text has changed since the swipe shows again.
+    /// The alerts still to show. One whose text (or swipe key) has changed since the swipe, or that has turned critical, shows again.
     public func showing(_ alerts: [ScreenAlert]) -> [ScreenAlert] {
-        alerts.filter { swiped[$0.id] != $0.text }
+        alerts.filter { $0.tone != .warning || swiped[$0.id] != ($0.swipeKey ?? $0.text) }
     }
 
     /// Forgets the swipes of alerts no longer raised, so one that comes back shows again.

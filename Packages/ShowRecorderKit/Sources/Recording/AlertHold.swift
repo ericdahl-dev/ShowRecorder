@@ -27,4 +27,9 @@ public struct AlertHold: Equatable, Sendable {
     public mutating func release() {
         held = nil
     }
+
+    /// How long the shown alert is still held, in seconds: 0 once the hold is over.
+    public func remaining(at now: Date) -> TimeInterval {
+        max(0, Self.minimum - now.timeIntervalSince(since))
+    }
 }

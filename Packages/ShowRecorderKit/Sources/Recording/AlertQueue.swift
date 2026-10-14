@@ -41,13 +41,16 @@ public struct ScreenAlert: Equatable, Identifiable, Sendable {
     public var tone: Tone
     public var text: String
     public var action: Action?
+    /// What must change for a swiped warning to show again (#644); nil means its text.
+    public var swipeKey: String?
 
-    public init(id: String, priority: Priority, tone: Tone, text: String, action: Action? = nil) {
+    public init(id: String, priority: Priority, tone: Tone, text: String, action: Action? = nil, swipeKey: String? = nil) {
         self.id = id
         self.priority = priority
         self.tone = tone
         self.text = text
         self.action = action
+        self.swipeKey = swipeKey
     }
 }
 

@@ -104,4 +104,24 @@ struct SwipedAlertsTests {
 
         #expect(swiped.showing([battery, shortfall]) == [shortfall])
     }
+
+    @Test("A swiped warning that turns critical shows again")
+    func turnsCriticalShowsAgain() {
+        var swiped = SwipedAlerts()
+        swiped.swipe(battery)
+        var urgent = battery
+        urgent.tone = .critical
+
+        #expect(swiped.showing([urgent]) == [urgent])
+    }
+
+    @Test("A swiped battery warning stays hidden as the percent drops within its 10% band")
+    func batteryBand() {
+        let at20 = PowerStatus(batteryLevel: 0.20, charging: .unplugged, thermal: .nominal).alerts
+        let at15 = PowerStatus(batteryLevel: 0.15, charging: .unplugged, thermal: .nominal).alerts
+        var swiped = SwipedAlerts()
+        swiped.swipe(at20[0])
+
+        #expect(swiped.showing(at15).isEmpty)
+    }
 }

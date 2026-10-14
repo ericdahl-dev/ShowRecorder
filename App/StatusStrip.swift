@@ -100,14 +100,17 @@ struct AlertSlot: View {
     var lines = 2
     /// Swiping a warning away (#644). A critical alert can't be swiped.
     var swipe: ((ScreenAlert) -> Void)?
-    @State private var dragX: CGFloat = 0
+    /// The finger's sideways drag; back to 0 when the drag ends or is canceled.
+    @GestureState(resetTransaction: Transaction(animation: .default)) private var dragX: CGFloat = 0
+    /// The slide off once the swipe is far enough.
+    @State private var flyOffX: CGFloat = 0
 
     var body: some View {
         Group {
             if let alert = queue.top {
                 let swipeable = swipe != nil && alert.tone == .warning
                 AlertBanner(alert: alert, moreCount: queue.moreCount, lines: lines, perform: perform) { listing = true }
-                    .offset(x: dragX)
+                    .offset(x: dragX + flyOffX)
                     .gesture(swipeAway(alert), including: swipeable ? .all : .subviews)
                     .accessibilityActions {
                         if swipeable { Button("Dismiss") { swipe?(alert) } }
@@ -117,6 +120,7 @@ struct AlertSlot: View {
             }
         }
         .frame(height: slotHeight)
+        .onChange(of: queue.top?.id) { flyOffX = 0 }
         .popover(isPresented: $listing) {
             VStack(spacing: 8) {
                 // Here every alert is shown in full (#292): the slot's 2 lines can cut a long one off.
@@ -135,19 +139,18 @@ struct AlertSlot: View {
     /// Past 80 pt sideways the banner slides off and the warning is swiped; short of it, it springs back.
     private func swipeAway(_ alert: ScreenAlert) -> some Gesture {
         DragGesture(minimumDistance: 20)
-            .onChanged { drag in
-                if abs(drag.translation.width) > abs(drag.translation.height) { dragX = drag.translation.width }
+            .updating($dragX) { drag, x, _ in
+                if abs(drag.translation.width) > abs(drag.translation.height) { x = drag.translation.width }
             }
-            .onEnded { _ in
-                guard abs(dragX) > 80 else {
-                    withAnimation { dragX = 0 }
-                    return
-                }
+            .onEnded { drag in
+                let x = drag.translation.width
+                guard abs(x) > 80, abs(x) > abs(drag.translation.height) else { return }
+                flyOffX = x
                 withAnimation(.easeOut(duration: 0.2)) {
-                    dragX = dragX > 0 ? 1000 : -1000
+                    flyOffX = x > 0 ? 1000 : -1000
                 } completion: {
                     swipe?(alert)
-                    dragX = 0
+                    flyOffX = 0
                 }
             }
     }
@@ -193,7 +196,7 @@ struct LandscapeAlertRow: View {
             shown = hold.update(urgent.top, at: .now)
             // Cleared while held: look again once the hold is over. A change cancels the wait.
             guard shown != nil, urgent.top == nil,
-                  (try? await Task.sleep(for: .seconds(AlertHold.minimum))) != nil else { return }
+                  (try? await Task.sleep(for: .seconds(hold.remaining(at: .now)))) != nil else { return }
             shown = hold.update(urgent.top, at: .now)
         }
     }
