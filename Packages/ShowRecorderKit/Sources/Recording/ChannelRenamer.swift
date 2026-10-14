@@ -48,8 +48,12 @@ public enum ChannelRenamer {
     private static func rename(names: [Int: String], lateChannels: Set<Int>, in folder: URL, copy: DestinationKind) throws {
         var take = try TakeMetadata.read(fromTakeFolder: folder)
         let fm = FileManager.default
-        // A stand-in kept on the Device has its Stems in its own folder (#622).
-        let stemFolders = copy == .device ? take.standIns?.map { folder.appending(path: $0.folderName) } : nil
+        // A stand-in kept on the Device has its Stems in its own folder (#622), never reached through a link (#627).
+        let standIns = copy == .device ? take.standIns.flatMap { $0.isEmpty ? nil : $0 } : nil
+        let stemFolders = standIns?.map { folder.appending(path: $0.folderName, directoryHint: .isDirectory) }
+        if let link = stemFolders?.first(where: { !ShowDeleter.isRealFolder($0) }) {
+            throw CocoaError(.fileNoSuchFile, userInfo: [NSFilePathErrorKey: link.path])
+        }
         for index in take.usbChannels.indices {
             let channel = take.usbChannels[index]
             guard let name = names[channel.usbChannel], name != channel.name else { continue }

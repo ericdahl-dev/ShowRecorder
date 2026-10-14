@@ -108,6 +108,25 @@ struct ChannelRenamerTests {
         #expect(FileManager.default.fileExists(atPath: take(device).appending(path: "01 Kick.wav").path))
     }
 
+    @Test("A stand-in folder that is a link is never followed: the Device isn't renamed and what it points at is untouched (#627)")
+    func standInLinkNotFollowed() throws {
+        try recordTake()
+        var metadata = try metadata(take(device))
+        let standIn = TakeMetadata.StandIn(start: 0, end: 1)
+        metadata.standIns = [standIn]
+        try metadata.write(to: take(device))
+        let outside = root.appending(path: "Outside")
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+        try Data("keep".utf8).write(to: outside.appending(path: "01 USB 01.wav"))
+        try FileManager.default.createSymbolicLink(at: take(device).appending(path: standIn.folderName), withDestinationURL: outside)
+
+        let outcome = ChannelRenamer.rename(names: [1: "Kick"], in: [.device: take(device)], allowsProExtras: true)
+
+        #expect(outcome.renamed.isEmpty)
+        #expect(FileManager.default.fileExists(atPath: outside.appending(path: "01 USB 01.wav").path), "the target is untouched")
+        #expect(!FileManager.default.fileExists(atPath: outside.appending(path: "01 Kick.wav").path))
+    }
+
     @Test("A name typed during a Take changes no file until the Take ends; then every Copy has it, and the next Take starts with it")
     func nameDuringTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 2)

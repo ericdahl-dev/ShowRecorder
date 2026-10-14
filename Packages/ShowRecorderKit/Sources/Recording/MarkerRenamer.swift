@@ -78,7 +78,7 @@ public enum MarkerRenamer {
         // Every Stem is tried, so one bad file doesn't leave the others with the old name.
         var unreadable: [String] = []
         // A stand-in kept on the Device has its Stems in its own folder, counting from its start (#622).
-        let stemFolders = copy == .device ? take.standIns?.map { ($0.folderName + "/", $0.start) } : nil
+        let stemFolders = copy == .device ? take.standIns.flatMap { $0.isEmpty ? nil : $0 }?.map { ($0.folderName + "/", $0.start) } : nil
         for (subfolder, start) in stemFolders ?? [("", 0)] {
             for channel in take.usbChannels {
                 let file = subfolder + channel.stemFile
