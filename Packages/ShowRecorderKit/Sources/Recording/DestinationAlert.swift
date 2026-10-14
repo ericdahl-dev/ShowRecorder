@@ -32,10 +32,4 @@ public enum DestinationAlert {
             return nil
         }
     }
-
-    /// Today's call with the two running words, until the record screen reads `TakeCopies` itself (#550).
-    public static func make(isRecording: Bool, device: CopyStatus, drive: CopyStatus, checkedAndNotFound: Bool = false) -> ScreenAlert? {
-        make(copies: TakeCopies(isRunning: isRecording) { CopyState($0 == .device ? device : drive) },
-             checkedAndNotFound: checkedAndNotFound)
-    }
 }

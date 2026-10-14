@@ -45,15 +45,4 @@ public enum WatchStatusMaker {
         if mixerDown { problems.append(.mixerLinkLost) }
         return WatchStatus(state: state, problems: problems, sentAt: now)
     }
-
-    /// Today's call with the running words (empty when no Take is running), until the record screen reads
-    /// `TakeCopies` itself (#550).
-    public static func make(
-        isArmed: Bool, take: Take?, chips: [StatusChip] = [], driveAvailable: Bool = false,
-        copies: [DestinationKind: CopyStatus], dropoutCount: Int = 0, mixerDown: Bool = false, now: Date = .now
-    ) -> WatchStatus {
-        make(isArmed: isArmed, take: take, chips: chips, driveAvailable: driveAvailable,
-             copies: TakeCopies(isRunning: !copies.isEmpty) { copies[$0].map(CopyState.init) ?? .recording },
-             dropoutCount: dropoutCount, mixerDown: mixerDown, now: now)
-    }
 }

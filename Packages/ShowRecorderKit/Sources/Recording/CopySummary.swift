@@ -29,8 +29,8 @@ public struct CopySummary: Equatable, Sendable {
         self.init(parts: [line] + moved, outcomes: outcomes, dropoutCount: dropoutCount)
     }
 
-    /// Today's call with the last Take's outcomes, until the record screen reads `TakeCopies` itself (#550).
-    public init(outcomes: [DestinationKind: CopyOutcome], dropoutCount: Int) {
+    /// Each ended Copy's line; a lone Copy says which one was missing.
+    private init(outcomes: [DestinationKind: CopyOutcome], dropoutCount: Int) {
         var parts = DestinationKind.allCases.compactMap { kind in
             outcomes[kind].map { "\(kind.name) copy: \($0.word)" }
         }

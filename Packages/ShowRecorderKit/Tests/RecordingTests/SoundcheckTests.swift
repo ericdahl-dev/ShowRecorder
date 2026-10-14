@@ -202,7 +202,7 @@ struct SoundcheckTests {
 
     @Test("The status strip has no Mixer chip for an input that isn't an X Air or X32 (#365)")
     func noMixerChip() {
-        let chips = StatusChip.make(usbChannelCount: 2, deviceAvailableBytes: 1 << 34, drive: .notChosen, mixer: nil, copies: [:])
+        let chips = StatusChip.make(usbChannelCount: 2, deviceAvailableBytes: 1 << 34, drive: .notChosen, mixer: nil, copies: .none)
         #expect(chips.map(\.kind) == [.device, .drive])
     }
 

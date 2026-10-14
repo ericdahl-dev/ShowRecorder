@@ -5,19 +5,6 @@ import Testing
 /// What the record screen says about the Copies of a running Take.
 @Suite("Destination alert")
 struct DestinationAlertTests {
-    @Test("Today's call with two running words says the same as one with the Take's Copies (until the screen moves over)")
-    func adapterSaysTheSame() {
-        let words: [CopyStatus] = [.recording, .interrupted, .missing]
-        for recording in [true, false] {
-            for device in words {
-                for drive in words {
-                    #expect(DestinationAlert.make(isRecording: recording, device: device, drive: drive)
-                            == DestinationAlert.make(copies: takeCopies(running: recording, device: CopyState(device), drive: CopyState(drive))))
-                }
-            }
-        }
-    }
-
     @Test("A Drive that stops mid-Take is critical, with its own id, so it is not mistaken for the quiet 'No Drive' notice")
     func driveStoppedIsCritical() throws {
         let alert = try #require(DestinationAlert.make(copies: takeCopies(device: .recording, drive: .interrupted)))
@@ -160,18 +147,6 @@ struct DriveRejoinNoticeTests {
 
         notice.update(copies: takeCopies(running: false, device: .recording, drive: .recording))
         #expect(notice.alert == nil, "gone once the Take ends")
-    }
-
-    @Test("The rejoin notice fed the Drive's running word says the same as one fed the Take's Copies (until the screen moves over)")
-    func rejoinAdapterSaysTheSame() {
-        var old = DriveRejoinNotice(), new = DriveRejoinNotice()
-        let steps: [(Bool, CopyStatus)] = [(true, .recording), (true, .interrupted), (true, .missing), (true, .recording),
-                                          (true, .recording), (false, .recording), (true, .interrupted), (false, .interrupted)]
-        for (recording, drive) in steps {
-            old.update(isRecording: recording, drive: drive)
-            new.update(copies: takeCopies(running: recording, device: .recording, drive: CopyState(drive)))
-            #expect(old.alert == new.alert)
-        }
     }
 
     @Test("A Drive lost in one Take doesn't make the next Take say it's back")

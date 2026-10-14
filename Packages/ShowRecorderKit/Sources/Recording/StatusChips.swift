@@ -104,19 +104,4 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         }
         return chips + [mixerChip]
     }
-
-    /// Today's call with the running words (empty when no Take is running), until the record screen reads
-    /// `TakeCopies` itself (#550).
-    public static func make(
-        usbChannelCount: Int,
-        deviceAvailableBytes: Int64,
-        drive: DriveStatus,
-        mixer: MixerLinkStatus?,
-        copies: [DestinationKind: CopyStatus],
-        sampleRate: Int = 48_000
-    ) -> [StatusChip] {
-        make(usbChannelCount: usbChannelCount, deviceAvailableBytes: deviceAvailableBytes, drive: drive, mixer: mixer,
-             copies: TakeCopies(isRunning: !copies.isEmpty) { copies[$0].map(CopyState.init) ?? .recording },
-             sampleRate: sampleRate)
-    }
 }

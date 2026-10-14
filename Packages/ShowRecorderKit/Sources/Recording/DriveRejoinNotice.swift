@@ -21,11 +21,6 @@ public struct DriveRejoinNotice: Equatable, Sendable {
         }
     }
 
-    /// Today's call with the Drive's running word, until the record screen reads `TakeCopies` itself (#550).
-    public mutating func update(isRecording: Bool, drive: CopyStatus) {
-        update(copies: TakeCopies(isRunning: isRecording) { $0 == .drive ? CopyState(drive) : .recording })
-    }
-
     public var alert: ScreenAlert? {
         showing ? ScreenAlert(id: "drive-back", priority: .destination, tone: .ok, text: "The Drive is back. The Gap will be Repaired after the Take.") : nil
     }
