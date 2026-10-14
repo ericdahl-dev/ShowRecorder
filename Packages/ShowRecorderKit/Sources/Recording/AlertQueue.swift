@@ -34,6 +34,8 @@ public struct ScreenAlert: Equatable, Identifiable, Sendable {
         case soundcheck
         /// Hide the routing change warning (#21) until the Mixer is re-patched again.
         case dismissRoutingChange
+        /// Show each Take the latest move to the Drive took up, and why one stays on this iPhone (#630).
+        case showMoves
     }
 
     public var id: String

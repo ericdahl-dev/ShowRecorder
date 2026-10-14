@@ -45,7 +45,7 @@ struct RecordScreen: View {
         if showingMonitor { return true }
         #endif
         return showingSettings || showingMarkers || showingNewShow || showingShowList || showingChannelNames || showingAutoGain
-            || showingTrialOffer || model.showingSoundcheck || shownPaywall != nil
+            || showingTrialOffer || model.showingSoundcheck || model.showingMoves || shownPaywall != nil
     }
 
     /// Shows a paywall that came due, else the first-launch Trial offer, once no other sheet is up.
@@ -120,6 +120,7 @@ struct RecordScreen: View {
         #endif
         .sheet(isPresented: $showingNewShow) { NewShowSheet(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $model.showingSoundcheck) { SoundcheckView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
+        .sheet(isPresented: $model.showingMoves) { MoveReportSheet(recorder: model.recorder).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingShowList) { ShowListView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingAutoGain) { AutoGainSheet(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
@@ -882,6 +883,10 @@ final class RecordScreenModel {
         if let summary = copySummary, !recorder.isRecording {
             list.append(ScreenAlert(id: "copies", priority: .copyResult, tone: summary.isProblem ? .warning : .ok, text: summary.text))
         }
+        // Drive only Takes moving to the Drive (#630), where Drive only is offered; tap for each Take and why one stays.
+        if let alert = recorder.moveReport.alert(isOffered: recorder.movesDriveOnlyTakes, isRecording: recorder.isRecording) {
+            list.append(alert)
+        }
         if showSetupHint {
             list.append(ScreenAlert(id: "hint", priority: .hint, tone: .info, text: offersMixerLink ? "Choose the audio interface, Drive and Mixer in Settings (the gear)." : "Choose the audio interface and Drive in Settings (the gear).", action: .dismissHint))
         }
@@ -899,6 +904,8 @@ final class RecordScreenModel {
     private static let soundcheckOfferedKey = "soundcheckOffered"
     /// The Soundcheck sheet over the record screen.
     var showingSoundcheck = false
+    /// What the latest move to the Drive did, Take by Take (#630).
+    var showingMoves = false
 
     /// Runs the Soundcheck with what the Mixer Link and the Drive know right now.
     func runSoundcheck(progress: (Soundcheck.Step.Kind) -> Void, result: (Soundcheck.Step) -> Void) async -> [Soundcheck.Step] {
@@ -930,6 +937,8 @@ final class RecordScreenModel {
             showingSoundcheck = true
         case .dismissRoutingChange:
             routingChangeSeen = (takeNumber, recorder.routingChanges)
+        case .showMoves:
+            showingMoves = true
         case .checkDrive:
             // Look again now, and say so if it's still not there.
             drive.refresh()

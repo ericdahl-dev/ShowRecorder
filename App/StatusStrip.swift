@@ -304,6 +304,7 @@ extension ScreenAlert.Action {
         case .arm: "Arm"
         case .soundcheck: "Soundcheck"
         case .dismissRoutingChange: "Got it"
+        case .showMoves: "Details"
         }
     }
 }
@@ -330,5 +331,32 @@ struct DisarmedNotice: View {
         .padding()
         .frame(maxWidth: 320)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Drive only (#630): each Take the latest move to the Drive took up, and why one stays on this iPhone.
+struct MoveReportSheet: View {
+    let recorder: Recorder
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List(recorder.moveReport.entries) { entry in
+                // A kept Take's row is where a way to delete it from this iPhone goes (#656).
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(entry.title).font(.headline)
+                    if entry.status == .kept {
+                        Text(entry.statusText).warningText()
+                    } else {
+                        Text(entry.statusText).secondaryText()
+                    }
+                    ForEach(entry.reasons, id: \.self) { reason in
+                        Text(reason).font(.footnote).secondaryText()
+                    }
+                }
+            }
+            .navigationTitle("Moving to the Drive")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        }
     }
 }
