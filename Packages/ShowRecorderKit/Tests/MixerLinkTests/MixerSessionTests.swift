@@ -47,6 +47,18 @@ struct MixerSessionTests {
         #expect(session.capabilities == nil)
     }
 
+    @Test("The linked Mixer's network name is still there for a Template while nothing is Armed")
+    func networkNameForTemplates() async {
+        let (session, link) = session()
+        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+
+        await session.armed(interfaceName: nil, usbChannelCount: 0)
+
+        #expect(session.identity == nil)
+        #expect(session.networkNameForTemplates == "FOH")
+    }
+
     @Test("A remembered Mixer connects when an X Air is Armed and the Link is idle")
     func rememberedMixerConnectsOnArm() async {
         let driver = FakeMixerDriver()

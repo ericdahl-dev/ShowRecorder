@@ -703,8 +703,10 @@ final class RecordScreenModel {
                 // An interruption's restart reuses the input without `didArm`; the output unit iOS stopped needs a restart.
                 if case .inputRestarted = event { MonitorExperiment.shared.inputRestarted() }
                 #endif
-                // A disarm hides the Mixer Link at once, whatever the screen does (#556).
-                if case .disarmed = event { Task { await self?.mixer.armed(interfaceName: nil, usbChannelCount: 0) } }
+                // A disarm hides the Mixer Link at once, whatever the screen does (#556); a re-Arm that got there first wins.
+                if case .disarmed = event {
+                    Task { guard let self, !self.recorder.isArmed else { return }; await self.mixer.armed(interfaceName: nil, usbChannelCount: 0) }
+                }
                 // Whoever started or ended the Take: Stop, the watch, or the recorder itself (#551).
                 guard let self else { return }
                 let followUp = TakeFollowUp(event)
@@ -717,7 +719,7 @@ final class RecordScreenModel {
     /// A new auto-gain session on the linked Mixer, measuring with the record screen's own meters. Every gain change it
     /// makes or undoes is logged in the Show (#450).
     /// The linked Mixer as auto-gain tells Mixers apart, "FOH · XR18": its network name and model, so two desks both
-    /// named FOH aren't one. Nil while the Mixer Link is down.
+    /// named FOH aren't one. Nil while the Mixer Link is down or isn't offered.
     var linkedMixer: String? {
         mixer.identity.map { "\($0.networkName) · \($0.model)" }
     }
@@ -1122,7 +1124,7 @@ final class RecordScreenModel {
         guard !name.isEmpty else { return }
         templates.save(Template(
             name: name, venue: recorder.currentShow?.venue, channelNames: recorder.channelNames,
-            mixerNetworkName: mixer.identity?.networkName, mixerAddress: mixerAddress,
+            mixerNetworkName: mixer.networkNameForTemplates, mixerAddress: mixerAddress,
             preRollSeconds: preRollSeconds))
     }
 
@@ -1172,7 +1174,7 @@ final class RecordScreenModel {
     /// Mixer (#34). Returns what to tell the operator, or nil when it was saved.
     func saveTemplate(fromShow folder: URL, named name: String) -> String? {
         guard var template = Template.fromShow(
-            folder: folder, mixerNetworkName: mixer.identity?.networkName,
+            folder: folder, mixerNetworkName: mixer.networkNameForTemplates,
             mixerAddress: mixerAddress, preRollSeconds: preRollSeconds) else { return "This Show's setup couldn't be read." }
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if !name.isEmpty { template.name = name }
