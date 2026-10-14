@@ -211,7 +211,11 @@ struct ClipProtectionTests {
             for await _ in released { return }
         }
         let (logged, log) = AsyncStream<Void>.makeStream()
-        let protection = ClipProtection(control: control, sampleRate: 48_000, log: { _ in log.yield() })
+        var order: [Int] = []
+        let protection = ClipProtection(control: control, sampleRate: 48_000, log: {
+            order.append($0.usbChannel)
+            log.yield()
+        })
         let quiet = Windows.at(-30)
 
         // One read turns down channels 1 and 2, one lane: channel 1's move is done, then channel 2's waits on the Mixer.
@@ -225,6 +229,7 @@ struct ClipProtectionTests {
         release.yield()
         for task in both + again { await task.value }
         #expect(control.gainDb == [1: 22, 2: 26])
+        #expect(order == [1, 2, 1], "channel 1's second move waited behind channel 2's in their lane")
     }
 
     @Test("A read's last lane finishing never frees a channel a later turn-down holds (#554)")
