@@ -135,7 +135,8 @@ public struct ShowReport: Equatable, Sendable {
         let fm = FileManager.default
         let folders = try fm.contentsOfDirectory(at: showFolder, includingPropertiesForKeys: nil)
         var takes: [Take] = []
-        for folder in folders {
+        // A folder whose name starts with "." isn't a Take, such as one a move set aside (#630).
+        for folder in folders where !folder.lastPathComponent.hasPrefix(".") {
             guard fm.fileExists(atPath: folder.appending(path: TakeMetadata.fileName).path) else { continue }
             takes.append(Take(try TakeMetadata.read(fromTakeFolder: folder), folder: folder))
         }

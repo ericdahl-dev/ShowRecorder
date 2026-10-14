@@ -10,7 +10,8 @@ extension Show {
     /// Take folders without a readable `Take.json` are left out.
     public func timeline() throws -> ShowTimeline {
         let entries = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
-        let metadata = entries
+        // A folder whose name starts with "." isn't a Take, such as one a move set aside (#630).
+        let metadata = entries.filter { !$0.lastPathComponent.hasPrefix(".") }
             .compactMap { takeFolder -> (folder: URL, take: TakeMetadata)? in
                 guard let take = try? TakeMetadata.read(fromTakeFolder: takeFolder) else { return nil }
                 return (takeFolder, take)

@@ -114,24 +114,12 @@ public enum CopyCheck {
     /// and channel, the Drive Stem's samples over `start..<end` are the whole stand-in Stem. Moving a kept stand-in
     /// checks it with this, not with `verifyTake`, which fails for any Take that still has a stand-in.
     public static func verifyStandIn(deviceTake: URL, driveTake: URL) -> Result {
-        guard let take = try? TakeMetadata.read(fromTakeFolder: deviceTake) else {
-            return .failed(["\(deviceTake.lastPathComponent) can't be read on the Device."])
+        if let problem = standInProblem(deviceTake: deviceTake, driveTake: driveTake) { return .failed([problem]) }
+        guard let take = try? TakeMetadata.read(fromTakeFolder: deviceTake), let standIns = take.standIns,
+              let driveMetadata = try? TakeMetadata.read(fromTakeFolder: driveTake) else {
+            return .failed(["\(deviceTake.lastPathComponent) can't be read."])
         }
         let name = TakeMetadata.name(take: take.take)
-        guard let standIns = take.standIns, !standIns.isEmpty else { return .failed(["\(name) has no stand-in on the Device."]) }
-        guard standIns.allSatisfy({ $0.start >= 0 && $0.end >= $0.start }) else {
-            return .failed(["\(name)'s Take.json lists a stand-in that can't be."])
-        }
-        if let problem = pairProblem(take, device: deviceTake, drive: driveTake) { return .failed([problem]) }
-        guard let driveMetadata = try? TakeMetadata.read(fromTakeFolder: driveTake) else { return .failed(["\(name) is missing on the Drive."]) }
-        let listed = Set(take.usbChannels.map(\.stemFile))
-        for standIn in standIns {
-            let folder = deviceTake.appending(path: standIn.folderName)
-            guard ShowDeleter.isRealFolder(folder) else { return .failed(["\(name)'s stand-in isn't a folder of its own on the Device."]) }
-            guard let files = try? FileManager.default.contentsOfDirectory(atPath: folder.path), Set(files).isSubset(of: listed) else {
-                return .failed(["\(name)'s stand-in has files the Take doesn't list."])
-            }
-        }
         let size = UInt64(StemWriter.bytesPerSample)
         var problems: [String] = []
         for channel in take.usbChannels {
@@ -161,6 +149,30 @@ public enum CopyCheck {
             }
         }
         return problems.isEmpty ? .passed : .failed(problems)
+    }
+
+    /// Why the Device's Take at `deviceTake` and the Drive's at `driveTake` can't be compared as a stand-in and its
+    /// Drive Take at all, if they can't: either can't be read, the Device's lists no stand-in or one that can't be, the
+    /// two aren't the same recording in folders of their own, or a stand-in isn't a folder of its own holding only the
+    /// Stems the Take lists. Moving a stand-in checks this before it writes anything to the Drive (#630).
+    static func standInProblem(deviceTake: URL, driveTake: URL) -> String? {
+        guard let take = try? TakeMetadata.read(fromTakeFolder: deviceTake) else { return "\(deviceTake.lastPathComponent) can't be read on the Device." }
+        let name = TakeMetadata.name(take: take.take)
+        guard let standIns = take.standIns, !standIns.isEmpty else { return "\(name) has no stand-in on the Device." }
+        guard standIns.allSatisfy({ $0.start >= 0 && $0.end >= $0.start }) else { return "\(name)'s Take.json lists a stand-in that can't be." }
+        if let problem = pairProblem(take, device: deviceTake, drive: driveTake) { return problem }
+        guard (try? TakeMetadata.read(fromTakeFolder: driveTake)) != nil else { return "\(name) is missing on the Drive." }
+        let listed = Set(take.usbChannels.map(\.stemFile))
+        for standIn in standIns {
+            let folder = deviceTake.appending(path: standIn.folderName)
+            guard ShowDeleter.isRealFolder(folder) else { return "\(name)'s stand-in isn't a folder of its own on the Device." }
+            // The Finder's .DS_Store on macOS is no file of the Take's.
+            guard let files = try? FileManager.default.contentsOfDirectory(atPath: folder.path),
+                  Set(files).subtracting([".DS_Store"]).isSubset(of: listed) else {
+                return "\(name)'s stand-in has files the Take doesn't list."
+            }
+        }
+        return nil
     }
 
     /// "m:ss" of a Take frame.

@@ -111,7 +111,9 @@ public enum ShowList {
     }
 
     static func takeMetadata(in showFolder: URL) -> [(folder: URL, take: TakeMetadata)] {
-        let entries = (try? FileManager.default.contentsOfDirectory(at: showFolder, includingPropertiesForKeys: nil)) ?? []
+        // A folder whose name starts with "." isn't a Take, such as one a move set aside (#630).
+        let entries = ((try? FileManager.default.contentsOfDirectory(at: showFolder, includingPropertiesForKeys: nil)) ?? [])
+            .filter { !$0.lastPathComponent.hasPrefix(".") }
         return entries.compactMap { folder in
             guard let take = try? TakeMetadata.read(fromTakeFolder: folder) else { return nil }
             return (folder, take)
