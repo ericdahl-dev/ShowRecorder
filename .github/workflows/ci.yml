@@ -138,6 +138,25 @@ jobs:
           -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd
           CODE_SIGNING_ALLOWED=NO build
 
+  # codecov/project and codecov/patch are required on main. When the app job is skipped (a website-only change),
+  # nothing is uploaded and Codecov would never post them, so the PR would wait forever: pass both, nothing to measure.
+  coverage-skipped:
+    name: Coverage (nothing to measure)
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.app != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          for context in codecov/project codecov/patch; do
+            gh api "repos/${{ github.repository }}/statuses/$SHA" -f state=success -f context="$context" \
+              -f description="No app or Kit change: nothing to measure" >/dev/null
+          done
+
   site:
     name: Website
     needs: changes
