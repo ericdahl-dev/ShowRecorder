@@ -319,7 +319,7 @@ struct RecordScreen: View {
                 Button { open(.channelNames) } label: { Text("Names").tapTarget() }
                     .buttonStyle(.plain)
                     .foregroundStyle(.tint)
-                if model.offersAutoGain {
+                if model.mixerGain.offersAutoGain {
                     Button { showingAutoGain = true } label: { Text("Gain").tapTarget() }
                         .padding(.leading, 12)
                         .buttonStyle(.plain)
@@ -394,7 +394,7 @@ struct RecordScreen: View {
                     Button { open(.channelNames) } label: { Text("Names").tapTarget() }
                         .buttonStyle(.plain)
                         .foregroundStyle(.tint)
-                    if model.offersAutoGain {
+                    if model.mixerGain.offersAutoGain {
                         Button { showingAutoGain = true } label: { Text("Gain").tapTarget() }
                             .buttonStyle(.plain)
                             .foregroundStyle(.tint)
@@ -650,21 +650,6 @@ final class RecordScreenModel {
     /// The Mixer's Sources while Mixer Link is offered; none otherwise, so another input's Stems never get the
     /// Mixer's names.
     var linkedSources: [Source] { mixer.sources }
-
-    /// The Gain button (#155) shows while an X Air or X32 is Armed; when auto-gain can't run (a Take, no Mixer Link, a
-    /// Mixer whose gain can't be set) its sheet says why instead of the button disappearing. Debug builds only for now
-    /// (`AutoGainAvailability`).
-    var offersAutoGain: Bool {
-        AutoGainAvailability.isOffered(available: AutoGainAvailability.isAvailable(), mixerLinkOffered: offersMixerLink)
-    }
-
-    /// Why auto-gain can't run right now; nil when it can.
-    var autoGainUnavailable: AutoGainAvailability.Unavailable? {
-        let isConnecting = if case .connecting = mixer.status { true } else { false }
-        return AutoGainAvailability.whyNot(hasMixerLink: mixer.identity != nil, isConnecting: isConnecting,
-                                           canSetGain: mixer.gainControl != nil, isRecording: recorder.isRecording,
-                                           otherMixer: mixer.otherMixerLinked?.nameAndModel)
-    }
 
     /// Gain on the Mixer (#554): auto-gain's state (#155), kept here, not in the sheet, so Undo survives closing it,
     /// locked during a Take; and clip protection (#448), only during a Take, only when switched on.
@@ -990,6 +975,7 @@ final class RecordScreenModel {
         sequencer.log = { line in Self.sessionLog.notice("\(line, privacy: .public)") }
         mixerGain.makeSession = { [weak self] queue in self?.makeAutoGainSession(queue: queue) }
         mixerGain.isRecording = { [weak self] in self?.recorder.isRecording ?? false }
+        mixerGain.mixer = mixer
         mixerGain.mixerName = { [weak self] in self?.linkedMixer }
         mixerGain.makeProtection = { [weak self] queue in self?.makeClipProtection(queue: queue) }
         followTakes()
