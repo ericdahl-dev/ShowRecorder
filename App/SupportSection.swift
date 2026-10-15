@@ -35,7 +35,7 @@ struct SupportSection: View {
                 Toggle("Attach the last Show report (\(report.deletingLastPathComponent().lastPathComponent))", isOn: $attachReport)
             }
         } footer: {
-            Text("Opens an email to \(SupportMail.address) with the app version, this \(Self.hardwareWord), the audio interface and the Mixer Link filled in. You see all of it before you send, and nothing is sent unless you do.")
+            Text("Opens an email to \(SupportMail.address) with the app version, this \(ThisHardware.word), the audio interface and the Mixer Link filled in. You see all of it before you send, and nothing is sent unless you do.")
         }
         .task {
             let device = Recorder.defaultDeviceFolder
@@ -81,12 +81,6 @@ struct SupportSection: View {
         #endif
         if let url = SupportMail.mailtoURL(body: body) { openURL(url) }
     }
-
-    #if os(macOS)
-    private static let hardwareWord = "Mac"
-    #else
-    private static let hardwareWord = UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
-    #endif
 
     /// "iPhone16,1" or "Mac15,3": the exact model, which "iPhone" alone doesn't say.
     private static var hardwareModel: String {

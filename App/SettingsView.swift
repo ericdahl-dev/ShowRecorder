@@ -97,6 +97,11 @@ struct SettingsView: View {
 
                 Section {
                     driveStatus
+                    // Free records to the Device only (#705): say so where the Drive is chosen, calmly, with no prompt.
+                    if !model.pro.license().allowsDrive, case .available = model.drive.status {
+                        Text("On Free, Takes record to this \(ThisHardware.word) only. A second Copy on the Drive is part of Pro.")
+                            .font(.footnote).secondaryText()
+                    }
                     Button(model.drive.status == .notChosen ? "Choose Drive Folder…" : "Change Drive Folder…") { choosing = true }
                         .disabled(locked(.drive))
                     timeLeft

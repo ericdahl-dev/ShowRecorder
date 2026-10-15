@@ -45,6 +45,9 @@ public struct License: Equatable, Sendable {
     /// Take's allowance; nothing is limited while Pro isn't offered or the tier is unknown.
     public var allowsAutoGain: Bool { allowance(channelCount: 0)?.autoGain ?? true }
 
+    /// Whether a Take pressed now would also be written to the Drive (#705), for what the screen says before the press.
+    public var allowsDrive: Bool { allowance(channelCount: 0)?.driveCopy ?? true }
+
     /// How Settings names the plan.
     public var planTitle: String { tier?.title ?? "Checking with the App Store…" }
 

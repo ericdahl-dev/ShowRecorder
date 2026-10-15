@@ -111,4 +111,17 @@ struct ProOfferTests {
         for pressure in ["hurry", "today only", "last chance", "limited time", "don't miss"] { #expect(!text.contains(pressure)) }
         #expect(Paywall(moment: nil, proPrice: nil).buyTitle == "Buy Pro")
     }
+
+    @Test("A Free Take with a Drive connected offers Pro once ever, after the Take: never during one, not on the Trial or Pro, not without a Drive (#705)")
+    func driveOnFree() {
+        let free = License(proOffered: true, tier: .free, trialStarted: true)
+        var o = offers()
+        #expect(o.afterTakeOnDevice(show: "A", license: free, isRecording: true, driveConnected: true) == nil)
+        #expect(o.afterTakeOnDevice(show: "A", license: free, isRecording: false, driveConnected: false) == nil)
+        #expect(o.afterTakeOnDevice(show: "A", license: License(proOffered: true, tier: .trial(daysLeft: 5), trialStarted: true), isRecording: false, driveConnected: true) == nil)
+        #expect(o.afterTakeOnDevice(show: "A", license: License(proOffered: true, tier: .pro, trialStarted: false), isRecording: false, driveConnected: true) == nil)
+        #expect(o.afterTakeOnDevice(show: "A", license: free, isRecording: false, driveConnected: true) == .driveOnFree)
+        #expect(o.afterTakeOnDevice(show: "B", license: free, isRecording: false, driveConnected: true) == nil, "once ever")
+        #expect(Paywall(moment: .driveOnFree, proPrice: "$19.99").headline == "This Take is on the Device only")
+    }
 }
