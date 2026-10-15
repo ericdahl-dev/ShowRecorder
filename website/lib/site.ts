@@ -20,6 +20,23 @@ export const APP_STORE_URL = null as string | null;
 // slots link here instead of showing the placeholder. Set it to null to go back to "Coming soon".
 export const TESTFLIGHT_URL = "https://testflight.apple.com/join/sSessST8" as string | null;
 
+// The crawlers that feed AI search and assistants, named so the policy is explicit: all of them may read the whole
+// site (#704). Training crawlers (Google-Extended, Applebot-Extended, CCBot) are included on purpose.
+export const AI_CRAWLERS = [
+  "GPTBot",
+  "OAI-SearchBot",
+  "ChatGPT-User",
+  "ClaudeBot",
+  "Claude-SearchBot",
+  "Claude-User",
+  "PerplexityBot",
+  "Perplexity-User",
+  "Google-Extended",
+  "Applebot",
+  "Applebot-Extended",
+  "CCBot",
+];
+
 // The routes the site exports. sitemap.ts reads this list.
 export const ROUTES: readonly string[] = [
   "/",
