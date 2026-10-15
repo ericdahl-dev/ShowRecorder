@@ -995,6 +995,7 @@ final class RecordScreenModel {
         mixerGain.mixer = mixer
         mixerGain.mixerName = { [weak self] in self?.linkedMixer }
         mixerGain.makeProtection = { [weak self] queue in self?.makeClipProtection(queue: queue) }
+        mixerGain.takeAllowance = { [weak self] in self?.recorder.takeAllowance }
         followTakes()
         sequencer.didArm = { [unowned self] device in
             #if DEBUG && os(iOS)

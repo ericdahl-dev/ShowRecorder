@@ -70,6 +70,8 @@ public final class MixerGain {
     @ObservationIgnored public var environment: () -> DistributionEnvironment? = { DemoSignalAvailability.environment }
     /// Clip protection on the linked Mixer moving gain through the given queue, or nil when it can't set gain.
     @ObservationIgnored public var makeProtection: (MixerQueue) -> ClipProtection? = { _ in nil }
+    /// The allowance the starting Take was frozen with (#705); nil allows everything, as it does for a Take.
+    @ObservationIgnored public var takeAllowance: () -> TakeAllowance? = { nil }
     /// Protecting the running Take; nil between Takes.
     @ObservationIgnored public private(set) var protection: ClipProtection?
 
@@ -152,7 +154,9 @@ public final class MixerGain {
         case .takeStarted:
             isTakeRunning = true
             session?.stop()
-            protection = offersClipProtection && isClipProtectionOn() ? makeProtection(queue) : nil
+            // Clip protection is Pro (#705): judged from the Take's allowance, frozen at its press.
+            let allowed = takeAllowance()?.clipProtection ?? true
+            protection = offersClipProtection && isClipProtectionOn() && allowed ? makeProtection(queue) : nil
             protection?.takeStarted()
         case .takeEnded:
             isTakeRunning = false

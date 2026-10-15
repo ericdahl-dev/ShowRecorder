@@ -249,6 +249,21 @@ struct MixerGainClipProtectionTests {
         for window in ClipProtectionTests.hot { await mixerGain.observe([window]) }
     }
 
+    @Test("A Take whose allowance has no clip protection (Free) isn't protected, even switched on; Pro's is (#705)")
+    func clipProtectionIsPro() {
+        var free = TakeAllowance(recordedChannels: [1], showReport: false, reaperExport: false, namingByHand: false)
+        free.clipProtection = false
+        let mixerGain = makeMixerGain(on: true)
+        mixerGain.takeAllowance = { free }
+        mixerGain.handle(.takeStarted(take: 1))
+        #expect(mixerGain.protection == nil)
+        mixerGain.handle(.takeEnded(TakeEnd(take: 1, reason: .stopped)))
+
+        mixerGain.takeAllowance = { Entitlement.allowance(for: .pro, channelCount: 1, freeChoice: []) }
+        mixerGain.handle(.takeStarted(take: 2))
+        #expect(mixerGain.protection != nil)
+    }
+
     @Test("Only during a Take: between Takes a hot channel is left alone; in a Take it is turned down; after it, left alone")
     func onlyDuringATake() async {
         let mixerGain = makeMixerGain(on: true)
