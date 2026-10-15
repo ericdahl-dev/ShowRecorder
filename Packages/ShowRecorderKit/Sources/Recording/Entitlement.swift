@@ -44,11 +44,23 @@ public struct TakeAllowance: Equatable, Sendable {
     public var reaperExport: Bool
     /// Whether typed channel names are put on the files.
     public var namingByHand: Bool
+    /// Whether the Take may also be written to the Drive: the second Copy, Repair from it, and Drive only (#705).
+    public var driveCopy = true
+    /// The most Markers the Take may have; nil for no limit (#705).
+    public var markerLimit: Int? = nil
+    /// Whether the Stems get the Mixer Link's names and colors; without it they get generic names (#705).
+    public var mixerLinkNames = true
+    /// Whether auto-gain may set the Mixer's preamps for this Take (#705).
+    public var autoGain = true
+    /// Whether clip protection may turn a clipping channel down during this Take (#705).
+    public var clipProtection = true
 }
 
 extension Entitlement {
     /// How many USB Channels Free records.
     public static let freeChannelCount = 2
+    /// How many Markers a Take may have on Free (#705).
+    public static let freeMarkerLimit = 3
 
     /// - Parameter freeChoice: the USB Channels (from 1) the operator chose to record on Free.
     public static func allowance(for tier: Tier, channelCount: Int, freeChoice: [Int]) -> TakeAllowance {
@@ -57,7 +69,10 @@ extension Entitlement {
         case .pro, .trial:
             return TakeAllowance(recordedChannels: all, showReport: true, reaperExport: true, namingByHand: true)
         case .free:
-            return TakeAllowance(recordedChannels: freeChannels(freeChoice, channelCount: channelCount), showReport: false, reaperExport: false, namingByHand: false)
+            return TakeAllowance(
+                recordedChannels: freeChannels(freeChoice, channelCount: channelCount), showReport: false, reaperExport: false,
+                namingByHand: false, driveCopy: false, markerLimit: freeMarkerLimit, mixerLinkNames: false, autoGain: false,
+                clipProtection: false)
         }
     }
 
