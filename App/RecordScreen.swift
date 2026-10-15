@@ -1057,8 +1057,8 @@ final class RecordScreenModel {
         sequencer.stop()
     }
 
-    /// After a Take: a Free Take that went to the Device only with a Drive connected (#705), a Free Take that left
-    /// channels with signal unrecorded, or the Trial's last days (#62).
+    /// After a Take: a Free Take that went to the Device only with a Drive connected, a Free Take whose Stems got
+    /// generic names while the Mixer had names (#705), or the Trial's last days (#62).
     private func offerProAfterTake() {
         let show = recorder.currentShow?.name
         let license = pro.license()
@@ -1066,9 +1066,10 @@ final class RecordScreenModel {
         let onDevice = show.flatMap {
             proOffers.afterTakeOnDevice(show: $0, license: license, isRecording: recorder.isRecording, driveConnected: driveConnected)
         }
-        let moment = onDevice ?? recorder.lastTakeSignal.flatMap { signal in
-            show.flatMap { proOffers.afterTakeStopped(show: $0, signal: signal, license: license, isRecording: recorder.isRecording) }
-        } ?? proOffers.betweenTakes(show: show, license: license, isRecording: recorder.isRecording)
+        let mixerNamed = linkedSources.contains { $0.hasMixerName }
+        let moment = onDevice
+            ?? show.flatMap { proOffers.afterTakeStopped(show: $0, license: license, isRecording: recorder.isRecording, mixerNamed: mixerNamed) }
+            ?? proOffers.betweenTakes(show: show, license: license, isRecording: recorder.isRecording)
         if let moment { offerPro(moment) }
     }
 

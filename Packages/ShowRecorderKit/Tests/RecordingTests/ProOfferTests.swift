@@ -39,25 +39,24 @@ struct ProOfferTests {
     }
 
     func offers() -> ProOffers { ProOffers(defaults: UserDefaults(suiteName: "ProOfferTests-\(UUID().uuidString)")!) }
-    let limited = TakeSignal(recorded: 2, withSignal: 5)
 
     @Test("Nothing is offered while Pro isn't offered, on Pro, or during a Take")
     func never() {
         var o = offers()
-        #expect(o.afterTakeStopped(show: "A", signal: limited, license: License(proOffered: false, tier: .free, trialStarted: false), isRecording: false) == nil)
-        #expect(o.afterTakeStopped(show: "A", signal: limited, license: License(proOffered: true, tier: .pro, trialStarted: false), isRecording: false) == nil)
-        #expect(o.afterTakeStopped(show: "A", signal: limited, license: License(proOffered: true, tier: .free, trialStarted: false), isRecording: true) == nil)
+        #expect(o.afterTakeStopped(show: "A", license: License(proOffered: false, tier: .free, trialStarted: false), isRecording: false, mixerNamed: true) == nil)
+        #expect(o.afterTakeStopped(show: "A", license: License(proOffered: true, tier: .pro, trialStarted: false), isRecording: false, mixerNamed: true) == nil)
+        #expect(o.afterTakeStopped(show: "A", license: License(proOffered: true, tier: .free, trialStarted: false), isRecording: true, mixerNamed: true) == nil)
         #expect(o.afterShowEnded(show: "A", takeCount: 3, license: License(proOffered: true, tier: .pro, trialStarted: false)) == nil)
     }
 
-    @Test("A Free Take that left channels with signal unrecorded offers Pro once that Show; one that didn't, doesn't")
-    func limitedTake() {
+    @Test("A Free Take whose Stems got generic names while the Mixer Link had names offers Pro once that Show; one without Mixer names doesn't (#705)")
+    func genericNames() {
         var o = offers()
-        #expect(o.afterTakeStopped(show: "A", signal: TakeSignal(recorded: 2, withSignal: 2), license: License(proOffered: true, tier: .free, trialStarted: false), isRecording: false) == nil)
-        #expect(o.afterTakeStopped(show: "A", signal: limited, license: License(proOffered: true, tier: .free, trialStarted: false), isRecording: false) == .limitedTake(recorded: 2, withSignal: 5))
-        #expect(o.afterTakeStopped(show: "A", signal: limited, license: License(proOffered: true, tier: .free, trialStarted: false), isRecording: false) == nil, "once per Show")
-        #expect(o.afterTakeStopped(show: "B", signal: limited, license: License(proOffered: true, tier: .free, trialStarted: false), isRecording: false) == .limitedTake(recorded: 2, withSignal: 5))
-        #expect(o.afterTakeStopped(show: "C", signal: limited, license: License(proOffered: true, tier: .trial(daysLeft: 5), trialStarted: false), isRecording: false) == nil, "the Trial records everything")
+        #expect(o.afterTakeStopped(show: "A", license: License(proOffered: true, tier: .free, trialStarted: false), isRecording: false, mixerNamed: false) == nil)
+        #expect(o.afterTakeStopped(show: "A", license: License(proOffered: true, tier: .free, trialStarted: false), isRecording: false, mixerNamed: true) == .genericNames)
+        #expect(o.afterTakeStopped(show: "A", license: License(proOffered: true, tier: .free, trialStarted: false), isRecording: false, mixerNamed: true) == nil, "once per Show")
+        #expect(o.afterTakeStopped(show: "B", license: License(proOffered: true, tier: .free, trialStarted: false), isRecording: false, mixerNamed: true) == .genericNames)
+        #expect(o.afterTakeStopped(show: "C", license: License(proOffered: true, tier: .trial(daysLeft: 5), trialStarted: false), isRecording: false, mixerNamed: true) == nil, "the Trial keeps the Mixer's names")
     }
 
     @Test("The first Show with a Take offers Pro when it ends, once ever, on Free or the Trial; an empty Show doesn't count")
@@ -82,20 +81,20 @@ struct ProOfferTests {
         let defaults = UserDefaults(suiteName: "ProOfferTests-\(UUID().uuidString)")!
         var first = ProOffers(defaults: defaults)
         _ = first.afterShowEnded(show: "A", takeCount: 1, license: License(proOffered: true, tier: .free, trialStarted: false))
-        _ = first.afterTakeStopped(show: "B", signal: limited, license: License(proOffered: true, tier: .free, trialStarted: false), isRecording: false)
+        _ = first.afterTakeStopped(show: "B", license: License(proOffered: true, tier: .free, trialStarted: false), isRecording: false, mixerNamed: true)
         var again = ProOffers(defaults: defaults)
         #expect(again.afterShowEnded(show: "C", takeCount: 1, license: License(proOffered: true, tier: .free, trialStarted: false)) == nil)
-        #expect(again.afterTakeStopped(show: "B", signal: limited, license: License(proOffered: true, tier: .free, trialStarted: false), isRecording: false) == nil)
+        #expect(again.afterTakeStopped(show: "B", license: License(proOffered: true, tier: .free, trialStarted: false), isRecording: false, mixerNamed: true) == nil)
     }
 
     @Test("The paywall says why it's here, what Pro adds, the price and the Show-Safe Promise, with no pressure")
     func paywall() {
-        let limitedTake = Paywall(moment: .limitedTake(recorded: 2, withSignal: 18), proPrice: "$19.99")
-        #expect(limitedTake.headline == "Only 2 of 18 channels were recorded")
+        let genericNames = Paywall(moment: .genericNames, proPrice: "$19.99")
+        #expect(genericNames.headline == "This Take's Stems have generic names")
         #expect(Paywall(moment: .firstShowEnded, proPrice: "$19.99").headline == "Your first Show is recorded")
         #expect(Paywall(moment: .trialEndingSoon(daysLeft: 1), proPrice: "$19.99").headline == "Your 14-day Trial ends in 1 day")
         #expect(Paywall(moment: nil, proPrice: "$19.99").headline == "ShowRecorder Pro")
-        #expect(limitedTake.features == [
+        #expect(genericNames.features == [
             "Names and colors from the Mixer, on the files",
             "Channel names you type, on the files",
             "A second Copy on the Drive",
@@ -104,10 +103,10 @@ struct ProOfferTests {
             "96 kHz recording",
             "Templates for each venue",
         ])
-        #expect(limitedTake.buyTitle == "Buy Pro, $19.99")
-        #expect(limitedTake.promise.contains("never stops"))
-        #expect(limitedTake.footnote.contains("one-time") && limitedTake.footnote.contains("family"))
-        let text = ([limitedTake.headline, limitedTake.promise, limitedTake.footnote] + limitedTake.features).joined(separator: " ").lowercased()
+        #expect(genericNames.buyTitle == "Buy Pro, $19.99")
+        #expect(genericNames.promise.contains("never stops"))
+        #expect(genericNames.footnote.contains("one-time") && genericNames.footnote.contains("family"))
+        let text = ([genericNames.headline, genericNames.promise, genericNames.footnote] + genericNames.features).joined(separator: " ").lowercased()
         for pressure in ["hurry", "today only", "last chance", "limited time", "don't miss"] { #expect(!text.contains(pressure)) }
         #expect(Paywall(moment: nil, proPrice: nil).buyTitle == "Buy Pro")
     }
