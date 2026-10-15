@@ -36,6 +36,7 @@ struct TakeLiveActivityWidget: Widget {
                         }
                         .foregroundStyle(.secondary)
                         ProblemLine(problems: context.state.problems)
+                        MarkerButton(take: context.state)
                     }
                     .font(.subheadline)
                 }
@@ -110,6 +111,31 @@ private struct LockScreenView: View {
                 }
             }
             ProblemLine(problems: take.problems).font(.subheadline)
+            MarkerButton(take: take)
+        }
+    }
+}
+
+/// Places a Marker without opening the app (#684), through `PlaceMarkerIntent`. Offered only where the app says so
+/// (`showsMarkerButton`); at the Take's Marker limit it is off and says why, like the record screen.
+private struct MarkerButton: View {
+    let take: TakeActivityContent
+
+    var body: some View {
+        if take.showsMarkerButton {
+            Button(intent: PlaceMarkerIntent()) {
+                Label(take.markerButtonCaption ?? "Marker", systemImage: "flag.fill")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)   // the banner is height-limited
+            .accessibilityLabel("Place Marker")
+            .accessibilityValue(take.markerButtonCaption ?? "")
+            .tint(.yellow)
+            .foregroundStyle(.black)
+            .disabled(take.markerLimitReached)
         }
     }
 }
@@ -174,4 +200,21 @@ private struct RecordingLabelStyle: LabelStyle {
     TakeLiveActivityWidget()
 } contentStates: {
     TakeActivityContent(showName: "2026-10-12 Show", takeTitle: "Take 02", startedAt: .now.addingTimeInterval(-4_354), markerCount: 0)
+}
+
+#Preview("Lock Screen with Marker button and a problem", as: .content, using: TakeActivityAttributes()) {
+    TakeLiveActivityWidget()
+} contentStates: {
+    TakeActivityContent(showName: "2026-10-12 Show", takeTitle: "Take 02", startedAt: .now.addingTimeInterval(-754), markerCount: 1,
+                        problems: [TakeActivityProblem(id: "drive", text: "Drive low on space", symbol: "externaldrive.badge.exclamationmark")],
+                        showsMarkerButton: true)
+    TakeActivityContent(showName: "2026-10-12 Show", takeTitle: "Take 02", startedAt: .now.addingTimeInterval(-754), markerCount: 3,
+                        showsMarkerButton: true, markerLimitReached: true, markerLimit: 3)
+}
+
+#Preview("Dynamic Island expanded with Marker button", as: .dynamicIsland(.expanded), using: TakeActivityAttributes()) {
+    TakeLiveActivityWidget()
+} contentStates: {
+    TakeActivityContent(showName: "2026-10-12 Show", takeTitle: "Take 02", startedAt: .now.addingTimeInterval(-754), markerCount: 1,
+                        showsMarkerButton: true)
 }

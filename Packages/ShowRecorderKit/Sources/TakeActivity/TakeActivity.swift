@@ -31,9 +31,16 @@ public struct TakeActivityContent: Codable, Hashable, Sendable {
     /// The Take is at its Marker limit (Free, #705): the button is off and says why. Meaningful only with the button
     /// shown.
     public var markerLimitReached: Bool
+    /// The Marker limit to name when it's reached (3 on Free); 0 when there is none to name.
+    public var markerLimit: Int
+
+    /// Why the Marker button is off, in the record screen's words; nil while Markers can still be placed.
+    public var markerButtonCaption: String? {
+        markerLimitReached && markerLimit > 0 ? "\(markerLimit) per Take on Free" : nil
+    }
 
     public init(showName: String, takeTitle: String, startedAt: Date, markerCount: Int, problems: [TakeActivityProblem] = [],
-                showsMarkerButton: Bool = false, markerLimitReached: Bool = false) {
+                showsMarkerButton: Bool = false, markerLimitReached: Bool = false, markerLimit: Int = 0) {
         self.showName = showName
         self.takeTitle = takeTitle
         self.startedAt = startedAt
@@ -41,10 +48,11 @@ public struct TakeActivityContent: Codable, Hashable, Sendable {
         self.problems = problems
         self.showsMarkerButton = showsMarkerButton
         self.markerLimitReached = markerLimitReached
+        self.markerLimit = markerLimit
     }
 
     private enum CodingKeys: String, CodingKey {
-        case showName, takeTitle, startedAt, markerCount, problems, showsMarkerButton, markerLimitReached
+        case showName, takeTitle, startedAt, markerCount, problems, showsMarkerButton, markerLimitReached, markerLimit
     }
 
     /// Content from a build before problems or the Marker button existed reads with none.
@@ -57,6 +65,7 @@ public struct TakeActivityContent: Codable, Hashable, Sendable {
         problems = try container.decodeIfPresent([TakeActivityProblem].self, forKey: .problems) ?? []
         showsMarkerButton = try container.decodeIfPresent(Bool.self, forKey: .showsMarkerButton) ?? false
         markerLimitReached = try container.decodeIfPresent(Bool.self, forKey: .markerLimitReached) ?? false
+        markerLimit = try container.decodeIfPresent(Int.self, forKey: .markerLimit) ?? 0
     }
 
     /// The same Take: its Marker count, problems and Marker button state may differ.
