@@ -13,7 +13,7 @@ export const DOCS: readonly DocLink[] = [
   { slug: "templates", title: "Templates", description: "Save a venue's setup as a Template (channel names, mixer, Show name and Pre-roll) and start a Show from it in one tap. A Pro feature." },
   { slug: "daw", title: "Opening a Show in Reaper or your DAW", description: "How a ShowRecorder Show folder is laid out, how Stems are named, what the Reaper project holds, and how to get the files onto your computer." },
   { slug: "pricing", title: "Free, 14-day Trial and Pro", description: "ShowRecorder is free to download with a 14-day Trial of everything. Pro is a one-time $19.99 purchase with Family Sharing. No subscription." },
-  { slug: "troubleshooting", title: "Troubleshooting", description: "Fixes for empty meters, missing USB Channels, a mixer Find Mixers can't see, a Drive that can't be written, storage time left, battery and heat." },
+  { slug: "troubleshooting", title: "Troubleshooting", description: "Step-by-step fixes: a mixer the iPhone can't see, missing channels, Mixer Link, a Drive that fails or is slow, TestFlight and finding your files." },
 ];
 
 export function docHref(slug: string): string {

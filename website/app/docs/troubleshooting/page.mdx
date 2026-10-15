@@ -3,38 +3,77 @@ import { pageMetadata } from "@/lib/metadata";
 export const metadata = pageMetadata({
   path: "/docs/troubleshooting",
   title: "Troubleshooting - ShowRecorder",
-  description: "Fixes for empty meters, missing USB Channels, a mixer Find Mixers can't see, a Drive that can't be written, storage time left, battery and heat.",
+  description: "Step-by-step fixes: a mixer the iPhone can't see, missing channels, Mixer Link, a Drive that fails or is slow, TestFlight and finding your files.",
 });
 
 # Troubleshooting
 
-## The meters are empty and Record is dimmed
+Find your problem below. Each fix is a few steps, in the order to try them.
 
-The record screen says why:
+## The iPhone doesn't see the mixer
 
-- **"No audio interface. Plug in the Mixer's USB cable."** Connect the mixer's USB cable, or check the hub. See [USB cable and setup](/docs/usb-cable-and-setup).
+The record screen says why the meters are empty and Record is dimmed. Start with its message:
+
+- **"No audio interface. Plug in the Mixer's USB cable."** Go to the steps below.
 - **"Choose the audio interface in Settings."** Open **Settings** and choose the mixer under **Recording > Audio interface**.
 - **"Microphone access is off."** Tap **Open Settings** and allow microphone access for ShowRecorder.
 - **"Disarmed after 30 minutes idle."** or **"The input didn't start."** Tap **Arm**.
 
+If there is no audio interface:
+
+1. **Check the cable.** The mixer's USB port is a USB-B port, so use a USB-B to USB-C cable into your iPhone or iPad. Try a second cable: some cables only charge.
+2. **Take out the hub.** Plug the mixer straight into the iPhone or iPad. If the meters come alive, the hub is the problem: use a powered USB-C hub with power pass-through and a data port. See [USB cable and setup](/docs/usb-cable-and-setup).
+3. **Check that the mixer is class-compliant.** ShowRecorder records any class-compliant USB mixer or audio interface, one that needs no driver. If yours has a mode for a driver or for a computer, switch it to class-compliant mode (the maker's manual says how).
+4. **Check the Audio interface.** Open **Settings** and look under **Recording > Audio interface**. If more than one input is plugged in, choose the mixer.
+
 ## Fewer USB Channels than expected
 
-**Settings > Recording** shows the count under **Sample rate**. An XR18 or MR18 sends 18. If a banner says only some channels are coming in, choose the mixer under **Audio interface**.
+**Settings > Recording** shows the count under **Sample rate**. The mixer decides how many USB Channels it sends: an XR18 or MR18 sends 18, and an X32 or M32 (beta) sends 32. The XR12 and XR16 send no multichannel USB audio, so they can't be multitracked this way.
 
-On Free, only 2 USB Channels are recorded, though every channel is metered. See [Free, 14-day Trial and Pro](/docs/pricing).
+1. Open **Settings > Recording** and read the count under **Sample rate**.
+2. If a banner says only some channels are coming in, choose the mixer under **Audio interface**.
+3. If the count is right but a channel is silent, check the mixer's USB routing. On an XR18 the default is USB 1 to 16 carrying input channels 1 to 16, and USB 17 and 18 carrying the aux return. A USB Channel carries whatever the mixer routes to it.
 
-## Find Mixers doesn't find the mixer
+For the limits on each plan, see [Free, 14-day Trial and Pro](/docs/pricing).
 
-- **"Not on a Wi-Fi or Ethernet network."** Join the mixer's Wi-Fi.
-- **"No Mixer answered."** Check that your iPhone or iPad is on the same network as the mixer, and that Local Network is on for ShowRecorder in the iOS Settings app, under **Privacy & Security > Local Network**. If iOS just asked about Local Network, tap **Find Mixers** again.
-- If you typed an address and see **"No Mixer answered at…"**, check the address and that the mixer is on.
+## Mixer Link won't connect
 
-Recording doesn't need the [Mixer Link](/docs/mixer-link); without it, Stems are named by USB Channel number.
+The [Mixer Link](/docs/mixer-link) only gives your files their channel names and colors. Recording doesn't need it: without it, Stems are named by USB Channel number.
 
-## The Drive can't be written
+1. **Join the mixer's network.** The XR18 and MR18 have their own Wi-Fi: join it. The X32 and M32 have no Wi-Fi of their own: plug a Wi-Fi router into the mixer's Ethernet port and join the router's network. Your iPhone or iPad must be on the same network as the mixer.
+2. **Allow Local Network.** In the iOS Settings app, open **Privacy & Security > Local Network** and turn it on for ShowRecorder. If iOS just asked, tap **Find Mixers** again.
+3. **Type the address.** Under **Settings > Mixer Link**, enter the mixer's IP address in **Mixer IP address** and tap **Connect**, for example `10.0.0.20`.
+4. **Check the network.** The Mixer Link sends UDP to port 10024 on an XR18 or MR18, and to port 10023 on an X32 or M32. A firewall, or a network that keeps devices from talking to each other (a guest network, for one), stops the mixer from answering. Use the mixer's own Wi-Fi, or a router that lets devices reach each other.
 
-- **"ShowRecorder can't write to…"** The folder is read-only. Tap **Change Drive Folder…** in **Settings > Storage** and choose a folder on a drive that isn't read-only.
-- **"The Drive folder … isn't available."** Connect the drive, or choose the folder again.
+What the messages mean:
+
+- **"Not on a Wi-Fi or Ethernet network."** Join the mixer's network.
+- **"No Mixer answered."** Steps 1, 2 and 4.
+- **"No Mixer answered at…"** after you typed an address. Check the address and that the mixer is on.
+
+## The Drive isn't seen or is too slow
+
+**If the Drive isn't seen:**
+
+1. Plug it into a data port on your hub, or straight into the iPhone or iPad.
+2. Open **Settings > Storage** and tap **Choose Drive Folder…**. If the drive doesn't show in the list of places, ShowRecorder can't use it yet.
+3. Format the drive as exFAT or APFS. A drive formatted for Windows (NTFS) is read-only on an iPhone or iPad.
+4. If a message says **"ShowRecorder can't write to…"**, the folder is read-only. Tap **Change Drive Folder…** and choose a folder on a drive that isn't read-only.
+5. If it says **"The Drive folder … isn't available."**, connect the drive or choose the folder again.
+
+**If the Drive is too slow:**
+
+The Drive has to keep up with the recording: about 2.6 MB/s for 18 channels at 48 kHz, and about 4.6 MB/s for 32. A drive that can't keep up loses some audio, but recording carries on to the Device. The lost stretch is a Gap in the Drive Copy, and after the Take [Repair](/docs/usb-drive) fills it from the Device Copy.
+
+1. Use an SSD: it works best.
+2. Run **Settings > Run Soundcheck** before the show. It tests every Copy.
+
+## TestFlight won't install
+
+1. **Open the link in Safari.** If the link opened inside Facebook's built-in browser (or another app's), tap the menu and choose **Open in Safari**. Then continue in Safari.
+2. **Install TestFlight.** If you don't have it, the link takes you to the App Store to install Apple's TestFlight app first.
+3. **Tap Accept, then Install.** Go back to the link if you left it. The beta needs iOS 26 on an iPhone 15 or later, or an iPad on iPadOS 26.
+4. **Builds expire.** A TestFlight build expires after 90 days. Install the newest build from TestFlight to carry on.
 
 ## How much recording time is left
 
@@ -54,5 +93,13 @@ The Take stays open, but nothing is recorded until input comes back. The missing
 ## A setting is dimmed
 
 The Audio interface, Pre-roll, Drive and Mixer Link can't be changed during a Take.
+
+## Where the files are, and into your DAW
+
+1. **Find them.** Tap **Shows** on the record screen, or open the Files app: **On My iPhone > ShowRecorder > Shows** (or **On My iPad**). Each Show has a folder for each Take, with one WAV file per channel.
+2. **Send them.** Tap **Shows**, then **Share** on a Show to AirDrop the whole folder. If you record to a Drive, plug it into your computer: the Drive Copy has the same layout.
+3. **Open them.** Open the Show's `.RPP` file in Reaper, or drag the Stems into any DAW and drop them in at the same point: they all start at the same sample, so they line up.
+
+More about the folder, the Stems and the Reaper project: [Opening a Show in Reaper or your DAW](/docs/daw).
 
 Still stuck? Contact [Support](/support).
