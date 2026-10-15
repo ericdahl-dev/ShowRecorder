@@ -307,10 +307,11 @@ public enum ClipProtectionSetting {
     /// The key it is stored under.
     public static let key = "clipProtection"
 
-    /// Debug builds only, its own rule (Eric, 2026-10-14): auto-gain reached TestFlight after its live test; clip
-    /// protection, which moves preamps during a Take, waits for its own.
-    public static func isOffered(isDebugBuild: Bool = LaunchFlags.isDebugBuild) -> Bool {
-        isDebugBuild
+    /// Debug and TestFlight builds, after Eric's live XR18 test (2026-10-14); never the App Store, by StoreKit's
+    /// distribution answer as auto-gain uses (`AutoGainAvailability`). Its own rule, so either can move on its own.
+    /// Offered is not on: it stays off until the operator switches it on in Settings.
+    public static func isOffered(isDebugBuild: Bool, environment: DistributionEnvironment?) -> Bool {
+        isDebugBuild || environment == .sandbox
     }
 
     public static func isOn(in defaults: UserDefaults = .standard) -> Bool {

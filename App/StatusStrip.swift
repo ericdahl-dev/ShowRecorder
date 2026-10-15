@@ -108,7 +108,7 @@ struct AlertSlot: View {
     var body: some View {
         Group {
             if let alert = queue.top {
-                let swipeable = swipe != nil && alert.tone == .warning
+                let swipeable = swipe != nil && SwipedAlerts.isSwipeable(alert)
                 AlertBanner(alert: alert, moreCount: queue.moreCount, lines: lines, perform: perform) { listing = true }
                     .offset(x: dragX + flyOffX)
                     .gesture(swipeAway(alert), including: swipeable ? .all : .subviews)

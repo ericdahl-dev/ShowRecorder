@@ -8,12 +8,15 @@ on:
 permissions:
   contents: read
 
+# A pull request's newer push cancels its older run. Pushes to main and release branches each run to the end, so
+# the commit a tag goes on always has a finished run.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Which parts changed: the app (anything outside website/) and the site (website/, and
+  # Which parts changed: the app (anything outside website/, docs/, design/ and Markdown files, as verify.sh
+  # sorts them; CONTEXT.md counts as app, for its vocabulary check) and the site (website/, and
   # docs/release-notes/, which the site's changelog test reads).
   # A change to this workflow runs both.
   changes:
@@ -39,7 +42,8 @@ jobs:
           files=$(git diff --name-only "$BASE"...HEAD)
           printf '%s\n' "$files"
           app=false; site=false
-          if printf '%s\n' "$files" | grep -qvE '^website/|^$'; then app=true; fi
+          if printf '%s\n' "$files" | grep -qvE '^website/|^docs/|^design/|\.md$|^$'; then app=true; fi
+          if printf '%s\n' "$files" | grep -qxE 'CONTEXT\.md'; then app=true; fi
           if printf '%s\n' "$files" | grep -qE '^website/|^docs/release-notes/|^\.github/workflows/ci\.yml$'; then site=true; fi
           # Nothing to build until the site is on this branch.
           if [ ! -f website/package.json ]; then site=false; fi
