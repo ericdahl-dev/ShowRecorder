@@ -17,6 +17,7 @@ describe("sitemap", () => {
       ...DOCS.map((d) => `https://showrecorder.app/docs/${d.slug}`),
       "https://showrecorder.app/mixers/xr18",
       "https://showrecorder.app/mixers/x32",
+      "https://showrecorder.app/compare",
       "https://showrecorder.app/changelog",
       "https://showrecorder.app/support",
       "https://showrecorder.app/privacy",
