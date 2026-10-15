@@ -1,3 +1,4 @@
+import { trackAttrs } from "@/lib/analytics";
 import { featureGroups, inBetaFeatures } from "@/lib/features";
 import { considering, inBeta, planned, worksNow } from "@/lib/mixers";
 import { CONTACT_EMAIL, TESTFLIGHT_URL } from "@/lib/site";
@@ -84,7 +85,7 @@ export default function FeaturesPage() {
             {TESTFLIGHT_URL ? (
               <>
                 {" "}
-                <a href={TESTFLIGHT_URL}>Join the beta</a> to try them.
+                <a href={TESTFLIGHT_URL} {...trackAttrs("join_beta_clicked", "testflight")}>Join the beta</a> to try them.
               </>
             ) : null}
           </p>
@@ -145,7 +146,7 @@ export default function FeaturesPage() {
           ))}
         </ul>
         <p className="mixers-ask">
-          Using another mixer? Tell us which at <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. It
+          Using another mixer? Tell us which at <a href={`mailto:${CONTACT_EMAIL}`} {...trackAttrs("contact_email_clicked")}>{CONTACT_EMAIL}</a>. It
           helps decide what comes next.
         </p>
       </section>
