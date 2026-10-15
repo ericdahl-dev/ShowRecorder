@@ -36,13 +36,10 @@ final class WatchSessionLink: NSObject, WatchLinkTransport {
             reply(nil)
             return
         }
-        let answer = Answer(reply: reply)
-        session.sendMessage(command.message, replyHandler: { message in
-            let decoded = try? WatchReply(message: message)
-            Task { @MainActor in answer.reply(decoded) }
-        }, errorHandler: { _ in
-            Task { @MainActor in answer.reply(nil) }
-        })
+        // WatchConnectivity calls these handlers on its own queue (#741): they are the relay's nonisolated
+        // methods, not closures written here, which would be main-actor isolated and trap.
+        let relay = WatchReplyRelay(reply: reply)
+        session.sendMessage(command.message, replyHandler: relay.replied, errorHandler: relay.failed)
     }
 
     fileprivate func receivedContext(_ status: WatchStatus) {
@@ -52,11 +49,6 @@ final class WatchSessionLink: NSObject, WatchLinkTransport {
     fileprivate func reachabilityChanged() {
         model.reachabilityChanged()
     }
-}
-
-/// The reply closure, carried back to the main actor from WatchConnectivity's queue. Called once.
-private struct Answer: @unchecked Sendable {
-    let reply: @MainActor (WatchReply?) -> Void
 }
 
 extension WatchSessionLink: WCSessionDelegate {
