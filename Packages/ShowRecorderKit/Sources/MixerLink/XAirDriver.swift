@@ -5,6 +5,8 @@ import Synchronization
 public final class XAirDriver: MixerDriver {
     let client: OSCUDPClient
     let queries: MixerQueries
+    /// How long a fader set takes to land on the desk (`MixHoldDesk`): 80 ms, over the 60–70 ms measured on an XR18 (#688).
+    let faderSettle: Duration
     /// What each USB Channel carries, and the Sources last read, so pushed changes reach the right USB Channels.
     /// Until the routing is read, the XR18's default.
     let linked = Mutex<(targets: [XAirRouting.Target?], sources: [Source])>((XAirDriver.defaultTargets, []))
@@ -12,8 +14,9 @@ public final class XAirDriver: MixerDriver {
     /// The XR18's default USB routing: USB 1-16 input channels 1-16, 17-18 the aux return.
     static let defaultTargets: [XAirRouting.Target?] = (1...16).map { .channel($0) } + [.auxReturn, .auxReturn]
 
-    public init(endpoint: MixerEndpoint, timeout: Duration = .seconds(1.5)) {
+    public init(endpoint: MixerEndpoint, timeout: Duration = .seconds(1.5), faderSettle: Duration = .milliseconds(80)) {
         client = OSCUDPClient(endpoint: endpoint)
+        self.faderSettle = faderSettle
         queries = MixerQueries(client: client, timeout: timeout)
     }
 

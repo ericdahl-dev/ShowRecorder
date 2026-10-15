@@ -6,6 +6,9 @@ import OSC
 protocol MixHoldDesk: GainControl {
     var queries: MixerQueries { get }
     var client: OSCUDPClient { get }
+    /// How long a fader set takes to land: the XR18 eases one in over about 70 ms (#688), so a boost waits this long after
+    /// turning the fader down before it raises the gain.
+    var faderSettle: Duration { get }
     func identify() async throws(MixerLinkProblem) -> MixerIdentity
     /// The preamp behind input channel `channel`, or nil when it has none.
     func headamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int?
@@ -136,9 +139,16 @@ extension MixHoldDesk {
         // The exact raw values, in the same safe order: when the gain went back down, it goes first.
         let others = result.restore.filter { $0.key != gainAddress }
         let lowering = result.toGainDb > result.fromGainDb
-        if lowering, let gain = result.restore[gainAddress] { await client.send(OSCMessage(gainAddress, [.float(gain)])) }
+        // A desk can take the gain late (#688): the rest, which turns things up, waits until it has.
+        if lowering, let gain = result.restore[gainAddress] {
+            await client.send(OSCMessage(gainAddress, [.float(gain)]))
+            try await awaitGain(gain, at: gainAddress, scale: Self.gainScale(result.headamp), raising: false)
+        }
         for (address, value) in others { await client.send(OSCMessage(address, [.float(value)])) }
-        if !lowering, let gain = result.restore[gainAddress] { await client.send(OSCMessage(gainAddress, [.float(gain)])) }
+        if !lowering, let gain = result.restore[gainAddress] {
+            try? await Task.sleep(for: faderSettle)   // the fader eases in; the gain waits for it
+            await client.send(OSCMessage(gainAddress, [.float(gain)]))
+        }
         _ = try await identify()   // the desk answers, so the writes reached it
     }
 
@@ -170,14 +180,31 @@ extension MixHoldDesk {
             if raising {
                 for message in others { await send(message, recordingIn: &sent) }
                 _ = try await identify()
+                // The fader eases in; the preamp lands at once. Raised before the fader has landed, the mix would be louder.
+                try? await Task.sleep(for: faderSettle)
                 await send(gainMessage, recordingIn: &sent)
+                try await awaitGain(gain, at: gainAddress, scale: gainScale, raising: true)
             } else {
                 await send(gainMessage, recordingIn: &sent)
-                _ = try await identify()
+                try await awaitGain(gain, at: gainAddress, scale: gainScale, raising: false)
                 for message in others { await send(message, recordingIn: &sent) }
             }
         }
         _ = try await identify()   // the desk answers, so every write reached it
+    }
+
+    /// Waits until the desk reports the gain at (or past) `written`, so nothing that turns things up is written before the
+    /// gain it goes with has landed (#688). The XR18 measured applies a gain set at once, so this is one query; a desk
+    /// that took it late would be waited for, and one that never takes it stops the move on the quieter side.
+    private func awaitGain(_ written: Float, at address: String, scale: X32Values, raising: Bool) async throws(MixerLinkProblem) {
+        let target = scale.db(ofOSC: written)
+        let deadline = ContinuousClock.now + queries.timeout
+        while true {
+            let db = scale.db(ofOSC: try await queries.float(at: address))
+            if raising ? db >= target : db <= target { return }
+            guard ContinuousClock.now < deadline else { throw .other("The Mixer didn't take the preamp gain change.") }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
     }
 
     private func send(_ message: OSCMessage, recordingIn sent: inout [String: Float]) async {
