@@ -30,6 +30,9 @@ public struct PowerStatus: Equatable, Sendable {
         /// The id of the warning this chip goes with ("battery" or "thermal"), if any.
         public var id: String?
 
+        /// Nothing is wrong (a healthy battery, Warm, the Trial): in a crowded strip it is the first to lose its words (#744).
+        public var isQuiet: Bool { state == .ok || state == .neutral }
+
         public init(text: String, shortText: String? = nil, symbol: String, state: StatusChip.State, id: String? = nil) {
             self.text = text
             self.shortText = shortText ?? text
