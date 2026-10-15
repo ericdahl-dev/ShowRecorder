@@ -167,4 +167,41 @@ struct PowerChipShortTextTests {
         #expect(PowerStatus.thermalChip(for: .fair) == warm)
         #expect(PowerStatus.thermalChip(for: .serious)?.shortText == "Hot")
     }
+
+    // MARK: Strip priority (#744)
+
+    func status(_ level: Double?, _ charging: PowerStatus.Charging = .unplugged, thermal: PowerStatus.Thermal = .nominal) -> PowerStatus {
+        PowerStatus(batteryLevel: level, charging: charging, thermal: thermal)
+    }
+
+    @Test("In a crowded strip, quiet chips go icon-only first: healthy battery, Warm and the Trial; problems keep their words")
+    func quietChipsGoFirst() {
+        #expect(status(0.84).battery?.isQuiet == true)
+        #expect(status(0.84, .charging).battery?.isQuiet == true)
+        #expect(status(0.5, thermal: .fair).thermal?.isQuiet == true)
+        #expect(Tier.trial(daysLeft: 12).chip?.isQuiet == true)
+        #expect(status(0.15).battery?.isQuiet == false, "low battery")
+        #expect(status(0.05).battery?.isQuiet == false, "urgent battery")
+        #expect(status(0.5, thermal: .serious).thermal?.isQuiet == false, "Hot")
+        #expect(status(0.5, thermal: .critical).thermal?.isQuiet == false, "Very hot")
+        #expect(PowerStatus.Chip(text: "2 Dropouts", symbol: "x", state: .attention).isQuiet == false)
+    }
+
+    @Test("The strip gives up room in a fixed order: quiet extras, then chip words, then every extra")
+    func squeezeOrder() {
+        #expect(StripSqueeze.allCases == [.none, .quietExtras, .shortChips, .allExtras])
+        // A quiet extra (healthy battery, Warm, Trial) loses its words from the second step on.
+        #expect(StripSqueeze.none.extraIsIconOnly(quiet: true) == false)
+        #expect(StripSqueeze.quietExtras.extraIsIconOnly(quiet: true))
+        #expect(StripSqueeze.shortChips.extraIsIconOnly(quiet: true))
+        // A problem keeps its words until the last step.
+        #expect(StripSqueeze.none.extraIsIconOnly(quiet: false) == false)
+        #expect(StripSqueeze.quietExtras.extraIsIconOnly(quiet: false) == false)
+        #expect(StripSqueeze.shortChips.extraIsIconOnly(quiet: false) == false)
+        #expect(StripSqueeze.allExtras.extraIsIconOnly(quiet: false))
+        // The chips use their short text from the third step on.
+        #expect(StripSqueeze.quietExtras.chipsUseShortText == false)
+        #expect(StripSqueeze.shortChips.chipsUseShortText)
+        #expect(StripSqueeze.allExtras.chipsUseShortText)
+    }
 }

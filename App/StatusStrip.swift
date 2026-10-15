@@ -17,39 +17,72 @@ struct StatusStrip: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.appearanceMode) private var mode
 
+    private typealias Squeeze = StripSqueeze
+
     var body: some View {
+        if iconOnly {
+            row(.allExtras)
+        } else {
+            ViewThatFits(in: .horizontal) {
+                // Written out, in `StripSqueeze.allCases` order: ViewThatFits takes the first row that fits.
+                row(.none)
+                row(.quietExtras)
+                row(.shortChips)
+                row(.allExtras)
+            }
+        }
+    }
+
+    private func row(_ squeeze: Squeeze) -> some View {
         HStack(spacing: 8) {
             ForEach(chips) { chip in
                 Button { tap(chip.kind) } label: {
-                    // The full text if it fits, else the short one, else the short one scaled down.
-                    ViewThatFits(in: .horizontal) {
-                        if !compact { chipLabel(chip, text: chip.text).fixedSize(horizontal: true, vertical: false) }
-                        chipLabel(chip, text: chip.shortText).fixedSize(horizontal: true, vertical: false)
-                        chipLabel(chip, text: chip.shortText).minimumScaleFactor(0.6)
-                    }
-                    .padding(.horizontal, iconOnly ? 0 : 10)
-                    .frame(minWidth: iconOnly ? 44 : nil, minHeight: 44)
-                    .frame(maxWidth: iconOnly ? nil : .infinity)
-                    .foregroundStyle(foreground(chip.state))
-                    .background(background(chip.state), in: RoundedRectangle(cornerRadius: 10))
+                    chipContent(chip, squeeze)
+                        .padding(.horizontal, iconOnly ? 0 : 10)
+                        .frame(minWidth: iconOnly ? 44 : nil, minHeight: 44)
+                        .frame(maxWidth: iconOnly ? nil : .infinity)
+                        .foregroundStyle(foreground(chip.state))
+                        .background(background(chip.state), in: RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(chip.detail.map { "\(chip.text), \($0)" } ?? chip.text)
             }
             ForEach(extras, id: \.symbol) { chip in
+                let icon = squeeze.extraIsIconOnly(quiet: chip.isQuiet)
                 if chip.id == Tier.chipID, let tapTrial {
-                    Button(action: tapTrial) { extraLabel(chip) }
+                    Button(action: tapTrial) { extraLabel(chip, iconOnly: icon) }
                         .buttonStyle(.plain)
                         .accessibilityHint("Shows what the Trial includes and when it ends")
                 } else {
-                    extraLabel(chip)
+                    extraLabel(chip, iconOnly: icon)
                 }
             }
         }
     }
 
-    private func extraLabel(_ chip: PowerStatus.Chip) -> some View {
-        Label(chip.shortText, systemImage: chip.symbol)
+    /// The Drive and a problem keep their words as long as they can, so a warning stays readable; the other chips
+    /// (the Device's time left, the Mixer's name) give way first. At accessibility text sizes every chip is its icon.
+    @ViewBuilder
+    private func chipContent(_ chip: StatusChip, _ squeeze: Squeeze) -> some View {
+        let pinned = chip.kind == .drive || chip.state == .attention || chip.state == .failed
+        if !squeeze.chipsUseShortText {
+            // The full text if it fits, else the next step.
+            chipLabel(chip, text: compact ? chip.shortText : chip.text).fixedSize(horizontal: true, vertical: false)
+        } else if squeeze != .allExtras {
+            chipLabel(chip, text: chip.shortText).fixedSize(horizontal: true, vertical: false)
+        } else {
+            // The last step: the short text, then scaled. A pinned chip scales only a little, so it stays readable
+            // and the Device and Mixer chips give way first.
+            ViewThatFits(in: .horizontal) {
+                chipLabel(chip, text: chip.shortText).fixedSize(horizontal: true, vertical: false)
+                chipLabel(chip, text: chip.shortText).minimumScaleFactor(pinned ? 0.8 : 0.6)
+            }
+        }
+    }
+
+    private func extraLabel(_ chip: PowerStatus.Chip, iconOnly icon: Bool) -> some View {
+        let iconOnly = iconOnly || icon
+        return Label(chip.shortText, systemImage: chip.symbol)
             .labelStyle(StripLabelStyle(iconOnly: iconOnly || typeSize.isAccessibilitySize))
             .font(.footnote.weight(.semibold))
             .lineLimit(1)
