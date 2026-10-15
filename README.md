@@ -2,7 +2,7 @@
 
 # ShowRecorder
 
-**Record every channel of your mixer on your phone.** Plug a Behringer X Air XR18 or MR18 into an iPhone or iPad, press record, and get one file per channel, named after what's on it, ready for your DAW. No recording laptop at the gig.
+**[Record every channel of your mixer on your phone](https://showrecorder.app).** Plug a [Behringer X Air XR18 or MR18](https://showrecorder.app/mixers/xr18) into an iPhone or iPad, press record, and get one file per channel, named after what's on it, ready for your DAW. No recording laptop at the gig.
 
 > **1.0 for iPhone and iPad is in App Review.** Until it's out, the [public beta on TestFlight](https://testflight.apple.com/join/sSessST8) is open. The Mac app comes to the TestFlight beta first. Website: [showrecorder.app](https://showrecorder.app). Questions: [showrecorder@ericdahl.dev](mailto:showrecorder@ericdahl.dev).
 
