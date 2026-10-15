@@ -25,9 +25,9 @@ export type PageInfo = {
 export const PAGES = {
   home: {
     path: "/",
-    title: "ShowRecorder: record every mixer channel on iPhone and iPad",
+    title: "Live multitrack recorder for iPhone and iPad - ShowRecorder",
     description:
-      "Record every USB Channel of your mixer to iPhone or iPad, no laptop needed. XR18 and MR18 now; X32 and M32 in the public beta. Free to download.",
+      "Multitrack recorder for iPhone and iPad: every USB Channel of your mixer to its own WAV file, no laptop. XR18 and MR18 now, X32 and M32 in the beta.",
   },
   features: {
     path: "/features",
@@ -43,7 +43,7 @@ export const PAGES = {
   },
   mixersXR18: {
     path: "/mixers/xr18",
-    title: "XR18 and MR18 multitrack recording on iPhone - ShowRecorder",
+    title: "XR18 multitrack recording app for iPhone, iPad - ShowRecorder",
     description:
       "Multitrack all 18 USB Channels of a Behringer XR18 or MR18 to iPhone or iPad, each file named from the mixer over its Wi-Fi. No laptop needed.",
     image: {
@@ -55,7 +55,7 @@ export const PAGES = {
   },
   mixersX32: {
     path: "/mixers/x32",
-    title: "X32 and M32 multitrack recording on iPhone - ShowRecorder",
+    title: "X32 and M32 multitrack recording on iPad (beta) - ShowRecorder",
     description:
       "Multitrack all 32 USB Channels of an X32 or M32 to iPhone or iPad, each file named from the mixer. In the public beta now; the App Store later.",
     image: {

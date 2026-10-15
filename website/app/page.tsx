@@ -226,7 +226,7 @@ export default function Home() {
               <Mark />
               For iPhone and iPad
             </p>
-            <h1 id="hero-title">Record every channel of your mixer on your iPhone or iPad.</h1>
+            <h1 id="hero-title">Multitrack record every channel of your mixer on your iPhone or iPad.</h1>
             <p className="lede">
               Plug your mixer into your iPhone or iPad over USB, press record, and get one 24-bit WAV file per
               channel, ready for your DAW. With a Behringer XR18 or MR18, every file is named from the mixer. No

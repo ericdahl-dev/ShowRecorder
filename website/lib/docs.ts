@@ -5,7 +5,7 @@ export type DocLink = { slug: string; title: string };
 
 export const DOCS: readonly DocLink[] = [
   { slug: "getting-started", title: "Getting started" },
-  { slug: "connecting-xr18", title: "Recording an XR18 or MR18" },
+  { slug: "usb-cable-and-setup", title: "USB cable and setup" },
   { slug: "mixer-link", title: "Mixer Link and Find Mixers" },
   { slug: "usb-drive", title: "Recording to a USB drive" },
   { slug: "markers-and-pre-roll", title: "Markers and Pre-roll" },
