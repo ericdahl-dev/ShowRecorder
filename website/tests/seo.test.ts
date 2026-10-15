@@ -6,7 +6,14 @@ import { RELEASES } from "@/lib/changelog";
 import { featureGroups, inBetaFeatures } from "@/lib/features";
 import { PAGES, pageMetadata } from "@/lib/metadata";
 import { DOCS } from "@/lib/docs";
-import { faqPageJsonLd, jsonLdScript, softwareApplicationJsonLd } from "@/lib/structuredData";
+import { XR18_FAQS, X32_FAQS } from "@/lib/mixerFaqs";
+import {
+  breadcrumbJsonLd,
+  faqPageJsonLd,
+  jsonLdScript,
+  mixerApplicationJsonLd,
+  softwareApplicationJsonLd,
+} from "@/lib/structuredData";
 import { APP_STORE_URL, SITE_DESCRIPTION, SITE_URL } from "@/lib/site";
 
 describe("structured data", () => {
@@ -19,9 +26,17 @@ describe("structured data", () => {
       name: "ShowRecorder",
       url: SITE_URL,
       applicationCategory: "MultimediaApplication",
-      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     });
     expect(data.operatingSystem).toMatch(/iOS/);
+    expect(data.operatingSystem).toMatch(/macOS/);
+  });
+
+  it("lists two offers: Free at $0 and Pro at $19.99, one time", () => {
+    expect(data.offers).toEqual([
+      expect.objectContaining({ "@type": "Offer", name: "Free", price: "0", priceCurrency: "USD" }),
+      expect.objectContaining({ "@type": "Offer", name: "Pro", price: "19.99", priceCurrency: "USD" }),
+    ]);
+    expect(data.offers[1].description).toMatch(/One-time/);
   });
 
   it("links the App Store only once there is an App Store link", () => {
@@ -129,5 +144,30 @@ describe("llms-full.txt (#704)", () => {
     const beta = body.slice(body.indexOf("### In the public beta"));
     expect(beta).toMatch(/Auto-gain/);
     expect(beta.indexOf("not in the App Store version")).toBeGreaterThan(-1);
+  });
+});
+
+describe("mixer page structured data (#704)", () => {
+  it("gives each mixer page its own SoftwareApplication with the same offers", () => {
+    const xr18 = mixerApplicationJsonLd(PAGES.mixersXR18);
+    expect(xr18).toMatchObject({ "@type": "SoftwareApplication", url: `${SITE_URL}/mixers/xr18`, description: PAGES.mixersXR18.description });
+    expect(xr18.offers).toEqual(softwareApplicationJsonLd().offers);
+  });
+
+  it("builds a Home > page BreadcrumbList", () => {
+    expect(breadcrumbJsonLd("XR18 and MR18", "/mixers/xr18").itemListElement).toEqual([
+      { "@type": "ListItem", position: 1, name: "ShowRecorder", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "XR18 and MR18", item: `${SITE_URL}/mixers/xr18` },
+    ]);
+  });
+
+  it.each([
+    ["XR18_FAQS", XR18_FAQS],
+    ["X32_FAQS", X32_FAQS],
+  ])("%s has 4 to 6 questions, each a plain-text answer that is also in the FAQPage data", (_name, faqs) => {
+    expect(faqs.length).toBeGreaterThanOrEqual(4);
+    expect(faqs.length).toBeLessThanOrEqual(6);
+    const data = faqPageJsonLd(faqs);
+    expect(data.mainEntity.map((q) => q.acceptedAnswer.text)).toEqual(faqs.map((f) => f.a));
   });
 });
