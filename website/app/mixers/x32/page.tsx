@@ -11,7 +11,7 @@ export default function X32Page() {
     <>
       <MixerHero
         eyebrow="Behringer X32 and Midas M32"
-        title="Multitrack record an X32 or M32 on iPhone or iPad"
+        title="X32 and M32 multitrack recording on iPhone and iPad (beta)"
         lede="Every USB Channel of the mixer straight to your iPhone or iPad: one WAV file per channel, named after the channel on the mixer. No laptop at front of house."
         price="Public beta. Free to download, 14-day Trial of everything."
         beta
