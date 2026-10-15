@@ -18,6 +18,11 @@ export function Footer() {
               </a>
             </li>
             <li>
+              <a href="/compare" data-current-match="">
+                Compare
+              </a>
+            </li>
+            <li>
               <a href="/docs" data-current-match="">
                 Docs
               </a>

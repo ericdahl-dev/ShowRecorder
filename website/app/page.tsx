@@ -180,6 +180,16 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
     a: "The app goes back to Free: new Takes record 2 USB Channels of your choice. A Take in progress is never stopped, and every Show you recorded stays open, with all its files. You can buy Pro at any time.",
   },
   {
+    q: "How does ShowRecorder compare with other apps?",
+    a: "Side by side with Manytrack Recorder, a laptop with Reaper or Mixbus, X-Live and Auria, with a line on when each of the others is the better pick. See the comparison page.",
+    node: (
+      <>
+        Side by side with Manytrack Recorder, a laptop with Reaper or Mixbus, X-Live and Auria, with a line on when
+        each of the others is the better pick. See the <a href="/compare">comparison page</a>.
+      </>
+    ),
+  },
+  {
     q: "Can my family use Pro?",
     a: "Yes. Pro is a one-time purchase, shared with Family Sharing and across your iPhone and iPad.",
   },
