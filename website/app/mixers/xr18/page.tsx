@@ -1,6 +1,9 @@
 import { GetBand } from "@/components/GetBand";
+import { MixerFaq } from "@/components/MixerFaq";
 import { MixerHero } from "@/components/MixerHero";
 import { PAGES, pageMetadata } from "@/lib/metadata";
+import { XR18_FAQS } from "@/lib/mixerFaqs";
+import { breadcrumbJsonLd, faqPageJsonLd, jsonLdScript, mixerApplicationJsonLd } from "@/lib/structuredData";
 import Content from "./content.mdx";
 
 export const metadata = pageMetadata(PAGES.mixersXR18);
@@ -9,6 +12,15 @@ export const metadata = pageMetadata(PAGES.mixersXR18);
 export default function XR18Page() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(mixerApplicationJsonLd(PAGES.mixersXR18)) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbJsonLd("XR18 and MR18", PAGES.mixersXR18.path)) }}
+      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(faqPageJsonLd(XR18_FAQS)) }} />
       <MixerHero
         eyebrow="Behringer XR18 and Midas MR18"
         title="XR18 and MR18 multitrack recording on iPhone and iPad"
@@ -16,6 +28,7 @@ export default function XR18Page() {
         price="Free to download, 14-day Trial of everything."
       />
       <Content />
+      <MixerFaq faqs={XR18_FAQS} />
       <GetBand title="Record your XR18 or MR18" />
     </>
   );

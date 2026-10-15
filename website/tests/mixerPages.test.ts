@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { PAGES } from "@/lib/metadata";
 import { inBeta, worksNow } from "@/lib/mixers";
+import { X32_FAQS } from "@/lib/mixerFaqs";
 
 // Mixer landing pages: one per mixer family that works, with what is true for that mixer only.
 // The X32 and M32 are in the public beta, so their page never suggests the App Store version records them.
@@ -229,5 +230,25 @@ describe("links to the mixer pages", () => {
 
   it("the X32 page links to the docs", () => {
     expect(x32Page).toMatch(/\]\(\/docs\)/);
+  });
+});
+
+describe("the mixer pages' questions (#704)", () => {
+  const read = (...p: string[]) => readFileSync(path.join(ROOT, ...p), "utf8");
+
+  it.each([
+    ["xr18", "XR18_FAQS"],
+    ["x32", "X32_FAQS"],
+  ])("/mixers/%s shows the same questions it puts in the FAQPage data", (slug, list) => {
+    const page = read("app", "mixers", slug, "page.tsx");
+    expect(page).toMatch(new RegExp(`<MixerFaq faqs=\\{${list}\\}`));
+    expect(page).toMatch(new RegExp(`faqPageJsonLd\\(${list}\\)`));
+  });
+
+  it("the beta page's answers say beta and keep Free at 2 USB Channels", () => {
+    const text = X32_FAQS.map((f) => f.a).join(" ");
+    expect(text).toMatch(/public beta/);
+    expect(text).toMatch(/Free records 2 USB Channels/);
+    expect(text).not.toMatch(/DJM/);
   });
 });
