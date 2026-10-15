@@ -15,11 +15,15 @@ public enum Tier: Equatable, Sendable {
         }
     }
 
+    /// The Trial chip's `PowerStatus.Chip.id`, so the record screen can open the Trial sheet from it (#743).
+    public static let chipID = "trial"
+
     /// The record screen's quiet days-left chip during the Trial; nothing on Free or Pro. It never warns.
     public var chip: PowerStatus.Chip? {
         guard case .trial(let daysLeft) = self else { return nil }
         return PowerStatus.Chip(
-            text: title, shortText: "\(daysLeft) \(daysLeft == 1 ? "day" : "days")", symbol: "clock", state: .neutral)
+            text: title, shortText: "Trial · \(daysLeft) \(daysLeft == 1 ? "day" : "days")", symbol: "clock", state: .neutral,
+            id: Self.chipID)
     }
 }
 

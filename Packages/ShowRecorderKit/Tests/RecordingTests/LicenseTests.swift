@@ -61,7 +61,7 @@ struct LicenseTests {
 
     @Test("The days-left chip shows only in a known Trial, and only once Pro is offered")
     func chip() {
-        #expect(Self.trial.chip?.shortText == "3 days")
+        #expect(Self.trial.chip?.shortText == "Trial · 3 days")
         #expect(Self.free.chip == nil && Self.pro.chip == nil && Self.unknown.chip == nil)
         #expect(License(proOffered: false, tier: .trial(daysLeft: 3), trialStarted: true).chip == nil)
     }
