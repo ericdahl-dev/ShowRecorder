@@ -5,11 +5,14 @@ import Synchronization
 public final class X32Driver: MixerDriver {
     let client: OSCUDPClient
     let queries: MixerQueries
+    /// How long a fader set takes to land on the desk (`MixHoldDesk`): 80 ms, over the 60–70 ms measured on an XR18 (#688).
+    let faderSettle: Duration
     /// The routing and Sources last read, so pushed changes reach the right USB Channels.
     let linked = Mutex<(routing: X32Routing?, sources: [Source])>((nil, []))
 
-    public init(endpoint: MixerEndpoint, timeout: Duration = .seconds(1.5)) {
+    public init(endpoint: MixerEndpoint, timeout: Duration = .seconds(1.5), faderSettle: Duration = .milliseconds(80)) {
         client = OSCUDPClient(endpoint: endpoint)
+        self.faderSettle = faderSettle
         queries = MixerQueries(client: client, timeout: timeout)
     }
 

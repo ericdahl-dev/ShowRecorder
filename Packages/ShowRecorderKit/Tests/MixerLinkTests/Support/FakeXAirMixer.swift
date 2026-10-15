@@ -67,6 +67,16 @@ final class FakeXAirMixer: Sendable {
         var stopsAnsweringAfterWrites: Int?
         /// Like the real XR18 (firmware 1.26): every set is echoed back to its sender, with no arguments.
         var echoesSets = false
+        /// Like the real XR18 in #688: a preamp gain set (`/headamp/…/gain`) takes effect only once the desk has answered
+        /// this many more queries; until then a query of it answers the old gain. Every other set applies at once.
+        var gainLag = 0
+        var pendingGains: [String: (value: OSCArgument, queriesLeft: Int)] = [:]
+        /// Like the real XR18 (measured for #688): a fader set eases in over about 70 ms, a preamp gain set lands at once.
+        /// Here a fader set (`…/mix/fader`) takes effect this many seconds after it arrives, at the next packet after that.
+        var faderEase: TimeInterval = 0
+        var pendingFaders: [String: (value: OSCArgument, due: Date)] = [:]
+        /// The values the desk applied, after each set and each late gain, in order.
+        var history: [[String: OSCArgument]] = []
 
         /// An X32 (or, with another `model`, an M32) as Maillot's X32 emulator answers it.
         static func x32(model: String = "X32") -> State {
@@ -135,6 +145,8 @@ final class FakeXAirMixer: Sendable {
     var queries: [String] { responder.state.withLock { $0.queries } }
 
     var writes: [(address: String, value: OSCArgument)] { responder.state.withLock { $0.writes } }
+
+    var history: [[String: OSCArgument]] { responder.state.withLock { $0.history } }
 
     /// Renames input channel `number` (1...16, or 1...32 on an X32) on the Mixer, as the operator would at its surface, and
     /// pushes the change to every client whose /xremote is still running.
@@ -218,7 +230,16 @@ final class FakeXAirMixer: Sendable {
                 } else if let data, let message = try? OSCMessage(decoding: Array(data)), let value = message.arguments.first {
                     // A set: remember it; the X32 answers nothing, the XR18 echoes the address with no arguments.
                     let echo = state.withLock { state -> Bool in
-                        state.writes.append((message.address, value)); state.set[message.address] = value
+                        Self.applyDueFaders(&state)
+                        state.writes.append((message.address, value))
+                        if state.faderEase > 0, message.address.hasSuffix("/mix/fader") {
+                            state.pendingFaders[message.address] = (value, Date().addingTimeInterval(state.faderEase))
+                        } else if state.gainLag > 0, message.address.hasPrefix("/headamp/") {
+                            state.pendingGains[message.address] = (value, state.gainLag)
+                        } else {
+                            state.set[message.address] = value
+                        }
+                        state.history.append(state.set)
                         if let limit = state.stopsAnsweringAfterWrites, state.writes.count >= limit { state.answers = false }
                         return state.echoesSets
                     }
@@ -230,9 +251,26 @@ final class FakeXAirMixer: Sendable {
             }
         }
 
+        /// Fader sets whose easing is over take effect, each recorded in `history`.
+        private static func applyDueFaders(_ state: inout State) {
+            let now = Date()
+            for (address, pending) in state.pendingFaders where pending.due <= now {
+                state.pendingFaders[address] = nil
+                state.set[address] = pending.value
+                state.history.append(state.set)
+            }
+        }
+
         private func reply(to query: OSCMessage) -> OSCMessage? {
             state.withLock { state in
                 state.queries.append(query.address)
+                Self.applyDueFaders(&state)
+                for (address, pending) in state.pendingGains {
+                    guard pending.queriesLeft <= 1 else { state.pendingGains[address]?.queriesLeft -= 1; continue }
+                    state.pendingGains[address] = nil
+                    state.set[address] = pending.value
+                    state.history.append(state.set)
+                }
                 guard state.answers else { return nil }
                 if let value = state.set[query.address] { return OSCMessage(query.address, [value]) }
                 let parts = query.address.split(separator: "/").map(String.init)
