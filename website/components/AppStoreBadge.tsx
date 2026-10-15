@@ -1,3 +1,4 @@
+import { trackAttrs } from "@/lib/analytics";
 import { APP_STORE_URL, TESTFLIGHT_URL } from "@/lib/site";
 
 // The App Store slot used in the hero and the closing call. Driven by APP_STORE_URL in lib/site.ts.
@@ -19,7 +20,7 @@ import { APP_STORE_URL, TESTFLIGHT_URL } from "@/lib/site";
 export function AppStoreBadge({ id, beta = false }: { id: "app-store-link" | "app-store-link-footer"; beta?: boolean }) {
   if (APP_STORE_URL && !(beta && TESTFLIGHT_URL)) {
     return (
-      <a id={id} className="store-slot is-live" href={APP_STORE_URL}>
+      <a id={id} className="store-slot is-live" href={APP_STORE_URL} {...trackAttrs("app_store_clicked", "app_store")}>
         Download on the App Store
       </a>
     );
@@ -27,7 +28,7 @@ export function AppStoreBadge({ id, beta = false }: { id: "app-store-link" | "ap
   // Before release: the public beta. A plain button, not an App Store lookalike.
   if (TESTFLIGHT_URL) {
     return (
-      <a id={id} className="store-slot is-live" href={TESTFLIGHT_URL}>
+      <a id={id} className="store-slot is-live" href={TESTFLIGHT_URL} {...trackAttrs("join_beta_clicked", "testflight")}>
         Join the public beta on TestFlight
       </a>
     );

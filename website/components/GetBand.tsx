@@ -1,3 +1,4 @@
+import { trackAttrs } from "@/lib/analytics";
 import type { ReactNode } from "react";
 import { AppIcon } from "@/components/AppIcon";
 import { AppStoreBadge } from "@/components/AppStoreBadge";
@@ -26,7 +27,7 @@ export function GetBand({
           </p>
           <AppStoreBadge id="app-store-link-footer" beta={beta} />
           <p className="ask">
-            Questions before then? Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+            Questions before then? Email <a href={`mailto:${CONTACT_EMAIL}`} {...trackAttrs("contact_email_clicked")}>{CONTACT_EMAIL}</a>.
           </p>
         </div>
       </div>

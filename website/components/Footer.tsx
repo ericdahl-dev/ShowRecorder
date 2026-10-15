@@ -1,3 +1,4 @@
+import { trackAttrs } from "@/lib/analytics";
 import { AppIcon } from "@/components/AppIcon";
 import { CONTACT_EMAIL, ISSUES_URL, REPO_URL, SITE_NAME, TRADEMARK_LINE } from "@/lib/site";
 
@@ -37,7 +38,7 @@ export function Footer() {
               </a>
             </li>
             <li>
-              <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+              <a href={`mailto:${CONTACT_EMAIL}`} {...trackAttrs("contact_email_clicked")}>{CONTACT_EMAIL}</a>
             </li>
             <li>
               <a href={ISSUES_URL}>Report a problem</a>
