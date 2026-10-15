@@ -22,3 +22,15 @@ struct MarkerButtonAvailabilityTests {
         #expect(!MarkerButtonAvailability.isAvailable(isDebugBuild: false, environment: nil))
     }
 }
+
+@Suite("Marker button availability in this build")
+struct MarkerButtonAvailabilityThisBuildTests {
+    @Test("A Debug build offers the button before the environment is known; a Release build waits for TestFlight")
+    func thisBuild() {
+        #if DEBUG
+        #expect(MarkerButtonAvailability.isAvailableInThisBuild)
+        #else
+        #expect(!MarkerButtonAvailability.isAvailableInThisBuild, "no environment resolved in tests")
+        #endif
+    }
+}
