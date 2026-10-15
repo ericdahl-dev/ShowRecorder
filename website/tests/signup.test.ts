@@ -24,9 +24,10 @@ describe("the launch email signup (#719, was the Android signup #404)", () => {
     expect(form).toMatch(/defaultChecked=\{i\.value === DEFAULT_INTEREST\}/);
   });
 
-  it("tells people the limits: at most two emails, confirm first, one-click unsubscribe", () => {
+  it("tells people the terms: confirm first, one-click unsubscribe, no promise of a number of emails", () => {
     const form = read("components", "SignupForm.tsx");
-    expect(form).toMatch(/At most two emails/);
+    expect(form).not.toMatch(/two emails/i);
+    expect(read("app", "privacy", "page.mdx")).not.toMatch(/two emails/i);
     expect(form).toMatch(/confirm your address first/);
     expect(form).toMatch(/one-click unsubscribe/);
   });

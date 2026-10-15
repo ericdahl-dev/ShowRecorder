@@ -68,8 +68,8 @@ export function SignupForm() {
         ))}
       </fieldset>
       <p className="signup-note">
-        At most two emails, from Eric Dahl, the developer. You&apos;ll confirm your address first, and every email
-        has a one-click unsubscribe. See the <a href="/privacy">privacy policy</a>.
+        Emails come from Eric Dahl, the developer, about the topic you pick. You&apos;ll confirm your address first,
+        and every email has a one-click unsubscribe. See the <a href="/privacy">privacy policy</a>.
       </p>
     </form>
   );
