@@ -12,6 +12,8 @@ struct StatusStrip: View {
     /// Beside the landscape banner (#644): each chip a 44 pt square with its icon alone.
     var iconOnly = false
     let tap: (StatusChip.Kind) -> Void
+    /// The Trial chip's tap (#743); without it the chip is display only, like battery and heat.
+    var tapTrial: (() -> Void)?
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.appearanceMode) private var mode
 
@@ -35,19 +37,29 @@ struct StatusStrip: View {
                 .accessibilityLabel(chip.detail.map { "\(chip.text), \($0)" } ?? chip.text)
             }
             ForEach(extras, id: \.symbol) { chip in
-                Label(chip.shortText, systemImage: chip.symbol)
-                    .labelStyle(StripLabelStyle(iconOnly: iconOnly || typeSize.isAccessibilitySize))
-                    .font(.footnote.weight(.semibold))
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-                    .padding(.horizontal, iconOnly ? 0 : 10)
-                    .frame(minWidth: iconOnly ? 44 : nil, minHeight: 44)
-                    .foregroundStyle(foreground(chip.state))
-                    .background(background(chip.state), in: RoundedRectangle(cornerRadius: 10))
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(chip.text)
+                if chip.id == Tier.chipID, let tapTrial {
+                    Button(action: tapTrial) { extraLabel(chip) }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Shows what the Trial includes and when it ends")
+                } else {
+                    extraLabel(chip)
+                }
             }
         }
+    }
+
+    private func extraLabel(_ chip: PowerStatus.Chip) -> some View {
+        Label(chip.shortText, systemImage: chip.symbol)
+            .labelStyle(StripLabelStyle(iconOnly: iconOnly || typeSize.isAccessibilitySize))
+            .font(.footnote.weight(.semibold))
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+            .padding(.horizontal, iconOnly ? 0 : 10)
+            .frame(minWidth: iconOnly ? 44 : nil, minHeight: 44)
+            .foregroundStyle(foreground(chip.state))
+            .background(background(chip.state), in: RoundedRectangle(cornerRadius: 10))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(chip.text)
     }
 
     /// At the largest text sizes the chip keeps its icon and drops the words (VoiceOver still has them).
@@ -166,6 +178,7 @@ struct LandscapeAlertRow: View {
     let perform: (ScreenAlert.Action) -> Void
     let swipe: (ScreenAlert) -> Void
     let tap: (StatusChip.Kind) -> Void
+    var tapTrial: (() -> Void)?
     @State private var hold = AlertHold()
     @State private var shown: ScreenAlert?
 
@@ -183,11 +196,11 @@ struct LandscapeAlertRow: View {
                     StatusStrip(
                         chips: chips.filter { $0.state.isProblem && !shown.isAbout($0.kind) },
                         extras: extras.filter { $0.state.isProblem && !shown.isAbout($0) },
-                        iconOnly: true, tap: tap)
+                        iconOnly: true, tap: tap, tapTrial: tapTrial)
                 }
                 .transition(.opacity)
             } else {
-                StatusStrip(chips: chips, extras: extras, compact: true, tap: tap)
+                StatusStrip(chips: chips, extras: extras, compact: true, tap: tap, tapTrial: tapTrial)
                     .transition(.opacity)
             }
         }

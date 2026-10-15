@@ -67,13 +67,51 @@ struct TrialTests {
         }
     }
 
+    @Test("Tapping the Trial chip explains it: what it includes, when it ends, what Free keeps after, and the Pro price (#743)")
+    func statusNotice() {
+        let notice = TrialStatusNotice(daysLeft: 12, endsOn: "October 27", proPrice: "$19.99")
+        let text = notice.lines.joined(separator: "\n")
+        #expect(notice.title == "14-day Trial")
+        #expect(text.contains("Everything Pro does"), "what it includes")
+        #expect(text.contains("Show report") && text.contains("the Drive"))
+        #expect(text.contains("Ends October 27, in 12 days."), "when it ends")
+        #expect(text.contains("Free still records every USB Channel"), "what Free keeps (#705)")
+        #expect(text.contains("up to 3 Markers per Take"))
+        #expect(text.contains("never stops"))
+        #expect(text.contains("$19.99") && text.contains("one-time"))
+        #expect(!text.contains("—"))
+    }
+
+    @Test("The Trial's end is 14 days after it started, and the tier agrees on the last day (#743)")
+    func trialEnd() {
+        let end = Entitlement.trialEnd(startedAt: started)
+        #expect(end == day(14))
+        #expect(Entitlement.tier(ownsPro: false, trialStartedAt: started, now: end.addingTimeInterval(-1)) == .trial(daysLeft: 1))
+        #expect(Entitlement.tier(ownsPro: false, trialStartedAt: started, now: end) == .free)
+    }
+
+    @Test("The Free Marker limit in the notice is the real one")
+    func markerLimitFollowsEntitlement() {
+        let text = TrialStatusNotice(daysLeft: 3, endsOn: "October 18", proPrice: nil).lines.joined(separator: "\n")
+        #expect(text.contains("up to \(Entitlement.freeMarkerLimit) Markers per Take"))
+    }
+
+    @Test("The notice says 1 day, and leaves the price out until the App Store has it")
+    func statusNoticeEdges() {
+        let notice = TrialStatusNotice(daysLeft: 1, endsOn: "October 16", proPrice: nil)
+        let text = notice.lines.joined(separator: "\n")
+        #expect(text.contains("Ends October 16, in 1 day."))
+        #expect(!text.contains("$"))
+    }
+
     @Test("The record screen shows the Trial's days left in a quiet chip, and nothing on Free or Pro")
     func daysLeftChip() {
         let chip = Tier.trial(daysLeft: 11).chip
         #expect(chip?.text == "14-day Trial, 11 days left")
-        #expect(chip?.shortText == "11 days")
+        #expect(chip?.shortText == "Trial · 11 days", "the chip names what the days are (#743)")
         #expect(chip?.state == .neutral)
-        #expect(Tier.trial(daysLeft: 1).chip?.shortText == "1 day")
+        #expect(chip?.id == "trial", "so the record screen can open the Trial sheet from it")
+        #expect(Tier.trial(daysLeft: 1).chip?.shortText == "Trial · 1 day")
         #expect(Tier.free.chip == nil)
         #expect(Tier.pro.chip == nil)
     }

@@ -15,11 +15,15 @@ public enum Tier: Equatable, Sendable {
         }
     }
 
+    /// The Trial chip's `PowerStatus.Chip.id`, so the record screen can open the Trial sheet from it (#743).
+    public static let chipID = "trial"
+
     /// The record screen's quiet days-left chip during the Trial; nothing on Free or Pro. It never warns.
     public var chip: PowerStatus.Chip? {
         guard case .trial(let daysLeft) = self else { return nil }
         return PowerStatus.Chip(
-            text: title, shortText: "\(daysLeft) \(daysLeft == 1 ? "day" : "days")", symbol: "clock", state: .neutral)
+            text: title, shortText: "Trial · \(daysLeft) \(daysLeft == 1 ? "day" : "days")", symbol: "clock", state: .neutral,
+            id: Self.chipID)
     }
 }
 
@@ -27,10 +31,13 @@ public enum Entitlement {
     /// How long the Trial lasts.
     public static let trialLength: TimeInterval = 14 * 86_400
 
+    /// When a Trial that started at `startedAt` ends.
+    public static func trialEnd(startedAt: Date) -> Date { startedAt.addingTimeInterval(trialLength) }
+
     public static func tier(ownsPro: Bool, trialStartedAt: Date?, now: Date) -> Tier {
         if ownsPro { return .pro }
         guard let trialStartedAt else { return .free }
-        let left = trialStartedAt.addingTimeInterval(trialLength).timeIntervalSince(now)
+        let left = trialEnd(startedAt: trialStartedAt).timeIntervalSince(now)
         guard left > 0 else { return .free }
         return .trial(daysLeft: Int((left / 86_400).rounded(.up)))
     }

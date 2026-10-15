@@ -31,6 +31,8 @@ struct RecordScreen: View {
     @State private var showingShowList = launchFlag("-showList")
     @State private var settingsSection: SettingsSection?
     @State private var showingTrialOffer = false
+    /// The Trial sheet the days chip opens (#743).
+    @State private var showingTrialStatus = false
     @AppStorage(License.trialOfferedKey) private var trialOffered = false
     /// The paywall on screen. `model.paywall` is one that came due; it waits here until no other sheet is up (#357).
     @State private var shownPaywall: PaywallRequest?
@@ -45,7 +47,7 @@ struct RecordScreen: View {
         if showingMonitor { return true }
         #endif
         return showingSettings || showingMarkers || showingNewShow || showingShowList || showingChannelNames || showingAutoGain
-            || showingTrialOffer || model.showingSoundcheck || model.showingMoves || shownPaywall != nil
+            || showingTrialOffer || showingTrialStatus || model.showingSoundcheck || model.showingMoves || shownPaywall != nil
     }
 
     /// Shows a paywall that came due, else the first-launch Trial offer, once no other sheet is up.
@@ -125,6 +127,7 @@ struct RecordScreen: View {
         .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingAutoGain) { AutoGainSheet(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingTrialOffer) { TrialSheet(store: model.pro).modifier(AppearanceRoot(mode: model.appearance)) }
+        .sheet(isPresented: $showingTrialStatus) { TrialStatusSheet(store: model.pro).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(item: $shownPaywall) { request in PaywallSheet(store: model.pro, moment: request.moment).modifier(AppearanceRoot(mode: model.appearance)) }
         // The first-launch Trial offer: once, when the Pro price has loaded, never during a Take and never over another
         // sheet. A paywall that came due waits for other sheets too: presenting over Settings closed both (#357).
@@ -192,6 +195,11 @@ struct RecordScreen: View {
         }
     }
 
+    /// Like the paywall, the Trial sheet never opens during a Take.
+    private func trialChipTapped() {
+        if !model.recorder.isRecording { showingTrialStatus = true }
+    }
+
     private func showSettings(_ section: SettingsSection?) {
         #if os(macOS)
         openSettings()
@@ -215,7 +223,7 @@ struct RecordScreen: View {
     private var portrait: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
-            StatusStrip(chips: model.chips, extras: model.extraChips, tap: chipTapped)
+            StatusStrip(chips: model.chips, extras: model.extraChips, tap: chipTapped, tapTrial: trialChipTapped)
             // `-screenshotWindow` (Debug only): no empty alert band above the meters in a screenshot; the meters take it.
             if !(launchFlag("-screenshotWindow") && model.alerts.top == nil) {
                 AlertSlot(queue: model.alerts, perform: model.perform, swipe: model.swipe)
@@ -235,7 +243,7 @@ struct RecordScreen: View {
             HStack(spacing: 10) {
                 headerSummary(compact: true)
                     .frame(maxWidth: 190, alignment: .leading)
-                LandscapeAlertRow(alerts: model.alerts, chips: model.chips, extras: model.extraChips, perform: model.perform, swipe: model.swipe, tap: chipTapped)
+                LandscapeAlertRow(alerts: model.alerts, chips: model.chips, extras: model.extraChips, perform: model.perform, swipe: model.swipe, tap: chipTapped, tapTrial: trialChipTapped)
                 markersButton
                 gearButton
             }
