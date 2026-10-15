@@ -1,8 +1,9 @@
-/// Where auto-gain (#155) is offered: Debug builds only, until it has run on a real desk with real audio. Hidden in
-/// TestFlight and the App Store (Eric, 2026-10-12, for v1.1.1). Opening it up is this one rule.
+/// Where auto-gain (#155) is offered: Debug and TestFlight builds, after Eric's live XR18 test (2026-10-14); never the
+/// App Store. The distribution comes from StoreKit, as for the Demo signal (`DemoSignalAvailability`): before it has
+/// answered (nil), a Release build doesn't offer it. Opening it to the App Store is this one rule.
 public enum AutoGainAvailability {
-    public static func isAvailable(isDebugBuild: Bool = LaunchFlags.isDebugBuild) -> Bool {
-        isDebugBuild
+    public static func isAvailable(isDebugBuild: Bool, environment: DistributionEnvironment?) -> Bool {
+        isDebugBuild || environment == .sandbox
     }
 }
 

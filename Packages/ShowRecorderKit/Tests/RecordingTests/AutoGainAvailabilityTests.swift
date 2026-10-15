@@ -1,14 +1,16 @@
 @testable import Recording
 import Testing
 
-/// Auto-gain stays out of TestFlight and the App Store until it has run on a real desk with real audio (Eric,
-/// 2026-10-12, v1.1.1): Debug builds only.
+/// Auto-gain is offered in Debug and TestFlight builds, after Eric's live XR18 test (2026-10-14); never in the App Store.
 @Suite("Auto-gain availability")
 struct AutoGainAvailabilityTests {
-    @Test("Offered in a Debug build only, whatever the distribution")
-    func debugOnly() {
-        #expect(AutoGainAvailability.isAvailable(isDebugBuild: true))
-        #expect(!AutoGainAvailability.isAvailable(isDebugBuild: false))
+    @Test("Offered in a Debug build and in TestFlight; never in the App Store, nor before StoreKit has answered")
+    func debugAndTestFlight() {
+        #expect(AutoGainAvailability.isAvailable(isDebugBuild: true, environment: nil))
+        #expect(AutoGainAvailability.isAvailable(isDebugBuild: false, environment: .sandbox))
+        #expect(!AutoGainAvailability.isAvailable(isDebugBuild: false, environment: .production))
+        #expect(!AutoGainAvailability.isAvailable(isDebugBuild: false, environment: .unknown))
+        #expect(!AutoGainAvailability.isAvailable(isDebugBuild: false, environment: nil))
     }
 
     @Test("Auto-gain says why it can't run: a Take running first, then no Mixer Link, then a Mixer whose gain can't be set")
