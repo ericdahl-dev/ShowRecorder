@@ -6,7 +6,7 @@ import Testing
 /// Mix Hold on a desk whose writes land at different times (#688). Measured on Eric's XR18: the preamp lands at once and
 /// the fader eases in over about 70 ms, so a boost that raised the gain too soon after turning the fader down came out
 /// louder. Also a desk that takes a gain write late. Preamp plus fader must never rise above where it started, in any
-/// state the desk applies, and never fall more than one ramp step below it.
+/// state the desk applies, and never fall more than one ramp step (`rampStepDb`) below it.
 @Suite("Mix Hold on a desk whose writes land at different times")
 struct MixHoldLagTests {
     static let fader = "/ch/01/mix/fader"
@@ -37,11 +37,12 @@ struct MixHoldLagTests {
 
     static func expectSteady(_ drift: [Double], _ comment: Comment) {
         #expect(!drift.isEmpty)
-        #expect(drift.min()! >= -1.1, "never more than one 1 dB step down: \(comment)")
+        // One step, plus the preamp's 0.25 dB grid and the fader's: in-between values round down.
+        #expect(drift.min()! >= -XAirDriver.rampStepDb - 0.5, "never more than one ramp step down: \(comment)")
         #expect(drift.max()! <= 0.1, "never louder: \(comment)")
     }
 
-    @Test("X-Air ch 1, +14 → +37 dB with the fader 0 → -23: every state the desk applies keeps preamp + fader within 1 dB")
+    @Test("X-Air ch 1, +14 → +37 dB with the fader 0 → -23: every state the desk applies keeps preamp + fader within one ramp step")
     func xAirBoost() async throws {
         let mixer = try await FakeXAirMixer(Self.desk(headamp: 1, gainDb: 14, faderDb: 0))
         let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
@@ -61,7 +62,7 @@ struct MixHoldLagTests {
         return state
     }
 
-    @Test("X-Air ch 1, +6 dB on a desk that eases the fader in over 70 ms: never louder, at most one step down")
+    @Test("X-Air ch 1, +6 dB on a desk that eases the fader in over 70 ms: never louder, at most one ramp step down")
     func xAirBoostEasedFader() async throws {
         let mixer = try await FakeXAirMixer(Self.easingDesk(gainDb: 14, faderDb: 0))
         let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
@@ -102,6 +103,22 @@ struct MixHoldLagTests {
         #expect(step.toGainDb == 14)
         #expect(drift[..<cut].max()! <= 0.1, "never louder: cut, fader eased")
         Self.expectSteady(Array(drift[cut...]), "Undo of the cut, fader eased")
+    }
+
+    @Test("X-Air ch 1, +23 dB in 3 dB steps: eight gain writes, each at most 3 dB (Eric, #688)")
+    func xAirBoostInThreeDbSteps() async throws {
+        let mixer = try await FakeXAirMixer(Self.easingDesk(gainDb: 14, faderDb: 0))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        _ = try await driver.applyMixHold(channel: 1, gainChangeDb: 23)
+
+        let gains = mixer.writes.filter { $0.address == "/headamp/01/gain" }.compactMap { write -> Double? in
+            guard case .float(let f) = write.value else { return nil }
+            return X32Values.headampGain.db(ofOSC: f)
+        }
+        #expect(gains.count == 8)
+        #expect(zip([14] + gains, gains).allSatisfy { $1 - $0 <= 3.01 })
+        Self.expectSteady(Self.drift(mixer, gain: "/headamp/01/gain", start: (14, 0)), "3 dB steps, fader eased")
     }
 
     @Test("X-Air ch 1, Undo of the +23 dB boost: the preamp comes down before the fader comes up")

@@ -183,7 +183,7 @@ struct X32GainTests {
         return mixer.writes
     }
 
-    @Test("Raising the gain by 25 dB ramps in steps of at most 1 dB, and the channel never gets louder in the mix")
+    @Test("Raising the gain by 25 dB ramps in steps of at most 3 dB, and the channel never gets louder in the mix")
     func raiseRampsWithoutGettingLouder() async throws {
         let mixer = try await FakeXAirMixer(Self.kickDesk())
         let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
@@ -192,7 +192,7 @@ struct X32GainTests {
 
         let writes = mixer.writes
         let gainWrites = writes.filter { $0.address == "/headamp/000/gain" }
-        #expect(gainWrites.count >= 25, "about 1 dB a step")
+        #expect(gainWrites.count == 9, "3 dB a step (Eric, #688)")
         #expect(Self.loudestRise(writes, start: Self.kickStart) <= 0.3, "never louder than at the start")
         #expect(step.toGainDb == 13)
         #expect(try await driver.gainDb(ofHeadamp: 0) == 13, "ends exactly where planned")
@@ -273,7 +273,7 @@ struct X32GainTests {
     @Test("A gain move the mixer stops answering partway says what it wrote, and Undo puts that back exactly (#450)")
     func interruptedMoveReportsWhatItWrote() async throws {
         var state = FakeXAirMixer.State.x32()
-        state.stopsAnsweringAfterWrites = 9   // a few ramp steps into a +6 dB move
+        state.stopsAnsweringAfterWrites = 9   // a few ramp steps into a +12 dB move
         let mixer = try await FakeXAirMixer(state)
         let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port))   // waits out a Mixer that stops answering: keeps the short default
         let before = try await driver.mixHoldState(ofChannel: 1)
@@ -281,14 +281,14 @@ struct X32GainTests {
 
         var interrupted: GainStep?
         do {
-            _ = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+            _ = try await driver.applyMixHold(channel: 1, gainChangeDb: 12)
         } catch {
             if case .gainMoveInterrupted(let step) = error { interrupted = step }
         }
 
         let step = try #require(interrupted)
         #expect(step.fromGainDb == gainBefore)
-        #expect(step.toGainDb > gainBefore && step.toGainDb < gainBefore + 6, "partway: what was written, not the plan")
+        #expect(step.toGainDb > gainBefore && step.toGainDb < gainBefore + 12, "partway: what was written, not the plan")
         let fader = try #require(step.changes.first { $0.setting == MixHold.Setting(channel: 1, parameter: .mainFader) })
         #expect(step.held[fader.setting] == fader.toDb)
         mixer.update { $0.answers = true; $0.stopsAnsweringAfterWrites = nil }
