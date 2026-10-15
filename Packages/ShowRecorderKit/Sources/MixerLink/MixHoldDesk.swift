@@ -57,8 +57,10 @@ extension MixHoldDesk {
         return try await queries.int(at: String(format: "/config/chlink/%d-%d", first, first + 1)) != 0 ? first : nil
     }
 
-    /// The most the gain moves in one ramp step, in dB.
-    static var rampStepDb: Double { 1.0 }
+    /// The most the gain moves in one ramp step, in dB. 3 dB (Eric, #688): each step waits `faderSettle` for the fader,
+    /// so fewer steps make a move quicker. Measured on an XR18, a 3 dB step dips the mix up to 3 dB for about 45 ms while
+    /// the fader glides, then the preamp's own switching blip reads +2 dB for about 10 ms.
+    static var rampStepDb: Double { 3.0 }
 
     /// The preamp a move on input channel `channel` lands on (#458): its own, or, when it is the second of a
     /// stereo-linked pair (`/config/chlink/1-2` on the X-Air and the X32) whose preamps are linked too
