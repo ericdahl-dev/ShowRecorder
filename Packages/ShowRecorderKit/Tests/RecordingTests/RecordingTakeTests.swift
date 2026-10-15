@@ -1,6 +1,6 @@
 import AudioIO
 import Foundation
-import Recording
+@testable import Recording
 import Testing
 
 @MainActor
@@ -37,8 +37,8 @@ struct RecordingTakeTests {
         try recorder.stopTake()
 
         let take = root.appending(path: "2026-10-06 Show/Take 01")
-        let first = try StemFile(contentsOf: take.appending(path: "01 USB 01.wav"))
-        let second = try StemFile(contentsOf: take.appending(path: "02 USB 02.wav"))
+        let first = try ParsedStem(contentsOf: take.appending(path: "01 USB 01.wav"))
+        let second = try ParsedStem(contentsOf: take.appending(path: "02 USB 02.wav"))
         #expect(first.channelCount == 1)
         #expect(first.sampleRate == 48_000)
         #expect(first.bitsPerSample == 24)
@@ -58,7 +58,7 @@ struct RecordingTakeTests {
 
         let take = root.appending(path: "2026-10-06 Show/Take 01")
         let stems = try ["01 USB 01", "02 USB 02", "03 USB 03"].map {
-            try StemFile(contentsOf: take.appending(path: "\($0).wav"))
+            try ParsedStem(contentsOf: take.appending(path: "\($0).wav"))
         }
         #expect(stems.map(\.description) == ["USB 01", "USB 02", "USB 03"])
         #expect(stems.allSatisfy { $0.originator == "ShowRecorder" })
@@ -82,8 +82,8 @@ struct RecordingTakeTests {
         let show = root.appending(path: "2026-10-06 Show")
         #expect(recorder.currentShow?.name == "2026-10-06 Show")
         #expect(recorder.currentShow?.takeCount == 2)
-        #expect(try StemFile(contentsOf: show.appending(path: "Take 01/01 USB 01.wav")).samples == [1])
-        #expect(try StemFile(contentsOf: show.appending(path: "Take 02/01 USB 01.wav")).samples == [2])
+        #expect(try ParsedStem(contentsOf: show.appending(path: "Take 01/01 USB 01.wav")).samples == [1])
+        #expect(try ParsedStem(contentsOf: show.appending(path: "Take 02/01 USB 01.wav")).samples == [2])
         #expect(try FileManager.default.contentsOfDirectory(atPath: root.path) == ["2026-10-06 Show"])
     }
 
@@ -99,7 +99,7 @@ struct RecordingTakeTests {
         try recorder.stopTake()
         device.deliver([[Self.sample(9)]])
 
-        let stem = try StemFile(contentsOf: root.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
+        let stem = try ParsedStem(contentsOf: root.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
         #expect(stem.samples == [1])
     }
 

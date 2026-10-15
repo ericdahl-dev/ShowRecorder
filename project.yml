@@ -4,6 +4,7 @@ options:
   deploymentTarget:
     iOS: "26.0"
     macOS: "26.0"
+    watchOS: "26.0"
   createIntermediateGroups: true
 
 packages:
@@ -29,6 +30,7 @@ targets:
         buildPhase: none
     scheme:
       storeKitConfiguration: App/ShowRecorder.storekit
+      testTargets: [AppTests]
     dependencies:
       - package: ShowRecorderKit
         product: AudioIO
@@ -40,6 +42,27 @@ targets:
         product: MixerLink
       - package: ShowRecorderKit
         product: Destinations
+      - package: ShowRecorderKit
+        product: TakeActivity
+      - package: ShowRecorderKit
+        product: WatchRemote
+      # The Live Activity (#136): iPhone only, so the Mac app embeds no extension and needs no profile for it.
+      - target: ShowRecorderLiveActivity
+        destinationFilters: [iOS]
+      # The Apple Watch remote (#100): iPhone only, embedded as the iPhone app's watch app.
+      - target: ShowRecorderWatch
+        destinationFilters: [iOS]
+    # Debug builds all read 0.1.0 (1), so Settings names the git commit too (#697). Release builds get nothing stamped.
+    postBuildScripts:
+      - name: Stamp git commit (Debug)
+        basedOnDependencyAnalysis: false
+        script: |
+          [ "$CONFIGURATION" = "Debug" ] || exit 0
+          plist="$TARGET_BUILD_DIR/$INFOPLIST_PATH"
+          commit=$(git -C "$SRCROOT" rev-parse --short HEAD 2>/dev/null) || exit 0
+          [ -n "$(git -C "$SRCROOT" status --porcelain 2>/dev/null)" ] && commit="$commit-dirty"
+          /usr/libexec/PlistBuddy -c "Delete :ShowRecorderGitCommit" "$plist" 2>/dev/null
+          /usr/libexec/PlistBuddy -c "Add :ShowRecorderGitCommit string $commit" "$plist"
     entitlements:
       path: App/ShowRecorder.entitlements
       properties:
@@ -64,6 +87,7 @@ targets:
         LSSupportsOpeningDocumentsInPlace: true
         UIBackgroundModes:
           - audio
+        NSSupportsLiveActivities: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
@@ -76,8 +100,83 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.ericdahl.ShowRecorder
+        # Set by the release workflow, which signs each target with its own App Store profile; empty locally.
+        PROVISIONING_PROFILE_SPECIFIER: $(APP_PROFILE_NAME)
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: false
         CODE_SIGN_STYLE: Automatic
         ENABLE_HARDENED_RUNTIME: true
+        # The Debug "Stamp git commit" phase runs git and edits the built Info.plist (#697).
+        ENABLE_USER_SCRIPT_SANDBOXING: false
+
+  # Unit tests of the glue that stays in App/ (#679), hosted on the Mac app so they never need a Simulator.
+  AppTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: AppTests
+    dependencies:
+      - target: ShowRecorder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.ericdahl.ShowRecorder.AppTests
+        GENERATE_INFOPLIST_FILE: true
+        # XcodeGen writes the iOS path for a multi-platform host; the Mac app's binary is under Contents/MacOS.
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/ShowRecorder.app/Contents/MacOS/ShowRecorder
+        BUNDLE_LOADER: $(TEST_HOST)
+
+  # The running Take's Live Activity in the Dynamic Island and on the Lock Screen (#136).
+  ShowRecorderLiveActivity:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: LiveActivity
+    dependencies:
+      - package: ShowRecorderKit
+        product: TakeActivity
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    info:
+      path: LiveActivity/Info.plist
+      properties:
+        CFBundleDisplayName: ShowRecorder
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.ericdahl.ShowRecorder.LiveActivity
+        PROVISIONING_PROFILE_SPECIFIER: $(EXTENSION_PROFILE_NAME)
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: false
+        CODE_SIGN_STYLE: Automatic
+        SKIP_INSTALL: true
+
+  # The Apple Watch remote (#100): status, Start, Stop and Markers from the wrist, over WatchConnectivity. A
+  # single-target watchOS app embedded in the iPhone app; it needs the iPhone (it records nothing itself).
+  ShowRecorderWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - path: Watch
+    dependencies:
+      - package: ShowRecorderKit
+        product: WatchRemote
+    info:
+      path: Watch/Info.plist
+      properties:
+        CFBundleDisplayName: ShowRecorder
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: dev.ericdahl.ShowRecorder
+        WKRunsIndependentlyOfCompanionApp: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.ericdahl.ShowRecorder.watchkitapp
+        PROVISIONING_PROFILE_SPECIFIER: $(WATCH_PROFILE_NAME)
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: false
+        CODE_SIGN_STYLE: Automatic

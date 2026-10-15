@@ -26,7 +26,7 @@ final class DiscardingSink: StemSink {
     func setMarkers(_ markers: [StemMarker]) throws -> Int { markers.count }
 }
 
-/// The running Take's Copies. Owns one record per Copy (its folder, ring, writer and, for the Drive,
+/// The running Take's Copies. Owns one record per Copy (its folder, feed, writer and, for the Drive,
 /// the access held for the Take) and everything that changes while the Take runs: Markers, Gaps,
 /// a Drive joining or rejoining, a Copy retiring for lack of space. `Recorder` keeps Armed state and
 /// decides when a Take starts and stops.
@@ -36,10 +36,15 @@ final class TakeSession {
     struct CopyRecord {
         let kind: DestinationKind
         var folder: URL
-        let ring: SampleRing
+        let feed: CopyFeed
         var writer: TakeWriter
+        /// Gaps from this Copy's earlier writers, before a Drive rejoined.
+        var earlierGaps: [Range<Int>] = []
         /// Held until the Take is finished and Repaired. Only the Drive has one.
         var access: DriveAccess?
+
+        /// Stretches written as silence in this Copy because it joined after the Take began, as Take frames.
+        var gaps: [Range<Int>] { earlierGaps + (writer.leadGap.map { [$0] } ?? []) }
     }
 
     /// What `checkDestinations` found.
@@ -52,9 +57,8 @@ final class TakeSession {
     /// What Repair needs once the Take has ended.
     struct Finished {
         var metadata: TakeMetadata
-        var folders: [URL]
+        var folders: [DestinationKind: URL]
         var access: DriveAccess?
-        var statuses: [DestinationKind: CopyStatus]
         var signal: TakeSignal
         /// Copies Stop gave up on (#320): their files are left as they are, and Repair doesn't touch them.
         var abandoned: Set<DestinationKind> = []
@@ -71,21 +75,44 @@ final class TakeSession {
     /// Called when any Copy's writer fails (on the main actor), so the owner can end the Take once none is left.
     var onCopyFailed: () -> Void = {}
 
+    /// Drive only (#196, ADR 0006): the Device's standby, which holds the last seconds of the Take in memory and stands
+    /// in for the Drive once it is lost. Nil for a Take with two Copies.
+    private var standby: Standby?
+    /// Drive only (#196, ADR 0006): the Take was started to be written to the Drive alone.
+    let driveOnly: Bool
+    /// How long the Drive's writer may go without writing while audio arrives before it counts as lost (a pulled
+    /// Drive can hang rather than fail).
+    var driveStallLimit: Duration = .seconds(2)
+    /// The Drive writer's frames when it was last seen moving, and when.
+    private var driveProgress: (frames: Int, at: ContinuousClock.Instant)?
+
+    struct Standby {
+        let folder: URL
+        let feed: CopyFeed
+        let writer: TakeWriter
+        let sinks: [StandInSink]
+        /// Where the stand-in starts, once the Drive is lost.
+        var start: Int?
+    }
+
     private let capture: Capture
     private let stems: [StemSpec]
     private let info: StemWriter.Info
     private let makeStem: (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink
     private let freeSpace: (URL) -> Int64
 
-    /// Opens the Stems in each of `folders` (one per Copy, the Device first), writes `Take.json` there
+    /// Opens the Stems in each of `folders` (one per Copy, keyed by its kind), writes `Take.json` there
     /// and starts capturing. `drive` is the access held for the Drive Copy, when there is one.
     init(
-        show: Show, folders: [URL], drive: DriveAccess?, metadata: TakeMetadata, stems: [StemSpec],
+        show: Show, folders: [DestinationKind: URL], drive: DriveAccess?, metadata: TakeMetadata, stems: [StemSpec],
         info: StemWriter.Info, capture: Capture, preRollFrames: Int = 0,
         makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink,
-        freeSpace: @escaping (URL) -> Int64
+        freeSpace: @escaping (URL) -> Int64, driveOnly: Bool = false
     ) throws {
         self.show = show
+        var metadata = metadata
+        // Every Copy's Take.json says the Take is Drive only, so one left on the Device can be found and moved (#630).
+        if driveOnly { metadata.driveOnly = true }
         self.metadata = metadata
         levels = TakeLevels(channelCount: capture.channelCount)
         self.stems = stems
@@ -93,6 +120,7 @@ final class TakeSession {
         self.capture = capture
         self.makeStem = makeStem
         self.freeSpace = freeSpace
+        self.driveOnly = driveOnly
 
         // One writer per Copy, each draining its own ring, so a slow Drive never holds up the Device.
         // With Pre-roll each Copy waits for the real-time thread's first block, then writes the Pre-roll
@@ -104,34 +132,104 @@ final class TakeSession {
                 return capture.preRoll?.read(frames: (start - preRollFrames)..<start)
             } : nil
         var records: [CopyRecord] = []
-        for (index, folder) in folders.enumerated() {
-            let kind = DestinationKind(index: index)
+        precondition(DestinationKind.allCases.count <= capture.feeds.count, "more Copy kinds than Capture feeds")
+        // Each Copy's feed, paired with its kind in order: Capture's feeds, like the kinds, put the Device first.
+        let feeds = Dictionary(uniqueKeysWithValues: zip(DestinationKind.allCases, capture.feeds))
+        // Drive only, with a Drive: the Device's ring feeds the standby, which writes nothing until the Drive is lost.
+        let standingBy = driveOnly && folders[.device] != nil && folders[.drive] != nil
+        if standingBy {
+            let held = Int(Double(info.sampleRate) * Self.standbySeconds)
+            // An unrecorded USB Channel is never stood in for, so it holds nothing.
+            let sinks = stems.map { StandInSink(heldFrames: $0.isRecorded ? held : 1) }
+            let feed = feeds[.device]!
+            let writer = TakeWriter(feed: feed, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] in
+                capture.stopFeeding(feed)
+                Task { @MainActor in self?.onCopyFailed() }
+            }, head: head)
+            standby = Standby(folder: folders[.device]!, feed: feed, writer: writer, sinks: sinks)
+        }
+        for kind in DestinationKind.allCases where !(standingBy && kind == .device) {
+            guard let folder = folders[kind] else { continue }
+            let feed = feeds[kind]!
             let sinks: [any StemSink] = try stems.map { spec in
                 spec.isRecorded ? try makeStem(folder.appending(path: spec.file), info.described(spec.description), nil) : DiscardingSink()
             }
             try metadata.write(to: folder)
             records.append(CopyRecord(
-                kind: kind, folder: folder, ring: capture.rings[index],
-                writer: makeWriter(ring: capture.rings[index], kind: kind, stems: sinks, head: head),
+                kind: kind, folder: folder, feed: feed,
+                writer: makeWriter(feed: feed, stems: sinks, head: head),
                 access: kind == .drive ? drive : nil))
         }
-        for record in records { begin(record.writer, on: record.ring, joinFrame: head == nil ? 0 : -1) }
+        for record in records {
+            capture.begin(record.feed, joinedAt: head == nil ? 0 : nil)
+            record.writer.start()
+        }
+        if let standby {
+            capture.begin(standby.feed, joinedAt: head == nil ? 0 : nil)
+            standby.writer.start()
+        }
         copies = records
-        capture.startCapturing(copies: records.count, preRollFrames: head == nil ? 0 : preRollFrames)
+        capture.startCapturing(copies: folders.count, preRollFrames: head == nil ? 0 : preRollFrames)
     }
+
+    /// How much of the Take the standby holds: the Drive's ring (4 s), the time to notice it is lost and a margin.
+    static let standbySeconds = 10.0
 
     /// Places a Marker at the Take's current sample position (frames written so far), in every Stem
     /// of every Copy and in `Take.json`.
     @discardableResult
     func addMarker(named name: String? = nil) -> TakeMetadata.Marker {
         let marker = TakeMetadata.Marker(
-            position: capture.takeFrameCount, name: name.map { NameLimit.cut($0) } ?? "Marker \(metadata.markers.filter { $0.origin == .operator }.count + 1)", origin: .operator)
+            position: capture.takeFrameCount, name: name.map { NameLimit.cut($0) } ?? metadata.nextMarkerName, origin: .operator)
         metadata.markers.append(marker)
         // Take.json first: it's written whole and atomically, so a Marker survives even if the Stems'
         // next header commit never happens.
         writeMetadata()
         for copy in copies { copy.writer.setMarkers(stemMarkers) }
+        standby?.writer.setMarkers(stemMarkers)
         return marker
+    }
+
+    /// Logs a gain change on the Mixer at the Take's current sample position, in `Take.json` of every Copy, with a
+    /// Marker named `markerName` there (not a cue in the Stems: only the operator's Markers are).
+    func logGainChange(_ change: TakeMetadata.GainChange, markerName: String) {
+        var change = change
+        change.position = capture.takeFrameCount
+        metadata.gainChanges = (metadata.gainChanges ?? []) + [change]
+        metadata.markers.append(.init(position: capture.takeFrameCount, name: markerName, origin: .gain))
+        writeMetadata()
+    }
+
+    /// The name of USB Channel `usbChannel` in this Take ("Kick", or "USB 01").
+    func channelName(_ usbChannel: Int) -> String? {
+        metadata.usbChannels.first { $0.usbChannel == usbChannel }?.name
+    }
+
+    /// Logs that the Mixer re-patched a USB Channel (#21), at the Take's current sample position, with a Marker in
+    /// `Take.json` and in every Stem's cue points. Touches no audio: the Stem goes on with the new Source.
+    ///
+    /// A re-patch of the same USB Channel within a second of the last one (stepping the desk's source selector) only
+    /// moves that change on to the new Source, so a sweep is one change and one Marker.
+    func logRoutingChange(usbChannel: Int, from: String, to: String) {
+        let position = capture.takeFrameCount
+        var changes = metadata.routingChanges ?? []
+        if let last = changes.lastIndex(where: { $0.usbChannel == usbChannel }),
+           position - changes[last].position < metadata.sampleRate,
+           let marker = metadata.markers.lastIndex(where: {
+               $0.origin == .routing && $0.position == changes[last].position
+                   && $0.name == RoutingChangeNotice.markerName(usbChannel: usbChannel, from: changes[last].from, to: changes[last].to)
+           }) {
+            changes[last].to = to
+            metadata.markers[marker].name = RoutingChangeNotice.markerName(usbChannel: usbChannel, from: changes[last].from, to: to)
+        } else {
+            changes.append(.init(position: position, usbChannel: usbChannel, from: from, to: to))
+            metadata.markers.append(.init(position: position, name: RoutingChangeNotice.markerName(usbChannel: usbChannel, from: from, to: to),
+                                          origin: .routing))
+        }
+        metadata.routingChanges = changes
+        writeMetadata()
+        for copy in copies { copy.writer.setMarkers(stemMarkers) }
+        standby?.writer.setMarkers(stemMarkers)
     }
 
     /// Logs that a Mixer renamed a Source, at the Take's current sample position, in `Take.json` of every
@@ -146,54 +244,68 @@ final class TakeSession {
     func renameMarker(at index: Int, to name: String) -> MarkerRename {
         let name = NameLimit.cut(name.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !name.isEmpty else { return .emptyName }
-        let positions = metadata.markers.indices.filter { metadata.markers[$0].origin == .operator }
-        guard positions.indices.contains(index) else { return .noSuchMarker }
-        metadata.markers[positions[index]].name = name
+        guard let place = metadata.place(ofOperatorMarker: index) else { return .noSuchMarker }
+        metadata.markers[place].name = name
         writeMetadata()
         for copy in copies { copy.writer.setMarkers(stemMarkers) }
+        standby?.writer.setMarkers(stemMarkers)
         return .renamed
     }
 
     /// How `kind`'s Copy is doing. A Copy that never started is missing.
-    func status(_ kind: DestinationKind) -> CopyStatus {
+    func status(_ kind: DestinationKind) -> CopyState {
+        if kind == .device, let standby, standby.start != nil { return standby.writer.hasFailed ? .interrupted : .recording }
         guard let copy = copies.first(where: { $0.kind == kind }) else { return .missing }
         return copy.writer.hasFailed ? .interrupted : .recording
     }
 
-    /// How many places in the Take lost audio (one Dropout Marker each).
-    var dropoutCount: Int { metadata.markers.filter { $0.origin == .dropout }.count }
-
-    /// Whether every Copy's writer has failed, so there is nowhere left to record.
-    var allFailed: Bool { !copies.isEmpty && copies.allSatisfy { $0.writer.hasFailed } }
-
-    /// Stretches written as silence in any Copy, as `Take.json` records them.
-    /// With `takeEnd`, a Copy that is still interrupted, or was asked to join but never got to, is missing
-    /// everything from where it stopped to there.
-    /// What the writers dropped, split into audio every Copy lacks (Dropouts) and audio another Copy has (Gaps that
-    /// Repair fills, #318). A Copy that failed or hasn't joined lacks everything past where it got to.
-    private func dropoutSplit() -> DropoutSplit {
-        var dropped: [DestinationKind: [Range<Int>]] = [:]
-        var notRecording: [DestinationKind: [Range<Int>]] = [:]
-        for copy in copies {
-            dropped[copy.kind] = copy.writer.dropouts
-            var lacking = copy.writer.gaps
-            if copy.writer.hasFailed || copy.writer.neverJoined { lacking.append(copy.writer.framesWritten..<Int.max) }
-            notRecording[copy.kind] = lacking
+    /// Copies of the running Take (#550), from each Copy's status.
+    var takeCopies: TakeCopies {
+        TakeCopies(isRunning: true, isDriveOnly: driveOnly) { kind in
+            if kind == .device, let standby {
+                if standby.start == nil { return .standingBy }
+                return standby.writer.hasFailed ? .interrupted : .standingIn
+            }
+            return status(kind)
         }
-        return DropoutSplit(dropped: dropped, notRecording: notRecording)
     }
 
-    func gaps(takeEnd: Int? = nil) -> [TakeMetadata.Gap] {
-        var gaps: [TakeMetadata.Gap] = dropoutSplit().gaps
-        for copy in copies {
-            for range in copy.writer.gaps {
-                gaps.append(.init(copy: copy.kind, start: range.lowerBound, end: range.upperBound))
-            }
-            if let takeEnd, copy.writer.hasFailed || copy.writer.neverJoined, copy.writer.framesWritten < takeEnd {
-                gaps.append(.init(copy: copy.kind, start: copy.writer.framesWritten, end: takeEnd))
-            }
+    /// How many places in the Take lost audio (one Dropout Marker each).
+    var dropoutCount: Int { metadata.dropoutCount }
+
+    /// Whether every Copy's writer has failed, so there is nowhere left to record.
+    var allFailed: Bool {
+        // A Drive only Take's standby can still stand in for the Drive.
+        if let standby, !standby.writer.hasFailed { return false }
+        return !copies.isEmpty && copies.allSatisfy { $0.writer.hasFailed }
+    }
+
+    /// What each Copy holds so far, from its writer: the one source of Gaps and Dropouts (#441). A Copy that failed,
+    /// retired or never joined stopped early, so it lacks everything past where it got to.
+    private var coverage: CopyCoverage {
+        var all = copies.map { copy in
+            CopyCoverage.Copy(
+                // A Drive that went away may have lost what it wrote since its last commit (#595); a Device keeps it.
+                kind: copy.kind, written: copy.kind == .drive ? copy.writer.framesKept : copy.writer.framesWritten,
+                dropped: copy.writer.dropouts,
+                silence: copy.gaps, stoppedEarly: copy.writer.hasFailed || copy.writer.neverJoined)
         }
-        return gaps.sorted { ($0.start, $0.end) < ($1.start, $1.end) }
+        // Drive only: the standby holds the audio from where its stand-in starts, and nothing before.
+        if let standby {
+            let start = standby.start ?? Int.max
+            all.insert(CopyCoverage.Copy(
+                kind: .device, written: standby.start == nil ? 0 : standby.writer.framesWritten, dropped: standby.writer.dropouts,
+                silence: [0..<min(start, standby.writer.framesWritten)],
+                stoppedEarly: standby.start == nil || standby.writer.hasFailed || standby.writer.neverJoined), at: 0)
+        }
+        return CopyCoverage(all)
+    }
+
+    /// Stretches written as silence in any Copy, as `Take.json` records them. With `takeEnd`, a Copy that stopped
+    /// early is missing everything from where it stopped to there.
+    func gaps(takeEnd: Int? = nil) -> [TakeMetadata.Gap] {
+        // A Drive only Take has no Device Copy to have Gaps in: the standby only stands in.
+        coverage.gaps(takeEnd: takeEnd).filter { standby == nil || $0.copy != .device }
     }
 
     /// Looks for a Destination that has become available since the Take started. A Drive that appears
@@ -213,15 +325,27 @@ final class TakeSession {
         if !low.isEmpty {
             if low.count == healthy.count { return .outOfSpace }
             for copy in low {
-                capture.disable(copy: copy.kind.index)
+                capture.stopFeeding(copy.feed)
                 copy.writer.retire()
             }
         }
-        if copies.count == 1, let access = drive() {
-            attachDrive(access, replacing: nil, reserve: reserve)
-        }
-        if copies.count == 2, copies[1].writer.isFinished, copies[1].writer.hasFailed, let access = drive() {
-            attachDrive(access, replacing: copies[1], reserve: reserve)
+        if let standby {
+            // A stand-in keeps the Device's space reserve like a Copy: short of it, it stops cleanly; when the Drive
+            // is gone too, the Take ends.
+            if standby.start != nil, !standby.writer.hasFailed, reserve.isLow(free: freeSpace(standby.folder)) {
+                if healthy.isEmpty { return .outOfSpace }
+                capture.stopFeeding(standby.feed)
+                standby.writer.retire()
+            }
+            standInIfDriveLost()
+        } else {
+            let driveCopy = copies.first { $0.kind == .drive }
+            if driveCopy == nil, let access = drive() {
+                attachDrive(access, replacing: nil, reserve: reserve)
+            }
+            if let driveCopy, driveCopy.writer.isFinished, driveCopy.writer.hasFailed, let access = drive() {
+                attachDrive(access, replacing: driveCopy, reserve: reserve)
+            }
         }
         collectDropouts()
         persistGaps()
@@ -234,11 +358,28 @@ final class TakeSession {
     }
 
     /// Stops capturing, waits until every Stem is written and finalized and records the Gaps.
-    /// A Copy that failed during the Take doesn't make this throw; see `Finished.statuses`.
+    /// A Copy that failed during the Take doesn't make this throw.
     func finish() -> Finished {
         capture.stopCapturing()
-        var statuses = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.map { ($0, status($0)) })
-        for copy in copies { copy.writer.stop(timeout: stopTimeout) }
+        // Every writer is told to stop first, then all are waited on against one deadline, so two stuck Copies
+        // hold Stop for one timeout, not two (#652). The deadline is taken after every stop request, so each writer
+        // still gets the full timeout from its own request (#320).
+        for copy in copies { copy.writer.requestStop() }
+        standby?.writer.requestStop()
+        let deadline = stopTimeout.map(TakeWriter.deadline)
+        for copy in copies { copy.writer.waitStopped(until: deadline) }
+        standby?.writer.waitStopped(until: deadline)
+        // A standby is a Copy only if it stood in or its folder is kept: its empty folder isn't one, even if removing it fails.
+        var standbyFolder = standby?.folder
+        if let standby {
+            if let start = standby.start {
+                metadata.standIns = [.init(start: start, end: max(start, standby.writer.framesWritten))]
+            } else if (try? FileManager.default.contentsOfDirectory(atPath: standby.folder.path).isEmpty) == true {
+                // The Drive took the whole Take: the Device's Take folder this press made stays empty, so it goes.
+                try? FileManager.default.removeItem(at: standby.folder)
+                standbyFolder = nil
+            }
+        }
         collectDropouts()
         // Levels are kept per captured channel; Take.json lists only the recorded ones, by USB Channel number.
         for (channel, summary) in levels.summary.enumerated() {
@@ -249,12 +390,11 @@ final class TakeSession {
         writeMetadata()
         // A Take whose Copies were never fed a first block is empty, not missing everything.
         persistGaps(takeEnd: capture.awaitingFirstBlock ? 0 : capture.takeFrameCount)
-        for copy in copies where statuses[copy.kind] == .recording && copy.writer.hasFailed {
-            // A Copy can fail while its writer drains at stop.
-            statuses[copy.kind] = .interrupted
-        }
+        var folders: [DestinationKind: URL] = [:]
+        folders[.device] = standbyFolder
+        for copy in copies { folders[copy.kind] = copy.folder }
         return Finished(
-            metadata: metadata, folders: copies.map(\.folder), access: copies.lazy.compactMap(\.access).first, statuses: statuses,
+            metadata: metadata, folders: folders, access: copies.lazy.compactMap(\.access).first,
             signal: TakeSignal(recorded: metadata.usbChannels.count, withSignal: levels.channelsWithSignal(), loudest: levels.loudest()),
             abandoned: Set(copies.filter { $0.writer.wasAbandoned }.map(\.kind)))
     }
@@ -283,7 +423,10 @@ final class TakeSession {
                 }
                 try show.useDrive(access.folder)
             }
-            let counts = old?.writer.stemFrameCounts
+            // Each Stem resumes at its last commit (#595): what was written after it may never have reached the Drive,
+            // so it is cut off and left to Repair. A Drive that failed but stayed mounted loses that stretch too, until
+            // resuming at the frames really on disk (#602).
+            let counts = old?.writer.stemFramesKept
             let sinks: [any StemSink] = try stems.enumerated().map { index, spec in
                 spec.isRecorded
                     ? try makeStem(folder.appending(path: spec.file), info.described(spec.description), counts?[index])
@@ -292,14 +435,18 @@ final class TakeSession {
             // A Take folder that was rejoined already has its Take.json.
             if old == nil { try metadata.write(to: folder) }
 
-            let ring = capture.rings[DestinationKind.drive.index]
-            let writer = makeWriter(ring: ring, kind: .drive, stems: sinks, priorGaps: old?.writer.gaps ?? [])
-            begin(writer, on: ring, joinFrame: -1)
-            if !stemMarkers.isEmpty { writer.setMarkers(stemMarkers) }
-            capture.requestJoin(copy: DestinationKind.drive.index)
+            // The Drive uses its kind's feed. A Drive joins for the first time only beside the Device.
+            assert(old != nil || copies.count == 1, "a Drive joining beside more than the Device")
+            let feed = old?.feed ?? capture.feeds[DestinationKind.drive.index]
+            let writer = makeWriter(feed: feed, stems: sinks, markers: stemMarkers)
+            capture.attachMidTake(feed)
+            writer.start()
+            // The rejoin's own Gap starts where the Stems resume, so earlier Gaps stop there (#595).
+            let resume = Int(counts?.min() ?? 0)
+            let earlierGaps = (old?.gaps ?? []).filter { $0.lowerBound < resume }.map { $0.clamped(to: 0..<resume) }
 
-            let record = CopyRecord(kind: .drive, folder: folder, ring: ring, writer: writer, access: access)
-            if old == nil { copies.append(record) } else { copies[1] = record }
+            let record = CopyRecord(kind: .drive, folder: folder, feed: feed, writer: writer, earlierGaps: earlierGaps, access: access)
+            if old == nil { copies.append(record) } else if let i = copies.firstIndex(where: { $0.kind == .drive }) { copies[i] = record }
             old?.access?.end()
             self.show = show
         } catch {
@@ -310,39 +457,84 @@ final class TakeSession {
     // MARK: - Helpers
 
     private func makeWriter(
-        ring: SampleRing, kind: DestinationKind, stems sinks: [any StemSink], priorGaps: [Range<Int>] = [],
-        head: (() -> [[Float]]?)? = nil
+        feed: CopyFeed, stems sinks: [any StemSink], head: (() -> [[Float]]?)? = nil, markers: [StemMarker] = []
     ) -> TakeWriter {
-        TakeWriter(ring: ring, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] in
-            capture.disable(copy: kind.index)
+        TakeWriter(feed: feed, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] in
+            capture.stopFeeding(feed)
             Task { @MainActor in self?.onCopyFailed() }
-        }, priorGaps: priorGaps, head: head)
+        }, head: head, markers: markers)
     }
 
-    /// Empties `ring`, says which Take frame its Copy starts at (-1 until the real-time thread picks
-    /// one for a Copy that joins mid-Take) and starts its writer.
-    private func begin(_ writer: TakeWriter, on ring: SampleRing, joinFrame: Int) {
-        ring.discardAll()
-        ring.joinFrame.store(joinFrame, ordering: .releasing)
-        writer.start()
-    }
-
-    /// The operator's Markers, for the Stems. Each writer adds its own Dropout Markers.
+    /// The Markers the Stems carry as cue points. Each writer adds its own Dropout Markers.
     private var stemMarkers: [StemMarker] {
-        metadata.markers.filter { $0.origin == .operator }.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
+        metadata.stemCueMarkers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
     }
 
     private func writeMetadata() {
-        for copy in copies { try? metadata.write(to: copy.folder) }
+        // A Copy Stop gave up on (set only at Stop) may hang on any file operation: Repair writes its Take.json off the main thread (#652).
+        for copy in copies where !copy.writer.wasAbandoned { try? metadata.write(to: copy.folder) }
+        // A stand-in's Take.json lets a crash mid-Take find it (and Repair it) on the next launch.
+        if let standby, standby.start != nil { try? metadata.write(to: standby.folder) }
+    }
+
+    // MARK: - Drive only
+
+    /// Starts the stand-in once the Drive falters: its writer failed, wrote nothing for `driveStallLimit` while audio
+    /// arrived (a pulled Drive can hang rather than fail), or its ring overflowed (too slow to keep up).
+    private func standInIfDriveLost() {
+        guard var standby, standby.start == nil, !capture.awaitingFirstBlock,
+              let drive = copies.first(where: { $0.kind == .drive }) else { return }
+        let written = drive.writer.framesWritten
+        let now = ContinuousClock.now
+        var stalled = false
+        if !drive.writer.hasFailed {
+            if let last = driveProgress, last.frames == written {
+                stalled = now - last.at >= driveStallLimit && capture.takeFrameCount > written
+            } else {
+                driveProgress = (written, now)
+            }
+        }
+        // A Drive too slow to keep up drops audio but carries on: the standby stands in for it from the first drop,
+        // and the Drive isn't given up, so Repair can fill it later.
+        // The ring's overflow shows at once; the writer only logs the Dropout once it wakes, which a stuck write delays.
+        let overflowed = drive.feed.ring.overflowedFrames.load(ordering: .relaxed) > 0
+        let firstDrop = drive.writer.dropouts.map(\.lowerBound).min()
+        guard drive.writer.hasFailed || stalled || overflowed || firstDrop != nil else { return }
+        // A stalled Drive isn't given up: one that only paused (waking up, a busy moment) carries on, and Repair fills
+        // what it dropped from the stand-in. One that never comes back is abandoned at Stop, which never waits on it
+        // longer than `stopTimeout` (#320).
+        // The earliest frame the standby will still hold when its writer next appends: a tenth of a second of margin
+        // for the blocks that arrive meanwhile. Audio the Drive lost before that stays a Gap no stand-in covers.
+        let held = Int(Double(info.sampleRate) * Self.standbySeconds)
+        let newest = standby.sinks.map { Int($0.frameCount) }.max() ?? 0
+        // From where the Drive stopped, less what it may not have made durable: up to one header commit (2 s) of
+        // audio can die with a pulled Drive. The overlap costs nothing; Repair only fills Gaps.
+        let lostFrom = min(written - info.sampleRate * 2, firstDrop ?? .max)
+        let start = max(lostFrom, newest + info.sampleRate / 10 - held, 0)
+        let folder = standby.folder.appending(path: TakeMetadata.StandIn(start: start, end: start).folderName, directoryHint: .isDirectory)
+        var startInfo = info
+        startInfo.timeReference += UInt64(start)
+        for (spec, sink) in zip(stems, standby.sinks) where spec.isRecorded {
+            let url = folder.appending(path: spec.file)
+            let stemInfo = startInfo.described(spec.description)
+            sink.standIn(from: start) { [makeStem] in
+                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                return try makeStem(url, stemInfo, nil)
+            }
+        }
+        standby.start = start
+        self.standby = standby
+        metadata.standIns = [.init(start: start, end: start)]
+        writeMetadata()
     }
 
     /// Moves the audio the writers had to drop into `Take.json` as Dropouts (one per Copy and stretch), with
     /// one Dropout Marker at each position where any Copy lost audio.
     private func collectDropouts() {
         // Only audio every Copy lacks; a stretch another Copy has is a Gap (see `gaps(takeEnd:)`).
-        let found = dropoutSplit().dropouts
+        let found = coverage.dropouts
         guard found != metadata.dropouts else { return }
-        let marked = Set(metadata.markers.filter { $0.origin == .dropout }.map(\.position))
+        let marked = Set(metadata.dropoutMarkers.map(\.position))
         for position in Set(found.map(\.start)).subtracting(marked).sorted() {
             metadata.markers.append(.init(position: position, name: "Dropout", origin: .dropout))
         }

@@ -39,7 +39,7 @@ struct FreeTakeTests {
         #expect(metadata.usbChannels.allSatisfy { $0.peakDbfs != nil })
         // Channel 4 is louder than channel 2 in what was delivered, and the levels must follow the right channel.
         #expect((metadata.usbChannels[1].peakDbfs ?? -100) > (metadata.usbChannels[0].peakDbfs ?? -100))
-        #expect(try StemFile(contentsOf: take.appending(path: "04 USB 04.wav")).samples.count == 480)
+        #expect(try ParsedStem(contentsOf: take.appending(path: "04 USB 04.wav")).samples.count == 480)
     }
 
     @Test("With a Drive both Copies get only the chosen Stems, and a report and Reaper project list just those channels")

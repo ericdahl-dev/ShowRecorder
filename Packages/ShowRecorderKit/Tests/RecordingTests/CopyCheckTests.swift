@@ -58,6 +58,23 @@ struct CopyCheckTests {
         #expect(failures(verify()) == ["The Drive doesn't have this Show."])
     }
 
+    @Test("While the Device holds a stand-in the check fails, even with the Drive's Take complete (#627)")
+    func standInOnDeviceFails() throws {
+        try record()
+        let takeFolder = device.appending(path: "\(show)/Take 01")
+        var take = try TakeMetadata.read(fromTakeFolder: takeFolder)
+        let standIn = TakeMetadata.StandIn(start: 0, end: 4_800)
+        take.standIns = [standIn]
+        try take.write(to: takeFolder)
+        let standInFolder = takeFolder.appending(path: standIn.folderName)
+        try FileManager.default.createDirectory(at: standInFolder, withIntermediateDirectories: true)
+        for channel in take.usbChannels {
+            try FileManager.default.moveItem(at: takeFolder.appending(path: channel.stemFile), to: standInFolder.appending(path: channel.stemFile))
+        }
+
+        #expect(failures(verify()) == ["Take 01 still has audio only on the Device."])
+    }
+
     @Test("A Drive Copy with Gaps left fails; once Repaired it passes")
     func gaps() throws {
         try record()
@@ -83,7 +100,7 @@ struct CopyCheckTests {
 
         // Same length, one sample changed.
         let handle = try FileHandle(forUpdating: stem1)
-        let region = try #require(StemLength.audioRegion(at: stem1))
+        let region = try #require((try? StemFile.inspect(stem1))?.audioRegion)
         try handle.seek(toOffset: region.offset + 6)
         try handle.write(contentsOf: Data([0x7F]))
         try handle.close()
@@ -91,7 +108,7 @@ struct CopyCheckTests {
 
         // Shorter.
         let cut = try FileHandle(forUpdating: stem2)
-        try cut.truncate(atOffset: try #require(StemLength.audioRegion(at: stem2)).offset + 300)
+        try cut.truncate(atOffset: try #require((try? StemFile.inspect(stem2))?.audioRegion).offset + 300)
         try cut.close()
         #expect(failures(verify()).contains("Take 01, channel 2 is a different length on the Drive."))
 
@@ -141,5 +158,201 @@ struct CopyCheckTests {
         let outcome = await recorder.deleteDeviceCopy(of: show)
         #expect(outcome.deleted.isEmpty)
         #expect(FileManager.default.fileExists(atPath: device.appending(path: show).path))
+    }
+
+    // MARK: - One Take, and a stand-in (#630)
+
+    func take(_ copy: URL) -> URL { copy.appending(path: "\(show)/Take 01") }
+
+    /// Changes one sample (frame `frame`) of a Stem.
+    func changeSample(_ stem: URL, frame: Int) throws {
+        let offset = try StemFile.inspect(stem).audioRegion.offset + UInt64(frame * StemWriter.bytesPerSample)
+        let handle = try FileHandle(forUpdating: stem)
+        defer { try? handle.close() }
+        try handle.seek(toOffset: offset)
+        let byte = try #require(try handle.read(upToCount: 1)).first! ^ 0x01
+        try handle.seek(toOffset: offset)
+        try handle.write(contentsOf: [byte])
+    }
+
+    /// Writes a mono Stem of `samples`.
+    func writeStem(_ url: URL, _ samples: [Float], sampleRate: Int = 48_000) throws {
+        let info = StemWriter.Info(sampleRate: sampleRate, description: "", originator: "Test", timeReference: 0, originationDate: Date())
+        let stem = try StemWriter.open(url: url, info: info, resumingAt: nil)
+        try samples.withUnsafeBufferPointer { try stem.append($0) }
+        try stem.finalize()
+    }
+
+    /// Gives the Device's Take 01 stand-ins over `ranges`, their Stems holding the Drive's samples over each range,
+    /// `short` frames fewer. Returns the stand-ins' folders.
+    @discardableResult
+    func standIns(_ ranges: [Range<Int>], short: Int = 0) throws -> [URL] {
+        try change(take(device)) { $0.standIns = ranges.map { .init(start: $0.lowerBound, end: $0.upperBound) } }
+        let metadata = try TakeMetadata.read(fromTakeFolder: take(device))
+        return try ranges.map { range in
+            let folder = take(device).appending(path: TakeMetadata.StandIn(start: range.lowerBound, end: range.upperBound).folderName)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            for channel in metadata.usbChannels {
+                let samples = try StemWriter.readSamples(url: take(drive).appending(path: channel.stemFile), frames: range.lowerBound..<(range.upperBound - short))
+                try writeStem(folder.appending(path: channel.stemFile), samples, sampleRate: metadata.sampleRate)
+            }
+            return folder
+        }
+    }
+
+    func change(_ folder: URL, _ edit: (inout TakeMetadata) -> Void) throws {
+        var metadata = try TakeMetadata.read(fromTakeFolder: folder)
+        edit(&metadata)
+        try metadata.write(to: folder)
+    }
+
+    func verifyTake(drive: URL? = nil) -> CopyCheck.Result { CopyCheck.verifyTake(device: take(device), drive: drive ?? take(self.drive)) }
+    func verifyStandIn(drive: URL? = nil) -> CopyCheck.Result { CopyCheck.verifyStandIn(deviceTake: take(device), driveTake: drive ?? take(self.drive)) }
+
+    @Test("One Take whose Copies match passes; a one-sample difference or a missing Drive Take fail, with the Show check's words")
+    func verifyOneTake() throws {
+        try record()
+        #expect(verifyTake() == .passed)
+
+        try changeSample(take(drive).appending(path: "02 USB 02.wav"), frame: 1_000)
+        #expect(verifyTake() == .failed(["Take 01, channel 2 has different audio on the Drive."]))
+
+        try FileManager.default.removeItem(at: take(drive))
+        #expect(verifyTake() == .failed(["Take 01 is missing on the Drive."]))
+    }
+
+    @Test("A Take is never checked against itself, or through a link")
+    func verifyTakeSameOrLinked() throws {
+        try record()
+        #expect(verifyTake(drive: take(device)) == .failed(["Take 01's Device and Drive Copies are the same folder."]))
+        #expect(verifyTake(drive: drive.appending(path: "\(show)/../\(show)/Take 01/.")) == .passed, "the same Drive folder spelled differently")
+
+        try FileManager.default.removeItem(at: take(drive))
+        try FileManager.default.createSymbolicLink(at: take(drive), withDestinationURL: take(device))
+        #expect(verifyTake() == .failed(["Take 01 isn't a folder of its own on the Drive."]))
+    }
+
+    @Test("A Take with no channels, from another recording, or at another sample rate never passes")
+    func verifyTakeIdentity() throws {
+        try record()
+        try change(take(drive)) { $0.startedAt = $0.startedAt.addingTimeInterval(60) }
+        #expect(verifyTake() == .failed(["Take 01 on the Drive is another recording."]))
+        try change(take(drive)) { $0.startedAt = $0.startedAt.addingTimeInterval(-60) }
+        try change(take(drive)) { $0.sampleRate = 44_100 }
+        #expect(verifyTake() == .failed(["Take 01 has a different sample rate on the Drive."]))
+
+        try change(take(device)) { $0.usbChannels = [] }
+        try change(take(drive)) { $0.usbChannels = [] }
+        #expect(verifyTake() == .failed(["Take 01 has no channels."]))
+    }
+
+    @Test("A stand-in whose every Stem equals the Drive's samples over its stretch passes, up to the Drive's last frame")
+    func standInMatches() throws {
+        try record()
+        try standIns([1_200..<3_600])
+        #expect(verifyStandIn() == .passed)
+
+        try FileManager.default.removeItem(at: take(device).appending(path: "Stand-in 1200"))
+        try standIns([1_200..<4_800])
+        #expect(verifyStandIn() == .passed, "ends exactly at the Drive's end")
+    }
+
+    @Test("A one-sample difference in the stand-in or on the Drive fails")
+    func standInDiffers() throws {
+        try record()
+        let folder = try #require(try standIns([1_200..<3_600]).first)
+        try changeSample(folder.appending(path: "01 USB 01.wav"), frame: 2_399)
+        #expect(verifyStandIn() == .failed(["Take 01, channel 1 of the stand-in at 0:00 has different audio on the Drive."]), "last frame of the stand-in")
+        try changeSample(folder.appending(path: "01 USB 01.wav"), frame: 2_399)
+        #expect(verifyStandIn() == .passed, "changed back")
+
+        try changeSample(take(drive).appending(path: "02 USB 02.wav"), frame: 1_200)
+        #expect(verifyStandIn() == .failed(["Take 01, channel 2 of the stand-in at 0:00 has different audio on the Drive."]), "first frame on the Drive")
+    }
+
+    @Test("A stand-in Stem shorter than its stretch, or a stretch past the Drive's end, fails")
+    func standInShort() throws {
+        try record()
+        try standIns([1_200..<3_600], short: 1)
+        #expect(verifyStandIn() == .failed([
+            "Take 01, channel 1 of the stand-in at 0:00 can't be read whole on the Device.",
+            "Take 01, channel 2 of the stand-in at 0:00 can't be read whole on the Device.",
+        ]))
+
+        try FileManager.default.removeItem(at: take(device).appending(path: "Stand-in 1200"))
+        try standIns([1_200..<4_801])  // the last frame reads back as silence
+        #expect(verifyStandIn() == .failed([
+            "Take 01, channel 1 of the stand-in at 0:00 isn't all on the Drive.",
+            "Take 01, channel 2 of the stand-in at 0:00 isn't all on the Drive.",
+        ]))
+    }
+
+    @Test("Two stand-ins in one Take are each checked; a channel missing on the Drive is named once")
+    func twoStandIns() throws {
+        try record()
+        let folders = try standIns([0..<1_200, 2_400..<4_800])
+        #expect(verifyStandIn() == .passed)
+
+        try changeSample(folders[1].appending(path: "01 USB 01.wav"), frame: 0)
+        #expect(verifyStandIn() == .failed(["Take 01, channel 1 of the stand-in at 0:00 has different audio on the Drive."]))
+        try changeSample(folders[1].appending(path: "01 USB 01.wav"), frame: 0)
+
+        try change(take(drive)) { $0.usbChannels.removeLast() }
+        #expect(verifyStandIn() == .failed(["Take 01, channel 2 of the stand-in is missing on the Drive."]))
+    }
+
+    @Test("No stand-in, a Drive Take.json missing, or a stand-in Take.json can't hold all fail")
+    func standInRefusals() throws {
+        try record()
+        #expect(verifyStandIn() == .failed(["Take 01 has no stand-in on the Device."]))
+
+        try standIns([1_200..<3_600])
+        try change(take(device)) { $0.standIns = [.init(start: -5, end: 10)] }
+        #expect(verifyStandIn() == .failed(["Take 01's Take.json lists a stand-in that can't be."]), "a negative start")
+        try change(take(device)) { $0.standIns = [.init(start: 3_600, end: 1_200)] }
+        #expect(verifyStandIn() == .failed(["Take 01's Take.json lists a stand-in that can't be."]), "an end before its start")
+        try change(take(device)) { $0.standIns = [.init(start: 1_200, end: 3_600)] }
+        #expect(verifyStandIn() == .passed)
+
+        try FileManager.default.removeItem(at: take(drive).appending(path: "Take.json"))
+        #expect(verifyStandIn() == .failed(["Take 01 is missing on the Drive."]))
+    }
+
+    @Test("A stand-in folder with files the Take doesn't list, or that is a link, or checked against itself, fails")
+    func standInFolderGuards() throws {
+        try record()
+        let folder = try #require(try standIns([1_200..<3_600]).first)
+        #expect(verifyStandIn(drive: take(device)) == .failed(["Take 01's Device and Drive Copies are the same folder."]))
+
+        try writeStem(folder.appending(path: "03 USB 03.wav"), [0])
+        #expect(verifyStandIn() == .failed(["Take 01's stand-in has files the Take doesn't list."]))
+        try FileManager.default.removeItem(at: folder.appending(path: "03 USB 03.wav"))
+
+        let outside = root.appending(path: "Outside")
+        try FileManager.default.moveItem(at: folder, to: outside)
+        try FileManager.default.createSymbolicLink(at: folder, withDestinationURL: outside)
+        #expect(verifyStandIn() == .failed(["Take 01's stand-in isn't a folder of its own on the Device."]))
+    }
+
+    @Test("A zero-length stand-in passes only with empty Stems")
+    func zeroLengthStandIn() throws {
+        try record()
+        try standIns([2_400..<2_400])
+        #expect(verifyStandIn() == .passed)
+    }
+
+    @Test("A stand-in longer than one 4 MB piece is compared to its end")
+    func longStandIn() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try record()
+        let frames = 1_500_000
+        for stem in ["01 USB 01.wav", "02 USB 02.wav"] {
+            try writeStem(take(drive).appending(path: stem), (0..<frames).map { Float($0 % 1000) / 8_388_608 })
+        }
+        let folder = try #require(try standIns([0..<frames]).first)
+        #expect(verifyStandIn() == .passed)
+
+        try changeSample(folder.appending(path: "02 USB 02.wav"), frame: 1_450_000)
+        #expect(verifyStandIn() == .failed(["Take 01, channel 2 of the stand-in at 0:00 has different audio on the Drive."]))
     }
 }

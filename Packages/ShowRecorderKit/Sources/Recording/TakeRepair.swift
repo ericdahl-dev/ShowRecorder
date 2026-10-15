@@ -12,15 +12,20 @@ final class TakeRepair {
 
     /// How each Copy of the latest Take to be enqueued ended up. Once its Repair has run, with the result.
     private(set) var outcomes: [DestinationKind: CopyOutcome] = [:]
+    /// Drive only: whether Repair moved the latest Take's stand-in to the Drive and off the Device.
+    private(set) var moved = false
+    /// Drive only: whether the latest Take's stand-in is still on the Device after its Repair.
+    private(set) var standInKept = false
     /// Whether any Repair is still queued or running.
     private(set) var isRunning = false
     /// Called after `outcomes` or `isRunning` changes.
     var onChange: () -> Void = {}
-    /// Called after each Repair has written its result into the Take's folders.
-    var jobDone: () -> Void = {}
+    /// Called after each Repair has written its result into the Take's folders, with the Copies Stop gave up on in it.
+    var jobDone: (_ abandoned: Set<DestinationKind>) -> Void = { _ in }
 
     private let freeSpace: (URL) -> Int64
     private let run: Run
+    private let writeAbandoned: @Sendable (TakeMetadata, URL) -> Void
     private var task: Task<Void, Never>?
     /// Counts enqueued Takes, so only the latest one's Repair sets `outcomes`.
     private var generation = 0
@@ -29,56 +34,155 @@ final class TakeRepair {
     /// - Parameters:
     ///   - freeSpace: free bytes on a Destination, read when a Take is enqueued.
     ///   - run: does the Repair; replaced in tests.
-    init(freeSpace: @escaping (URL) -> Int64, run: @escaping Run = { TakeRepair.fill(copies: $0, metadata: $1, skip: $2) }) {
+    ///   - writeAbandoned: writes `Take.json` to a Copy Stop gave up on, off the main thread; replaced in tests.
+    init(
+        freeSpace: @escaping (URL) -> Int64, run: @escaping Run = { TakeRepair.fill(copies: $0, metadata: $1, skip: $2) },
+        writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) }
+    ) {
         self.freeSpace = freeSpace
         self.run = run
+        self.writeAbandoned = writeAbandoned
     }
 
     /// Queues Repair of an ended Take: fills its Gaps from the other Copy, off the main thread, and
     /// records the result in `Take.json`. `access` (the Drive's folder) is held until it's done.
-    /// A Take with no Gaps has nothing to repair; its outcomes are complete and `access` is released.
-    /// - Parameter abandoned: Copies Stop gave up on (#320), left as they are.
-    func enqueue(_ metadata: TakeMetadata, folders: [URL], holding access: DriveAccess?, abandoned: Set<DestinationKind> = []) {
+    /// A Take with no Gaps has nothing to repair; its outcomes are complete (but a spare Drive only stand-in is removed,
+    /// so the Device has none) and `access` is released, once the `Take.json` of any Copy Stop gave up on is written.
+    /// - Parameters:
+    ///   - abandoned: Copies Stop gave up on (#320), left as they are.
+    ///   - keepsStandIns: a Drive only stand-in stays on the Device even once the Drive has its audio: a Take cut off
+    ///     by a crash may not know all its Gaps, so its stand-in may hold the only copy of some audio (#626).
+    func enqueue(
+        _ metadata: TakeMetadata, folders: [DestinationKind: URL], holding access: DriveAccess?, abandoned: Set<DestinationKind> = [],
+        keepsStandIns: Bool = false
+    ) {
         func outcomes(_ metadata: TakeMetadata) -> [DestinationKind: CopyOutcome] {
-            Dictionary(uniqueKeysWithValues: folders.indices.map { (DestinationKind(index: $0), metadata.outcome(ofCopy: DestinationKind(index: $0))) })
+            Dictionary(uniqueKeysWithValues: folders.keys.map { ($0, metadata.outcome(ofCopy: $0)) })
         }
         generation += 1
         let mine = generation
         self.outcomes = outcomes(metadata)
+        moved = false
+        standInKept = false
         onChange()
+        // A Copy Stop gave up on (#320) may hang on any file operation, so its Take.json is written off the main thread, as a
+        // step of this queue: Repair's own write, and renames that wait for Repair, come after it (#652). If that Drive hangs for
+        // good, the queue waits on it: later Repairs, renames, Drive only moves and anything awaiting Repair (Soundcheck's
+        // `waitForRepair`) stall behind it, as Repair of its Gaps already did. Accepted until option A.
+        let abandonedFolders = abandoned.compactMap { folders[$0] }
+        if !abandonedFolders.isEmpty {
+            let previous = task, write = writeAbandoned
+            task = Task {
+                await previous?.value
+                await Task.detached { for folder in abandonedFolders { write(metadata, folder) } }.value
+            }
+        }
         guard !metadata.gaps.isEmpty else {
-            access?.end()
+            // Drive only: a Drive that faltered but then caught up has the whole Take, so its stand-in is a spare.
+            if !keepsStandIns, metadata.standIns != nil, let device = folders[.device], let drive = folders[.drive], !abandoned.contains(.drive) {
+                try? FileManager.default.removeItem(at: device)
+                var done = metadata
+                done.standIns = nil
+                try? done.write(to: drive)
+                // So the Take has no Device Copy (#621).
+                self.outcomes[.device] = nil
+                onChange()
+            }
+            if abandonedFolders.isEmpty {
+                access?.end()
+            } else {
+                // Held until the abandoned Copies' Take.json is written.
+                let previous = task
+                task = Task { await previous?.value; access?.end() }
+            }
             return
         }
-        let copies = folders.indices.map { Copy(kind: DestinationKind(index: $0), folder: folders[$0]) }
+        let copies = DestinationKind.allCases.compactMap { kind in folders[kind].map { Copy(kind: kind, folder: $0) } }
         // Repair must not fill a Destination past the space reserve: a Copy stopped for being nearly
-        // full stays as it is, with its Gaps.
+        // full stays as it is, with its Gaps. A Copy Stop gave up on isn't read here, on the main thread (#652).
         let reserve = SpaceReserve(channelCount: metadata.usbChannels.count, sampleRate: metadata.sampleRate)
-        let skip = Set(copies.filter { copy in
-            reserve.wouldBreach(free: freeSpace(copy.folder), adding: Self.bytesToExtend(copy, in: copies, metadata: metadata))
+        let healthy = copies.filter { !abandoned.contains($0.kind) }
+        let skip = Set(healthy.filter { copy in
+            reserve.wouldBreach(free: freeSpace(copy.folder), adding: Self.bytesToExtend(copy, in: healthy, metadata: metadata))
         }.map(\.kind)).union(abandoned)
         pending += 1
         isRunning = true
         onChange()
         let previous = task
-        let run = run
+        let run = run, write = writeAbandoned
         task = Task { [weak self] in
             await previous?.value
             let repairs = await Task.detached { run(copies, metadata, skip) }.value
             var done = metadata
             done.repairs = repairs
-            for folder in folders { try? done.write(to: folder) }
+            // Drive only: once the Drive Copy has everything, nothing of the Take stays on the Device.
+            let moved = !keepsStandIns && metadata.standIns != nil && done.outcome(ofCopy: .drive) == .repaired
+            // The stand-ins' folders are gone once moved, so the Take no longer names them.
+            if moved { done.standIns = nil }
+            for copy in copies {
+                let folder = copy.folder
+                // The Device's folder goes only when the Drive has the moved audio; a lone Copy is never removed.
+                if moved, copy.kind == .device, copies.contains(where: { $0.kind == .drive }) {
+                    try? FileManager.default.removeItem(at: folder)
+                } else if abandoned.contains(copy.kind) {
+                    await Task.detached { [done] in write(done, folder) }.value
+                } else {
+                    try? done.write(to: folder)
+                }
+            }
             guard let self else {
                 access?.end()
                 return
             }
-            if mine == generation { self.outcomes = outcomes(done) }
-            jobDone()
+            if mine == generation {
+                self.outcomes = outcomes(done)
+                self.moved = moved
+                standInKept = done.standIns != nil
+            }
+            jobDone(abandoned)
             access?.end()
             pending -= 1
             isRunning = pending > 0
             onChange()
         }
+    }
+
+    /// Drive only (#630): queues moving `takes` (kept stand-ins, and Takes the Device holds whole) to the Drive at `access`, one
+    /// Take at a time after any Repair queued before. Leaves `outcomes`, `moved` and `standInKept` alone: they are the
+    /// latest Take's. `access` is held until the job ends; a `.stopped` Take ends it.
+    func move(
+        _ takes: [TakeMover.Movable], holding access: DriveAccess, shouldStop: @escaping @Sendable () -> Bool,
+        done: @escaping (TakeMover.Movable, StandInMove.Outcome) -> Void
+    ) {
+        let previous = task
+        task = Task {
+            defer { access.end() }
+            await previous?.value
+            for movable in takes {
+                let driveTake = access.folder.appending(path: movable.show).appending(path: movable.deviceFolder.lastPathComponent)
+                let deviceTake = movable.deviceFolder
+                let standIn = movable.kind == .standIn
+                let outcome = await Task.detached {
+                    standIn
+                        ? StandInMove.run(deviceTake: deviceTake, driveTake: driveTake, shouldStop: shouldStop)
+                        : DeviceTakeMove.run(deviceTake: deviceTake, driveTake: driveTake, shouldStop: shouldStop)
+                }.value
+                done(movable, outcome)
+                if outcome == .stopped { break }
+            }
+        }
+    }
+
+    /// Drive only (#630): finishes or undoes the moves a crash cut off (`MoveRecovery`), after any Repair or move queued
+    /// before. The caller holds the Drive's access until it returns. Leaves `outcomes`, `moved` and `standInKept` alone.
+    func recover(deviceFolder: URL, driveFolder: URL, shouldStop: @escaping @Sendable () -> Bool) async -> [StandInMove.Result] {
+        let previous = task
+        let job = Task {
+            await previous?.value
+            return await Task.detached { MoveRecovery.run(deviceFolder: deviceFolder, driveFolder: driveFolder, shouldStop: shouldStop) }.value
+        }
+        task = Task { _ = await job.value }
+        return await job.value
     }
 
     /// Waits for the latest enqueued Repair to finish (earlier ones finish first).
@@ -98,7 +202,12 @@ final class TakeRepair {
         let stems = metadata.usbChannels.map(\.stemFile)
         return max(
             metadata.gaps.map(\.end).max() ?? 0,
-            copies.flatMap { copy in stems.map { Int(StemWriter.frameCount(of: copy.folder.appending(path: $0)) ?? 0) } }.max() ?? 0)
+            copies.flatMap { copy in stems.map { framesOnDisk(copy.folder.appending(path: $0)) } }.max() ?? 0)
+    }
+
+    /// Every whole sample in a Stem, whatever its header says (Repair works on Stems that may not be finalized), or 0.
+    nonisolated private static func framesOnDisk(_ url: URL) -> Int {
+        Int((try? StemFile.inspect(url))?.framesOnDisk ?? 0)
     }
 
     /// Bytes Repair would add to `copy`'s Stems to bring them to the Take's length. Filling a Gap in the
@@ -106,16 +215,30 @@ final class TakeRepair {
     nonisolated private static func bytesToExtend(_ copy: Copy, in copies: [Copy], metadata: TakeMetadata) -> Int64 {
         let length = length(copies: copies, metadata: metadata)
         return metadata.usbChannels.reduce(into: Int64(0)) { total, channel in
-            let frames = Int(StemWriter.frameCount(of: copy.folder.appending(path: channel.stemFile)) ?? 0)
+            let frames = framesOnDisk(copy.folder.appending(path: channel.stemFile))
             total += Int64(max(length - frames, 0) * StemWriter.bytesPerSample)
         }
+    }
+
+    /// Whether every frame of `range` is in one of `parts`, which may overlap or come in any order.
+    nonisolated static func covers(_ parts: [Range<Int>], _ range: Range<Int>) -> Bool {
+        var next = range.lowerBound
+        for part in parts.map({ $0.clamped(to: range) }).filter({ !$0.isEmpty }).sorted(by: { $0.lowerBound < $1.lowerBound }) {
+            guard part.lowerBound <= next else { return false }
+            next = max(next, part.upperBound)
+        }
+        return next >= range.upperBound
     }
 
     /// Repairs every Copy that has Gaps from the other Copy and returns what happened to each Gap.
     /// A Gap is repaired only if the other Copy has the samples; where both Copies are missing the
     /// same stretch it stays silence and is reported as failed. Copies named in `skip` are left alone
     /// and get no entry: they stay as they were, with their Gaps.
-    nonisolated static func fill(copies: [Copy], metadata: TakeMetadata, skip: Set<DestinationKind> = []) -> [TakeMetadata.Repair] {
+    /// - Parameter shouldStop: asked between pieces of each Stem; a stopped Stem's Gaps are reported failed, so a caller
+    ///   that stopped it leaves them unrecorded for a later Repair (#630).
+    nonisolated static func fill(
+        copies: [Copy], metadata: TakeMetadata, skip: Set<DestinationKind> = [], shouldStop: () -> Bool = { false }
+    ) -> [TakeMetadata.Repair] {
         let markers = metadata.markers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
         let stems = metadata.usbChannels.map(\.stemFile)
         let length = length(copies: copies, metadata: metadata)
@@ -128,12 +251,26 @@ final class TakeRepair {
             let sourceGaps = metadata.gaps.filter { $0.copy != target.kind }.map { $0.start..<$0.end }
 
             var copied = source != nil
+            // Drive only: the Device holds stand-ins, each starting at its own Take frame, instead of a Copy.
+            let standIns = target.kind == .drive ? metadata.standIns : nil
             if let source {
                 do {
                     for stem in stems {
-                        try StemRepair.fill(
-                            target: target.folder.appending(path: stem), from: source.folder.appending(path: stem),
-                            ranges: gaps.map { $0.start..<$0.end }, length: length, markers: markers)
+                        if let standIns {
+                            for standIn in standIns {
+                                let ranges = gaps.map { $0.start..<$0.end }.map { $0.clamped(to: standIn.start..<standIn.end) }.filter { !$0.isEmpty }
+                                try StemRepair.fill(
+                                    target: target.folder.appending(path: stem),
+                                    from: source.folder.appending(path: standIn.folderName).appending(path: stem),
+                                    sourceStart: standIn.start, ranges: ranges, length: length, markers: markers, shouldStop: shouldStop)
+                            }
+                        } else {
+                            // Only frames the source holds: inside its own Gaps the target may hold frames it lacks (#630).
+                            let ranges = gaps.flatMap { CopyCoverage.subtracting(sourceGaps, from: $0.start..<$0.end) }
+                            try StemRepair.fill(
+                                target: target.folder.appending(path: stem), from: source.folder.appending(path: stem),
+                                ranges: ranges, length: length, markers: markers, shouldStop: shouldStop)
+                        }
                     }
                 } catch {
                     copied = false
@@ -141,7 +278,8 @@ final class TakeRepair {
             }
             for gap in gaps {
                 let range = gap.start..<gap.end
-                let sourceHasIt = !sourceGaps.contains { $0.overlaps(range) }
+                let sourceHasIt = standIns.map { Self.covers($0.map { $0.start..<$0.end }, range) }
+                    ?? !sourceGaps.contains { $0.overlaps(range) }
                 repairs.append(.init(copy: gap.copy, start: gap.start, end: gap.end, outcome: copied && sourceHasIt ? .repaired : .failed))
             }
         }

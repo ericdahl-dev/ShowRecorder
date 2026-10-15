@@ -25,7 +25,7 @@ struct PaywallSheet: View {
                     Button(paywall.buyTitle) {
                         Task {
                             await store.buyPro()
-                            if store.tier() == .pro { dismiss() }
+                            if store.license().tier == .pro { dismiss() }
                         }
                     }
                     .disabled(store.proProduct == nil || store.busy)

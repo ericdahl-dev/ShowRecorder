@@ -2,7 +2,8 @@ import Recording
 import SwiftUI
 
 /// The current (or last) Take's Markers with their time in the Take, and a way to rename each of yours,
-/// during the Take and after it. The recorder's Dropout Markers are listed but can't be renamed.
+/// during the Take and after it. The Markers the recorder placed (Dropouts, gain and routing changes) are listed but
+/// can't be renamed.
 struct MarkerListView: View {
     @Bindable var model: RecordScreenModel
     @State private var renaming: MarkerEntry?
@@ -39,6 +40,16 @@ struct MarkerListView: View {
         }
     }
 
+    /// The icon for a Marker the recorder placed, other than a Dropout: a gain change, a routing change, or a kind
+    /// from a newer version.
+    private static func symbol(_ kind: TakeMetadata.Marker.Origin) -> String {
+        switch kind {
+        case .gain: "slider.vertical.3"
+        case .routing: "arrow.triangle.branch"
+        default: "mappin"
+        }
+    }
+
     @ViewBuilder
     private func row(_ entry: MarkerEntry) -> some View {
         let label = HStack {
@@ -48,6 +59,8 @@ struct MarkerListView: View {
                 .frame(minWidth: 56, alignment: .leading)
             if entry.isDropout {
                 Label("Dropout: audio was lost here", systemImage: "waveform.badge.exclamationmark")
+            } else if entry.operatorIndex == nil {
+                Label(entry.name, systemImage: Self.symbol(entry.kind))
             } else {
                 Text(entry.name)
                 Spacer()
@@ -55,8 +68,12 @@ struct MarkerListView: View {
             }
         }
         .frame(minHeight: 44)
-        if entry.isDropout {
+        if entry.operatorIndex == nil {
+            // One element, so VoiceOver reads the time and the name together, then the hint once.
             label
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(entry.isDropout ? "Dropout: audio was lost here" : entry.name), at \(ElapsedTime.format(seconds: Int(entry.secondsSincePress)))")
+                .accessibilityHint("Can't be renamed")
         } else {
             Button {
                 draft = entry.name

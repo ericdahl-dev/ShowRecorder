@@ -31,13 +31,13 @@ The audio file for one USB Channel within a Take, named after that channel's Sou
 _Avoid_: Track file, channel file
 
 **Template**:
-A venue's whole setup, saved on one device, so one tap readies a different room: the typed channel names, the Mixer (found by its network name, not its address), the Show name pattern and the Pre-roll length. One Template can be the default. Not the Drive folder. A Pro feature.
+A venue's whole setup, saved on one device, so one tap readies a different room: the typed channel names, the Mixer (at its saved address, or found by its network name when another Mixer answers there), the Show name pattern and the Pre-roll length. One Template can be the default. Not the Drive folder. A Pro feature.
 _Avoid_: Preset, profile, rig
 
 ### Storage
 
 **Destination**:
-A place a Take is written to. There are two, written at the same time, and neither is the primary.
+A place a Take is written to. There are two, written at the same time, and neither is the primary (unless Drive only is on).
 _Avoid_: Backup, primary, target
 
 **Drive**:
@@ -59,6 +59,17 @@ _Avoid_: Dropout, hole
 **Repair**:
 Filling a Copy's Gaps from the other Copy after the Take ends.
 _Avoid_: Sync, heal, restore
+
+**Drive only**:
+A setting that writes a Take to the Drive alone. The Device stands in only while the Drive can't take the audio (no Drive at record, or a Drive lost mid-Take); Repair then moves that stretch to the Drive and removes it from the Device. See [ADR 0006](docs/adr/0006-drive-only-recording.md).
+_Avoid_: Single copy, external only
+
+**Stand-in**:
+What the Device writes while Drive only is on and the Drive can't take the audio: from the frame the Drive was lost, or the Take started without one, to the end of the Take. It counts as the Device's Copy for those frames, and it is never the primary one.
+_Avoid_: Fallback copy, backup
+
+**Moved**:
+A Stand-in whose audio Repair has put on the Drive and then removed from the Device.
 
 **Dropout**:
 A stretch of a Take whose samples reached neither Copy because the recorder couldn't keep up. It is held as silence of the exact length and marked.
@@ -114,6 +125,10 @@ _Avoid_: Channel (unqualified), input
 A saved mixer scene stored on the mixer. Loading one can rename, re-route and re-mute channels.
 _Avoid_: Scene, preset
 
+**Mix Hold**:
+What keeps the mix the same when ShowRecorder moves a preamp's gain on the Mixer (auto-gain, clip protection, Undo): everything after the preamp moves the other way (the gate and compressor thresholds, the fader and the pre-fader sends), so only the recorded level changes.
+_Avoid_: Re-Gain, gain compensation
+
 **Mixer Trigger**:
 A mixer control the operator has set aside to drive the recorder: one press is one action, such as start, stop or drop a Marker.
 _Avoid_: Remote button, hotkey, GPI
@@ -132,6 +147,32 @@ _Avoid_: Demo, free trial (in UI copy say "14-day Trial")
 What the app does without Pro or a Trial: records 2 USB Channels of the operator's choice, with the names and colors from the Mixer.
 _Avoid_: Lite, basic
 
+**License**:
+What the operator may do right now, from the tier (Free, Trial or Pro) and whether Pro is offered. Before the App Store has said what's owned, the tier isn't known and nothing is limited. Every limit, offer and Pro extra is decided from it, and a Take's limits are taken from it when record is pressed.
+_Avoid_: Entitlement, plan, permissions
+
 **Show-Safe Promise**:
 The rule that a Take never stops, and audio is never withheld, because of a Trial, limit or license; limits are checked only when record is pressed.
 _Avoid_: Recording guarantee
+
+## Code terms
+
+Names used in the code, not shown to the operator.
+
+**Copy coverage**:
+What each Copy of a Take holds: the one place Gaps and Dropouts are worked out from, for a running Take, one that ended and one cut off by a crash.
+
+**Copies of a Take**:
+What each Destination's Copy of one Take is doing, or ended as, keyed by Destination: the one answer every screen reads (#550). Its Gaps come from Copy coverage.
+
+**Abandoned**:
+A Copy that Stop couldn't finish writing in time: the Take ends without waiting for it. With Drive only, a Drive that stalled mid-Take and never came back ends this way; the stall itself only starts the Stand-in.
+
+**Mixer family**:
+Mixers one driver reads, such as the X Air (XR18, MR18) or the X32 (X32, M32). The family is recognized from the Audio interface's name (for Mixer packs) and from the Mixer's own model (for the Mixer Link), and each family knows the port it is asked on and makes its driver.
+
+**Mixer gain**:
+The one object that moves preamp gain on the linked Mixer: auto-gain between Takes and clip protection during them. Both go through one queue: auto-gain's moves and Undo one at a time on the whole Mixer, clip protection's turn-downs one at a time per preamp lane, so the two never overlap on the Mixer.
+
+**Take sequencer**:
+The one place that Arms, re-Arms, moves and restarts input, and starts and stops Takes, from operator and system events. The Record screen forwards events to it and shows its state.

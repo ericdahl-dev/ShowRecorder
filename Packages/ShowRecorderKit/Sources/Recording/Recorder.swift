@@ -34,11 +34,15 @@ public final class Recorder {
     public private(set) var clippedChannels: Set<Int> = []
     /// A peak at or above this (linear) counts as a clip: within about 0.01 dB of full scale
     /// (docs/adr/0005-level-meter-scale.md).
-    public static let clipLevel: Float = 0.999
+    nonisolated public static let clipLevel: Float = 0.999
     /// Which Take ended last and why. Nil until a Take has ended.
-    public private(set) var lastTakeEnd: TakeEnd?
+    private(set) var lastTakeEnd: TakeEnd?
+    /// Told each Take end as it happens, whoever ended it (record stopped, a full or failed Destination, an input
+    /// change), once `lastTakeEnd` says so. One listener, the `TakeSequencer`, so it stays inside the module;
+    /// others follow Take ends through the sequencer's events.
+    @ObservationIgnored var onTakeEnded: (TakeEnd) -> Void = { _ in }
     /// How each Copy of the last Take ended up: complete, has Gaps, Repaired or Repair failed.
-    public private(set) var lastTakeOutcomes: [DestinationKind: CopyOutcome] = [:]
+    private(set) var lastTakeOutcomes: [DestinationKind: CopyOutcome] = [:]
     /// How many USB Channels the last Take recorded and how many carried signal (#62: Free's limit, felt).
     public private(set) var lastTakeSignal: TakeSignal?
     /// Whether Repair is still filling Gaps from the last Take.
@@ -47,12 +51,10 @@ public final class Recorder {
     /// Names the operator typed for USB Channels (counted from 1). They win over the Mixer's names: a Take
     /// started with them is named so from the start, and a name typed during a Take is put on its files
     /// when it ends.
-    public private(set) var channelNames: [Int: String] = [:]
+    public var channelNames: [Int: String] { naming.typed }
+    /// Who names each USB Channel: typed names, and the Mixer's that arrive late in a Take (#443).
+    public private(set) var naming = ChannelNaming()
     /// Names typed before on this device, newest first, offered as chips (`SavedChannelNames`).
-    /// True while a Take that started with no real Source names is running: the first real names
-    /// offered (see `offerSources`) are kept for the end of the Take.
-    private var takeAcceptsLateNames = false
-    private var lateMixerNames: [Int: String] = [:]
     public private(set) var savedChannelNames: [String] = []
     @ObservationIgnored private let savedNames: UserDefaults
     /// What the current or last Take was allowed, frozen at its record press. Nil: everything (no allowance given).
@@ -81,15 +83,49 @@ public final class Recorder {
     public private(set) var sampleRate: Int?
     @ObservationIgnored private var capture: Capture?
     /// The running Take's Copies.
-    @ObservationIgnored private var session: TakeSession?
+    @ObservationIgnored private(set) var session: TakeSession?
     @ObservationIgnored private var lastTake: LastTake?
-    /// Repairs ended Takes; its result is published as `lastTakeOutcomes` and `isRepairing`.
+    /// Counts the Takes that became the last Take, so a move started before another one doesn't touch it (#630).
+    @ObservationIgnored private var lastTakeGeneration = 0
+    /// Set while a Take runs: a move of a Drive only Take stops at the next Stem (#630).
+    @ObservationIgnored let moveStop = StandInMove.StopSignal()
+    /// Whether a move of Drive only Takes is running (#630): another asked for meanwhile adds nothing.
+    public private(set) var isMoving = false
+    /// Drive only (#630): whether Drive only Takes are moved to the Drive: where `DriveOnlyAvailability` offers Drive only.
+    /// Turning it on looks for them at once, as the App does at launch once it knows.
+    public var movesDriveOnlyTakes = false {
+        didSet { if movesDriveOnlyTakes, !oldValue { driveMayHaveConnected() } }
+    }
+    /// Drive only (#630): what the screen says about moving Takes to the Drive: the latest move that found something.
+    public var moveReport: MoveReport { MoveReport(isMoving: foundTakesToMove, moves: lastMoveRun.moves, skips: lastMoveRun.skips) }
+    /// Whether the running move has found Takes to move or a cut-off move to finish: until then it says nothing (#630).
+    private var foundTakesToMove = false
+    /// What the latest move did, while it has something to say: one with nothing to do clears it, and one where every
+    /// Take moved is cleared when the next Take starts (#630).
+    private var lastMoveRun: (moves: [StandInMove.Result], skips: [TakeMover.Movable]) = ([], [])
+    /// The Takes the last move found but left where they are, with why (`TakeMover.Movable.Kind.skipped`) (#630).
+    public private(set) var driveOnlySkips: [TakeMover.Movable] = []
+    /// The move a trigger started (#630).
+    @ObservationIgnored private var moveTrigger: Task<Void, Never>?
+    /// What came of each Drive only Take a move took up, oldest first (#630).
+    private(set) var driveOnlyMoves: [StandInMove.Result] = []
+    /// Repairs ended Takes; its result is published through `copies` (from `lastTakeOutcomes`) and `isRepairing`.
     @ObservationIgnored private let repair: TakeRepair
     /// How long Stop waits on a Copy's writer before giving that Copy up (#320).
     @ObservationIgnored private let writerStopTimeout: Duration
+    @ObservationIgnored private let driveStallLimit: Duration
+
+    /// Drive only (#196, ADR 0006): a Take with a Drive is written to the Drive alone, and the Device stands in only for
+    /// what the Drive can't take. Read at each record press. Offered where `DriveOnlyAvailability` allows.
+    public var recordsToDriveOnly = false
     /// The host clock's ticks per second, for spotting a stop in the input (#317). Tests set it.
     @ObservationIgnored private let hostTicksPerSecond: Double
-    @ObservationIgnored private var finishedCopies: [DestinationKind: CopyStatus] = [:]
+    /// Whether the last Take was Drive only (#196, ADR 0006), Drive or not: its summary speaks of the Drive alone.
+    private(set) var lastTakeWasDriveOnly = false
+    /// Whether Repair moved the last Take's stand-in to the Drive and off the Device.
+    private(set) var lastTakeStandInMoved = false
+    /// Whether the last Take's stand-in is still on the Device after Repair.
+    private(set) var lastTakeStandInKept = false
 
     /// - Parameters:
     ///   - deviceFolder: where the Device Copy of every Show goes.
@@ -104,28 +140,36 @@ public final class Recorder {
         savedNames: UserDefaults = .standard,
         destinationCheckInterval: Duration? = .seconds(1),
         hostTicksPerSecond: Double? = nil,
-        writerStopTimeout: Duration = .seconds(5)
+        writerStopTimeout: Duration = .seconds(5),
+        driveStallLimit: Duration = .seconds(2),
+        writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) }
     ) {
         self.destinationCheckInterval = destinationCheckInterval
+        self.driveStallLimit = driveStallLimit
         self.hostTicksPerSecond = hostTicksPerSecond ?? Capture.machTicksPerSecond
         self.writerStopTimeout = writerStopTimeout
         self.savedNames = savedNames
         savedChannelNames = SavedChannelNames.load(from: savedNames)
         self.freeSpace = freeSpace
         self.preRollSeconds = preRollSeconds
-        repair = TakeRepair(freeSpace: freeSpace)
+        repair = TakeRepair(freeSpace: freeSpace, writeAbandoned: writeAbandoned)
         self.makeStem = makeStem
         self.deviceFolder = deviceFolder
         self.driveFolder = driveFolder
         self.now = now
         repair.onChange = { [unowned self] in
             lastTakeOutcomes = repair.outcomes
+            lastTakeStandInMoved = repair.moved
+            // Repair moved the last Take's stand-in to the Drive and removed its Device folder (#618), or removed it as a
+            // spare (#621). The outcomes are always the last Take's.
+            if repair.moved || repair.outcomes[.device] == nil { lastTake?.deviceFolder = nil }
+            lastTakeStandInKept = repair.standInKept
             isRepairing = repair.isRunning
         }
-        repair.jobDone = { [unowned self] in regenerateReports() }
+        repair.jobDone = { [unowned self] in regenerateReports(skipping: $0) }
         // A Show left open by a crash or an earlier launch is the open Show again.
         currentShow = Show.findOpen(in: deviceFolder)
-        channelNames = currentShow?.channelNames ?? [:]
+        naming = ChannelNaming(typed: currentShow?.channelNames ?? [:])
         finishCutOffTake()
     }
 
@@ -142,12 +186,15 @@ public final class Recorder {
         }
         if let driveShow { try? show.useDrive(driveShow.deletingLastPathComponent()) }
         show.noteTakeEnded(at: found.endedAt)
+        // The summary of a Drive only Take speaks of the Drive, at a launch as at Stop (#630).
+        lastTakeWasDriveOnly = found.metadata.standIns != nil || found.metadata.driveOnly == true
+        lastTakeGeneration += 1
         currentShow = show
         regenerateReports()
-        if found.metadata.gaps.isEmpty || found.folders.count < 2 {
+        if found.metadata.gaps.isEmpty || found.folders[.drive] == nil {
             access?.end()
         } else {
-            repair.enqueue(found.metadata, folders: found.folders, holding: access)
+            repair.enqueue(found.metadata, folders: found.folders, holding: access, keepsStandIns: true)
         }
     }
 
@@ -179,14 +226,15 @@ public final class Recorder {
     /// reset its media services).
     ///
     /// When `replacement` has the same USB Channel count and sample rate, the running Take carries
-    /// on into the same Stems and this returns `true`. Otherwise the Take is stopped and finalized,
-    /// the recorder Arms on `replacement`, and this returns `false`.
+    /// on into the same Stems and this returns `true`. Otherwise the Take is stopped and finalized
+    /// (its end's reason is `.inputChanged`), the recorder Arms on `replacement`, and this returns `false`.
     @discardableResult
     public func restartInput(on replacement: any AudioIODevice) throws -> Bool {
         guard let device, let capture,
               replacement.inputChannelCount == capture.channelCount,
               replacement.sampleRate == device.sampleRate
         else {
+            if isRecording { try stopTake(because: .inputChanged) }
             try arm(replacement)
             return false
         }
@@ -217,12 +265,12 @@ public final class Recorder {
 
     /// Frames lost since Arming because the writer couldn't keep up. (Dropouts proper come in #15.)
     public var droppedFrameCount: Int {
-        capture?.rings.map { $0.overflowedFrames.load(ordering: .relaxed) }.max() ?? 0
+        capture?.maxOverflowedFrames ?? 0
     }
 
     /// Frames captured but not yet written to the Stems, for the slowest Destination.
     var bufferedFrameCount: Int {
-        capture?.rings.map(\.availableFrames).max() ?? 0
+        capture?.maxBufferedFrames ?? 0
     }
 
     /// Each USB Channel's linear peak level (0...1) since the last call. Empty when not Armed.
@@ -247,22 +295,22 @@ public final class Recorder {
 
     /// Starts a Show on purpose, with a name and a venue, ending the open Show if there is one. The folder is
     /// "YYYY-MM-DD Name" ("YYYY-MM-DD Show" for no name). The next Take lands in it.
-    public func startNewShow(name: String, venue: String) throws {
+    func startNewShow(name: String, venue: String) throws {
         guard !isRecording else { throw RecorderError.takeRunning }
         let date = now()
         nextShow = nil
         var show = try Show.create(in: deviceFolder, drive: nil, on: date, name: name, venue: venue)
         // Names belong to a Show: the one being replaced keeps its own; names typed before any Show carry over.
-        if currentShow != nil { channelNames = [:] } else if !channelNames.isEmpty { show.setChannelNames(channelNames) }
+        if currentShow != nil { naming.replace(with: [:]) } else if !channelNames.isEmpty { show.setChannelNames(channelNames) }
         currentShow?.end(at: date)
         currentShow = show
     }
 
     /// Starts a Show from a Template (#33): named after it, at its venue, with its channel names, ending the open Show.
     /// The names are set as if typed, so they come back as chips. Pre-roll and the Mixer are the app's to apply.
-    public func startNewShow(from template: Template) throws {
+    func startNewShow(from template: Template) throws {
         try startNewShow(name: template.name, venue: template.venue ?? "")
-        channelNames = [:]
+        naming.replace(with: [:])
         for (channel, name) in template.channelNames.sorted(by: { $0.key < $1.key }) {
             setChannelName(name, forChannel: channel)
         }
@@ -276,11 +324,11 @@ public final class Recorder {
     /// venue when a record press starts it. Only when no Show is open (an idle one is ended first) and between Takes;
     /// returns whether it did.
     @discardableResult
-    public func prepareNextShow(from template: Template) -> Bool {
+    func prepareNextShow(from template: Template) -> Bool {
         guard !isRecording else { return false }
         endIdleShow(at: now())
         guard currentShow == nil else { return false }
-        channelNames = [:]
+        naming.replace(with: [:])
         for (channel, name) in template.channelNames.sorted(by: { $0.key < $1.key }) {
             setChannelName(name, forChannel: channel)
         }
@@ -289,9 +337,9 @@ public final class Recorder {
     }
 
     /// Ends the open Show, so the next record starts a new one. Nothing happens when no Show is open.
-    public func endShow() throws {
+    func endShow() throws {
         guard !isRecording else { throw RecorderError.takeRunning }
-        if currentShow != nil { channelNames = [:] }
+        if currentShow != nil { naming.replace(with: [:]) }
         currentShow?.end(at: now())
         currentShow = nil
     }
@@ -301,7 +349,7 @@ public final class Recorder {
         guard let open = currentShow, open.isIdle(at: date) else { return }
         currentShow?.end(at: date)
         currentShow = nil
-        channelNames = [:]
+        naming.replace(with: [:])
     }
 
     /// Names USB Channel `usbChannel` (from 1). Works Armed or during a Take; nothing on disk changes until the
@@ -311,7 +359,7 @@ public final class Recorder {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return false }
         if !isRecording { endIdleShow(at: now()) }
-        channelNames[usbChannel] = name
+        naming.type(name, for: usbChannel)
         currentShow?.setChannelNames(channelNames)
         savedChannelNames = SavedChannelNames.adding(name, to: savedChannelNames)
         SavedChannelNames.save(savedChannelNames, to: savedNames)
@@ -324,7 +372,7 @@ public final class Recorder {
     public func copyChannelNamesFromLastShow() -> Int? {
         guard let current = currentShow, let previous = Show.lastShow(before: current, in: deviceFolder),
               !previous.channelNames.isEmpty else { return nil }
-        channelNames = previous.channelNames
+        naming.replace(with: previous.channelNames)
         currentShow?.setChannelNames(channelNames)
         for name in previous.channelNames.sorted(by: { $0.key > $1.key }).map(\.value) {
             savedChannelNames = SavedChannelNames.adding(name, to: savedChannelNames)
@@ -346,7 +394,7 @@ public final class Recorder {
     /// Takes the typed name off USB Channel `usbChannel` (from 1), so the Show's later Takes use the Mixer's name
     /// again. A Take that is running keeps the name it started with.
     public func clearChannelName(forChannel usbChannel: Int) {
-        guard channelNames.removeValue(forKey: usbChannel) != nil else { return }
+        guard naming.clear(usbChannel) else { return }
         currentShow?.setChannelNames(channelNames)
     }
 
@@ -355,9 +403,21 @@ public final class Recorder {
     public func deleteShow(named name: String, from copies: Set<DestinationKind>) -> ShowDeleter.Outcome {
         let kinds = copies.sorted { $0.index < $1.index }
         guard !isRecording else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "A Take is running.") }) }
+        // A move to the Drive works on these files too (#630).
+        guard !isMoving else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "Takes are moving to the Drive.") }) }
         let access = copies.contains(.drive) ? driveFolder() : nil
         defer { access?.end() }
         return ShowDeleter.delete(show: name, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
+    }
+
+    /// Everything recorded in the open Show, from its files, with `take` left out (#625): the Drive Copy is read under
+    /// Drive access, found by the Show's name, so a Drive only Show counts its Drive Takes even after a relaunch. Nil
+    /// when no Show is open or its Device folder can't be read.
+    public func showRecordedSeconds(leavingOut take: Int?) -> Double? {
+        guard let show = currentShow else { return nil }
+        let access = driveFolder()
+        defer { access?.end() }
+        return try? show.recordedSeconds(leavingOut: take, driveShow: access?.folder.appending(path: show.name, directoryHint: .isDirectory))
     }
 
     /// Checks that the Drive Copy of Show `show` is whole (see `CopyCheck`). Reads every Stem, off the main thread.
@@ -387,6 +447,8 @@ public final class Recorder {
     public func deleteTake(_ take: Int, ofShow show: String, from copies: Set<DestinationKind>) -> ShowDeleter.Outcome {
         let kinds = copies.sorted { $0.index < $1.index }
         guard !isRecording else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "A Take is running.") }) }
+        // A move to the Drive works on these files too (#630).
+        guard !isMoving else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "Takes are moving to the Drive.") }) }
         let access = copies.contains(.drive) ? driveFolder() : nil
         defer { access?.end() }
         return TakeDeleter.delete(take: take, ofShow: show, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
@@ -397,6 +459,8 @@ public final class Recorder {
     public func deleteChannel(_ channel: Int, inTake take: Int, ofShow show: String, from copies: Set<DestinationKind>) -> ShowDeleter.Outcome {
         let kinds = copies.sorted { $0.index < $1.index }
         guard !isRecording else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "A Take is running.") }) }
+        // A move to the Drive works on these files too (#630).
+        guard !isMoving else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "Takes are moving to the Drive.") }) }
         let access = copies.contains(.drive) ? driveFolder() : nil
         defer { access?.end() }
         return StemDeleter.delete(channel: channel, inTake: take, ofShow: show, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
@@ -407,7 +471,7 @@ public final class Recorder {
     /// `sources` are frozen into the Take: Stem names and bext descriptions use them, and later
     /// changes on the Mixer don't touch this Take's files. USB Channels without a Source get "USB NN".
     /// - Parameter allowance: what this Take may do, frozen at the press (ADR 0004). Nil records every USB Channel.
-    public func startTake(sources: [Source] = [], allowance: TakeAllowance? = nil) throws {
+    func startTake(sources: [Source] = [], allowance: TakeAllowance? = nil) throws {
         guard let device, let capture else { throw RecorderError.notArmed }
         guard !isRecording else { return }
         let date = now()
@@ -416,7 +480,7 @@ public final class Recorder {
         endIdleShow(at: date)
 
         var drive = driveFolder()
-        let opened: (show: Show, session: TakeSession, folders: [URL])
+        let opened: (show: Show, session: TakeSession, folders: [DestinationKind: URL])
         do {
             opened = try openTake(sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: drive)
         } catch where drive != nil {
@@ -429,9 +493,9 @@ public final class Recorder {
         let (show, session, takeFolders) = opened
         session.onCopyFailed = { [weak self, weak session] in self?.copyFailed(in: session) }
         session.stopTimeout = writerStopTimeout
-        if takeFolders.count == 1 { drive?.end() }
+        session.driveStallLimit = driveStallLimit
+        if takeFolders[.drive] == nil { drive?.end() }
         self.session = session
-        finishedCopies = [:]
         takeMarkers = []
         markerEntries = []
         dropoutCount = 0
@@ -439,10 +503,15 @@ public final class Recorder {
         currentShow = show
         // The levels of a Take count from the press: drop what the meters gathered before it.
         _ = capture.meters.takeLevels()
-        takeAcceptsLateNames = !sources.contains { $0.hasMixerName }
-        lateMixerNames = [:]
+        naming.takeStarted(with: sources)
         mixerNames = Dictionary(uniqueKeysWithValues: sources.enumerated().map { ($0.offset + 1, $0.element.name) })
+        takeRouting = Dictionary(uniqueKeysWithValues: sources.enumerated().map { ($0.offset + 1, $0.element.routedFrom) })
+            .compactMapValues { $0 }
+        routingChanges = []
         isRecording = true
+        moveStop.takeStarted()
+        // An all-moved line has been seen; a warning stays until a move changes it (#630).
+        if !moveReport.isProblem { lastMoveRun = ([], []) }
         if let destinationCheckInterval {
             destinationChecks = Task { [weak self] in
                 while !Task.isCancelled {
@@ -460,7 +529,7 @@ public final class Recorder {
     private func openTake(
         sources: [Source], allowance: TakeAllowance?, date: Date,
         device: any AudioIODevice, capture: Capture, drive: DriveAccess?
-    ) throws -> (show: Show, session: TakeSession, folders: [URL]) {
+    ) throws -> (show: Show, session: TakeSession, folders: [DestinationKind: URL]) {
         var show: Show
         do {
             if var open = currentShow {
@@ -481,7 +550,7 @@ public final class Recorder {
         let name = TakeMetadata.name(take: show.takeCount + 1)
         let wanted = ([show.folder] + (show.driveFolder.map { [$0] } ?? [])).map { $0.appending(path: name, directoryHint: .isDirectory) }
         let alreadyThere = Set(wanted.filter { FileManager.default.fileExists(atPath: $0.path) })
-        var takeFolders: [URL] = []
+        var takeFolders: [DestinationKind: URL] = [:]
         do {
             takeFolders = try show.createNextTakeFolder()
             return (show, try makeSession(), takeFolders)
@@ -506,12 +575,7 @@ public final class Recorder {
                 (capture.preRoll?.capacity ?? 0) - Int(device.sampleRate.rounded())))
             let pressReference = UInt64(date.timeIntervalSince(Calendar.current.startOfDay(for: date)) * Double(sampleRate))
             let timeReference = pressReference >= UInt64(preRollFrames) ? pressReference - UInt64(preRollFrames) : 0
-            let resolved = (0..<capture.channelCount).map { channel -> Source in
-                var source = sources.indices.contains(channel) ? sources[channel] : .fallback(usbChannel: channel + 1)
-                // Names typed by hand are a Pro extra: kept on Free, but not put on its files.
-                if allowance?.namingByHand ?? true, let typed = channelNames[channel + 1] { source.name = typed; source.hasMixerName = false }
-                return source
-            }
+            let resolved = naming.sources(for: sources, channelCount: capture.channelCount, allowance: allowance)
             let channels = resolved.enumerated().map { index, source in
                 TakeMetadata.USBChannel(usbChannel: index + 1, stemFile: StemFileName.make(usbChannel: index + 1, sourceName: source.name), source: source)
             }
@@ -525,25 +589,73 @@ public final class Recorder {
             let specs = zip(channels, resolved).map { StemSpec(file: $0.stemFile, description: $1.name, isRecorded: recorded.contains($0.usbChannel)) }
             let info = StemWriter.Info(sampleRate: sampleRate, description: "", originator: "ShowRecorder", timeReference: timeReference, originationDate: date)
             return try TakeSession(
-                show: show, folders: takeFolders, drive: takeFolders.count > 1 ? drive : nil, metadata: metadata, stems: specs,
-                info: info, capture: capture, preRollFrames: preRollFrames, makeStem: makeStem, freeSpace: freeSpace)
+                show: show, folders: takeFolders, drive: takeFolders[.drive] != nil ? drive : nil, metadata: metadata, stems: specs,
+                info: info, capture: capture, preRollFrames: preRollFrames, makeStem: makeStem, freeSpace: freeSpace,
+                driveOnly: recordsToDriveOnly)
+        }
+    }
+
+    /// Logs a gain change ShowRecorder made on the Mixer (#450): during a Take in its `Take.json`, with a Marker such
+    /// as "Kick: gain +3.0 dB (auto-gain)"; between Takes in the Show's `Show.json`.
+    public func logGainChange(_ change: TakeMetadata.GainChange) {
+        var change = change
+        change.at = now()
+        if let session {
+            let name = session.channelName(change.usbChannel) ?? String(format: "USB %02d", change.usbChannel)
+            session.logGainChange(change, markerName: GainLog.markerName(for: change, channelName: name))
+            refreshMarkers(from: session.metadata)
+        } else {
+            currentShow?.logGainChange(change)
         }
     }
 
     /// started with real names stays frozen. Touches no audio and no files while recording.
     public func offerSources(_ sources: [Source]) {
         guard isRecording else { return }
+        logRoutingChanges(in: sources)
         logRenames(in: sources)
-        guard takeAcceptsLateNames else { return }
-        let names = Dictionary(uniqueKeysWithValues: sources.enumerated().filter { $0.element.hasMixerName }.map { ($0.offset + 1, $0.element.name) })
-        guard !names.isEmpty else { return }
-        lateMixerNames = names
-        takeAcceptsLateNames = false
+        naming.mixerOffered(sources)
     }
 
     /// The name the Mixer last gave each USB Channel during this Take (or, from the start, the Source the
     /// Take began with), to tell a rename from a repeat.
     private var mixerNames: [Int: String] = [:]
+
+    /// The USB routing changes of the running Take, for the record screen's warning (#21). Cleared when a Take starts.
+    public private(set) var routingChanges: [TakeMetadata.RoutingChange] = []
+    /// What the Mixer routed to each USB Channel: from the Take's start, or from when the routing was first known
+    /// (a Mixer Link that arrived after the press), and after each re-patch.
+    private var takeRouting: [Int: String] = [:]
+
+    /// What the record screen says about the running Take's routing changes (#21), naming each Stem as it was
+    /// named at the start. Nil when there are none.
+    public var routingNotice: String? {
+        guard let session else { return nil }
+        var stems: [Int: String] = [:]
+        for change in routingChanges { stems[change.usbChannel] = session.channelName(change.usbChannel) }
+        return RoutingChangeNotice.message(for: routingChanges, stemNames: stems)
+    }
+
+    /// A USB Channel whose routing changed (#21) is logged as a routing change with a Marker, not as a rename: from
+    /// here on its Stem holds another Source. The first routing known for a USB Channel is only noted. A re-patch to
+    /// something the Mixer Link can't name (no `routedFrom`) isn't told apart from not knowing: it stays a rename.
+    private func logRoutingChanges(in sources: [Source]) {
+        guard let session else { return }
+        var logged = false
+        for (index, source) in sources.enumerated() {
+            let number = index + 1
+            guard let now = source.routedFrom else { continue }
+            guard let known = takeRouting[number] else { takeRouting[number] = now; continue }
+            guard now != known else { continue }
+            let from = mixerNames[number] ?? Source.fallback(usbChannel: number).name
+            session.logRoutingChange(usbChannel: number, from: from, to: source.name)
+            routingChanges = session.metadata.routingChanges ?? []
+            takeRouting[number] = now
+            mixerNames[number] = source.name
+            logged = true
+        }
+        if logged { refreshMarkers(from: session.metadata) }
+    }
 
     private func logRenames(in sources: [Source]) {
         guard let session else { return }
@@ -558,7 +670,7 @@ public final class Recorder {
 
     /// Places a Marker at the Take's current sample position (frames written so far), in every Stem
     /// of every Copy and in `Take.json`. Does nothing when no Take is running.
-    public func addMarker(named name: String? = nil) {
+    func addMarker(named name: String? = nil) {
         guard isRecording, let session else { return }
         session.addMarker(named: name)
         refreshMarkers(from: session.metadata)
@@ -578,7 +690,8 @@ public final class Recorder {
     private struct LastTake {
         var showName: String
         var takeNumber: Int
-        var deviceFolder: URL
+        /// Nil when the Take left no Device Copy (Drive only, the Device never stood in).
+        var deviceFolder: URL?
         var hadDrive: Bool
     }
 
@@ -588,19 +701,22 @@ public final class Recorder {
     /// updated. Waits for Repair first, which would otherwise write the old name back.
     public func renameLastTakeMarker(at index: Int, to name: String) async -> MarkerRenamer.Outcome {
         await repair.wait()
+        // A move works on these files too (#630); the rename runs once none is.
+        await waitWhileMoving()
         guard !isRecording, let take = lastTake else { return MarkerRenamer.Outcome(result: .notRecording, renamed: [], failed: []) }
-        var copies: [DestinationKind: URL] = [.device: take.deviceFolder]
+        var copies: [DestinationKind: URL] = [:]
+        copies[.device] = take.deviceFolder
         var access: DriveAccess?
         if take.hadDrive {
             access = driveFolder()
             if let access { copies[.drive] = access.folder.appending(path: take.showName).appending(path: TakeMetadata.name(take: take.takeNumber)) }
         }
         defer { access?.end() }
-        var outcome = MarkerRenamer.rename(markerAt: index, to: name, in: copies)
+        var outcome = MarkerRenamer.rename(markerAt: index, to: name, in: copies, allowsProExtras: lastAllowance?.showReport ?? true)
         if take.hadDrive, access == nil {
             outcome.failed.append(.init(copy: .drive, reason: "The Drive isn't available, so its Copy still has the old name."))
         }
-        if !outcome.renamed.isEmpty, let metadata = Self.readTake(at: take.deviceFolder) { refreshMarkers(from: metadata) }
+        if !outcome.renamed.isEmpty, let metadata = (copies[.device] ?? copies[.drive]).flatMap(Self.readTake) { refreshMarkers(from: metadata) }
         return outcome
     }
 
@@ -610,26 +726,18 @@ public final class Recorder {
 
     /// Updates `takeMarkers` and `markerEntries` from the Take's metadata.
     private func refreshMarkers(from metadata: TakeMetadata) {
-        takeMarkers = metadata.markers.filter { $0.origin == .operator }
+        takeMarkers = metadata.operatorMarkers
         let preRoll = metadata.sampleRate > 0 ? Double(metadata.preRollFrames ?? 0) / Double(metadata.sampleRate) : 0
         takePreRollSeconds = preRoll
-        var operatorIndex = 0
         markerEntries = metadata.markers.enumerated().map { place, marker in
-            defer { if marker.origin == .operator { operatorIndex += 1 } }
-            return MarkerEntry(
+            MarkerEntry(
                 id: place,
-                operatorIndex: marker.origin == .operator ? operatorIndex : nil,
+                operatorIndex: metadata.operatorIndex(ofMarkerAt: place),
                 seconds: metadata.sampleRate > 0 ? Double(marker.position) / Double(metadata.sampleRate) : 0,
                 secondsSincePress: metadata.sampleRate > 0
                     ? Double(max(marker.position - (metadata.preRollFrames ?? 0), 0)) / Double(metadata.sampleRate) : 0,
-                name: marker.name)
+                name: marker.name, kind: marker.origin)
         }
-    }
-
-    /// How `kind`'s Copy of the current (or last) Take is doing. A Copy that never started is missing.
-    public func copyStatus(_ kind: DestinationKind) -> CopyStatus {
-        guard isRecording, let session else { return finishedCopies[kind] ?? .missing }
-        return session.status(kind)
     }
 
     /// Looks for a Destination that has become available since the Take started. A Drive that appears
@@ -657,12 +765,12 @@ public final class Recorder {
     }
 
     /// Stops the Take and waits until every Stem is written and finalized.
-    /// A Copy that failed during the Take doesn't make this throw; see `copyStatus(_:)`.
-    public func stopTake() throws {
+    /// A Copy that failed during the Take doesn't make this throw; see `copies`.
+    func stopTake() throws {
         try stopTake(because: .stopped)
     }
 
-    private func stopTake(because reason: TakeEnd.Reason) throws {
+    func stopTake(because reason: TakeEnd.Reason) throws {
         guard isRecording, let session else { return }
         // Not recording from here on, so a Copy that fails while draining doesn't stop the Take again.
         isRecording = false
@@ -672,46 +780,53 @@ public final class Recorder {
         // The last window, which the screen hasn't read yet, is still part of the Take.
         session.accumulate(capture?.meters.takeLevels() ?? [])
         let finished = session.finish()
-        finishedCopies = finished.statuses
+        lastTakeWasDriveOnly = session.driveOnly
         lastTakeSignal = finished.signal
-        dropoutCount = finished.metadata.markers.filter { $0.origin == .dropout }.count
+        dropoutCount = finished.metadata.dropoutCount
         refreshMarkers(from: finished.metadata)
         lastTakeEnd = TakeEnd(take: finished.metadata.take, reason: reason)
         lastTake = LastTake(
-            showName: session.show.name, takeNumber: finished.metadata.take, deviceFolder: finished.folders[0],
-            hadDrive: finished.folders.count > 1)
+            showName: session.show.name, takeNumber: finished.metadata.take, deviceFolder: finished.folders[.device],
+            hadDrive: finished.folders[.drive] != nil)
+        lastTakeGeneration += 1
         currentShow = session.show
-        currentShow?.setChannelNames(channelNames)
-        currentShow?.noteTakeEnded(at: now())
+        // A Copy Stop gave up on may hang on any file operation, so the main thread leaves it alone (#652).
+        currentShow?.setChannelNames(channelNames, skipping: finished.abandoned)
+        currentShow?.noteTakeEnded(at: now(), skipping: finished.abandoned)
         // The Takes are safe either way; the report and project are regenerated next time.
         regenerateReports(skipping: finished.abandoned)
         repair.enqueue(finished.metadata, folders: finished.folders, holding: finished.access, abandoned: finished.abandoned)
         nameChannels(of: finished.metadata)
+        onTakeEnded(TakeEnd(take: finished.metadata.take, reason: reason))
+        // A Drive connected during the Take, or a Take left on the Device by it, moves once it is repaired and named.
+        driveMayHaveConnected()
     }
 
     /// Puts the names typed during the Take on its files. Waits for Repair first, which works on the Stems
     /// by their file names.
     private func nameChannels(of metadata: TakeMetadata) {
-        takeAcceptsLateNames = false
-        func changes(_ number: Int, _ name: String) -> Bool { metadata.usbChannels.first { $0.usbChannel == number }.map { $0.name != name } ?? false }
-        // Names typed by hand win over the Mixer's, when the Take may use them (Pro or Trial).
-        let typedNames = lastAllowance?.namingByHand ?? true ? channelNames : [:]
-        let late = lateMixerNames.filter { typedNames[$0.key] == nil && changes($0.key, $0.value) }
-        lateMixerNames = [:]
-        let names = late.merging(typedNames.filter { changes($0.key, $0.value) }) { _, typed in typed }
+        let onFiles = Dictionary(metadata.usbChannels.map { ($0.usbChannel, $0.name) }) { first, _ in first }
+        let (names, late) = naming.takeEnded(allowance: lastAllowance, onFiles: onFiles)
         guard !names.isEmpty, let take = lastTake else { return }
+        let allowsProExtras = lastAllowance?.showReport ?? true
         let previous = namingTask
         namingTask = Task { @MainActor in
             await previous?.value
             await repair.wait()
-            var copies: [DestinationKind: URL] = [.device: take.deviceFolder]
+            await waitWhileMoving()
+            // Repair may have moved this Take off the Device meanwhile (#618). If a later Take has ended since,
+            // `lastTake` describes it, so this Take's own folders are used.
+            var current = take
+            if let last = lastTake, last.showName == take.showName, last.takeNumber == take.takeNumber { current = last }
+            var copies: [DestinationKind: URL] = [:]
+            copies[.device] = current.deviceFolder
             var access: DriveAccess?
             if take.hadDrive {
                 access = driveFolder()
                 if let access { copies[.drive] = access.folder.appending(path: take.showName).appending(path: TakeMetadata.name(take: take.takeNumber)) }
             }
             defer { access?.end() }
-            _ = ChannelRenamer.rename(names: names, lateChannels: Set(late.keys), in: copies)
+            _ = ChannelRenamer.rename(names: names, lateChannels: late, in: copies, allowsProExtras: allowsProExtras)
         }
     }
 
@@ -720,10 +835,165 @@ public final class Recorder {
     private func regenerateReports(skipping skipped: Set<DestinationKind> = []) {
         guard !isRecording else { return }
         let allowance = lastAllowance
-        for (index, copy) in (currentShow?.copies ?? []).enumerated() where !skipped.contains(DestinationKind(index: index)) {
+        let copies = currentShow?.copies ?? [:]
+        for kind in DestinationKind.allCases where !skipped.contains(kind) {
+            guard let copy = copies[kind] else { continue }
             if allowance?.showReport ?? true { try? ShowReport.write(showFolder: copy.folder) }
             if allowance?.reaperExport ?? true { try? copy.writeProjects() }
         }
+    }
+
+    /// Drive only (#630): moves every stand-in the Device keeps, and every Drive only Take it holds whole, in any Show,
+    /// to its Take on the Drive, and removes the Device's Take once the Drive is checked to hold it. Does nothing during a Take or with no Drive; a Take
+    /// started meanwhile stops it at the next Stem, and one asked for while another runs does nothing. A move a crash cut
+    /// off is finished or undone first (`MoveRecovery`); with no Drive, its set-aside Take stays hidden until the next
+    /// move with one. Returns what came of each Take it took up.
+    /// - Parameter shouldStop: replaces `moveStop` in tests.
+    @discardableResult
+    func moveDriveOnlyTakes(shouldStop: (@Sendable () -> Bool)? = nil) async -> [StandInMove.Result] {
+        guard !isRecording, !isMoving, let access = driveFolder() else { return [] }
+        isMoving = true
+        defer {
+            isMoving = false
+            foundTakesToMove = false
+            let waiting = moveWaiters
+            moveWaiters = []
+            for waiter in waiting { waiter.resume() }
+        }
+        // A Show detail rename already running finishes first; one asked for from now on waits for this move.
+        while editsInProgress > 0 {
+            await withCheckedContinuation { editWaiters.append($0) }
+        }
+        guard !isRecording else {
+            access.end()
+            return []
+        }
+        let device = deviceFolder, drive = access.folder
+        let first = driveOnlyMoves.count
+        let generation = lastTakeGeneration
+        // A Take started from now on stops the move, even if it ends before the move asks.
+        let shouldStop = shouldStop ?? moveStop.latch()
+        // A move a crash cut off after setting the Device's Take aside is finished or undone first.
+        let recovered = await repair.recover(deviceFolder: device, driveFolder: drive, shouldStop: shouldStop)
+        if !recovered.isEmpty { foundTakesToMove = true }
+        for result in recovered {
+            let deviceTake = device.appending(path: result.show).appending(path: TakeMetadata.name(take: result.take))
+            let driveTake = drive.appending(path: result.show).appending(path: TakeMetadata.name(take: result.take))
+            driveOnlyTakeMoved(
+                .init(show: result.show, take: result.take, deviceFolder: deviceTake, kind: .redundant), result.outcome,
+                driveTake: driveTake, generation: generation)
+        }
+        driveOnlyScans += 1
+        let all = await Task.detached { TakeMover.find(deviceFolder: device, driveFolder: drive) }.value
+        driveOnlySkips = all.filter { if case .skipped = $0.kind { true } else { false } }
+        let found = all.filter { $0.kind == .standIn || $0.kind == .deviceOnly || $0.kind == .redundant }
+        guard !found.isEmpty, !isRecording else {
+            access.end()
+            return finishMoveRun(from: first)
+        }
+        foundTakesToMove = true
+        repair.move(found, holding: access, shouldStop: shouldStop) { [weak self] movable, outcome in
+            let driveTake = drive.appending(path: movable.show).appending(path: movable.deviceFolder.lastPathComponent)
+            self?.driveOnlyTakeMoved(movable, outcome, driveTake: driveTake, generation: generation)
+        }
+        await repair.wait()
+        return finishMoveRun(from: first)
+    }
+
+    /// What this move did, from `first` in `driveOnlyMoves`; kept for `moveReport` when it found something to say.
+    private func finishMoveRun(from first: Int) -> [StandInMove.Result] {
+        let moves = Array(driveOnlyMoves[first...])
+        // Nothing to say clears what an earlier move said.
+        lastMoveRun = moves.contains(where: { $0.outcome != .gone }) || !driveOnlySkips.isEmpty ? (moves, driveOnlySkips) : ([], [])
+        return moves
+    }
+
+    /// Notes what came of moving a Drive only Take (a kept stand-in, or a Take the Device held whole), and, when it was
+    /// the last Take and nothing has replaced that Take since, shows it moved in `copies`.
+    private func driveOnlyTakeMoved(_ movable: TakeMover.Movable, _ outcome: StandInMove.Outcome, driveTake: URL, generation: Int) {
+        driveOnlyMoves.append(.init(show: movable.show, take: movable.take, outcome: outcome))
+        guard outcome == .moved else { return }
+        if movable.show == currentShow?.name { regenerateReports() }
+        guard !isRecording, generation == lastTakeGeneration, lastTake?.showName == movable.show, lastTake?.takeNumber == movable.take else {
+            return
+        }
+        lastTakeStandInMoved = true
+        lastTakeStandInKept = false
+        lastTake?.deviceFolder = nil
+        // Moved there, the Take is on the Drive now, though it may have been recorded with none.
+        lastTake?.hadDrive = true
+        lastTakeOutcomes[.drive] = Self.readTake(at: driveTake)?.outcome(ofCopy: .drive)
+    }
+
+    /// Drive only (#630): moves the Drive only Takes of every Show to the Drive, when it is there, outside a Take and once
+    /// Repair and the naming of the last Take are done. The App calls it when the Drive folder becomes available; the
+    /// Recorder after each Take and when moving is turned on. Calls while one runs wait for it, then find nothing left
+    /// to do or what has changed. What came of each Take is in `driveOnlyMoves`.
+    public func driveMayHaveConnected() {
+        // One waiting trigger takes in any more asked for before it starts.
+        guard movesDriveOnlyTakes, !isRecording, !triggerWaiting else { return }
+        triggerWaiting = true
+        let previous = moveTrigger
+        moveTrigger = Task { [weak self] in
+            await previous?.value
+            await self?.waitForRepair()
+            guard let self else { return }
+            triggerWaiting = false
+            guard !isRecording else { return }
+            await moveDriveOnlyTakes()
+        }
+    }
+
+    /// Whether a trigger is waiting to start its move (#630).
+    @ObservationIgnored private var triggerWaiting = false
+    /// Edits waiting for a move to end (#630).
+    @ObservationIgnored private var moveWaiters: [CheckedContinuation<Void, Never>] = []
+
+    /// Returns once no move is running (#630). On the main actor, what the caller does next runs before any move can
+    /// start.
+    func waitWhileMoving() async {
+        while isMoving {
+            await withCheckedContinuation { moveWaiters.append($0) }
+        }
+    }
+
+    /// Counts the scans for Takes to move (#630).
+    @ObservationIgnored private(set) var driveOnlyScans = 0
+
+    /// Renames the operator Marker at `index` in Take `take` of Show `show`, in every Copy it reaches (Show detail).
+    /// A move works on these files too (#630): the rename runs once none is.
+    public func renameMarker(at index: Int, to name: String, inTake take: Int, ofShow show: String, allowsProExtras: Bool) async -> MarkerRenamer.Outcome {
+        await waitWhileMoving()
+        // Counted while its file work runs off the main actor, so a move waits for it before it starts.
+        editsInProgress += 1
+        defer {
+            editsInProgress -= 1
+            if editsInProgress == 0 {
+                let waiting = editWaiters
+                editWaiters = []
+                for waiter in waiting { waiter.resume() }
+            }
+        }
+        let access = driveFolder()
+        let device = deviceFolder, hook = beforeDetachedRename
+        return await Task.detached {
+            defer { access?.end() }
+            hook()
+            return ShowDetail.renameMarker(at: index, to: name, inTake: take, ofShow: show, device: device, drive: access?.folder, allowsProExtras: allowsProExtras)
+        }.value
+    }
+
+    /// Show detail renames whose file work is running (#630).
+    @ObservationIgnored private var editsInProgress = 0
+    /// Moves waiting for those to end (#630).
+    @ObservationIgnored private var editWaiters: [CheckedContinuation<Void, Never>] = []
+
+    /// Run before a Show detail rename's file work, off the main actor; tests hold it there.
+    @ObservationIgnored var beforeDetachedRename: @Sendable () -> Void = {}
+
+    /// Waits for the move a trigger started, if any (#630).
+    func waitForMoves() async {
+        await moveTrigger?.value
     }
 
     /// Waits for Repair of the last Take to finish.
@@ -733,149 +1003,10 @@ public final class Recorder {
     }
 }
 
-/// How one Copy of a Take is doing.
-public enum CopyStatus: Sendable, Equatable {
-    case recording
-    /// Its Destination failed mid-Take. The Take carries on in the other Copy.
-    case interrupted
-    /// It never started: no Destination.
-    case missing
-}
-
 public enum RecorderError: Error, Equatable {
     case notArmed
     /// A Show can't be started or ended while a Take is running.
     case takeRunning
-}
-
-/// Everything the real-time callback touches, allocated when the recorder is Armed.
-final class Capture: Sendable {
-    let meters: PeakMeters
-    /// The last seconds of every channel while Armed, for Pre-roll. Nil when Pre-roll is off.
-    let preRoll: PreRollBuffer?
-    /// One ring per Copy: the Device, then the Drive.
-    let rings: [SampleRing]
-    /// Which Copies are being captured, one bit per ring (bit 0 the Device, bit 1 the Drive); 0 when not recording.
-    private let capturing = Atomic<Int>(0)
-    /// Copies waiting for the real-time thread to start feeding them, one bit per ring.
-    private let joinRequests = Atomic<Int>(0)
-    /// Frames delivered since the Take started: the Take's sample timeline. A Take with Pre-roll starts
-    /// it at the Pre-roll's length, so frame 0 is the first Pre-roll sample.
-    private let takeFrames = Atomic<Int>(0)
-    /// For a Take with Pre-roll: where the Take's first live frame sits in the Pre-roll buffer's own count,
-    /// set by the real-time thread at the block that starts feeding the Copies. -2 until then, -1 when the
-    /// Take has no Pre-roll.
-    let preRollStart = Atomic<Int>(-1)
-    /// Host-clock ticks per frame, and the host time the next block should start at: a block that starts much later
-    /// means input stopped (an interruption), and the missing stretch becomes a Dropout (#317). 0 until the first block.
-    private let hostTicksPerFrame: Double
-    private let expectedHostTime = Atomic<UInt64>(0)
-    /// A gap shorter than this (frames) is timing jitter, not lost input.
-    private let gapThreshold: Int
-    /// The host clock's ticks per second on this machine.
-    static let machTicksPerSecond: Double = {
-        var info = mach_timebase_info_data_t()
-        mach_timebase_info(&info)
-        return 1e9 * Double(info.denom) / Double(info.numer)
-    }()
-
-    var channelCount: Int { rings[0].channelCount }
-
-    /// - Parameter preRollSeconds: how much audio to keep before a Take starts; the buffer holds a second
-    ///   more, so a snapshot of that length isn't cut short by the writer overwriting its oldest frames.
-    init(channelCount: Int, sampleRate: Double, preRollSeconds: Double = 0, hostTicksPerSecond: Double = Capture.machTicksPerSecond) {
-        hostTicksPerFrame = hostTicksPerSecond / max(sampleRate, 1)
-        gapThreshold = Int(max(sampleRate, 1) * 0.05)
-        meters = PeakMeters(channelCount: channelCount)
-        preRoll = preRollSeconds > 0
-            ? PreRollBuffer(channelCount: channelCount, capacity: Int((preRollSeconds + 1) * max(sampleRate, 1)))
-            : nil
-        // Four seconds of headroom for each writer thread.
-        rings = (0..<2).map { _ in SampleRing(channelCount: channelCount, capacity: Int(max(sampleRate, 1) * 4)) }
-    }
-
-    /// Starts feeding the Copies' rings. With `preRollFrames`, the Take's timeline starts at that many
-    /// frames and the Copies start at the next block boundary, which the real-time thread notes in
-    /// `preRollStart` so the Pre-roll and the live audio join without a lost or repeated sample.
-    func startCapturing(copies: Int, preRollFrames: Int = 0) {
-        let mask = (1 << min(copies, rings.count)) - 1
-        takeFrames.store(preRollFrames, ordering: .releasing)
-        if preRollFrames > 0, preRoll != nil {
-            preRollStart.store(-2, ordering: .releasing)
-            joinRequests.store(mask, ordering: .releasing)
-        } else {
-            preRollStart.store(-1, ordering: .releasing)
-            capturing.store(mask, ordering: .releasing)
-        }
-    }
-
-    /// Whether the Take has Pre-roll but the real-time thread hasn't yet fed it a first block.
-    var awaitingFirstBlock: Bool { preRollStart.load(ordering: .acquiring) == -2 }
-
-    /// Frames delivered since the Take started.
-    var takeFrameCount: Int { takeFrames.load(ordering: .acquiring) }
-
-    /// Asks the real-time thread to start feeding one Copy's ring from its next block, and to record
-    /// the Take frame it starts at in the ring's `joinFrame`.
-    func requestJoin(copy: Int) {
-        joinRequests.bitwiseOr(1 << copy, ordering: .acquiringAndReleasing)
-    }
-
-    /// Stops feeding one Copy's ring (its writer failed).
-    func disable(copy: Int) {
-        capturing.bitwiseAnd(~(1 << copy), ordering: .acquiringAndReleasing)
-    }
-
-    func stopCapturing() {
-        capturing.store(0, ordering: .releasing)
-    }
-
-    /// Real-time: meter every block, and queue it for each Copy's writer while a Take is running.
-    /// Real-time safe. If this block starts well after the last one ended, input was stopped (a call, Siri, another
-    /// app took the session): the missing frames go into every Copy being recorded as a drop, which its writer turns
-    /// into silence with a Dropout, and the Take's timeline moves on by as much, so the Stems keep their length (#317).
-    private func noteInputGap(before block: AudioBlock, capturing mask: Int) {
-        guard block.hostTime != 0 else { return }
-        let expected = expectedHostTime.load(ordering: .relaxed)
-        if expected != 0, mask != 0, block.hostTime > expected {
-            let gap = Int((Double(block.hostTime - expected) / hostTicksPerFrame).rounded())
-            if gap > gapThreshold {
-                var copy = 0
-                while copy < rings.count {
-                    if mask & (1 << copy) != 0 { rings[copy].skip(frames: gap) }
-                    copy += 1
-                }
-                takeFrames.add(gap, ordering: .relaxed)
-            }
-        }
-        expectedHostTime.store(block.hostTime + UInt64((Double(block.frameCount) * hostTicksPerFrame).rounded()), ordering: .relaxed)
-    }
-
-    func receive(_ block: AudioBlock) {
-        meters.record(block)
-        preRoll?.write(block)
-        let requested = joinRequests.load(ordering: .acquiring)
-        if requested != 0 {
-            let frame = takeFrames.load(ordering: .relaxed)
-            if preRollStart.load(ordering: .relaxed) == -2 {
-                // The Pre-roll buffer already holds this block, so the live audio starts before it.
-                preRollStart.store((preRoll?.totalWrittenFrames ?? block.frameCount) - block.frameCount, ordering: .releasing)
-            }
-            for copy in 0..<rings.count where requested & (1 << copy) != 0 {
-                rings[copy].joinFrame.store(frame, ordering: .releasing)
-            }
-            capturing.bitwiseOr(requested, ordering: .acquiringAndReleasing)
-            joinRequests.bitwiseAnd(~requested, ordering: .acquiringAndReleasing)
-        }
-        let mask = capturing.load(ordering: .acquiring)
-        noteInputGap(before: block, capturing: mask)
-        var copy = 0
-        while copy < rings.count {
-            if mask & (1 << copy) != 0 { rings[copy].write(block) }
-            copy += 1
-        }
-        if mask != 0 { takeFrames.add(block.frameCount, ordering: .relaxed) }
-    }
 }
 
 /// One line of the Marker list: a Marker with its time in the Take (counted from the start of the audio,
@@ -883,14 +1014,17 @@ final class Capture: Sendable {
 public struct MarkerEntry: Equatable, Identifiable, Sendable {
     /// Its place in the Take's list of all Markers.
     public var id: Int
-    /// Which operator Marker this is (the index `Recorder.renameMarker` takes), or nil for a Dropout Marker,
-    /// which the recorder placed and which can't be renamed.
+    /// Which operator Marker this is (the index `Recorder.renameMarker` takes), or nil for a Marker the recorder
+    /// placed (a Dropout, a gain change, a routing change), which can't be renamed.
     public var operatorIndex: Int?
     /// Counted from the start of the audio, which includes the Pre-roll.
     public var seconds: Double
     /// Counted from when Record was pressed, as the timer on the record screen does.
     public var secondsSincePress: Double
     public var name: String
+    /// Who placed it: the operator, or the recorder at a Dropout, a gain change or a routing change (#528).
+    public var kind: TakeMetadata.Marker.Origin
 
-    public var isDropout: Bool { operatorIndex == nil }
+    /// A Dropout Marker: audio was lost here.
+    public var isDropout: Bool { kind == .dropout }
 }

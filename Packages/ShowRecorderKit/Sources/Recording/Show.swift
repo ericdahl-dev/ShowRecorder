@@ -1,3 +1,4 @@
+import Destinations
 import Foundation
 
 /// One event being recorded. Holds one or more Takes, each in its own folder, with a Copy on the
@@ -23,11 +24,17 @@ public struct Show: Sendable, Equatable {
     /// Whether a Drive Copy of this Show was ever created. Written to `Show.json`, so the Show list can tell
     /// "Drive not connected now" from "never written" later.
     public private(set) var driveCopyWritten = false
+    /// Gain changes made on the Mixer between this Show's Takes (#450).
+    public private(set) var gainChanges: [TakeMetadata.GainChange] = []
+
+    /// Fields of `Show.json` from a newer ShowRecorder, kept from a resumed Show's file to every save of it.
+    var newerFields: UnknownFields?
 
     /// How long a Show can go with no Take before the next record starts a new one.
     static let idleLimit: TimeInterval = 6 * 3600
 
-    init(name: String, folder: URL, driveFolder: URL? = nil, takeCount: Int, startedAt: Date = .distantPast, endedAt: Date? = nil, venue: String? = nil, lastTakeEndedAt: Date? = nil, channelNames: [Int: String] = [:], driveCopyWritten: Bool = false) {
+    init(name: String, folder: URL, driveFolder: URL? = nil, takeCount: Int, startedAt: Date = .distantPast, endedAt: Date? = nil, venue: String? = nil, lastTakeEndedAt: Date? = nil, channelNames: [Int: String] = [:], driveCopyWritten: Bool = false, gainChanges: [TakeMetadata.GainChange] = []) {
+        self.gainChanges = gainChanges
         self.driveCopyWritten = driveCopyWritten
         self.channelNames = channelNames
         self.venue = venue
@@ -40,10 +47,11 @@ public struct Show: Sendable, Equatable {
         self.endedAt = endedAt
     }
 
-    /// Every Copy of the Show folder, the Device first.
-    public var copies: [Show] {
-        [Show(name: name, folder: folder, takeCount: takeCount, startedAt: startedAt, endedAt: endedAt)]
-            + (driveFolder.map { [Show(name: name, folder: $0, takeCount: takeCount, startedAt: startedAt, endedAt: endedAt)] } ?? [])
+    /// Every Copy of the Show folder, by Destination.
+    public var copies: [DestinationKind: Show] {
+        var copies: [DestinationKind: Show] = [.device: Show(name: name, folder: folder, takeCount: takeCount, startedAt: startedAt, endedAt: endedAt)]
+        copies[.drive] = driveFolder.map { Show(name: name, folder: $0, takeCount: takeCount, startedAt: startedAt, endedAt: endedAt) }
+        return copies
     }
 
     /// Creates the Show folder on the Device (and on the Drive, if given), named "YYYY-MM-DD Show"
@@ -100,16 +108,23 @@ public struct Show: Sendable, Equatable {
         ShowFile(
             name: name, startedAt: startedAt, endedAt: endedAt, venue: venue, lastTakeEndedAt: lastTakeEndedAt,
             channelNames: channelNames.isEmpty ? nil : Dictionary(uniqueKeysWithValues: channelNames.map { (String($0.key), $0.value) }),
-            driveCopyWritten: driveCopyWritten ? true : nil)
+            driveCopyWritten: driveCopyWritten ? true : nil,
+            gainChanges: gainChanges.isEmpty ? nil : gainChanges, takes: takeCount > 0 ? takeCount : nil, unknownFields: newerFields)
+    }
+
+    /// Logs a gain change made between Takes, in every Copy's `Show.json`.
+    mutating func logGainChange(_ change: TakeMetadata.GainChange) {
+        gainChanges.append(change)
+        for copy in [folder] + (driveFolder.map { [$0] } ?? []) { try? file.write(to: copy) }
     }
 
     /// Adopts `names` for later Takes without rewriting the files (they were written when the names were typed).
     mutating func keepChannelNames(_ names: [Int: String]) { channelNames = names }
 
-    /// Keeps the typed channel names in `Show.json` in every Copy. A Copy that can't be written is skipped.
-    mutating func setChannelNames(_ names: [Int: String]) {
+    /// Keeps the typed channel names in `Show.json` in every Copy but `skipped`. A Copy that can't be written is skipped.
+    mutating func setChannelNames(_ names: [Int: String], skipping skipped: Set<DestinationKind> = []) {
         channelNames = names
-        for copy in [folder] + (driveFolder.map { [$0] } ?? []) { try? file.write(to: copy) }
+        for kind in DestinationKind.allCases where !skipped.contains(kind) { if let copy = copies[kind] { try? file.write(to: copy.folder) } }
     }
 
     /// Whether the Show has had no Take for the idle limit as of `date`.
@@ -117,10 +132,10 @@ public struct Show: Sendable, Equatable {
         date.timeIntervalSince(lastTakeEndedAt ?? startedAt) >= Self.idleLimit
     }
 
-    /// Records when a Take ended, in every Copy, for the idle rule.
-    mutating func noteTakeEnded(at date: Date) {
+    /// Records when a Take ended, in every Copy but `skipped`, for the idle rule.
+    mutating func noteTakeEnded(at date: Date, skipping skipped: Set<DestinationKind> = []) {
         lastTakeEndedAt = date
-        for copy in [folder] + (driveFolder.map { [$0] } ?? []) { try? file.write(to: copy) }
+        for kind in DestinationKind.allCases where !skipped.contains(kind) { if let copy = copies[kind] { try? file.write(to: copy.folder) } }
     }
 
     /// Marks the Show ended in every Copy it has. A Copy that can't be written is skipped: the Show ends anyway.
@@ -150,10 +165,12 @@ public struct Show: Sendable, Equatable {
         }
         let takes = ((try? fm.contentsOfDirectory(atPath: newest.folder.path)) ?? [])
             .compactMap { $0.hasPrefix("Take ") ? Int($0.dropFirst(5)) : nil }
-        return Show(name: newest.file.name, folder: newest.folder, takeCount: takes.max() ?? 0, startedAt: newest.file.startedAt,
+        var show = Show(name: newest.file.name, folder: newest.folder, takeCount: max(takes.max() ?? 0, newest.file.takes ?? 0), startedAt: newest.file.startedAt,
                     venue: newest.file.venue, lastTakeEndedAt: newest.file.lastTakeEndedAt,
                     channelNames: newest.file.channelNames?.reduce(into: [:]) { if let number = Int($1.key) { $0[number] = $1.value } } ?? [:],
-                    driveCopyWritten: newest.file.driveCopyWritten ?? false)
+                    driveCopyWritten: newest.file.driveCopyWritten ?? false, gainChanges: newest.file.gainChanges ?? [])
+        show.newerFields = newest.file.unknownFields
+        return show
     }
 
     /// The Show that started most recently before `show`, in `deviceParent`, read from its `Show.json`.
@@ -179,15 +196,19 @@ public struct Show: Sendable, Equatable {
         return takeFolder
     }
 
-    /// Creates "Take NN" for the next Take in every Copy and returns the folders, the Device first.
-    mutating func createNextTakeFolder() throws -> [URL] {
+    /// Creates "Take NN" for the next Take in every Copy, the Device's first, and returns the folders by Copy.
+    mutating func createNextTakeFolder() throws -> [DestinationKind: URL] {
         takeCount += 1
         let takeName = TakeMetadata.name(take: takeCount)
-        return try ([folder] + (driveFolder.map { [$0] } ?? [])).map { showFolder in
+        var folders: [DestinationKind: URL] = [:]
+        for (kind, showFolder) in [(DestinationKind.device, folder)] + (driveFolder.map { [(.drive, $0)] } ?? []) {
             let takeFolder = showFolder.appending(path: takeName, directoryHint: .isDirectory)
             try FileManager.default.createDirectory(at: takeFolder, withIntermediateDirectories: false)
-            return takeFolder
+            folders[kind] = takeFolder
         }
+        // The number is kept in Show.json, so it survives a relaunch even when the Device keeps no folder for it.
+        try? file.write(to: folder)
+        return folders
     }
 }
 
@@ -207,12 +228,24 @@ struct ShowFile: Codable, Equatable {
     var channelNames: [String: String]?
     /// True once a Drive Copy of the Show was created. Nil in Shows from before this, where it isn't known.
     var driveCopyWritten: Bool?
+    /// Gain changes made on the Mixer between Takes (#450). Nil when there are none, and in Shows from before this.
+    var gainChanges: [TakeMetadata.GainChange]?
+    /// The number of the last Take started. A Drive only Take (#196) leaves no folder on the Device to count, so the
+    /// next number comes from here too. Nil while the Show has none, and in Shows from before this.
+    var takes: Int?
+    /// Fields from a newer ShowRecorder, kept from `read` to `write`. Nil in a Show this version wrote.
+    var unknownFields: UnknownFields?
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case name, startedAt, endedAt, venue, lastTakeEndedAt, channelNames, driveCopyWritten, gainChanges, takes
+    }
 
     func write(to showFolder: URL) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        try encoder.encode(self).write(to: showFolder.appending(path: Self.fileName), options: .atomic)
+        let data = try encoder.encode(self)
+        try (unknownFields?.merged(into: data) ?? data).write(to: showFolder.appending(path: Self.fileName), options: .atomic)
     }
 
     /// The file in `showFolder`, or nil when it is missing or can't be read.
@@ -220,6 +253,8 @@ struct ShowFile: Codable, Equatable {
         guard let data = try? Data(contentsOf: showFolder.appending(path: fileName)) else { return nil }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try? decoder.decode(ShowFile.self, from: data)
+        guard var file = try? decoder.decode(ShowFile.self, from: data) else { return nil }
+        file.unknownFields = UnknownFields.find(in: data, known: Set(CodingKeys.allCases.map(\.rawValue)))
+        return file
     }
 }

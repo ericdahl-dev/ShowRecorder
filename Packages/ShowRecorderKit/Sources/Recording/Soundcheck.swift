@@ -31,16 +31,19 @@ public enum Soundcheck {
         }
     }
 
-    public static func judgeMixer(status: MixerLinkStatus, sources: [Source]) -> Step {
-        switch status {
-        case .idle:
-            return Step(kind: .mixer, passed: false, message: "No Mixer linked. Add its address in Settings, under Mixer.")
+    /// `.otherMixer` fails and says where to connect (#647).
+    public static func judgeMixer(state: MixerLinkState, sources: [Source]) -> Step {
+        switch state {
+        case .otherMixer(let otherMixer):
+            return Step(kind: .mixer, passed: false, message: "The Mixer Link is on \(otherMixer.nameAndModel), not the Armed Mixer. Connect to the Armed Mixer in Settings › Mixer Link.")
+        case .notLinked:
+            return Step(kind: .mixer, passed: false, message: "No Mixer linked. Add its address in Settings › Mixer Link.")
         case .connecting(let host):
             return Step(kind: .mixer, passed: false, message: "Still connecting to \(host). Check the address and the network.")
         case .down(let problem):
             return Step(kind: .mixer, passed: false, message: problem.message)
-        case .up(let identity, _):
-            let which = "\(identity.networkName.isEmpty ? identity.model : identity.networkName) (\(identity.model))"
+        case .linked(let identity, _):
+            let which = identity.nameAndModel
             let named = sources.filter(\.hasMixerName).count
             guard named > 0 else {
                 return Step(kind: .mixer, passed: false, message: "\(which) is linked, but none of its channels has a name. Name them on the Mixer to have them on the Stems.")
@@ -74,12 +77,19 @@ public enum Soundcheck {
         return Step(kind: .channels, passed: true, message: "\(usbChannelCount) USB Channels, \(signal.withSignal) with signal.")
     }
 
-    /// - Parameter driveChosen: whether a Drive folder is chosen, so the Take should have a Drive copy.
-    public static func judgeTake(outcomes: [DestinationKind: CopyOutcome], driveChosen: Bool) -> Step {
-        guard let device = outcomes[.device] else {
+    /// - Parameters:
+    ///   - copies: the test Take's Copies (#550); a Copy with no ended state isn't counted.
+    ///   - driveChosen: whether a Drive folder is chosen, so the Take should have a Drive copy.
+    public static func judgeTake(copies: TakeCopies, driveChosen: Bool) -> Step {
+        let outcomes: [DestinationKind: CopyOutcome] = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.compactMap { kind in
+            copies[kind].outcome.map { (kind, $0) }
+        })
+        // Drive only: a Take the Drive took whole leaves no Device Copy, so it is judged by the Drive.
+        let device = outcomes[.device]
+        guard device != nil || (copies.isDriveOnly && outcomes[.drive] != nil) else {
             return Step(kind: .take, passed: false, message: "The test Take didn't run.")
         }
-        for (kind, outcome) in [(DestinationKind.device, device)] + (outcomes[.drive].map { [(.drive, $0)] } ?? []) {
+        for (kind, outcome) in (device.map { [(DestinationKind.device, $0)] } ?? []) + (outcomes[.drive].map { [(.drive, $0)] } ?? []) {
             switch outcome {
             case .complete, .repaired:
                 continue
@@ -94,6 +104,7 @@ public enum Soundcheck {
         if driveChosen, outcomes[.drive] == nil {
             return Step(kind: .take, passed: false, message: "Nothing was written to the Drive. Check it in Settings, under Drive.")
         }
+        if device == nil { return Step(kind: .take, passed: true, message: "Written to the Drive.") }
         return outcomes[.drive] == nil
             ? Step(kind: .take, passed: true, message: "Written to the Device. No Drive is chosen, so there is one Copy.")
             : Step(kind: .take, passed: true, message: "Written to the Device and the Drive.")
@@ -119,48 +130,65 @@ public enum Soundcheck {
     /// Never during a Take. `progress` is told which step is being worked on, in the order they run; `result` gets
     /// each step's result as soon as it is judged, so the Mixer's shows before the 30 s Take, not after it.
     ///
-    /// Starting the Soundcheck Show ends any open Show first, as a new Show always does.
+    /// Starting the Soundcheck Show ends any open Show first, as a new Show always does. `mixer` is nil when the input
+    /// isn't an X Air or X32: Mixer Link isn't offered, so its step is skipped rather than failed (#365).
     @MainActor
     public static func run(
-        recorder: Recorder, mixer: MixerLinkStatus, sources: [Source], expectedUSBChannels: Int?, driveChosen: Bool,
-        takeLength: Duration = Soundcheck.takeLength, progress: (Step.Kind) -> Void = { _ in },
+        sequencer: TakeSequencer, mixer: MixerLinkState?, sources: [Source], expectedUSBChannels: Int?, driveChosen: Bool,
+        allowance: TakeAllowance? = nil, takeLength: Duration = Soundcheck.takeLength, progress: (Step.Kind) -> Void = { _ in },
         result: (Step) -> Void = { _ in }
     ) async -> [Step] {
+        let recorder = sequencer.recorder
         guard !recorder.isRecording else {
             return [Step(kind: .take, passed: false, message: "A Take is running. Stop it before the Soundcheck.")]
         }
-        progress(.mixer)
-        let mixerStep = judgeMixer(status: mixer, sources: sources)
-        result(mixerStep)
+        var mixerSteps: [Step] = []
+        if let mixer {
+            progress(.mixer)
+            let mixerStep = judgeMixer(state: mixer, sources: sources)
+            result(mixerStep)
+            mixerSteps = [mixerStep]
+        }
         guard recorder.isArmed else {
             let channels = judgeChannels(usbChannelCount: 0, expected: expectedUSBChannels, signal: nil)
             result(channels)
-            return [mixerStep, channels]
+            return mixerSteps + [channels]
         }
 
         progress(.take)
         var takeError: String?
+        // The Soundcheck leaves the record screen's error as it found it (#551).
+        let before = sequencer.recordError
         do {
-            try recorder.startNewShow(name: "Soundcheck", venue: "")
-            try recorder.startTake(sources: sources)
-            try? await Task.sleep(for: takeLength)
-            try recorder.stopTake()
-            await recorder.waitForRepair()
+            try sequencer.startNewShow(name: "Soundcheck", venue: "")
+            // The test Take records what a Take would under the License: Free's USB Channels, no Pro extras (#558).
+            // It runs through the sequencer, so it has a start time like any Take (#551).
+            if sequencer.record(sources: sources, allowance: allowance, soundcheck: true) {
+                try? await Task.sleep(for: takeLength)
+                sequencer.stop()
+                await recorder.waitForRepair()
+            } else if let failed = sequencer.recordError {
+                takeError = "The test Take couldn't be recorded: \(failed)"
+            }
         } catch {
             takeError = "The test Take couldn't be recorded: \(error.localizedDescription)"
         }
+        sequencer.recordError = before
         let showFolder = recorder.currentShow?.folder
 
         progress(.channels)
         let channelsStep = judgeChannels(usbChannelCount: recorder.usbChannelCount, expected: expectedUSBChannels, signal: takeError == nil ? recorder.lastTakeSignal : nil)
         let takeStep = takeError.map { Step(kind: .take, passed: false, message: $0) }
-            ?? judgeTake(outcomes: recorder.lastTakeOutcomes, driveChosen: driveChosen)
+            ?? judgeTake(copies: recorder.copies, driveChosen: driveChosen)
         result(channelsStep)
         result(takeStep)
 
         progress(.files)
         var filesStep = Step(kind: .files, passed: false, message: "There is no Show folder to check.")
-        if let showFolder {
+        if let showFolder, let allowance, !allowance.showReport, !allowance.reaperExport {
+            // Free writes neither (#558): nothing is missing.
+            filesStep = Step(kind: .files, passed: true, message: "Free writes no Show report or Reaper project; the Takes are in the Show folder.")
+        } else if let showFolder {
             // The report and project are written after the Take finalizes; give them a few seconds.
             for _ in 0..<50 {
                 filesStep = judgeFiles(showFolder: showFolder)
@@ -169,8 +197,8 @@ public enum Soundcheck {
             }
         }
         result(filesStep)
-        try? recorder.endShow()
-        return [mixerStep, channelsStep, takeStep, filesStep]
+        try? sequencer.endShow()
+        return mixerSteps + [channelsStep, takeStep, filesStep]
     }
 
     /// Whether the record screen offers the Soundcheck (a banner, once): not during a Take, and not while the

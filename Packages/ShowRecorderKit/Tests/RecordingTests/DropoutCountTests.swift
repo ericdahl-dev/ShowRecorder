@@ -30,6 +30,8 @@ struct DropoutCountTests {
         try await recordWithADropout(recorder, on: device)
         try await waitUntil { recorder.checkDestinations(); return recorder.dropoutCount == 1 }
         #expect(recorder.dropoutCount == 1)
+        #expect(recorder.markerEntries.map(\.kind) == [.dropout])
+        #expect(recorder.markerEntries.map(\.isDropout) == [true])
         try recorder.stopTake()
     }
 

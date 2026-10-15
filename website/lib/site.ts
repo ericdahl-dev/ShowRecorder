@@ -4,10 +4,13 @@ import { DOCS, docHref } from "@/lib/docs";
 
 export const SITE_NAME = "ShowRecorder";
 export const SITE_URL = "https://showrecorder.app";
+// The one description of the product. PAGES.home.description, llms.txt and the structured data all use it.
 export const SITE_DESCRIPTION =
-  "Record every channel of your mixer on your iPhone or iPad. One WAV file per channel, named from the mixer, with a second copy on a USB drive.";
+  "Multitrack recorder for iPhone and iPad: every channel of any class-compliant USB mixer to its own WAV file. Names from XR18, MR18, X32, M32 (beta).";
 export const CONTACT_EMAIL = "showrecorder@ericdahl.dev";
-export const ISSUES_URL = "https://github.com/ericdahl-dev/ShowRecorder/issues";
+// The app's source code (FSL-1.1-MIT: public to read, MIT two years after each release).
+export const REPO_URL = "https://github.com/ericdahl-dev/ShowRecorder";
+export const ISSUES_URL = `${REPO_URL}/issues`;
 
 // The App Store listing (App Store Connect app 6820213310). While it is null, the badge slots
 // (AppStoreBadge) show a "Coming soon to the App Store" placeholder that is not a link.
@@ -18,12 +21,42 @@ export const APP_STORE_URL = `https://apps.apple.com/app/id${APP_STORE_ID}` as s
 // slots link here instead of showing the placeholder. Set it to null to go back to "Coming soon".
 export const TESTFLIGHT_URL = "https://testflight.apple.com/join/sSessST8" as string | null;
 
+// The line under the call to action, for whatever the button is. While it is TestFlight (no App Store link, or `beta`
+// keeps a mixer page on the beta) it says what happens after the click (#719); on the App Store it is the old price line.
+export function ctaNote(beta: boolean): string {
+  if (TESTFLIGHT_URL && (!APP_STORE_URL || beta)) {
+    return "The beta is free. Opens Apple's TestFlight app: install TestFlight, tap Accept, then Install.";
+  }
+  return "Free to download, 14-day Trial of everything.";
+}
+
+// The crawlers that feed AI search and assistants, named so the policy is explicit: all of them may read the whole
+// site (#704). Training crawlers (Google-Extended, Applebot-Extended, CCBot) are included on purpose.
+export const AI_CRAWLERS = [
+  "GPTBot",
+  "OAI-SearchBot",
+  "ChatGPT-User",
+  "ClaudeBot",
+  "Claude-SearchBot",
+  "Claude-User",
+  "PerplexityBot",
+  "Perplexity-User",
+  "Google-Extended",
+  "Applebot",
+  "Applebot-Extended",
+  "CCBot",
+];
+
 // The routes the site exports. sitemap.ts reads this list.
 export const ROUTES: readonly string[] = [
   "/",
   "/features",
   "/docs",
   ...DOCS.map((d) => docHref(d.slug)),
+  "/mixers/xr18",
+  "/mixers/x32",
+  "/compare",
+  "/changelog",
   "/support",
   "/privacy",
 ];
@@ -38,4 +71,4 @@ export const NAV: readonly { label: string; href: string }[] = [
 ];
 
 export const TRADEMARK_LINE =
-  "ShowRecorder is not affiliated with or endorsed by Behringer or Music Tribe. Behringer, X Air, XR18 and MR18 are trademarks of their owners and are named only to describe compatibility.";
+  "ShowRecorder is not affiliated with or endorsed by Behringer, Midas, Music Tribe or any other mixer maker. Behringer, Midas, X Air, XR18, MR18, X32, M32 and the other mixer names on this site are trademarks of their owners and are named only to describe compatibility.";

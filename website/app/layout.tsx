@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { OG_IMAGE, PAGES } from "@/lib/metadata";
 import { APP_STORE_ID, SITE_NAME, SITE_URL } from "@/lib/site";
 import { THEME_SCRIPT } from "@/lib/theme";
+import { posthogInitScript } from "@/lib/analytics";
 import "./globals.css";
 
 // Defaults for every page. Each page also sets its own title, description, canonical, Open Graph
@@ -57,6 +59,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
         </main>
         <Footer />
+        {/* Cookieless visit counts; see lib/analytics.ts and the privacy page. */}
+        <Script id="posthog-init" strategy="afterInteractive">
+          {posthogInitScript()}
+        </Script>
       </body>
     </html>
   );

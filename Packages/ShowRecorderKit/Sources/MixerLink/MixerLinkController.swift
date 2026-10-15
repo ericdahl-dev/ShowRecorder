@@ -4,6 +4,13 @@ import Observation
 /// How the Mixer Link reaches the Mixer. USB (SysEx-wrapped OSC) comes in #24.
 public enum MixerLinkPath: Equatable, Sendable {
     case wifi
+
+    /// The path as the operator reads it, in the status strip and Settings: "Wi-Fi".
+    public var name: String {
+        switch self {
+        case .wifi: "Wi-Fi"
+        }
+    }
 }
 
 public enum MixerLinkStatus: Equatable, Sendable {
@@ -23,6 +30,11 @@ public final class MixerLinkController {
     /// What the identified Mixer sends over USB, while the Link is up. Nil otherwise.
     public private(set) var capabilities: MixerCapabilities?
 
+    /// The linked Mixer's gain control for auto-gain (#155), while the Link is up and its driver can set gain.
+    public var gainControl: (any GainControl)? {
+        identity != nil ? driver?.gainControl : nil
+    }
+
     /// The identified Mixer, while the Link is up.
     public var identity: MixerIdentity? {
         if case .up(let identity, _) = status { identity } else { nil }
@@ -31,19 +43,25 @@ public final class MixerLinkController {
     @ObservationIgnored private var driver: (any MixerDriver)?
     @ObservationIgnored private let timeout: Duration
     @ObservationIgnored private let renewEvery: Duration
+    @ObservationIgnored private let retryDelay: Duration
     @ObservationIgnored private let makeDriver: @Sendable (MixerEndpoint, Duration) -> any MixerDriver
 
     public init(
         timeout: Duration = .seconds(1.5),
         renewEvery: Duration = .seconds(5),
-        makeDriver: @escaping @Sendable (MixerEndpoint, Duration) -> any MixerDriver = { XAirDriver(endpoint: $0, timeout: $1) }
+        // How long connecting waits before trying a busy port again (#655).
+        retryDelay: Duration = .milliseconds(50),
+        // X-Air or X32: whichever answers at the address (#199).
+        makeDriver: @escaping @Sendable (MixerEndpoint, Duration) -> any MixerDriver = { DetectingMixerDriver(endpoint: $0, timeout: $1) }
     ) {
         self.timeout = timeout
         self.renewEvery = renewEvery
+        self.retryDelay = retryDelay
         self.makeDriver = makeDriver
     }
 
-    /// Connects to the Mixer at `address` ("10.0.0.20" or "10.0.0.20:10024") and reads its Sources.
+    /// Connects to the Mixer at `address` ("10.0.0.20" or "10.0.0.20:10024") and reads its Sources. With no port,
+    /// the default driver tries the X-Air's and the X32's.
     ///
     /// `usbChannelCount` is what the Armed device sends. With nothing Armed (0), as many Sources
     /// are read as the identified Mixer sends over USB, if its driver knows.
@@ -53,6 +71,8 @@ public final class MixerLinkController {
         driver = nil
         capabilities = nil
         pendingUSBChannelCount = nil
+        connects += 1
+        let connect = connects
         guard let endpoint = MixerEndpoint(parsing: address) else {
             sources = []
             status = .down(.invalidAddress(address))
@@ -61,14 +81,36 @@ public final class MixerLinkController {
         status = .connecting(host: endpoint.host)
         sources = []
         let driver = makeDriver(endpoint, timeout)
-        do {
-            let identity = try await driver.identify()
+        do throws(MixerLinkProblem) {
+            var attempts = 1
+            var identity: MixerIdentity
+            while true {
+                do {
+                    identity = try await driver.identify()
+                    break
+                } catch {
+                    // Trying again gets a new socket only because `DetectingMixerDriver.identify()` builds new probe
+                    // drivers on each call while it hasn't chosen one: don't swap in a long-lived driver here.
+                    guard error.isPassing, attempts < Self.identifyTries else { throw error }
+                    try? await Task.sleep(for: retryDelay)
+                    // A newer connect owns the Link now.
+                    guard connect == connects else { return }
+                    guard !Task.isCancelled else { throw error }
+                    attempts += 1
+                }
+            }
+            // A newer connect owns the Link now.
+            guard connect == connects else { return }
             let capabilities = driver.capabilities(for: identity)
             let count = usbChannelCount > 0 ? usbChannelCount : capabilities.usbChannelCount ?? 0
-            sources = try await Self.sources(from: driver, capabilities: capabilities, usbChannelCount: count)
+            let read = try await Self.sources(from: driver, capabilities: capabilities, usbChannelCount: count)
+            guard connect == connects else { return }
+            sources = read
             // A device Armed while connecting asked for its own count; read that instead.
             if let pending = pendingUSBChannelCount, pending != sources.count {
-                sources = try await Self.sources(from: driver, capabilities: capabilities, usbChannelCount: pending)
+                let read = try await Self.sources(from: driver, capabilities: capabilities, usbChannelCount: pending)
+                guard connect == connects else { return }
+                sources = read
             }
             pendingUSBChannelCount = nil
             self.driver = driver
@@ -77,6 +119,7 @@ public final class MixerLinkController {
             status = .up(identity, path: .wifi)
             startLiveUpdates(driver)
         } catch {
+            guard connect == connects else { return }
             fail(error)
         }
     }
@@ -100,6 +143,10 @@ public final class MixerLinkController {
     }
 
     @ObservationIgnored private var pendingUSBChannelCount: Int?
+    /// Counts calls to `connect`, so one still waiting on the Mixer leaves the Link alone once a newer one took over.
+    @ObservationIgnored private var connects = 0
+    /// How many times connecting tries to identify the Mixer while its port is busy (#655).
+    private static let identifyTries = 3
     @ObservationIgnored private var liveTasks: [Task<Void, Never>] = []
 
     /// Keeps the Sources current: renews the Mixer's live updates and applies the changes it pushes.
@@ -151,6 +198,7 @@ public final class MixerLinkController {
             source.hasMixerName = !name.isEmpty
         }
         if let color = change.color { source.color = color }
+        if let routedFrom = change.routedFrom { source.routedFrom = routedFrom }
         sources[change.usbChannel - 1] = source
     }
 
@@ -183,7 +231,7 @@ extension MixerEndpoint {
         let parts = trimmed.split(separator: ":", omittingEmptySubsequences: false)
         guard parts.count == 1 || parts.count == 2 else { return nil }
         let host = String(parts[0])
-        var port: UInt16 = 10024
+        var port = MixerEndpoint.defaultPort
         if parts.count == 2 {
             guard let parsed = UInt16(parts[1]), parsed > 0 else { return nil }
             port = parsed

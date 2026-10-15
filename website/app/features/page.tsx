@@ -1,6 +1,7 @@
-import { featureGroups } from "@/lib/features";
-import { planned, worksNow } from "@/lib/mixers";
-import { CONTACT_EMAIL } from "@/lib/site";
+import { trackAttrs } from "@/lib/analytics";
+import { featureGroups, inBetaFeatures } from "@/lib/features";
+import { considering, inBeta, planned, worksNow } from "@/lib/mixers";
+import { CONTACT_EMAIL, TESTFLIGHT_URL } from "@/lib/site";
 import { PAGES, pageMetadata } from "@/lib/metadata";
 
 export const metadata = pageMetadata(PAGES.features);
@@ -47,6 +48,9 @@ export default function FeaturesPage() {
               </li>
             ))}
             <li>
+              <a href="#beta">In the beta</a>
+            </li>
+            <li>
               <a href="#mixers">Supported mixers</a>
             </li>
           </ul>
@@ -73,16 +77,51 @@ export default function FeaturesPage() {
         </section>
       ))}
 
+      <section id="beta" aria-labelledby="beta-title" className="feature-group">
+        <div className="section-head">
+          <h2 id="beta-title">In the beta</h2>
+          <p>
+            Coming in 1.1, and in the public TestFlight beta now.
+            {TESTFLIGHT_URL ? (
+              <>
+                {" "}
+                <a href={TESTFLIGHT_URL} {...trackAttrs("join_beta_clicked", "testflight")}>Join the beta</a> to try them.
+              </>
+            ) : null}
+          </p>
+        </div>
+        <ul className="cards cards--3">
+          {inBetaFeatures.map((f) => (
+            <li key={f.title} className="card feature">
+              <div className="feature-top">
+                <h3>{f.title}</h3>
+                <span className="tier tier--beta">Beta</span>
+              </div>
+              <p>{f.body}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <section id="mixers" aria-labelledby="mixers-title" className="feature-group">
         <div className="section-head">
           <h2 id="mixers-title">Supported mixers</h2>
-          <p>What works today, and what is planned next. Planned support has no dates yet.</p>
+          <p>What works in the first App Store release, what is in the public beta, what is planned next, and what is being looked at. Planned support has no dates yet.</p>
         </div>
         <h3 className="mixers-sub">Works now</h3>
         <ul className="cards cards--3">
           {worksNow.map((m) => (
             <li key={m.name} className="card">
-              <h3>{m.name}</h3>
+              <h3>{m.href ? <a href={m.href}>{m.name}</a> : m.name}</h3>
+              <p>{m.body}</p>
+            </li>
+          ))}
+        </ul>
+        <h3 className="mixers-sub">In the public beta</h3>
+        <ul className="cards cards--3">
+          {inBeta.map((m) => (
+            <li key={m.name} className="card">
+              <h3>{m.href ? <a href={m.href}>{m.name}</a> : m.name}</h3>
               <p>{m.body}</p>
             </li>
           ))}
@@ -96,9 +135,22 @@ export default function FeaturesPage() {
             </li>
           ))}
         </ol>
+        <h3 className="mixers-sub">Being looked at</h3>
+        <p className="mixers-note">
+          Not promised. Each one needs USB audio that an iPhone or iPad accepts without a driver, and that is
+          being checked mixer by mixer.
+        </p>
+        <ul className="mixers-considering">
+          {considering.map((name) => (
+            <li key={name}>{name}</li>
+          ))}
+        </ul>
         <p className="mixers-ask">
-          Using another mixer? Tell us which at <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. It
+          Using another mixer? Tell us which at <a href={`mailto:${CONTACT_EMAIL}`} {...trackAttrs("contact_email_clicked")}>{CONTACT_EMAIL}</a>. It
           helps decide what comes next.
+        </p>
+        <p className="mixers-ask">
+          Choosing between recorders? See how ShowRecorder <a href="/compare">compares with other apps</a>.
         </p>
       </section>
     </div>

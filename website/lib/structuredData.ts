@@ -1,31 +1,73 @@
-import { PAGES } from "@/lib/metadata";
-import { APP_STORE_URL, SITE_NAME, SITE_URL } from "@/lib/site";
+import { PAGES, type PageInfo } from "@/lib/metadata";
+import { APP_STORE_URL, REPO_URL, SITE_NAME, SITE_URL } from "@/lib/site";
 
-// schema.org data for the home page, as JSON-LD. Search engines read it to show ShowRecorder as an
-// app (name, platform, price) rather than a plain web page. The price is the download price; Pro is
-// an in-app purchase and is not listed here.
-export function softwareApplicationJsonLd() {
+// schema.org data, as JSON-LD. Search engines read it to show ShowRecorder as an app (name, platform,
+// price) rather than a plain web page. Two offers: the download is free, and Pro is a one-time in-app
+// purchase. Free records 2 USB Channels; the 14-day Trial and Pro record every channel (#705 changes Free).
+// The Mac version is in the TestFlight beta, so macOS is listed with "(beta)".
+const OFFERS = [
+  {
+    "@type": "Offer",
+    name: "Free",
+    price: "0",
+    priceCurrency: "USD",
+    description: "Free to download, with a 14-day Trial of everything. Free records 2 USB Channels of your choice.",
+  },
+  {
+    "@type": "Offer",
+    name: "Pro",
+    price: "19.99",
+    priceCurrency: "USD",
+    description: "One-time in-app purchase, no subscription. Records every USB Channel.",
+  },
+];
+
+function applicationJsonLd(url: string, description: string) {
   return {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     name: SITE_NAME,
-    url: SITE_URL,
-    description: PAGES.home.description,
+    url,
+    description,
     applicationCategory: "MultimediaApplication",
-    operatingSystem: "iOS 26, iPadOS 26",
+    operatingSystem: "iOS 26, iPadOS 26, macOS 26 (beta)",
     image: `${SITE_URL}/og-image.png`,
-    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    offers: OFFERS,
     publisher: { "@type": "Person", name: "Eric Dahl", url: "https://ericdahl.dev" },
-    sameAs: ["https://github.com/ericdahl-dev/ShowRecorder"],
+    sameAs: [REPO_URL],
+    ...(APP_STORE_URL ? { installUrl: APP_STORE_URL } : {}),
+  };
+}
+
+export function softwareApplicationJsonLd() {
+  return {
+    ...applicationJsonLd(SITE_URL, PAGES.home.description),
     featureList: [
       "One 24-bit WAV file per USB Channel",
       "Channel names and colors from a Behringer XR18 or MR18",
+      "32 USB Channels with names and colors from a Behringer X32 or Midas M32 in the public beta",
       "A second copy on a USB drive as you record",
       "Crash-safe Takes, saved every 2 seconds",
       "Pre-roll and Markers",
       "A Show report and a Reaper project",
     ],
-    ...(APP_STORE_URL ? { installUrl: APP_STORE_URL } : {}),
+  };
+}
+
+// A mixer page's SoftwareApplication: the same app, with the page's own URL and description.
+export function mixerApplicationJsonLd(page: PageInfo) {
+  return applicationJsonLd(`${SITE_URL}${page.path}`, page.description);
+}
+
+// Home > the page, for a page that sits one level under the home page.
+export function breadcrumbJsonLd(name: string, path: string) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: SITE_NAME, item: SITE_URL },
+      { "@type": "ListItem", position: 2, name, item: `${SITE_URL}${path}` },
+    ],
   };
 }
 

@@ -39,16 +39,21 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
     /// The chips for the current Destinations and Mixer Link, in the order they're shown.
     ///
     /// - Parameters:
-    ///   - copies: how each Copy of the running Take is doing; empty when no Take is running.
+    ///   - copies: the Take's Copies (#550): one that stopped mid-Take says so while the Take runs.
     ///   - sampleRate: the Armed input's rate, for the time left (#298); 48 kHz when nothing is Armed.
+    ///   - mixer: nil when the input isn't an X Air or X32: Mixer Link isn't offered, so there's no Mixer chip (#365).
+    ///   - driveOnly: the Drive only setting (#196), so it applies between Takes too. Drive only, or a Drive-only Take,
+    ///     shows one of the Device and Drive chips (#550).
     public static func make(
         usbChannelCount: Int,
         deviceAvailableBytes: Int64,
         drive: DriveStatus,
-        mixer: MixerLinkStatus,
-        copies: [DestinationKind: CopyStatus],
-        sampleRate: Int = 48_000
+        mixer: MixerLinkState?,
+        copies: TakeCopies,
+        sampleRate: Int = 48_000,
+        driveOnly: Bool = false
     ) -> [StatusChip] {
+        func stopped(_ kind: DestinationKind) -> Bool { copies.isRunning && copies[kind] == .interrupted }
         func timeLeft(_ bytes: Int64) -> TimeLeft {
             TimeLeft(availableBytes: bytes, usbChannelCount: usbChannelCount, sampleRate: sampleRate)
         }
@@ -57,7 +62,7 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
 
         let deviceLeft = timeLeft(deviceAvailableBytes)
         var device = StatusChip(kind: .device, text: "Device \(deviceLeft)", state: isLow(deviceLeft) ? .attention : .ok)
-        if copies[.device] == .interrupted { device = StatusChip(kind: .device, text: "Device stopped", state: .failed) }
+        if stopped(.device) { device = StatusChip(kind: .device, text: "Device stopped", state: .failed) }
 
         var driveChip: StatusChip
         switch drive {
@@ -69,17 +74,32 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         case .unavailable:
             driveChip = StatusChip(kind: .drive, text: "Drive missing", state: .attention)
         }
-        if copies[.drive] == .interrupted { driveChip = StatusChip(kind: .drive, text: "Drive stopped", state: .failed) }
+        if stopped(.drive) { driveChip = StatusChip(kind: .drive, text: "Drive stopped", state: .failed) }
 
+        var chips = [device, driveChip]
+        if driveOnly || copies.isDriveOnly {
+            var driveAvailable: Bool { if case .available = drive { true } else { false } }
+            let deviceWrites = copies.isRunning
+                ? copies[.device] == .standingIn || (copies[.device] == .recording && copies[.drive] != .recording)
+                : !driveAvailable
+            chips = [deviceWrites ? device : driveChip]
+        }
+
+        guard let mixer else { return chips }
         let mixerChip: StatusChip
         switch mixer {
-        case .idle:
+        case .otherMixer(let otherMixer):
+            // The Link is on another Mixer than the Armed one (#647): not a healthy chip.
+            let name = otherMixer.networkName.trimmingCharacters(in: .whitespaces)
+            let detail = name.isEmpty ? otherMixer.model : "\(name) · \(otherMixer.model)"
+            mixerChip = StatusChip(kind: .mixer, text: "Other Mixer linked", state: .attention, detail: detail)
+        case .notLinked:
             mixerChip = StatusChip(kind: .mixer, text: "Mixer not linked", state: .neutral)
         case .connecting:
             mixerChip = StatusChip(kind: .mixer, text: "Mixer connecting", state: .neutral)
-        case .up(let identity, let path):
+        case .linked(let identity, let path):
             // The Mixer's network name tells two of the same model apart (#328); without one, its model and path.
-            let modelAndPath = "\(identity.model) · \(path == .wifi ? "Wi-Fi" : "USB")"
+            let modelAndPath = "\(identity.model) · \(path.name)"
             let name = identity.networkName.trimmingCharacters(in: .whitespaces)
             mixerChip = name.isEmpty
                 ? StatusChip(kind: .mixer, text: modelAndPath, state: .ok)
@@ -87,6 +107,6 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         case .down:
             mixerChip = StatusChip(kind: .mixer, text: "Mixer down", state: .attention)
         }
-        return [device, driveChip, mixerChip]
+        return chips + [mixerChip]
     }
 }

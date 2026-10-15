@@ -13,3 +13,4 @@
 USB input => "audio interface"
 \b(the|a|no|any) mixers?\b => "Mixer" (a glossary term)
 \bmixer's\b => "Mixer's"
+\b[Rr]e-?Gain\b => "Mix Hold" (#496: our own name, not Mixing Station's)

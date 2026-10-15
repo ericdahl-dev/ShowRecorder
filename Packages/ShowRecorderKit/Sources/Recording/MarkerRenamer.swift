@@ -1,7 +1,6 @@
 import BroadcastWave
 import Destinations
 import Foundation
-import ShowReport
 
 /// Renames a Marker in a Take that has already been recorded, working from the files: `Take.json` and the
 /// cue label in every Stem, in every Copy it can reach. Then it regenerates the Show's report and project
@@ -26,7 +25,9 @@ public enum MarkerRenamer {
     /// - Parameters:
     ///   - index: among the operator's Markers, in the order of `Take.json`.
     ///   - copies: each Copy's folder for this Take (`…/Show/Take 01`).
-    public static func rename(markerAt index: Int, to name: String, in copies: [DestinationKind: URL]) -> Outcome {
+    ///   - allowsProExtras: whether the Show report and Reaper project may be written (`License.allowsProExtras`);
+    ///     ones already there are rewritten either way (#438).
+    public static func rename(markerAt index: Int, to name: String, in copies: [DestinationKind: URL], allowsProExtras: Bool) -> Outcome {
         let name = NameLimit.cut(name.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !name.isEmpty else { return Outcome(result: .emptyName, renamed: [], failed: []) }
 
@@ -45,11 +46,9 @@ public enum MarkerRenamer {
             }
         }
         for kind in renamed {
-            let showFolder = copies[kind]!.deletingLastPathComponent()
-            try? ShowReport.write(showFolder: showFolder)
-            try? Show(name: showFolder.lastPathComponent, folder: showFolder, takeCount: 0).writeProjects()
+            Show.refreshExtras(showFolder: copies[kind]!.deletingLastPathComponent(), allowed: allowsProExtras)
         }
-        let result: MarkerRename = !renamed.isEmpty ? .renamed : markerMissing == failed.count ? .noSuchMarker : .noCopyUpdated
+        let result: MarkerRename = !renamed.isEmpty ? .renamed : markerMissing > 0 && markerMissing == failed.count ? .noSuchMarker : .noCopyUpdated
         return Outcome(result: result, renamed: renamed, failed: failed)
     }
 
@@ -67,24 +66,29 @@ public enum MarkerRenamer {
 
     private static func renameMarker(at index: Int, to name: String, in folder: URL, copy: DestinationKind) throws {
         var take = try TakeMetadata.read(fromTakeFolder: folder)
-        let positions = take.markers.indices.filter { take.markers[$0].origin == .operator }
-        guard positions.indices.contains(index) else { throw RenameError.noSuchMarker }
-        take.markers[positions[index]].name = name
+        guard let place = take.place(ofOperatorMarker: index) else { throw RenameError.noSuchMarker }
+        take.markers[place].name = name
         try take.write(to: folder)
 
-        // The cue points a Copy's Stems carry: the operator's Markers and a Dropout cue where this Copy lost audio.
-        let cues = (take.markers.filter { $0.origin == .operator }.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
+        // The cue points a Copy's Stems carry: the operator's Markers, routing changes, and a Dropout cue where this
+        // Copy lost audio.
+        let cues = (take.stemCueMarkers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
             + take.dropouts.filter { $0.copy == copy }.map { StemMarker(position: UInt32(clamping: $0.start), label: "Dropout") })
             .sorted { $0.position < $1.position }
         // Every Stem is tried, so one bad file doesn't leave the others with the old name.
         var unreadable: [String] = []
-        for channel in take.usbChannels {
-            do {
-                let stem = try StemWriter.reopen(url: folder.appending(path: channel.stemFile))
-                try stem.setMarkers(cues)
-                try stem.finalize()
-            } catch {
-                unreadable.append(channel.stemFile)
+        // A stand-in kept on the Device has its Stems in its own folder, counting from its start (#622).
+        let stemFolders = copy == .device ? take.standIns.flatMap { $0.isEmpty ? nil : $0 }?.map { ($0.folderName + "/", $0.start) } : nil
+        for (subfolder, start) in stemFolders ?? [("", 0)] {
+            for channel in take.usbChannels {
+                let file = subfolder + channel.stemFile
+                do {
+                    let stem = try StemWriter.reopen(url: folder.appending(path: file))
+                    try stem.setMarkers(StandInSink.shifted(cues, by: start))
+                    try stem.finalize()
+                } catch {
+                    unreadable.append(file)
+                }
             }
         }
         if !unreadable.isEmpty { throw RenameError.stemsNotUpdated(unreadable) }

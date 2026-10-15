@@ -66,19 +66,46 @@ struct CutOffTakeTests {
         await next.waitForRepair()
 
         for stem in stems(device) {
-            #expect(try StemLength.frameCount(at: stem) == 580)
-            let region = try #require(StemLength.audioRegion(at: stem))
+            #expect(try StemFile.inspect(stem).frameCount == 580)
+            let region = try #require((try? StemFile.inspect(stem))?.audioRegion)
             let size = try #require(try FileManager.default.attributesOfItem(atPath: stem.path)[.size] as? UInt64)
             #expect(size == region.offset + 580 * 3, "the torn sample is cut off")
         }
         let metadata = try JSONDecoder.takeMetadata.decode(TakeMetadata.self, from: Data(contentsOf: device.appending(path: "\(show)/Take 01/Take.json")))
         #expect(metadata.gaps.contains(TakeMetadata.Gap(copy: .drive, start: 520, end: 580)))
         for stem in stems(drive) {
-            #expect(try StemLength.frameCount(at: stem) == 580, "Repair filled the Drive Copy from the Device")
+            #expect(try StemFile.inspect(stem).frameCount == 580, "Repair filled the Drive Copy from the Device")
         }
         for parent in [device, drive] {
             #expect(FileManager.default.fileExists(atPath: parent.appending(path: "\(show)/Report.html").path))
             #expect(FileManager.default.fileExists(atPath: parent.appending(path: "\(show)/\(show).RPP").path))
+        }
+    }
+
+    @Test("A cut-off Take whose Device Take.json is missing is still finished in both Copies, from the Drive's (#626)")
+    func deviceTakeFileMissing() async throws {
+        try await cutOffTake()
+        try FileManager.default.removeItem(at: device.appending(path: "\(show)/Take 01/Take.json"))
+        let next = recorder()
+        try await waitUntil { !next.isRepairing }
+        await next.waitForRepair()
+
+        for stem in stems(device) { #expect(try StemFile.inspect(stem).frameCount == 580) }
+        let metadata = try JSONDecoder.takeMetadata.decode(TakeMetadata.self, from: Data(contentsOf: device.appending(path: "\(show)/Take 01/Take.json")))
+        #expect(metadata.gaps.contains(TakeMetadata.Gap(copy: .drive, start: 520, end: 580)))
+        for stem in stems(drive) { #expect(try StemFile.inspect(stem).frameCount == 580, "Repair filled the Drive Copy from the Device") }
+    }
+
+    @Test("A launch over a cut-off Take only finishes it: nothing is Armed or recording, and no new Take is started")
+    func launchStartsNothing() async throws {
+        try await cutOffTake()
+        let next = recorder()
+        await next.waitForRepair()
+
+        #expect(!next.isArmed)
+        #expect(!next.isRecording)
+        for parent in [device, drive] {
+            #expect(!FileManager.default.fileExists(atPath: parent.appending(path: "\(show)/Take 02").path))
         }
     }
 

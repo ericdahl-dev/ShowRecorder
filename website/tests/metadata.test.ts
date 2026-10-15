@@ -70,4 +70,21 @@ describe("page metadata", () => {
     expect(meta.openGraph?.images).toEqual([OG_IMAGE]);
     expect(meta.twitter).toMatchObject({ card: "summary_large_image" });
   });
+
+  it.each(["mixersX32", "mixersXR18"] as const)("%s uses its own share image for Open Graph and the Twitter card", (key) => {
+    const page = PAGES[key];
+    const meta = pageMetadata(page);
+    expect(meta.openGraph?.images).toEqual([page.image]);
+    expect(meta.twitter).toMatchObject({ images: [{ url: page.image.url, alt: page.image.alt }] });
+  });
+
+  it.each(["mixersX32", "mixersXR18"] as const)("%s has its own 1200x630 PNG share image in public/", (key) => {
+    const image = PAGES[key].image;
+    expect(image.url).not.toBe(OG_IMAGE.url);
+    expect(image.alt.trim()).not.toBe("");
+    const png = readFileSync(path.join(ROOT, "public", image.url));
+    expect(png.subarray(1, 4).toString()).toBe("PNG");
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1200, 630]);
+    expect([image.width, image.height]).toEqual([1200, 630]);
+  });
 });

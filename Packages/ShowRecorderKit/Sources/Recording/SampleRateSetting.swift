@@ -19,12 +19,6 @@ public enum SampleRateSetting {
         defaults.set(rate ?? 0, forKey: key)
     }
 
-    /// Whether this tier records at up to 48 kHz only.
-    /// An unknown tier (nil, before the App Store has answered) isn't capped (#316).
-    public static func capAt48k(proOffered: Bool, tier: Tier?) -> Bool {
-        proOffered && tier == .free
-    }
-
     /// The rate to switch the input to before Arming, or nil to leave it as it is.
     public static func rateToSet(chosen: Int?, available: [Int], current: Int, capAt48k: Bool) -> Int? {
         var wanted = chosen ?? current

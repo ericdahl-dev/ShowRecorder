@@ -30,7 +30,7 @@ struct InterruptionDropoutTests {
         await recorder.waitForRepair()
 
         let take = root.appending(path: "\(show)/Take 01")
-        let stem = try StemFile(contentsOf: take.appending(path: "01 USB 01.wav"))
+        let stem = try ParsedStem(contentsOf: take.appending(path: "01 USB 01.wav"))
         #expect(stem.samples.count == 4 * 480 + 48_000)
         #expect(stem.samples[960..<(960 + 48_000)].allSatisfy { $0 == 0 }, "the stopped second is silence")
         #expect(stem.samples[(960 + 48_000)...].allSatisfy { $0 != 0 }, "the audio after it is where it belongs")

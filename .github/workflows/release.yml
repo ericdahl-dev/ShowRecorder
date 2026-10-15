@@ -31,11 +31,21 @@ jobs:
             profile_type: IOS_APP_STORE
             profile_name: ShowRecorder CI App Store
             asc_platform: IOS
+            # The Live Activity widget extension (#136), embedded in the iPhone app only.
+            extension_bundle_id: dev.ericdahl.ShowRecorder.LiveActivity
+            extension_profile_name: ShowRecorder CI Live Activity App Store
+            # The Apple Watch remote (#100), embedded in the iPhone app only.
+            watch_bundle_id: dev.ericdahl.ShowRecorder.watchkitapp
+            watch_profile_name: ShowRecorder CI Watch App Store
           - platform: macos
             destination: generic/platform=macOS
             profile_type: MAC_APP_STORE
             profile_name: ShowRecorder CI Mac App Store
             asc_platform: MAC_OS
+            extension_bundle_id: ''
+            extension_profile_name: ''
+            watch_bundle_id: ''
+            watch_profile_name: ''
     # Standard GitHub-hosted runner, as in ci.yml. Avoid -large/-xlarge (always billed).
     runs-on: macos-26
     timeout-minutes: 60
@@ -47,26 +57,32 @@ jobs:
       BUNDLE_ID: dev.ericdahl.ShowRecorder
       PROFILE_NAME: ${{ matrix.profile_name }}
       PROFILE_TYPE: ${{ matrix.profile_type }}
+      EXTENSION_BUNDLE_ID: ${{ matrix.extension_bundle_id }}
+      EXTENSION_PROFILE_NAME: ${{ matrix.extension_profile_name }}
+      WATCH_BUNDLE_ID: ${{ matrix.watch_bundle_id }}
+      WATCH_PROFILE_NAME: ${{ matrix.watch_profile_name }}
       PLATFORM: ${{ matrix.asc_platform }}
       HAS_MAC_INSTALLER_CERT: ${{ secrets.MAC_INSTALLER_CERT_P12_BASE64 != '' }}
     steps:
+      # The Mac ships in the Mac App Store from 1.1 (#374): a missing installer certificate fails the Mac job
+      # (the iPhone and iPad build still uploads, fail-fast is off) instead of skipping it quietly.
       - name: Check the Mac installer certificate
         if: matrix.platform == 'macos' && env.HAS_MAC_INSTALLER_CERT != 'true'
         run: |
-          echo "::warning::No Mac upload: add MAC_INSTALLER_CERT_P12_BASE64 and MAC_INSTALLER_CERT_PASSWORD (see docs/DEVELOPING.md)."
-          echo "SKIP=1" >> "$GITHUB_ENV"
+          echo "::error::No Mac upload: add MAC_INSTALLER_CERT_P12_BASE64 and MAC_INSTALLER_CERT_PASSWORD (see docs/DEVELOPING.md)."
+          exit 1
 
       - uses: actions/checkout@v4
-        if: env.SKIP != '1'
         with:
           fetch-depth: 0
 
       - name: Check the tag
-        if: env.SKIP != '1'
         run: |
-          # Only releases from main, so a stray tag on a branch can't ship.
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "::error::Tag ${GITHUB_REF_NAME} is not on main. Tag a commit that has been merged."
+          # Only releases from main, or from a release branch (release/1.0) for a fix to a version in
+          # App Review, so a stray tag on a feature branch can't ship.
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main \
+            && ! git branch -r --contains "$GITHUB_SHA" | grep -q '^ *origin/release/'; then
+            echo "::error::Tag ${GITHUB_REF_NAME} is not on main or a release/ branch. Tag a commit that has been merged."
             exit 1
           fi
           # The build number is the run number plus the attempt, so re-running a tag
@@ -75,14 +91,12 @@ jobs:
           echo "BUILD_NUMBER=${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
 
       - name: Show toolchain
-        if: env.SKIP != '1'
         run: |
           xcodebuild -version
           swift --version
           echo "Version ${MARKETING_VERSION} (${BUILD_NUMBER})"
 
       - name: Write the App Store Connect key
-        if: env.SKIP != '1'
         env:
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
         run: |
@@ -93,7 +107,6 @@ jobs:
           echo "ASC_KEY_PATH=$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
 
       - name: Import the Apple Distribution certificate
-        if: env.SKIP != '1'
         env:
           DIST_CERT_P12_BASE64: ${{ secrets.DIST_CERT_P12_BASE64 }}
           DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
@@ -114,6 +127,9 @@ jobs:
             printf '%s' "$MAC_INSTALLER_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/installer.p12"
             security import "$RUNNER_TEMP/installer.p12" -k "$KEYCHAIN" -P "$MAC_INSTALLER_CERT_PASSWORD" -T /usr/bin/productbuild -T /usr/bin/security
             rm -f "$RUNNER_TEMP/installer.p12"
+            # When the installer certificate expires (it lasts a year); an expired one stops the Mac upload.
+            security find-certificate -c "3rd Party Mac Developer Installer" -p "$KEYCHAIN" | openssl x509 -noout -enddate \
+              | sed 's/^notAfter=/Mac installer certificate expires: /' || echo "::warning::Couldn't read the Mac installer certificate's expiry"
           fi
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
@@ -125,14 +141,22 @@ jobs:
           security find-identity -v -p codesigning "$KEYCHAIN" | sed -E 's/[0-9A-F]{40}/<hash>/'
 
       - name: Get the App Store provisioning profile (${{ matrix.profile_type }})
-        if: env.SKIP != '1'
         run: |
           set +x
           python3 scripts/ci_profile.py | tee "$RUNNER_TEMP/profile.txt"
           echo "PROFILE_UUID=$(sed -n 's/^uuid=//p' "$RUNNER_TEMP/profile.txt")" >> "$GITHUB_ENV"
+          # The Live Activity extension has its own bundle ID and profile; registered on first use.
+          if [ -n "$EXTENSION_BUNDLE_ID" ]; then
+            BUNDLE_ID="$EXTENSION_BUNDLE_ID" PROFILE_NAME="$EXTENSION_PROFILE_NAME" CREATE_BUNDLE_ID=1 \
+              BUNDLE_NAME="ShowRecorder Live Activity" python3 scripts/ci_profile.py
+          fi
+          # So does the watch app (#100). Its bundle ID is an iOS one in App Store Connect.
+          if [ -n "$WATCH_BUNDLE_ID" ]; then
+            BUNDLE_ID="$WATCH_BUNDLE_ID" PROFILE_NAME="$WATCH_PROFILE_NAME" CREATE_BUNDLE_ID=1 \
+              BUNDLE_NAME="ShowRecorder Watch" python3 scripts/ci_profile.py
+          fi
 
       - name: Archive
-        if: env.SKIP != '1'
         run: |
           set -o pipefail
           xcodebuild archive \
@@ -140,22 +164,29 @@ jobs:
             -destination '${{ matrix.destination }}' \
             -archivePath "$RUNNER_TEMP/ShowRecorder.xcarchive" \
             DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            APP_PROFILE_NAME="$PROFILE_NAME" EXTENSION_PROFILE_NAME="$EXTENSION_PROFILE_NAME" \
+            WATCH_PROFILE_NAME="$WATCH_PROFILE_NAME" \
             OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN" \
             MARKETING_VERSION="$MARKETING_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             2>&1 | tee "$RUNNER_TEMP/archive.log"
 
       - name: Check the archive before uploading
-        if: env.SKIP != '1'
         run: ./scripts/preflight.sh "$RUNNER_TEMP/ShowRecorder.xcarchive"
 
       - name: Upload to TestFlight
-        if: env.SKIP != '1'
         run: |
           set -o pipefail
           INSTALLER=""
           if [ "${{ matrix.platform }}" = macos ]; then
             INSTALLER="<key>installerSigningCertificate</key><string>3rd Party Mac Developer Installer</string>"
+          fi
+          EXTENSION_PROFILE=""
+          if [ -n "$EXTENSION_BUNDLE_ID" ]; then
+            EXTENSION_PROFILE="<key>${EXTENSION_BUNDLE_ID}</key><string>${EXTENSION_PROFILE_NAME}</string>"
+          fi
+          if [ -n "$WATCH_BUNDLE_ID" ]; then
+            EXTENSION_PROFILE="${EXTENSION_PROFILE}<key>${WATCH_BUNDLE_ID}</key><string>${WATCH_PROFILE_NAME}</string>"
           fi
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
@@ -168,7 +199,7 @@ jobs:
             <key>signingCertificate</key><string>Apple Distribution</string>
             ${INSTALLER}
             <key>provisioningProfiles</key>
-            <dict><key>${BUNDLE_ID}</key><string>${PROFILE_NAME}</string></dict>
+            <dict><key>${BUNDLE_ID}</key><string>${PROFILE_NAME}</string>${EXTENSION_PROFILE}</dict>
             <key>teamID</key><string>${DEVELOPMENT_TEAM}</string>
             <key>uploadSymbols</key><true/>
             <key>manageAppVersionAndBuildNumber</key><false/>
@@ -184,13 +215,26 @@ jobs:
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             2>&1 | tee "$RUNNER_TEMP/upload.log"
 
-      - name: Set What to Test and send the build to external testers
-        if: env.SKIP != '1'
+      - name: Set What to Test and send the build to testers
         # The upload has happened; a failure here prints a warning and never fails the release.
+        # A tag whose message contains [internal] goes to internal testers only, until
+        # scripts/testflight_promote.py sends it on (docs/DEVELOPING.md, "Internal-only tags").
         continue-on-error: true
         env:
           TAG: ${{ github.ref_name }}
-        run: python3 scripts/testflight_notes.py
+        run: |
+          # The checkout can leave the tag lightweight, without its message: fetch the tag itself. Only an annotated
+          # tag has a message of its own (a lightweight one would read its commit's). If the fetch fails, nobody
+          # can tell whether the tag was meant to be internal, so it is treated as internal: it never reaches
+          # external testers by mistake, and testflight_promote.py sends it on.
+          TAG_MESSAGE=""
+          if ! git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"; then
+            echo "::warning::Couldn't read the tag's message; sending this build to internal testers only."
+            TAG_MESSAGE="[internal] (the tag's message couldn't be read)"
+          elif [ "$(git for-each-ref --format='%(objecttype)' "refs/tags/$TAG")" = tag ]; then
+            TAG_MESSAGE="$(git for-each-ref --format='%(contents)' "refs/tags/$TAG")"
+          fi
+          TAG_MESSAGE="$TAG_MESSAGE" python3 scripts/testflight_notes.py
 
       - name: Remove the keys and the keychain
         if: always()

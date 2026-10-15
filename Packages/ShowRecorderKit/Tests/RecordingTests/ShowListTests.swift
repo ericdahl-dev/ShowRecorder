@@ -1,4 +1,5 @@
 import AudioIO
+import BroadcastWave
 import Destinations
 import Foundation
 import Testing
@@ -222,5 +223,52 @@ struct ShowListTests {
         let listed = ShowList.read(device: device, drive: drive).first { $0.name == "2026-10-01 Old" }
         #expect(listed?.driveCopyWritten == nil)
         #expect(listed?.copyNote?.text == "No Drive copy")
+    }
+
+    @Test("A Show on both Copies reads its Takes' lengths from the Device, as before Drive only (#625)")
+    func bothCopiesReadFromDevice() throws {
+        let both = recorder(withDrive: true)
+        try record(both)
+        let show = try #require(both.currentShow)
+        #expect(show.driveFolder != nil)
+        #expect(abs(try show.recordedSeconds(leavingOut: nil) - 0.01) < 0.000_1, "one Take, not one per Copy")
+        #expect(ShowList.read(device: device, drive: drive).map(\.takeCount) == [1])
+
+        // With the Device's Stem gone, the Device is still what is read: the Drive's Stem doesn't stand in for it.
+        try FileManager.default.removeItem(at: device.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
+        #expect(try show.recordedSeconds(leavingOut: nil) == 0)
+        #expect(ShowList.read(device: device, drive: drive).map(\.duration) == [0])
+    }
+
+    @Test("A Take the Device keeps as a stand-in is as long as the Drive's Stems when they run past the stand-in (#625)")
+    func driveLongerThanStandIn() throws {
+        let deviceTake = device.appending(path: "S/Take 01"), driveTake = drive.appending(path: "S/Take 01")
+        var take = TakeMetadata(
+            show: "S", take: 1, startedAt: RecordingTakeTests.showDay, sampleRate: 48_000, timeReference: 0,
+            usbChannels: [.init(usbChannel: 1, stemFile: "01 USB 01.wav", name: "USB 01", hasMixerName: false, color: .init(hue: "off", inverted: false))])
+        for folder in [deviceTake, driveTake] { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
+        try take.write(to: driveTake)
+        take.standIns = [.init(start: 0, end: 4_800)]
+        try take.write(to: deviceTake)
+        let stem = try StemWriter.open(
+            url: driveTake.appending(path: "01 USB 01.wav"),
+            info: .init(sampleRate: 48_000, description: "USB 01", originator: "ShowRecorder", timeReference: 0, originationDate: RecordingTakeTests.showDay),
+            resumingAt: nil)
+        try [Float](repeating: 0, count: 9_600).withUnsafeBufferPointer { try stem.append($0) }
+        try stem.finalize()
+
+        let lengths = ShowList.takeLengths(deviceShow: device.appending(path: "S"), driveShow: drive.appending(path: "S"))
+        #expect(lengths.map(\.frames) == [9_600])
+    }
+
+    @Test("An ordinary Show whose Device Take folder was deleted still counts that Take from the Drive (#625)")
+    func deletedDeviceTakeCountsFromDrive() throws {
+        let both = recorder(withDrive: true)
+        try record(both)
+        try record(both)
+        try FileManager.default.removeItem(at: device.appending(path: "2026-10-06 Show/Take 02"))
+
+        #expect(ShowList.read(device: device, drive: drive).map(\.takeCount) == [2])
+        #expect(abs(try #require(both.currentShow).recordedSeconds(leavingOut: nil) - 0.02) < 0.000_1)
     }
 }

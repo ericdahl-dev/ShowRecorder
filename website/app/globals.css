@@ -400,6 +400,15 @@ html:not([data-js]) .theme-toggle {
   font-size: 15px;
 }
 
+.footer-group {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+
 .footer-links a[aria-current="page"] {
   font-weight: 600;
 }
@@ -620,6 +629,36 @@ html:not([data-js]) .theme-toggle {
   gap: 12px;
 }
 
+/* A mixer page's hero (#482): the home hero without the screenshots, lined up with the page body (.doc). */
+.mixer-hero .inner {
+  max-width: 680px;
+  margin-inline: auto;
+}
+
+.mixer-hero {
+  padding-block: 32px 40px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.mixer-hero h1 {
+  font-size: clamp(34px, 2vw + 26px, 48px);
+}
+
+/* The body right under the hero: the hairline marks the break, so less space above it. */
+.mixer-hero + .wrap > .doc {
+  padding-top: 40px;
+}
+
+@media (min-width: 1024px) {
+  .mixer-hero {
+    padding-block: 56px 48px;
+  }
+
+  .mixer-hero + .wrap > .doc {
+    padding-top: 56px;
+  }
+}
+
 .hero-actions .price {
   color: var(--ink);
 }
@@ -668,6 +707,19 @@ html:not([data-js]) .theme-toggle {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 32px;
     align-items: start;
+  }
+}
+
+/* Two screenshots in a page's text column (the XR18 page): centered, phone width. */
+.figures.pair {
+  margin-top: 32px;
+  margin-bottom: 32px;
+}
+
+@media (min-width: 768px) {
+  .figures.pair {
+    grid-template-columns: repeat(2, minmax(0, 240px));
+    justify-content: center;
   }
 }
 
@@ -1152,6 +1204,10 @@ html:not([data-js]) .theme-toggle {
   color: var(--bg);
 }
 
+.tier--beta {
+  border-style: dashed;
+}
+
 .group-jump {
   margin-top: 28px;
 }
@@ -1309,6 +1365,19 @@ ol.cards {
   border: 0;
   background: none;
   white-space: pre;
+}
+
+/* A short callout (a Markdown blockquote), such as the X32 page's "tested only against an emulator". */
+.doc blockquote {
+  margin: 20px 0 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--edge);
+  background: var(--bg-raised);
+  border-radius: 8px;
+}
+
+.doc blockquote p {
+  margin-top: 0;
 }
 
 /* No docs page has a table yet; keep any that is added narrow enough for 375 px. */
@@ -1496,4 +1565,172 @@ ol.cards {
 
 .docs-nav-mobile[open] summary::after {
   transform: translateY(2px) rotate(-135deg);
+}
+
+/* Android signup (#404): one email field and a button, stacked on phones. */
+.signup {
+  max-width: 560px;
+  margin-top: 16px;
+}
+
+.signup label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.signup-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.signup input[type="email"] {
+  flex: 1 1 240px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  background: var(--bg-raised);
+  color: var(--ink);
+  font: inherit;
+}
+
+.signup button {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--button-bg);
+  color: var(--button-ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.signup input:focus-visible,
+.signup button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.signup-note {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+/* "Being looked at" mixers: a plain two-column list, lighter than the cards above it. */
+.mixers-note {
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.mixers-considering {
+  columns: 2 240px;
+  column-gap: 32px;
+  padding-left: 1.2em;
+  list-style: disc;
+}
+
+.mixers-considering li {
+  break-inside: avoid;
+  margin-bottom: 6px;
+}
+
+/* ---------- Compare page ---------- */
+
+.compare-scroll {
+  margin-top: 24px;
+  overflow-x: auto;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+}
+
+.compare-table {
+  width: 100%;
+  min-width: 960px;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.compare-table th,
+.compare-table td {
+  padding: 12px 14px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.compare-table thead th {
+  background: var(--bg-raised);
+  color: var(--ink);
+}
+
+.compare-table tbody th {
+  position: sticky;
+  left: 0;
+  width: 11rem;
+  background: var(--bg-raised);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.compare-table td {
+  color: var(--muted);
+}
+
+.compare-table tbody tr:last-child th,
+.compare-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* The home hero (#719): a compatibility line under the lede, the Show-Safe line and two plain links under the button. */
+.hero .compat {
+  margin-top: 12px;
+  max-width: 34em;
+  color: var(--muted);
+}
+
+.hero-actions .safe {
+  color: var(--muted);
+}
+
+.hero-links {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 24px;
+}
+
+/* Launch email choices (#719): three radios under the email field, inline where they fit. */
+.signup-interests {
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.signup-interests legend {
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.signup-interests label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin: 0;
+  font-weight: 400;
+}
+
+/* Phones see the first four feature cards; the rest are on the Features page (#719). */
+@media (max-width: 639px) {
+  .cards .card--more {
+    display: none;
+  }
 }

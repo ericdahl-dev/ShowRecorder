@@ -70,7 +70,7 @@ struct ShowDetailTests {
         try record(recorder, markers: 1)
 
         let outcome = ShowDetail.renameMarker(
-            at: 1, to: "Encore", inTake: 1, ofShow: "2026-10-06 Show", device: device, drive: drive)
+            at: 1, to: "Encore", inTake: 1, ofShow: "2026-10-06 Show", device: device, drive: drive, allowsProExtras: true)
 
         #expect(outcome.result == .renamed)
         #expect(Set(outcome.renamed) == [.device, .drive])
@@ -87,7 +87,7 @@ struct ShowDetailTests {
         try record(recorder, markers: 1)
         try FileManager.default.removeItem(at: drive.appending(path: "2026-10-06 Show"))
 
-        let outcome = ShowDetail.renameMarker(at: 0, to: "Intro", inTake: 1, ofShow: "2026-10-06 Show", device: device, drive: nil)
+        let outcome = ShowDetail.renameMarker(at: 0, to: "Intro", inTake: 1, ofShow: "2026-10-06 Show", device: device, drive: nil, allowsProExtras: true)
 
         #expect(outcome.renamed == [.device])
         #expect(outcome.failed.isEmpty)

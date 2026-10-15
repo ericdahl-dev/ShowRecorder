@@ -43,7 +43,9 @@ struct ChannelNamesView: View {
                     Button("Copy from last Show") { copyFromLastShow() }
                     if let copyMessage { Text(copyMessage).font(.footnote).secondaryText() }
                 } footer: {
-                    Text("The files take the names when the Take ends. A name stays for the rest of the Show.")
+                    Text(model.pro.license().limits
+                        ? "On Free, files use the Mixer's names. Pro puts your typed names on the files."
+                        : "The files take the names when the Take ends. A name stays for the rest of the Show.")
                 }
             }
             .navigationTitle("Channel names")
@@ -106,9 +108,7 @@ struct ChannelNamesView: View {
     }
 
     private var rows: [ChannelNameRow] {
-        let sources = model.mixerLink.sources
-        let mixerNames = Dictionary(uniqueKeysWithValues: sources.indices.filter { sources[$0].hasMixerName }.map { ($0, sources[$0].name) })
-        return ChannelNameList.rows(channelCount: model.meterModel.channelCount, mixerNames: mixerNames, typed: drafts)
+        ChannelNaming(typed: drafts).rows(channelCount: model.meterModel.channelCount, sources: model.linkedSources)
     }
 
     private func binding(for row: ChannelNameRow) -> Binding<String> {

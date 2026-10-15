@@ -24,7 +24,7 @@ public enum StemDeleter {
             let showFolder = parent.appending(path: show, directoryHint: .isDirectory)
             let takeFolder = showFolder.appending(path: TakeMetadata.name(take: take), directoryHint: .isDirectory)
             do {
-                try delete(channel: channel, in: takeFolder, showFolder: showFolder)
+                try delete(channel: channel, in: takeFolder, showFolder: showFolder, copy: kind)
                 deleted.append(kind)
             } catch let error as DeleteError {
                 failed.append(.init(copy: kind, reason: error.description))
@@ -37,18 +37,30 @@ public enum StemDeleter {
 
     private enum DeleteError: Error, CustomStringConvertible {
         case noSuchChannel
-        var description: String { "There is no such channel in this Copy's Take." }
+        case standInNotAFolder
+        var description: String {
+            switch self {
+            case .noSuchChannel: "There is no such channel in this Copy's Take."
+            case .standInNotAFolder: "A stand-in in this Copy's Take isn't a folder."
+            }
+        }
     }
 
-    private static func delete(channel: Int, in takeFolder: URL, showFolder: URL) throws {
+    private static func delete(channel: Int, in takeFolder: URL, showFolder: URL, copy: DestinationKind) throws {
         guard ShowDeleter.isRealFolder(showFolder), ShowDeleter.isRealFolder(takeFolder) else { throw DeleteError.noSuchChannel }
         var take = try TakeMetadata.read(fromTakeFolder: takeFolder)
         guard let index = take.usbChannels.firstIndex(where: { $0.usbChannel == channel }) else { throw DeleteError.noSuchChannel }
         let file = take.usbChannels[index].stemFile
         guard ShowDeleter.isPlainName(file), file.hasSuffix(".wav") else { throw DeleteError.noSuchChannel }
-        let stem = takeFolder.appending(path: file)
-        // The file may already be gone; it is still taken out of Take.json.
-        if FileManager.default.fileExists(atPath: stem.path) { try FileManager.default.removeItem(at: stem) }
+        // A stand-in kept on the Device has its Stems in its own folder (#627), never reached through a link.
+        let standIns = copy == .device ? take.standIns.flatMap { $0.isEmpty ? nil : $0 } : nil
+        let stemFolders = standIns?.map { takeFolder.appending(path: $0.folderName, directoryHint: .isDirectory) }
+        guard (stemFolders ?? []).allSatisfy(ShowDeleter.isRealFolder) else { throw DeleteError.standInNotAFolder }
+        for stemFolder in stemFolders ?? [takeFolder] {
+            let stem = stemFolder.appending(path: file)
+            // The file may already be gone; it is still taken out of Take.json.
+            if FileManager.default.fileExists(atPath: stem.path) { try FileManager.default.removeItem(at: stem) }
+        }
         take.usbChannels.remove(at: index)
         try take.write(to: takeFolder)
         try? ShowReport.write(showFolder: showFolder)

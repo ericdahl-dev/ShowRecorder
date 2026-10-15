@@ -1,6 +1,6 @@
 import AudioIO
 import Foundation
-import Recording
+@testable import Recording
 import Testing
 
 /// When the system stops input mid-Take (a phone call, Siri, a media services reset), the recorder
@@ -36,7 +36,7 @@ struct InputRestartTests {
         try recorder.stopTake()
 
         #expect(recorder.currentShow?.takeCount == 1)
-        let stem = try StemFile(contentsOf: take01(recorder).appending(path: "01 USB 01.wav"))
+        let stem = try ParsedStem(contentsOf: take01(recorder).appending(path: "01 USB 01.wav"))
         #expect(stem.samples == [1, 2, 3])
     }
 
@@ -77,7 +77,7 @@ struct InputRestartTests {
         #expect(continued)
         #expect(!old.isRunning)
         #expect(recorder.currentShow?.takeCount == 1)
-        let stem = try StemFile(contentsOf: take01(recorder).appending(path: "01 USB 01.wav"))
+        let stem = try ParsedStem(contentsOf: take01(recorder).appending(path: "01 USB 01.wav"))
         #expect(stem.samples == [1, 2])
     }
 
@@ -94,10 +94,12 @@ struct InputRestartTests {
 
         #expect(!continued)
         #expect(!recorder.isRecording)
+        #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .inputChanged), "the Take ended because the input changed, not by the operator (#301)")
+        #expect(TakeEnd.Reason.inputChanged.message != nil)
         #expect(recorder.isArmed)
         #expect(recorder.usbChannelCount == 1)
         #expect(replacement.isRunning)
-        let stem = try StemFile(contentsOf: take01(recorder).appending(path: "01 USB 01.wav"))
+        let stem = try ParsedStem(contentsOf: take01(recorder).appending(path: "01 USB 01.wav"))
         #expect(stem.samples == [1])
     }
 }

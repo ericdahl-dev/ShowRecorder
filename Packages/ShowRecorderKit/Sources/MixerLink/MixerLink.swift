@@ -1,9 +1,15 @@
-/// Where a Mixer listens for OSC. X-Air mixers use UDP port 10024.
+import Foundation
+
+/// Where a Mixer listens for OSC. Each family has its own port (`MixerFamily.probe`): X-Air mixers use UDP 10024, the
+/// X32 and M32 10023.
 public struct MixerEndpoint: Equatable, Sendable {
     public var host: String
     public var port: UInt16
 
-    public init(host: String, port: UInt16 = 10024) {
+    /// The port an address typed without one is asked on first: the first family's. Detection asks the others too.
+    public static var defaultPort: UInt16 { MixerFamily.allCases[0].probe.port }
+
+    public init(host: String, port: UInt16 = MixerEndpoint.defaultPort) {
         self.host = host
         self.port = port
     }
@@ -19,6 +25,12 @@ public struct MixerIdentity: Equatable, Sendable {
         self.networkName = networkName
         self.model = model
         self.firmware = firmware
+    }
+
+    /// "FOH (XR18)", or the model alone when the Mixer has no network name (#647).
+    public var nameAndModel: String {
+        let name = networkName.trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? model : "\(name) (\(model))"
     }
 }
 
@@ -46,6 +58,15 @@ public enum MixerLinkProblem: Error, Equatable, Sendable {
     case localNetworkDenied
     /// The address typed in isn't a valid host.
     case invalidAddress(String)
+    /// No Mixer by that name (such as "xr18.local") was found on the network.
+    case hostNotFound(String)
+    /// Gain can't be set: input channel `channel` has no preamp (its source is digital, such as a card or USB input).
+    case noPreamp(channel: Int)
+    /// The Mixer stopped answering partway through a gain move (#450). `step` is what was written before it stopped,
+    /// with the exact values from before, so it can be logged and undone.
+    case gainMoveInterrupted(GainStep)
+    /// A connection to the Mixer couldn't be opened, for a reason with no words of its own: the code is kept for support.
+    case cantConnect(host: String, port: UInt16, code: Int)
     case other(String)
 
     public var message: String {
@@ -57,14 +78,30 @@ public enum MixerLinkProblem: Error, Equatable, Sendable {
         case .localNetworkDenied:
             "ShowRecorder isn't allowed to use the local network. Turn on Local Network for ShowRecorder in Settings › Privacy & Security."
         case .invalidAddress(let text):
-            "\"\(text)\" isn't a valid IP address."
+            "\"\(text)\" isn't a valid Mixer address. Enter its IP address, such as 192.168.1.20, or its name, such as xr18.local."
+        case .hostNotFound(let host):
+            "No Mixer named \(host) was found on this network. Check the name, or enter the Mixer's IP address."
+        case .gainMoveInterrupted(let step):
+            "The Mixer stopped answering partway through moving channel \(step.channel)'s gain. Undo puts back what was changed."
+        case .noPreamp(let channel):
+            "Channel \(channel) on the Mixer has no preamp (its input is digital), so its gain can't be set."
+        case .cantConnect(let host, let port, let code):
+            "ShowRecorder couldn't open a connection to the Mixer at \(host):\(port) (error \(code)). Check the address in Settings › Mixer Link and try Connect again."
         case .other(let description):
             "The mixer connection failed: \(description)"
         }
     }
 }
 
-/// Talks to one kind of Mixer. X-Air first; X32/M32 can follow with the same shape.
+extension MixerLinkProblem {
+    /// A problem that passes, so connecting tries again before the Link goes down: a busy port (EADDRINUSE), as a
+    /// loaded device sometimes reports for a moment (#655).
+    var isPassing: Bool {
+        if case .cantConnect(_, _, let code) = self { code == Int(EADDRINUSE) } else { false }
+    }
+}
+
+/// Talks to one kind of Mixer: `XAirDriver` and `X32Driver`, with `DetectingMixerDriver` choosing between them.
 public protocol MixerDriver: Sendable {
     func identify() async throws(MixerLinkProblem) -> MixerIdentity
     /// What the identified model sends over USB and how many of its USB Channels this driver can name.
@@ -76,6 +113,17 @@ public protocol MixerDriver: Sendable {
     func renewLiveUpdates() async throws(MixerLinkProblem)
     /// The Source changes the Mixer pushes while live updates are renewed. Ends when the driver goes away.
     func sourceChanges() -> AsyncStream<SourceChange>
+    /// The Mixer's preamp control, which Mix Hold and auto-gain use (#442); nil when this driver can't set gain.
+    var gainControl: (any GainControl)? { get }
+}
+
+extension MixerDriver {
+    public var gainControl: (any GainControl)? { nil }
+}
+
+/// A driver that is its own preamp control offers itself, so a new family's driver can't forget to.
+extension MixerDriver where Self: GainControl {
+    public var gainControl: (any GainControl)? { self }
 }
 
 /// A name or color the Mixer changed on one USB Channel's Source. Nil fields did not change.
@@ -83,11 +131,14 @@ public struct SourceChange: Equatable, Sendable {
     public var usbChannel: Int
     public var name: String?
     public var color: MixerColor?
+    /// Set when a re-patch changed what the USB Channel carries (#21): its new `Source.routedFrom`, which can be nil.
+    public var routedFrom: String??
 
-    public init(usbChannel: Int, name: String? = nil, color: MixerColor? = nil) {
+    public init(usbChannel: Int, name: String? = nil, color: MixerColor? = nil, routedFrom: String?? = nil) {
         self.usbChannel = usbChannel
         self.name = name
         self.color = color
+        self.routedFrom = routedFrom
     }
 }
 
@@ -103,6 +154,9 @@ public struct Source: Equatable, Sendable {
     public var fader: Float?
     /// The Mixer's input source index for the channel.
     public var inputSource: Int?
+    /// What the Mixer routes to the USB Channel ("ch:5", "aux"), so a re-patch tells apart from a rename (#21). Nil
+    /// when it carries nothing nameable, or the routing isn't known.
+    public var routedFrom: String?
 
     public init(name: String, color: MixerColor, hasMixerName: Bool = true, isMuted: Bool? = nil, fader: Float? = nil, inputSource: Int? = nil) {
         self.name = name

@@ -67,6 +67,14 @@ struct SettingsView: View {
                     .onChange(of: model.preRollSeconds) { model.preRollChanged() }
                     .disabled(locked(.preRoll))
                     Text(model.preRollNote).font(.footnote).secondaryText()
+                    #if DEBUG && os(iOS)
+                    // Debug only, never in TestFlight: play the input to Bluetooth headphones while recording (#233).
+                    Toggle("Monitor experiment (#233)", isOn: Binding(
+                        get: { MonitorExperiment.shared.isEnabled },
+                        set: { MonitorExperiment.shared.isEnabled = $0; model.monitorExperimentChanged() }
+                    ))
+                    .disabled(locked(.input))
+                    #endif
                     // A dropdown menu. The choice is stored the moment it is picked (in the binding's setter), so it does
                     // not depend on the screen redrawing when the appearance changes under the open menu.
                     Picker("Appearance", selection: Binding(
@@ -96,7 +104,8 @@ struct SettingsView: View {
                     Text("Storage").id(SettingsSection.storage)
                 }
 
-                Section {
+                // Only for an X Air or X32 as the input (#365).
+                if model.offersMixerLink { Section {
                     TextField("Mixer IP address", text: $model.mixerAddress)
                         .autocorrectionDisabled()
                         #if os(iOS)
@@ -104,15 +113,19 @@ struct SettingsView: View {
                         .textInputAutocapitalization(.never)
                         #endif
                         .onSubmit { model.connectMixer() }
-                        .onChange(of: model.mixerAddress) { model.saveMixerAddress() }
                         .disabled(locked(.mixerLink))
                     Button(isConnecting ? "Connecting…" : "Connect") { model.connectMixer() }
                         .disabled(isConnecting || model.mixerAddress.isEmpty || locked(.mixerLink))
                     mixerStatus
                     FindMixersRow(model: model, disabled: locked(.mixerLink))
+                    if model.mixerGain.offersClipProtection {
+                        Toggle("Clip protection", isOn: $model.clipProtectionOn)
+                        Text("During a Take, turns a clipping channel's preamp down on the Mixer, with Mix Hold so the mix stays the same. Each move adds a Marker. Switched on, it starts with the next Take; switched off, it stops at once.")
+                            .font(.footnote).secondaryText()
+                    }
                 } header: {
                     Text("Mixer Link").id(SettingsSection.mixer)
-                }
+                } }
 
                 Section {
                     Button("Run Soundcheck") { showingSoundcheck = true }
@@ -121,7 +134,19 @@ struct SettingsView: View {
                     Text("A 30 s test of the Mixer Link, the USB Channels, every Copy and the files. Not during a Take.")
                 }
 
-                if ProSection.isOffered, !locked(.pro) { ProSection(model: model, showingTrial: $showingTrial, showingPaywall: $showingPaywall) }
+                if ProStore.isOffered, !locked(.pro) { ProSection(model: model, showingTrial: $showingTrial, showingPaywall: $showingPaywall) }
+
+                SupportSection(model: model)
+
+                // Which build is installed (#697): small and last, and not on the record screen.
+                Section {
+                    Text(AppVersion.current)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity)
+                        .listRowBackground(Color.clear)
+                }
             }
             .formStyle(.grouped)
             .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
@@ -138,7 +163,7 @@ struct SettingsView: View {
     }
 
     private var isConnecting: Bool {
-        if case .connecting = model.mixerLink.status { true } else { false }
+        if case .connecting = model.mixer.status { true } else { false }
     }
 
     @ViewBuilder private var driveStatus: some View {
@@ -170,7 +195,7 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var mixerStatus: some View {
-        switch model.mixerLink.status {
+        switch model.mixer.status ?? .idle {
         case .idle:
             Label("Not connected to a Mixer. Stems use USB Channel names.", systemImage: "link")
                 .secondaryText()
@@ -178,7 +203,7 @@ struct SettingsView: View {
             Label("Connecting to \(host)…", systemImage: "antenna.radiowaves.left.and.right")
                 .secondaryText()
         case .up(let identity, let path):
-            Label("Mixer Link up · \(identity.networkName) (\(identity.model)) · \(path == .wifi ? "Wi-Fi" : "USB")", systemImage: "checkmark.circle.fill")
+            Label("Mixer Link up · \(identity.networkName) (\(identity.model)) · \(path.name)", systemImage: "checkmark.circle.fill")
         case .down(let problem):
             Label(problem.message, systemImage: "exclamationmark.triangle.fill")
                 .warningText()

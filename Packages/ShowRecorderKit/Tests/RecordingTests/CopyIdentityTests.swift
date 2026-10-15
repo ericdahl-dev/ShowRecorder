@@ -34,6 +34,5 @@ struct CopyIdentityTests {
     func indexes() {
         #expect(DestinationKind.device.index == 0)
         #expect(DestinationKind.drive.index == 1)
-        #expect(DestinationKind(index: 1) == .drive)
     }
 }

@@ -76,7 +76,7 @@ if [ $mac = 1 ]; then
   [ -n "$(read_key LSApplicationCategoryType)" ] && ok "LSApplicationCategoryType = $(read_key LSApplicationCategoryType)" \
     || bad "LSApplicationCategoryType is missing (the Mac App Store needs it)"
   # An unsigned build is still ad hoc (linker) signed on Apple silicon, with no entitlements.
-  if codesign -dv "$app" 2>&1 | grep -q '^Authority='; then
+  if codesign -dvv "$app" 2>&1 | grep -q '^Authority='; then
     codesign -d --entitlements - --xml "$app" 2>/dev/null | grep -q 'com.apple.security.app-sandbox</key><true/>' \
       && ok "signed with the App Sandbox" || bad "signed without com.apple.security.app-sandbox"
   else
@@ -88,12 +88,53 @@ else
   bad "no compiled app icon (CFBundleIcons or Assets.car missing)"
 fi
 
-# The 1024 px App Store icon must be square and have no transparency.
-icon=App/Assets.xcassets/AppIcon.appiconset/icon-ios-1024.png
-w=$(sips -g pixelWidth "$icon" | awk '/pixelWidth/ {print $2}')
-h=$(sips -g pixelHeight "$icon" | awk '/pixelHeight/ {print $2}')
-alpha=$(sips -g hasAlpha "$icon" | awk '/hasAlpha/ {print $2}')
-[ "$w" = 1024 ] && [ "$h" = 1024 ] && ok "App Store icon is 1024x1024" || bad "App Store icon is ${w}x${h}, needs 1024x1024"
-[ "$alpha" = "no" ] && ok "App Store icon has no transparency" || bad "App Store icon has an alpha channel"
+# The iPhone app embeds the Live Activity extension (#136): App Store Connect refuses an extension whose
+# version or build number differs from the app's, or one without its extension point.
+if [ $mac = 0 ]; then
+  appex="$app/PlugIns/ShowRecorderLiveActivity.appex"
+  if [ -d "$appex" ]; then
+    read_appex() { /usr/libexec/PlistBuddy -c "Print :$1" "$appex/Info.plist" 2>/dev/null || true; }
+    [ "$(read_appex CFBundleShortVersionString)" = "$version" ] && [ "$(read_appex CFBundleVersion)" = "$build" ] \
+      && ok "Live Activity extension version matches the app" \
+      || bad "Live Activity extension is $(read_appex CFBundleShortVersionString) ($(read_appex CFBundleVersion)), the app $version ($build)"
+    [ "$(read_appex NSExtension:NSExtensionPointIdentifier)" = com.apple.widgetkit-extension ] \
+      && ok "Live Activity extension is a WidgetKit extension" || bad "Live Activity extension has no WidgetKit extension point"
+    [ "$(read_key NSSupportsLiveActivities)" = true ] && ok "NSSupportsLiveActivities = true" || bad "NSSupportsLiveActivities is missing from Info.plist"
+  else
+    bad "the Live Activity extension is not in the app (PlugIns/ShowRecorderLiveActivity.appex)"
+  fi
+elif [ -d "$app/Contents/PlugIns/ShowRecorderLiveActivity.appex" ]; then
+  bad "the Mac app embeds the Live Activity extension (it's iPhone only)"
+fi
+
+# The iPhone app embeds the Apple Watch remote (#100): App Store Connect refuses a watch app whose version or build
+# differs from the app's, or one that doesn't name the iPhone app as its companion.
+if [ $mac = 0 ]; then
+  watch="$app/Watch/ShowRecorderWatch.app"
+  if [ -d "$watch" ]; then
+    read_watch() { /usr/libexec/PlistBuddy -c "Print :$1" "$watch/Info.plist" 2>/dev/null || true; }
+    [ "$(read_watch CFBundleShortVersionString)" = "$version" ] && [ "$(read_watch CFBundleVersion)" = "$build" ] \
+      && ok "watch app version matches the app" \
+      || bad "watch app is $(read_watch CFBundleShortVersionString) ($(read_watch CFBundleVersion)), the app $version ($build)"
+    [ "$(read_watch WKCompanionAppBundleIdentifier)" = "$(read_key CFBundleIdentifier)" ] \
+      && ok "watch app's companion is this app" || bad "watch app's WKCompanionAppBundleIdentifier isn't $(read_key CFBundleIdentifier)"
+    [ "$(read_watch WKApplication)" = true ] && ok "watch app is a single-target watch app (WKApplication)" \
+      || bad "watch app has no WKApplication = true"
+  else
+    bad "the watch app is not in the app (Watch/ShowRecorderWatch.app)"
+  fi
+elif [ -d "$app/Contents/Watch" ]; then
+  bad "the Mac app embeds a watch app (it's iPhone only)"
+fi
+
+# The 1024 px App Store icons (the app's, and the watch app's) must be square and have no transparency.
+for icon in App/Assets.xcassets/AppIcon.appiconset/icon-ios-1024.png Watch/Assets.xcassets/AppIcon.appiconset/icon-watch-1024.png; do
+  name=$(basename "$icon")
+  w=$(sips -g pixelWidth "$icon" | awk '/pixelWidth/ {print $2}')
+  h=$(sips -g pixelHeight "$icon" | awk '/pixelHeight/ {print $2}')
+  alpha=$(sips -g hasAlpha "$icon" | awk '/hasAlpha/ {print $2}')
+  [ "$w" = 1024 ] && [ "$h" = 1024 ] && ok "$name is 1024x1024" || bad "$name is ${w}x${h}, needs 1024x1024"
+  [ "$alpha" = "no" ] && ok "$name has no transparency" || bad "$name has an alpha channel"
+done
 
 [ "$fail" = 0 ] && echo "== Preflight passed" || { echo "== Preflight failed"; exit 1; }

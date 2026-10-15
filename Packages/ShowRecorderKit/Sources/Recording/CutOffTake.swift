@@ -15,7 +15,7 @@ import TakeFile
 enum CutOffTake {
     struct Found {
         var metadata: TakeMetadata
-        var folders: [URL]
+        var folders: [DestinationKind: URL]
         /// When the Take ended, from its longest Copy.
         var endedAt: Date
     }
@@ -29,48 +29,68 @@ enum CutOffTake {
         guard let last = numbers.max() else { return nil }
         let name = TakeMetadata.name(take: last)
         let deviceTake = deviceShow.appending(path: name, directoryHint: .isDirectory)
-        guard var metadata = try? TakeMetadata.read(fromTakeFolder: deviceTake) else { return nil }
+        let driveTake = driveShow.map { $0.appending(path: name, directoryHint: .isDirectory) }
+            .flatMap { fm.fileExists(atPath: $0.path) ? $0 : nil }
+        // Drive only (ADR 0006): a Take that never lost its Drive has no Take.json on the Device, only its standby's
+        // empty folder; the Drive's Take.json says what the Take is.
+        let deviceMetadata = try? TakeMetadata.read(fromTakeFolder: deviceTake)
+        guard var metadata = deviceMetadata ?? driveTake.flatMap({ try? TakeMetadata.read(fromTakeFolder: $0) }) else { return nil }
         if let lastTakeEndedAt, metadata.startedAt <= lastTakeEndedAt { return nil }
 
-        var copies: [(kind: DestinationKind, folder: URL)] = [(.device, deviceTake)]
-        if let driveTake = driveShow?.appending(path: name, directoryHint: .isDirectory), fm.fileExists(atPath: driveTake.path) {
-            copies.append((.drive, driveTake))
+        var copies: [(kind: DestinationKind, folder: URL)] = []
+        // The Device is a Copy when it has the Take's Take.json or Stems (its Take.json may have failed to write).
+        if deviceMetadata != nil || metadata.usbChannels.contains(where: { fm.fileExists(atPath: deviceTake.appending(path: $0.stemFile).path) }) {
+            copies.append((.device, deviceTake))
+        } else if (try? fm.contentsOfDirectory(atPath: deviceTake.path).isEmpty) == true {
+            // The standby's empty folder goes, as at Stop.
+            try? fm.removeItem(at: deviceTake)
         }
+        if let driveTake { copies.append((.drive, driveTake)) }
         let info = StemWriter.Info(
             sampleRate: metadata.sampleRate, description: "", originator: "ShowRecorder",
             timeReference: metadata.timeReference, originationDate: metadata.startedAt)
         var lengths: [DestinationKind: UInt64] = [:]
         for copy in copies {
+            // Drive only: the Device holds stand-ins, each in its own folder from its own Take frame, not a Copy.
+            if copy.kind == .device, let standIns = metadata.standIns {
+                metadata.standIns = standIns.map { standIn in
+                    var standInInfo = info
+                    standInInfo.timeReference += UInt64(standIn.start)
+                    let frames = metadata.usbChannels
+                        .compactMap { finishStem(at: copy.folder.appending(path: standIn.folderName).appending(path: $0.stemFile), info: standInInfo) }
+                        .max() ?? 0
+                    return .init(start: standIn.start, end: standIn.start + Int(frames))
+                }
+                lengths[.device] = UInt64(metadata.standIns?.map(\.end).max() ?? 0)
+                continue
+            }
             lengths[copy.kind] = metadata.usbChannels
                 .compactMap { finishStem(at: copy.folder.appending(path: $0.stemFile), info: info) }
                 .max() ?? 0
         }
-        let longest = lengths.values.max() ?? 0
-        for copy in copies {
-            let length = lengths[copy.kind] ?? 0
-            guard length < longest else { continue }
-            let gap = TakeMetadata.Gap(copy: copy.kind, start: Int(length), end: Int(longest))
-            if !metadata.gaps.contains(gap) { metadata.gaps.append(gap) }
+        let coverage = CopyCoverage(stemLengths: lengths.mapValues { Int($0) })
+        let longest = UInt64(coverage.end)
+        // A Drive only Take has no Device Copy to have Gaps in.
+        for gap in coverage.gaps(takeEnd: coverage.end) where !metadata.gaps.contains(gap) && (metadata.standIns == nil || gap.copy != .device) {
+            metadata.gaps.append(gap)
         }
         for copy in copies { try? metadata.write(to: copy.folder) }
         let seconds = metadata.sampleRate > 0 ? Double(longest) / Double(metadata.sampleRate) : 0
-        return Found(metadata: metadata, folders: copies.map(\.folder), endedAt: metadata.startedAt.addingTimeInterval(seconds))
+        return Found(metadata: metadata, folders: Dictionary(uniqueKeysWithValues: copies.map { ($0.kind, $0.folder) }), endedAt: metadata.startedAt.addingTimeInterval(seconds))
     }
 
     /// Rewrites the Stem's header to cover its whole samples on disk, unless it already does. Returns its frames,
     /// or nil when it isn't there or isn't a Stem this writer made.
     static func finishStem(at url: URL, info: StemWriter.Info) -> UInt64? {
-        guard let region = StemLength.audioRegion(at: url),
-              let size = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? UInt64 else { return nil }
-        let bytesPerSample = UInt64(StemWriter.bytesPerSample)
+        guard let stem = try? StemFile.inspect(url) else { return nil }
         // Resuming truncates at this writer's header size plus the frames: a different header would lose audio.
-        guard region.offset == UInt64(StemWriter.dataStart), size >= region.offset else { return region.length / bytesPerSample }
-        let onDisk = (size - region.offset) / bytesPerSample
-        let dataBytes = onDisk * bytesPerSample
-        let finished = region.length == dataBytes && size == region.offset + dataBytes + dataBytes % 2
+        guard stem.dataStart == UInt64(StemWriter.dataStart) else { return stem.frameCount }
+        let onDisk = stem.framesOnDisk
+        let dataBytes = onDisk * UInt64(StemWriter.bytesPerSample)
+        let finished = stem.declaredBytes == dataBytes && stem.bytesOnDisk == dataBytes + dataBytes % 2
         guard !finished else { return onDisk }
         guard let writer = try? StemWriter.open(url: url, info: info, resumingAt: onDisk), (try? writer.finalize()) != nil else {
-            return region.length / bytesPerSample
+            return stem.frameCount
         }
         return onDisk
     }

@@ -65,7 +65,7 @@ struct StemDeleterTests {
         #expect(exists(drive, "\(show)/Take 01/02 USB 02.wav"))
 
         let copies: [DestinationKind: URL] = [.device: device.appending(path: "\(show)/Take 01"), .drive: drive.appending(path: "\(show)/Take 01")]
-        let named = ChannelRenamer.rename(names: [2: "Bass", 3: "Keys"], in: copies)
+        let named = ChannelRenamer.rename(names: [2: "Bass", 3: "Keys"], in: copies, allowsProExtras: true)
         #expect(named.renamed == [.device, .drive] && named.failed.isEmpty)
         #expect(exists(device, "\(show)/Take 01/03 Keys.wav") && !exists(device, "\(show)/Take 01/02 Bass.wav"))
         #expect(exists(drive, "\(show)/Take 01/02 Bass.wav"))
@@ -84,6 +84,40 @@ struct StemDeleterTests {
         let noDrive = StemDeleter.delete(channel: 3, inTake: 1, ofShow: show, from: [.device, .drive], device: device, drive: nil, openShow: nil)
         #expect(noDrive.deleted == [.device] && noDrive.failed.map(\.copy) == [.drive])
         #expect(try channels(drive) == [1, 2, 3])
+    }
+
+    @Test("A stand-in folder that is a link is never followed: the delete is refused and what it points at is untouched (#627)")
+    func standInLinkNotFollowed() throws {
+        _ = try record()
+        let takeFolder = device.appending(path: "\(show)/Take 01")
+        var take = try TakeMetadata.read(fromTakeFolder: takeFolder)
+        let standIn = TakeMetadata.StandIn(start: 0, end: 1)
+        take.standIns = [standIn]
+        try take.write(to: takeFolder)
+        let outside = root.appending(path: "Outside")
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+        let file = take.usbChannels[0].stemFile
+        try Data("keep".utf8).write(to: outside.appending(path: file))
+        try FileManager.default.createSymbolicLink(at: takeFolder.appending(path: standIn.folderName), withDestinationURL: outside)
+
+        let outcome = StemDeleter.delete(channel: 1, inTake: 1, ofShow: show, from: [.device], device: device, drive: drive, openShow: nil)
+
+        #expect(outcome.deleted.isEmpty)
+        #expect(FileManager.default.fileExists(atPath: outside.appending(path: file).path), "the target is untouched")
+        #expect(try channels(device) == [1, 2, 3])
+    }
+
+    @Test("An empty list of stand-ins is no stand-in: the Stem at the top of the Take folder goes (#627)")
+    func emptyStandInsIsNone() throws {
+        _ = try record()
+        let takeFolder = device.appending(path: "\(show)/Take 01")
+        var take = try TakeMetadata.read(fromTakeFolder: takeFolder)
+        take.standIns = []
+        try take.write(to: takeFolder)
+        let file = take.usbChannels[0].stemFile
+
+        #expect(StemDeleter.delete(channel: 1, inTake: 1, ofShow: show, from: [.device], device: device, drive: drive, openShow: nil).deleted == [.device])
+        #expect(!exists(device, "\(show)/Take 01/\(file)"))
     }
 
     @Test("The recorder refuses during a Take and for the open Show")

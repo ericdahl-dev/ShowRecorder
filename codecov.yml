@@ -1,0 +1,28 @@
+# Coverage on Codecov (Eric, 2026-10-14): Kit coverage may not drop. A PR fails codecov/project if it lowers Kit
+# coverage by more than 0.5%, and codecov/patch if under 80% of its new or changed Kit lines are covered. The App
+# (flag `app`, #679) stays informational until it has real tests.
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 0.5%
+        flags: [kit]
+      app:
+        informational: true
+        flags: [app]
+    patch:
+      default:
+        target: 80%
+        flags: [kit]
+      app:
+        informational: true
+        flags: [app]
+flags:
+  kit:
+    carryforward: true
+  app:
+    carryforward: true
+comment:
+  layout: "diff, flags, files"
+  require_changes: true

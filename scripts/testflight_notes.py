@@ -2,6 +2,10 @@
 """After the upload: set the build's "What to Test", add it to the external TestFlight group(s) and submit it
 for Beta App Review, through the App Store Connect API (same key as the upload, nothing else).
 
+An internal-only tag (its annotated message contains "[internal]", in TAG_MESSAGE) goes to the internal group(s)
+only: no external testers and no Beta App Review, until scripts/testflight_promote.py sends it on after Eric's Take
+on a real device. The tag name stays vX.Y.Z either way.
+
 Never fails the release: the upload already happened, so any problem is printed as a warning and the exit
 code stays 0. Prints no secret.
 
@@ -16,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ci_profile as asc  # same API helpers as the profile script
 
 LIMIT = 4000  # Apple's limit for "What to Test"
+INTERNAL_MARK = "[internal]"
 FALLBACK = "A new ShowRecorder build. Please record a short Take and check that it saves."
 
 
@@ -33,6 +38,27 @@ def notes(tag: str) -> str:
         titles = [t for t in titles if t.strip()]
         text = ("What changed:\n" + "\n".join(f"- {t}" for t in titles)) if previous and titles else FALLBACK
     return text[:LIMIT]
+
+
+def internal_tag(message: str) -> bool:
+    """Whether the tag is for internal testers only: its message contains [internal], in any case."""
+    return INTERNAL_MARK in (message or "").lower()
+
+
+def distribute(api, app_id: str, build_id: str, internal: bool):
+    """Internal-only: the internal group(s). Otherwise the external group(s) and Beta App Review, as before."""
+    groups = api.call("GET", f"/apps/{app_id}/betaGroups", query={"limit": 50})["data"]
+    # A group that already gets every build gets this one too; Apple refuses adding it there.
+    for group in (g for g in groups if g["attributes"].get("isInternalGroup") is internal
+                  and not g["attributes"].get("hasAccessToAllBuilds")):
+        api.call("POST", f"/betaGroups/{group['id']}/relationships/builds", body={"data": [{"type": "builds", "id": build_id}]})
+        print(f"Added to the group {group['attributes']['name']}.")
+    if internal:
+        print("Internal only: not sent to external testers. scripts/testflight_promote.py sends it on.")
+        return
+    api.call("POST", "/betaAppReviewSubmissions", body={"data": {
+        "type": "betaAppReviewSubmissions", "relationships": {"build": {"data": {"type": "builds", "id": build_id}}}}})
+    print("Submitted for Beta App Review.")
 
 
 def find_build(app_id: str, version: str, number: str):
@@ -68,14 +94,7 @@ def main():
             "relationships": {"build": {"data": {"type": "builds", "id": build_id}}}}})
     print("What to Test is set.")
 
-    groups = asc.call("GET", f"/apps/{app_id}/betaGroups", query={"limit": 50})["data"]
-    for group in (g for g in groups if g["attributes"].get("isInternalGroup") is False):
-        asc.call("POST", f"/betaGroups/{group['id']}/relationships/builds", body={"data": [{"type": "builds", "id": build_id}]})
-        print(f"Added to the group {group['attributes']['name']}.")
-
-    asc.call("POST", "/betaAppReviewSubmissions", body={"data": {
-        "type": "betaAppReviewSubmissions", "relationships": {"build": {"data": {"type": "builds", "id": build_id}}}}})
-    print("Submitted for Beta App Review.")
+    distribute(asc, app_id, build_id, internal_tag(os.environ.get("TAG_MESSAGE", "")))
 
 
 if __name__ == "__main__":

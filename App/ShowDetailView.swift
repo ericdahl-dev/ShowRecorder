@@ -1,7 +1,7 @@
 import Recording
 import SwiftUI
 
-/// One Show's Markers by Take, with rename for the operator's Markers (not Dropout Markers).
+/// One Show's Markers by Take, with rename for the operator's Markers (not the ones the recorder placed).
 struct ShowDetailView: View {
     let model: RecordScreenModel
     let show: ShowSummary
@@ -112,7 +112,9 @@ struct ShowDetailView: View {
                 .buttonStyle(.plain)
                 .accessibilityHint("Renames this Marker")
         } else {
-            content.accessibilityHint("A Dropout Marker, which can't be renamed")
+            content
+                .accessibilityElement(children: .combine)
+                .accessibilityHint("Can't be renamed")
         }
     }
 
@@ -130,13 +132,9 @@ struct ShowDetailView: View {
 
     private func rename(_ marker: MarkerDetail, inTake take: Int) async {
         guard let index = marker.operatorIndex else { return }
-        let store = model.drive.store
-        let device = show.folder.deletingLastPathComponent(), name = show.name, newName = newName
-        let outcome = await Task.detached { () -> MarkerRenamer.Outcome in
-            let access = store.beginAccess()
-            defer { access?.end() }
-            return ShowDetail.renameMarker(at: index, to: newName, inTake: take, ofShow: name, device: device, drive: access?.folder)
-        }.value
+        // Through the Recorder, which waits for any move of Drive only Takes to end first (#630).
+        let outcome = await model.recorder.renameMarker(
+            at: index, to: newName, inTake: take, ofShow: show.name, allowsProExtras: model.pro.license().allowsProExtras)
         switch outcome.result {
         case .emptyName: message = "A Marker needs a name."
         case .renamed:

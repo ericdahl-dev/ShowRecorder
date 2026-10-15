@@ -8,12 +8,15 @@ import StoreKit
 @MainActor
 @Observable
 final class ProStore {
-    /// What the current entitlements mean: whether Pro is owned and when the Trial started.
-    /// Starts from the last known purchases on this device (#316), until the App Store answers.
-    private(set) var purchases = ProStore.debugTrial ?? ProPurchases.lastKnown() ?? ProPurchases(owned: [])
-    /// Whether the tier is known: the App Store has answered this launch, or an earlier one did. Until then nothing
-    /// is limited (Show-Safe Promise, #316).
-    private(set) var tierKnown = ProStore.debugTrial != nil || ProPurchases.lastKnown() != nil
+    /// On in every build since the Pro and Trial products exist in App Store Connect (#371, 2026-10-11): Settings' Pro
+    /// section, the first-launch Trial offer, the paywall, the days-left chip and the Free limit at record. Off, the
+    /// License limits nothing, so every USB Channel is recorded with every extra (#60), and hides all of those.
+    static let isOffered = true
+
+    /// What the App Store has said: the last known purchases on this device (#316) until it answers this launch.
+    private(set) var status = ProStatus(lastKnown: ProStore.debugTrial ?? ProPurchases.lastKnown())
+    /// Whether Pro is owned and when the Trial started.
+    var purchases: ProPurchases { status.purchases }
     /// Called when the known tier changes (the App Store answered, a purchase, a refund), so the recorder can re-Arm
     /// between Takes at the rate it may now use.
     @ObservationIgnored var onTierChange: (() -> Void)?
@@ -46,7 +49,10 @@ final class ProStore {
         }
     }
 
-    func tier(now: Date = Date()) -> Tier { purchases.tier(now: now) }
+    /// What the operator may do right now. Every Pro, Free and Trial question goes through it (#439).
+    func license(now: Date = Date()) -> License {
+        status.license(proOffered: Self.isOffered, freeChoice: freeChoice, now: now)
+    }
 
     /// Debug builds only: `-trialDaysLeft N` acts as if a Trial with N days left is owned (0 has just ended), so the
     /// days-left chip, the last-days offer and the end of the Trial can be checked without waiting two weeks (#324).
@@ -60,9 +66,6 @@ final class ProStore {
         return nil
         #endif
     }()
-
-    /// The tier for limits: nil while it isn't known yet, which limits nothing (#316).
-    func knownTier(now: Date = Date()) -> Tier? { tierKnown ? purchases.tier(now: now) : nil }
 
     func loadProducts() async {
         loadingProducts = true
@@ -138,10 +141,8 @@ final class ProStore {
                 purchaseDate: transaction.purchaseDate,
                 revocationDate: transaction.revocationDate))
         }
-        let before = knownTier()
-        purchases = ProPurchases(owned: owned)
-        tierKnown = true
-        purchases.saveAsLastKnown()
-        if knownTier() != before { onTierChange?() }
+        let changed = status.appStoreAnswered(owned, now: Date())
+        status.purchases.saveAsLastKnown()
+        if changed { onTierChange?() }
     }
 }

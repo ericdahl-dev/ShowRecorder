@@ -71,6 +71,29 @@ struct TakeFileFormatTests {
         try stem.finalize()
     }
 
+    /// A Take folder a move has set aside (`.moved Take 02`, #630), with the same files as the Take.
+    func setAside() throws {
+        try FileManager.default.copyItem(at: take, to: show.appending(path: ".moved Take 02"))
+    }
+
+    @Test("A Take folder set aside by a move isn't read as a Take by the Show list (#630)")
+    func showListSkipsSetAside() throws {
+        try setAside()
+        #expect(ShowList.takeMetadata(in: show).map(\.folder.lastPathComponent) == ["Take 02"])
+    }
+
+    @Test("A Take folder set aside by a move isn't in the Show report (#630)")
+    func reportSkipsSetAside() throws {
+        try setAside()
+        #expect(try ShowReport(showFolder: show).takes.count == 1)
+    }
+
+    @Test("A Take folder set aside by a move isn't in the Reaper export's timeline (#630)")
+    func timelineSkipsSetAside() throws {
+        try setAside()
+        #expect(try Show(name: "2026-10-06 Show", folder: show, takeCount: 2).timeline().takes.count == 1)
+    }
+
     @Test("The Show report's CSV has every channel with its Stem length")
     func csv() throws {
         let report = try ShowReport(showFolder: show)

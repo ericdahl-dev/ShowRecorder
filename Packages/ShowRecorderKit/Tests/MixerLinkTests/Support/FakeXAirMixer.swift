@@ -3,7 +3,8 @@ import Network
 import OSC
 import Synchronization
 
-/// A fake X-Air mixer: answers OSC queries on a loopback UDP port from in-memory state.
+/// A fake X-Air mixer: answers OSC queries on a loopback UDP port from in-memory state. `State.x32()` makes it an
+/// X32 instead: 32 input channels, each with `config/source` in place of the X-Air's `config/insrc`, and no aux return.
 final class FakeXAirMixer: Sendable {
     struct Channel: Sendable {
         var name: String
@@ -12,6 +13,20 @@ final class FakeXAirMixer: Sendable {
         var on: Int32 = 1
         var fader: Float = 0.75
         var inputSource: Int32 = 0
+        /// X32 Mix Hold settings, as OSC floats (0…1) and ints.
+        var gateThreshold: Float = 0.5
+        var compressorThreshold: Float = 0.5
+        var monoLevel: Float = 0
+        var sendLevels: [Float] = Array(repeating: 0, count: 16)
+        /// One per odd send (1, 3 … 15): 0–3 pre-fader (IN/LC, <-EQ, EQ->, PRE), 4 POST, 5 GRP.
+        var sendTypes: [Int32] = Array(repeating: 4, count: 8)
+        /// X-Air: one tap per send (`/ch/NN/mix/MM/tap`): 0 IN, 1 PREEQ, 2 POSTEQ, 3 PRE, 4 POST, 5 GRP.
+        var sendTaps: [Int32] = Array(repeating: 4, count: 16)
+        var gateKey: Int32 = 0
+        var compressorKey: Int32 = 0
+        /// `gate/on` and `dyn/on`: 1 on, 0 off.
+        var gateOn: Int32 = 1
+        var compressorOn: Int32 = 1
     }
 
     struct State: Sendable {
@@ -30,6 +45,53 @@ final class FakeXAirMixer: Sendable {
         var xremoteLifetime: TimeInterval = 10
         /// Every address queried, in order.
         var queries: [String] = []
+        /// The input-source field of an input channel: the X-Air's "insrc", the X32's "source".
+        var inputSourceField = "insrc"
+        /// Whether `/rtn/aux` answers (the X-Air's aux return; the X32 has none).
+        var hasAuxReturn = true
+        /// X-Air only: `/routing/usb/01…18` as [source, tap] (nil: no answer, as older firmware may not know it).
+        var usbRouting: [[Int32]]?
+        /// X32 only: `/config/routing/CARD/…` and `/config/routing/IN/…`, one number per block of 8 (nil: no answer).
+        var cardBlocks: [Int32]?
+        var inputBlocks: [Int32]?
+        /// X32 only: `/-ha/NN/index`, the preamp behind each channel (-1: none). Default: channel n on preamp n-1.
+        var headampOfChannel: [Int32] = Array(0..<32)
+        /// X32 only: `/headamp/NNN/gain` as OSC floats.
+        var headampGains: [Float] = Array(repeating: 0, count: 128)
+        /// Every value set (an address with one argument), in order, so tests can see what the driver wrote.
+        var writes: [(address: String, value: OSCArgument)] = []
+        /// Values set by a client: a later query of that address answers with it.
+        var set: [String: OSCArgument] = [:]
+        /// When set, the mixer stops answering anything once it has taken this many sets, as a desk that drops off the
+        /// network partway through a gain change.
+        var stopsAnsweringAfterWrites: Int?
+        /// Like the real XR18 (firmware 1.26): every set is echoed back to its sender, with no arguments.
+        var echoesSets = false
+        /// Like the real XR18 in #688: a preamp gain set (`/headamp/…/gain`) takes effect only once the desk has answered
+        /// this many more queries; until then a query of it answers the old gain. Every other set applies at once.
+        var gainLag = 0
+        var pendingGains: [String: (value: OSCArgument, queriesLeft: Int)] = [:]
+        /// Like the real XR18 (measured for #688): a fader set eases in over about 70 ms, a preamp gain set lands at once.
+        /// Here a fader set (`…/mix/fader`) takes effect this many seconds after it arrives, at the next packet after that.
+        var faderEase: TimeInterval = 0
+        var pendingFaders: [String: (value: OSCArgument, due: Date)] = [:]
+        /// The values the desk applied, after each set and each late gain, in order.
+        var history: [[String: OSCArgument]] = []
+
+        /// An X32 (or, with another `model`, an M32) as Maillot's X32 emulator answers it.
+        static func x32(model: String = "X32") -> State {
+            var state = State()
+            state.networkName = "FOH-X32"
+            state.model = model
+            state.firmware = "4.06"
+            // A real X32's defaults: channel n on In n, and the card and inputs on AN1-8 … AN25-32.
+            state.channels = (1...32).map { Channel(name: "", color: 0, inputSource: Int32($0)) }
+            state.inputSourceField = "source"
+            state.hasAuxReturn = false
+            state.cardBlocks = [0, 1, 2, 3]
+            state.inputBlocks = [0, 1, 2, 3]
+            return state
+        }
     }
 
     private let responder: Responder
@@ -82,17 +144,42 @@ final class FakeXAirMixer: Sendable {
 
     var queries: [String] { responder.state.withLock { $0.queries } }
 
-    /// Renames input channel `number` (1...16) on the Mixer, as the operator would at its surface, and
+    var writes: [(address: String, value: OSCArgument)] { responder.state.withLock { $0.writes } }
+
+    var history: [[String: OSCArgument]] { responder.state.withLock { $0.history } }
+
+    /// Renames input channel `number` (1...16, or 1...32 on an X32) on the Mixer, as the operator would at its surface, and
     /// pushes the change to every client whose /xremote is still running.
     func rename(channel number: Int, to name: String) {
         update { $0.channels[number - 1].name = name }
         responder.push(OSCMessage(String(format: "/ch/%02d/config/name", number), [.string(name)]))
     }
 
-    /// Recolors input channel `number` (1...16), pushing the change like `rename`.
+    /// Recolors input channel `number` (1...16, or 1...32 on an X32), pushing the change like `rename`.
     func recolor(channel number: Int, to color: Int32) {
         update { $0.channels[number - 1].color = color }
         responder.push(OSCMessage(String(format: "/ch/%02d/config/color", number), [.int(color)]))
+    }
+
+    /// X32: patches USB card block `block` (0 = USB 1-8 … 3 = USB 25-32) to `bank`, pushing the change.
+    func repatchCard(block: Int, to bank: Int32) {
+        update { $0.cardBlocks?[block] = bank }
+        responder.push(OSCMessage("/config/routing/CARD/" + Self.blockNames[block], [.int(bank)]))
+    }
+
+    /// X32: moves input channel `number` to source `source` (1-32 for In01-In32), pushing the change.
+    func setSource(channel number: Int, to source: Int32) {
+        update { $0.channels[number - 1].inputSource = source }
+        responder.push(OSCMessage(String(format: "/ch/%02d/config/source", number), [.int(source)]))
+    }
+
+    static let blockNames = ["1-8", "9-16", "17-24", "25-32"]
+
+    /// X-Air: repatches USB Channel `usb` to `source` (tap kept), pushing the change.
+    func repatchUSB(_ usb: Int, to source: Int32) {
+        let tap = responder.state.withLock { $0.usbRouting?[usb - 1][1] ?? 0 }
+        update { $0.usbRouting?[usb - 1] = [source, tap] }
+        responder.push(OSCMessage(String(format: "/routing/usb/%02d", usb), [.int(source), .int(tap)]))
     }
 
     /// Renames the aux return (USB Channels 17 and 18).
@@ -140,6 +227,23 @@ final class FakeXAirMixer: Sendable {
                 if let data, let query = try? OSCMessage(decoding: Array(data)), query.address == "/xremote" {
                     if state.withLock({ $0.answers }) { subscribe(connection) }
                     state.withLock { $0.queries.append("/xremote") }
+                } else if let data, let message = try? OSCMessage(decoding: Array(data)), let value = message.arguments.first {
+                    // A set: remember it; the X32 answers nothing, the XR18 echoes the address with no arguments.
+                    let echo = state.withLock { state -> Bool in
+                        Self.applyDueFaders(&state)
+                        state.writes.append((message.address, value))
+                        if state.faderEase > 0, message.address.hasSuffix("/mix/fader") {
+                            state.pendingFaders[message.address] = (value, Date().addingTimeInterval(state.faderEase))
+                        } else if state.gainLag > 0, message.address.hasPrefix("/headamp/") {
+                            state.pendingGains[message.address] = (value, state.gainLag)
+                        } else {
+                            state.set[message.address] = value
+                        }
+                        state.history.append(state.set)
+                        if let limit = state.stopsAnsweringAfterWrites, state.writes.count >= limit { state.answers = false }
+                        return state.echoesSets
+                    }
+                    if echo { connection.send(content: Data(OSCMessage(message.address).encoded()), completion: .contentProcessed { _ in }) }
                 } else if let data, let query = try? OSCMessage(decoding: Array(data)), let reply = reply(to: query) {
                     connection.send(content: Data(reply.encoded()), completion: .contentProcessed { _ in })
                 }
@@ -147,35 +251,86 @@ final class FakeXAirMixer: Sendable {
             }
         }
 
+        /// Fader sets whose easing is over take effect, each recorded in `history`.
+        private static func applyDueFaders(_ state: inout State) {
+            let now = Date()
+            for (address, pending) in state.pendingFaders where pending.due <= now {
+                state.pendingFaders[address] = nil
+                state.set[address] = pending.value
+                state.history.append(state.set)
+            }
+        }
+
         private func reply(to query: OSCMessage) -> OSCMessage? {
             state.withLock { state in
                 state.queries.append(query.address)
+                Self.applyDueFaders(&state)
+                for (address, pending) in state.pendingGains {
+                    guard pending.queriesLeft <= 1 else { state.pendingGains[address]?.queriesLeft -= 1; continue }
+                    state.pendingGains[address] = nil
+                    state.set[address] = pending.value
+                    state.history.append(state.set)
+                }
                 guard state.answers else { return nil }
+                if let value = state.set[query.address] { return OSCMessage(query.address, [value]) }
                 let parts = query.address.split(separator: "/").map(String.init)
                 switch parts {
                 case ["xinfo"]:
                     return OSCMessage("/xinfo", ["127.0.0.1", .string(state.networkName), .string(state.model), .string(state.firmware)])
                 case let p where p.count == 4 && p[0] == "ch":
-                    guard let number = Int(p[1]), (1...16).contains(number) else { return nil }
-                    guard state.answersMixState || (p[2] == "config" && p[3] != "insrc") else { return nil }
+                    guard let number = Int(p[1]), state.channels.indices.contains(number - 1) else { return nil }
+                    guard state.answersMixState || (p[2] == "config" && p[3] != state.inputSourceField) else { return nil }
                     if state.reportsFaderAsInt, p[2] == "mix", p[3] == "fader" { return OSCMessage(query.address, [.int(1)]) }
-                    return Self.answer(query.address, section: p[2], field: p[3], channel: state.channels[number - 1], hasInputSource: true)
-                case let p where p.count == 4 && p[0] == "rtn" && p[1] == "aux":
+                    return Self.answer(query.address, section: p[2], field: p[3], channel: state.channels[number - 1], inputSourceField: state.inputSourceField)
+                case let p where p.count == 3 && p[0] == "headamp" && p[2] == "gain":
+                    guard let index = Int(p[1]), state.headampGains.indices.contains(index) else { return nil }
+                    return OSCMessage(query.address, [.float(state.headampGains[index])])
+                case let p where p.count == 5 && p[0] == "ch" && p[2] == "mix":
+                    guard let number = Int(p[1]), state.channels.indices.contains(number - 1), let send = Int(p[3]), (1...16).contains(send) else { return nil }
+                    let channel = state.channels[number - 1]
+                    switch p[4] {
+                    case "level": return OSCMessage(query.address, [.float(channel.sendLevels[send - 1])])
+                    case "type" where send % 2 == 1 && state.inputSourceField == "source": return OSCMessage(query.address, [.int(channel.sendTypes[send / 2])])
+                    case "tap" where state.inputSourceField == "insrc": return OSCMessage(query.address, [.int(channel.sendTaps[send - 1])])
+                    default: return nil
+                    }
+                case let p where p.count == 3 && p[0] == "routing" && p[1] == "usb":
+                    guard let routing = state.usbRouting, let n = Int(p[2]), routing.indices.contains(n - 1) else { return nil }
+                    return OSCMessage(query.address, routing[n - 1].map { .int($0) })
+                case let p where p.count == 3 && p[0] == "-ha" && p[2] == "index" && state.inputSourceField == "source":
+                    guard let index = Int(p[1]), state.headampOfChannel.indices.contains(index) else { return nil }
+                    return OSCMessage(query.address, [.int(state.headampOfChannel[index])])
+                case let p where p.count == 4 && p[0] == "config" && p[1] == "routing" && (p[2] == "CARD" || p[2] == "IN"):
+                    guard let blocks = p[2] == "CARD" ? state.cardBlocks : state.inputBlocks,
+                          let index = FakeXAirMixer.blockNames.firstIndex(of: p[3]) else { return nil }
+                    return OSCMessage(query.address, [.int(blocks[index])])
+                case let p where p.count == 3 && p[0] == "config" && (p[1] == "chlink" || p[1] == "linkcfg"):
+                    // Stereo links and what they link (`/config/linkcfg/preamp` on the X-Air, `hadly` on the X32): off
+                    // unless a test sets them.
+                    return OSCMessage(query.address, [.int(0)])
+                case let p where p.count == 4 && p[0] == "rtn" && p[1] == "aux" && state.hasAuxReturn:
                     guard state.answersMixState || p[2] == "config" else { return nil }
-                    return Self.answer(query.address, section: p[2], field: p[3], channel: state.auxReturn, hasInputSource: false)
+                    return Self.answer(query.address, section: p[2], field: p[3], channel: state.auxReturn, inputSourceField: nil)
                 default:
                     return nil
                 }
             }
         }
 
-        private static func answer(_ address: String, section: String, field: String, channel: Channel, hasInputSource: Bool) -> OSCMessage? {
+        private static func answer(_ address: String, section: String, field: String, channel: Channel, inputSourceField: String?) -> OSCMessage? {
             switch (section, field) {
             case ("config", "name"): OSCMessage(address, [.string(channel.name)])
             case ("config", "color"): OSCMessage(address, [.int(channel.color)])
-            case ("config", "insrc") where hasInputSource: OSCMessage(address, [.int(channel.inputSource)])
+            case ("config", let f) where f == inputSourceField: OSCMessage(address, [.int(channel.inputSource)])
             case ("mix", "on"): OSCMessage(address, [.int(channel.on)])
             case ("mix", "fader"): OSCMessage(address, [.float(channel.fader)])
+            case ("mix", "mlevel"): OSCMessage(address, [.float(channel.monoLevel)])
+            case ("gate", "thr"): OSCMessage(address, [.float(channel.gateThreshold)])
+            case ("dyn", "thr"): OSCMessage(address, [.float(channel.compressorThreshold)])
+            case ("gate", "keysrc"): OSCMessage(address, [.int(channel.gateKey)])
+            case ("dyn", "keysrc"): OSCMessage(address, [.int(channel.compressorKey)])
+            case ("gate", "on"): OSCMessage(address, [.int(channel.gateOn)])
+            case ("dyn", "on"): OSCMessage(address, [.int(channel.compressorOn)])
             default: nil
             }
         }

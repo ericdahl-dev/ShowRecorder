@@ -32,20 +32,42 @@ struct MixerLinkProblemTests {
         (NWError.posix(.EHOSTUNREACH), MixerLinkProblem.networkUnreachable),
         (NWError.posix(.ECONNREFUSED), MixerLinkProblem.noReply(host: "10.0.0.9")),
         (NWError.dns(-65570), MixerLinkProblem.localNetworkDenied),
+        (NWError.posix(.ETIMEDOUT), MixerLinkProblem.noReply(host: "10.0.0.9")),
+        (NWError.posix(.ECONNRESET), MixerLinkProblem.noReply(host: "10.0.0.9")),
+        (NWError.posix(.EADDRNOTAVAIL), MixerLinkProblem.networkUnreachable),  // Wi-Fi changed or dropped
+        (NWError.dns(-65554), MixerLinkProblem.hostNotFound("10.0.0.9")),  // no such record
+        (NWError.dns(-65538), MixerLinkProblem.hostNotFound("10.0.0.9")),  // no such name
+        (NWError.dns(-65568), MixerLinkProblem.hostNotFound("10.0.0.9")),  // timed out
+        (NWError.posix(.EINVAL), MixerLinkProblem.cantConnect(host: "10.0.0.9", port: 10024, code: 22)),
     ])
     func networkErrorsMap(error: NWError, expected: MixerLinkProblem) {
-        #expect(MixerLinkProblem(error, path: nil, host: "10.0.0.9") == expected)
+        #expect(MixerLinkProblem(error, path: nil, host: "10.0.0.9", port: 10024) == expected)
+    }
+
+    @Test("A Network error with no words of its own says where it couldn't connect and what to try, not \"NWError error 22\"")
+    func unmappedIsReadable() {
+        let message = MixerLinkProblem(.posix(.EINVAL), path: nil, host: "192.168.1.146", port: 10024).message
+        #expect(message.contains("192.168.1.146:10024"))
+        #expect(message.contains("(error 22)"))
+        #expect(!message.contains("NWError"))
+        #expect(!message.contains("couldn’t be completed"))
     }
 
     @Test("Every problem has a message that says what to do")
     func everyProblemHasMessage() {
         let problems: [MixerLinkProblem] = [
-            .noReply(host: "10.0.0.9"), .networkUnreachable, .localNetworkDenied, .invalidAddress("10.0.0"), .other("x"),
+            .noReply(host: "10.0.0.9"), .networkUnreachable, .localNetworkDenied, .invalidAddress("10.0.0"), .hostNotFound("xr18.local"),
+            .cantConnect(host: "10.0.0.9", port: 10024, code: 22), .other("x"),
         ]
         for problem in problems {
             #expect(!problem.message.isEmpty)
         }
         #expect(MixerLinkProblem.noReply(host: "10.0.0.9").message.contains("10.0.0.9"))
         #expect(MixerLinkProblem.localNetworkDenied.message.contains("Local Network"))
+    }
+
+    @Test("A bad address is called an address, not an IP address: a name such as xr18.local is fine too")
+    func invalidAddressWording() {
+        #expect(MixerLinkProblem.invalidAddress("xr18..local").message == "\"xr18..local\" isn't a valid Mixer address. Enter its IP address, such as 192.168.1.20, or its name, such as xr18.local.")
     }
 }

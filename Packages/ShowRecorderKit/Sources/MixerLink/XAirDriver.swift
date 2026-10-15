@@ -1,21 +1,28 @@
 import OSC
+import Synchronization
 
 /// The X-Air driver (XR12/XR16/XR18, MR18) over OSC on UDP port 10024.
 public final class XAirDriver: MixerDriver {
-    private let client: OSCUDPClient
-    private let timeout: Duration
+    let client: OSCUDPClient
+    let queries: MixerQueries
+    /// How long a fader set takes to land on the desk (`MixHoldDesk`): 80 ms, over the 60–70 ms measured on an XR18 (#688).
+    let faderSettle: Duration
+    /// What each USB Channel carries, and the Sources last read, so pushed changes reach the right USB Channels.
+    /// Until the routing is read, the XR18's default.
+    let linked = Mutex<(targets: [XAirRouting.Target?], sources: [Source])>((XAirDriver.defaultTargets, []))
 
-    public init(endpoint: MixerEndpoint, timeout: Duration = .seconds(1.5)) {
+    /// The XR18's default USB routing: USB 1-16 input channels 1-16, 17-18 the aux return.
+    static let defaultTargets: [XAirRouting.Target?] = (1...16).map { .channel($0) } + [.auxReturn, .auxReturn]
+
+    public init(endpoint: MixerEndpoint, timeout: Duration = .seconds(1.5), faderSettle: Duration = .milliseconds(80)) {
         client = OSCUDPClient(endpoint: endpoint)
-        self.timeout = timeout
+        self.faderSettle = faderSettle
+        queries = MixerQueries(client: client, timeout: timeout)
     }
 
     /// `/xinfo` answers with the Mixer's IP, network name, model and firmware.
     public func identify() async throws(MixerLinkProblem) -> MixerIdentity {
-        let reply = try await client.request(OSCMessage("/xinfo"), timeout: timeout)
-        let strings = reply.arguments.compactMap { if case .string(let value) = $0 { value } else { nil } }
-        guard strings.count >= 4 else { throw .other("The Mixer's /xinfo reply was incomplete") }
-        return MixerIdentity(networkName: strings[1], model: strings[2], firmware: strings[3])
+        try await queries.identify()
     }
 
     /// The XR18 and MR18 send 18 USB Channels; the XR12 and XR16 send no multichannel USB audio. An
@@ -31,43 +38,44 @@ public final class XAirDriver: MixerDriver {
     /// USB Channels 1–16 carry input channels 1–16 and 17–18 the aux return; any beyond are not the X-Air's.
     private static let nameableUSBChannelCount = 18
 
-    /// USB Channels 1–16 carry input channels 1–16; 17–18 carry the aux return (left and right).
-    /// The Mixer's actual USB routing is read in #20; until then this is the XR18's default.
+    /// Each USB Channel is named after what the Mixer routes to it (`/routing/usb/NN`, #20): an input channel, the aux
+    /// return, or nothing nameable (FX, a bus, a send, the main mix), which keeps its USB Channel name. Firmware that
+    /// doesn't answer the routing gets the XR18's default.
     ///
-    /// Mute, fader and input source are optional: if the Mixer doesn't answer the first of them,
-    /// they're skipped for the rest rather than waiting out a timeout per query.
+    /// Mute, fader and input source are optional (see `MixerQueries.source`).
     public func sources(usbChannelCount: Int) async throws(MixerLinkProblem) -> [Source] {
         var sources: [Source] = []
         guard usbChannelCount > 0 else { return sources }
+        let targets = await readTargets() ?? Self.defaultTargets
         var readsMixState = true
         for usbChannel in 1...usbChannelCount {
-            guard usbChannel <= Self.nameableUSBChannelCount else {
+            guard usbChannel <= Self.nameableUSBChannelCount, let target = targets[usbChannel - 1] else {
                 sources.append(.fallback(usbChannel: usbChannel))
                 continue
             }
-            let isInput = usbChannel <= 16
-            let base = isInput ? String(format: "/ch/%02d", usbChannel) : "/rtn/aux"
-            let name = try await string(at: base + "/config/name")
-            let color = MixerColor(xAirIndex: try await int(at: base + "/config/color"))
-            var source = name.isEmpty ? .fallback(usbChannel: usbChannel, color: color) : Source(name: name, color: color)
-            if readsMixState {
-                do {
-                    source.isMuted = try await optional { () async throws(MixerLinkProblem) in try await int(at: base + "/mix/on") == 0 }
-                    source.fader = try await optional { () async throws(MixerLinkProblem) in try await float(at: base + "/mix/fader") }
-                    if isInput {
-                        source.inputSource = try await optional { () async throws(MixerLinkProblem) in Int(try await int(at: base + "/config/insrc")) }
-                    }
-                } catch {
-                    // No reply: this Mixer doesn't report mix state. Stop asking.
-                    readsMixState = false
-                    source.isMuted = nil
-                    source.fader = nil
-                    source.inputSource = nil
-                }
+            var source: Source
+            switch target {
+            case .channel(let channel):
+                source = try await queries.source(at: String(format: "/ch/%02d", channel), usbChannel: usbChannel, inputSourceField: "insrc", readsMixState: &readsMixState)
+                source.routedFrom = "ch:\(channel)"
+            case .auxReturn:
+                source = try await queries.source(at: "/rtn/aux", usbChannel: usbChannel, inputSourceField: nil, readsMixState: &readsMixState)
+                source.routedFrom = "aux"
             }
             sources.append(source)
         }
+        linked.withLock { $0 = (targets, sources) }
         return sources
+    }
+
+    /// The USB routing, or nil when the Mixer doesn't answer it (older firmware). Stops at the first unanswered query.
+    private func readTargets() async -> [XAirRouting.Target?]? {
+        var targets: [XAirRouting.Target?] = []
+        for usbChannel in 1...Self.nameableUSBChannelCount {
+            guard let source = try? await queries.int(at: String(format: "/routing/usb/%02d", usbChannel)) else { return nil }
+            targets.append(XAirRouting.target(ofSource: Int(source)))
+        }
+        return targets
     }
 
     /// /xremote makes the Mixer push changes to this sender for 10 seconds. It has no reply, so /xinfo
@@ -77,13 +85,14 @@ public final class XAirDriver: MixerDriver {
         _ = try await identify()
     }
 
-    /// Name and color changes pushed for input channels (USB Channels 1–16) and the aux return (17–18).
+    /// Name and color changes pushed for input channels and the aux return, sent to every USB Channel that carries
+    /// them. A pushed USB routing change reads the Sources again and sends what moved.
     public func sourceChanges() -> AsyncStream<SourceChange> {
         let messages = client.unsolicited
         return AsyncStream { continuation in
             let task = Task {
                 for await message in messages {
-                    for change in Self.changes(in: message) { continuation.yield(change) }
+                    for change in await changes(after: message) { continuation.yield(change) }
                 }
                 continuation.finish()
             }
@@ -91,48 +100,37 @@ public final class XAirDriver: MixerDriver {
         }
     }
 
-    private static func changes(in message: OSCMessage) -> [SourceChange] {
+    private func changes(after message: OSCMessage) async -> [SourceChange] {
         let parts = message.address.split(separator: "/").map(String.init)
+        if parts.count == 3, parts[0] == "routing", parts[1] == "usb" { return await reread() }
         guard parts.count == 4, parts[2] == "config" else { return [] }
-        let channels: [Int]
+        let target: XAirRouting.Target
         switch (parts[0], parts[1]) {
-        case ("ch", let number): channels = Int(number).flatMap { (1...16).contains($0) ? [$0] : nil } ?? []
-        case ("rtn", "aux"): channels = [17, 18]
-        default: channels = []
+        case ("ch", let number):
+            guard let channel = Int(number) else { return [] }
+            target = .channel(channel)
+        case ("rtn", "aux"): target = .auxReturn
+        default: return []
         }
+        let targets = linked.withLock { $0.targets }
+        let usbChannels = targets.indices.filter { targets[$0] == target }.map { $0 + 1 }
         switch (parts[3], message.arguments.first) {
-        case ("name", .string(let name)?): return channels.map { SourceChange(usbChannel: $0, name: name) }
-        case ("color", .int(let index)?): return channels.map { SourceChange(usbChannel: $0, color: MixerColor(xAirIndex: index)) }
+        case ("name", .string(let name)?): return usbChannels.map { SourceChange(usbChannel: $0, name: name) }
+        case ("color", .int(let index)?): return usbChannels.map { SourceChange(usbChannel: $0, color: MixerColor(xAirIndex: index)) }
         default: return []
         }
     }
 
-    /// Reads an optional value: an odd reply makes it nil; no reply at all is thrown to the caller.
-    private func optional<T>(_ read: () async throws(MixerLinkProblem) -> T) async throws(MixerLinkProblem) -> T? {
-        do {
-            return try await read()
-        } catch .noReply(let host) {
-            throw .noReply(host: host)
-        } catch {
-            return nil
+    /// Reads the Sources again after a routing change and says which USB Channels' names, colors or routing moved.
+    private func reread() async -> [SourceChange] {
+        let before = linked.withLock { $0.sources }
+        guard !before.isEmpty, let after = try? await sources(usbChannelCount: before.count) else { return [] }
+        return zip(before, after).enumerated().compactMap { index, pair in
+            let (old, new) = pair
+            guard old.name != new.name || old.color != new.color || old.routedFrom != new.routedFrom else { return nil }
+            return SourceChange(usbChannel: index + 1, name: old.name == new.name ? nil : (new.hasMixerName ? new.name : ""),
+                                color: old.color == new.color ? nil : new.color,
+                                routedFrom: old.routedFrom == new.routedFrom ? nil : .some(new.routedFrom))
         }
-    }
-
-    private func float(at address: String) async throws(MixerLinkProblem) -> Float {
-        let reply = try await client.request(OSCMessage(address), timeout: timeout)
-        guard case .float(let value)? = reply.arguments.first else { throw .other("\(address) didn't return a level") }
-        return value
-    }
-
-    private func string(at address: String) async throws(MixerLinkProblem) -> String {
-        let reply = try await client.request(OSCMessage(address), timeout: timeout)
-        guard case .string(let value)? = reply.arguments.first else { throw .other("\(address) didn't return a name") }
-        return value
-    }
-
-    private func int(at address: String) async throws(MixerLinkProblem) -> Int32 {
-        let reply = try await client.request(OSCMessage(address), timeout: timeout)
-        guard case .int(let value)? = reply.arguments.first else { throw .other("\(address) didn't return a number") }
-        return value
     }
 }

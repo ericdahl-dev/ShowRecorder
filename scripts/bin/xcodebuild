@@ -1,0 +1,34 @@
+#!/bin/sh
+# `xcodebuild`, one heavy build at a time on this Mac (scripts/build-lock.sh). Put scripts/bin first on PATH.
+# Inside a ShowRecorder checkout, builds and tests wait for the shared lock; listing commands (-list, -version,
+# -showdestinations, -showsdks, -showBuildSettings, -help) and anything outside this repo run straight away.
+real="${SHOWRECORDER_REAL_XCODEBUILD:-/usr/bin/xcodebuild}"
+. "$(dirname "$0")/../build-lock.sh"
+
+light=0
+for arg in "$@"; do
+  case "$arg" in
+    -list | -version | -showdestinations | -showsdks | -showBuildSettings | -help | -usage) light=1 ;;
+  esac
+done
+
+if [ "$light" = 1 ] || ! in_showrecorder; then
+  exec "$real" "$@"
+fi
+
+# At most build_jobs compile jobs for a build action, unless the caller gave a count. Other modes (-create-xcframework,
+# say) don't take -jobs.
+given=0
+action=0
+for arg in "$@"; do
+  case "$arg" in
+    -jobs) given=1 ;;
+    build | build-for-testing | test | test-without-building | analyze | archive | install | docbuild) action=1 ;;
+  esac
+done
+[ "$given" = 0 ] && [ "$action" = 1 ] && set -- "$@" -jobs "$(build_jobs)"
+
+if [ "${SHOWRECORDER_BUILD_LOCK_HELD:-0}" = 1 ]; then
+  exec "$real" "$@"
+fi
+build_lock_exec "$real" "$@"

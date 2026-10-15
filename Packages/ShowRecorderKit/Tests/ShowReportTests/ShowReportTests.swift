@@ -211,6 +211,75 @@ struct ShowReportTests {
         #expect(html.contains("0:00.5") && html.contains("&lt;b&gt;Bass&lt;/b&gt; Drum"))
     }
 
+    @Test("Gain changes on the Mixer are listed: in the Take where they happened, and between Takes for the Show (#450)")
+    func gainChangesInReport() async throws {
+        let device = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
+        try recorder.arm(device)
+        try recorder.startTake(sources: [Source(name: "Kick", color: .off)])
+        device.deliver([Array(repeating: 0, count: 24_000)])  // 0.5 s
+        let change = TakeMetadata.GainChange(usbChannel: 1, channel: 1, headamp: 1, fromGainDb: 14.5, toGainDb: 11.5, reason: .clipProtection,
+                                             compensations: [.init(channel: 1, setting: "fader", fromDb: -6.0, toDb: -3.0)])
+        recorder.logGainChange(change)
+        device.deliver([Array(repeating: 0, count: 24_000)])
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+        var between = change
+        between.reason = .autoGain
+        recorder.logGainChange(between)
+
+        let report = try ShowReport(showFolder: show)
+        let logged = try #require(report.takes.first?.gainChanges.first)
+        #expect(logged.seconds == 0.5)
+        #expect((logged.usbChannel, logged.fromGainDb, logged.toGainDb) == (1, 14.5, 11.5))
+        #expect(report.gainChangesBetweenTakes.count == 1)
+        let html = report.html
+        #expect(html.contains("<h3>Gain changes</h3>"))
+        #expect(html.contains("+14.5 dB") && html.contains("+11.5 dB") && html.contains("clip protection"))
+        #expect(html.contains("fader -6.0 → -3.0 dB"))
+        #expect(html.contains("<h2>Gain changes between Takes</h2>"))
+    }
+
+    @Test("A Show saved before the Mix Hold rename (v1.1.x) still lists its between-Takes gain changes (#496)")
+    func showSavedBeforeTheRenameListsItsGainChanges() async throws {
+        try await record(channels: 1, sources: [], takes: [480])
+        // The gain log as v1.1.x writes it in Show.json, spliced into this Show's file.
+        let logged = """
+        [{"at": "2026-10-07T01:30:00Z", "channel": 1, "compensations": [{"channel": 1, "fromDb": -6.2, "setting": "fader", "toDb": -9.2}],
+          "fromGainDb": 14.5, "headamp": 1, "reason": "autoGain", "toGainDb": 17.5, "usbChannel": 1}]
+        """
+        let file = show.appending(path: "Show.json")
+        var json = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        json["gainChanges"] = try JSONSerialization.jsonObject(with: Data(logged.utf8))
+        try JSONSerialization.data(withJSONObject: json).write(to: file)
+
+        let report = try ShowReport(showFolder: show)
+
+        #expect(report.gainChangesBetweenTakes.count == 1)
+        #expect(report.html.contains("fader -6.2 → -9.2 dB"))
+    }
+
+    @Test("Routing changes on the Mixer are listed with their time, USB Channel, old and new Source (#21)")
+    func routingChangesInReport() async throws {
+        let device = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
+        try recorder.arm(device)
+        var kick = Source(name: "Kick", color: .off); kick.routedFrom = "ch:1"
+        var tom = Source(name: "Tom", color: .off); tom.routedFrom = "ch:4"
+        try recorder.startTake(sources: [kick])
+        device.deliver([Array(repeating: 0, count: 24_000)])  // 0.5 s
+        recorder.offerSources([tom])
+        device.deliver([Array(repeating: 0, count: 24_000)])
+        try recorder.stopTake()
+        await recorder.waitForRepair()
+
+        let report = try ShowReport(showFolder: show)
+        let change = try #require(report.takes.first?.routingChanges.first)
+        #expect(change.seconds == 0.5 && change.usbChannel == 1 && change.from == "Kick" && change.to == "Tom")
+        #expect(report.html.contains("<h3>Routing changes on the Mixer</h3>"))
+        #expect(report.takes.first?.renames.isEmpty == true)
+    }
+
     @Test("A Take with no renames has no renames section")
     func noRenamesSection() async throws {
         try await record(channels: 1, sources: [], takes: [480])

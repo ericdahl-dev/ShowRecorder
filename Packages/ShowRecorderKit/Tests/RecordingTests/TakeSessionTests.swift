@@ -57,7 +57,7 @@ struct TakeSessionTests {
                 capture.receive(AudioBlock(channels: $0, channelCount: 1, frameCount: frames, hostTime: 0))
             }
         }
-        try await waitUntil { capture.rings.allSatisfy { $0.availableFrames == 0 } }
+        try await waitUntil { capture.isDrained }
     }
 
 
@@ -76,9 +76,23 @@ struct TakeSessionTests {
 
         #expect(finished.metadata.gaps == [.init(copy: .drive, start: 0, end: 480)])
         #expect(finished.folders.count == 2)
-        let stem = try StemFile(contentsOf: finished.folders[1].appending(path: "01 USB 01.wav"))
+        let stem = try ParsedStem(contentsOf: finished.folders[.drive]!.appending(path: "01 USB 01.wav"))
         #expect(stem.samples.count == 960)
         #expect(session.show.driveFolder != nil)
+    }
+
+    @Test("A running Take's Copies: the Device still recording, a failed Drive interrupted")
+    func takeCopiesWhileRunning() async throws {
+        let session = try session(withDrive: true, wrap: { url, real in
+            url.path.contains("/Drive/") ? FailingStem(real, healthyFrames: 480) as any StemSink : real
+        })
+        for _ in 0..<2 { try await deliver(480) }
+        try await waitUntil { session.status(.drive) == .interrupted }
+
+        #expect(session.takeCopies.isRunning)
+        #expect(session.takeCopies[.device] == .recording)
+        #expect(session.takeCopies[.drive] == .interrupted)
+        _ = session.finish()
     }
 
     @Test("A Drive is asked for only while it could join or rejoin")
@@ -123,11 +137,13 @@ struct TakeSessionTests {
         // It joined at 480 and failed on its first audio: it has the silence and nothing more.
         let failedAt = Int(session.copies[1].writer.stemFrameCounts[0])
         #expect(failedAt == 480)
+        // None of it was committed after the opening commit, so the Stems resume from the start (#595).
+        let committed = 0
 
         let check = session.checkDestinations(drive: { DriveAccess(folder: drive, stop: { secondReleased.increment() }) })
 
         #expect(check == .carryOn)
-        #expect(opened.resumes.last == UInt64(failedAt))
+        #expect(opened.resumes.last == UInt64(committed))
         #expect(session.status(.drive) == .recording)
         #expect(session.copies.count == 2)
         // The earlier access is let go; the new one is held to the end.
@@ -136,11 +152,53 @@ struct TakeSessionTests {
 
         let rejoinFrame = capture.takeFrameCount
         try await deliver(480)
+        #expect(session.status(.drive) == .recording)
         let finished = session.finish()
 
-        #expect(finished.metadata.gaps == [.init(copy: .drive, start: 0, end: 480), .init(copy: .drive, start: failedAt, end: rejoinFrame)])
-        #expect(finished.statuses[.drive] == .recording)
+        #expect(finished.metadata.gaps == [.init(copy: .drive, start: committed, end: rejoinFrame)])
         #expect(secondReleased.count == 0)
+    }
+
+    @Test("A Drive Copy that fails and rejoins twice keeps every earlier Gap")
+    func driveRejoinsTwice() async throws {
+        let opened = Opened()
+        let capture = capture
+        // The first two Drive writers fail: the first on its first audio, the second after 120 000 frames of it, past
+        // its 2 s header commit, so the second rejoin resumes after the first rejoin and that earlier Gap is kept (#595).
+        let session = try session(opened: opened, wrap: { url, real in
+            let driveOpens = opened.resumes.count - 1
+            guard url.path.contains("/Drive/"), driveOpens <= 2 else { return real }
+            let leadIn = capture.takeFrameCount - Int(opened.resumes.last! ?? 0)
+            return FailingStem(real, healthyFrames: leadIn + (driveOpens == 2 ? 120_000 : 0))
+        })
+        let drive = drive
+        try await deliver(480)
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
+        for _ in 0..<4 { try await deliver(480) }
+        try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
+
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
+        let firstRejoin = capture.takeFrameCount
+        for _ in 0..<3 { try await deliver(48_000) }
+        try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
+        let secondFailedAt = Int(session.copies[1].writer.stemFrameCounts[0])
+
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
+        let secondRejoin = capture.takeFrameCount
+        // The second writer resumes at its last commit: after the first rejoin, before where it failed.
+        let committed2 = Int(try #require(opened.resumes.last ?? nil))
+        #expect(committed2 > firstRejoin && committed2 < secondFailedAt)
+        try await deliver(480)
+        #expect(session.status(.drive) == .recording)
+        let finished = session.finish()
+
+        #expect(opened.resumes.count == 4)
+        // The first writer kept nothing past its opening commit, so the first rejoin's Gap runs from the start and
+        // takes in the join Gap before it.
+        #expect(finished.metadata.gaps == [
+            .init(copy: .drive, start: 0, end: firstRejoin),
+            .init(copy: .drive, start: committed2, end: secondRejoin),
+        ])
     }
 
     @Test("The last healthy Copy running low ends the Take; a Copy running low while another has room retires")
@@ -174,9 +232,8 @@ struct TakeSessionTests {
         #expect(session.gaps(takeEnd: 1920) == [.init(copy: .device, start: 480, end: 1920)])
         // With every Copy failed capture stops counting, so the Take ends where the frames stopped.
         let takeEnd = capture.takeFrameCount
+        #expect(session.status(.drive) == .missing)
         let finished = session.finish()
-        #expect(finished.statuses[.device] == .interrupted)
-        #expect(finished.statuses[.drive] == .missing)
         #expect(finished.metadata.gaps == [.init(copy: .device, start: 480, end: takeEnd)])
     }
 
@@ -207,13 +264,13 @@ struct TakeSessionTests {
         _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
         for _ in 0..<4 { try await deliver(480) }
         try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
-        let failedAt = Int(session.copies[1].writer.stemFrameCounts[0])
 
         _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
         let takeEnd = capture.takeFrameCount
         let finished = session.finish()
 
-        #expect(finished.metadata.gaps == [.init(copy: .drive, start: 0, end: 480), .init(copy: .drive, start: failedAt, end: takeEnd)])
+        // Nothing past the opening commit was kept, so the Gap runs from the start (#595).
+        #expect(finished.metadata.gaps == [.init(copy: .drive, start: 0, end: takeEnd)])
     }
 
     @Test("A Marker lands in Take.json and in the Copy that joins after it")
@@ -228,7 +285,7 @@ struct TakeSessionTests {
         try await deliver(480)
         let finished = session.finish()
 
-        for folder in finished.folders {
+        for folder in finished.folders.values {
             let json = try Data(contentsOf: folder.appending(path: "Take.json"))
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
@@ -247,8 +304,8 @@ struct TakeSessionTests {
         #expect(finished.metadata.dropouts == [.init(copy: .device, start: 480, end: 200_480)])
         #expect(finished.metadata.markers == [.init(position: 480, name: "Dropout", origin: .dropout)])
         // The Stem is as long as the Take: the silence is in it, and the Marker is in its cue points.
-        let stemURL = finished.folders[0].appending(path: "01 USB 01.wav")
-        #expect(try StemFile(contentsOf: stemURL).samples.count == 200_960)
+        let stemURL = finished.folders[.device]!.appending(path: "01 USB 01.wav")
+        #expect(try ParsedStem(contentsOf: stemURL).samples.count == 200_960)
         #expect(try cuePoints(stemURL) == [CuePoint(position: 480, label: "Dropout")])
     }
 
@@ -313,7 +370,7 @@ struct TakeSessionTests {
         let finished = session.finish()
 
         #expect(finished.folders.count == 2)
-        for folder in finished.folders {
+        for folder in finished.folders.values {
             #expect(try cuePoints(folder.appending(path: "01 USB 01.wav")) == [CuePoint(position: 480, label: "Chorus")], "\(folder.path)")
             let json = try Data(contentsOf: folder.appending(path: "Take.json"))
             let decoder = JSONDecoder()

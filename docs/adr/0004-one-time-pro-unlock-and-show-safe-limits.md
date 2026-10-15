@@ -22,8 +22,22 @@ The **Show-Safe Promise** binds every limit: a Take never stops, and audio is ne
 
 Considered: pricing like Mixing Station, a one-time unlock per mixer family (X Air $5.99, X32 $6.99, WING $6.99 on the App Store). Decided: **launch with Pro at $19.99 as "every mixer, every feature"**. At launch only the X Air is supported, so a per-mixer unlock would be Pro under another name. When a second family ships (Pioneer DJM first, #364), add **cheaper single-family unlocks** beside Pro. Pro owners keep everything, so nobody who bought early loses out. A generic class-compliant interface still needs a place in that menu; decide it with the first pack. The DJ price question (beating DJM-REC for less, #367) is answered by a DJM pack, not by lowering Pro.
 
+## Mixer packs (Eric, 2026-10-12, #412)
+
+With X32 support coming (#199), the second family is here, so the single-family unlocks above get their prices:
+
+- **X Air pack $9.99, X32/M32 pack $9.99, Pioneer DJM pack $6.99.** Pro stays $19.99 for every mixer.
+- A pack unlocks **everything Pro does** while that family's USB interface is the Armed input. Any other input stays Free (2 USB Channels).
+- **DJM at $6.99** is under Pioneer's DJM-REC ($9.99 unlock after a 30-day trial), which answers #367's "better than DJM-REC, for less". The X Air and X32 packs are above Mixing Station's $5.99–6.99, because they record rather than only control.
+- **Show-Safe:** a pack is judged only when record is pressed, from the Armed input, like Pro.
+- **Generic interfaces need full Pro** (an EVO 4, or anything without a family): there is no pack for them, because their channel count can't be assumed.
+- **The Trial** stays everything, any input, for 14 days.
+- **Upgrading:** pack owners get a separate "Pro upgrade" purchase priced at Pro minus what they paid ($9.99 after an X Air or X32 pack, $12.99 after a DJM pack), offered only to them. Owners of two or more packs get the cheapest upgrade, $2.99. An upgrade counts as Pro only while a qualifying pack is still owned: a refunded or revoked pack takes it back too (Eric, 2026-10-13).
+- **Paywall:** the connected mixer's pack first, with Pro beside it; a generic input is offered only Pro.
+
 ## Consequences
 
 - Family Sharing can't be turned off for an in-app purchase once enabled; a church team on one family plan shares one unlock.
 - Apple's volume purchasing doesn't cover in-app purchases. If organizations need purchase orders, that needs a paid-upfront option later (a separate listing risks Guideline 4.3).
-- Future paid features (X32/M32 support, virtual soundcheck, AAF/Logic export) are separate add-ons or an optional subscription, never taken away from Pro.
+- Future paid features (virtual soundcheck, AAF/Logic export) are separate add-ons or an optional subscription, never taken away from Pro.
+- **Pro and the upgrade prices are linked:** the Pro upgrades are priced at Pro minus a pack. If Pro's price changes, reprice all three upgrades with it.

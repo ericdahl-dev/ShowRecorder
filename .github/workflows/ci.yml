@@ -3,17 +3,21 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, 'release/**']
 
 permissions:
   contents: read
 
+# A pull request's newer push cancels its older run. Pushes to main and release branches each run to the end, so
+# the commit a tag goes on always has a finished run.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Which parts changed: the app (anything outside website/) and the site (website/).
+  # Which parts changed: the app (anything outside website/, docs/, design/ and Markdown files, as verify.sh
+  # sorts them; CONTEXT.md counts as app, for its vocabulary check) and the site (website/, and
+  # docs/release-notes/, which the site's changelog test reads).
   # A change to this workflow runs both.
   changes:
     name: Changes
@@ -38,8 +42,9 @@ jobs:
           files=$(git diff --name-only "$BASE"...HEAD)
           printf '%s\n' "$files"
           app=false; site=false
-          if printf '%s\n' "$files" | grep -qvE '^website/|^$'; then app=true; fi
-          if printf '%s\n' "$files" | grep -qE '^website/|^\.github/workflows/ci\.yml$'; then site=true; fi
+          if printf '%s\n' "$files" | grep -qvE '^website/|^docs/|^design/|\.md$|^$'; then app=true; fi
+          if printf '%s\n' "$files" | grep -qxE 'CONTEXT\.md'; then app=true; fi
+          if printf '%s\n' "$files" | grep -qE '^website/|^docs/release-notes/|^\.github/workflows/ci\.yml$'; then site=true; fi
           # Nothing to build until the site is on this branch.
           if [ ! -f website/package.json ]; then site=false; fi
           echo "app=$app" >> "$GITHUB_OUTPUT"; echo "site=$site" >> "$GITHUB_OUTPUT"
@@ -58,7 +63,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [package tests, macOS build, iOS Simulator build]
+        check: [package tests, package tests (Release), macOS build, iOS Simulator build]
     steps:
       - uses: actions/checkout@v4
 
@@ -76,7 +81,43 @@ jobs:
       - name: Package tests
         if: matrix.check == 'package tests'
         working-directory: Packages/ShowRecorderKit
-        run: swift test
+        run: swift test --enable-code-coverage
+
+      # Kit code coverage (#576): the table in the log and the job summary, the per-file JSON as the run's
+      # "kit-coverage" artifact (`gh run download <run> -n kit-coverage`), and the lcov file to Codecov. No floor.
+      - name: Coverage
+        if: matrix.check == 'package tests'
+        run: |
+          set -o pipefail
+          COVERAGE_JSON="$RUNNER_TEMP/kit-coverage.json" COVERAGE_LCOV="$RUNNER_TEMP/kit-coverage.lcov" \
+            ./scripts/coverage.sh | tee "$RUNNER_TEMP/kit-coverage.md"
+          { echo "## Kit code coverage"; echo; cat "$RUNNER_TEMP/kit-coverage.md"; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep coverage
+        if: matrix.check == 'package tests'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kit-coverage
+          path: |
+            ${{ runner.temp }}/kit-coverage.json
+            ${{ runner.temp }}/kit-coverage.md
+          retention-days: 30
+      # Report only: an upload problem never fails CI, and codecov.yml keeps its statuses informational.
+      - name: Upload coverage to Codecov
+        if: matrix.check == 'package tests'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ runner.temp }}/kit-coverage.lcov
+          flags: kit
+          fail_ci_if_error: false
+
+      # TestFlight builds are Release. Mixer detection once worked in Debug but opened port 0 in Release (v1.1.1,
+      # EINVAL on the iPhone), so every package test also runs optimized, in its own leg so CI doesn't take longer.
+      # `swift test` keeps @testable imports in Release; `swift build -c release --build-tests` alone doesn't (#505).
+      - name: Package tests, Release
+        if: matrix.check == 'package tests (Release)'
+        working-directory: Packages/ShowRecorderKit
+        run: swift test -c release
 
       - name: Build for macOS
         if: matrix.check == 'macOS build'
@@ -85,12 +126,40 @@ jobs:
           -destination 'platform=macOS' -derivedDataPath build/dd
           CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build
 
+      # AppTests (#679), hosted on the Mac app just built, signed ad hoc like it: no team, no Simulator.
+      - name: App tests (macOS)
+        if: matrix.check == 'macOS build'
+        timeout-minutes: 10
+        run: >
+          xcodebuild -project ShowRecorder.xcodeproj -scheme ShowRecorder
+          -destination 'platform=macOS' -derivedDataPath build/dd
+          CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= test
+
       - name: Build for iOS Simulator
         if: matrix.check == 'iOS Simulator build'
         run: >
           xcodebuild -project ShowRecorder.xcodeproj -scheme ShowRecorder
           -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd
           CODE_SIGNING_ALLOWED=NO build
+
+  # codecov/project and codecov/patch are required on main. When the app job is skipped (a website-only change),
+  # nothing is uploaded and Codecov would never post them, so the PR would wait forever: pass both, nothing to measure.
+  coverage-skipped:
+    name: Coverage (nothing to measure)
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.app != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          for context in codecov/project codecov/patch; do
+            gh api "repos/${{ github.repository }}/statuses/$SHA" -f state=success -f context="$context" \
+              -f description="No app or Kit change: nothing to measure" >/dev/null
+          done
 
   site:
     name: Website

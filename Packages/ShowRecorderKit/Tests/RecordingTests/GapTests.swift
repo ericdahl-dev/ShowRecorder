@@ -55,13 +55,6 @@ struct GapTests {
             }, destinationCheckInterval: nil)
     }
 
-    func deliverBlocks(_ count: Int, to audio: FakeAudioDevice, _ recorder: Recorder) async throws {
-        for block in 0..<count {
-            audio.deliver([(0..<480).map { RecordingTakeTests.sample(Int32(block * 480 + $0)) }])
-            try await waitUntil { recorder.bufferedFrameCount == 0 }
-        }
-    }
-
     @Test("A Device that fails mid-Take is marked interrupted and the Drive Copy carries on")
     func deviceFailsMidTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
@@ -69,14 +62,14 @@ struct GapTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        try await deliverBlocks(10, to: audio, recorder)
-        try await waitUntil { recorder.copyStatus(.device) == .interrupted }
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        try await waitUntil { recorder.copies[.device] == .interrupted }
 
-        #expect(recorder.copyStatus(.device) == .interrupted)
-        #expect(recorder.copyStatus(.drive) == .recording)
+        #expect(recorder.copies[.device] == .interrupted)
+        #expect(recorder.copies[.drive] == .recording)
         try recorder.stopTake()
 
-        let driveStem = try StemFile(contentsOf: drive.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
+        let driveStem = try ParsedStem(contentsOf: drive.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
         #expect(driveStem.samples.count == 4800)
     }
 
@@ -87,12 +80,12 @@ struct GapTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        try await deliverBlocks(3, to: audio, recorder)
+        try await deliverBlocks(3, to: audio, recorder, sample: counting())
         try await waitUntil { !recorder.isRecording }
 
         #expect(!recorder.isRecording)
-        #expect(recorder.copyStatus(.device) == .interrupted)
-        #expect(recorder.copyStatus(.drive) == .interrupted)
+        #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .noDestination))
+        #expect(Set(try decodedTake(device).gaps.map(\.copy)) == [.device, .drive])
     }
 
     @Test("A Drive that fails mid-Take is marked interrupted and the Device Copy carries on")
@@ -111,24 +104,22 @@ struct GapTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        for block in 0..<10 {
-            audio.deliver([(0..<480).map { RecordingTakeTests.sample(Int32(block * 480 + $0)) }])
-            try await waitUntil { recorder.bufferedFrameCount == 0 }
-        }
-        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
 
-        #expect(recorder.copyStatus(.device) == .recording)
-        #expect(recorder.copyStatus(.drive) == .interrupted)
+        #expect(recorder.copies[.device] == .recording)
+        #expect(recorder.copies[.drive] == .interrupted)
         try recorder.stopTake()
 
-        let deviceStem = try StemFile(contentsOf: device.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
+        let deviceStem = try ParsedStem(contentsOf: device.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
         #expect(deviceStem.samples.count == 4800)
 
-        // The Drive Copy is missing everything after the failure; the Device's Take.json says so.
+        // The Drive Copy is missing everything after its last commit (the one at the start, #595); the Device's
+        // Take.json says so.
         let json = try Data(contentsOf: device.appending(path: "2026-10-06 Show/Take 01/Take.json"))
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == [.init(copy: .drive, start: 480, end: 4800)])
+        #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == [.init(copy: .drive, start: 0, end: 4800)])
     }
 
     @Test("With no Drive at record the Take starts on the Device and the Drive Copy is missing")
@@ -140,10 +131,10 @@ struct GapTests {
         try recorder.startTake()
 
         #expect(recorder.isRecording)
-        #expect(recorder.copyStatus(.device) == .recording)
-        #expect(recorder.copyStatus(.drive) == .missing)
+        #expect(recorder.copies[.device] == .recording)
+        #expect(recorder.copies[.drive] == .missing)
         try recorder.stopTake()
-        #expect(recorder.copyStatus(.drive) == .missing)
+        #expect(recorder.copies[.drive] == .missing)
     }
 
     @Test("A Drive that appears mid-Take joins with the missed span written as silence and recorded as a Gap")
@@ -154,19 +145,16 @@ struct GapTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        try await deliverBlocks(10, to: audio, recorder)
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
         available.folder = drive
         recorder.checkDestinations()
-        #expect(recorder.copyStatus(.drive) == .recording)
-        for block in 10..<15 {
-            audio.deliver([(0..<480).map { RecordingTakeTests.sample(Int32(block * 480 + $0)) }])
-            try await waitUntil { recorder.bufferedFrameCount == 0 }
-        }
+        #expect(recorder.copies[.drive] == .recording)
+        try await deliverBlocks(5, from: 4_800, to: audio, recorder, sample: counting())
         try recorder.stopTake()
 
         let take = "2026-10-06 Show/Take 01"
-        let deviceStem = try StemFile(contentsOf: device.appending(path: "\(take)/01 USB 01.wav"))
-        let driveStem = try StemFile(contentsOf: drive.appending(path: "\(take)/01 USB 01.wav"))
+        let deviceStem = try ParsedStem(contentsOf: device.appending(path: "\(take)/01 USB 01.wav"))
+        let driveStem = try ParsedStem(contentsOf: drive.appending(path: "\(take)/01 USB 01.wav"))
         #expect(deviceStem.samples.count == 7200)
         #expect(driveStem.samples.count == 7200)
         #expect(driveStem.samples[..<4800].allSatisfy { $0 == 0 })
@@ -192,28 +180,25 @@ struct GapTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        try await deliverBlocks(10, to: audio, recorder)
-        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
         recorder.checkDestinations()
-        #expect(recorder.copyStatus(.drive) == .recording)
-        for block in 10..<15 {
-            audio.deliver([(0..<480).map { RecordingTakeTests.sample(Int32(block * 480 + $0)) }])
-            try await waitUntil { recorder.bufferedFrameCount == 0 }
-        }
+        #expect(recorder.copies[.drive] == .recording)
+        try await deliverBlocks(5, from: 4_800, to: audio, recorder, sample: counting())
         try recorder.stopTake()
 
         let take = "2026-10-06 Show/Take 01"
-        let deviceStem = try StemFile(contentsOf: device.appending(path: "\(take)/01 USB 01.wav"))
-        let driveStem = try StemFile(contentsOf: drive.appending(path: "\(take)/01 USB 01.wav"))
+        let deviceStem = try ParsedStem(contentsOf: device.appending(path: "\(take)/01 USB 01.wav"))
+        let driveStem = try ParsedStem(contentsOf: drive.appending(path: "\(take)/01 USB 01.wav"))
         #expect(driveStem.samples.count == 7200)
-        #expect(Array(driveStem.samples[..<480]) == Array(deviceStem.samples[..<480]))
-        #expect(driveStem.samples[480..<4800].allSatisfy { $0 == 0 })
+        // It resumes at its last commit, the one at the start (#595).
+        #expect(driveStem.samples[..<4800].allSatisfy { $0 == 0 })
         #expect(Array(driveStem.samples[4800...]) == Array(deviceStem.samples[4800...]))
         for folder in [device, drive] {
             let json = try Data(contentsOf: folder.appending(path: "\(take)/Take.json"))
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
-            #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == [.init(copy: .drive, start: 480, end: 4800)])
+            #expect(try decoder.decode(TakeMetadata.self, from: json).gaps == [.init(copy: .drive, start: 0, end: 4800)])
         }
     }
 
@@ -231,9 +216,9 @@ struct GapTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        try await deliverBlocks(10, to: audio, recorder)
-        try await waitUntil { recorder.copyStatus(.device) == .interrupted }
-        try await deliverBlocks(5, to: audio, recorder)
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        try await waitUntil { recorder.copies[.device] == .interrupted }
+        try await deliverBlocks(5, to: audio, recorder, sample: counting())
         recorder.addMarker(named: "Encore")
         try recorder.stopTake()
 
@@ -263,11 +248,11 @@ struct GapTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        try await deliverBlocks(10, to: audio, recorder)
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
         recorder.addMarker(named: "Verse")
         available.folder = drive
         recorder.checkDestinations()
-        try await deliverBlocks(5, to: audio, recorder)
+        try await deliverBlocks(5, to: audio, recorder, sample: counting())
         try recorder.stopTake()
 
         let take = "2026-10-06 Show/Take 01/01 USB 01.wav"
@@ -293,15 +278,15 @@ struct GapTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        try await deliverBlocks(10, to: audio, recorder)
-        try await waitUntil { recorder.copyStatus(.drive) == .interrupted }
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
         try FileManager.default.moveItem(at: drive, to: remounted)
         available.folder = remounted
         recorder.checkDestinations()
-        try await deliverBlocks(5, to: audio, recorder)
+        try await deliverBlocks(5, to: audio, recorder, sample: counting())
         try recorder.stopTake()
 
-        let moved = try StemFile(contentsOf: remounted.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
+        let moved = try ParsedStem(contentsOf: remounted.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
         #expect(moved.samples.count == 7200)
         #expect(!FileManager.default.fileExists(atPath: drive.path))
     }
@@ -319,22 +304,22 @@ struct GapTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        try await deliverBlocks(4, to: audio, recorder)
+        try await deliverBlocks(4, to: audio, recorder, sample: counting())
         // 60 s of one 48 kHz 24-bit channel is 8.64 MB.
         free.device = 5_000_000
         recorder.checkDestinations()
         #expect(recorder.isRecording)
-        #expect(recorder.copyStatus(.device) == .interrupted)
-        #expect(recorder.copyStatus(.drive) == .recording)
+        #expect(recorder.copies[.device] == .interrupted)
+        #expect(recorder.copies[.drive] == .recording)
 
-        try await deliverBlocks(2, to: audio, recorder)
+        try await deliverBlocks(2, to: audio, recorder, sample: counting())
         free.drive = 5_000_000
         recorder.checkDestinations()
 
         #expect(!recorder.isRecording)
         let take = "2026-10-06 Show/Take 01"
-        #expect(try StemFile(contentsOf: device.appending(path: "\(take)/01 USB 01.wav")).samples.count == 4 * 480)
-        #expect(try StemFile(contentsOf: drive.appending(path: "\(take)/01 USB 01.wav")).samples.count == 6 * 480)
+        #expect(try ParsedStem(contentsOf: device.appending(path: "\(take)/01 USB 01.wav")).samples.count == 4 * 480)
+        #expect(try ParsedStem(contentsOf: drive.appending(path: "\(take)/01 USB 01.wav")).samples.count == 6 * 480)
     }
 }
 

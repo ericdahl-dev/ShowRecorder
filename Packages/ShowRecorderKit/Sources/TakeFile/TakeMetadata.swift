@@ -80,6 +80,29 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         }
     }
 
+    /// Drive only (#196, ADR 0006): the stretches the Device recorded because the Drive couldn't take them, in
+    /// order. Each is its own folder of Stems in the Device's Take folder, whose first frame is the stretch's
+    /// start; Repair moves them into the Drive Copy and removes the Take from the Device. Nil for a Take with
+    /// two Copies.
+    public var standIns: [StandIn]?
+
+    /// Drive only (#630): true for a Take recorded with Drive only on, so one the Device holds can be found and moved to
+    /// the Drive later. Nil (left out of Take.json) for any other Take, and for one recorded before this field.
+    public var driveOnly: Bool?
+
+    public struct StandIn: Codable, Equatable, Sendable {
+        public var start: Int
+        public var end: Int
+
+        public init(start: Int, end: Int) {
+            self.start = start
+            self.end = end
+        }
+
+        /// The folder, in the Device's Take folder, holding this stretch's Stems.
+        public var folderName: String { "Stand-in \(start)" }
+    }
+
     /// Stretches of one Copy that were lost because its writer couldn't keep up, written as silence of the
     /// exact length so the Stems stay as long as the Take. Unlike a Gap, Repair doesn't fill them (yet).
     public var dropouts: [Dropout] = []
@@ -100,6 +123,118 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     /// started with (or, for a Take that started without Mixer names, got when it ended). Nil when there
     /// were none, and in Takes made before the rename log existed.
     public var renames: [Rename]?
+
+    /// Every preamp gain ShowRecorder changed on the Mixer during this Take (#450). Nil when there were none, and in
+    /// Takes made before the gain log existed.
+    public var gainChanges: [GainChange]?
+
+    /// Every change to what the Mixer routes to a USB Channel during this Take (#21): the Stem keeps its name and goes
+    /// on recording the new Source. Nil when there were none, and in Takes made before this log existed.
+    public var routingChanges: [RoutingChange]?
+
+    /// One preamp gain change on the Mixer, by auto-gain, clip protection or Undo, with what Mix Hold moved to keep
+    /// the mix the same. Logged in the Take during a Take (with `position`) and in the Show between Takes.
+    public struct GainChange: Codable, Equatable, Sendable {
+        public enum Reason: Codable, Equatable, Sendable {
+            case autoGain
+            case clipProtection
+            case undo
+            /// A reason from a newer ShowRecorder, kept as written so the Take still opens and saves it unchanged. Only
+            /// for text this version doesn't know: make a Reason from text with `init(rawValue:)`.
+            case other(String)
+
+            /// "auto-gain", "clip protection" or "undo", as the operator reads it.
+            public var word: String {
+                switch self {
+                case .autoGain: "auto-gain"
+                case .clipProtection: "clip protection"
+                case .undo: "undo"
+                case .other(let text): text
+                }
+            }
+
+            /// What `Take.json` stores.
+            public var rawValue: String {
+                switch self {
+                case .autoGain: "autoGain"
+                case .clipProtection: "clipProtection"
+                case .undo: "undo"
+                case .other(let text): text
+                }
+            }
+
+            public init(rawValue: String) {
+                self = [Self.autoGain, .clipProtection, .undo].first { $0.rawValue == rawValue } ?? .other(rawValue)
+            }
+
+            public init(from decoder: any Decoder) throws {
+                self.init(rawValue: try decoder.singleValueContainer().decode(String.self))
+            }
+
+            public func encode(to encoder: any Encoder) throws {
+                var container = encoder.singleValueContainer()
+                try container.encode(rawValue)
+            }
+        }
+
+        /// A setting Mix Hold moved: a threshold, the fader or a send on a Mixer channel, as the Mixer holds it.
+        public struct Compensation: Codable, Equatable, Sendable {
+            public var channel: Int
+            /// "gate threshold", "compressor threshold", "fader", "send 3" and so on.
+            public var setting: String
+            public var fromDb: Double
+            public var toDb: Double
+
+            public init(channel: Int, setting: String, fromDb: Double, toDb: Double) {
+                self.channel = channel
+                self.setting = setting
+                self.fromDb = fromDb
+                self.toDb = toDb
+            }
+        }
+
+        /// Samples from the Take's start; nil between Takes.
+        public var position: Int?
+        /// When it happened.
+        public var at: Date?
+        public var usbChannel: Int
+        /// The Mixer's input channel and the preamp behind it.
+        public var channel: Int
+        public var headamp: Int
+        public var fromGainDb: Double
+        public var toGainDb: Double
+        public var reason: Reason
+        public var compensations: [Compensation]
+
+        public init(position: Int? = nil, at: Date? = nil, usbChannel: Int, channel: Int, headamp: Int, fromGainDb: Double,
+                    toGainDb: Double, reason: Reason, compensations: [Compensation]) {
+            self.position = position
+            self.at = at
+            self.usbChannel = usbChannel
+            self.channel = channel
+            self.headamp = headamp
+            self.fromGainDb = fromGainDb
+            self.toGainDb = toGainDb
+            self.reason = reason
+            self.compensations = compensations
+        }
+    }
+
+    /// A USB Channel re-patched on the Mixer at a point in the Take, in samples from its start: from then on it carries
+    /// `to` (a Source's name) instead of `from`.
+    public struct RoutingChange: Codable, Equatable, Sendable {
+        public var position: Int
+        public var usbChannel: Int
+        public var from: String
+        public var to: String
+
+        public init(position: Int, usbChannel: Int, from: String, to: String) {
+            self.position = position
+            self.usbChannel = usbChannel
+            self.from = from
+            self.to = to
+        }
+    }
 
     /// A Source renamed on the Mixer at a point in the Take, in samples from its start.
     public struct Rename: Codable, Equatable, Sendable {
@@ -157,10 +292,42 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
 
     /// A named point in the Take, in samples from its start.
     public struct Marker: Codable, Equatable, Sendable {
-        public enum Origin: String, Codable, Sendable {
+        public enum Origin: Codable, Equatable, Sendable {
             case `operator`
             /// Placed by the recorder where a Copy's audio was lost.
             case dropout
+            /// Placed where ShowRecorder changed a preamp's gain on the Mixer (#450).
+            case gain
+            /// Placed where the Mixer's USB routing changed during the Take (#21).
+            case routing
+            /// A kind from a newer ShowRecorder, kept as written: the Take still opens, and saving it keeps the kind.
+            /// Not the operator's, so it can't be renamed here. Only for text this version doesn't know: make an Origin from
+            /// text with `init(rawValue:)`.
+            case other(String)
+
+            /// What `Take.json` stores.
+            public var rawValue: String {
+                switch self {
+                case .operator: "operator"
+                case .dropout: "dropout"
+                case .gain: "gain"
+                case .routing: "routing"
+                case .other(let text): text
+                }
+            }
+
+            public init(rawValue: String) {
+                self = [Self.operator, .dropout, .gain, .routing].first { $0.rawValue == rawValue } ?? .other(rawValue)
+            }
+
+            public init(from decoder: any Decoder) throws {
+                self.init(rawValue: try decoder.singleValueContainer().decode(String.self))
+            }
+
+            public func encode(to encoder: any Encoder) throws {
+                var container = encoder.singleValueContainer()
+                try container.encode(rawValue)
+            }
         }
 
         public var position: Int
@@ -174,6 +341,35 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         }
     }
 
+    /// The operator's Markers, in the order they were placed. A Dropout Marker isn't one.
+    public var operatorMarkers: [Marker] { markers.filter { $0.origin == .operator } }
+
+    /// The Markers every Stem carries as a cue point: the operator's and the routing changes (#21). A Copy's Stems
+    /// also carry a Dropout cue where that Copy lost audio.
+    public var stemCueMarkers: [Marker] { markers.filter { $0.origin == .operator || $0.origin == .routing } }
+
+    /// The Dropout Markers, one at each place in the Take that lost audio.
+    public var dropoutMarkers: [Marker] { markers.filter { $0.origin == .dropout } }
+
+    /// How many places in the Take lost audio (one Dropout Marker each).
+    public var dropoutCount: Int { dropoutMarkers.count }
+
+    /// The name an operator Marker gets when it isn't given one: "Marker 3" for the third.
+    public var nextMarkerName: String { "Marker \(operatorMarkers.count + 1)" }
+
+    /// The index among the operator's Markers of `markers[place]`, which is how a rename names it; nil for
+    /// a Dropout Marker, which can't be renamed, or a place past the end.
+    public func operatorIndex(ofMarkerAt place: Int) -> Int? {
+        guard markers.indices.contains(place), markers[place].origin == .operator else { return nil }
+        return markers[..<place].count { $0.origin == .operator }
+    }
+
+    /// Where in `markers` the operator Marker at `operatorIndex` is; nil when there are fewer operator Markers.
+    public func place(ofOperatorMarker operatorIndex: Int) -> Int? {
+        let places = markers.indices.filter { markers[$0].origin == .operator }
+        return places.indices.contains(operatorIndex) ? places[operatorIndex] : nil
+    }
+
     public static let fileName = "Take.json"
 
     /// "Take 01": a Take's name, and the name of its folder in every Copy.
@@ -181,8 +377,11 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         String(format: "Take %02d", take)
     }
 
-    enum CodingKeys: String, CodingKey {
-        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames
+    /// Fields from a newer ShowRecorder, kept from `read` to `write`. Nil in a Take this version wrote.
+    public private(set) var unknownFields: UnknownFields?
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames, gainChanges, routingChanges, standIns, driveOnly
     }
 
     public init(from decoder: any Decoder) throws {
@@ -199,6 +398,10 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         preRollFrames = try c.decodeIfPresent(Int.self, forKey: .preRollFrames)
         dropouts = try c.decodeIfPresent([Dropout].self, forKey: .dropouts) ?? []  // Takes recorded before Dropouts existed
         renames = try c.decodeIfPresent([Rename].self, forKey: .renames)
+        gainChanges = try c.decodeIfPresent([GainChange].self, forKey: .gainChanges)
+        routingChanges = try c.decodeIfPresent([RoutingChange].self, forKey: .routingChanges)
+        standIns = try c.decodeIfPresent([StandIn].self, forKey: .standIns)
+        driveOnly = try c.decodeIfPresent(Bool.self, forKey: .driveOnly)
     }
 
     public init(show: String, take: Int, startedAt: Date, sampleRate: Int, timeReference: UInt64, usbChannels: [USBChannel], markers: [Marker] = []) {
@@ -216,14 +419,18 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        try encoder.encode(self).write(to: takeFolder.appending(path: Self.fileName), options: .atomic)
+        let data = try encoder.encode(self)
+        try (unknownFields?.merged(into: data) ?? data).write(to: takeFolder.appending(path: Self.fileName), options: .atomic)
     }
 
     /// Reads `Take.json` from `takeFolder`. Throws when it is missing or can't be decoded.
     public static func read(fromTakeFolder takeFolder: URL) throws -> TakeMetadata {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(TakeMetadata.self, from: Data(contentsOf: takeFolder.appending(path: fileName)))
+        let data = try Data(contentsOf: takeFolder.appending(path: fileName))
+        var metadata = try decoder.decode(TakeMetadata.self, from: data)
+        metadata.unknownFields = UnknownFields.find(in: data, known: Set(CodingKeys.allCases.map(\.rawValue)))
+        return metadata
     }
 }
 

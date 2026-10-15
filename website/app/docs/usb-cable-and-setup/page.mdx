@@ -1,0 +1,52 @@
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata({
+  path: "/docs/usb-cable-and-setup",
+  title: "USB cable and setup for an XR18 or MR18 - ShowRecorder",
+  description: "The USB cable, a powered hub and the Audio interface setting for an XR18 or MR18 on iPhone or iPad, and how to check that all 18 USB Channels come in.",
+});
+
+# USB cable and setup for an XR18 or MR18
+
+You don't need a laptop to multitrack an XR18 or MR18 (see the [XR18 and MR18 page](/mixers/xr18) for the whole picture). Over USB the mixer sends all 18 channels to whatever it is plugged into, and ShowRecorder records them on a USB-C iPhone (iPhone 15 or later) or an iPad, one WAV file per channel.
+
+The audio comes over the USB cable. Channel names and colors come separately, over Wi-Fi, through the [Mixer Link](/docs/mixer-link).
+
+## Plug in the USB cable
+
+Connect the mixer's USB port to your iPhone or iPad, directly or through a hub. ShowRecorder Arms on the mixer and the meters come alive, one per USB Channel.
+
+An XR18 or MR18 sends 18 USB Channels at 48 kHz. The mixer sets the sample rate, so ShowRecorder records at the mixer's rate.
+
+## Use a powered USB-C hub
+
+A long show drains a phone. A powered USB-C hub with power pass-through lets your iPhone or iPad charge while the mixer and a USB drive are plugged in. Look for:
+
+- **Power pass-through**, so the device charges during the show.
+- **USB 2.0 or faster** for the mixer. 18 channels at 48 kHz, 24-bit is about 2.6 MB/s.
+- **A data port for the Drive**, if you record a second Copy. See [Recording to a USB drive](/docs/usb-drive).
+
+The record screen shows the battery level. If the battery is low and not charging, ShowRecorder tells you to plug in.
+
+## Choose the Audio interface
+
+ShowRecorder picks up the mixer on its own. To check or change it:
+
+1. Tap the gear to open **Settings**.
+2. Under **Recording**, check **Audio interface**. It shows the mixer's name.
+3. Read the line below **Sample rate**. With an XR18 or MR18 it says **18 USB Channels**.
+
+If you have more than one input plugged in, choose the mixer here. The Audio interface can't be changed during a Take.
+
+## If fewer than 18 USB Channels come in
+
+ShowRecorder warns you when it has reason to think some channels won't be recorded:
+
+- When the system sends fewer channels than the input offers, a banner says so.
+- When the Mixer Link has found an XR18 or MR18 but fewer than 18 USB Channels are coming in, the banner says, for example, "Only 2 of the XR18's 18 USB Channels are coming in." Choose the mixer under **Audio interface**.
+
+## If the cable comes out
+
+If the mixer is disconnected during a Take, recording stops and the Stems recorded so far are saved. Plug it back in and press record to start the next Take.
+
+More fixes are on the [Troubleshooting](/docs/troubleshooting) page.
