@@ -14,6 +14,16 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.6",
+    date: "2026-10-15",
+    channel: "TestFlight beta",
+    summary: "Auto-gain, in the beta.",
+    changes: [
+      "Auto-gain sets each channel's preamp on the mixer to -18 dBFS over Mixer Link, moving the fader, sends and dynamics the other way so the mix stays the same.",
+      "Undo puts every channel back, and auto-gain never runs during a Take.",
+    ],
+  },
+  {
     version: "1.1.5",
     date: "2026-10-15",
     channel: "TestFlight beta",
