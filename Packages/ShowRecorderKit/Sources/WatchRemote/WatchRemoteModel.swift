@@ -11,7 +11,8 @@ public protocol WatchLinkTransport: AnyObject {
 }
 
 /// The watch's side of the remote (#100): what it shows, and each command pending until the iPhone confirms it.
-/// With no link it shows no link, never a stale Recording, and a command fails at once rather than waiting to be sent.
+/// With no live link it shows the last status as last known, never as live, and a command fails at once rather than
+/// waiting to be sent.
 @MainActor
 @Observable
 public final class WatchRemoteModel {
@@ -20,6 +21,9 @@ public final class WatchRemoteModel {
         case connecting
         case noLink
         case status(WatchStatus)
+        /// No live link, but the iPhone sent this before (by application context, which arrives in the background): it
+        /// is likely still true, so show it, clearly not live, with its age. Commands wait for a live link (#737).
+        case lastKnown(WatchStatus)
     }
 
     public enum CommandState: Equatable {
@@ -59,6 +63,8 @@ public final class WatchRemoteModel {
     @ObservationIgnored private let after: (TimeInterval, @escaping @MainActor () -> Void) -> Void
     /// Set when the app comes to the front, until a status arrives or a few seconds pass.
     private var connecting = false
+    /// Whether `status` came while the link was live, or since it last came back: only then is it shown as live.
+    private var statusIsLive = false
     @ObservationIgnored private var connectingSince = 0
     /// The latest command of each kind: only its answer sets what shows.
     @ObservationIgnored private var latest: [WatchCommand.Kind: UUID] = [:]
@@ -82,8 +88,8 @@ public final class WatchRemoteModel {
     }
 
     public var display: Display {
-        guard isReachable, let status else { return connecting ? .connecting : .noLink }
-        return .status(status)
+        guard let status else { return connecting ? .connecting : .noLink }
+        return isReachable && statusIsLive ? .status(status) : .lastKnown(status)
     }
 
     /// The app came to the front (a raised wrist): show Connecting for a moment while the link comes back.
@@ -107,13 +113,16 @@ public final class WatchRemoteModel {
         if new.problems.contains(where: { !toldProblems.contains($0) }) { haptic(.problem) }
         toldProblems = Set(new.problems)
         status = new
+        statusIsLive = isReachable
         connecting = false
     }
 
-    /// A dropped link forgets the last status: when it's back, nothing shows until the iPhone says what's true now.
+    /// A link that drops or comes back makes the last status last known: it shows as live again only when the iPhone
+    /// says what's true now.
     public func reachabilityChanged() {
+        let was = isReachable
         isReachable = link.isReachable
-        if !isReachable { status = nil }
+        if isReachable != was { statusIsLive = false }
     }
 
     public func send(_ kind: WatchCommand.Kind) {

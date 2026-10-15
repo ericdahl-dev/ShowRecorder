@@ -13,10 +13,20 @@ struct RemoteView: View {
         case .noLink:
             ContentUnavailableView("No link to iPhone", systemImage: "iphone.slash",
                                    description: Text("The recording on the iPhone carries on."))
+        case .lastKnown(let status):
+            live(status, isLive: false)
         case .status(let status):
+            live(status, isLive: true)
+        }
+    }
+
+    /// The status, live or last known. Last known is dimmed, says how old it is and has its controls off (#737).
+    private func live(_ status: WatchStatus, isLive: Bool) -> some View {
+        Group {
             // One screen, no scrolling: what's happening on top, the controls along the bottom.
             VStack(spacing: 6) {
                 header(status.state)
+                if !isLive { asOf(status) }
                 if let problem = status.problems.first {
                     Label(problem.text, systemImage: problem.symbol)
                         .font(.footnote)
@@ -29,8 +39,24 @@ struct RemoteView: View {
                 }
                 Spacer(minLength: 0)
                 controls(status.state)
+                    .disabled(!isLive)
+            }
+            .opacity(isLive ? 1 : 0.5)
+        }
+    }
+
+    /// "No link · as of 8 s ago", so a Recording that may have moved on never looks live.
+    private func asOf(_ status: WatchStatus) -> some View {
+        HStack(spacing: 4) {
+            Text("No link ·")
+            if status.sentAt > .distantPast {
+                Text("as of") + Text(" ") + Text(status.sentAt, style: .relative) + Text(" ago")
+            } else {
+                Text("last known")
             }
         }
+        .font(.footnote).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder

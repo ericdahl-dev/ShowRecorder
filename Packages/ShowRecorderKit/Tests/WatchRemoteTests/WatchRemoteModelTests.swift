@@ -26,7 +26,7 @@ struct WatchRemoteModelTests {
         return model
     }
 
-    @Test("With no link, or nothing heard from the iPhone yet, it shows no link, never a stale Recording")
+    @Test("Nothing heard from the iPhone yet shows no link; a dropped link keeps the last status, shown as last known, not live (#737)")
     func noLink() {
         let link = Link()
         #expect(Self.model(link, status: nil).display == .noLink)
@@ -34,7 +34,7 @@ struct WatchRemoteModelTests {
         #expect(model.display == .status(Self.recording))
         link.isReachable = false
         model.reachabilityChanged()
-        #expect(model.display == .noLink)
+        #expect(model.display == .lastKnown(Self.recording), "the iPhone is likely still recording: say so, but not as live")
     }
 
     @Test("A Marker is pending until the iPhone confirms it, then confirmed, with a light tap on the wrist")
@@ -129,7 +129,7 @@ struct WatchRemoteModelTests {
         #expect(model.commands[.marker] == .confirmed)
     }
 
-    @Test("When the link drops, the last status goes: back again, nothing shows until the iPhone says what's true now")
+    @Test("When the link drops and returns, the last status stays last known until the iPhone says what's true now")
     func reconnect() {
         let link = Link()
         var haptics: [WatchRemoteModel.Haptic] = []
@@ -142,10 +142,35 @@ struct WatchRemoteModelTests {
         model.reachabilityChanged()
         link.isReachable = true
         model.reachabilityChanged()
-        #expect(model.display == .noLink, "no stale Recording")
+        #expect(model.display == .lastKnown(status), "not live until a fresh status")
         model.received(status)
         #expect(model.display == .status(status))
         #expect(haptics == [.problem], "a problem already told isn't tapped again")
+    }
+
+    @Test("A status that arrives in the background, with no live link, shows as last known, not live (#737)")
+    func contextWhileUnreachable() {
+        let link = Link()
+        link.isReachable = false
+        let model = Self.model(link, status: nil)
+        model.received(Self.recording)
+        #expect(model.display == .lastKnown(Self.recording))
+        link.isReachable = true
+        model.reachabilityChanged()
+        model.received(Self.recording)
+        #expect(model.display == .status(Self.recording))
+    }
+
+    @Test("While last known, Start is not offered and a command fails at once")
+    func lastKnownBlocksCommands() {
+        let link = Link()
+        let model = Self.model(link, status: Self.armed)
+        link.isReachable = false
+        model.reachabilityChanged()
+        #expect(!model.canStart)
+        model.send(.marker)
+        #expect(link.sent.isEmpty)
+        #expect(model.commands[.marker] == .failed(WatchRemoteModel.noLinkText))
     }
 
     @Test("An answer that never came back is unknown, not a failure; one too late says so")
