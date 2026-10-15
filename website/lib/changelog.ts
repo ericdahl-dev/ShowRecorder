@@ -21,7 +21,7 @@ export const RELEASES: readonly Release[] = [
     changes: [
       "Free records every USB Channel of your mixer as separate Stems.",
       "Pro adds channel names and colors from the mixer, the second Copy on a Drive, unlimited Markers, auto-gain and clip protection. The 14-day Trial includes everything.",
-      "Settings has a Contact support row and shows the version.",
+      "Settings has a Contact support row.",
     ],
   },
   {
