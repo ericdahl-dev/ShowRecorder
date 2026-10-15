@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { ctaNote } from "@/lib/site";
+import { SITE_DESCRIPTION, ctaNote } from "@/lib/site";
 
 // Home page conversion work (#719): what the hero says, what happens after the click, the launch list.
 
@@ -88,5 +88,33 @@ describe("the home page order and FAQs (#719)", () => {
     expect(home).toMatch(/card--more/);
     expect(read("app", "globals.css")).toMatch(/max-width: 639px\)[\s\S]{0,80}\.card--more\s*\{\s*display: none/);
     expect(home).toMatch(/href="\/features"/);
+  });
+});
+
+describe("any class-compliant USB mixer records; only Mixer Link is for named mixers (#721)", () => {
+  const home = read("app", "page.tsx");
+  const hero = home.slice(home.indexOf('<section id="top"'), home.indexOf("</section>", home.indexOf('<section id="top"')));
+
+  it("the hero compatibility line says any class-compliant USB mixer or audio interface", () => {
+    const compat = hero.slice(hero.indexOf('className="compat"'), hero.indexOf("</p>", hero.indexOf('className="compat"')));
+    expect(compat).toMatch(/Records any class-compliant USB mixer or audio interface\./);
+    expect(compat).toMatch(/Mixer Link adds channel names and colors from the/);
+    expect(compat).toMatch(/XR18 and MR18/);
+    expect(compat).toMatch(/X32 and M32 \(beta\)/);
+    expect(compat).toMatch(/iPhone 15 or later/);
+  });
+
+  it("the site description, llms.txt and 'What you need' do not say a named mixer is required", () => {
+    expect(SITE_DESCRIPTION).toMatch(/class-compliant USB mixer/);
+    expect(read("lib", "llms.ts")).toMatch(/a class-compliant USB mixer or audio interface/);
+    expect(read("lib", "llms.ts")).not.toMatch(/and a compatible mixer/);
+    expect(home).toMatch(/title: "A class-compliant USB mixer"/);
+    expect(home).not.toMatch(/title: "A compatible mixer"/);
+  });
+
+  it("the 'Which mixers work?' FAQ leads with any class-compliant mixer, then names who gets Mixer Link", () => {
+    const faq = home.slice(home.indexOf('q: "Which mixers work?"'), home.indexOf('q: "Can I record an XR18'));
+    expect(faq).toMatch(/a: "Any class-compliant USB mixer or audio interface records every channel it sends\./);
+    expect(faq).toMatch(/Mixer Link adds channel names and colors for the Behringer X Air XR18 and MR18/);
   });
 });

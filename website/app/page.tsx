@@ -60,8 +60,8 @@ const features: { title: string; body: ReactNode }[] = [
 
 const needs = [
   {
-    title: "A compatible mixer",
-    body: "A Behringer X Air XR18 or MR18 gives you 18 USB Channels with names and colors. Other class-compliant USB audio interfaces record too, without names.",
+    title: "A class-compliant USB mixer",
+    body: "Any class-compliant USB mixer or audio interface records every channel it sends. With a Behringer X Air XR18 or MR18, Mixer Link adds names and colors; without it, you type names with Pro.",
   },
   {
     title: "An iPhone or iPad",
@@ -154,12 +154,12 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
   },
   {
     q: "Which mixers work?",
-    a: "The Behringer X Air XR18 and MR18 record 18 USB Channels with names and colors. Other class-compliant USB audio interfaces record every channel they send, without names from the mixer; you can type names with Pro. The Behringer X32 and Midas M32 work in the public beta now: all 32 USB Channels, with names and colors from the mixer. They come to the App Store in a later update. Planned next: Pioneer DJM mixers. Others, such as the Behringer Wing and Allen & Heath Qu and SQ, are being looked at. The list is under Supported mixers on the Features page.",
+    a: "Any class-compliant USB mixer or audio interface records every channel it sends. Mixer Link adds channel names and colors for the Behringer X Air XR18 and MR18, which record 18 USB Channels; on other mixers you can type names with Pro. The Behringer X32 and Midas M32 work in the public beta now: all 32 USB Channels, with names and colors from the mixer. They come to the App Store in a later update. Planned next: Pioneer DJM mixers. Others, such as the Behringer Wing and Allen & Heath Qu and SQ, are being looked at. The list is under Supported mixers on the Features page.",
     node: (
       <>
-        The Behringer X Air <a href="/mixers/xr18">XR18 and MR18</a> record 18 USB Channels with names and colors.
-        Other class-compliant USB audio interfaces record every channel they send, without names from the mixer; you
-        can type names with Pro. The Behringer <a href="/mixers/x32">X32 and Midas M32</a> work in the public beta
+        Any class-compliant USB mixer or audio interface records every channel it sends. Mixer Link adds channel names
+        and colors for the Behringer X Air <a href="/mixers/xr18">XR18 and MR18</a>, which record 18 USB Channels; on
+        other mixers you can type names with Pro. The Behringer <a href="/mixers/x32">X32 and Midas M32</a> work in the public beta
         now: all 32 USB Channels, with names and colors from the mixer. They come to the App Store in a later update.
         Planned next: Pioneer DJM mixers. Others, such as the Behringer Wing and Allen &amp; Heath Qu and SQ, are
         being looked at. The list is under Supported mixers on the Features page.
@@ -267,8 +267,9 @@ export default function Home() {
               named from the mixer and ready for your DAW.
             </p>
             <p className="compat">
-              Works with the <a href="/mixers/xr18">XR18 and MR18</a> and the <a href="/mixers/x32">X32 and M32 (beta)</a>.
-              Needs a USB-C iPhone 15 or later, or an iPad, on iOS 26.
+              Records any class-compliant USB mixer or audio interface. Mixer Link adds channel names and colors from the{" "}
+              <a href="/mixers/xr18">XR18 and MR18</a> and the <a href="/mixers/x32">X32 and M32 (beta)</a>. Needs a
+              USB-C iPhone 15 or later, or an iPad, on iOS 26.
             </p>
             <div className="hero-actions">
               <AppStoreBadge id="app-store-link" />
