@@ -23,6 +23,13 @@ struct SupportSection: View {
     var body: some View {
         Section {
             Button("Contact support…") { contact() }
+                // On the button, not the Section: a Form's sections don't present sheets reliably.
+                #if canImport(MessageUI)
+                .sheet(isPresented: $composing) {
+                    MailComposer(body: SupportMail.body(details), attachment: attachReport ? report : nil)
+                        .ignoresSafeArea()
+                }
+                #endif
             // Only where the report can really go along: Mail's own composer. A mailto link can't carry a file.
             if let report, canAttach {
                 Toggle("Attach the last Show report (\(report.deletingLastPathComponent().lastPathComponent))", isOn: $attachReport)
@@ -34,12 +41,6 @@ struct SupportSection: View {
             let device = Recorder.defaultDeviceFolder
             report = await Task.detached { SupportMail.lastReport(showFolders: ShowList.read(device: device, drive: nil).map(\.folder)) }.value
         }
-        #if canImport(MessageUI)
-        .sheet(isPresented: $composing) {
-            MailComposer(body: SupportMail.body(details), attachment: attachReport ? report : nil)
-                .ignoresSafeArea()
-        }
-        #endif
     }
 
     private var details: SupportMail.Details {
