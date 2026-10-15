@@ -80,10 +80,17 @@ public struct ChannelNaming: Equatable, Sendable {
     // MARK: A Take
 
     /// The Sources a Take's Stems are named after at record press: the Mixer's, with typed names over them when the
-    /// Take may use them. Kept on Free, typed names aren't put on its files.
+    /// Take may use them. On Free the Stems get generic names and no colors (#705): kept, typed names and the Mixer's
+    /// aren't put on its files. What the Mixer routed to each channel is kept either way.
     public func sources(for mixer: [Source], channelCount: Int, allowance: TakeAllowance?) -> [Source] {
-        (0..<channelCount).map { channel in
+        let mixerNames = allowance?.mixerLinkNames ?? true
+        return (0..<channelCount).map { channel in
             var source = mixer.indices.contains(channel) ? mixer[channel] : .fallback(usbChannel: channel + 1)
+            if !mixerNames {
+                let routedFrom = source.routedFrom
+                source = .fallback(usbChannel: channel + 1)
+                source.routedFrom = routedFrom
+            }
             if allowance?.namingByHand ?? true, let typed = typed[channel + 1] {
                 source.name = typed
                 source.hasMixerName = false
@@ -114,6 +121,8 @@ public struct ChannelNaming: Equatable, Sendable {
         acceptsLateNames = false
         func changes(_ channel: Int, _ name: String) -> Bool { onFiles[channel].map { $0 != name } ?? false }
         let typedNames = allowance?.namingByHand ?? true ? typed : [:]
+        // On Free the Mixer's names never reach the files, late ones included (#705).
+        if !(allowance?.mixerLinkNames ?? true) { lateMixerNames = [:] }
         let late = lateMixerNames.filter { typedNames[$0.key] == nil && changes($0.key, $0.value) }
         lateMixerNames = [:]
         let names = late.merging(typedNames.filter { changes($0.key, $0.value) }) { _, typed in typed }
