@@ -80,6 +80,8 @@ public final class AutoGainSession {
     }
     /// Every gain step taken, by USB Channel, for Undo.
     public private(set) var steps: [Int: [GainStep]] = [:]
+    /// The steps each channel running now has taken, before they join `steps`: another channel's move needs them (#685).
+    private var inFlight: [Int: [GainStep]] = [:]
 
     /// - Parameters:
     ///   - measure: a USB Channel's Average level now, in dBFS, from the meters; nil when the audio stopped.
@@ -166,7 +168,10 @@ public final class AutoGainSession {
 
     /// Runs the rule on one USB Channel, moving its Mixer channel's preamp.
     private func runOne(usbChannel: Int, channel: Int) async -> Result {
-        var taken: [GainStep] = []
+        var taken: [GainStep] = [] {
+            didSet { inFlight[usbChannel] = taken }
+        }
+        defer { inFlight[usbChannel] = nil }
         var expected: Double?   // where the last move should have put the level
         var lastLevel = 0.0
         var limit: MixHold.Limit?   // what limited the latest step, if anything did
@@ -184,12 +189,13 @@ public final class AutoGainSession {
                 adjust: { db in
                     onPhase?(usbChannel, .adjusting)
                     let moved: GainStep?
-                    // What auto-gain moved and still holds for Undo, on any channel: Mix Hold keeps those end stops (#685).
-                    let live = Set((steps.values.joined() + taken).flatMap { $0.changes.map(\.setting) })
                     do throws(MixerLinkProblem) {
                         // Checked again once it's this channel's turn on the Mixer: a stop while it waited means no move.
                         moved = try await onMixer { () throws(MixerLinkProblem) -> GainStep? in
                             if stopRequested { return nil }
+                            // What auto-gain moved and still holds for Undo, on any channel, read once it's this
+                            // channel's turn: Mix Hold keeps those end stops (#685).
+                            let live = Set((Array(steps.values) + inFlight.values).joined().flatMap { $0.changes.map(\.setting) })
                             return try await control.applyMixHold(channel: channel, gainChangeDb: db, scopes: .all, live: live)
                         }
                     } catch {
