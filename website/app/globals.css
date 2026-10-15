@@ -1177,6 +1177,10 @@ html:not([data-js]) .theme-toggle {
   color: var(--bg);
 }
 
+.tier--beta {
+  border-style: dashed;
+}
+
 .group-jump {
   margin-top: 28px;
 }
