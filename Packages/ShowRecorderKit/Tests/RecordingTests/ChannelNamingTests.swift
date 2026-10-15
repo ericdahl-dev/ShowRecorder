@@ -46,14 +46,28 @@ struct ChannelNamingTests {
         #expect(cleared && !again)
     }
 
-    @Test("At record press typed names name the Stems only when the Take may use them; Free keeps the Mixer's")
+    @Test("At record press typed names name the Stems only when the Take may use them; Free gets generic names and no colors, not the Mixer's (#705)")
     func takeSources() {
+        let red = MixerColor(hue: .red, inverted: false)
+        let mixer = [Source(name: "Kick", color: red), Source.fallback(usbChannel: 2), Source(name: "Bass", color: red)]
         let naming = ChannelNaming(typed: [1: "Kick In"])
-        let pro = naming.sources(for: Self.sources, channelCount: 4, allowance: nil)
+        let pro = naming.sources(for: mixer, channelCount: 4, allowance: nil)
         #expect(pro.map(\.name) == ["Kick In", "USB 02", "Bass", "USB 04"])
         #expect(!pro[0].hasMixerName)
-        let free = Entitlement.allowance(for: .free, channelCount: 4, freeChoice: [1, 2])
-        #expect(naming.sources(for: Self.sources, channelCount: 4, allowance: free).map(\.name) == ["Kick", "USB 02", "Bass", "USB 04"])
+        #expect(pro[2].color == red && pro[2].hasMixerName)
+        let free = naming.sources(for: mixer, channelCount: 4, allowance: Entitlement.allowance(for: .free, channelCount: 4, freeChoice: [1, 2]))
+        #expect(free.map(\.name) == ["USB 01", "USB 02", "USB 03", "USB 04"])
+        #expect(free.allSatisfy { $0.color == .off && !$0.hasMixerName })
+    }
+
+    @Test("A Free Take that started without Mixer names takes none offered later either (#705)")
+    func noLateNamesOnFree() {
+        var naming = ChannelNaming()
+        naming.takeStarted(with: [Source.fallback(usbChannel: 1)])
+        naming.mixerOffered([Source(name: "Kick", color: .off)])
+        let free = Entitlement.allowance(for: .free, channelCount: 1, freeChoice: [1])
+        let end = naming.takeEnded(allowance: free, onFiles: [1: "USB 01"])
+        #expect(end.names.isEmpty && end.late.isEmpty)
     }
 
     @Test("A Take that started without Mixer names takes the first ones offered; at its end typed names win over them")
