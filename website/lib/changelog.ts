@@ -14,6 +14,18 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.5",
+    date: "2026-10-15",
+    channel: "TestFlight beta",
+    summary: "A quicker, safer Stop.",
+    changes: [
+      "Stop waits at most about 5 seconds on a Drive that has stopped answering, instead of freezing the screen.",
+      "Repair at Stop keeps all the audio a Copy recorded inside its own Gap.",
+      "Swipe a yellow warning away; in landscape, warnings sit in the top row and never cover the meters.",
+      "Mixer Link says when it's on a different mixer than the one you Armed, and tries again when the network port is briefly busy.",
+    ],
+  },
+  {
     version: "1.1.4",
     date: "2026-10-14",
     channel: "TestFlight beta",
