@@ -149,6 +149,9 @@ export default function FeaturesPage() {
           Using another mixer? Tell us which at <a href={`mailto:${CONTACT_EMAIL}`} {...trackAttrs("contact_email_clicked")}>{CONTACT_EMAIL}</a>. It
           helps decide what comes next.
         </p>
+        <p className="mixers-ask">
+          Choosing between recorders? See how ShowRecorder <a href="/compare">compares with other apps</a>.
+        </p>
       </section>
     </div>
   );

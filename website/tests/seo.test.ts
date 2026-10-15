@@ -171,3 +171,13 @@ describe("mixer page structured data (#704)", () => {
     expect(data.mainEntity.map((q) => q.acceptedAnswer.text)).toEqual(faqs.map((f) => f.a));
   });
 });
+
+describe("links to /compare (#704)", () => {
+  const read = (...p: string[]) => readFileSync(path.resolve(__dirname, "..", ...p), "utf8");
+
+  it("the home FAQ, the features page and the footer link it", () => {
+    expect(read("app", "page.tsx")).toMatch(/How does ShowRecorder compare with other apps\?[\s\S]*href="\/compare"/);
+    expect(read("app", "features", "page.tsx")).toMatch(/href="\/compare"/);
+    expect(read("components", "Footer.tsx")).toMatch(/href="\/compare"/);
+  });
+});
