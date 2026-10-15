@@ -47,6 +47,21 @@ export function Footer() {
             </li>
           </ul>
         </nav>
+        <nav aria-label="Supported mixers">
+          <ul className="footer-links">
+            <li className="footer-group">Supported mixers</li>
+            <li>
+              <a href="/mixers/xr18" data-current-match="">
+                XR18 and MR18
+              </a>
+            </li>
+            <li>
+              <a href="/mixers/x32" data-current-match="">
+                X32 and M32 (beta)
+              </a>
+            </li>
+          </ul>
+        </nav>
         <p className="legal">{TRADEMARK_LINE}</p>
         <p className="legal">Copyright 2026 Eric Dahl</p>
       </div>
