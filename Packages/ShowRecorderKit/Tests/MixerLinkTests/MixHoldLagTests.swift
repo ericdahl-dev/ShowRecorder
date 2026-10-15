@@ -121,6 +121,41 @@ struct MixHoldLagTests {
         Self.expectSteady(Self.drift(mixer, gain: "/headamp/01/gain", start: (14, 0)), "3 dB steps, fader eased")
     }
 
+    /// Every write in order on a cut, as gain and fader dB: the fader may never have risen more than the gain has dropped.
+    static func faderNeverAhead(_ mixer: FakeXAirMixer, gain: String, fader: String, start: (gain: Double, fader: Double)) -> [String] {
+        var g = start.gain, f = start.fader, bad: [String] = []
+        for write in mixer.writes {
+            guard case .float(let v) = write.value else { continue }
+            if write.address == gain { g = X32Values.headampGain.db(ofOSC: v) }
+            if write.address == fader { f = X32Values.fader.db(ofOSC: v) }
+            if (f - start.fader) > (start.gain - g) + 0.5 { bad.append(String(format: "gain %.2f fader %.2f", g, f)) }
+        }
+        return bad
+    }
+
+    @Test("Clip turn-downs (-3 and -6 dB) write the preamp down before each fader step up, in order", arguments: [-3.0, -6.0])
+    func clipTurnDownOrder(cut: Double) async throws {
+        let mixer = try await FakeXAirMixer(Self.easingDesk(gainDb: 38.5, faderDb: -10))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: cut)
+
+        #expect(step.toGainDb == 38.5 + cut)
+        #expect(mixer.writes.contains { $0.address == "/headamp/01/gain" } && mixer.writes.contains { $0.address == Self.fader })
+        #expect(Self.faderNeverAhead(mixer, gain: "/headamp/01/gain", fader: Self.fader, start: (38.5, -10)).isEmpty)
+    }
+
+    @Test("A clip turn-down with the fader near its +10 dB top cuts the preamp only as far as the fader can follow")
+    func turnDownAtFaderTop() async throws {
+        let mixer = try await FakeXAirMixer(Self.easingDesk(gainDb: 38.5, faderDb: 8))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: -6)
+
+        #expect(abs(step.toGainDb - 36.5) < 0.6, "only the 2 dB the fader can make up")
+        #expect(step.limitedBy != nil)
+    }
+
     @Test("X-Air ch 1, Undo of the +23 dB boost: the preamp comes down before the fader comes up")
     func xAirUndo() async throws {
         let mixer = try await FakeXAirMixer(Self.desk(headamp: 1, gainDb: 14, faderDb: 0))

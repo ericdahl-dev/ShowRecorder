@@ -258,10 +258,23 @@ public final class ClipProtection {
         (try? await control.lane(ofChannel: channel)) ?? nil
     }
 
+    /// The preamp each Mixer channel last answered with, so an unanswered read keeps its Take's 12 dB and its rest.
+    private var knownPreamp: [Int: Int] = [:]
+
     /// The preamp behind Mixer channel `channel`. The Mixer not answering is no reason to skip protecting: the channel
-    /// then stands for its own preamp, negative so it can't be mistaken for a preamp number.
+    /// then stands for the preamp it last answered with, or else for its own, negative so it can't be mistaken for a
+    /// preamp number. Either way it is counted as before (Eric's Take 06: an unanswered read gave a fresh 12 dB).
     private func preamp(ofChannel channel: Int) async -> Int {
-        ((try? await control.preamp(ofChannel: channel)) ?? nil) ?? -channel
+        if let answered = (try? await control.preamp(ofChannel: channel)) ?? nil {
+            if knownPreamp[channel] == nil {
+                // Moves made while the preamp was unknown were on this preamp: they count against its 12 dB and rest.
+                if let spent = turnedDown.removeValue(forKey: -channel) { turnedDown[answered, default: 0] += spent }
+                if let moved = lastMove.removeValue(forKey: -channel) { lastMove[answered] = max(lastMove[answered] ?? moved, moved) }
+            }
+            knownPreamp[channel] = answered
+            return answered
+        }
+        return knownPreamp[channel] ?? -channel
     }
 
     /// Turns `channel`'s preamp down by `gainChangeDb` (negative) with Mix Hold, in its lane of the Mixer's queue, and
