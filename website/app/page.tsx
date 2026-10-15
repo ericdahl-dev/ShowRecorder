@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
-import { AndroidSignup } from "@/components/AndroidSignup";
 import { AppStoreBadge } from "@/components/AppStoreBadge";
 import { GetBand } from "@/components/GetBand";
 import { Mark } from "@/components/Mark";
 import { Screenshot } from "@/components/Screenshot";
+import { SignupForm } from "@/components/SignupForm";
 import { PAGES, pageMetadata } from "@/lib/metadata";
 import { SHOTS } from "@/lib/screenshots";
+import { ctaNote } from "@/lib/site";
 import { faqPageJsonLd, jsonLdScript, softwareApplicationJsonLd } from "@/lib/structuredData";
 
 export const metadata = pageMetadata(PAGES.home);
@@ -59,8 +60,8 @@ const features: { title: string; body: ReactNode }[] = [
 
 const needs = [
   {
-    title: "A compatible mixer",
-    body: "A Behringer X Air XR18 or MR18 gives you 18 USB Channels with names and colors. Other class-compliant USB audio interfaces record too, without names.",
+    title: "A class-compliant USB mixer",
+    body: "Any class-compliant USB mixer or audio interface records every channel it sends. With a Behringer X Air XR18 or MR18, Mixer Link adds names and colors; without it, you type names with Pro.",
   },
   {
     title: "An iPhone or iPad",
@@ -136,6 +137,14 @@ const plans = [
 // `a` is the plain answer (also used for the FAQ structured data); `node`, when set, is how it renders.
 const faqs: { q: string; a: string; node?: ReactNode }[] = [
   {
+    q: "Is the beta safe for a real gig?",
+    a: "The beta is the version in testing before the App Store release, and the recording works as described here: files are saved every 2 seconds, an app closed mid-Take finishes that Take the next time it opens, and a Take never stops because of a Trial or a limit. It is still new software, so record a test Take with your own mixer before the show, and keep a backup recording for a gig you can't repeat. A USB drive gives you a second Copy as you record.",
+  },
+  {
+    q: "What does the beta cost?",
+    a: "Nothing to join. Free records 2 USB Channels of your choice; to record every USB Channel in the beta, start the 14-day Trial in Settings › Pro. Buying Pro in the beta isn't charged. TestFlight builds expire after 90 days, so install the newest build from TestFlight to carry on.",
+  },
+  {
     q: "How much space does a Show take?",
     a: "About 9.3 GB per hour for 18 channels at 48 kHz, on each place it is written to. Fewer channels take less: 2 channels take about 1 GB per hour. The record screen shows the time left on the Device and the Drive.",
   },
@@ -145,12 +154,12 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
   },
   {
     q: "Which mixers work?",
-    a: "The Behringer X Air XR18 and MR18 record 18 USB Channels with names and colors. Other class-compliant USB audio interfaces record every channel they send, without names from the mixer; you can type names with Pro. The Behringer X32 and Midas M32 work in the public beta now: all 32 USB Channels, with names and colors from the mixer. They come to the App Store in a later update. Planned next: Pioneer DJM mixers. Others, such as the Behringer Wing and Allen & Heath Qu and SQ, are being looked at. The list is under Supported mixers on the Features page.",
+    a: "Any class-compliant USB mixer or audio interface records every channel it sends. Mixer Link adds channel names and colors for the Behringer X Air XR18 and MR18, which record 18 USB Channels; on other mixers you can type names with Pro. The Behringer X32 and Midas M32 work in the public beta now: all 32 USB Channels, with names and colors from the mixer. They come to the App Store in a later update. Planned next: Pioneer DJM mixers. Others, such as the Behringer Wing and Allen & Heath Qu and SQ, are being looked at. The list is under Supported mixers on the Features page.",
     node: (
       <>
-        The Behringer X Air <a href="/mixers/xr18">XR18 and MR18</a> record 18 USB Channels with names and colors.
-        Other class-compliant USB audio interfaces record every channel they send, without names from the mixer; you
-        can type names with Pro. The Behringer <a href="/mixers/x32">X32 and Midas M32</a> work in the public beta
+        Any class-compliant USB mixer or audio interface records every channel it sends. Mixer Link adds channel names
+        and colors for the Behringer X Air <a href="/mixers/xr18">XR18 and MR18</a>, which record 18 USB Channels; on
+        other mixers you can type names with Pro. The Behringer <a href="/mixers/x32">X32 and Midas M32</a> work in the public beta
         now: all 32 USB Channels, with names and colors from the mixer. They come to the App Store in a later update.
         Planned next: Pioneer DJM mixers. Others, such as the Behringer Wing and Allen &amp; Heath Qu and SQ, are
         being looked at. The list is under Supported mixers on the Features page.
@@ -195,11 +204,11 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
   },
   {
     q: "Is there an Android version?",
-    a: "Not yet. An Android version is being considered, not promised: it needs its own app and testing on Android phones. Leave your email under Android below to hear if it happens.",
+    a: "Not yet. An Android version is being considered, not promised: it needs its own app and testing on Android phones. Leave your email at the top of the page, and pick Android, to hear if it happens.",
     node: (
       <>
         Not yet. An Android version is being considered, not promised: it needs its own app and testing on Android
-        phones. <a href="#android">Leave your email under Android</a> to hear if it happens.
+        phones. <a href="#launch-email">Leave your email at the top of the page</a>, and pick Android, to hear if it happens.
       </>
     ),
   },
@@ -252,19 +261,29 @@ export default function Home() {
               <Mark />
               For iPhone and iPad
             </p>
-            <h1 id="hero-title">Multitrack record every channel of your mixer on your iPhone or iPad.</h1>
+            <h1 id="hero-title">Record every channel of your XR18 on your iPhone. No laptop at the gig.</h1>
             <p className="lede">
-              Plug your mixer into your iPhone or iPad over USB, press record, and get one 24-bit WAV file per
-              channel, ready for your DAW. With a Behringer <a href="/mixers/xr18">XR18 or MR18</a>, every file is
-              named from the mixer, and the <a href="/mixers/x32">X32 and M32</a> are in the public beta. No
-              recording laptop at the gig.
+              Plug your mixer into your iPhone over USB, press record, and get one 24-bit WAV file per channel,
+              named from the mixer and ready for your DAW.
+            </p>
+            <p className="compat">
+              Records any class-compliant USB mixer or audio interface. Mixer Link adds channel names and colors from the{" "}
+              <a href="/mixers/xr18">XR18 and MR18</a> and the <a href="/mixers/x32">X32 and M32 (beta)</a>. Needs a
+              USB-C iPhone 15 or later, or an iPad, on iOS 26.
             </p>
             <div className="hero-actions">
               <AppStoreBadge id="app-store-link" />
-              <p className="price">Free to download, 14-day Trial of everything.</p>
-              <a className="see-need" href="#need">
-                See what you need
-              </a>
+              <p className="price">{ctaNote(false)}</p>
+              <p className="safe">A Take never stops because of a Trial, a limit or a license.</p>
+              <SignupForm />
+              <p className="hero-links">
+                <a className="see-need" href="#need">
+                  See what you need
+                </a>
+                <a className="see-need" href="/compare">
+                  Compare with other ways to record
+                </a>
+              </p>
             </div>
           </div>
           <div className="devices">
@@ -274,36 +293,15 @@ export default function Home() {
         </div>
       </section>
 
-      <Section
-        id="features"
-        title="Multitrack recording, one file per channel"
-        intro="ShowRecorder turns the USB audio from your mixer into one file per channel, written as you play, with nothing to set up on a laptop."
-      >
-        <ul className="cards cards--4">
-          {features.map((f) => (
-            <li key={f.title} className="card">
-              <h3>{f.title}</h3>
-              <p>{f.body}</p>
+      <Section id="how" title="How a show goes">
+        <ol className="steps">
+          {steps.map((s) => (
+            <li key={s.title}>
+              <h3>{s.title}</h3>
+              <p>{s.body}</p>
             </li>
           ))}
-        </ul>
-        <div className="figures">
-          <figure className="shot">
-            <Screenshot shot={SHOTS.markers} sizes={FIGURE_SIZES} />
-            <figcaption>Markers as you record, with the time of each one.</figcaption>
-          </figure>
-          <figure className="shot">
-            <Screenshot shot={SHOTS.show} sizes={FIGURE_SIZES} />
-            <figcaption>Every Take in a Show, with its Markers and its 18 Stems.</figcaption>
-          </figure>
-          <figure className="shot">
-            <Screenshot shot={SHOTS.sunlight} sizes={FIGURE_SIZES} />
-            <figcaption>The Sunlight appearance for bright stages.</figcaption>
-          </figure>
-        </div>
-        <p className="more-link">
-          <a href="/features">See every feature</a>
-        </p>
+        </ol>
       </Section>
 
       <Section
@@ -327,17 +325,6 @@ export default function Home() {
         </div>
       </Section>
 
-      <Section id="how" title="How a show goes">
-        <ol className="steps">
-          {steps.map((s) => (
-            <li key={s.title}>
-              <h3>{s.title}</h3>
-              <p>{s.body}</p>
-            </li>
-          ))}
-        </ol>
-      </Section>
-
       <section id="promise" aria-labelledby="promise-title" className="promise">
         <div className="wrap">
           <div className="inner">
@@ -354,6 +341,38 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <Section
+        id="features"
+        title="Multitrack recording, one file per channel"
+        intro="ShowRecorder turns the USB audio from your mixer into one file per channel, written as you play, with nothing to set up on a laptop."
+      >
+        <ul className="cards cards--4">
+          {features.map((f, i) => (
+            <li key={f.title} className={i < 4 ? "card" : "card card--more"}>
+              <h3>{f.title}</h3>
+              <p>{f.body}</p>
+            </li>
+          ))}
+        </ul>
+        <div className="figures">
+          <figure className="shot">
+            <Screenshot shot={SHOTS.markers} sizes={FIGURE_SIZES} />
+            <figcaption>Markers as you record, with the time of each one.</figcaption>
+          </figure>
+          <figure className="shot">
+            <Screenshot shot={SHOTS.show} sizes={FIGURE_SIZES} />
+            <figcaption>Every Take in a Show, with its Markers and its 18 Stems.</figcaption>
+          </figure>
+          <figure className="shot">
+            <Screenshot shot={SHOTS.sunlight} sizes={FIGURE_SIZES} />
+            <figcaption>The Sunlight appearance for bright stages.</figcaption>
+          </figure>
+        </div>
+        <p className="more-link">
+          <a href="/features">See every feature</a>
+        </p>
+      </Section>
 
       <Section
         id="pricing"
@@ -399,14 +418,6 @@ export default function Home() {
         <p className="more-link">
           More answers, step by step, are in the <a href="/docs">docs</a>.
         </p>
-      </Section>
-
-      <Section
-        id="android"
-        title="Android?"
-        intro="An Android version is being considered, not promised. Leave your email and you'll hear once, if it happens."
-      >
-        <AndroidSignup />
       </Section>
 
       <GetBand />

@@ -6,7 +6,7 @@ export const SITE_NAME = "ShowRecorder";
 export const SITE_URL = "https://showrecorder.app";
 // The one description of the product. PAGES.home.description, llms.txt and the structured data all use it.
 export const SITE_DESCRIPTION =
-  "Multitrack recorder for iPhone and iPad: every USB Channel of your mixer to its own mono Broadcast WAV file. XR18 and MR18, with X32 and M32 in the beta.";
+  "Multitrack recorder for iPhone and iPad: every channel of any class-compliant USB mixer to its own WAV file. Names from XR18, MR18, X32, M32 (beta).";
 export const CONTACT_EMAIL = "showrecorder@ericdahl.dev";
 // The app's source code (FSL-1.1-MIT: public to read, MIT two years after each release).
 export const REPO_URL = "https://github.com/ericdahl-dev/ShowRecorder";
@@ -19,6 +19,15 @@ export const APP_STORE_URL = null as string | null;
 // The public TestFlight beta, open while 1.0 is in App Review. With no APP_STORE_URL, the badge
 // slots link here instead of showing the placeholder. Set it to null to go back to "Coming soon".
 export const TESTFLIGHT_URL = "https://testflight.apple.com/join/sSessST8" as string | null;
+
+// The line under the call to action, for whatever the button is. While it is TestFlight (no App Store link, or `beta`
+// keeps a mixer page on the beta) it says what happens after the click (#719); on the App Store it is the old price line.
+export function ctaNote(beta: boolean): string {
+  if (TESTFLIGHT_URL && (!APP_STORE_URL || beta)) {
+    return "The beta is free. Opens Apple's TestFlight app: install TestFlight, tap Accept, then Install.";
+  }
+  return "Free to download, 14-day Trial of everything.";
+}
 
 // The crawlers that feed AI search and assistants, named so the policy is explicit: all of them may read the whole
 // site (#704). Training crawlers (Google-Extended, Applebot-Extended, CCBot) are included on purpose.

@@ -30,7 +30,7 @@ export function facts(): string[] {
     "- What it is: a multitrack recorder. It records every USB Channel a mixer sends to its own file, on an iPhone or iPad, with no laptop.",
     `- Get it: ${getIt}.`,
     "- Price: free to download, with a 14-day Trial of everything. Free records 2 USB Channels of your choice. Pro is a one-time $19.99 purchase, shared with Family Sharing. No subscription.",
-    "- Needs: a USB-C iPhone (iPhone 15 or later) on iOS 26, or a USB-C iPad on iPadOS 26, a USB cable to the mixer, and a compatible mixer. Wi-Fi is optional, for channel names and colors. No account.",
+    "- Needs: a USB-C iPhone (iPhone 15 or later) on iOS 26, or a USB-C iPad on iPadOS 26, a USB cable to the mixer, and a class-compliant USB mixer or audio interface. Wi-Fi is optional, for channel names and colors. No account.",
     "- Files: one mono 24-bit Broadcast WAV file (a Stem) per USB Channel, at the mixer's sample rate, 48 kHz for the XR18 and MR18, with a second copy on a USB drive. Pro adds a Show report and a Reaper project.",
     `- Works now: ${worksNow.map((m) => m.name).join("; ")}.`,
     `- In the public beta (TestFlight, not the App Store version): ${inBeta.map((m) => m.name).join("; ")}, tested only against an emulator so far. The Mac version, in testing on macOS 26, is also in the beta.`,
