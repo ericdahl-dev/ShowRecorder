@@ -93,4 +93,51 @@ struct FreeTakeTests {
         let first = try FileManager.default.contentsOfDirectory(atPath: device.appending(path: "\(show)/Take 01").path).filter { $0.hasSuffix(".wav") }
         #expect(second.count == 3 && first.count == 2)
     }
+
+    // MARK: - The Drive is Pro (#705)
+
+    func freeDriveRecorder(device: URL, drive: URL) throws -> Recorder {
+        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
+        return Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+    }
+
+    func noDrive(_ channels: Set<Int>) -> TakeAllowance {
+        var allowance = allowance(channels)
+        allowance.driveCopy = false
+        return allowance
+    }
+
+    @Test("A Take without the Drive Copy (Free) is written to the Device only, with a Drive connected (#705)")
+    func freeTakeSkipsDrive() throws {
+        let device = root.appending(path: "Device"), drive = root.appending(path: "Drive")
+        let recorder = try freeDriveRecorder(device: device, drive: drive)
+        let audio = FakeAudioDevice(inputChannelCount: 2)
+        try recorder.arm(audio)
+        try recorder.startTake(allowance: noDrive([1, 2]))
+        audio.deliver((0..<2).map { _ in Array(repeating: 0.2, count: 480) })
+        try recorder.stopTake()
+
+        #expect(FileManager.default.fileExists(atPath: device.appending(path: "\(show)/Take 01/01 USB 01.wav").path))
+        #expect(!FileManager.default.fileExists(atPath: drive.appending(path: show).path), "nothing on the Drive")
+    }
+
+    @Test("Drive only on a Take without the Drive Copy (Free) records a full Device Copy, not a stand-in (#705)")
+    func freeDriveOnlyRecordsToDevice() throws {
+        let device = root.appending(path: "Device"), drive = root.appending(path: "Drive")
+        let recorder = try freeDriveRecorder(device: device, drive: drive)
+        recorder.recordsToDriveOnly = true
+        let audio = FakeAudioDevice(inputChannelCount: 2)
+        try recorder.arm(audio)
+        try recorder.startTake(allowance: noDrive([1, 2]))
+        audio.deliver((0..<2).map { _ in Array(repeating: 0.2, count: 480) })
+        try recorder.stopTake()
+
+        let take = device.appending(path: "\(show)/Take 01")
+        #expect(try ParsedStem(contentsOf: take.appending(path: "01 USB 01.wav")).samples.count == 480)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let metadata = try decoder.decode(TakeMetadata.self, from: Data(contentsOf: take.appending(path: "Take.json")))
+        #expect(metadata.driveOnly != true)
+        #expect(!FileManager.default.fileExists(atPath: drive.appending(path: show).path))
+    }
 }

@@ -479,7 +479,9 @@ public final class Recorder {
         // A Show with no Take for 6 hours is over: this record starts a new one.
         endIdleShow(at: date)
 
-        var drive = driveFolder()
+        // The Drive is Pro (#705): a Take without the Drive Copy never reaches for it, so it records to the Device.
+        let mayUseDrive = allowance?.driveCopy ?? true
+        var drive = mayUseDrive ? driveFolder() : nil
         let opened: (show: Show, session: TakeSession, folders: [DestinationKind: URL])
         do {
             opened = try openTake(sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: drive)
@@ -591,7 +593,7 @@ public final class Recorder {
             return try TakeSession(
                 show: show, folders: takeFolders, drive: takeFolders[.drive] != nil ? drive : nil, metadata: metadata, stems: specs,
                 info: info, capture: capture, preRollFrames: preRollFrames, makeStem: makeStem, freeSpace: freeSpace,
-                driveOnly: recordsToDriveOnly)
+                driveOnly: recordsToDriveOnly && (allowance?.driveCopy ?? true))
         }
     }
 
