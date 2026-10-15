@@ -212,4 +212,18 @@ struct StatusChipsTests {
         #expect(mixerChip(blank)?.detail == "XR18", "a name of only spaces is no name")
         #expect(blank.nameAndModel == "XR18")
     }
+
+    @Test("On Free a connected Drive says it's Pro, not a time left, and Drive only reads the same: the Take goes to the Device (#705)")
+    func driveOnFree() {
+        func make(_ drive: DriveStatus, driveOnly: Bool = false) -> [StatusChip] {
+            StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive, mixer: nil, copies: .none,
+                            driveOnly: driveOnly, driveAllowed: false)
+        }
+        let free = make(drive(bytes: Self.anHour))
+        #expect(free.map(\.kind) == [.device, .drive])
+        #expect(free[1].text == "Drive · Pro")
+        #expect(free[1].state == .neutral)
+        #expect(make(drive(bytes: Self.anHour), driveOnly: true) == free)
+        #expect(make(.notChosen)[1].text == "Drive not set", "a Drive that isn't there reads as before")
+    }
 }

@@ -44,6 +44,7 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
     ///   - mixer: nil when the input isn't an X Air or X32: Mixer Link isn't offered, so there's no Mixer chip (#365).
     ///   - driveOnly: the Drive only setting (#196), so it applies between Takes too. Drive only, or a Drive-only Take,
     ///     shows one of the Device and Drive chips (#550).
+    ///   - driveAllowed: whether a Take pressed now would also go to the Drive (`License.allowsDrive`, #705).
     public static func make(
         usbChannelCount: Int,
         deviceAvailableBytes: Int64,
@@ -51,7 +52,8 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         mixer: MixerLinkState?,
         copies: TakeCopies,
         sampleRate: Int = 48_000,
-        driveOnly: Bool = false
+        driveOnly: Bool = false,
+        driveAllowed: Bool = true
     ) -> [StatusChip] {
         func stopped(_ kind: DestinationKind) -> Bool { copies.isRunning && copies[kind] == .interrupted }
         func timeLeft(_ bytes: Int64) -> TimeLeft {
@@ -68,6 +70,9 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         switch drive {
         case .notChosen:
             driveChip = StatusChip(kind: .drive, text: "Drive not set", state: .neutral)
+        case .available where !driveAllowed:
+            // Free (#705): the Drive is there, but a Take goes to the Device only, so no time left on it.
+            driveChip = StatusChip(kind: .drive, text: "Drive · Pro", state: .neutral)
         case .available(let available):
             let left = timeLeft(available.availableBytes)
             driveChip = StatusChip(kind: .drive, text: "Drive \(left)", state: isLow(left) ? .attention : .ok)
@@ -77,7 +82,8 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         if stopped(.drive) { driveChip = StatusChip(kind: .drive, text: "Drive stopped", state: .failed) }
 
         var chips = [device, driveChip]
-        if driveOnly || copies.isDriveOnly {
+        // Drive only needs the Drive Copy: on Free a Take goes to the Device (#705).
+        if (driveOnly && driveAllowed) || copies.isDriveOnly {
             var driveAvailable: Bool { if case .available = drive { true } else { false } }
             let deviceWrites = copies.isRunning
                 ? copies[.device] == .standingIn || (copies[.device] == .recording && copies[.drive] != .recording)

@@ -138,4 +138,12 @@ struct ProStatusTests {
         #expect(license(.free, offered: false).allowsAutoGain)
         #expect(license(nil).allowsAutoGain)
     }
+
+    @Test("The Drive is Pro: not on Free; on Pro, the Trial, with Pro not offered or the tier unknown (#705)")
+    func drive() {
+        func license(_ tier: Tier?, offered: Bool = true) -> License { License(proOffered: offered, tier: tier, trialStarted: false) }
+        #expect(!license(.free).allowsDrive)
+        #expect(license(.pro).allowsDrive && license(.trial(daysLeft: 2)).allowsDrive)
+        #expect(license(.free, offered: false).allowsDrive && license(nil).allowsDrive)
+    }
 }

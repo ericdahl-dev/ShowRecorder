@@ -34,6 +34,8 @@ public enum ProOfferMoment: Equatable, Sendable {
     case limitedTake(recorded: Int, withSignal: Int)
     /// The Trial's last days.
     case trialEndingSoon(daysLeft: Int)
+    /// A Free Take went to the Device only while a Drive was connected (#705).
+    case driveOnFree
 }
 
 /// When to offer Pro (#62, ADR 0004). Never while Pro isn't offered or the tier is unknown, never on Pro, never during a Take, and at most
@@ -42,6 +44,7 @@ public struct ProOffers {
     private static let firstShowKey = "proOffer.firstShow"
     private static let trialNoteKey = "proOffer.trialNote"
     private static let showKey = "proOffer.show"
+    private static let driveKey = "proOffer.driveOnFree"
     /// How many Trial days left get the note.
     public static let trialNoteDays = 2
 
@@ -56,6 +59,15 @@ public struct ProOffers {
               signal.withSignal > signal.recorded else { return nil }
         offered(in: show)
         return .limitedTake(recorded: signal.recorded, withSignal: signal.withSignal)
+    }
+
+    /// After a Free Take that went to the Device only with a Drive connected (#705): once ever, calmly, after the Take.
+    public mutating func afterTakeOnDevice(show: String, license: License, isRecording: Bool, driveConnected: Bool) -> ProOfferMoment? {
+        guard driveConnected, !license.allowsDrive, canOffer(in: show, license: license, isRecording: isRecording),
+              !defaults.bool(forKey: Self.driveKey) else { return nil }
+        defaults.set(true, forKey: Self.driveKey)
+        offered(in: show)
+        return .driveOnFree
     }
 
     public mutating func afterShowEnded(show: String, takeCount: Int, license: License) -> ProOfferMoment? {
@@ -112,6 +124,8 @@ public struct Paywall: Equatable, Sendable {
             headline = "Your first Show is recorded"
         case .trialEndingSoon(let daysLeft):
             headline = "Your 14-day Trial ends in \(daysLeft) \(daysLeft == 1 ? "day" : "days")"
+        case .driveOnFree:
+            headline = "This Take is on the Device only"
         case nil:
             headline = "ShowRecorder Pro"
         }

@@ -827,7 +827,8 @@ final class RecordScreenModel {
             drive: drive.status,
             mixer: mixer.state,
             copies: copies,
-            sampleRate: recorder.sampleRate ?? 48_000)
+            sampleRate: recorder.sampleRate ?? 48_000,
+            driveAllowed: pro.license().allowsDrive)
     }
 
     /// Everything the record screen has to say, most urgent first, but the warnings and green summaries swiped away (#644, #698); it shows one
@@ -1056,11 +1057,16 @@ final class RecordScreenModel {
         sequencer.stop()
     }
 
-    /// After a Take: a Free Take that left channels with signal unrecorded, or the Trial's last days (#62).
+    /// After a Take: a Free Take that went to the Device only with a Drive connected (#705), a Free Take that left
+    /// channels with signal unrecorded, or the Trial's last days (#62).
     private func offerProAfterTake() {
         let show = recorder.currentShow?.name
         let license = pro.license()
-        let moment = recorder.lastTakeSignal.flatMap { signal in
+        let driveConnected = if case .available = drive.status { true } else { false }
+        let onDevice = show.flatMap {
+            proOffers.afterTakeOnDevice(show: $0, license: license, isRecording: recorder.isRecording, driveConnected: driveConnected)
+        }
+        let moment = onDevice ?? recorder.lastTakeSignal.flatMap { signal in
             show.flatMap { proOffers.afterTakeStopped(show: $0, signal: signal, license: license, isRecording: recorder.isRecording) }
         } ?? proOffers.betweenTakes(show: show, license: license, isRecording: recorder.isRecording)
         if let moment { offerPro(moment) }

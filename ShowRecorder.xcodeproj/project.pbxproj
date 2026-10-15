@@ -22,6 +22,7 @@
 		2A783EA5AB48D8026B74CA31 /* ShowRecorderWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = CAE710202D63B74CD7D41083 /* ShowRecorderWatch.app */; platformFilters = (ios, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2AF765A05EE05F3C4D63AB9B /* AppVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0862F49085300EE64A47A859 /* AppVersion.swift */; };
 		32D2E536D45006ECF7CCDB6E /* Recording in Frameworks */ = {isa = PBXBuildFile; productRef = E4B425D454C0ADEC5187ABCF /* Recording */; };
+		3930FE44AD5ADF645A034892 /* ThisHardware.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D19A6F0E786B644500ED381 /* ThisHardware.swift */; };
 		3B133367222FC5F3F5EBDBC3 /* PaywallSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01380066EBAE4A3580E3B80B /* PaywallSheet.swift */; };
 		3F72BDB1F6F5F7C117C7A4DF /* ChannelNamesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F37D396FDE04128489306DC3 /* ChannelNamesView.swift */; };
 		425C1B6F2EF14106616C0F7C /* DemoLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BA48054FA4738E31732A40E /* DemoLink.swift */; };
@@ -142,6 +143,7 @@
 		72C6BE33F49834B5129EA247 /* AutoGainSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoGainSheet.swift; sourceTree = "<group>"; };
 		7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowRecorderApp.swift; sourceTree = "<group>"; };
 		74ACE7E232B13FE02C923373 /* SupportSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportSection.swift; sourceTree = "<group>"; };
+		7D19A6F0E786B644500ED381 /* ThisHardware.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThisHardware.swift; sourceTree = "<group>"; };
 		803373069C5B52C0B8A79AD8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		848566071F05B3D655086E7A /* ShowRecorder.storekit */ = {isa = PBXFileReference; path = ShowRecorder.storekit; sourceTree = "<group>"; };
 		84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordScreen.swift; sourceTree = "<group>"; };
@@ -285,6 +287,7 @@
 				E951F97A3A234FFB9E4215B5 /* SupportMail.swift */,
 				74ACE7E232B13FE02C923373 /* SupportSection.swift */,
 				95E36C84780061B781FBBE4D /* TakeLiveActivity.swift */,
+				7D19A6F0E786B644500ED381 /* ThisHardware.swift */,
 				DDDF413BFBEF5212621189D4 /* TrialSheet.swift */,
 				B226D8F0693756FC24B78255 /* WatchLink.swift */,
 				8DFAA5CBF9186C8638F0BDDD /* WindowCloseGuard.swift */,
@@ -558,6 +561,7 @@
 				5D5D12F59403A4A68536795A /* SupportMail.swift in Sources */,
 				876AC19AE21C45AFA7E6C512 /* SupportSection.swift in Sources */,
 				1339BC14126FF5CDF750BC20 /* TakeLiveActivity.swift in Sources */,
+				3930FE44AD5ADF645A034892 /* ThisHardware.swift in Sources */,
 				07FB0DD2A97E806B1CB409A1 /* TrialSheet.swift in Sources */,
 				FFB051D0C43CF1136FC20431 /* WatchLink.swift in Sources */,
 				42E521FCCC800B2B20D0B69B /* WindowCloseGuard.swift in Sources */,
