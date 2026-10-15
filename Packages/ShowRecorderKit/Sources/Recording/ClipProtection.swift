@@ -274,7 +274,7 @@ public final class ClipProtection {
             // So can the wait in the queue.
             guard let moved = try await queue.run(lane: lane, { () throws(MixerLinkProblem) -> GainStep? in
                 guard !stopped else { return nil }
-                return try await control.applyMixHold(channel: channel, gainChangeDb: gainChangeDb, scopes: .all)
+                return try await control.applyMixHold(channel: channel, gainChangeDb: gainChangeDb, scopes: .all, live: [])
             }) else { return }
             step = moved
         } catch {

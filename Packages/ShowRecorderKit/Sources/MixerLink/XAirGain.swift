@@ -21,8 +21,11 @@ extension XAirDriver: GainControl, MixHoldDesk {
     /// POSTEQ and PRE are before the fader, POST and GRP after it. The X-Air has no mono or center.
     public func mixHoldState(ofChannel channel: Int) async throws(MixerLinkProblem) -> MixHold.ChannelState {
         let base = String(format: "/ch/%02d", channel)
-        let gate = X32Values.gateThreshold.db(ofOSC: try await queries.float(at: base + "/gate/thr"))
-        let compressor = X32Values.compressorThreshold.db(ofOSC: try await queries.float(at: base + "/dyn/thr"))
+        // A gate or compressor that's off doesn't change the sound: its threshold is left out, so Mix Hold leaves it (#685).
+        let gate = try await queries.int(at: base + "/gate/on") == 0 ? nil
+            : X32Values.gateThreshold.db(ofOSC: try await queries.float(at: base + "/gate/thr"))
+        let compressor = try await queries.int(at: base + "/dyn/on") == 0 ? nil
+            : X32Values.compressorThreshold.db(ofOSC: try await queries.float(at: base + "/dyn/thr"))
         let fader = X32Values.fader.db(ofOSC: try await queries.float(at: base + "/mix/fader"))
         var sends: [MixHold.Send] = []
         for bus in 1...Self.sendCount {
@@ -53,11 +56,11 @@ extension XAirDriver: GainControl, MixHoldDesk {
         var keyed: [MixHold.KeyedDynamics] = []
         for other in 1...16 where other != channel {
             let base = String(format: "/ch/%02d", other)
-            if Int(try await queries.int(at: base + "/gate/keysrc")) == channel {
+            if Int(try await queries.int(at: base + "/gate/keysrc")) == channel, try await queries.int(at: base + "/gate/on") != 0 {
                 let threshold = X32Values.gateThreshold.db(ofOSC: try await queries.float(at: base + "/gate/thr"))
                 keyed.append(MixHold.KeyedDynamics(channel: other, dynamics: .gate, thresholdDb: threshold, keyChannel: channel))
             }
-            if Int(try await queries.int(at: base + "/dyn/keysrc")) == channel {
+            if Int(try await queries.int(at: base + "/dyn/keysrc")) == channel, try await queries.int(at: base + "/dyn/on") != 0 {
                 let threshold = X32Values.compressorThreshold.db(ofOSC: try await queries.float(at: base + "/dyn/thr"))
                 keyed.append(MixHold.KeyedDynamics(channel: other, dynamics: .compressor, thresholdDb: threshold, keyChannel: channel))
             }
@@ -66,8 +69,9 @@ extension XAirDriver: GainControl, MixHoldDesk {
     }
 
     /// Moves input channel `channel`'s preamp by `gainChangeDb` with Mix Hold: see `MixHoldDesk`.
-    public func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes = .all) async throws(MixerLinkProblem) -> GainStep {
-        try await mixHold(channel: channel, gainChangeDb: gainChangeDb, scopes: scopes)
+    public func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes = .all,
+                             live: Set<MixHold.Setting> = []) async throws(MixerLinkProblem) -> GainStep {
+        try await mixHold(channel: channel, gainChangeDb: gainChangeDb, scopes: scopes, live: live)
     }
 
     /// Puts back every value `step` changed: see `MixHoldDesk`.

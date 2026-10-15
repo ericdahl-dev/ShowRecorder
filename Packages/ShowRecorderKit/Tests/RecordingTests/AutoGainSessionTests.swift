@@ -33,6 +33,10 @@ final class FakeGainControl: GainControl {
     var laneOf: [Int: Int] = [:]
     /// When set, every gain move also moves this compensated setting, even when the gain snaps back to where it was.
     var alsoMoves: MixHold.Change?
+    /// The `live` settings each move was given.
+    var liveSeen: [Set<MixHold.Setting>] = []
+    /// The same, with the channel each move was on.
+    var liveSeenOn: [(channel: Int, live: Set<MixHold.Setting>)] = []
     /// When set, each undo waits on it first, as a slow Mixer does.
     var undoAnswer: (@Sendable () async -> Void)?
     /// When set, each preamp read waits on it first, as a slow Mixer does.
@@ -62,8 +66,8 @@ final class FakeGainControl: GainControl {
         await MainActor.run { laneOf[channel] }
     }
 
-    nonisolated func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes) async throws(MixerLinkProblem) -> GainStep {
-        await MainActor.run { moveStarts += 1 }
+    nonisolated func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes, live: Set<MixHold.Setting>) async throws(MixerLinkProblem) -> GainStep {
+        await MainActor.run { moveStarts += 1; liveSeen.append(live); liveSeenOn.append((channel, live)) }
         if let problem = await MainActor.run(body: { problem }) { throw problem }
         if let answer = await MainActor.run(body: { answer }) { await answer() }
         if let channelAnswer = await MainActor.run(body: { channelAnswer }) { await channelAnswer(channel) }
@@ -371,6 +375,42 @@ struct AutoGainSessionTests {
         try await session.undo(usbChannel: 1)
 
         #expect(control.gainDb[1] == 0)
+    }
+
+    @Test("Each move is given every setting auto-gain moved and still holds for Undo, this run's and earlier runs' (#685)")
+    func movesGivenWhatAutoGainMoved() async throws {
+        let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
+        control.mixHoldCeilingDb = 10
+        let compressor = MixHold.Setting(channel: 1, parameter: .compressorThreshold)
+        control.alsoMoves = MixHold.Change(setting: compressor, fromDb: -10, toDb: 0)
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]))
+
+        _ = await session.run(usbChannels: [1])
+        #expect(control.liveSeen.first == [], "nothing moved before the first move")
+        #expect(control.liveSeen.count > 1 && control.liveSeen.dropFirst().allSatisfy { $0 == [compressor] })
+        let firstRun = control.liveSeen.count
+        _ = await session.run(usbChannels: [1])
+        #expect(control.liveSeen[firstRun] == [compressor], "an earlier run's move is still held for Undo")
+        try await session.undo(usbChannel: 1)
+        let afterUndo = control.liveSeen.count
+        _ = await session.run(usbChannels: [1])
+        #expect(control.liveSeen[afterUndo] == [], "Undo put it back: it's no longer auto-gain's")
+    }
+
+    @Test("A move is given what another channel's move in the same run has moved, while that channel is still running (#685)")
+    func movesGivenOtherChannelsMoves() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
+        control.mixHoldCeilingDb = 10   // each channel takes a second pass, which stops at the ceiling
+        let keyed = MixHold.Setting(channel: 3, parameter: .compressorThreshold)   // keyed from both, say
+        control.alsoMoves = MixHold.Change(setting: keyed, fromDb: -10, toDb: 0)
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40, 2: -40]))
+
+        _ = await session.run(usbChannels: [1, 2])
+
+        let moves = control.liveSeenOn
+        #expect(moves.count == 4)
+        #expect(moves[0].live.isEmpty)
+        #expect(moves[1].channel != moves[0].channel && moves[1].live == [keyed], "the other channel's first move, still in flight")
     }
 
     @Test("When Mix Hold can't go further, the result says which setting stopped it, not that the preamp ran out")

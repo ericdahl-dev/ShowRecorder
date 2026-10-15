@@ -91,7 +91,7 @@ struct StubGainControl: GainControl {
     func channel(forUSBChannel usbChannel: Int) -> Int? { usbChannel }
     func preamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? { channel }
     func lane(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? { nil }
-    func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes) async throws(MixerLinkProblem) -> GainStep {
+    func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes, live: Set<MixHold.Setting>) async throws(MixerLinkProblem) -> GainStep {
         GainStep(channel: channel, headamp: channel, fromGainDb: 0, toGainDb: gainChangeDb, held: [:], limitedBy: nil, restore: [:])
     }
     func undo(_ step: GainStep) async throws(MixerLinkProblem) {}

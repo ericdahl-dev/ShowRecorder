@@ -38,7 +38,7 @@ struct NoMixerLink: GainControl {
     func channel(forUSBChannel usbChannel: Int) -> Int? { nil }
     func preamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? { throw problem }
     func lane(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? { nil }
-    func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes) async throws(MixerLinkProblem) -> GainStep {
+    func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes, live: Set<MixHold.Setting>) async throws(MixerLinkProblem) -> GainStep {
         throw problem
     }
     func undo(_ step: GainStep) async throws(MixerLinkProblem) { throw problem }

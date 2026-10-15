@@ -365,4 +365,125 @@ struct X32GainTests {
 
         #expect(step.changes.filter { $0.setting == MixHold.Setting(channel: 9, parameter: .gateThreshold) }.count == 1)
     }
+
+    @Test("A gate at 0 dB and a compressor at -3 dB, both off: +6 dB moves only the preamp, with no end stop (#685)")
+    func dynamicsOffLeftAlone() async throws {
+        var state = Self.kickDesk()
+        state.channels[0].gateOn = 0
+        state.channels[0].compressorOn = 0
+        state.channels[0].gateThreshold = 1         // 0 dB
+        state.channels[0].compressorThreshold = 0.95   // -3 dB: on, +6 would stop at +3
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+
+        #expect(step.limitedBy == nil)
+        #expect(step.toGainDb == -6)
+        #expect(!step.changes.contains { $0.setting.channel == 1 && !$0.setting.parameter.isLevel })
+        #expect(!mixer.writes.contains { $0.address.hasPrefix("/ch/01/") && $0.address.hasSuffix("/thr") })
+    }
+
+    @Test("A compressor that's off on channel 2, keyed from channel 1 and at -3 dB: +6 dB on channel 1 leaves it alone (#685)")
+    func keyedDynamicsOffLeftAlone() async throws {
+        var state = Self.kickDesk()                 // channel 2's compressor keyed from channel 1
+        state.channels[1].compressorOn = 0
+        state.channels[1].compressorThreshold = 0.95   // -3 dB: on, +6 would stop at +3
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+
+        #expect(step.limitedBy == nil)
+        #expect(!step.changes.contains { $0.setting == MixHold.Setting(channel: 2, parameter: .compressorThreshold) })
+        #expect(!mixer.writes.contains { $0.address == "/ch/02/dyn/thr" })
+    }
+
+    @Test("A gate that's on at 0 dB still stops a boost at its end stop (#685)")
+    func dynamicsOnStillStops() async throws {
+        var state = Self.kickDesk()
+        state.channels[0].gateThreshold = 1         // 0 dB
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+
+        #expect(step.limitedBy == MixHold.Limit(setting: MixHold.Setting(channel: 1, parameter: .gateThreshold), endDb: 0))
+    }
+
+    @Test("A compressor that's on at the top of its range (0 dB) never acts: a -6 dB cut doesn't lower it (#685)")
+    func compressorAtTopLeftAlone() async throws {
+        var state = Self.kickDesk()
+        state.channels[0].compressorThreshold = 1   // 0 dB, the top of -60...0
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: -6)
+
+        #expect(step.limitedBy == nil)
+        #expect(!step.changes.contains { $0.setting == MixHold.Setting(channel: 1, parameter: .compressorThreshold) })
+        #expect(!mixer.writes.contains { $0.address == "/ch/01/dyn/thr" })
+    }
+
+    @Test("A gate that's on at the bottom of its range (-80 dB) is always open: a +6 dB boost doesn't raise it (#685)")
+    func gateAtBottomLeftAlone() async throws {
+        var state = Self.kickDesk()
+        state.channels[0].gateThreshold = 0         // -80 dB, the bottom of -80...0
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+
+        #expect(step.limitedBy == nil)
+        #expect(!step.changes.contains { $0.setting == MixHold.Setting(channel: 1, parameter: .gateThreshold) })
+        #expect(!mixer.writes.contains { $0.address == "/ch/01/gate/thr" })
+    }
+
+    @Test("A gate that's off on channel 3, keyed from channel 1 and at -3 dB: +6 dB on channel 1 leaves it alone (#685)")
+    func keyedGateOffLeftAlone() async throws {
+        var state = Self.kickDesk()
+        state.channels[2].gateKey = 1               // channel 3's gate keyed from channel 1 (In01 on the X32)
+        state.channels[2].gateOn = 0
+        state.channels[2].gateThreshold = 0.9625    // -3 dB: on, +6 would stop at +3
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+
+        #expect(step.limitedBy == nil)
+        #expect(!step.changes.contains { $0.setting == MixHold.Setting(channel: 3, parameter: .gateThreshold) })
+        #expect(!mixer.writes.contains { $0.address == "/ch/03/gate/thr" })
+    }
+
+    @Test("Keyed dynamics that are on but do nothing (a compressor at 0 dB, a gate at -80 dB) are left alone, with no end stop (#685)")
+    func keyedDynamicsIdleLeftAlone() async throws {
+        var state = Self.kickDesk()                 // channel 2's compressor keyed from channel 1
+        state.channels[1].compressorThreshold = 1   // 0 dB, the top of -60...0
+        state.channels[2].gateKey = 1               // channel 3's gate keyed from channel 1 (In01 on the X32)
+        state.channels[2].gateThreshold = 0         // -80 dB, the bottom of -80...0
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        let boost = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+        let cut = try await driver.applyMixHold(channel: 1, gainChangeDb: -12)
+
+        #expect(boost.limitedBy == nil && cut.limitedBy == nil)
+        #expect(!(boost.changes + cut.changes).contains { $0.setting.channel != 1 })
+        #expect(!mixer.writes.contains { $0.address == "/ch/02/dyn/thr" || $0.address == "/ch/03/gate/thr" })
+    }
+
+    @Test("A compressor on at -3 dB: +6 dB stops at +3 with its end stop, and the next step, given what auto-gain moved, stays stopped (#685)")
+    func movedToEdgeStillStops() async throws {
+        var state = Self.kickDesk()
+        state.channels[0].compressorThreshold = 0.95   // -3 dB
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+        let compressor = MixHold.Limit(setting: MixHold.Setting(channel: 1, parameter: .compressorThreshold), endDb: 0)
+
+        let first = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+        let second = try await driver.applyMixHold(channel: 1, gainChangeDb: 3, live: Set(first.changes.map(\.setting)))
+
+        #expect(first.toGainDb - first.fromGainDb == 3 && first.limitedBy == compressor)
+        #expect(second.toGainDb == second.fromGainDb && second.limitedBy == compressor)
+    }
 }
