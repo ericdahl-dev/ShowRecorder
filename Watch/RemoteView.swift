@@ -25,7 +25,7 @@ struct RemoteView: View {
         Group {
             // One screen, no scrolling: what's happening on top, the controls along the bottom.
             VStack(spacing: 6) {
-                header(status.state)
+                header(status.state, isLive: isLive, asOf: status.sentAt)
                 if !isLive { asOf(status) }
                 if let problem = status.problems.first {
                     Label(problem.text, systemImage: problem.symbol)
@@ -40,6 +40,7 @@ struct RemoteView: View {
                 Spacer(minLength: 0)
                 controls(status.state)
                     .disabled(!isLive)
+                    .allowsHitTesting(isLive)
             }
             .opacity(isLive ? 1 : 0.5)
         }
@@ -50,7 +51,7 @@ struct RemoteView: View {
         HStack(spacing: 4) {
             Text("No link ·")
             if status.sentAt > .distantPast {
-                Text("as of") + Text(" ") + Text(status.sentAt, style: .relative) + Text(" ago")
+                Text("as of") + Text(" ") + Text(min(status.sentAt, .now), style: .relative) + Text(" ago")
             } else {
                 Text("last known")
             }
@@ -60,7 +61,7 @@ struct RemoteView: View {
     }
 
     @ViewBuilder
-    private func header(_ state: WatchStatus.State) -> some View {
+    private func header(_ state: WatchStatus.State, isLive: Bool, asOf: Date) -> some View {
         switch state {
         case .notArmed:
             Text("Not Armed").font(.headline)
@@ -69,8 +70,15 @@ struct RemoteView: View {
         case .recording(let startedAt, let takeTitle, let markerCount):
             VStack(spacing: 0) {
                 Label("Recording", systemImage: "record.circle").font(.headline).foregroundStyle(.red)
-                Text(timerInterval: startedAt...Date.distantFuture, countsDown: false)
-                    .font(.title2.monospacedDigit())
+                if isLive {
+                    Text(timerInterval: startedAt...Date.distantFuture, countsDown: false)
+                        .font(.title2.monospacedDigit())
+                } else {
+                    // Frozen at when the iPhone last said: a clock that keeps counting would look live.
+                    let seconds = max(0, Int(asOf.timeIntervalSince(startedAt)))
+                    Text(Duration.seconds(seconds), format: .time(pattern: .hourMinuteSecond))
+                        .font(.title2.monospacedDigit())
+                }
                 Text(markerCount == 1 ? "\(takeTitle) · 1 Marker" : "\(takeTitle) · \(markerCount) Markers")
                     .font(.footnote).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
             }

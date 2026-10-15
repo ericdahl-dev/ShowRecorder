@@ -112,6 +112,8 @@ public final class WatchRemoteModel {
     public func received(_ new: WatchStatus) {
         if new.problems.contains(where: { !toldProblems.contains($0) }) { haptic(.problem) }
         toldProblems = Set(new.problems)
+        // Read now: the reachability callback may not have run yet, in either direction.
+        isReachable = link.isReachable
         status = new
         statusIsLive = isReachable
         connecting = false
@@ -126,7 +128,8 @@ public final class WatchRemoteModel {
     }
 
     public func send(_ kind: WatchCommand.Kind) {
-        guard isReachable else {
+        // Only a live status sends: not last known, and not a link that's back but hasn't said what's true now.
+        guard case .status = display else {
             commands[kind] = .failed(Self.noLinkText)
             return
         }

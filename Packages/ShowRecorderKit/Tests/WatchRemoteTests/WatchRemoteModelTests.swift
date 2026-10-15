@@ -173,6 +173,33 @@ struct WatchRemoteModelTests {
         #expect(model.commands[.marker] == .failed(WatchRemoteModel.noLinkText))
     }
 
+    @Test("Reachable again but no fresh status yet: Marker and Stop are not sent (#737 review)")
+    func notFreshBlocksCommands() {
+        let link = Link()
+        let model = Self.model(link)
+        link.isReachable = false
+        model.reachabilityChanged()
+        link.isReachable = true
+        model.reachabilityChanged()
+        model.send(.marker)
+        model.send(.stop)
+        #expect(link.sent.isEmpty)
+        #expect(model.commands[.stop] == .failed(WatchRemoteModel.noLinkText))
+    }
+
+    @Test("A status is live only if the link is reachable when it arrives, whichever callback comes first (#737 review)")
+    func receivedReadsReachabilityNow() {
+        let link = Link()
+        let model = Self.model(link)
+        link.isReachable = false   // dropped; reachabilityChanged hasn't run yet
+        model.received(Self.recording)
+        #expect(model.display == .lastKnown(Self.recording), "a context landing as the link drops isn't live")
+        link.isReachable = true    // back; the fresh status arrives before reachabilityChanged
+        model.received(Self.recording)
+        model.reachabilityChanged()
+        #expect(model.display == .status(Self.recording), "not stuck dimmed while connected")
+    }
+
     @Test("An answer that never came back is unknown, not a failure; one too late says so")
     func unknownAndLate() {
         let link = Link()
