@@ -41,6 +41,8 @@ final class FakeGainControl: GainControl {
     var undoAnswer: (@Sendable () async -> Void)?
     /// When set, each preamp read waits on it first, as a slow Mixer does.
     var preampAnswer: (@Sendable () async -> Void)?
+    /// When true, a preamp read gets no answer, as a busy Mixer's can time out.
+    var preampFails = false
     /// When set, Mix Hold can't raise a gain past this, as when a threshold reaches its top: it stops there and says so.
     var mixHoldCeilingDb: Double?
     /// When set, a threshold every move compensates (one keyed from all the channels, say): a move reads it, ramps,
@@ -59,6 +61,7 @@ final class FakeGainControl: GainControl {
 
     nonisolated func preamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? {
         if let answer = await MainActor.run(body: { preampAnswer }) { await answer() }
+        if await MainActor.run(body: { preampFails }) { throw .noReply(host: "fake") }
         return await MainActor.run { preampOf[channel] ?? channel }
     }
 
