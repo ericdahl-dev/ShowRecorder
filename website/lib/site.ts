@@ -20,6 +20,15 @@ export const APP_STORE_URL = null as string | null;
 // slots link here instead of showing the placeholder. Set it to null to go back to "Coming soon".
 export const TESTFLIGHT_URL = "https://testflight.apple.com/join/sSessST8" as string | null;
 
+// The line under the call to action, for whatever the button is. While it is TestFlight (no App Store link, or `beta`
+// keeps a mixer page on the beta) it says what happens after the click (#719); on the App Store it is the old price line.
+export function ctaNote(beta: boolean): string {
+  if (TESTFLIGHT_URL && (!APP_STORE_URL || beta)) {
+    return "The beta is free. Opens Apple's TestFlight app: install TestFlight, tap Accept, then Install.";
+  }
+  return "Free to download, 14-day Trial of everything.";
+}
+
 // The crawlers that feed AI search and assistants, named so the policy is explicit: all of them may read the whole
 // site (#704). Training crawlers (Google-Extended, Applebot-Extended, CCBot) are included on purpose.
 export const AI_CRAWLERS = [
