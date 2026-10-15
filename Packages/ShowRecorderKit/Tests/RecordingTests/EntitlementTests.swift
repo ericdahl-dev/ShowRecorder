@@ -58,6 +58,21 @@ struct EntitlementTests {
         #expect(recorded([], of: 0) == [])
     }
 
+    @Test("Free gets no Drive Copy, 3 Markers per Take, generic names (no Mixer Link names or colors), no auto-gain and no clip protection; Pro and the Trial get all of them (Eric, 2026-10-15, #705)")
+    func paidGates() {
+        let free = Entitlement.allowance(for: .free, channelCount: 18, freeChoice: [])
+        #expect(!free.driveCopy)
+        #expect(free.markerLimit == 3)
+        #expect(!free.mixerLinkNames)
+        #expect(!free.autoGain)
+        #expect(!free.clipProtection)
+        for tier in [Tier.pro, .trial(daysLeft: 3)] {
+            let full = Entitlement.allowance(for: tier, channelCount: 18, freeChoice: [])
+            #expect(full.driveCopy && full.mixerLinkNames && full.autoGain && full.clipProtection)
+            #expect(full.markerLimit == nil)
+        }
+    }
+
     @Test("Settings names the tier in the glossary's words: Free, 14-day Trial with the days left, Pro")
     func titles() {
         #expect(Tier.free.title == "Free")
