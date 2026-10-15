@@ -428,6 +428,11 @@ struct RecordScreen: View {
                     .buttonStyle(.plain)
                     // On a short screen the note truncates, so the column never outgrows it (#645).
                     .layoutPriority(-1)
+                    // The green Copy summary swipes away here too (#698); it comes back when its text changes.
+                    .simultaneousGesture(DragGesture(minimumDistance: 20).onEnded { drag in
+                        if abs(drag.translation.width) > 60, SwipedAlerts.isSwipeable(note) { model.swipe(note) }
+                    })
+                    .accessibilityActions { if SwipedAlerts.isSwipeable(note) { Button("Dismiss") { model.swipe(note) } } }
                 }
             }
             // This spacer takes the slack and the note truncates first, so Marker and Record stay put when the note comes and goes.
@@ -823,11 +828,11 @@ final class RecordScreenModel {
             sampleRate: recorder.sampleRate ?? 48_000)
     }
 
-    /// Everything the record screen has to say, most urgent first, but the warnings swiped away (#644); it shows one
+    /// Everything the record screen has to say, most urgent first, but the warnings and green summaries swiped away (#644, #698); it shows one
     /// and counts the rest.
     var alerts: AlertQueue { AlertQueue(swipedAlerts.showing(raisedAlerts)) }
 
-    /// Warnings the operator swiped away, until their message changes or their problem clears.
+    /// Warnings and green summaries the operator swiped away, until their message changes or their problem clears.
     private var swipedAlerts = SwipedAlerts()
 
     func swipe(_ alert: ScreenAlert) { swipedAlerts.swipe(alert) }

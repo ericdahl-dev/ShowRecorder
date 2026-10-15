@@ -77,6 +77,26 @@ struct SwipedAlertsTests {
         #expect(swiped.showing([stopped]) == [stopped])
     }
 
+    @Test("A green summary can be swiped away, and shows again when its text changes (#698)")
+    func greenSummarySwipes() {
+        let summary = ScreenAlert(id: "copies", priority: .copyResult, tone: .ok, text: "Device copy: complete (no Drive)")
+        let next = ScreenAlert(id: "copies", priority: .copyResult, tone: .ok, text: "Device copy: complete · Drive copy: complete")
+        var swiped = SwipedAlerts()
+        swiped.swipe(summary)
+
+        #expect(swiped.showing([summary]).isEmpty)
+        #expect(swiped.showing([next]) == [next])
+    }
+
+    @Test("A note that isn't a warning or a summary (a hint) isn't swiped")
+    func infoStays() {
+        let hint = ScreenAlert(id: "hint", priority: .hint, tone: .info, text: "Choose an input to Arm.")
+        var swiped = SwipedAlerts()
+        swiped.swipe(hint)
+
+        #expect(swiped.showing([hint]) == [hint])
+    }
+
     @Test("A swiped warning shows again when its message changes")
     func newTextShowsAgain() {
         var swiped = SwipedAlerts()
