@@ -14,6 +14,17 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.8",
+    date: "2026-10-15",
+    channel: "TestFlight beta",
+    summary: "Free records every channel.",
+    changes: [
+      "Free records every USB Channel of your mixer as separate Stems.",
+      "Pro adds channel names and colors from the mixer, the second Copy on a Drive, unlimited Markers, auto-gain and clip protection. The 14-day Trial includes everything.",
+      "Settings has a Contact support row.",
+    ],
+  },
+  {
     version: "1.1.7",
     date: "2026-10-15",
     channel: "TestFlight beta",
