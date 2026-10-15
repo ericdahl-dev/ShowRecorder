@@ -114,8 +114,10 @@ struct FreeTakeTests {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         try recorder.arm(audio)
         try recorder.startTake(allowance: noDrive([1, 2]))
+        #expect(recorder.takeAllowance == noDrive([1, 2]), "the running Take's allowance, for clip protection")
         audio.deliver((0..<2).map { _ in Array(repeating: 0.2, count: 480) })
         try recorder.stopTake()
+        #expect(recorder.takeAllowance == nil, "none between Takes")
 
         #expect(FileManager.default.fileExists(atPath: device.appending(path: "\(show)/Take 01/01 USB 01.wav").path))
         #expect(!FileManager.default.fileExists(atPath: drive.appending(path: show).path), "nothing on the Drive")

@@ -670,6 +670,10 @@ public final class Recorder {
         }
     }
 
+    /// What the running Take was allowed at its press (#705), for what follows the Take, such as clip protection.
+    /// Nil between Takes, and for a Take with no allowance (everything allowed).
+    public var takeAllowance: TakeAllowance? { isRecording ? lastAllowance : nil }
+
     /// Whether the running Take has as many Markers as its allowance lets it (3 on Free, #705). False with no Take.
     public var markerLimitReached: Bool {
         guard isRecording, let limit = lastAllowance?.markerLimit else { return false }
