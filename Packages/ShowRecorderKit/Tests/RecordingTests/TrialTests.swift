@@ -25,7 +25,7 @@ struct TrialTests {
         try recorder.arm(audio)
 
         // Record is pressed a few minutes before the Trial runs out.
-        let allowance = Entitlement.allowance(for: purchases.tier(now: clock), channelCount: 4, freeChoice: [1, 2])
+        let allowance = Entitlement.allowance(for: purchases.tier(now: clock), channelCount: 4)
         try recorder.startTake(allowance: allowance)
         audio.deliver((0..<4).map { _ in Array(repeating: 0.2, count: 480) })
         clock = day(14.5)
@@ -49,7 +49,9 @@ struct TrialTests {
         #expect(disclosure.title == "14-day Trial")
         #expect(text.contains("14 days"))
         #expect(text.contains("at no cost"))
-        #expect(text.contains("2 USB Channels"))
+        #expect(text.contains("Free still records every USB Channel"), "what Free keeps (#705)")
+        #expect(!text.contains("2 USB Channels"))
+        #expect(text.contains("the Drive"))
         #expect(text.contains("Show report"))
         #expect(text.contains("$19.99"))
         #expect(text.contains("one-time"))
@@ -59,7 +61,8 @@ struct TrialTests {
     @Test("The Trial names everything Pro adds, as the paywall does (ADR 0004 launch scope)")
     func disclosureNamesEveryProFeature() {
         let first = TrialDisclosure(proPrice: "$19.99").lines[0]
-        for feature in ["every USB Channel", "channel names you type", "the Show report", "Reaper export", "96 kHz", "Templates"] {
+        for feature in ["names and colors from the Mixer", "channel names you type", "a second Copy on the Drive", "unlimited Markers",
+                        "the Show report", "Reaper export", "96 kHz", "Templates"] {
             #expect(first.contains(feature), "\(feature)")
         }
     }

@@ -144,7 +144,7 @@ A 14-day period in which everything Pro does is available. It starts when the op
 _Avoid_: Demo, free trial (in UI copy say "14-day Trial")
 
 **Free**:
-What the app does without Pro or a Trial: records 2 USB Channels of the operator's choice, with the names and colors from the Mixer.
+What the app does without Pro or a Trial: records every USB Channel to the Device, with generic names, up to 3 Markers per Take, and 44.1 or 48 kHz (Eric, 2026-10-15, #705). Names and colors from the Mixer, typed names, the Drive, more Markers, auto-gain, clip protection, the Show report, Reaper export, 96 kHz and Templates are Pro.
 _Avoid_: Lite, basic
 
 **License**:

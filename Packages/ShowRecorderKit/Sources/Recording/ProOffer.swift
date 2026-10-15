@@ -91,8 +91,10 @@ public struct ProOffers {
 public struct Paywall: Equatable, Sendable {
     public let headline: String
     public let features = [
-        "Every USB Channel, not just 2",
+        "Names and colors from the Mixer, on the files",
         "Channel names you type, on the files",
+        "A second Copy on the Drive",
+        "Unlimited Markers",
         "The Show report and Reaper export",
         "96 kHz recording",
         "Templates for each venue",

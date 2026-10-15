@@ -55,7 +55,7 @@ struct ChannelNamingTests {
         #expect(pro.map(\.name) == ["Kick In", "USB 02", "Bass", "USB 04"])
         #expect(!pro[0].hasMixerName)
         #expect(pro[2].color == red && pro[2].hasMixerName)
-        let free = naming.sources(for: mixer, channelCount: 4, allowance: Entitlement.allowance(for: .free, channelCount: 4, freeChoice: [1, 2]))
+        let free = naming.sources(for: mixer, channelCount: 4, allowance: Entitlement.allowance(for: .free, channelCount: 4))
         #expect(free.map(\.name) == ["USB 01", "USB 02", "USB 03", "USB 04"])
         #expect(free.allSatisfy { $0.color == .off && !$0.hasMixerName })
     }
@@ -65,7 +65,7 @@ struct ChannelNamingTests {
         var naming = ChannelNaming()
         naming.takeStarted(with: [Source.fallback(usbChannel: 1)])
         naming.mixerOffered([Source(name: "Kick", color: .off)])
-        let free = Entitlement.allowance(for: .free, channelCount: 1, freeChoice: [1])
+        let free = Entitlement.allowance(for: .free, channelCount: 1)
         let end = naming.takeEnded(allowance: free, onFiles: [1: "USB 01"])
         #expect(end.names.isEmpty && end.late.isEmpty)
     }
@@ -88,7 +88,7 @@ struct ChannelNamingTests {
         var naming = ChannelNaming(typed: [1: "Kick In"])
         naming.takeStarted(with: [Source(name: "Kick", color: .off)])
         naming.mixerOffered([Source(name: "Other", color: .off)])
-        let free = Entitlement.allowance(for: .free, channelCount: 1, freeChoice: [1])
+        let free = Entitlement.allowance(for: .free, channelCount: 1)
         let onFree = naming.takeEnded(allowance: free, onFiles: [1: "Kick"])
         #expect(onFree.names.isEmpty)
         let onPro = naming.takeEnded(allowance: nil, onFiles: [1: "Kick"])

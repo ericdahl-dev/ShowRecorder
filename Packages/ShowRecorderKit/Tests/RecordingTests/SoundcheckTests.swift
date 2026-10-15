@@ -168,19 +168,19 @@ struct SoundcheckTests {
         return (steps, root.appending(path: "\(show)/Take 01"))
     }
 
-    @Test("On Free, the test Take records only Free's USB Channels, as a Take would (#558)")
+    @Test("On Free, the test Take records every USB Channel, as a Take would (#558, #705)")
     @MainActor
     func freeRecordsFreeChannels() async throws {
-        let free = Entitlement.allowance(for: .free, channelCount: 4, freeChoice: [1, 2])
+        let free = Entitlement.allowance(for: .free, channelCount: 4)
         let (_, take) = try await runFree(free)
         let stems = try FileManager.default.contentsOfDirectory(atPath: take.path).filter { $0.hasSuffix(".wav") }
-        #expect(stems.count == 2)
+        #expect(stems.count == 4)
     }
 
     @Test("On Free, the test Take writes no Show report or Reaper project, and the files step doesn't fail for it (#558)")
     @MainActor
     func freeWritesNoProExtras() async throws {
-        let free = Entitlement.allowance(for: .free, channelCount: 4, freeChoice: [1, 2])
+        let free = Entitlement.allowance(for: .free, channelCount: 4)
         let (steps, take) = try await runFree(free)
         let show = take.deletingLastPathComponent()
         #expect(!FileManager.default.fileExists(atPath: show.appending(path: ShowReport.htmlFileName).path))

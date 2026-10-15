@@ -5,18 +5,18 @@ import Testing
 /// The License answers every Pro, Free and Trial question in one place (#439, ADR 0004).
 @Suite("License")
 struct LicenseTests {
-    static let free = License(proOffered: true, tier: .free, trialStarted: true, freeChoice: [7, 3])
-    static let trial = License(proOffered: true, tier: .trial(daysLeft: 3), trialStarted: true, freeChoice: [7, 3])
-    static let pro = License(proOffered: true, tier: .pro, trialStarted: false, freeChoice: [7, 3])
-    static let unknown = License(proOffered: true, tier: nil, trialStarted: false, freeChoice: [7, 3])
-    static let notOffered = License(proOffered: false, tier: .free, trialStarted: false, freeChoice: [7, 3])
+    static let free = License(proOffered: true, tier: .free, trialStarted: true)
+    static let trial = License(proOffered: true, tier: .trial(daysLeft: 3), trialStarted: true)
+    static let pro = License(proOffered: true, tier: .pro, trialStarted: false)
+    static let unknown = License(proOffered: true, tier: nil, trialStarted: false)
+    static let notOffered = License(proOffered: false, tier: .free, trialStarted: false)
 
-    @Test("Free limits: its 2 chosen channels, no extras, 48 kHz at most, Templates listed but not usable")
+    @Test("Free limits: every USB Channel but no extras, 48 kHz at most, Templates listed but not usable (#705)")
     func freeLimits() throws {
         let license = Self.free
         #expect(license.limits)
         let allowance = try #require(license.allowance(channelCount: 18))
-        #expect(allowance.recordedChannels == [3, 7])
+        #expect(allowance.recordedChannels == Set(1...18))
         #expect(!allowance.showReport && !allowance.reaperExport && !allowance.namingByHand)
         #expect(license.capsAt48k)
         #expect(license.templateAccess(isRecording: false) == .proOnly)
@@ -63,12 +63,12 @@ struct LicenseTests {
     func chip() {
         #expect(Self.trial.chip?.shortText == "3 days")
         #expect(Self.free.chip == nil && Self.pro.chip == nil && Self.unknown.chip == nil)
-        #expect(License(proOffered: false, tier: .trial(daysLeft: 3), trialStarted: true, freeChoice: []).chip == nil)
+        #expect(License(proOffered: false, tier: .trial(daysLeft: 3), trialStarted: true).chip == nil)
     }
 
     @Test("The Trial is offered once, on Free before any Trial, with Pro's price known, never during a Take or over another sheet")
     func trialOffer() {
-        let fresh = License(proOffered: true, tier: .free, trialStarted: false, freeChoice: [])
+        let fresh = License(proOffered: true, tier: .free, trialStarted: false)
         #expect(fresh.offersTrial(alreadyOffered: false, recording: false, proPrice: "$19.99", anotherSheetOpen: false))
         #expect(!fresh.offersTrial(alreadyOffered: true, recording: false, proPrice: "$19.99", anotherSheetOpen: false))
         #expect(!fresh.offersTrial(alreadyOffered: false, recording: true, proPrice: "$19.99", anotherSheetOpen: false))
@@ -78,7 +78,7 @@ struct LicenseTests {
         #expect(!Self.trial.offersTrial(alreadyOffered: false, recording: false, proPrice: "$19.99", anotherSheetOpen: false))
         #expect(!Self.pro.offersTrial(alreadyOffered: false, recording: false, proPrice: "$19.99", anotherSheetOpen: false))
         #expect(!Self.unknown.offersTrial(alreadyOffered: false, recording: false, proPrice: "$19.99", anotherSheetOpen: false), "wait for the App Store")
-        #expect(!License(proOffered: false, tier: .free, trialStarted: false, freeChoice: [])
+        #expect(!License(proOffered: false, tier: .free, trialStarted: false)
             .offersTrial(alreadyOffered: false, recording: false, proPrice: "$19.99", anotherSheetOpen: false))
     }
 }
@@ -93,16 +93,16 @@ struct ProStatusTests {
     @Test("A fresh install doesn't know the tier until the App Store answers")
     func freshInstall() {
         var status = ProStatus(lastKnown: nil)
-        #expect(status.license(proOffered: true, freeChoice: [], now: Self.now).tier == nil)
+        #expect(status.license(proOffered: true, now: Self.now).tier == nil)
         let changed = status.appStoreAnswered([Self.pro], now: Self.now)
         #expect(changed, "the known tier changed")
-        #expect(status.license(proOffered: true, freeChoice: [], now: Self.now).tier == .pro)
+        #expect(status.license(proOffered: true, now: Self.now).tier == .pro)
     }
 
     @Test("A later launch knows the last tier at once, and only a real change is reported")
     func lastKnown() {
         var status = ProStatus(lastKnown: ProPurchases(owned: [Self.trial]))
-        #expect(status.license(proOffered: true, freeChoice: [], now: Self.now).tier == .trial(daysLeft: 14))
+        #expect(status.license(proOffered: true, now: Self.now).tier == .trial(daysLeft: 14))
         let same = status.appStoreAnswered([Self.trial], now: Self.now)
         #expect(!same, "same tier: nothing to re-Arm")
         let changed = status.appStoreAnswered([Self.trial, Self.pro], now: Self.now)
@@ -116,21 +116,21 @@ struct ProStatusTests {
         let refunded = OwnedPurchase(productID: ProPurchases.proProductID, purchaseDate: Self.now, revocationDate: Self.now)
         let changed = status.appStoreAnswered([refunded], now: Self.now)
         #expect(changed)
-        #expect(status.license(proOffered: true, freeChoice: [], now: Self.now).tier == .free)
+        #expect(status.license(proOffered: true, now: Self.now).tier == .free)
     }
 
     @Test("The License carries whether a Trial was ever started")
     func trialStarted() {
         let status = ProStatus(lastKnown: ProPurchases(owned: [Self.trial]))
         let later = Self.now.addingTimeInterval(30 * 86_400)
-        let license = status.license(proOffered: true, freeChoice: [1, 2], now: later)
+        let license = status.license(proOffered: true, now: later)
         #expect(license.tier == .free && license.trialStarted)
     }
 
     @Test("Auto-gain runs between Takes, so the tier now decides it: not on Free; on Pro, the Trial, with Pro not offered or the tier unknown (#705)")
     func autoGain() {
         func license(_ tier: Tier?, offered: Bool = true) -> License {
-            License(proOffered: offered, tier: tier, trialStarted: false, freeChoice: [])
+            License(proOffered: offered, tier: tier, trialStarted: false)
         }
         #expect(!license(.free).allowsAutoGain)
         #expect(license(.pro).allowsAutoGain)

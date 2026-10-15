@@ -29,10 +29,6 @@ final class ProStore {
     private(set) var busy = false
     /// A calm note after a purchase or restore: waiting for approval (Ask to Buy), nothing to restore, or a failure.
     private(set) var note: String?
-    /// The USB Channels the operator chose to record on Free. Saved as soon as it changes.
-    var freeChoice: [Int] = FreeChannelChoice.load() {
-        didSet { FreeChannelChoice.save(freeChoice) }
-    }
 
     @ObservationIgnored private var updates: Task<Void, Never>?
 
@@ -51,7 +47,7 @@ final class ProStore {
 
     /// What the operator may do right now. Every Pro, Free and Trial question goes through it (#439).
     func license(now: Date = Date()) -> License {
-        status.license(proOffered: Self.isOffered, freeChoice: freeChoice, now: now)
+        status.license(proOffered: Self.isOffered, now: now)
     }
 
     /// Debug builds only: `-trialDaysLeft N` acts as if a Trial with N days left is owned (0 has just ended), so the
