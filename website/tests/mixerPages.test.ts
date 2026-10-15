@@ -208,3 +208,26 @@ describe("mixer page facts", () => {
     expect(x32).not.toMatch(/M32 \(full size, Compact, Producer or Rack\)/);
   });
 });
+
+// #704: the mixer pages are linked from the places a visitor starts, and the X32 page leads on to the docs.
+describe("links to the mixer pages", () => {
+  const read = (...p: string[]) => readFileSync(path.join(ROOT, ...p), "utf8");
+
+  it("the home hero and FAQ link both mixer pages", () => {
+    const home = read("app", "page.tsx");
+    for (const href of ["/mixers/xr18", "/mixers/x32"]) {
+      expect(home.match(new RegExp(`href="${href}"`, "g"))?.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it("the footer has a Supported mixers group with both pages", () => {
+    const footer = read("components", "Footer.tsx");
+    expect(footer).toMatch(/aria-label="Supported mixers"/);
+    expect(footer).toMatch(/href="\/mixers\/xr18"/);
+    expect(footer).toMatch(/href="\/mixers\/x32"/);
+  });
+
+  it("the X32 page links to the docs", () => {
+    expect(x32Page).toMatch(/\]\(\/docs\)/);
+  });
+});

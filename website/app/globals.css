@@ -400,6 +400,15 @@ html:not([data-js]) .theme-toggle {
   font-size: 15px;
 }
 
+.footer-group {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+
 .footer-links a[aria-current="page"] {
   font-weight: 600;
 }

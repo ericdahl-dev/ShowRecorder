@@ -146,10 +146,26 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
   {
     q: "Which mixers work?",
     a: "The Behringer X Air XR18 and MR18 record 18 USB Channels with names and colors. Other class-compliant USB audio interfaces record every channel they send, without names from the mixer; you can type names with Pro. The Behringer X32 and Midas M32 work in the public beta now: all 32 USB Channels, with names and colors from the mixer. They come to the App Store in a later update. Planned next: Pioneer DJM mixers. Others, such as the Behringer Wing and Allen & Heath Qu and SQ, are being looked at. The list is under Supported mixers on the Features page.",
+    node: (
+      <>
+        The Behringer X Air <a href="/mixers/xr18">XR18 and MR18</a> record 18 USB Channels with names and colors.
+        Other class-compliant USB audio interfaces record every channel they send, without names from the mixer; you
+        can type names with Pro. The Behringer <a href="/mixers/x32">X32 and Midas M32</a> work in the public beta
+        now: all 32 USB Channels, with names and colors from the mixer. They come to the App Store in a later update.
+        Planned next: Pioneer DJM mixers. Others, such as the Behringer Wing and Allen &amp; Heath Qu and SQ, are
+        being looked at. The list is under Supported mixers on the Features page.
+      </>
+    ),
   },
   {
     q: "Can I record an XR18 without a computer?",
     a: "Yes. The XR18 and MR18 send all 18 channels over USB to whatever is plugged in, and ShowRecorder makes that your iPhone or iPad. You only need a computer later, to mix the Stems.",
+    node: (
+      <>
+        Yes. The <a href="/mixers/xr18">XR18 and MR18</a> send all 18 channels over USB to whatever is plugged in, and
+        ShowRecorder makes that your iPhone or iPad. You only need a computer later, to mix the Stems.
+      </>
+    ),
   },
   {
     q: "Can I record a church service or a rehearsal?",
@@ -229,7 +245,8 @@ export default function Home() {
             <h1 id="hero-title">Record every channel of your mixer on your iPhone or iPad.</h1>
             <p className="lede">
               Plug your mixer into your iPhone or iPad over USB, press record, and get one 24-bit WAV file per
-              channel, ready for your DAW. With a Behringer XR18 or MR18, every file is named from the mixer. No
+              channel, ready for your DAW. With a Behringer <a href="/mixers/xr18">XR18 or MR18</a>, every file is
+              named from the mixer, and the <a href="/mixers/x32">X32 and M32</a> are in the public beta. No
               recording laptop at the gig.
             </p>
             <div className="hero-actions">
