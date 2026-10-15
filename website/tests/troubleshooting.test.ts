@@ -62,11 +62,11 @@ describe("/docs/troubleshooting", () => {
     expect(s).toMatch(/Repair/);
   });
 
-  it("the TestFlight fix covers Accept and the Facebook in-app browser", () => {
+  it("the TestFlight fix covers Accept, and has no untested in-app browser tip", () => {
     const s = section("TestFlight won't install");
     expect(s).toMatch(/Accept/);
-    expect(s).toMatch(/Facebook/);
-    expect(s).toMatch(/Open in Safari/);
+    expect(s).not.toMatch(/Facebook/);
+    expect(s).not.toMatch(/Open in Safari/);
   });
 
   it("the files section links the DAW page", () => {
