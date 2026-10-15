@@ -52,6 +52,17 @@ targets:
       # The Apple Watch remote (#100): iPhone only, embedded as the iPhone app's watch app.
       - target: ShowRecorderWatch
         destinationFilters: [iOS]
+    # Debug builds all read 0.1.0 (1), so Settings names the git commit too (#697). Release builds get nothing stamped.
+    postBuildScripts:
+      - name: Stamp git commit (Debug)
+        basedOnDependencyAnalysis: false
+        script: |
+          [ "$CONFIGURATION" = "Debug" ] || exit 0
+          plist="$TARGET_BUILD_DIR/$INFOPLIST_PATH"
+          commit=$(git -C "$SRCROOT" rev-parse --short HEAD 2>/dev/null) || exit 0
+          [ -n "$(git -C "$SRCROOT" status --porcelain 2>/dev/null)" ] && commit="$commit-dirty"
+          /usr/libexec/PlistBuddy -c "Delete :ShowRecorderGitCommit" "$plist" 2>/dev/null
+          /usr/libexec/PlistBuddy -c "Add :ShowRecorderGitCommit string $commit" "$plist"
     entitlements:
       path: App/ShowRecorder.entitlements
       properties:
@@ -96,6 +107,8 @@ targets:
         GENERATE_INFOPLIST_FILE: false
         CODE_SIGN_STYLE: Automatic
         ENABLE_HARDENED_RUNTIME: true
+        # The Debug "Stamp git commit" phase runs git and edits the built Info.plist (#697).
+        ENABLE_USER_SCRIPT_SANDBOXING: false
 
   # Unit tests of the glue that stays in App/ (#679), hosted on the Mac app so they never need a Simulator.
   AppTests:

@@ -20,6 +20,7 @@
 		255D20FDD3402F29F4A72FE9 /* ShowListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 034579A5DCE44DCC61521CA4 /* ShowListView.swift */; };
 		27511B0372DDD64DA03A84AC /* AudioSessionEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A28ABB2DC3361762848F2190 /* AudioSessionEvents.swift */; };
 		2A783EA5AB48D8026B74CA31 /* ShowRecorderWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = CAE710202D63B74CD7D41083 /* ShowRecorderWatch.app */; platformFilters = (ios, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		2AF765A05EE05F3C4D63AB9B /* AppVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0862F49085300EE64A47A859 /* AppVersion.swift */; };
 		32D2E536D45006ECF7CCDB6E /* Recording in Frameworks */ = {isa = PBXBuildFile; productRef = E4B425D454C0ADEC5187ABCF /* Recording */; };
 		3B133367222FC5F3F5EBDBC3 /* PaywallSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01380066EBAE4A3580E3B80B /* PaywallSheet.swift */; };
 		3F72BDB1F6F5F7C117C7A4DF /* ChannelNamesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F37D396FDE04128489306DC3 /* ChannelNamesView.swift */; };
@@ -38,6 +39,7 @@
 		992430B53737588E241A07B2 /* RecordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */; };
 		9FD36E125AA2BC7EE8AAEAD5 /* MonitorExperiment.swift in Sources */ = {isa = PBXBuildFile; fileRef = D942D124B2BCC55DD0044462 /* MonitorExperiment.swift */; };
 		A159D220EC3F72CD05142F7A /* LaunchFlag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 625D1286301830679767FD67 /* LaunchFlag.swift */; };
+		A46EF972570A8C8B4881455D /* AppVersionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8518F1A98FCD82D02B991C62 /* AppVersionTests.swift */; };
 		A9A8E28730C7E54C34DF1CAE /* CoreAudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = F366717F80C358C5B3DD7D70 /* CoreAudioIO */; };
 		B243732DF04F2E648E20259E /* FindMixersRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 252D564B3B9FE54ED487A88C /* FindMixersRow.swift */; };
 		B243E4DC015F2D21E51CF47F /* PowerMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90AA2E3938B5B72E1F6B30B8 /* PowerMonitor.swift */; };
@@ -116,6 +118,7 @@
 		01380066EBAE4A3580E3B80B /* PaywallSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallSheet.swift; sourceTree = "<group>"; };
 		034579A5DCE44DCC61521CA4 /* ShowListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowListView.swift; sourceTree = "<group>"; };
 		078720CF89E26EE2F4248B22 /* MarkerListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkerListView.swift; sourceTree = "<group>"; };
+		0862F49085300EE64A47A859 /* AppVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppVersion.swift; sourceTree = "<group>"; };
 		132D4E144CE66237000078F5 /* DeleteShowSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteShowSheet.swift; sourceTree = "<group>"; };
 		1BA48054FA4738E31732A40E /* DemoLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoLink.swift; sourceTree = "<group>"; };
 		1D92CE73B1DEF77200CB6705 /* DemoStemsDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoStemsDevice.swift; sourceTree = "<group>"; };
@@ -138,6 +141,7 @@
 		803373069C5B52C0B8A79AD8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		848566071F05B3D655086E7A /* ShowRecorder.storekit */ = {isa = PBXFileReference; path = ShowRecorder.storekit; sourceTree = "<group>"; };
 		84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordScreen.swift; sourceTree = "<group>"; };
+		8518F1A98FCD82D02B991C62 /* AppVersionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppVersionTests.swift; sourceTree = "<group>"; };
 		8CC47A3C7EE61A034F3F6FE0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		8DFAA5CBF9186C8638F0BDDD /* WindowCloseGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowCloseGuard.swift; sourceTree = "<group>"; };
 		8F032F2B06E5F2F3AA51A95B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -229,6 +233,7 @@
 		5265FB5C3DDF24A121F5C1B0 /* AppTests */ = {
 			isa = PBXGroup;
 			children = (
+				8518F1A98FCD82D02B991C62 /* AppVersionTests.swift */,
 				4AE3649927662D4F08EC25D9 /* MeterGridTests.swift */,
 			);
 			path = AppTests;
@@ -238,6 +243,7 @@
 			isa = PBXGroup;
 			children = (
 				3F1B5EEDD8FA484B7416BB0B /* AppearanceStyle.swift */,
+				0862F49085300EE64A47A859 /* AppVersion.swift */,
 				8F032F2B06E5F2F3AA51A95B /* Assets.xcassets */,
 				A28ABB2DC3361762848F2190 /* AudioSessionEvents.swift */,
 				72C6BE33F49834B5129EA247 /* AutoGainSheet.swift */,
@@ -350,6 +356,7 @@
 				D09CE2D46E8690B6900553EC /* Frameworks */,
 				3672474536246C98EC345009 /* Embed Foundation Extensions */,
 				B69BD6B6A131DE1C002583A6 /* Embed Watch Content */,
+				A7F3336E0FFD8BC1E1B4A176 /* Stamp git commit (Debug) */,
 			);
 			buildRules = (
 			);
@@ -474,11 +481,34 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		A7F3336E0FFD8BC1E1B4A176 /* Stamp git commit (Debug) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Stamp git commit (Debug)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "[ \"$CONFIGURATION\" = \"Debug\" ] || exit 0\nplist=\"$TARGET_BUILD_DIR/$INFOPLIST_PATH\"\ncommit=$(git -C \"$SRCROOT\" rev-parse --short HEAD 2>/dev/null) || exit 0\n[ -n \"$(git -C \"$SRCROOT\" status --porcelain 2>/dev/null)\" ] && commit=\"$commit-dirty\"\n/usr/libexec/PlistBuddy -c \"Delete :ShowRecorderGitCommit\" \"$plist\" 2>/dev/null\n/usr/libexec/PlistBuddy -c \"Add :ShowRecorderGitCommit string $commit\" \"$plist\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		13A9A22658F2188A34891053 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A46EF972570A8C8B4881455D /* AppVersionTests.swift in Sources */,
 				201B434DBE445FE432B3A9FB /* MeterGridTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -487,6 +517,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2AF765A05EE05F3C4D63AB9B /* AppVersion.swift in Sources */,
 				4B1D83A876DD31D7B6E31F73 /* AppearanceStyle.swift in Sources */,
 				27511B0372DDD64DA03A84AC /* AudioSessionEvents.swift in Sources */,
 				C9A86B331CB95AFDA60C89EC /* AutoGainSheet.swift in Sources */,
@@ -576,6 +607,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -616,6 +648,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
