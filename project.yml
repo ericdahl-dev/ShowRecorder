@@ -25,6 +25,8 @@ targets:
       - path: App
         excludes:
           - ShowRecorder.storekit
+      # The Live Activity's Marker button intent (#684): runs in the app's process, so the app builds it too.
+      - path: LiveActivity/PlaceMarkerIntent.swift
       # Local StoreKit testing only (the scheme's Run action); never copied into the app.
       - path: App/ShowRecorder.storekit
         buildPhase: none

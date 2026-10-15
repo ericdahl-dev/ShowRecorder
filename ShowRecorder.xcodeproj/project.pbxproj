@@ -19,6 +19,7 @@
 		22EC75DDB2CB8A4F96A23296 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC19F42425E565E8E9DFE2E1 /* WidgetKit.framework */; };
 		255D20FDD3402F29F4A72FE9 /* ShowListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 034579A5DCE44DCC61521CA4 /* ShowListView.swift */; };
 		27511B0372DDD64DA03A84AC /* AudioSessionEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A28ABB2DC3361762848F2190 /* AudioSessionEvents.swift */; };
+		28A7D0091188362037FBDF55 /* PlaceMarkerIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E985CF3CE8841F8B27E26DC /* PlaceMarkerIntent.swift */; };
 		2A783EA5AB48D8026B74CA31 /* ShowRecorderWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = CAE710202D63B74CD7D41083 /* ShowRecorderWatch.app */; platformFilters = (ios, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2AF765A05EE05F3C4D63AB9B /* AppVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0862F49085300EE64A47A859 /* AppVersion.swift */; };
 		32D2E536D45006ECF7CCDB6E /* Recording in Frameworks */ = {isa = PBXBuildFile; productRef = E4B425D454C0ADEC5187ABCF /* Recording */; };
@@ -63,6 +64,7 @@
 		E1A7E2310CDCF098C85053B3 /* TakeActivity in Frameworks */ = {isa = PBXBuildFile; productRef = 47B54BB211AC8DBB5B2896CB /* TakeActivity */; };
 		E81A70130E30A8E156EDA841 /* AudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = 06DFC4C4263644F94AB1BE1B /* AudioIO */; };
 		E8ED4177702282C467A8AC09 /* SoundcheckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D7ADCDE507077F908B89E77 /* SoundcheckView.swift */; };
+		F0A5153775BAC95DDB97A860 /* PlaceMarkerIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E985CF3CE8841F8B27E26DC /* PlaceMarkerIntent.swift */; };
 		F316B6D0CB9427B29787ED74 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A66A4A288C0B0A560B802624 /* PrivacyInfo.xcprivacy */; };
 		F7769B6393421DB1EE75F743 /* QuitGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38DF639C46586DCDF4866E87 /* QuitGuard.swift */; };
 		FFA16F50279839FAAF4C0547 /* WatchSessionLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F1D9C008374B162456C153 /* WatchSessionLink.swift */; };
@@ -138,6 +140,7 @@
 		497820F0F5EF694FC7765883 /* DriveFolderModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveFolderModel.swift; sourceTree = "<group>"; };
 		4AE3649927662D4F08EC25D9 /* MeterGridTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeterGridTests.swift; sourceTree = "<group>"; };
 		5E878A7AD64F581255B82A6E /* ProSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProSection.swift; sourceTree = "<group>"; };
+		5E985CF3CE8841F8B27E26DC /* PlaceMarkerIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceMarkerIntent.swift; sourceTree = "<group>"; };
 		625D1286301830679767FD67 /* LaunchFlag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchFlag.swift; sourceTree = "<group>"; };
 		6D7ADCDE507077F908B89E77 /* SoundcheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundcheckView.swift; sourceTree = "<group>"; };
 		72C6BE33F49834B5129EA247 /* AutoGainSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoGainSheet.swift; sourceTree = "<group>"; };
@@ -233,6 +236,7 @@
 			isa = PBXGroup;
 			children = (
 				F1ACA8CE1E34CE0D549A05B8 /* Info.plist */,
+				5E985CF3CE8841F8B27E26DC /* PlaceMarkerIntent.swift */,
 				BFEAAED834B651D2EB178389 /* TakeLiveActivityWidget.swift */,
 			);
 			path = LiveActivity;
@@ -546,6 +550,7 @@
 				9FD36E125AA2BC7EE8AAEAD5 /* MonitorExperiment.swift in Sources */,
 				C8FAB22502DCD4DD3F5DED9D /* NewShowSheet.swift in Sources */,
 				3B133367222FC5F3F5EBDBC3 /* PaywallSheet.swift in Sources */,
+				28A7D0091188362037FBDF55 /* PlaceMarkerIntent.swift in Sources */,
 				B243E4DC015F2D21E51CF47F /* PowerMonitor.swift in Sources */,
 				BADEF205E3EB926F596C5E62 /* ProSection.swift in Sources */,
 				C68029C5842FA7BCB2FBF535 /* ProStore.swift in Sources */,
@@ -572,6 +577,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F0A5153775BAC95DDB97A860 /* PlaceMarkerIntent.swift in Sources */,
 				1EB91D2DABB6C18617BA5778 /* TakeLiveActivityWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

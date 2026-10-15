@@ -801,7 +801,9 @@ final class RecordScreenModel {
         let take = recorder.isRecording ? takeStartedAt.flatMap { started in
             recorder.currentShow.map {
                 TakeActivityContent(showName: $0.name, takeTitle: takeTitle, startedAt: started,
-                                    markerCount: recorder.takeMarkers.count, problems: liveActivityProblems)
+                                    markerCount: recorder.takeMarkers.count, problems: liveActivityProblems,
+                                    showsMarkerButton: MarkerButtonAvailability.isAvailableInThisBuild,
+                                    markerLimitReached: recorder.markerLimitReached)
             }
         } : nil
         liveActivity.follow(take)
@@ -1029,6 +1031,14 @@ final class RecordScreenModel {
         #if os(iOS)
         watchLink = WatchLink(status: { [unowned self] in watchStatus }, actions: watchActions)
         watchLink?.start()
+        // The Live Activity's Marker button (#684): the same path as the watch's Marker. Past the Free limit it places
+        // nothing, and the button says why.
+        MarkerDesk.shared.place = { [weak self] in
+            guard let self, recorder.isRecording, !recorder.markerLimitReached else { return false }
+            let before = recorder.takeMarkers.count
+            sequencer.addMarker()
+            return recorder.takeMarkers.count > before
+        }
         #endif
         // `-demoSignal` starts on the 18-channel demo signal, for screenshots and layout checks.
         if launchFlag("-demoSignal"), devices.contains(where: { $0.id == "demo" }) { selectedDeviceID = "demo" }
