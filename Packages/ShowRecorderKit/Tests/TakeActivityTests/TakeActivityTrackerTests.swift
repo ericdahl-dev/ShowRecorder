@@ -66,3 +66,47 @@ struct TakeActivityTrackerTests {
         #expect(tracker.next(next) == .replace(next))
     }
 }
+
+@Suite("Take activity Marker button (#684)")
+struct TakeActivityMarkerButtonTests {
+    static let started = Date(timeIntervalSince1970: 1_000)
+    static func content(button: Bool = false, limit: Bool = false) -> TakeActivityContent {
+        TakeActivityContent(showName: "Show", takeTitle: "Take 01", startedAt: started, markerCount: 0,
+                            showsMarkerButton: button, markerLimitReached: limit)
+    }
+
+    @Test("Content from a build before the Marker button reads with the button off and no limit reached")
+    func oldPayload() throws {
+        let old = #"{"showName":"Show","takeTitle":"Take 01","startedAt":1000,"markerCount":2,"problems":[]}"#
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        let content = try decoder.decode(TakeActivityContent.self, from: Data(old.utf8))
+        #expect(!content.showsMarkerButton)
+        #expect(!content.markerLimitReached)
+        #expect(content.markerCount == 2)
+    }
+
+    @Test("The Marker button fields survive being encoded and decoded")
+    func roundTrip() throws {
+        let sent = Self.content(button: true, limit: true)
+        let back = try JSONDecoder().decode(TakeActivityContent.self, from: JSONEncoder().encode(sent))
+        #expect(back == sent)
+    }
+
+    @Test("The button appearing (the environment resolves mid-Take) updates the activity; a new Take with it on replaces")
+    func buttonAppearsAndNewTake() {
+        var tracker = TakeActivityTracker()
+        _ = tracker.next(Self.content(button: false))
+        #expect(tracker.next(Self.content(button: true)) == .update(Self.content(button: true)))
+        var next = Self.content(button: true)
+        next.takeTitle = "Take 02"
+        #expect(tracker.next(next) == .replace(next))
+    }
+
+    @Test("Reaching the Marker limit updates the same Take's activity; it doesn't replace it")
+    func limitUpdates() {
+        var tracker = TakeActivityTracker()
+        _ = tracker.next(Self.content(button: true))
+        #expect(tracker.next(Self.content(button: true, limit: true)) == .update(Self.content(button: true, limit: true)))
+    }
+}
