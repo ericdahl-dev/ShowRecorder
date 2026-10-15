@@ -365,8 +365,10 @@ struct RecordScreen: View {
     #endif
 
     private var markerPlacedText: String {
-        if let last = model.recorder.takeMarkers.last, model.recorder.isRecording { return "\(last.name) placed" }
-        return " "
+        // On Free a Take keeps 3 Markers (#705); a press past them places nothing, and this line says why.
+        guard let last = model.recorder.takeMarkers.last, model.recorder.isRecording else { return " " }
+        if model.recorder.markerLimitReached { return "\(last.name) placed · \(Entitlement.freeMarkerLimit) per Take on Free" }
+        return "\(last.name) placed"
     }
 
     /// Landscape transport: the Show and Take (with how long the Take has run) over Marker, then Record.
