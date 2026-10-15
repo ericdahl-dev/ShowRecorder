@@ -126,4 +126,16 @@ struct ProStatusTests {
         let license = status.license(proOffered: true, freeChoice: [1, 2], now: later)
         #expect(license.tier == .free && license.trialStarted)
     }
+
+    @Test("Auto-gain runs between Takes, so the tier now decides it: not on Free; on Pro, the Trial, with Pro not offered or the tier unknown (#705)")
+    func autoGain() {
+        func license(_ tier: Tier?, offered: Bool = true) -> License {
+            License(proOffered: offered, tier: tier, trialStarted: false, freeChoice: [])
+        }
+        #expect(!license(.free).allowsAutoGain)
+        #expect(license(.pro).allowsAutoGain)
+        #expect(license(.trial(daysLeft: 2)).allowsAutoGain)
+        #expect(license(.free, offered: false).allowsAutoGain)
+        #expect(license(nil).allowsAutoGain)
+    }
 }

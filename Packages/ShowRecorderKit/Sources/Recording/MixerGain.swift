@@ -70,6 +70,8 @@ public final class MixerGain {
     @ObservationIgnored public var environment: () -> DistributionEnvironment? = { DemoSignalAvailability.environment }
     /// Clip protection on the linked Mixer moving gain through the given queue, or nil when it can't set gain.
     @ObservationIgnored public var makeProtection: (MixerQueue) -> ClipProtection? = { _ in nil }
+    /// Whether the plan now includes auto-gain (`License.allowsAutoGain`, #705); it runs between Takes, so it is read live.
+    @ObservationIgnored public var allowsAutoGain: () -> Bool = { true }
     /// The allowance the starting Take was frozen with (#705); nil allows everything, as it does for a Take.
     @ObservationIgnored public var takeAllowance: () -> TakeAllowance? = { nil }
     /// Protecting the running Take; nil between Takes.
@@ -92,7 +94,7 @@ public final class MixerGain {
         let isConnecting = if case .connecting = mixer?.status { true } else { false }
         return AutoGainAvailability.whyNot(hasMixerLink: mixer?.identity != nil, isConnecting: isConnecting,
                                            canSetGain: mixer?.gainControl != nil, isRecording: isRecording(),
-                                           otherMixer: mixer?.otherMixerLinked?.nameAndModel)
+                                           otherMixer: mixer?.otherMixerLinked?.nameAndModel, allowed: allowsAutoGain())
     }
 
     /// Whether Settings offers clip protection's switch (`ClipProtectionSetting.isOffered`).
@@ -104,7 +106,8 @@ public final class MixerGain {
     /// Runs auto-gain on `usbChannels`. Not during a Take, and not while another run or Undo is under way.
     public func run(_ usbChannels: [Int]) async {
         dropUndoForAnotherMixer()
-        guard !isLocked, let session = session ?? makeSession(queue) else { return }
+        // Auto-gain is Pro (#705); Undo of an earlier run stays open to everyone.
+        guard !isLocked, allowsAutoGain(), let session = session ?? makeSession(queue) else { return }
         if self.session == nil { sessionMixer = mixerName() }
         self.session = session
         running.formUnion(usbChannels)
