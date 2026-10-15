@@ -17,16 +17,14 @@ struct StatusStrip: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.appearanceMode) private var mode
 
-    /// How much the strip gives up to fit, in the order it gives it up (#744): the quiet extras (healthy battery, Warm,
-    /// the Trial) lose their words first, then the chips use their short text, then every extra is its icon alone.
-    /// The Drive and any problem keep their words throughout.
-    private enum Squeeze { case none, quietExtras, shortChips, allExtras }
+    private typealias Squeeze = StripSqueeze
 
     var body: some View {
         if iconOnly {
             row(.allExtras)
         } else {
             ViewThatFits(in: .horizontal) {
+                // Written out, in `StripSqueeze.allCases` order: ViewThatFits takes the first row that fits.
                 row(.none)
                 row(.quietExtras)
                 row(.shortChips)
@@ -50,7 +48,7 @@ struct StatusStrip: View {
                 .accessibilityLabel(chip.detail.map { "\(chip.text), \($0)" } ?? chip.text)
             }
             ForEach(extras, id: \.symbol) { chip in
-                let icon = squeeze == .allExtras || (squeeze != .none && chip.isQuiet)
+                let icon = squeeze.extraIsIconOnly(quiet: chip.isQuiet)
                 if chip.id == Tier.chipID, let tapTrial {
                     Button(action: tapTrial) { extraLabel(chip, iconOnly: icon) }
                         .buttonStyle(.plain)
@@ -62,25 +60,22 @@ struct StatusStrip: View {
         }
     }
 
-    /// The Drive and a problem never shrink below their words, so a warning is always readable; the other chips
-    /// (the Device's time left, the Mixer's name) give way when the room runs out.
+    /// The Drive and a problem keep their words as long as they can, so a warning stays readable; the other chips
+    /// (the Device's time left, the Mixer's name) give way first. At accessibility text sizes every chip is its icon.
     @ViewBuilder
     private func chipContent(_ chip: StatusChip, _ squeeze: Squeeze) -> some View {
         let pinned = chip.kind == .drive || chip.state == .attention || chip.state == .failed
-        switch squeeze {
-        case .none, .quietExtras:
-            // The full text if it fits, else the short one.
+        if !squeeze.chipsUseShortText {
+            // The full text if it fits, else the next step.
             chipLabel(chip, text: compact ? chip.shortText : chip.text).fixedSize(horizontal: true, vertical: false)
-        case .shortChips:
+        } else if squeeze != .allExtras {
             chipLabel(chip, text: chip.shortText).fixedSize(horizontal: true, vertical: false)
-        case .allExtras:
-            if pinned {
+        } else {
+            // The last step: the short text, then scaled. A pinned chip scales only a little, so it stays readable
+            // and the Device and Mixer chips give way first.
+            ViewThatFits(in: .horizontal) {
                 chipLabel(chip, text: chip.shortText).fixedSize(horizontal: true, vertical: false)
-            } else {
-                ViewThatFits(in: .horizontal) {
-                    chipLabel(chip, text: chip.shortText).fixedSize(horizontal: true, vertical: false)
-                    chipLabel(chip, text: chip.shortText).minimumScaleFactor(0.6)
-                }
+                chipLabel(chip, text: chip.shortText).minimumScaleFactor(pinned ? 0.8 : 0.6)
             }
         }
     }

@@ -186,4 +186,22 @@ struct PowerChipShortTextTests {
         #expect(status(0.5, thermal: .critical).thermal?.isQuiet == false, "Very hot")
         #expect(PowerStatus.Chip(text: "2 Dropouts", symbol: "x", state: .attention).isQuiet == false)
     }
+
+    @Test("The strip gives up room in a fixed order: quiet extras, then chip words, then every extra")
+    func squeezeOrder() {
+        #expect(StripSqueeze.allCases == [.none, .quietExtras, .shortChips, .allExtras])
+        // A quiet extra (healthy battery, Warm, Trial) loses its words from the second step on.
+        #expect(StripSqueeze.none.extraIsIconOnly(quiet: true) == false)
+        #expect(StripSqueeze.quietExtras.extraIsIconOnly(quiet: true))
+        #expect(StripSqueeze.shortChips.extraIsIconOnly(quiet: true))
+        // A problem keeps its words until the last step.
+        #expect(StripSqueeze.none.extraIsIconOnly(quiet: false) == false)
+        #expect(StripSqueeze.quietExtras.extraIsIconOnly(quiet: false) == false)
+        #expect(StripSqueeze.shortChips.extraIsIconOnly(quiet: false) == false)
+        #expect(StripSqueeze.allExtras.extraIsIconOnly(quiet: false))
+        // The chips use their short text from the third step on.
+        #expect(StripSqueeze.quietExtras.chipsUseShortText == false)
+        #expect(StripSqueeze.shortChips.chipsUseShortText)
+        #expect(StripSqueeze.allExtras.chipsUseShortText)
+    }
 }
