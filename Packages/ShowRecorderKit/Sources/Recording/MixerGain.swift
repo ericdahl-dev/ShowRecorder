@@ -63,9 +63,10 @@ public final class MixerGain {
     @ObservationIgnored public var isClipProtectionOn: () -> Bool = { ClipProtectionSetting.isOn() }
     /// The Mixer session the Gain button follows; nil until whoever owns this sets it.
     @ObservationIgnored public var mixer: MixerSession?
-    /// Whether this is a Debug build: where auto-gain and clip protection are both offered.
+    /// Whether this is a Debug build: auto-gain and clip protection are offered there and in TestFlight.
     @ObservationIgnored public var isDebugBuild = LaunchFlags.isDebugBuild
-    /// Which App Store environment this build came through, nil until StoreKit has answered: TestFlight offers auto-gain.
+    /// Which App Store environment this build came through, nil until StoreKit has answered: TestFlight offers auto-gain
+    /// and clip protection.
     @ObservationIgnored public var environment: () -> DistributionEnvironment? = { DemoSignalAvailability.environment }
     /// Clip protection on the linked Mixer moving gain through the given queue, or nil when it can't set gain.
     @ObservationIgnored public var makeProtection: (MixerQueue) -> ClipProtection? = { _ in nil }
@@ -93,7 +94,7 @@ public final class MixerGain {
     }
 
     /// Whether Settings offers clip protection's switch (`ClipProtectionSetting.isOffered`).
-    public var offersClipProtection: Bool { ClipProtectionSetting.isOffered(isDebugBuild: isDebugBuild) }
+    public var offersClipProtection: Bool { ClipProtectionSetting.isOffered(isDebugBuild: isDebugBuild, environment: environment()) }
 
     /// The sheet's buttons wait: a Take is running, or a run or Undo is under way.
     public var isLocked: Bool { isTakeRunning || isRecording() || !running.isEmpty }
