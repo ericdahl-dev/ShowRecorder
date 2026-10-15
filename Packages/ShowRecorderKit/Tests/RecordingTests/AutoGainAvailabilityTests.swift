@@ -42,4 +42,12 @@ struct AutoGainAvailabilityTests {
         #expect(AutoGainAvailability.whyNot(hasMixerLink: false, canSetGain: false, isRecording: true, otherMixer: "FOH (XR18)") == .takeRunning)
         #expect(AutoGainAvailability.Unavailable.otherMixerLinked("FOH (XR18)").message == "The Mixer Link is on FOH (XR18), not the Armed Mixer. Connect to the Armed Mixer in Settings › Mixer Link first.")
     }
+
+    @Test("On Free auto-gain says it's Pro, after a running Take and before any Mixer Link reason (#705)")
+    func needsPro() {
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: true, canSetGain: true, isRecording: false, allowed: false) == .needsPro)
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: false, canSetGain: false, isRecording: false, allowed: false) == .needsPro)
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: true, canSetGain: true, isRecording: true, allowed: false) == .takeRunning)
+        #expect(AutoGainAvailability.Unavailable.needsPro.message == "Auto-gain is part of Pro. Get it in Settings › Pro.")
+    }
 }

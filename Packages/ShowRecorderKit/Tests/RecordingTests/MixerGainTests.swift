@@ -249,6 +249,18 @@ struct MixerGainClipProtectionTests {
         for window in ClipProtectionTests.hot { await mixerGain.observe([window]) }
     }
 
+    @Test("On Free auto-gain says it's Pro and doesn't run: no session is made and no preamp moves (#705)")
+    func autoGainIsPro() async {
+        var made = 0
+        let mixerGain = MixerGain(makeSession: { _ in made += 1; return nil })
+        mixerGain.isRecording = { false }
+        mixerGain.allowsAutoGain = { false }
+        #expect(mixerGain.autoGainUnavailable == .needsPro)
+        await mixerGain.run([1])
+        #expect(made == 0)
+        #expect(mixerGain.results.isEmpty)
+    }
+
     @Test("A Take whose allowance has no clip protection (Free) isn't protected, even switched on; Pro's is (#705)")
     func clipProtectionIsPro() {
         var free = TakeAllowance(recordedChannels: [1], showReport: false, reaperExport: false, namingByHand: false)

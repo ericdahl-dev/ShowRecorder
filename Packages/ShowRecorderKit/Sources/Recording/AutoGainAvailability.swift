@@ -20,6 +20,8 @@ extension AutoGainAvailability {
         case otherMixerLinked(String)
         /// The linked Mixer's preamps can't be set from ShowRecorder.
         case cantSetGain
+        /// Auto-gain is Pro, and this is Free (#705).
+        case needsPro
 
         public var message: String {
             switch self {
@@ -33,14 +35,18 @@ extension AutoGainAvailability {
                 "The Mixer Link is on \(which), not the Armed Mixer. Connect to the Armed Mixer in Settings › Mixer Link first."
             case .cantSetGain:
                 "ShowRecorder can't set this Mixer's preamp gain yet."
+            case .needsPro:
+                "Auto-gain is part of Pro. Get it in Settings › Pro."
             }
         }
     }
 
-    /// Nil when auto-gain can run; otherwise the reason, a running Take first.
+    /// Nil when auto-gain can run; otherwise the reason, a running Take first, then Pro.
+    /// - Parameter allowed: whether the plan now includes auto-gain (`License.allowsAutoGain`).
     public static func whyNot(hasMixerLink: Bool, isConnecting: Bool = false, canSetGain: Bool, isRecording: Bool,
-                              otherMixer: String? = nil) -> Unavailable? {
+                              otherMixer: String? = nil, allowed: Bool = true) -> Unavailable? {
         if isRecording { return .takeRunning }
+        if !allowed { return .needsPro }
         if !hasMixerLink {
             if let otherMixer { return .otherMixerLinked(otherMixer) }
             return isConnecting ? .connecting : .noMixerLink

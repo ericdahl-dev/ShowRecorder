@@ -44,6 +44,10 @@ public struct License: Equatable, Sendable {
     /// that is already there, so it never shows stale names (#438).
     public var allowsProExtras: Bool { !limits }
 
+    /// Whether auto-gain may run now (#705). It runs between Takes, so the tier now decides, from the same table as a
+    /// Take's allowance; nothing is limited while Pro isn't offered or the tier is unknown.
+    public var allowsAutoGain: Bool { allowance(channelCount: 0)?.autoGain ?? true }
+
     /// How Settings names the plan.
     public var planTitle: String { tier?.title ?? "Checking with the App Store…" }
 
