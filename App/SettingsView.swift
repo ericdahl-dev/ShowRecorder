@@ -136,6 +136,8 @@ struct SettingsView: View {
 
                 if ProStore.isOffered, !locked(.pro) { ProSection(model: model, showingTrial: $showingTrial, showingPaywall: $showingPaywall) }
 
+                SupportSection(model: model)
+
                 // Which build is installed (#697): small and last, and not on the record screen.
                 Section {
                     Text(AppVersion.current)

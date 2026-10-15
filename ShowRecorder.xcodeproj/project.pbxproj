@@ -29,6 +29,7 @@
 		47525D0C9DECC739535A5E15 /* DemoAudioDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */; };
 		4B1D83A876DD31D7B6E31F73 /* AppearanceStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F1B5EEDD8FA484B7416BB0B /* AppearanceStyle.swift */; };
 		4B277180EC441F56D74ED665 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8F032F2B06E5F2F3AA51A95B /* Assets.xcassets */; };
+		5D5D12F59403A4A68536795A /* SupportMail.swift in Sources */ = {isa = PBXBuildFile; fileRef = E951F97A3A234FFB9E4215B5 /* SupportMail.swift */; };
 		67544CE867E86B27CB07C95E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FEA294E3885AFF04F6D8CED9 /* Assets.xcassets */; };
 		70AA117DAA1414DE3DC7CC7F /* RecordScreen+Watch.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC3CAB67C71FB3C5018C1B22 /* RecordScreen+Watch.swift */; };
 		722E175492AEBC8B8B8304BE /* RemoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9383D6894516F217BC4158B8 /* RemoteView.swift */; };
@@ -36,6 +37,7 @@
 		76BB34DDF7CEAD4AC34661C9 /* ShowRecorderLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EF187F967C613A176A6CB202 /* ShowRecorderLiveActivity.appex */; platformFilters = (ios, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7978ADCB74542A7F2803E11F /* MeterGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB46E32691A6C070E799F33D /* MeterGrid.swift */; };
 		7F1555A334A37A41677E5B47 /* TakeActivity in Frameworks */ = {isa = PBXBuildFile; productRef = 4DDAD2337FDDC304B0F1E946 /* TakeActivity */; };
+		876AC19AE21C45AFA7E6C512 /* SupportSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74ACE7E232B13FE02C923373 /* SupportSection.swift */; };
 		992430B53737588E241A07B2 /* RecordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */; };
 		9FD36E125AA2BC7EE8AAEAD5 /* MonitorExperiment.swift in Sources */ = {isa = PBXBuildFile; fileRef = D942D124B2BCC55DD0044462 /* MonitorExperiment.swift */; };
 		A159D220EC3F72CD05142F7A /* LaunchFlag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 625D1286301830679767FD67 /* LaunchFlag.swift */; };
@@ -55,6 +57,7 @@
 		CFC9F8D3194115954ABE8B0D /* Destinations in Frameworks */ = {isa = PBXBuildFile; productRef = 2A213300C93BF0054D83D85D /* Destinations */; };
 		D1B69547449C5B4B58E8DBEA /* MixerLink in Frameworks */ = {isa = PBXBuildFile; productRef = 3F4AE86B4D698E33356CCFFE /* MixerLink */; };
 		D21BC5FCF582EFFE9FB1139F /* ShowRecorderWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4BD6DB3A3F8D99EBA48DB48 /* ShowRecorderWatchApp.swift */; };
+		DA46657B1E3BAA150CD1F749 /* SupportMailTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3D98E5C83E528C4AEB5B355 /* SupportMailTests.swift */; };
 		DE5FD4B161A06DAE42652163 /* WatchRemote in Frameworks */ = {isa = PBXBuildFile; productRef = BBE7703958E4B165D4C0B1E7 /* WatchRemote */; };
 		E1A7E2310CDCF098C85053B3 /* TakeActivity in Frameworks */ = {isa = PBXBuildFile; productRef = 47B54BB211AC8DBB5B2896CB /* TakeActivity */; };
 		E81A70130E30A8E156EDA841 /* AudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = 06DFC4C4263644F94AB1BE1B /* AudioIO */; };
@@ -138,6 +141,7 @@
 		6D7ADCDE507077F908B89E77 /* SoundcheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundcheckView.swift; sourceTree = "<group>"; };
 		72C6BE33F49834B5129EA247 /* AutoGainSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoGainSheet.swift; sourceTree = "<group>"; };
 		7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowRecorderApp.swift; sourceTree = "<group>"; };
+		74ACE7E232B13FE02C923373 /* SupportSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportSection.swift; sourceTree = "<group>"; };
 		803373069C5B52C0B8A79AD8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		848566071F05B3D655086E7A /* ShowRecorder.storekit */ = {isa = PBXFileReference; path = ShowRecorder.storekit; sourceTree = "<group>"; };
 		84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordScreen.swift; sourceTree = "<group>"; };
@@ -162,10 +166,12 @@
 		D942D124B2BCC55DD0044462 /* MonitorExperiment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitorExperiment.swift; sourceTree = "<group>"; };
 		DBBDC7B3AA4C8B14B57747DD /* ShowRecorder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ShowRecorder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DDDF413BFBEF5212621189D4 /* TrialSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrialSheet.swift; sourceTree = "<group>"; };
+		E951F97A3A234FFB9E4215B5 /* SupportMail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportMail.swift; sourceTree = "<group>"; };
 		EB84E97783AC024563C212F7 /* HoldToStopButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoldToStopButton.swift; sourceTree = "<group>"; };
 		EF187F967C613A176A6CB202 /* ShowRecorderLiveActivity.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = ShowRecorderLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		F1ACA8CE1E34CE0D549A05B8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F37D396FDE04128489306DC3 /* ChannelNamesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChannelNamesView.swift; sourceTree = "<group>"; };
+		F3D98E5C83E528C4AEB5B355 /* SupportMailTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportMailTests.swift; sourceTree = "<group>"; };
 		F4BD6DB3A3F8D99EBA48DB48 /* ShowRecorderWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowRecorderWatchApp.swift; sourceTree = "<group>"; };
 		FC19F42425E565E8E9DFE2E1 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		FEA294E3885AFF04F6D8CED9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -235,6 +241,7 @@
 			children = (
 				8518F1A98FCD82D02B991C62 /* AppVersionTests.swift */,
 				4AE3649927662D4F08EC25D9 /* MeterGridTests.swift */,
+				F3D98E5C83E528C4AEB5B355 /* SupportMailTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -275,6 +282,8 @@
 				7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */,
 				6D7ADCDE507077F908B89E77 /* SoundcheckView.swift */,
 				3F25297D625A2C059541D858 /* StatusStrip.swift */,
+				E951F97A3A234FFB9E4215B5 /* SupportMail.swift */,
+				74ACE7E232B13FE02C923373 /* SupportSection.swift */,
 				95E36C84780061B781FBBE4D /* TakeLiveActivity.swift */,
 				DDDF413BFBEF5212621189D4 /* TrialSheet.swift */,
 				B226D8F0693756FC24B78255 /* WatchLink.swift */,
@@ -510,6 +519,7 @@
 			files = (
 				A46EF972570A8C8B4881455D /* AppVersionTests.swift in Sources */,
 				201B434DBE445FE432B3A9FB /* MeterGridTests.swift in Sources */,
+				DA46657B1E3BAA150CD1F749 /* SupportMailTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -545,6 +555,8 @@
 				1D0AAB2401EFEADA6CDDEB2C /* ShowRecorderApp.swift in Sources */,
 				E8ED4177702282C467A8AC09 /* SoundcheckView.swift in Sources */,
 				75CA30F76EAD77FB29C41E7C /* StatusStrip.swift in Sources */,
+				5D5D12F59403A4A68536795A /* SupportMail.swift in Sources */,
+				876AC19AE21C45AFA7E6C512 /* SupportSection.swift in Sources */,
 				1339BC14126FF5CDF750BC20 /* TakeLiveActivity.swift in Sources */,
 				07FB0DD2A97E806B1CB409A1 /* TrialSheet.swift in Sources */,
 				FFB051D0C43CF1136FC20431 /* WatchLink.swift in Sources */,
