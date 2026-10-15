@@ -396,7 +396,7 @@ struct ClipProtectionTests {
         #expect(control.gainDb[1] == 12)
     }
 
-    @Test("A preamp read that gets no answer doesn't give a channel a fresh 12 dB or a fresh rest (Eric's Take 06, 18 dB)")
+    @Test("A preamp read that gets no answer doesn't give a channel a fresh 12 dB (Eric's Take 06, 18 dB)")
     func budgetSurvivesUnansweredPreampRead() async {
         let protection = ClipProtection(control: control, sampleRate: 48_000)
         let clipping = Windows.repeating(Windows.clip, 10) + Windows.repeating(Windows.at(-20), 150)
@@ -407,6 +407,20 @@ struct ClipProtectionTests {
         control.preampFails = true
         await Self.feed(protection, clipping)
         #expect(control.gainDb[1] == 18, "the Take's 12 dB is used up, whatever the Mixer answers")
+    }
+
+    @Test("A first preamp read that gets no answer is counted with the preamp once it answers: still 12 dB a Take")
+    func budgetJoinsOnceThePreampAnswers() async {
+        let protection = ClipProtection(control: control, sampleRate: 48_000)
+        let clipping = Windows.repeating(Windows.clip, 10) + Windows.repeating(Windows.at(-20), 150)
+
+        control.preampFails = true
+        await Self.feed(protection, clipping)
+        #expect(control.gainDb[1] == 24, "6 dB while the preamp is unknown")
+
+        control.preampFails = false
+        await Self.feed(protection, clipping + clipping)
+        #expect(control.gainDb[1] == 18, "6 more, then the Take's 12 dB is used up")
     }
 
     @Test("Two USB Channels carrying one Mixer channel, both hot, move its preamp once")

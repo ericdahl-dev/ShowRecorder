@@ -266,6 +266,11 @@ public final class ClipProtection {
     /// preamp number. Either way it is counted as before (Eric's Take 06: an unanswered read gave a fresh 12 dB).
     private func preamp(ofChannel channel: Int) async -> Int {
         if let answered = (try? await control.preamp(ofChannel: channel)) ?? nil {
+            if knownPreamp[channel] == nil {
+                // Moves made while the preamp was unknown were on this preamp: they count against its 12 dB and rest.
+                if let spent = turnedDown.removeValue(forKey: -channel) { turnedDown[answered, default: 0] += spent }
+                if let moved = lastMove.removeValue(forKey: -channel) { lastMove[answered] = max(lastMove[answered] ?? moved, moved) }
+            }
             knownPreamp[channel] = answered
             return answered
         }

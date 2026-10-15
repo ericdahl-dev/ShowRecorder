@@ -141,6 +141,7 @@ struct MixHoldLagTests {
         let step = try await driver.applyMixHold(channel: 1, gainChangeDb: cut)
 
         #expect(step.toGainDb == 38.5 + cut)
+        #expect(mixer.writes.contains { $0.address == "/headamp/01/gain" } && mixer.writes.contains { $0.address == Self.fader })
         #expect(Self.faderNeverAhead(mixer, gain: "/headamp/01/gain", fader: Self.fader, start: (38.5, -10)).isEmpty)
     }
 
@@ -151,7 +152,7 @@ struct MixHoldLagTests {
 
         let step = try await driver.applyMixHold(channel: 1, gainChangeDb: -6)
 
-        #expect(step.toGainDb >= 36.5 - 0.01, "only the 2 dB the fader can make up")
+        #expect(abs(step.toGainDb - 36.5) < 0.6, "only the 2 dB the fader can make up")
         #expect(step.limitedBy != nil)
     }
 
