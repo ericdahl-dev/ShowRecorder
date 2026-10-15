@@ -26,18 +26,28 @@ public struct TakeActivityContent: Codable, Hashable, Sendable {
     public var markerCount: Int
     /// What needs attention now, most important first (#545).
     public var problems: [TakeActivityProblem]
+    /// Whether the Live Activity offers a Marker button (#684): the app decides, by its availability rule.
+    public var showsMarkerButton: Bool
+    /// The Take is at its Marker limit (Free, #705): the button is off and says why. Meaningful only with the button
+    /// shown.
+    public var markerLimitReached: Bool
 
-    public init(showName: String, takeTitle: String, startedAt: Date, markerCount: Int, problems: [TakeActivityProblem] = []) {
+    public init(showName: String, takeTitle: String, startedAt: Date, markerCount: Int, problems: [TakeActivityProblem] = [],
+                showsMarkerButton: Bool = false, markerLimitReached: Bool = false) {
         self.showName = showName
         self.takeTitle = takeTitle
         self.startedAt = startedAt
         self.markerCount = markerCount
         self.problems = problems
+        self.showsMarkerButton = showsMarkerButton
+        self.markerLimitReached = markerLimitReached
     }
 
-    private enum CodingKeys: String, CodingKey { case showName, takeTitle, startedAt, markerCount, problems }
+    private enum CodingKeys: String, CodingKey {
+        case showName, takeTitle, startedAt, markerCount, problems, showsMarkerButton, markerLimitReached
+    }
 
-    /// Content from a build before problems existed reads with none.
+    /// Content from a build before problems or the Marker button existed reads with none.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         showName = try container.decode(String.self, forKey: .showName)
@@ -45,9 +55,11 @@ public struct TakeActivityContent: Codable, Hashable, Sendable {
         startedAt = try container.decode(Date.self, forKey: .startedAt)
         markerCount = try container.decode(Int.self, forKey: .markerCount)
         problems = try container.decodeIfPresent([TakeActivityProblem].self, forKey: .problems) ?? []
+        showsMarkerButton = try container.decodeIfPresent(Bool.self, forKey: .showsMarkerButton) ?? false
+        markerLimitReached = try container.decodeIfPresent(Bool.self, forKey: .markerLimitReached) ?? false
     }
 
-    /// The same Take: only its Marker count may differ.
+    /// The same Take: its Marker count, problems and Marker button state may differ.
     func isSameTake(as other: TakeActivityContent) -> Bool {
         showName == other.showName && takeTitle == other.takeTitle && startedAt == other.startedAt
     }
