@@ -48,6 +48,42 @@ struct MarkerTests {
         #expect(recorder.takeMarkers.map(\.name) == ["Marker 1", "Bridge"])
     }
 
+    @Test("A Take allowed 3 Markers (Free) keeps the first 3: a 4th press places nothing, in the files or Take.json (#705)")
+    func markerLimit() throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = Recorder(deviceFolder: device, now: { RecordingTakeTests.showDay })
+        try recorder.arm(audio)
+        var allowance = TakeAllowance(recordedChannels: [1], showReport: false, reaperExport: false, namingByHand: false)
+        allowance.markerLimit = 3
+
+        try recorder.startTake(allowance: allowance)
+        for _ in 1...3 {
+            deliver(100, to: audio)
+            #expect(recorder.addMarker())
+        }
+        #expect(recorder.markerLimitReached)
+        deliver(100, to: audio)
+        #expect(!recorder.addMarker())
+        try recorder.stopTake()
+        #expect(!recorder.markerLimitReached, "only while the Take runs")
+
+        #expect(recorder.takeMarkers.map(\.name) == ["Marker 1", "Marker 2", "Marker 3"])
+        let take = device.appending(path: "2026-10-06 Show/Take 01")
+        #expect(try cuePoints(take.appending(path: "01 USB 01.wav")).map(\.label) == ["Marker 1", "Marker 2", "Marker 3"])
+    }
+
+    @Test("Without a limit (Pro, the Trial, or no allowance) every press places a Marker (#705)")
+    func noMarkerLimit() throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = Recorder(deviceFolder: device, now: { RecordingTakeTests.showDay })
+        try recorder.arm(audio)
+        try recorder.startTake(allowance: TakeAllowance(recordedChannels: [1], showReport: true, reaperExport: true, namingByHand: true))
+        for _ in 1...5 { deliver(100, to: audio); #expect(recorder.addMarker()) }
+        #expect(!recorder.markerLimitReached)
+        try recorder.stopTake()
+        #expect(recorder.takeMarkers.count == 5)
+    }
+
     @Test("Adding a Marker when not recording does nothing")
     func markerOutsideTakeIgnored() throws {
         let recorder = Recorder(deviceFolder: device, now: { RecordingTakeTests.showDay })

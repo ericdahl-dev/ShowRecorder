@@ -668,12 +668,21 @@ public final class Recorder {
         }
     }
 
+    /// Whether the running Take has as many Markers as its allowance lets it (3 on Free, #705). False with no Take.
+    public var markerLimitReached: Bool {
+        guard isRecording, let limit = lastAllowance?.markerLimit else { return false }
+        return takeMarkers.count >= limit
+    }
+
     /// Places a Marker at the Take's current sample position (frames written so far), in every Stem
-    /// of every Copy and in `Take.json`. Does nothing when no Take is running.
-    func addMarker(named name: String? = nil) {
-        guard isRecording, let session else { return }
+    /// of every Copy and in `Take.json`. Does nothing when no Take is running, or when the Take already has as many
+    /// as its allowance lets it (3 on Free, #705). Returns whether one was placed.
+    @discardableResult
+    func addMarker(named name: String? = nil) -> Bool {
+        guard isRecording, let session, !markerLimitReached else { return false }
         session.addMarker(named: name)
         refreshMarkers(from: session.metadata)
+        return true
     }
 
     /// Renames one of the running Take's Markers: the one at `index` among the operator's Markers (the order

@@ -100,6 +100,26 @@ struct TakeControlTests {
         #expect(recorder.takeMarkers.count == 2)
     }
 
+    @Test("A Marker past the Take's limit (Free) is not placed and not told, so the Live Activity and watch don't count it (#705)")
+    func addMarkerPastLimit() async throws {
+        let (sequencer, recorder, source) = makeSequencer()
+        sequencer.arm()
+        var events = sequencer.events.makeAsyncIterator()
+        _ = await events.next()  // .armed
+        var allowance = TakeAllowance(recordedChannels: [1], showReport: false, reaperExport: false, namingByHand: false)
+        allowance.markerLimit = 1
+        sequencer.record(sources: [], allowance: allowance)
+        try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
+
+        sequencer.addMarker()
+        sequencer.addMarker()
+        sequencer.stop()
+
+        let end = TakeEvent.takeEnded(TakeEnd(take: 1, reason: .stopped))
+        #expect(await told(&events, through: end) == [.takeStarted(take: 1), .markerPlaced(count: 1), end])
+        #expect(recorder.takeMarkers.count == 1)
+    }
+
     @Test("Add Marker with no Take running does nothing and tells nothing")
     func addMarkerWithoutTake() async throws {
         let (sequencer, recorder, _) = makeSequencer()

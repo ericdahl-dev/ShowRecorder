@@ -225,10 +225,10 @@ public final class TakeSequencer {
         }
     }
 
-    /// Places a Marker in the running Take and tells it. Does nothing with no Take running.
+    /// Places a Marker in the running Take and tells it. Does nothing with no Take running, or past the Take's
+    /// Marker limit (Free, #705).
     public func addMarker(named name: String? = nil) {
-        guard recorder.isRecording else { return }
-        recorder.addMarker(named: name)
+        guard recorder.isRecording, recorder.addMarker(named: name) else { return }
         emit.yield(.markerPlaced(count: recorder.takeMarkers.count))
     }
 
