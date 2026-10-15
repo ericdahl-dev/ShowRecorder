@@ -57,37 +57,21 @@ public struct TakeAllowance: Equatable, Sendable {
 }
 
 extension Entitlement {
-    /// How many USB Channels Free records.
-    public static let freeChannelCount = 2
     /// How many Markers a Take may have on Free (#705).
     public static let freeMarkerLimit = 3
 
-    /// - Parameter freeChoice: the USB Channels (from 1) the operator chose to record on Free.
-    public static func allowance(for tier: Tier, channelCount: Int, freeChoice: [Int]) -> TakeAllowance {
+    /// What a Take pressed under `tier` may do. Free records every USB Channel (Eric, 2026-10-15, #705); Pro and the
+    /// Trial add the rest.
+    public static func allowance(for tier: Tier, channelCount: Int) -> TakeAllowance {
         let all = channelCount > 0 ? Set(1...channelCount) : []
         switch tier {
         case .pro, .trial:
             return TakeAllowance(recordedChannels: all, showReport: true, reaperExport: true, namingByHand: true)
         case .free:
             return TakeAllowance(
-                recordedChannels: freeChannels(freeChoice, channelCount: channelCount), showReport: false, reaperExport: false,
+                recordedChannels: all, showReport: false, reaperExport: false,
                 namingByHand: false, driveCopy: false, markerLimit: freeMarkerLimit, mixerLinkNames: false, autoGain: false,
                 clipProtection: false)
         }
-    }
-
-    /// The operator's picks that exist on this input, first two only, topped up from the lowest channels.
-    static func freeChannels(_ choice: [Int], channelCount: Int) -> Set<Int> {
-        guard channelCount > 0 else { return [] }
-        var picked: [Int] = []
-        for channel in choice where (1...channelCount).contains(channel) && !picked.contains(channel) && picked.count < freeChannelCount {
-            picked.append(channel)
-        }
-        var next = 1
-        while picked.count < min(freeChannelCount, channelCount) {
-            if !picked.contains(next) { picked.append(next) }
-            next += 1
-        }
-        return Set(picked)
     }
 }

@@ -35,6 +35,15 @@ With X32 support coming (#199), the second family is here, so the single-family 
 - **Upgrading:** pack owners get a separate "Pro upgrade" purchase priced at Pro minus what they paid ($9.99 after an X Air or X32 pack, $12.99 after a DJM pack), offered only to them. Owners of two or more packs get the cheapest upgrade, $2.99. An upgrade counts as Pro only while a qualifying pack is still owned: a refunded or revoked pack takes it back too (Eric, 2026-10-13).
 - **Paywall:** the connected mixer's pack first, with Pro beside it; a generic input is offered only Pro.
 
+## Free records every USB Channel (Eric, 2026-10-15, #703, #705)
+
+This replaces "Free = 2 USB Channels" above and in the mixer packs section. A free competitor (Manytrack) records every channel, so a channel gate loses that comparison; the gate moves to the workflow around the recording.
+
+- **Free:** every USB Channel, as mono BWF Stems, on the Device only; generic names ("USB 07"); up to 3 Markers per Take; 44.1 and 48 kHz; crash recovery and routing-change warnings. The Apple Watch remote stays Free.
+- **Pro or a pack** adds: names and colors from the Mixer, typed names, the Drive (second Copy, Repair, Drive only), unlimited Markers, auto-gain, clip protection, the Show report, Reaper export, 96 kHz and Templates.
+- Pack prices change to X Air $7.99, X32/M32 $7.99; DJM stays $6.99. Pro stays $19.99.
+- Still judged only when record is pressed and frozen into the Take (`TakeAllowance`); auto-gain, which runs between Takes, is judged when it runs.
+
 ## Consequences
 
 - Family Sharing can't be turned off for an in-app purchase once enabled; a church team on one family plan shares one unlock.

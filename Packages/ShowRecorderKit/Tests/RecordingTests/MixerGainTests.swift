@@ -271,7 +271,7 @@ struct MixerGainClipProtectionTests {
         #expect(mixerGain.protection == nil)
         mixerGain.handle(.takeEnded(TakeEnd(take: 1, reason: .stopped)))
 
-        mixerGain.takeAllowance = { Entitlement.allowance(for: .pro, channelCount: 1, freeChoice: []) }
+        mixerGain.takeAllowance = { Entitlement.allowance(for: .pro, channelCount: 1) }
         mixerGain.handle(.takeStarted(take: 2))
         #expect(mixerGain.protection != nil)
     }

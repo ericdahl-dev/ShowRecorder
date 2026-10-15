@@ -5,7 +5,7 @@ import Foundation
 @testable import ShowReport
 import Testing
 
-/// A Take on Free records only the 2 USB Channels the operator chose (ADR 0004).
+/// A Take records only the USB Channels its allowance names, and on Free none of the Drive (ADR 0004, #705).
 @MainActor
 @Suite("Free Take")
 struct FreeTakeTests {

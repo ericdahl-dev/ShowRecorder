@@ -10,17 +10,14 @@ public struct License: Equatable, Sendable {
     public let tier: Tier?
     /// Whether a 14-day Trial was ever started on this Apple Account, running or not.
     public let trialStarted: Bool
-    /// The USB Channels (from 1) the operator chose to record on Free.
-    public let freeChoice: [Int]
 
     /// The key that remembers the first-launch Trial offer was made.
     public static let trialOfferedKey = "trialOffered"
 
-    public init(proOffered: Bool, tier: Tier?, trialStarted: Bool, freeChoice: [Int]) {
+    public init(proOffered: Bool, tier: Tier?, trialStarted: Bool) {
         self.proOffered = proOffered
         self.tier = tier
         self.trialStarted = trialStarted
-        self.freeChoice = freeChoice
     }
 
     /// The one rule: Free limits, once Pro is offered and the tier is known.
@@ -29,7 +26,7 @@ public struct License: Equatable, Sendable {
     /// What a Take gets when record is pressed; nil (nothing limited) while Pro isn't offered or the tier is unknown.
     public func allowance(channelCount: Int) -> TakeAllowance? {
         guard proOffered, let tier else { return nil }
-        return Entitlement.allowance(for: tier, channelCount: channelCount, freeChoice: freeChoice)
+        return Entitlement.allowance(for: tier, channelCount: channelCount)
     }
 
     /// Whether the input is opened at 48 kHz at most (#195).
@@ -86,8 +83,8 @@ public struct ProStatus: Equatable, Sendable {
         return knownTier(now: now) != before
     }
 
-    public func license(proOffered: Bool, freeChoice: [Int], now: Date) -> License {
-        License(proOffered: proOffered, tier: knownTier(now: now), trialStarted: purchases.trialStartedAt != nil, freeChoice: freeChoice)
+    public func license(proOffered: Bool, now: Date) -> License {
+        License(proOffered: proOffered, tier: knownTier(now: now), trialStarted: purchases.trialStartedAt != nil)
     }
 
     private func knownTier(now: Date) -> Tier? { tierKnown ? purchases.tier(now: now) : nil }

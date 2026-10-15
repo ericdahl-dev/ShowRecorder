@@ -8,7 +8,7 @@ Testing without a mixer:
 3. Tap "Shows" to see the recording. Each Show folder has one WAV per channel, a Show report and a Reaper project. On iPhone and iPad it is also in the Files app (On My iPhone > ShowRecorder); on a Mac, choosing a Drive folder in Settings > Storage puts a copy of every Show there, in Finder.
 
 In-app purchases:
-- "14-day Trial" is a free non-consumable that unlocks everything for 14 days. Start it from Settings > Pro > Start 14-day Trial. The screen before it states how long it lasts, what Free keeps afterwards (2 USB channels of the user's choice) and the price of Pro.
+- "14-day Trial" is a free non-consumable that unlocks everything for 14 days. Start it from Settings > Pro > Start 14-day Trial. The screen before it states how long it lasts, what Free keeps afterwards (every USB channel, on the device, with up to 3 Markers per Take) and the price of Pro.
 - "ShowRecorder Pro" is a one-time non-consumable (Family Sharing on): Settings > Pro > Buy Pro, or "See what Pro adds".
 - Restore Purchases is in Settings > Pro.
 - Free and Pro differ only when record is pressed. A recording in progress is never stopped or cut short by a Trial ending or by the Free limit.

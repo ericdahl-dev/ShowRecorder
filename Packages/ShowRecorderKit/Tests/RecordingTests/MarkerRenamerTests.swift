@@ -100,7 +100,7 @@ struct MarkerRenamerTests {
 
     @Test("On Free a rename writes no Show report or Reaper project that wasn't there (#438)")
     func freeWritesNoExtras() throws {
-        try recordTake(allowance: Entitlement.allowance(for: .free, channelCount: 2, freeChoice: [1, 2]))
+        try recordTake(allowance: Entitlement.allowance(for: .free, channelCount: 2))
         let show = "2026-10-06 Show"
         #expect(MarkerRenamer.rename(markerAt: 1, to: "Chorus", in: copies, allowsProExtras: false).result == .renamed)
         for copy in [device, drive] {
