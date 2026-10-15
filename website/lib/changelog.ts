@@ -14,6 +14,17 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.9",
+    date: "2026-10-15",
+    channel: "TestFlight beta",
+    summary: "A Marker from the Lock Screen, and a steadier Apple Watch.",
+    changes: [
+      "Place a Marker from the Lock Screen or the Dynamic Island while a Take is running.",
+      "The Apple Watch no longer quits on Record, and shows the last status when the iPhone is locked.",
+      "The Trial chip says what it is, and the Drive and warning chips stay readable in portrait.",
+    ],
+  },
+  {
     version: "1.1.8",
     date: "2026-10-15",
     channel: "TestFlight beta",
