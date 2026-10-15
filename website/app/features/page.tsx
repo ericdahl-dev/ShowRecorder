@@ -1,6 +1,6 @@
-import { featureGroups } from "@/lib/features";
+import { featureGroups, inBetaFeatures } from "@/lib/features";
 import { considering, inBeta, planned, worksNow } from "@/lib/mixers";
-import { CONTACT_EMAIL } from "@/lib/site";
+import { CONTACT_EMAIL, TESTFLIGHT_URL } from "@/lib/site";
 import { PAGES, pageMetadata } from "@/lib/metadata";
 
 export const metadata = pageMetadata(PAGES.features);
@@ -47,6 +47,9 @@ export default function FeaturesPage() {
               </li>
             ))}
             <li>
+              <a href="#beta">In the beta</a>
+            </li>
+            <li>
               <a href="#mixers">Supported mixers</a>
             </li>
           </ul>
@@ -72,6 +75,32 @@ export default function FeaturesPage() {
           </ul>
         </section>
       ))}
+
+      <section id="beta" aria-labelledby="beta-title" className="feature-group">
+        <div className="section-head">
+          <h2 id="beta-title">In the beta</h2>
+          <p>
+            Coming in 1.1, and in the public TestFlight beta now.
+            {TESTFLIGHT_URL ? (
+              <>
+                {" "}
+                <a href={TESTFLIGHT_URL}>Join the beta</a> to try them.
+              </>
+            ) : null}
+          </p>
+        </div>
+        <ul className="cards cards--3">
+          {inBetaFeatures.map((f) => (
+            <li key={f.title} className="card feature">
+              <div className="feature-top">
+                <h3>{f.title}</h3>
+                <span className="tier tier--beta">Beta</span>
+              </div>
+              <p>{f.body}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section id="mixers" aria-labelledby="mixers-title" className="feature-group">
         <div className="section-head">

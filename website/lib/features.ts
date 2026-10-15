@@ -188,3 +188,28 @@ export const featureGroups: {
     ],
   },
 ];
+
+// In the public TestFlight beta, not yet in the App Store release (1.1). Each was checked against its availability
+// rule: shown to TestFlight builds, never only Debug. Move an entry into featureGroups when 1.1 ships.
+export const inBetaFeatures: { title: string; body: string }[] = [
+  // source: Watch/ (the watch app, in TestFlight since 1.1.3)
+  {
+    title: 'Apple Watch remote',
+    body: 'See whether the iPhone is Armed or recording and for how long, drop Markers, start a Take and stop it with a press and hold, from your wrist.',
+  },
+  // source: LiveActivity/TakeLiveActivityWidget.swift
+  {
+    title: 'Live Activity',
+    body: 'The running Take, its time and Marker count on the Lock Screen and in the Dynamic Island, with an alert if a problem starts.',
+  },
+  // source: Packages/ShowRecorderKit/Sources/Recording/AutoGainAvailability.swift (Debug and TestFlight, #691)
+  {
+    title: 'Auto-gain',
+    body: 'Over Mixer Link, sets each channel\'s preamp to -18 dBFS and moves the fader, sends and dynamics the other way, so the mix stays the same. Undo puts it all back.',
+  },
+  // source: Packages/ShowRecorderKit/Sources/Recording/ClipProtection.swift (ClipProtectionSetting.isOffered: Debug and TestFlight, #699)
+  {
+    title: 'Clip protection',
+    body: 'During a Take, turns a clipping channel\'s preamp down on the mixer and raises its fader to match, at most 12 dB per Take, with a Marker for each move. Off until you switch it on.',
+  },
+];
