@@ -30,8 +30,8 @@ public struct TakeSignal: Equatable, Sendable {
 public enum ProOfferMoment: Equatable, Sendable {
     /// The first Show with a Take has ended.
     case firstShowEnded
-    /// A Free Take left channels that carried signal unrecorded.
-    case limitedTake(recorded: Int, withSignal: Int)
+    /// A Free Take's Stems got generic names while the Mixer Link had names for them (#705).
+    case genericNames
     /// The Trial's last days.
     case trialEndingSoon(daysLeft: Int)
     /// A Free Take went to the Device only while a Drive was connected (#705).
@@ -54,11 +54,12 @@ public struct ProOffers {
         self.defaults = defaults
     }
 
-    public mutating func afterTakeStopped(show: String, signal: TakeSignal, license: License, isRecording: Bool) -> ProOfferMoment? {
-        guard canOffer(in: show, license: license, isRecording: isRecording), license.tier == .free,
-              signal.withSignal > signal.recorded else { return nil }
+    /// After a Free Take whose Stems got generic names although the Mixer Link had names for them (#705): once a Show.
+    /// - Parameter mixerNamed: whether the Mixer Link gave any channel a name when the Take stopped.
+    public mutating func afterTakeStopped(show: String, license: License, isRecording: Bool, mixerNamed: Bool) -> ProOfferMoment? {
+        guard mixerNamed, canOffer(in: show, license: license, isRecording: isRecording), license.tier == .free else { return nil }
         offered(in: show)
-        return .limitedTake(recorded: signal.recorded, withSignal: signal.withSignal)
+        return .genericNames
     }
 
     /// After a Free Take that went to the Device only with a Drive connected (#705): once ever, calmly, after the Take.
@@ -118,8 +119,8 @@ public struct Paywall: Equatable, Sendable {
     /// - Parameter proPrice: the Pro product's display price; nil until the App Store has it.
     public init(moment: ProOfferMoment?, proPrice: String?) {
         switch moment {
-        case .limitedTake(let recorded, let withSignal):
-            headline = "Only \(recorded) of \(withSignal) channels were recorded"
+        case .genericNames:
+            headline = "This Take's Stems have generic names"
         case .firstShowEnded:
             headline = "Your first Show is recorded"
         case .trialEndingSoon(let daysLeft):
