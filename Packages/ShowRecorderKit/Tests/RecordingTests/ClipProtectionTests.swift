@@ -654,7 +654,7 @@ struct ClipProtectionSettingTests {
         #expect(ClipProtectionSetting.isOn(in: defaults))
     }
 
-    @Test("Offered only where auto-gain is, Debug builds for now: it moves the same preamps through the same driver")
+    @Test("Offered in Debug builds only, its own rule: not in TestFlight with auto-gain, until its own live test")
     func offered() {
         #expect(ClipProtectionSetting.isOffered(isDebugBuild: true))
         #expect(!ClipProtectionSetting.isOffered(isDebugBuild: false))

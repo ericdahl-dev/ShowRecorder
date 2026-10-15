@@ -63,8 +63,10 @@ public final class MixerGain {
     @ObservationIgnored public var isClipProtectionOn: () -> Bool = { ClipProtectionSetting.isOn() }
     /// The Mixer session the Gain button follows; nil until whoever owns this sets it.
     @ObservationIgnored public var mixer: MixerSession?
-    /// Whether this is a Debug build: where auto-gain and clip protection are offered for now.
+    /// Whether this is a Debug build: where auto-gain and clip protection are both offered.
     @ObservationIgnored public var isDebugBuild = LaunchFlags.isDebugBuild
+    /// Which App Store environment this build came through, nil until StoreKit has answered: TestFlight offers auto-gain.
+    @ObservationIgnored public var environment: () -> DistributionEnvironment? = { DemoSignalAvailability.environment }
     /// Clip protection on the linked Mixer moving gain through the given queue, or nil when it can't set gain.
     @ObservationIgnored public var makeProtection: (MixerQueue) -> ClipProtection? = { _ in nil }
     /// Protecting the running Take; nil between Takes.
@@ -74,11 +76,11 @@ public final class MixerGain {
         self.makeSession = makeSession
     }
 
-    /// Whether the record screen shows the Gain button (#155): while an X Air or X32 is Armed, Debug builds only for now
-    /// (`AutoGainAvailability`). When auto-gain can't run (a Take, no Mixer Link, a Mixer whose gain can't be set), the
+    /// Whether the record screen shows the Gain button (#155): while an X Air or X32 is Armed, in Debug and TestFlight
+    /// builds (`AutoGainAvailability`). When auto-gain can't run (a Take, no Mixer Link, a Mixer whose gain can't be set), the
     /// button stays and its sheet says why (`autoGainUnavailable`) instead of the button disappearing.
     public var offersAutoGain: Bool {
-        AutoGainAvailability.isOffered(available: AutoGainAvailability.isAvailable(isDebugBuild: isDebugBuild),
+        AutoGainAvailability.isOffered(available: AutoGainAvailability.isAvailable(isDebugBuild: isDebugBuild, environment: environment()),
                                        mixerLinkOffered: mixer?.isOffered ?? false)
     }
 

@@ -4,14 +4,27 @@ import MixerLink
 import Testing
 
 /// Who sees auto-gain (#155) and clip protection (#448), and why auto-gain can't run (#554, PR 10). One table of
-/// literal answers, for each build kind and each Mixer session state. Debug builds only for now (Eric, 2026-10-12):
-/// TestFlight and App Store builds are Release builds, so neither feature shows there.
+/// literal answers, for each build kind and each Mixer session state. Auto-gain: Debug and TestFlight builds (Eric,
+/// 2026-10-14, after his live XR18 test); never the App Store. Clip protection: Debug builds only, until its own live test.
 @MainActor
 @Suite("Mixer gain: availability and the offer")
 struct MixerGainAvailabilityTests {
     enum Build: String, CaseIterable {
-        case debug, testFlight, appStore
+        /// `releaseBeforeStoreKit`: a TestFlight or App Store build whose StoreKit answer hasn't arrived yet.
+        case debug, testFlight, appStore, releaseBeforeStoreKit
         var isDebugBuild: Bool { self == .debug }
+        /// What StoreKit says the build came through: TestFlight is the sandbox, the App Store production; a Debug build
+        /// run from Xcode has no App Store environment.
+        var environment: DistributionEnvironment? {
+            switch self {
+            case .debug: .unknown
+            case .testFlight: .sandbox
+            case .appStore: .production
+            case .releaseBeforeStoreKit: nil
+            }
+        }
+        var seesAutoGain: Bool { self == .debug || self == .testFlight }
+        var seesClipProtection: Bool { self == .debug }
     }
 
     /// The Mixer session and recorder states the record screen meets.
@@ -79,46 +92,23 @@ struct MixerGainAvailabilityTests {
 
     nonisolated static let table: [(Build, Scenario)] = Build.allCases.flatMap { build in Scenario.allCases.map { (build, $0) } }
 
-    // MARK: Today's rules, as RecordScreenModel composes them (offersAutoGain, autoGainUnavailable, and MixerGain's
-    // isClipProtectionOn default), so the table is checked against today before MixerGain answers it.
+    @Test("Who sees what: auto-gain in Debug and TestFlight, clip protection in Debug only, neither in the App Store",
+          arguments: Build.allCases)
+    func whoSeesWhat(build: Build) {
+        let expected: [Build: (autoGain: Bool, clipProtection: Bool)] =
+            [.debug: (true, true), .testFlight: (true, false), .appStore: (false, false), .releaseBeforeStoreKit: (false, false)]
+        let mixerGain = MixerGain()
+        mixerGain.isDebugBuild = build.isDebugBuild
+        mixerGain.environment = { build.environment }
 
-    static func todayOffersAutoGain(_ mixer: MixerSession, isDebugBuild: Bool) -> Bool {
-        AutoGainAvailability.isOffered(available: AutoGainAvailability.isAvailable(isDebugBuild: isDebugBuild),
-                                       mixerLinkOffered: mixer.isOffered)
-    }
-
-    static func todayAutoGainUnavailable(_ mixer: MixerSession, isRecording: Bool) -> AutoGainAvailability.Unavailable? {
-        let isConnecting = if case .connecting = mixer.status { true } else { false }
-        return AutoGainAvailability.whyNot(hasMixerLink: mixer.identity != nil, isConnecting: isConnecting,
-                                           canSetGain: mixer.gainControl != nil, isRecording: isRecording,
-                                           otherMixer: mixer.otherMixerLinked?.nameAndModel)
-    }
-
-    static func todayClipProtectionOn(isDebugBuild: Bool, defaults: UserDefaults) -> Bool {
-        ClipProtectionSetting.isOffered(isDebugBuild: isDebugBuild) && ClipProtectionSetting.isOn(in: defaults)
-    }
-
-    @Test("Today: the Gain button shows only in Debug builds, while an X Air or X32 is Armed, and says why it can't run",
-          arguments: table)
-    func todayAutoGain(build: Build, scenario: Scenario) async throws {
-        let (mixer, release) = try await scenario.session()
-        defer { release() }
-
-        #expect(Self.todayOffersAutoGain(mixer, isDebugBuild: build.isDebugBuild) == (build == .debug && scenario.offeredInDebug))
-        #expect(Self.todayAutoGainUnavailable(mixer, isRecording: scenario.isRecording) == scenario.whyNot)
-    }
-
-    @Test("Today: clip protection is offered, and on when switched on, only in Debug builds", arguments: Build.allCases)
-    func todayClipProtection(build: Build) {
-        let defaults = UserDefaults(suiteName: "MixerGainAvailabilityTests-\(UUID().uuidString)")!
-        #expect(!Self.todayClipProtectionOn(isDebugBuild: build.isDebugBuild, defaults: defaults), "off by default")
-        ClipProtectionSetting.save(true, to: defaults)
-        #expect(Self.todayClipProtectionOn(isDebugBuild: build.isDebugBuild, defaults: defaults) == (build == .debug))
+        #expect(AutoGainAvailability.isAvailable(isDebugBuild: build.isDebugBuild, environment: build.environment)
+                == expected[build]!.autoGain)
+        #expect(mixerGain.offersClipProtection == expected[build]!.clipProtection)
     }
 
     // MARK: Mixer gain answers the same table from its inputs.
 
-    @Test("Mixer gain: the Gain button shows only in Debug builds, while an X Air or X32 is Armed, and says why it can't run",
+    @Test("Mixer gain: the Gain button shows in Debug and TestFlight builds, while an X Air or X32 is Armed, and says why it can't run",
           arguments: table)
     func mixerGainAutoGain(build: Build, scenario: Scenario) async throws {
         let (mixer, release) = try await scenario.session()
@@ -126,9 +116,10 @@ struct MixerGainAvailabilityTests {
         let mixerGain = MixerGain()
         mixerGain.mixer = mixer
         mixerGain.isDebugBuild = build.isDebugBuild
+        mixerGain.environment = { build.environment }
         mixerGain.isRecording = { scenario.isRecording }
 
-        #expect(mixerGain.offersAutoGain == (build == .debug && scenario.offeredInDebug))
+        #expect(mixerGain.offersAutoGain == (build.seesAutoGain && scenario.offeredInDebug))
         #expect(mixerGain.autoGainUnavailable == scenario.whyNot)
     }
 
@@ -136,6 +127,7 @@ struct MixerGainAvailabilityTests {
     func mixerGainWithoutASession(build: Build) {
         let mixerGain = MixerGain()
         mixerGain.isDebugBuild = build.isDebugBuild
+        mixerGain.environment = { build.environment }
 
         #expect(!mixerGain.offersAutoGain)
         #expect(mixerGain.autoGainUnavailable == .noMixerLink)
@@ -146,13 +138,14 @@ struct MixerGainAvailabilityTests {
     func mixerGainClipProtection(build: Build) {
         let mixerGain = MixerGain()
         mixerGain.isDebugBuild = build.isDebugBuild
+        mixerGain.environment = { build.environment }
         let control = FakeGainControl(gainDb: [1: 30], channelOfUSB: [1: 1])
         mixerGain.makeProtection = { queue in ClipProtection(control: control, sampleRate: 48_000, queue: queue) }
         mixerGain.isClipProtectionOn = { true }
 
-        #expect(mixerGain.offersClipProtection == (build == .debug))
+        #expect(mixerGain.offersClipProtection == build.seesClipProtection)
         mixerGain.handle(.takeStarted(take: 1))
-        #expect((mixerGain.protection != nil) == (build == .debug))
+        #expect((mixerGain.protection != nil) == build.seesClipProtection)
         mixerGain.handle(.takeEnded(TakeEnd(take: 1, reason: .stopped)))
     }
 }

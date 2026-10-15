@@ -352,7 +352,8 @@ struct RecordScreen: View {
 
     #if DEBUG && os(iOS)
     /// Opens the headphone monitor experiment's sheet (#233), only while the experiment is Armed. In the Show row,
-    /// so it takes no height from the meters.
+    /// so it takes no height from the meters. Debug builds only, never TestFlight (Eric, 2026-10-14): the `#if DEBUG`
+    /// keeps it out of every Release build, unlike auto-gain's availability rule.
     @ViewBuilder private var monitorButton: some View {
         if MonitorExperiment.shared.isArmed {
             Button { showingMonitor = true } label: { Text("Mon").tapTarget() }

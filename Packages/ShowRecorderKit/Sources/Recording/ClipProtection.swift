@@ -294,10 +294,10 @@ public enum ClipProtectionSetting {
     /// The key it is stored under.
     public static let key = "clipProtection"
 
-    /// Offered where auto-gain is (`AutoGainAvailability`, Debug builds for now): it moves the same preamps through
-    /// the same driver, which hasn't yet run on a real desk with real audio.
+    /// Debug builds only, its own rule (Eric, 2026-10-14): auto-gain reached TestFlight after its live test; clip
+    /// protection, which moves preamps during a Take, waits for its own.
     public static func isOffered(isDebugBuild: Bool = LaunchFlags.isDebugBuild) -> Bool {
-        AutoGainAvailability.isAvailable(isDebugBuild: isDebugBuild)
+        isDebugBuild
     }
 
     public static func isOn(in defaults: UserDefaults = .standard) -> Bool {
