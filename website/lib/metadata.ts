@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { SITE_NAME } from "@/lib/site";
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 
 // Per-page titles and descriptions, kept in one place so tests can check every route has them
 // and so the MDX pages share the same Open Graph and Twitter card as the home page.
@@ -27,7 +27,7 @@ export const PAGES = {
     path: "/",
     title: "Live multitrack recorder for iPhone and iPad - ShowRecorder",
     description:
-      "Multitrack recorder for iPhone and iPad: every USB Channel of your mixer to its own WAV file, no laptop. XR18 and MR18 now, X32 and M32 in the beta.",
+      SITE_DESCRIPTION,
   },
   features: {
     path: "/features",
