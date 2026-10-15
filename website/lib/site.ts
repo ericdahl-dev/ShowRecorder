@@ -4,8 +4,9 @@ import { DOCS, docHref } from "@/lib/docs";
 
 export const SITE_NAME = "ShowRecorder";
 export const SITE_URL = "https://showrecorder.app";
+// The one description of the product. PAGES.home.description, llms.txt and the structured data all use it.
 export const SITE_DESCRIPTION =
-  "Record every channel of your mixer on your iPhone or iPad. One WAV file per channel, named from the mixer, with a second copy on a USB drive.";
+  "Multitrack recorder for iPhone and iPad: every USB Channel of your mixer to its own mono Broadcast WAV file. XR18 and MR18, with X32 and M32 in the beta.";
 export const CONTACT_EMAIL = "showrecorder@ericdahl.dev";
 // The app's source code (FSL-1.1-MIT: public to read, MIT two years after each release).
 export const REPO_URL = "https://github.com/ericdahl-dev/ShowRecorder";
