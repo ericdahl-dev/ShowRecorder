@@ -69,8 +69,9 @@ extension XAirDriver: GainControl, MixHoldDesk {
     }
 
     /// Moves input channel `channel`'s preamp by `gainChangeDb` with Mix Hold: see `MixHoldDesk`.
-    public func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes = .all) async throws(MixerLinkProblem) -> GainStep {
-        try await mixHold(channel: channel, gainChangeDb: gainChangeDb, scopes: scopes)
+    public func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes = .all,
+                             live: Set<MixHold.Setting> = []) async throws(MixerLinkProblem) -> GainStep {
+        try await mixHold(channel: channel, gainChangeDb: gainChangeDb, scopes: scopes, live: live)
     }
 
     /// Puts back every value `step` changed: see `MixHoldDesk`.

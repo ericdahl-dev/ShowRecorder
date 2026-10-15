@@ -184,11 +184,13 @@ public final class AutoGainSession {
                 adjust: { db in
                     onPhase?(usbChannel, .adjusting)
                     let moved: GainStep?
+                    // What auto-gain moved and still holds for Undo, on any channel: Mix Hold keeps those end stops (#685).
+                    let live = Set((steps.values.joined() + taken).flatMap { $0.changes.map(\.setting) })
                     do throws(MixerLinkProblem) {
                         // Checked again once it's this channel's turn on the Mixer: a stop while it waited means no move.
                         moved = try await onMixer { () throws(MixerLinkProblem) -> GainStep? in
                             if stopRequested { return nil }
-                            return try await control.applyMixHold(channel: channel, gainChangeDb: db, scopes: .all)
+                            return try await control.applyMixHold(channel: channel, gainChangeDb: db, scopes: .all, live: live)
                         }
                     } catch {
                         // Stopped partway: what was written is logged and kept for Undo (#450), then the run ends.

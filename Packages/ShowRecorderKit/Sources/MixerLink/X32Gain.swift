@@ -85,8 +85,9 @@ extension X32Driver {
     }
 
     /// Moves input channel `channel`'s preamp by `gainChangeDb` with Mix Hold (#393): see `MixHoldDesk`.
-    public func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes = .all) async throws(MixerLinkProblem) -> GainStep {
-        try await mixHold(channel: channel, gainChangeDb: gainChangeDb, scopes: scopes)
+    public func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes = .all,
+                             live: Set<MixHold.Setting> = []) async throws(MixerLinkProblem) -> GainStep {
+        try await mixHold(channel: channel, gainChangeDb: gainChangeDb, scopes: scopes, live: live)
     }
 
     /// Puts back every value `result` changed: see `MixHoldDesk`.
@@ -136,7 +137,8 @@ public protocol GainControl: Sendable {
     /// on a stereo pair whose strips are linked, where the Mixer mirrors fader and sends between the two. Nil when its
     /// own preamp is its lane.
     func lane(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int?
-    func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes) async throws(MixerLinkProblem) -> GainStep
+    /// `live`: settings auto-gain moved and still holds for Undo; Mix Hold keeps their end stops (#685).
+    func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes, live: Set<MixHold.Setting>) async throws(MixerLinkProblem) -> GainStep
     func undo(_ step: GainStep) async throws(MixerLinkProblem)
 }
 

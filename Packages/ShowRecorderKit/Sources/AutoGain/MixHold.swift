@@ -232,9 +232,10 @@ public enum MixHold {
         channels: [ChannelState],
         ranges: Ranges,
         scopes: Scopes = .all,
-        keyed: [KeyedDynamics] = []
+        keyed: [KeyedDynamics] = [],
+        live: Set<Setting> = []
     ) -> Plan {
-        let items = compensated(channels, keyed: keyed, ranges: ranges, scopes: scopes)
+        let items = compensated(channels, keyed: keyed, ranges: ranges, scopes: scopes, live: live)
         let range = compensableRange(items)
         var g = gainChangeDb
         var limit: Limit?
@@ -344,15 +345,17 @@ public enum MixHold {
         var range: ClosedRange<Double>
     }
 
-    static func compensated(_ channels: [ChannelState], keyed: [KeyedDynamics] = [], ranges: Ranges, scopes: Scopes) -> [Item] {
+    static func compensated(_ channels: [ChannelState], keyed: [KeyedDynamics] = [], ranges: Ranges, scopes: Scopes,
+                            live: Set<Setting> = []) -> [Item] {
         var items: [Item] = []
         let moved = Set(channels.map(\.channel))
         for state in channels {
             func add(_ parameter: Parameter, _ value: Double?, _ direction: Double, _ range: ClosedRange<Double>) {
                 guard let value, scopes.contains(scope(of: parameter)) else { return }
                 if direction < 0, value <= ranges.offDb { return }
-                if idle(parameter, value, ranges: ranges) { return }
-                items.append(Item(setting: Setting(channel: state.channel, parameter: parameter), valueDb: value, direction: direction, range: range))
+                let setting = Setting(channel: state.channel, parameter: parameter)
+                if !live.contains(setting), idle(parameter, value, ranges: ranges) { return }
+                items.append(Item(setting: setting, valueDb: value, direction: direction, range: range))
             }
             // A gate or compressor keyed from elsewhere doesn't hear this preamp: moving its threshold would change how
             // hard it works, and so the mix. One keyed from another channel moves with that channel (`keyed`).
@@ -380,7 +383,7 @@ public enum MixHold {
             // Keyed from two moved channels (they share an input): one setting, moved once.
             let setting = Setting(channel: dynamics.channel, parameter: parameter)
             guard !items.contains(where: { $0.setting == setting }) else { continue }
-            if idle(parameter, dynamics.thresholdDb, ranges: ranges) { continue }
+            if !live.contains(setting), idle(parameter, dynamics.thresholdDb, ranges: ranges) { continue }
             let range = dynamics.dynamics == .gate ? ranges.gateThreshold : ranges.compressorThreshold
             items.append(Item(setting: Setting(channel: dynamics.channel, parameter: parameter), valueDb: dynamics.thresholdDb,
                               direction: 1, range: range))
@@ -388,8 +391,9 @@ public enum MixHold {
         return items
     }
 
-    /// A threshold Mix Hold leaves as it is, with no end stop (#685): a compressor at its top never acts, and a gate at
-    /// its bottom is always open, so moving either would start it working.
+    /// A threshold already at an edge where it does nothing, which Mix Hold leaves as it is, with no end stop (#685): a
+    /// compressor at its top (never acts) or a gate at its bottom (always open). Not one auto-gain moved there itself
+    /// (`live`): that keeps its end stop, or the next step would make it work harder and change the mix.
     static func idle(_ parameter: Parameter, _ valueDb: Double, ranges: Ranges) -> Bool {
         switch parameter {
         case .compressorThreshold: valueDb >= ranges.compressorThreshold.upperBound

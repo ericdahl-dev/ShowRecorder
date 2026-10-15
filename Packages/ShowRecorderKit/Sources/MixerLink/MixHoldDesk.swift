@@ -77,7 +77,7 @@ extension MixHoldDesk {
     /// The gain stops at the preamp's range and at what Mix Hold can compensate (`limitedBy`), and every value is
     /// written on one of the desk's own steps: `held` is what it holds afterwards, which can differ from the plan by
     /// up to half a step. Never call it during a Take (#155 doesn't offer it then).
-    func mixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes) async throws(MixerLinkProblem) -> GainStep {
+    func mixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes, live: Set<MixHold.Setting>) async throws(MixerLinkProblem) -> GainStep {
         guard let headamp = try await headamp(ofChannel: channel) else { throw .noPreamp(channel: channel) }
         let gainScale = Self.gainScale(headamp)
         let from = try await deskGainDb(ofHeadamp: headamp)
@@ -90,7 +90,8 @@ extension MixHoldDesk {
             keyed.formUnion(try await keyedDynamics(from: moved))
         }
         let ranges = Self.mixHoldRanges
-        let plan = MixHold.plan(headamp: headamp, gainChangeDb: reachable, channels: states, ranges: ranges, scopes: scopes, keyed: Array(keyed))
+        let plan = MixHold.plan(headamp: headamp, gainChangeDb: reachable, channels: states, ranges: ranges, scopes: scopes, keyed: Array(keyed),
+                                live: live)
         let to = gainScale.snap(from + plan.gainChangeDb)
 
         // The raw value of every address about to change, so undo restores it exactly.
