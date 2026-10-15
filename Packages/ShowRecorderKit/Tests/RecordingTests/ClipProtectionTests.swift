@@ -681,9 +681,12 @@ struct ClipProtectionSettingTests {
         #expect(ClipProtectionSetting.isOn(in: defaults))
     }
 
-    @Test("Offered in Debug builds only, its own rule: not in TestFlight with auto-gain, until its own live test")
+    @Test("Offered in Debug and TestFlight builds, after Eric's live test; never the App Store, nor before StoreKit answers")
     func offered() {
-        #expect(ClipProtectionSetting.isOffered(isDebugBuild: true))
-        #expect(!ClipProtectionSetting.isOffered(isDebugBuild: false))
+        #expect(ClipProtectionSetting.isOffered(isDebugBuild: true, environment: nil))
+        #expect(ClipProtectionSetting.isOffered(isDebugBuild: false, environment: .sandbox))
+        #expect(!ClipProtectionSetting.isOffered(isDebugBuild: false, environment: .production))
+        #expect(!ClipProtectionSetting.isOffered(isDebugBuild: false, environment: .unknown))
+        #expect(!ClipProtectionSetting.isOffered(isDebugBuild: false, environment: nil))
     }
 }

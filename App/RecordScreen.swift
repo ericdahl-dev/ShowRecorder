@@ -658,7 +658,7 @@ final class RecordScreenModel {
     let mixerGain = MixerGain()
     /// What auto-gain measures from (#554): every meter tick's windows, so it measures in audio time.
     let levelFeed = LevelFeed()
-    /// Clip protection's switch in Settings (Debug builds for now), read when each Take starts. Off by default.
+    /// Clip protection's switch in Settings (Debug and TestFlight builds), read when each Take starts. Off by default.
     var clipProtectionOn: Bool = ClipProtectionSetting.isOn() {
         didSet {
             ClipProtectionSetting.save(clipProtectionOn)
