@@ -351,6 +351,7 @@ public enum MixHold {
             func add(_ parameter: Parameter, _ value: Double?, _ direction: Double, _ range: ClosedRange<Double>) {
                 guard let value, scopes.contains(scope(of: parameter)) else { return }
                 if direction < 0, value <= ranges.offDb { return }
+                if idle(parameter, value, ranges: ranges) { return }
                 items.append(Item(setting: Setting(channel: state.channel, parameter: parameter), valueDb: value, direction: direction, range: range))
             }
             // A gate or compressor keyed from elsewhere doesn't hear this preamp: moving its threshold would change how
@@ -379,11 +380,22 @@ public enum MixHold {
             // Keyed from two moved channels (they share an input): one setting, moved once.
             let setting = Setting(channel: dynamics.channel, parameter: parameter)
             guard !items.contains(where: { $0.setting == setting }) else { continue }
+            if idle(parameter, dynamics.thresholdDb, ranges: ranges) { continue }
             let range = dynamics.dynamics == .gate ? ranges.gateThreshold : ranges.compressorThreshold
             items.append(Item(setting: Setting(channel: dynamics.channel, parameter: parameter), valueDb: dynamics.thresholdDb,
                               direction: 1, range: range))
         }
         return items
+    }
+
+    /// A threshold Mix Hold leaves as it is, with no end stop (#685): a compressor at its top never acts, and a gate at
+    /// its bottom is always open, so moving either would start it working.
+    static func idle(_ parameter: Parameter, _ valueDb: Double, ranges: Ranges) -> Bool {
+        switch parameter {
+        case .compressorThreshold: valueDb >= ranges.compressorThreshold.upperBound
+        case .gateThreshold: valueDb <= ranges.gateThreshold.lowerBound
+        case .mainFader, .otherMain, .send: false
+        }
     }
 
     static func scope(of parameter: Parameter) -> Scopes {

@@ -24,6 +24,9 @@ final class FakeXAirMixer: Sendable {
         var sendTaps: [Int32] = Array(repeating: 4, count: 16)
         var gateKey: Int32 = 0
         var compressorKey: Int32 = 0
+        /// `gate/on` and `dyn/on`: 1 on, 0 off.
+        var gateOn: Int32 = 1
+        var compressorOn: Int32 = 1
     }
 
     struct State: Sendable {
@@ -288,6 +291,8 @@ final class FakeXAirMixer: Sendable {
             case ("dyn", "thr"): OSCMessage(address, [.float(channel.compressorThreshold)])
             case ("gate", "keysrc"): OSCMessage(address, [.int(channel.gateKey)])
             case ("dyn", "keysrc"): OSCMessage(address, [.int(channel.compressorKey)])
+            case ("gate", "on"): OSCMessage(address, [.int(channel.gateOn)])
+            case ("dyn", "on"): OSCMessage(address, [.int(channel.compressorOn)])
             default: nil
             }
         }
