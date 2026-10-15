@@ -56,7 +56,7 @@ struct TrialStatusSheet: View {
             Form {
                 if case .trial(let daysLeft) = store.license().tier, let started = store.purchases.trialStartedAt {
                     let proPrice = store.proProduct?.displayPrice
-                    let ends = started.addingTimeInterval(Entitlement.trialLength).formatted(.dateTime.month(.wide).day())
+                    let ends = Entitlement.trialEnd(startedAt: started).formatted(.dateTime.month(.wide).day())
                     Section {
                         ForEach(TrialStatusNotice(daysLeft: daysLeft, endsOn: ends, proPrice: proPrice).lines, id: \.self) { Text($0) }
                     }
@@ -70,8 +70,13 @@ struct TrialStatusSheet: View {
                         .disabled(store.proProduct == nil || store.busy)
                         if let note = store.note {
                             Text(note).font(.footnote).secondaryText()
+                        } else if store.proProduct == nil {
+                            Text(store.loadingProducts ? "Loading the price…" : "Pro isn't available right now.")
+                                .font(.footnote).secondaryText()
                         }
                     }
+                } else if store.license().tier == .pro {
+                    Text("You have Pro.").secondaryText()
                 } else {
                     Text("The Trial has ended. Free keeps recording every USB Channel.").secondaryText()
                 }

@@ -17,7 +17,7 @@ public struct TrialDisclosure: Equatable, Sendable {
     }
 
     static let includes = "Everything Pro does, at no cost, for 14 days: names and colors from the Mixer, channel names you type, a second Copy on the Drive, unlimited Markers, the Show report, Reaper export, 96 kHz recording and Templates."
-    static let afterwards = "When the Trial ends, Free still records every USB Channel, on the Device, with up to 3 Markers per Take. Your Shows and Takes stay yours."
+    static let afterwards = "When the Trial ends, Free still records every USB Channel, on the Device, with up to \(Entitlement.freeMarkerLimit) Markers per Take. Your Shows and Takes stay yours."
     static let showSafe = "A Take never stops because the Trial ends. It is checked only when you press record."
 }
 

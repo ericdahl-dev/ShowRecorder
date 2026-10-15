@@ -31,10 +31,13 @@ public enum Entitlement {
     /// How long the Trial lasts.
     public static let trialLength: TimeInterval = 14 * 86_400
 
+    /// When a Trial that started at `startedAt` ends.
+    public static func trialEnd(startedAt: Date) -> Date { startedAt.addingTimeInterval(trialLength) }
+
     public static func tier(ownsPro: Bool, trialStartedAt: Date?, now: Date) -> Tier {
         if ownsPro { return .pro }
         guard let trialStartedAt else { return .free }
-        let left = trialStartedAt.addingTimeInterval(trialLength).timeIntervalSince(now)
+        let left = trialEnd(startedAt: trialStartedAt).timeIntervalSince(now)
         guard left > 0 else { return .free }
         return .trial(daysLeft: Int((left / 86_400).rounded(.up)))
     }

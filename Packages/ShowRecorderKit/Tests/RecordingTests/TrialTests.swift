@@ -82,6 +82,20 @@ struct TrialTests {
         #expect(!text.contains("—"))
     }
 
+    @Test("The Trial's end is 14 days after it started, and the tier agrees on the last day (#743)")
+    func trialEnd() {
+        let end = Entitlement.trialEnd(startedAt: started)
+        #expect(end == day(14))
+        #expect(Entitlement.tier(ownsPro: false, trialStartedAt: started, now: end.addingTimeInterval(-1)) == .trial(daysLeft: 1))
+        #expect(Entitlement.tier(ownsPro: false, trialStartedAt: started, now: end) == .free)
+    }
+
+    @Test("The Free Marker limit in the notice is the real one")
+    func markerLimitFollowsEntitlement() {
+        let text = TrialStatusNotice(daysLeft: 3, endsOn: "October 18", proPrice: nil).lines.joined(separator: "\n")
+        #expect(text.contains("up to \(Entitlement.freeMarkerLimit) Markers per Take"))
+    }
+
     @Test("The notice says 1 day, and leaves the price out until the App Store has it")
     func statusNoticeEdges() {
         let notice = TrialStatusNotice(daysLeft: 1, endsOn: "October 16", proPrice: nil)
