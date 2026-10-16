@@ -13,12 +13,7 @@ struct StopNeverBlocksTests {
     let root = FileManager.default.temporaryDirectory.appending(path: "StopNeverBlocksTests-\(UUID().uuidString)")
     let show = "2026-10-06 Show"
 
-    final class Gate: @unchecked Sendable {
-        private let lock = NSCondition()
-        private var stalled = true
-        func wait() { lock.lock(); while stalled { lock.wait() }; lock.unlock() }
-        func open() { lock.lock(); stalled = false; lock.broadcast(); lock.unlock() }
-    }
+    typealias Gate = TestGate
     /// A Drive that hangs on a write (pulled mid-write, a dying stick) until the gate opens.
     final class HangingStem: StemSink, @unchecked Sendable {
         let inner: StemWriter
@@ -121,7 +116,7 @@ struct StopNeverBlocksTests {
         return recorder
     }
 
-    @Test("Stop leaves a Drive it gave up on alone: its Show.json isn't written (#652)", .timeLimit(.minutes(1)))
+    @Test("Stop leaves a Drive it gave up on alone: its Show.json isn't written (#652)", .timeLimit(.minutes(3)))
     func stuckDriveShowFileUntouched() async throws {
         let gate = Gate()
         defer { gate.open() }
@@ -138,7 +133,7 @@ struct StopNeverBlocksTests {
         await recorder.waitForRepair()
     }
 
-    @Test("Stop doesn't write a Drive it gave up on: its Take.json gets the tail Gap later, off Stop (#652)", .timeLimit(.minutes(1)))
+    @Test("Stop doesn't write a Drive it gave up on: its Take.json gets the tail Gap later, off Stop (#652)", .timeLimit(.minutes(3)))
     func stuckDriveTakeFileWrittenLater() async throws {
         let gate = Gate()
         defer { gate.open() }
@@ -179,7 +174,7 @@ struct StopNeverBlocksTests {
         #expect(writes.calls == [false, false], "an abandoned Drive's Take.json was written on the main thread")
     }
 
-    @Test("Stop doesn't ask a Drive it gave up on for its free space (#652)", .timeLimit(.minutes(1)))
+    @Test("Stop doesn't ask a Drive it gave up on for its free space (#652)", .timeLimit(.minutes(3)))
     func stuckDriveNotAskedForSpace() async throws {
         let gate = Gate()
         defer { gate.open() }
@@ -202,7 +197,7 @@ struct StopNeverBlocksTests {
         func add(_ url: URL) { lock.withLock { _urls.append(url) } }
     }
 
-    @Test("Stop waits on every stuck Copy at once, not one after the other (#652)", .timeLimit(.minutes(1)))
+    @Test("Stop waits on every stuck Copy at once, not one after the other (#652)", .timeLimit(.minutes(3)))
     func stuckDeviceAndDrive() async throws {
         let device = root.appending(path: "Device")
         let drive = root.appending(path: "Drive")

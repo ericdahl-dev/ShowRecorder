@@ -162,11 +162,11 @@ final class TakeRepair {
                 let driveTake = access.folder.appending(path: movable.show).appending(path: movable.deviceFolder.lastPathComponent)
                 let deviceTake = movable.deviceFolder
                 let standIn = movable.kind == .standIn
-                let outcome = await Task.detached {
+                let outcome = await runOffPool {
                     standIn
                         ? StandInMove.run(deviceTake: deviceTake, driveTake: driveTake, shouldStop: shouldStop)
                         : DeviceTakeMove.run(deviceTake: deviceTake, driveTake: driveTake, shouldStop: shouldStop)
-                }.value
+                }
                 done(movable, outcome)
                 if outcome == .stopped { break }
             }
@@ -179,7 +179,7 @@ final class TakeRepair {
         let previous = task
         let job = Task {
             await previous?.value
-            return await Task.detached { MoveRecovery.run(deviceFolder: deviceFolder, driveFolder: driveFolder, shouldStop: shouldStop) }.value
+            return await runOffPool { MoveRecovery.run(deviceFolder: deviceFolder, driveFolder: driveFolder, shouldStop: shouldStop) }
         }
         task = Task { _ = await job.value }
         return await job.value

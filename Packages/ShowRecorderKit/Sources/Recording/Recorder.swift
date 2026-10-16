@@ -1032,11 +1032,11 @@ public final class Recorder {
         }
         let access = driveFolder()
         let device = deviceFolder, hook = beforeDetachedRename
-        return await Task.detached {
+        return await runOffPool {
             defer { access?.end() }
             hook()
             return ShowDetail.renameMarker(at: index, to: name, inTake: take, ofShow: show, device: device, drive: access?.folder, allowsProExtras: allowsProExtras)
-        }.value
+        }
     }
 
     /// Show detail renames whose file work is running (#630).

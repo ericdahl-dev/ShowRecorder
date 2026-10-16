@@ -14,13 +14,7 @@ struct OneCopyDropoutTests {
     let root = FileManager.default.temporaryDirectory.appending(path: "OneCopyDropoutTests-\(UUID().uuidString)")
     let show = "2026-10-06 Show"
 
-    /// A Stem whose writes wait while `stalled` is set: a Drive that stops taking data for a while.
-    final class Gate: @unchecked Sendable {
-        private let lock = NSCondition()
-        private var stalled = true
-        func wait() { lock.lock(); while stalled { lock.wait() }; lock.unlock() }
-        func open() { lock.lock(); stalled = false; lock.broadcast(); lock.unlock() }
-    }
+    typealias Gate = TestGate
     final class StalledStem: StemSink, @unchecked Sendable {
         let inner: StemWriter
         let gate: Gate
