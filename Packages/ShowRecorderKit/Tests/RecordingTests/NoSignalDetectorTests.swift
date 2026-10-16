@@ -32,12 +32,35 @@ struct NoSignalDetectorTests {
         #expect(detector.isSilent)
     }
 
-    @Test("Audio in the first seconds after Record doesn't count toward the wait")
-    func graceDoesNotCount() {
+    @Test("The warning comes at 13 seconds: 3 of grace and 10 of silence, not a window sooner")
+    func exactBoundary() {
         var detector = NoSignalDetector()
-        feed(&detector, silent(), seconds: 3)
+        feed(&detector, silent(), seconds: 12.9)
         #expect(!detector.isSilent)
-        feed(&detector, silent(), seconds: 9)
+        feed(&detector, silent(), seconds: 0.2)
+        #expect(detector.isSilent)
+    }
+
+    @Test("A window that straddles the end of the grace counts only the part after it")
+    func graceStraddle() {
+        var detector = NoSignalDetector()
+        detector.feed([ChannelLevel(peak: 0, meanRectified: 0, frames: Int(4 * rate))], sampleRate: rate)
+        #expect(!detector.isSilent)
+        // 9 s more makes 1 + 9 = 10 s past the grace only if the first window counted just its last second.
+        detector.feed([ChannelLevel(peak: 0, meanRectified: 0, frames: Int(8.9 * rate))], sampleRate: rate)
+        #expect(!detector.isSilent)
+        detector.feed([ChannelLevel(peak: 0, meanRectified: 0, frames: Int(0.2 * rate))], sampleRate: rate)
+        #expect(detector.isSilent)
+    }
+
+    @Test("A sample rate that isn't positive is ignored")
+    func badSampleRate() {
+        var detector = NoSignalDetector()
+        for badRate in [0.0, -48_000.0, Double.nan] {
+            for _ in 0..<2_000 { detector.feed(silent(), sampleRate: badRate) }
+        }
+        #expect(!detector.isSilent)
+        feed(&detector, silent(), seconds: 12)
         #expect(!detector.isSilent)
     }
 
@@ -95,11 +118,14 @@ struct NoSignalDetectorTests {
     @Test("The floor is -90 dBFS: just above it is signal, just below it is silence")
     func floorEdge() {
         var above = NoSignalDetector()
-        feed(&above, quiet(4e-5), seconds: 30)
+        feed(&above, quiet(3.3e-5), seconds: 30)
         #expect(!above.isSilent)
         var below = NoSignalDetector()
-        feed(&below, quiet(2e-5), seconds: 30)
+        feed(&below, quiet(3.1e-5), seconds: 30)
         #expect(below.isSilent)
+        var exactly = NoSignalDetector()
+        feed(&exactly, quiet(3.2e-5), seconds: 30)
+        #expect(exactly.isSilent)
     }
 
     @Test("The warning is offered in Debug and TestFlight builds only")
