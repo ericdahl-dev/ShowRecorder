@@ -82,4 +82,24 @@ struct ProPurchasesTests {
         let pro = ProPurchases(owned: [OwnedPurchase(productID: ProPurchases.proProductID, purchaseDate: bought)])
         #expect(pro.tier(now: bought, armedFamily: nil) == .pro)
     }
+
+    // MARK: - The upgrade to Pro for a pack owner (#705)
+
+    func upgrade() -> OwnedPurchase { OwnedPurchase(productID: ProPurchases.upgradeProductID, purchaseDate: bought) }
+
+    @Test("A pack owner's upgrade is Pro on every input, while the pack is still owned (#705)")
+    func upgradeIsPro() {
+        let owned = ProPurchases(owned: [pack(.xAir), upgrade()])
+        #expect(owned.ownsPro)
+        #expect(owned.tier(now: bought, armedFamily: .x32) == .pro)
+        #expect(owned.tier(now: bought, armedFamily: nil) == .pro)
+    }
+
+    @Test("The upgrade alone, or with its pack refunded, isn't Pro: refunding the pack takes the upgrade back (#705, ADR 0004)")
+    func upgradeNeedsAPack() {
+        #expect(!ProPurchases(owned: [upgrade()]).ownsPro)
+        let refunded = ProPurchases(owned: [pack(.x32, revoked: true), upgrade()])
+        #expect(!refunded.ownsPro)
+        #expect(refunded.tier(now: bought, armedFamily: .x32) == .free)
+    }
 }
