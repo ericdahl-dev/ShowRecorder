@@ -69,8 +69,8 @@ struct PaywallSheet: View {
                         }
                         .disabled(product == nil || store.busy)
                     }
-                    // With the packs, Debug only for now (#705): Release shows no price-stage line until Eric turns it on.
-                    if PackAvailability.isAvailableInThisBuild, !items.isEmpty, let label = PriceStage.current.label {
+                    // The price stage under the offers, in every build (Eric, #705).
+                    if !items.isEmpty, let label = PriceStage.current.label {
                         Text(label).font(.footnote).secondaryText()
                     }
                     Button("Restore Purchases") { Task { await store.restore() } }
