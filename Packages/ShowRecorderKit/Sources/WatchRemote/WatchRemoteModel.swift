@@ -9,7 +9,8 @@ public protocol WatchLinkTransport: AnyObject {
     /// Sends a command now, never later; `reply` gets the iPhone's answer, or nil when it didn't arrive.
     func send(_ command: WatchCommand, reply: @escaping @MainActor (WatchReply?) -> Void)
     /// Asks the iPhone what is true now; `reply` gets it, or nil when it didn't answer (a link down, or an iPhone a
-    /// version behind): then the watch waits for the iPhone's push, as before.
+    /// version behind): then the watch waits for the iPhone's push, as before. Called once, on the main actor; the model
+    /// drops an answer a newer push or ask has passed.
     func requestStatus(reply: @escaping @MainActor (WatchStatus?) -> Void)
 }
 
@@ -73,6 +74,9 @@ public final class WatchRemoteModel {
     /// Whether `status` came while the link was live, or since it last came back: only then is it shown as live.
     private var statusIsLive = false
     @ObservationIgnored private var connectingSince = 0
+    /// How many statuses the iPhone has pushed, and how many times the watch has asked.
+    @ObservationIgnored private var pushes = 0
+    @ObservationIgnored private var asks = 0
     /// The latest command of each kind: only its answer sets what shows.
     @ObservationIgnored private var latest: [WatchCommand.Kind: UUID] = [:]
     /// Problems already tapped on the wrist, kept across a dropped link so they don't tap again.
@@ -117,7 +121,13 @@ public final class WatchRemoteModel {
         return true
     }
 
+    /// A status the iPhone pushed.
     public func received(_ new: WatchStatus) {
+        pushes += 1
+        apply(new)
+    }
+
+    private func apply(_ new: WatchStatus) {
         if new.problems.contains(where: { !toldProblems.contains($0) }) { haptic(.problem) }
         toldProblems = Set(new.problems)
         // Read now: the reachability callback may not have run yet, in either direction.
@@ -136,12 +146,16 @@ public final class WatchRemoteModel {
         if isReachable, !was { askForStatus() }
     }
 
-    /// The watch pulls rather than wait for the iPhone's push, which can land while the link still looks down and then
+    /// The watch pulls the status instead of waiting for the iPhone's push, which can land while the link still looks down and then
     /// never comes again (#751).
     private func askForStatus() {
         guard link.isReachable else { return }
+        asks += 1
+        let ask = asks, seenPushes = pushes
+        // Only the latest ask's answer counts, and not once a push has come since: that one is newer.
         link.requestStatus { [weak self] status in
-            if let status { self?.received(status) }
+            guard let self, let status, ask == asks, seenPushes == pushes else { return }
+            apply(status)
         }
     }
 

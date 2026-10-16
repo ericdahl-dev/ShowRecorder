@@ -73,13 +73,31 @@ struct WatchRemoteModelTests {
         #expect(model.display == .status(Self.armed))
     }
 
-    @Test("A wrist raise with no link doesn't ask; a late push still shows live once the link is back")
+    @Test("A wrist raise with no link doesn't ask")
     func noAskWhenDown() {
         let link = Link()
         link.isReachable = false
         let model = Self.model(link, status: nil)
         model.appBecameActive()
         #expect(link.statusAnswers.isEmpty)
+    }
+
+    @Test("An answer that arrives after a newer push, or after a newer ask, doesn't overwrite it (#751)")
+    func staleAnswersLose() {
+        let link = Link()
+        link.isReachable = false
+        let model = Self.model(link, status: nil)
+        link.isReachable = true
+        model.reachabilityChanged()
+        model.received(Self.armed)
+        link.statusAnswers[0](Self.recording)
+        #expect(model.display == .status(Self.armed), "the push came after the ask, so it's the newer one")
+
+        model.appBecameActive()
+        model.appBecameActive()
+        link.statusAnswers[2](Self.recording)
+        link.statusAnswers[1](Self.armed)
+        #expect(model.display == .status(Self.recording), "the older ask's answer is dropped")
     }
 
     @Test("A Marker is pending until the iPhone confirms it, then confirmed, with a light tap on the wrist")
