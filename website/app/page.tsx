@@ -96,7 +96,7 @@ const steps = [
   },
   {
     title: "Press stop",
-    body: "Your Stems, the report and the Reaper project are in the Show's folder, in the Files app and on your Drive.",
+    body: "Your Stems are in the Show's folder in the Files app. With Pro, the report, the Reaper project and a copy on your Drive are there too.",
   },
 ];
 
@@ -185,7 +185,7 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
   },
   {
     q: "Where do the files go?",
-    a: "Each Show has a folder for each Take, with one WAV file per channel, a report and a Reaper project. Open them from Shows in the app, in the Files app (On My iPhone or On My iPad, ShowRecorder), or on your Drive, and share them with AirDrop.",
+    a: "Each Show has a folder for each Take, with one WAV file per channel; with Pro, a report and a Reaper project too. Open them from Shows in the app or in the Files app (On My iPhone or On My iPad, ShowRecorder), or, with Pro, on your Drive, and share them with AirDrop.",
   },
   {
     q: "What happens when the Trial ends?",

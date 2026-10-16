@@ -185,7 +185,7 @@ export const featureGroups: {
 
 // In the public TestFlight beta, not yet in the App Store release (1.1). Each was checked against its availability
 // rule: shown to TestFlight builds, never only Debug. Move an entry into featureGroups when 1.1 ships.
-export const inBetaFeatures: { title: string; body: string }[] = [
+export const inBetaFeatures: { title: string; body: string; tier?: 'pro' }[] = [
   // source: Watch/ (the watch app, in TestFlight since 1.1.3)
   {
     title: 'Apple Watch remote',
@@ -199,11 +199,13 @@ export const inBetaFeatures: { title: string; body: string }[] = [
   // source: Packages/ShowRecorderKit/Sources/Recording/AutoGainAvailability.swift (Debug and TestFlight, #691)
   {
     title: 'Auto-gain',
+    tier: 'pro',
     body: 'Over Mixer Link, sets each channel\'s preamp to -18 dBFS and moves the fader, sends and dynamics the other way, so the mix stays the same. Undo puts it all back.',
   },
   // source: Packages/ShowRecorderKit/Sources/Recording/ClipProtection.swift (ClipProtectionSetting.isOffered: Debug and TestFlight, #699)
   {
     title: 'Clip protection',
+    tier: 'pro',
     body: 'During a Take, turns a clipping channel\'s preamp down on the mixer and raises its fader to match, at most 12 dB per Take, with a Marker for each move. Off until you switch it on.',
   },
 ];

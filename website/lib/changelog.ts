@@ -50,7 +50,7 @@ export const RELEASES: readonly Release[] = [
     version: "1.1.7",
     date: "2026-10-15",
     channel: "TestFlight beta",
-    summary: "Clip protection, in the beta.",
+    summary: "Clip protection (in beta, Pro).",
     changes: [
       "Clip protection turns a clipping channel's preamp down on the mixer during a Take and raises its fader to match, at most 12 dB per Take, with a Marker for each move. Off until you switch it on.",
       "Swipe away the green summary after a Take.",
@@ -61,7 +61,7 @@ export const RELEASES: readonly Release[] = [
     version: "1.1.6",
     date: "2026-10-15",
     channel: "TestFlight beta",
-    summary: "Auto-gain, in the beta.",
+    summary: "Auto-gain (in beta, Pro).",
     changes: [
       "Auto-gain sets each channel's preamp on the mixer to -18 dBFS over Mixer Link, moving the fader, sends and dynamics the other way so the mix stays the same.",
       "Undo puts every channel back, and auto-gain never runs during a Take.",

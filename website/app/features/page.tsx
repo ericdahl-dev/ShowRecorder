@@ -95,7 +95,7 @@ export default function FeaturesPage() {
             <li key={f.title} className="card feature">
               <div className="feature-top">
                 <h3>{f.title}</h3>
-                <span className="tier tier--beta">Beta</span>
+                <span className="tier tier--beta">{f.tier === "pro" ? "In beta, Pro" : "Beta"}</span>
               </div>
               <p>{f.body}</p>
             </li>

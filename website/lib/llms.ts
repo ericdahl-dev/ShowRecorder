@@ -73,7 +73,6 @@ export function llmsTxt(): string {
 }
 
 export function llmsFullTxt(): string {
-  const list = (items: { title: string; body: string }[]) => items.map((i) => `- ${i.title}: ${i.body}`);
   return [
     `# ${SITE_NAME}`,
     "",
@@ -98,7 +97,7 @@ export function llmsFullTxt(): string {
     ]),
     "### In the public beta (TestFlight only, not in the App Store version)",
     "",
-    ...list(inBetaFeatures),
+    ...inBetaFeatures.map((f) => `- ${f.title}${f.tier === "pro" ? " (In beta, Pro)" : ""}: ${f.body}`),
     "",
     "## Docs",
     "",
