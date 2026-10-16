@@ -65,5 +65,8 @@ struct WatchStatusRelayTests {
     func requestKind() {
         #expect(WatchStatusRequest.isRequest(WatchStatusRequest.message))
         #expect(!WatchStatusRequest.isRequest(WatchCommand(kind: .stop, sentAt: .now).message))
+        #expect(throws: (any Error).self, "an iPhone a version behind can't read it as a command, so it refuses rather than acts") {
+            try WatchCommand(message: WatchStatusRequest.message)
+        }
     }
 }
