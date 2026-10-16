@@ -178,6 +178,18 @@ struct SwipedAlertsTests {
         #expect(swiped.showing([battery, copies]).isEmpty)
     }
 
+    @Test("Leaving the screen pauses the fade: back in front, a green banner gets its full 10 s again, not gone at once (#758)")
+    func pausedOffScreen() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let copies = alert("copies", .copyResult, tone: .ok)
+        var swiped = SwipedAlerts()
+        _ = swiped.fade([copies], at: start)
+        swiped.pauseFade()
+        let back = start.addingTimeInterval(300)
+        #expect(swiped.fade([copies], at: back) == back.addingTimeInterval(10))
+        #expect(swiped.showing([copies]).count == 1)
+    }
+
     @Test("A clock set back doesn't hold a green banner past its 10 s (#758)")
     func clockSetBack() {
         let start = Date(timeIntervalSince1970: 1_800_000_000)

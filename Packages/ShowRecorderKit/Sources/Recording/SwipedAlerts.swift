@@ -53,6 +53,12 @@ public struct SwipedAlerts: Equatable, Sendable {
         return due
     }
 
+    /// The record screen left the screen (the app went to the background, #758): the next `fade` starts the 10 s over,
+    /// so a banner the operator hasn't seen doesn't vanish the moment they come back.
+    public mutating func pauseFade() {
+        firstSeen = [:]
+    }
+
     /// Forgets the swipes of alerts no longer raised, so one that comes back shows again.
     public mutating func forget(absentFrom alerts: [ScreenAlert]) {
         let ids = Set(alerts.map(\.id))
