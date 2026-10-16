@@ -10,7 +10,7 @@ struct SupportDiagnosticsTests {
 
     @Test("The subject carries the version and build")
     func subject() {
-        #expect(full.subject == "ShowRecorder support (v1.1.6.34.1)")
+        #expect(full.subject == "ShowRecorder support (v1.1.6 (34.1))")
     }
 
     @Test("A missing version or build reads as a question mark, never a blank")
@@ -18,7 +18,7 @@ struct SupportDiagnosticsTests {
         var details = full
         details.version = nil
         details.build = nil
-        #expect(details.subject == "ShowRecorder support (v?.?)")
+        #expect(details.subject == "ShowRecorder support (v? (?))")
     }
 
     @Test("The body leaves room to write, then a titled block with one line per fact")

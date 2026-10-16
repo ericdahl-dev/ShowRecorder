@@ -5,11 +5,11 @@ import Testing
 struct SupportMailTests {
     @Test("The mailto link goes to showrecorder@ericdahl.dev with the subject and the body, line breaks kept (#722)")
     func mailtoLink() throws {
-        let url = try #require(SupportMail.mailtoURL(subject: "ShowRecorder support (v1.1.6.34.1)", body: "Hi\nApp: 1.1.6 & more"))
+        let url = try #require(SupportMail.mailtoURL(subject: "ShowRecorder support (v1.1.6 (34.1))", body: "Hi\nApp: 1.1.6 & more"))
         #expect(url.scheme == "mailto")
         let parts = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
         #expect(parts.path == "showrecorder@ericdahl.dev")
-        #expect(parts.queryItems?.first { $0.name == "subject" }?.value == "ShowRecorder support (v1.1.6.34.1)")
+        #expect(parts.queryItems?.first { $0.name == "subject" }?.value == "ShowRecorder support (v1.1.6 (34.1))")
         #expect(parts.queryItems?.first { $0.name == "body" }?.value == "Hi\nApp: 1.1.6 & more")
         // Spaces as %20, never "+", which Mail would show as a plus sign.
         #expect(!url.absoluteString.contains("+"))
