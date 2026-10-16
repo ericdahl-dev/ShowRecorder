@@ -258,17 +258,17 @@ struct RecordScreen: View {
         .padding(.vertical, 8)
     }
 
-    /// Hold to stop is for the iPhone only (#753): the iPad and the Mac keep tap and confirm.
-    private var isPhone: Bool {
+    /// Hold to stop is for all of iOS (#753): only the Mac keeps click and confirm.
+    private var isIOS: Bool {
         #if os(iOS)
-        UIDevice.current.userInterfaceIdiom == .phone
+        true
         #else
         false
         #endif
     }
 
     @ViewBuilder private func recordButton(size: CGFloat) -> some View {
-        if model.recorder.isRecording, TakeStopStyle.current(isPhone: isPhone) == .hold {
+        if model.recorder.isRecording, TakeStopStyle.current(isIOS: isIOS) == .hold {
             // Hold to stop (#753): no dialog. A tap only shows the hint.
             HoldToStopRecordButton(size: size, label: "Stop \(model.takeTitle)", stop: { model.stop() }, hint: { model.showStopHint() })
         } else {
