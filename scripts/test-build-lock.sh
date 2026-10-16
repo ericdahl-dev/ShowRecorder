@@ -289,7 +289,9 @@ release_lock
 hold_lock
 lockf -k "$SHOWRECORDER_BUILD_LOCK.2" sleep 30 &
 holder2=$!
-sleep 0.5
+# Until slot 2 is held (a fixed sleep isn't enough on a busy Mac).
+i=0
+until ! lockf -k -t 0 "$SHOWRECORDER_BUILD_LOCK.2" true 2>/dev/null || [ $i -ge 200 ]; do i=$((i + 1)); sleep 0.1; done
 : > "$log"
 SHOWRECORDER_BUILD_SLOTS=2 STUB_SLEEP=0 "$repo/scripts/bin/swift" build > "$work/third.out" 2>&1 &
 third=$!
@@ -307,11 +309,13 @@ release_lock
 
 # SHOWRECORDER_BUILD_SLOTS=1, the rollback: slot 2 free, slot 1 taken, and a build still waits.
 hold_lock
+: > "$log"
 SHOWRECORDER_BUILD_SLOTS=1 STUB_SLEEP=0 "$repo/scripts/bin/swift" build > "$work/one.out" 2>&1 &
 one=$!
 i=0
 until grep -q "Waiting for another build" "$work/one.out" || [ $i -ge 200 ]; do i=$((i + 1)); sleep 0.1; done
 expect "with 1 slot, a build waits for slot 1 even with slot 2 free" grep -q "Waiting for another build" "$work/one.out"
+expect "and hasn't started" sh -c "! grep -q start '$log'"
 release_lock
 wait "$one" || true
 expect "and then runs" grep -q "ran swift build" "$work/one.out"
@@ -334,6 +338,39 @@ want=$(( (cores - 2) / 2 )); [ $want -ge 1 ] || want=1
 expect "by default (2 slots) swift build gets -j $want (output: $out)" has "ran swift build -j $want\$"
 timed env SHOWRECORDER_BUILD_SLOTS=2 SHOWRECORDER_BUILD_JOBS=7 "$repo/scripts/bin/swift" build
 expect "SHOWRECORDER_BUILD_JOBS still wins (output: $out)" has "ran swift build -j 7\$"
+
+# 14. With 2 slots, a build left running on slot 2 by a force-killed build-limit.sh (#608) is stopped by the next
+#     build, though that one lands on slot 1; a live build on slot 2 is left alone.
+: > "$log"
+hold_lock
+SHOWRECORDER_BUILD_SLOTS=2 STUB_SLEEP=$hang "$repo/scripts/bin/swift" test > "$work/orphan2.out" 2>&1 &
+shim=$!
+i=0
+until grep -q start "$log" 2>/dev/null || [ $i -ge 600 ]; do i=$((i + 1)); sleep 0.1; done
+orphan=$(awk '/^start/ { print $2 }' "$log" | head -1)
+wrapper=$(pgrep -P "$shim" | head -1)
+[ -n "$wrapper" ] && kill -KILL "$wrapper"
+release_lock
+i=0
+until lockf -k -t 0 "$SHOWRECORDER_BUILD_LOCK.2" true 2>/dev/null || [ $i -ge 100 ]; do i=$((i + 1)); sleep 0.1; done
+expect "the slot-2 orphan is still running before the next build (orphan $orphan)" kill -0 "$orphan"
+timed env SHOWRECORDER_BUILD_SLOTS=2 "$repo/scripts/bin/swift" build
+expect "the next build, on slot 1, stopped the slot-2 orphan's whole group" sh -c "! kill -0 -- -'$orphan' 2>/dev/null"
+kill -KILL -- -"$orphan" 2>/dev/null || true
+wait "$shim" 2>/dev/null || true
+
+: > "$log"
+hold_lock
+SHOWRECORDER_BUILD_SLOTS=2 STUB_SLEEP=$hang "$repo/scripts/bin/swift" test > "$work/live2.out" 2>&1 &
+live=$!
+i=0
+until grep -q start "$log" 2>/dev/null || [ $i -ge 600 ]; do i=$((i + 1)); sleep 0.1; done
+stub=$(awk '/^start/ { print $2 }' "$log" | head -1)
+release_lock
+timed env SHOWRECORDER_BUILD_SLOTS=2 "$repo/scripts/bin/swift" build
+expect "a live build on slot 2 is left alone by a build on slot 1" kill -0 "$stub"
+pkill -f "^sleep $hang\$" 2>/dev/null || true
+wait "$live" 2>/dev/null || true
 
 [ $fail = 0 ] && echo "build lock: all checks passed"
 exit $fail

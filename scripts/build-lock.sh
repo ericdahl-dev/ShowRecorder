@@ -2,7 +2,7 @@
 # Two heavy builds at a time on this Mac: verify.sh, swift build/test and xcodebuild each take one of the build slots,
 # shared by every worktree of this repo, so parallel agents don't starve each other (and the tests that time out under
 # load). Sourced by verify.sh and the scripts/bin shims. A build that finds every slot taken waits, and says so.
-#   SHOWRECORDER_BUILD_SLOTS=<n>     how many builds at once (default 2; anything but a whole number of at least 1
+#   SHOWRECORDER_BUILD_SLOTS=<n>     how many builds at once (default 2; anything but a whole number from 1 to 99
 #                                    means the default). 1 is the old one build at a time. Slot 1 is the lock file,
 #                                    slot k is <lock>.k, so a checkout made before slots still waits for slot 1.
 #   SHOWRECORDER_BUILD_LOCK=<file>   use this lock file for slot 1 instead (scripts/test-build-lock.sh)
@@ -28,11 +28,11 @@ build_lock_path() {
   printf '%s\n' "$common/verify.lock"
 }
 
-# How many builds may run at once: SHOWRECORDER_BUILD_SLOTS, a whole number of at least 1; anything else means 2.
+# How many builds may run at once: SHOWRECORDER_BUILD_SLOTS, a whole number from 1 to 99; anything else means 2.
 build_slots() {
   case "${SHOWRECORDER_BUILD_SLOTS:-}" in
-    "" | *[!0-9]* | 0 | 0*) echo 2 ;;
-    *) printf '%s\n' "$SHOWRECORDER_BUILD_SLOTS" ;;
+    [1-9] | [1-9][0-9]) printf '%s\n' "$SHOWRECORDER_BUILD_SLOTS" ;;
+    *) echo 2 ;;
   esac
 }
 
@@ -41,36 +41,48 @@ build_slots() {
 build_lock_exec() {
   lock=$(build_lock_path) || { echo "build-lock: not in a git checkout" >&2; exit 1; }
   slots=$(build_slots)
-  # The first free slot. A probe runs only `true`, so its 75 (lockf's "already locked") always means taken, and the
-  # build's own exit status passes through the lockf below untouched. With every slot taken, look again every 2 s.
-  # With one slot, lockf itself waits, as before slots.
+  # The build runs under a time limit (scripts/build-limit.sh, #578), so a hung one can't hold every other build up.
+  limit=$(CDPATH= cd -P -- "$(dirname -- "$0")/.." 2>/dev/null && pwd -P)/build-limit.sh
+  [ -x "$limit" ] || limit=$(git rev-parse --show-toplevel 2>/dev/null)/scripts/build-limit.sh
+  # The first free slot. Each free slot is probed holding its lock, with build-limit.sh running only `true`: that stops
+  # a build left running on that slot by a force-killed build-limit.sh (#608), whichever slot this build then takes,
+  # and never a live one, whose slot is locked. A probe never exits 75 itself, so its 75 (lockf's "already locked")
+  # always means taken, and the build's own exit status passes through the lockf below untouched. lockf's own
+  # message is dropped; build-limit.sh's goes to stderr (fd 3). With every slot taken, look again every 2 s. With one
+  # slot, lockf itself waits, as before slots.
   slot_said=0
   while :; do
+    slot=""
     slot_k=1
     while [ "$slot_k" -le "$slots" ]; do
-      slot=$lock
-      [ "$slot_k" = 1 ] || slot=$lock.$slot_k
+      slot_file=$lock
+      [ "$slot_k" = 1 ] || slot_file=$lock.$slot_k
       slot_probe=0
-      lockf -k -t 0 "$slot" true 2>/dev/null || slot_probe=$?
+      if [ -x "$limit" ]; then
+        lockf -k -t 0 "$slot_file" env SHOWRECORDER_BUILD_RECORD="$slot_file.build" \
+          sh -c 'exec "$0" true 2>&3' "$limit" 3>&2 2>/dev/null || slot_probe=$?
+      else
+        lockf -k -t 0 "$slot_file" true 2>/dev/null || slot_probe=$?
+      fi
       # Free, or an error (can't create the file), which the lockf below then reports as before.
-      [ "$slot_probe" = 75 ] || break 2
+      [ "$slot_probe" = 75 ] || [ -n "$slot" ] || slot=$slot_file
       slot_k=$((slot_k + 1))
     done
+    [ -z "$slot" ] || break
     if [ "$slot_said" = 0 ]; then
       echo "== Waiting for another build on this Mac to finish (lock: $lock)" >&2
       slot_said=1
     fi
+    slot=$lock
     [ "$slots" != 1 ] || break
     sleep 2
   done
   # A slot that was free can be taken between the probe and this lockf: then this build waits for that slot, as the
   # lockf below doesn't give up. Two builds never hold one slot.
-  # The build runs under a time limit (scripts/build-limit.sh, #578), so a hung one can't hold every other build up.
-  limit=$(CDPATH= cd -P -- "$(dirname -- "$0")/.." 2>/dev/null && pwd -P)/build-limit.sh
-  [ -x "$limit" ] || limit=$(git rev-parse --show-toplevel 2>/dev/null)/scripts/build-limit.sh
-  # A checkout without it (one made before #578) still builds, without the limit.
+  # A checkout without build-limit.sh (one made before #578) still builds, without the limit.
   if [ -x "$limit" ]; then
-    exec lockf -k "$slot" env SHOWRECORDER_BUILD_LOCK_HELD=1 SHOWRECORDER_BUILD_RECORD="$slot.build" nice -n 10 "$limit" "$@"
+    exec lockf -k "$slot" env SHOWRECORDER_BUILD_LOCK_HELD=1 SHOWRECORDER_BUILD_RECORD="$slot.build" nice -n 10 \
+      "$limit" "$@"
   fi
   exec lockf -k "$slot" env SHOWRECORDER_BUILD_LOCK_HELD=1 nice -n 10 "$@"
 }
