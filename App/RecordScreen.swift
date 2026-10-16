@@ -888,6 +888,9 @@ final class RecordScreenModel {
 
     /// Whether the app is in front; a green banner's 10 s count only then (#758).
     @ObservationIgnored private var isOnScreen = true
+    /// Watches the meter windows for a Take that records nothing but silence (#778).
+    @ObservationIgnored private var noSignalDetector = NoSignalDetector()
+    private(set) var noSignalSilent = false
 
     /// Checked about once a second: the green banner on top fades after 10 s on screen (#758).
     private func fadeGoodNews() {
@@ -917,6 +920,8 @@ final class RecordScreenModel {
         if let notice = interruptions.notice {
             list.append(ScreenAlert(id: "interruption", priority: .input, tone: .warning, text: notice))
         }
+        // Not while input is stopped by an interruption: its own notice says why nothing arrives.
+        if let alert = NoSignalAlert.make(isSilent: noSignalSilent, isRecording: recorder.isRecording && !interruptions.isInputStopped) { list.append(alert) }
         // A re-patch on the Mixer during the Take (#21), until the Take ends or the operator has seen it.
         let routing = recorder.routingChanges
         if recorder.isRecording, routingChangeSeen?.take != takeNumber || routingChangeSeen?.changes != routing,
@@ -1502,6 +1507,7 @@ final class RecordScreenModel {
             let seconds = min(max((now - lastPoll).inSeconds, 0.001), 0.25)
             lastPoll = now
             let fresh = recorder.takeChannelLevels()
+            updateNoSignal(fresh)
             meterModel.update(from: fresh, seconds: seconds)
             // Clip protection reads the same windows at once; a move runs on its own, so it never holds up the meters.
             mixerGain.meters(fresh)
@@ -1510,6 +1516,17 @@ final class RecordScreenModel {
         }
         // No more ticks: a measurement under way ends rather than waiting for audio that won't come.
         levelFeed.meters([], sampleRate: nil)
+    }
+
+    /// Feeds the no-signal detector from the meter loop; outside a Take it stays reset, so each Take starts fresh.
+    private func updateNoSignal(_ levels: [ChannelLevel]) {
+        guard recorder.isRecording, NoSignalWarningAvailability.isAvailableInThisBuild else {
+            noSignalDetector.reset()
+            if noSignalSilent { noSignalSilent = false }
+            return
+        }
+        noSignalDetector.feed(levels, sampleRate: Double(recorder.sampleRate ?? 0))
+        if noSignalSilent != noSignalDetector.isSilent { noSignalSilent = noSignalDetector.isSilent }
     }
 
     /// The picker changed. Skips the device the model has just Armed itself after a device change.

@@ -6,6 +6,9 @@
 /// counts audio frames, not wall time, so a stalled loop doesn't move it, and a window with no frames (the input
 /// stopped) neither counts toward the wait nor resets it.
 public struct NoSignalDetector: Sendable, Equatable {
+    /// How long a Take must record nothing but silence before the warning shows.
+    public static let defaultWaitSeconds = 10.0
+
     /// The warning: the Take has recorded nothing but silence for the wait.
     public private(set) var isSilent = false
 
@@ -16,7 +19,7 @@ public struct NoSignalDetector: Sendable, Equatable {
     private var silentSeconds = 0.0
 
     /// `floor` is a linear peak, 3.2e-5 being -90 dBFS.
-    public init(floor: Float = 3.2e-5, graceSeconds: Double = 3, waitSeconds: Double = 10) {
+    public init(floor: Float = 3.2e-5, graceSeconds: Double = 3, waitSeconds: Double = defaultWaitSeconds) {
         self.floor = floor
         self.graceSeconds = graceSeconds
         self.waitSeconds = waitSeconds
