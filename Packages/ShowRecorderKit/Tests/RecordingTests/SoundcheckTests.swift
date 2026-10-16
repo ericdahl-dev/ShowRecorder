@@ -200,7 +200,7 @@ struct SoundcheckTests {
         let steps = await Soundcheck.run(sequencer: TakeSequencer(recorder: recorder, devices: FakeInputDevices(), capsAt48k: { false }), mixer: .notLinked, sources: [], expectedUSBChannels: nil, driveChosen: false)
         #expect(steps == [.init(kind: .take, passed: false, message: "A Take is running. Stop it before the Soundcheck.")])
         #expect(recorder.isRecording)
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @MainActor

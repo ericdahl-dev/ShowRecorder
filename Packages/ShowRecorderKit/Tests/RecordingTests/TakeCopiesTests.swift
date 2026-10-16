@@ -18,7 +18,7 @@ extension GapTests {
         #expect(recorder.copies.isRunning)
         #expect(recorder.copies[.device] == .recording)
         #expect(recorder.copies[.drive] == .recording)
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("With no Drive at record, the Drive's Copy is missing")
@@ -31,7 +31,7 @@ extension GapTests {
 
         #expect(recorder.copies[.device] == .recording)
         #expect(recorder.copies[.drive] == .missing)
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("Once the Take has ended, each Copy says how it ended: the Drive that came back is Repaired")
@@ -44,7 +44,7 @@ extension GapTests {
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await waitUntil { recorder.copies[.drive] == .interrupted }
         #expect(recorder.copies[.drive] == .interrupted)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(!recorder.copies.isRunning)
@@ -59,7 +59,7 @@ extension GapTests {
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(3, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(recorder.copies[.device] == .complete)
@@ -73,14 +73,14 @@ extension GapTests {
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(3, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         #expect(recorder.copies[.drive] == .complete)
 
         try recorder.startTake()
         try await deliverBlocks(3, to: audio, recorder, sample: counting())
         #expect(recorder.copies[.drive] == .recording)
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("Armed, before any Take, the Recorder has no Take running and every Copy missing")
@@ -102,7 +102,7 @@ extension GapTests {
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await waitUntil { recorder.copies[.device] == .interrupted }
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(recorder.copies[.device] == .repaired)
@@ -121,10 +121,10 @@ extension GapTests {
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         #expect(recorder.copies[.drive] == .missing)
         available.folder = drive
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         #expect(recorder.copies[.drive] == .recording)
         try await deliverBlocks(5, from: 4_800, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(recorder.copies[.device] == .complete)

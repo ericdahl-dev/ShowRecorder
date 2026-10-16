@@ -42,7 +42,7 @@ struct ShowReportTests {
                     try await Task.sleep(for: .milliseconds(2))
                 }
             }
-            try recorder.stopTake()
+            try await recorder.stopTake()
         }
         #expect(recorder.droppedFrameCount == 0)
     }
@@ -135,7 +135,7 @@ struct ShowReportTests {
         device.deliver([Array(repeating: 0, count: 12_000)])
         recorder.addMarker(named: "Chorus")  // 0.25 s after the press, 1.25 s into the audio
         device.deliver([Array(repeating: 0, count: 12_000)])
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let report = try ShowReport(showFolder: show)
         let take = try #require(report.takes.first)
@@ -161,7 +161,7 @@ struct ShowReportTests {
     }
 
     /// Records a Take of 0.5 s, then 300,000 frames at once (more than a ring holds, so it is dropped), then 480.
-    func recordWithADropout() throws {
+    func recordWithADropout() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
         try recorder.arm(device)
@@ -169,12 +169,12 @@ struct ShowReportTests {
         device.deliver([Array(repeating: 0, count: 24_000)])
         device.deliver([Array(repeating: 0, count: 300_000)])
         device.deliver([Array(repeating: 0, count: 480)])
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("A Take that lost audio lists each Dropout with its Copy and times")
-    func dropoutsInReport() throws {
-        try recordWithADropout()
+    func dropoutsInReport() async throws {
+        try await recordWithADropout()
         let take = try #require(try ShowReport(showFolder: show).takes.first)
         #expect(take.dropouts.map(\.copy) == [.device])
         #expect(take.dropouts.map(\.startSeconds) == [0.5])
@@ -183,8 +183,8 @@ struct ShowReportTests {
     }
 
     @Test("Report.html has a Dropouts section for a Take that lost audio")
-    func dropoutsSection() throws {
-        try recordWithADropout()
+    func dropoutsSection() async throws {
+        try await recordWithADropout()
         let html = try String(contentsOf: show.appending(path: "Report.html"), encoding: .utf8)
         #expect(html.contains("<h3>Dropouts</h3>"))
         #expect(html.contains("0:00.5") && html.contains("0:06.7"), "from and to, to a tenth of a second")
@@ -200,7 +200,7 @@ struct ShowReportTests {
         device.deliver([Array(repeating: 0, count: 24_000)])  // 0.5 s
         recorder.offerSources([Source(name: "<b>Bass</b> Drum", color: .off)])
         device.deliver([Array(repeating: 0, count: 24_000)])
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let report = try ShowReport(showFolder: show)
         let rename = try #require(report.takes.first?.renames.first)
@@ -222,7 +222,7 @@ struct ShowReportTests {
                                              compensations: [.init(channel: 1, setting: "fader", fromDb: -6.0, toDb: -3.0)])
         recorder.logGainChange(change)
         device.deliver([Array(repeating: 0, count: 24_000)])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         var between = change
         between.reason = .autoGain
@@ -270,7 +270,7 @@ struct ShowReportTests {
         device.deliver([Array(repeating: 0, count: 24_000)])  // 0.5 s
         recorder.offerSources([tom])
         device.deliver([Array(repeating: 0, count: 24_000)])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         let report = try ShowReport(showFolder: show)
@@ -295,18 +295,18 @@ struct ShowReportTests {
     }
 
     /// Records a Take of 1 s of a steady 0.1 on channel 1 and silence on channel 2.
-    func recordWithLevels() throws {
+    func recordWithLevels() async throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
         try recorder.arm(device)
         try recorder.startTake()
         device.deliver([Array(repeating: 0.1, count: 48_000), Array(repeating: 0, count: 48_000)])
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("A Take lists each channel's peak and average level, and Report.html has a Levels table")
-    func levelsInReport() throws {
-        try recordWithLevels()
+    func levelsInReport() async throws {
+        try await recordWithLevels()
         let report = try ShowReport(showFolder: show)
         let channels = try #require(report.takes.first?.usbChannels)
         #expect(abs(try #require(channels[0].peakDbfs) + 20) < 0.01)
@@ -318,8 +318,8 @@ struct ShowReportTests {
     }
 
     @Test("A Take from before levels were recorded has no Levels section")
-    func noLevelsSection() throws {
-        try recordWithLevels()
+    func noLevelsSection() async throws {
+        try await recordWithLevels()
         let takeJSON = show.appending(path: "Take 01/Take.json")
         var object = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: takeJSON)) as? [String: Any])
         var channels = try #require(object["usbChannels"] as? [[String: Any]])

@@ -21,7 +21,7 @@ struct MarkerRenamerTests {
     }
 
     /// Records a Take in both Copies: audio, Marker 1 at 4,800 and Marker 2 at 7,200.
-    func recordTake(allowance: TakeAllowance? = nil) throws {
+    func recordTake(allowance: TakeAllowance? = nil) async throws {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
@@ -33,7 +33,7 @@ struct MarkerRenamerTests {
         deliver(2_400, to: audio, sample: sample)
         recorder.addMarker()
         deliver(480, to: audio, sample: sample)
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     func markerNames(_ copy: URL) throws -> [String] {
@@ -43,8 +43,8 @@ struct MarkerRenamerTests {
     }
 
     @Test("Renaming changes Take.json and every Stem's cue label in both Copies, and leaves the audio exactly as it was")
-    func renameOnDisk() throws {
-        try recordTake()
+    func renameOnDisk() async throws {
+        try await recordTake()
         let stems = ["01 USB 01.wav", "02 USB 02.wav"]
         let before = try copies.values.flatMap { copy in try stems.map { try ParsedStem(contentsOf: copy.appending(path: $0)) } }
 
@@ -64,8 +64,8 @@ struct MarkerRenamerTests {
     }
 
     @Test("With a Copy not reachable, the others are renamed and the outcome names the Copy that wasn't")
-    func oneCopyMissing() throws {
-        try recordTake()
+    func oneCopyMissing() async throws {
+        try await recordTake()
         try FileManager.default.moveItem(at: drive, to: root.appending(path: "Drive (unplugged)"))
 
         let outcome = MarkerRenamer.rename(markerAt: 0, to: "Intro", in: copies, allowsProExtras: true)
@@ -80,8 +80,8 @@ struct MarkerRenamerTests {
     }
 
     @Test("The Show's report and Reaper project show the new name in every reachable Copy")
-    func reportAndProjectFollow() throws {
-        try recordTake()
+    func reportAndProjectFollow() async throws {
+        try await recordTake()
         let show = "2026-10-06 Show"
         for copy in [device, drive] {
             let html = try String(contentsOf: copy.appending(path: "\(show)/Report.html"), encoding: .utf8)
@@ -99,8 +99,8 @@ struct MarkerRenamerTests {
     }
 
     @Test("On Free a rename writes no Show report or Reaper project that wasn't there (#438)")
-    func freeWritesNoExtras() throws {
-        try recordTake(allowance: Entitlement.allowance(for: .free, channelCount: 2))
+    func freeWritesNoExtras() async throws {
+        try await recordTake(allowance: Entitlement.allowance(for: .free, channelCount: 2))
         let show = "2026-10-06 Show"
         #expect(MarkerRenamer.rename(markerAt: 1, to: "Chorus", in: copies, allowsProExtras: false).result == .renamed)
         for copy in [device, drive] {
@@ -110,8 +110,8 @@ struct MarkerRenamerTests {
     }
 
     @Test("On Free a report and project already there (from a Trial) still get the new name (#438)")
-    func freeKeepsExistingExtrasCurrent() throws {
-        try recordTake()
+    func freeKeepsExistingExtrasCurrent() async throws {
+        try await recordTake()
         let show = "2026-10-06 Show"
         _ = MarkerRenamer.rename(markerAt: 1, to: "Chorus", in: copies, allowsProExtras: false)
         for copy in [device, drive] {
@@ -121,8 +121,8 @@ struct MarkerRenamerTests {
     }
 
     @Test("An empty name or a Marker that isn't there changes nothing, and says which")
-    func refusals() throws {
-        try recordTake()
+    func refusals() async throws {
+        try await recordTake()
         let before = try Data(contentsOf: take(device).appending(path: "Take.json"))
 
         #expect(MarkerRenamer.rename(markerAt: 0, to: "   ", in: copies, allowsProExtras: true).result == .emptyName)
@@ -133,8 +133,8 @@ struct MarkerRenamerTests {
     }
 
     @Test("With no Copy reachable, nothing is renamed and the result isn't mistaken for a missing Marker")
-    func noCopyReachable() throws {
-        try recordTake()
+    func noCopyReachable() async throws {
+        try await recordTake()
         let gone = ["Device", "Drive"].map { root.appending(path: $0) }
         for folder in gone { try FileManager.default.moveItem(at: folder, to: root.appending(path: "\(folder.lastPathComponent) away")) }
 
@@ -144,7 +144,7 @@ struct MarkerRenamerTests {
     }
 
     @Test("A Copy's Dropout cues, and its other Markers' positions, survive a rename")
-    func dropoutCuesSurvive() throws {
+    func dropoutCuesSurvive() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
@@ -154,7 +154,7 @@ struct MarkerRenamerTests {
         recorder.addMarker()
         audio.deliver([Array(repeating: 0, count: 300_000)])  // more than a ring holds: dropped in both Copies
         audio.deliver([Array(repeating: 0, count: 480)])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         let before = try cuePoints(take(device).appending(path: "01 USB 01.wav"))
         #expect(before.map(\.label).sorted() == ["Dropout", "Marker 1"])
 
@@ -168,8 +168,8 @@ struct MarkerRenamerTests {
     }
 
     @Test("A Stem that can't be opened is reported by name, and the other Stems and the other Copy are still renamed")
-    func badStemIsReported() throws {
-        try recordTake()
+    func badStemIsReported() async throws {
+        try await recordTake()
         try Data("not a stem".utf8).write(to: take(device).appending(path: "01 USB 01.wav"))
 
         let outcome = MarkerRenamer.rename(markerAt: 0, to: "Intro", in: copies, allowsProExtras: true)
@@ -184,8 +184,8 @@ struct MarkerRenamerTests {
     }
 
     @Test("Renaming the same Marker again, or to the name it already has, works")
-    func renameAgain() throws {
-        try recordTake()
+    func renameAgain() async throws {
+        try await recordTake()
         #expect(MarkerRenamer.rename(markerAt: 0, to: "Intro", in: copies, allowsProExtras: true).result == .renamed)
         #expect(MarkerRenamer.rename(markerAt: 0, to: "Intro", in: copies, allowsProExtras: true).result == .renamed)
         #expect(MarkerRenamer.rename(markerAt: 0, to: "Verse", in: copies, allowsProExtras: true).result == .renamed)
@@ -193,8 +193,8 @@ struct MarkerRenamerTests {
     }
 
     @Test("In a stand-in kept on the Device, a renamed Marker's cue counts from the stand-in's start, and earlier ones stay out (#622)")
-    func standInCuesShifted() throws {
-        try recordTake()
+    func standInCuesShifted() async throws {
+        try await recordTake()
         // Markers at 2,400 and 7,200; the Device stood in from 4,800 and kept its Stems in the stand-in's folder.
         for copy in copies.values {
             var metadata = try TakeMetadata.read(fromTakeFolder: copy)

@@ -31,7 +31,7 @@ struct RenameLogTests {
         try recorder.startTake(sources: startSources)
         device.deliver(Array(repeating: [0], count: 2))
         during(recorder, device)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
     }
 

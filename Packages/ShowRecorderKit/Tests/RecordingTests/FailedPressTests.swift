@@ -19,7 +19,7 @@ struct FailedPressTests {
     }
 
     @Test("A press that fails leaves no Take folder behind, and the next press records Take 01")
-    func failThenRecord() throws {
+    func failThenRecord() async throws {
         let fail = Switch()
         let device = root.appending(path: "Device")
         let recorder = Recorder(deviceFolder: device, now: { RecordingTakeTests.showDay }, makeStem: { url, info, resume in
@@ -36,13 +36,13 @@ struct FailedPressTests {
         fail.failing = false
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.1, count: 480), Array(repeating: 0.1, count: 480)])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(entries(device.appending(path: show)).filter { $0.hasPrefix("Take") } == ["Take 01"])
         #expect(entries(device.appending(path: "\(show)/Take 01")).contains("01 USB 01.wav"))
     }
 
     @Test("A Drive that fails at the press doesn't stop the Take: it records to the Device")
-    func driveFailsAtPress() throws {
+    func driveFailsAtPress() async throws {
         let device = root.appending(path: "Device")
         // A file where the Drive's folder should be: creating the Show folder in it fails.
         let notAFolder = root.appending(path: "Drive")
@@ -55,7 +55,7 @@ struct FailedPressTests {
         try recorder.startTake()
         #expect(recorder.isRecording)
         audio.deliver([Array(repeating: 0.1, count: 480), Array(repeating: 0.1, count: 480)])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(entries(device.appending(path: "\(show)/Take 01")).contains("01 USB 01.wav"))
     }
 

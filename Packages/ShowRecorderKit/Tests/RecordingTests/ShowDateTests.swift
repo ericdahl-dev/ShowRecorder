@@ -24,12 +24,12 @@ struct ShowDateTests {
         return Recorder(deviceFolder: device, now: { MainActor.assumeIsolated { clock.now } })
     }
 
-    func record(_ recorder: Recorder) throws {
+    func record(_ recorder: Recorder) async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.1, count: 480)])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         recorder.disarm()
     }
 
@@ -37,11 +37,11 @@ struct ShowDateTests {
     var afterMidnight: Date { RecordingTakeTests.showDay.addingTimeInterval(2 * 3600 + 50 * 60) }
 
     @Test("A Show started at 21:30 keeps its date: a Take at 00:20 lands in it, and Show.json keeps the start")
-    func takeAfterMidnightStaysInShow() throws {
+    func takeAfterMidnightStaysInShow() async throws {
         let recorder = recorder()
-        try record(recorder)
+        try await record(recorder)
         clock.now = afterMidnight
-        try record(recorder)
+        try await record(recorder)
 
         #expect(recorder.currentShow?.name == "2026-10-06 Show")
         #expect(FileManager.default.fileExists(atPath: device.appending(path: "2026-10-06 Show/Take 02").path))
@@ -50,32 +50,32 @@ struct ShowDateTests {
     }
 
     @Test("A relaunch after midnight finds the same Show, and its start date is still the evening before")
-    func relaunchAfterMidnight() throws {
-        try record(recorder())
+    func relaunchAfterMidnight() async throws {
+        try await record(recorder())
         clock.now = afterMidnight
         let relaunched = recorder()
         #expect(relaunched.currentShow?.name == "2026-10-06 Show")
-        try record(relaunched)
+        try await record(relaunched)
         #expect(FileManager.default.fileExists(atPath: device.appending(path: "2026-10-06 Show/Take 02").path))
     }
 
     @Test("After End Show, the next evening's Show gets the new date")
-    func nextEveningGetsNewDate() throws {
+    func nextEveningGetsNewDate() async throws {
         let recorder = recorder()
-        try record(recorder)
+        try await record(recorder)
         try recorder.endShow()
         clock.now = RecordingTakeTests.showDay.addingTimeInterval(24 * 3600)
-        try record(recorder)
+        try await record(recorder)
         #expect(recorder.currentShow?.name == "2026-10-07 Show")
         #expect(ShowFile.read(from: device.appending(path: "2026-10-07 Show"))?.startedAt == clock.now)
     }
 
     @Test("The report and the Reaper project name the Show by its start date, even for a Take after midnight")
-    func reportAndProjectUseShowDate() throws {
+    func reportAndProjectUseShowDate() async throws {
         let recorder = recorder()
-        try record(recorder)
+        try await record(recorder)
         clock.now = afterMidnight
-        try record(recorder)
+        try await record(recorder)
         let folder = device.appending(path: "2026-10-06 Show")
         let report = try ShowReport(showFolder: folder)
         #expect(report.showName == "2026-10-06 Show")

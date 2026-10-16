@@ -45,7 +45,7 @@ struct DriveOnlyTakeTests {
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(try driveSamples(frames: 4_800) == (0..<4_800).map { counting()($0, 0) })
@@ -59,7 +59,7 @@ struct DriveOnlyTakeTests {
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(CopySummary.ofLastTake(recorder.copies, dropoutCount: recorder.dropoutCount)?.text == "Drive copy: complete")
@@ -72,7 +72,7 @@ struct DriveOnlyTakeTests {
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(recorder.copies[.device] == .missing)
@@ -88,7 +88,7 @@ struct DriveOnlyTakeTests {
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         recorder.addMarker()
         try await deliverBlocks(1, from: 10 * 480, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         let outcome = await recorder.renameLastTakeMarker(at: 0, to: "Intro")
@@ -115,7 +115,7 @@ struct DriveOnlyTakeTests {
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         recorder.addMarker()
         try await deliverBlocks(1, from: 10 * 480, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         flag.available = false
 
@@ -137,7 +137,7 @@ struct DriveOnlyTakeTests {
         #expect(recorder.copies.isDriveOnly)
         #expect(recorder.copies[.device] == .standingBy)
         #expect(recorder.copies[.drive] == .recording)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
     }
 
@@ -153,7 +153,7 @@ struct DriveOnlyTakeTests {
         let alert = try #require(DestinationAlert.make(copies: recorder.copies))
         #expect(alert.id == "no-drive")
         #expect(alert.text == "No Drive: recording to this iPhone; it moves to the Drive when one is connected.")
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
     }
 
@@ -165,7 +165,7 @@ struct DriveOnlyTakeTests {
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(CopySummary.ofLastTake(recorder.copies, dropoutCount: recorder.dropoutCount)?.text == "On this iPhone until the Drive is back")
@@ -179,12 +179,12 @@ struct DriveOnlyTakeTests {
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await waitUntil { recorder.copies[.drive] == .interrupted }
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
 
         #expect(recorder.copies.isDriveOnly)
         #expect(recorder.copies[.device] == .standingIn)
         #expect(recorder.copies[.drive] == .interrupted)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
     }
 
@@ -196,9 +196,9 @@ struct DriveOnlyTakeTests {
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await waitUntil { recorder.copies[.drive] == .interrupted }
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await deliverBlocks(5, from: 10 * 480, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(try driveSamples(frames: 7_200) == (0..<7_200).map { counting()($0, 0) }, "the Drive has the whole Take")
@@ -215,9 +215,9 @@ struct DriveOnlyTakeTests {
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         recorder.addMarker()
         try await waitUntil { recorder.copies[.drive] == .interrupted }
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await deliverBlocks(5, from: 10 * 480, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         #expect(recorder.copies[.device] == .moved)
 
@@ -238,9 +238,9 @@ struct DriveOnlyTakeTests {
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await waitUntil { recorder.copies[.drive] == .interrupted }
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await deliverBlocks(5, from: 10 * 480, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(CopySummary.ofLastTake(recorder.copies, dropoutCount: recorder.dropoutCount)?.text
@@ -279,15 +279,15 @@ struct DriveOnlyTakeTests {
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         // The Drive hangs on the next write; audio keeps coming.
         for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await Task.sleep(for: .milliseconds(250))
         deliver(480, from: 20 * 480, to: audio, sample: counting())
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         for block in 21..<30 { deliver(480, from: block * 480, to: audio, sample: counting()) }
         try await Task.sleep(for: .milliseconds(200))
 
         let started = ContinuousClock.now
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(ContinuousClock.now - started < .seconds(1), "Stop waited on the hung Drive")
         await recorder.waitForRepair()
 
@@ -313,13 +313,13 @@ struct DriveOnlyTakeTests {
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         recorder.addMarker()
         for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await Task.sleep(for: .milliseconds(250))
         deliver(480, from: 20 * 480, to: audio, sample: counting())
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         for block in 21..<30 { deliver(480, from: block * 480, to: audio, sample: counting()) }
         try await Task.sleep(for: .milliseconds(200))
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         #expect(recorder.copies[.device] == .standInKept)
         let standIn = device.appending(path: "\(take)/Stand-in 0/01 USB 01.wav")
@@ -345,13 +345,13 @@ struct DriveOnlyTakeTests {
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         #expect(recorder.setChannelName("Lead Vocal", forChannel: 1))
         for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await Task.sleep(for: .milliseconds(250))
         deliver(480, from: 20 * 480, to: audio, sample: counting())
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         for block in 21..<30 { deliver(480, from: block * 480, to: audio, sample: counting()) }
         try await Task.sleep(for: .milliseconds(200))
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         #expect(recorder.copies[.device] == .standInKept)
 
@@ -372,13 +372,13 @@ struct DriveOnlyTakeTests {
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await Task.sleep(for: .milliseconds(250))
         deliver(480, from: 20 * 480, to: audio, sample: counting())
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         for block in 21..<30 { deliver(480, from: block * 480, to: audio, sample: counting()) }
         try await Task.sleep(for: .milliseconds(200))
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         #expect(recorder.copies[.device] == .standInKept)
         return recorder
@@ -423,13 +423,13 @@ struct DriveOnlyTakeTests {
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await Task.sleep(for: .milliseconds(250))
         deliver(480, from: 20 * 480, to: audio, sample: counting())
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         for block in 21..<30 { deliver(480, from: block * 480, to: audio, sample: counting()) }
         try await Task.sleep(for: .milliseconds(200))
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(CopySummary.ofLastTake(recorder.copies, dropoutCount: 0)?.text == "On this iPhone until the Drive is back")
@@ -442,7 +442,7 @@ struct DriveOnlyTakeTests {
         try first.arm(audio)
         try first.startTake()
         try await deliverBlocks(2, to: audio, first)
-        try first.stopTake()
+        try await first.stopTake()
         await first.waitForRepair()
         first.disarm()
 
@@ -450,7 +450,7 @@ struct DriveOnlyTakeTests {
         try relaunched.arm(audio)
         try relaunched.startTake()
         try await deliverBlocks(2, to: audio, relaunched)
-        try relaunched.stopTake()
+        try await relaunched.stopTake()
         await relaunched.waitForRepair()
         #expect(FileManager.default.fileExists(atPath: drive.appending(path: "2026-10-06 Show/Take 02/01 USB 01.wav").path))
     }
@@ -498,11 +498,11 @@ struct DriveOnlyTakeTests {
             try await Task.sleep(for: .milliseconds(100))
         }
         try await waitUntil { recorder.droppedFrameCount > 0 }
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         // The Drive catches up and carries on.
         gate.open()
         try await waitUntil { recorder.bufferedFrameCount == 0 }
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(recorder.copies[.drive] == .repaired)
@@ -521,14 +521,14 @@ struct DriveOnlyTakeTests {
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         // The Drive pauses (a healthy one waking up, say) while audio keeps coming, for longer than the stall limit.
         for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await Task.sleep(for: .milliseconds(250))
         deliver(480, from: 20 * 480, to: audio, sample: counting())
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         // Then it carries on.
         gate.open()
         try await deliverBlocks(9, from: 21 * 480, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(try driveSamples(frames: 14_400) == (0..<14_400).map { counting()($0, 0) }, "the Drive has the whole Take")
@@ -546,13 +546,13 @@ struct DriveOnlyTakeTests {
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await Task.sleep(for: .milliseconds(250))
         deliver(480, from: 20 * 480, to: audio, sample: counting())
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         gate.open()
         try await deliverBlocks(9, from: 21 * 480, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(CopySummary.ofLastTake(recorder.copies, dropoutCount: 0)?.text == "Drive copy: complete")
@@ -570,13 +570,13 @@ struct DriveOnlyTakeTests {
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         recorder.addMarker()
         for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await Task.sleep(for: .milliseconds(250))
         deliver(480, from: 20 * 480, to: audio, sample: counting())
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         gate.open()
         try await deliverBlocks(9, from: 21 * 480, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         return recorder
     }
@@ -610,19 +610,19 @@ struct DriveOnlyTakeTests {
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await Task.sleep(for: .milliseconds(250))
         deliver(480, from: 20 * 480, to: audio, sample: counting())
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         for block in 21..<30 { deliver(480, from: block * 480, to: audio, sample: counting()) }
         try await Task.sleep(for: .milliseconds(200))
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         #expect(recorder.copies[.device] == .standInKept)
         return recorder
@@ -659,7 +659,7 @@ struct DriveOnlyTakeTests {
         try first.arm(audio)
         try first.startTake()
         try await deliverBlocks(10, to: audio, first)
-        try first.stopTake()
+        try await first.stopTake()
         await first.waitForRepair()
         first.disarm()
 
@@ -697,7 +697,7 @@ struct DriveOnlyTakeTests {
         try crashed.startTake()
         try await deliverBlocks(10, to: audio, crashed, sample: counting())
         try await waitUntil { crashed.copies[.drive] == .interrupted }
-        crashed.checkDestinations()
+        await crashed.checkDestinations()
         try await deliverBlocks(5, from: 10 * 480, to: audio, crashed, sample: counting())
         try await waitUntil { crashed.bufferedFrameCount == 0 }
         removeReports()
@@ -755,10 +755,10 @@ struct DriveOnlyTakeTests {
         try crashed.startTake()
         try await deliverBlocks(10, to: audio, crashed, sample: counting())
         for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
-        crashed.checkDestinations()
+        await crashed.checkDestinations()
         try await Task.sleep(for: .milliseconds(250))
         deliver(480, from: 20 * 480, to: audio, sample: counting())
-        crashed.checkDestinations()
+        await crashed.checkDestinations()
         gate.open()
         try await deliverBlocks(9, from: 21 * 480, to: audio, crashed, sample: counting())
         try await waitUntil { crashed.bufferedFrameCount == 0 }
@@ -856,7 +856,7 @@ struct DriveOnlyTakeTests {
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
 
         #expect(try driveOnlyField(in: drive) == true)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
     }
 
@@ -870,7 +870,7 @@ struct DriveOnlyTakeTests {
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
 
         #expect(try driveOnlyField(in: device) == true, "while the Take runs")
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         #expect(try driveOnlyField(in: device) == true, "after Stop")
     }
@@ -883,7 +883,7 @@ struct DriveOnlyTakeTests {
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(try driveOnlyField(in: device) == nil)

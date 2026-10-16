@@ -21,13 +21,13 @@ struct FreeTakeTests {
     }
 
     @Test("Only the chosen USB Channels get Stems, and Take.json lists only them, with their levels")
-    func onlyChosenStems() throws {
+    func onlyChosenStems() async throws {
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 4)
         try recorder.arm(audio)
         try recorder.startTake(allowance: allowance([2, 4]))
         audio.deliver((0..<4).map { c in Array(repeating: Float(c + 1) / 10, count: 480) })
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let take = root.appending(path: "\(show)/Take 01")
         let files = try FileManager.default.contentsOfDirectory(atPath: take.path).filter { $0.hasSuffix(".wav") }.sorted()
@@ -43,7 +43,7 @@ struct FreeTakeTests {
     }
 
     @Test("With a Drive both Copies get only the chosen Stems, and a report and Reaper project list just those channels")
-    func bothCopiesAndOutputs() throws {
+    func bothCopiesAndOutputs() async throws {
         let drive = root.appending(path: "Drive")
         try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
         let device = root.appending(path: "Device")
@@ -53,7 +53,7 @@ struct FreeTakeTests {
         // Two recorded channels with the report and project on (the report itself is a Pro extra, see ProExtrasTests).
         try recorder.startTake(allowance: TakeAllowance(recordedChannels: [1, 3], showReport: true, reaperExport: true, namingByHand: false))
         audio.deliver((0..<3).map { _ in Array(repeating: 0.2, count: 480) })
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         for parent in [device, drive] {
             let take = parent.appending(path: "\(show)/Take 01")
@@ -67,7 +67,7 @@ struct FreeTakeTests {
     }
 
     @Test("A Drive that joins mid-Take gets only the chosen Stems; each Take keeps the allowance it started with")
-    func driveJoinsAndAllowanceIsPerTake() throws {
+    func driveJoinsAndAllowanceIsPerTake() async throws {
         let drive = root.appending(path: "Drive")
         try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
         let device = root.appending(path: "Device")
@@ -79,16 +79,16 @@ struct FreeTakeTests {
         try recorder.startTake(allowance: allowance([2, 3]))
         audio.deliver((0..<3).map { _ in Array(repeating: 0.2, count: 480) })
         plug.connected = true
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         audio.deliver((0..<3).map { _ in Array(repeating: 0.2, count: 480) })
-        try recorder.stopTake()
+        try await recorder.stopTake()
         let joined = try FileManager.default.contentsOfDirectory(atPath: drive.appending(path: "\(show)/Take 01").path).filter { $0.hasSuffix(".wav") }.sorted()
         #expect(joined == ["02 USB 02.wav", "03 USB 03.wav"])
 
         // The next Take is pressed with every channel allowed (bought Pro, say): only that Take changes.
         try recorder.startTake(allowance: TakeAllowance(recordedChannels: [1, 2, 3], showReport: true, reaperExport: true, namingByHand: true))
         audio.deliver((0..<3).map { _ in Array(repeating: 0.2, count: 480) })
-        try recorder.stopTake()
+        try await recorder.stopTake()
         let second = try FileManager.default.contentsOfDirectory(atPath: device.appending(path: "\(show)/Take 02").path).filter { $0.hasSuffix(".wav") }
         let first = try FileManager.default.contentsOfDirectory(atPath: device.appending(path: "\(show)/Take 01").path).filter { $0.hasSuffix(".wav") }
         #expect(second.count == 3 && first.count == 2)
@@ -108,7 +108,7 @@ struct FreeTakeTests {
     }
 
     @Test("A Take without the Drive Copy (Free) is written to the Device only, with a Drive connected (#705)")
-    func freeTakeSkipsDrive() throws {
+    func freeTakeSkipsDrive() async throws {
         let device = root.appending(path: "Device"), drive = root.appending(path: "Drive")
         let recorder = try freeDriveRecorder(device: device, drive: drive)
         let audio = FakeAudioDevice(inputChannelCount: 2)
@@ -116,7 +116,7 @@ struct FreeTakeTests {
         try recorder.startTake(allowance: noDrive([1, 2]))
         #expect(recorder.takeAllowance == noDrive([1, 2]), "the running Take's allowance, for clip protection")
         audio.deliver((0..<2).map { _ in Array(repeating: 0.2, count: 480) })
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(recorder.takeAllowance == nil, "none between Takes")
 
         #expect(FileManager.default.fileExists(atPath: device.appending(path: "\(show)/Take 01/01 USB 01.wav").path))
@@ -124,7 +124,7 @@ struct FreeTakeTests {
     }
 
     @Test("Drive only on a Take without the Drive Copy (Free) records a full Device Copy, not a stand-in (#705)")
-    func freeDriveOnlyRecordsToDevice() throws {
+    func freeDriveOnlyRecordsToDevice() async throws {
         let device = root.appending(path: "Device"), drive = root.appending(path: "Drive")
         let recorder = try freeDriveRecorder(device: device, drive: drive)
         recorder.recordsToDriveOnly = true
@@ -132,7 +132,7 @@ struct FreeTakeTests {
         try recorder.arm(audio)
         try recorder.startTake(allowance: noDrive([1, 2]))
         audio.deliver((0..<2).map { _ in Array(repeating: 0.2, count: 480) })
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let take = device.appending(path: "\(show)/Take 01")
         #expect(try ParsedStem(contentsOf: take.appending(path: "01 USB 01.wav")).samples.count == 480)

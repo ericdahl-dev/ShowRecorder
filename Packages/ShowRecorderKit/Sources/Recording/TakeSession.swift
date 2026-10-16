@@ -364,10 +364,19 @@ final class TakeSession {
     /// Stops capturing, waits until every Stem is written and finalized and records the Gaps.
     /// A Copy that failed during the Take doesn't make this throw.
     func finish() -> Finished {
-        let finished = Self.finish(FinishInput(
-            capture: capture, copies: copies, standby: standby, metadata: metadata, levels: levels, stopTimeout: stopTimeout))
-        metadata = finished.metadata
+        let finished = Self.finish(finishInput())
+        adopt(finished)
         return finished
+    }
+
+    /// The snapshot `finish` works on (see `FinishInput` for when to take it).
+    func finishInput() -> FinishInput {
+        FinishInput(capture: capture, copies: copies, standby: standby, metadata: metadata, levels: levels, stopTimeout: stopTimeout)
+    }
+
+    /// Writes what `finish(_:)` came to back into the session.
+    func adopt(_ finished: Finished) {
+        metadata = finished.metadata
     }
 
     /// What `finish` works on, copied out of the session so the join and the file writes need no main actor (#652).

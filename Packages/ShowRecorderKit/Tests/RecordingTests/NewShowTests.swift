@@ -26,19 +26,19 @@ struct NewShowTests {
             now: { RecordingTakeTests.showDay })
     }
 
-    func record(_ recorder: Recorder) throws {
+    func record(_ recorder: Recorder) async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.1, count: 480)])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         recorder.disarm()
     }
 
     @Test("New Show makes \"YYYY-MM-DD Name\" with the venue in Show.json, ends the old Show, and the next Take lands in it")
-    func newShowWithNameAndVenue() throws {
+    func newShowWithNameAndVenue() async throws {
         let recorder = recorder()
-        try record(recorder)
+        try await record(recorder)
         #expect(recorder.currentShow?.name == "2026-10-06 Show")
 
         try recorder.startNewShow(name: "Sunday Service", venue: "Grace Church")
@@ -48,7 +48,7 @@ struct NewShowTests {
         #expect(file.endedAt == nil)
         #expect(ShowFile.read(from: device.appending(path: "2026-10-06 Show"))?.endedAt != nil, "the old Show is ended")
 
-        try record(recorder)
+        try await record(recorder)
         #expect(FileManager.default.fileExists(atPath: device.appending(path: "2026-10-06 Sunday Service/Take 01").path))
     }
 
@@ -69,7 +69,7 @@ struct NewShowTests {
     }
 
     @Test("It can't start a Show while a Take is running, and leaves everything as it was")
-    func refusedWhileRecording() throws {
+    func refusedWhileRecording() async throws {
         let recorder = recorder()
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
@@ -77,15 +77,15 @@ struct NewShowTests {
         #expect(throws: RecorderError.takeRunning) { try recorder.startNewShow(name: "Late", venue: "") }
         #expect(recorder.currentShow?.name == "2026-10-06 Show")
         #expect(!FileManager.default.fileExists(atPath: device.appending(path: "2026-10-06 Late").path))
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(ShowFile.read(from: device.appending(path: "2026-10-06 Show"))?.endedAt == nil)
     }
 
     @Test("With a Drive, the Drive Copy of the new Show has its Show.json, with the venue, once a Take starts")
-    func driveCopyHasTheVenue() throws {
+    func driveCopyHasTheVenue() async throws {
         let recorder = recorder(withDrive: true)
         try recorder.startNewShow(name: "Gig", venue: "The Hall")
-        try record(recorder)
+        try await record(recorder)
         let file = try #require(ShowFile.read(from: drive.appending(path: "2026-10-06 Gig")))
         #expect(file.venue == "The Hall" && file.name == "2026-10-06 Gig")
     }

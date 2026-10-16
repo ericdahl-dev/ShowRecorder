@@ -78,6 +78,6 @@ struct MixerGainCharacterizationTests {
         recorder.logGainChange(TakeMetadata.GainChange(usbChannel: 2, channel: 2, headamp: 2, fromGainDb: 10, toGainDb: 13.5,
                                                        reason: .autoGain, compensations: []))
         #expect(recorder.markerEntries.map(\.name) == ["Kick: gain -4.0 dB (clip protection)", "Snare: gain +3.5 dB (auto-gain)"])
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 }

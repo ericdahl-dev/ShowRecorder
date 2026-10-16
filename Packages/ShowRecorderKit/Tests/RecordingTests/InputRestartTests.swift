@@ -21,7 +21,7 @@ struct InputRestartTests {
     func take01(_ recorder: Recorder) -> URL { recorder.currentShow!.folder.appending(path: "Take 01") }
 
     @Test("Restarting input on the Armed device keeps the same Take going")
-    func restartKeepsTake() throws {
+    func restartKeepsTake() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root)
         try recorder.arm(device)
@@ -33,7 +33,7 @@ struct InputRestartTests {
         try recorder.restartInput()
         device.deliver([[Self.sample(3)]])
         #expect(recorder.isRecording)
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         #expect(recorder.currentShow?.takeCount == 1)
         let stem = try ParsedStem(contentsOf: take01(recorder).appending(path: "01 USB 01.wav"))
@@ -62,7 +62,7 @@ struct InputRestartTests {
     }
 
     @Test("A replacement device with the same channels and rate continues the Take")
-    func replacementWithSameFormatContinues() throws {
+    func replacementWithSameFormatContinues() async throws {
         let old = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root)
         try recorder.arm(old)
@@ -70,9 +70,9 @@ struct InputRestartTests {
         old.deliver([[Self.sample(1)]])
 
         let replacement = FakeAudioDevice(inputChannelCount: 1)
-        let continued = try recorder.restartInput(on: replacement)
+        let continued = try await recorder.restartInput(on: replacement)
         replacement.deliver([[Self.sample(2)]])
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         #expect(continued)
         #expect(!old.isRunning)
@@ -82,7 +82,7 @@ struct InputRestartTests {
     }
 
     @Test("A replacement device with a different format ends the Take cleanly and Arms on it")
-    func replacementWithDifferentFormatEndsTake() throws {
+    func replacementWithDifferentFormatEndsTake() async throws {
         let old = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root)
         try recorder.arm(old)
@@ -90,7 +90,7 @@ struct InputRestartTests {
         old.deliver([[Self.sample(1)], [Self.sample(2)]])
 
         let replacement = FakeAudioDevice(inputChannelCount: 1, sampleRate: 44_100)
-        let continued = try recorder.restartInput(on: replacement)
+        let continued = try await recorder.restartInput(on: replacement)
 
         #expect(!continued)
         #expect(!recorder.isRecording)

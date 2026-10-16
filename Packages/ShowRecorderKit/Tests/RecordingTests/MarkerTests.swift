@@ -17,7 +17,7 @@ struct MarkerTests {
     }
 
     @Test("A Marker lands at the Take's current sample position in every Stem of both Copies and in Take.json")
-    func markerAtCurrentPosition() throws {
+    func markerAtCurrentPosition() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 3)
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
@@ -29,7 +29,7 @@ struct MarkerTests {
         deliver(2_400, to: audio)
         recorder.addMarker(named: "Bridge")
         deliver(100, to: audio)
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let expected = [CuePoint(position: 4_800, label: "Marker 1"), CuePoint(position: 7_200, label: "Bridge")]
         for copy in [device, drive] {
@@ -49,7 +49,7 @@ struct MarkerTests {
     }
 
     @Test("A Take allowed 3 Markers (Free) keeps the first 3: a 4th press places nothing, in the files or Take.json (#705)")
-    func markerLimit() throws {
+    func markerLimit() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
@@ -64,7 +64,7 @@ struct MarkerTests {
         #expect(recorder.markerLimitReached)
         deliver(100, to: audio)
         #expect(!recorder.addMarker())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(!recorder.markerLimitReached, "only while the Take runs")
 
         #expect(recorder.takeMarkers.map(\.name) == ["Marker 1", "Marker 2", "Marker 3"])
@@ -73,14 +73,14 @@ struct MarkerTests {
     }
 
     @Test("Without a limit (Pro, the Trial, or no allowance) every press places a Marker (#705)")
-    func noMarkerLimit() throws {
+    func noMarkerLimit() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
         try recorder.startTake(allowance: TakeAllowance(recordedChannels: [1], showReport: true, reaperExport: true, namingByHand: true))
         for _ in 1...5 { deliver(100, to: audio); #expect(recorder.addMarker()) }
         #expect(!recorder.markerLimitReached)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(recorder.takeMarkers.count == 5)
     }
 
@@ -95,18 +95,18 @@ struct MarkerTests {
     }
 
     @Test("Each Take starts with no Markers, and numbering restarts")
-    func markersResetPerTake() throws {
+    func markersResetPerTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
         try recorder.startTake()
         recorder.addMarker()
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         try recorder.startTake()
         deliver(10, to: audio)
         recorder.addMarker()
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         #expect(recorder.takeMarkers == [TakeMetadata.Marker(position: 10, name: "Marker 1", origin: .operator)])
     }
@@ -114,24 +114,24 @@ struct MarkerTests {
 
 extension MarkerTests {
     /// Records two one-second Takes with a Marker half a second into the second.
-    func recordTwoTakesWithMarker(named name: String) throws -> URL {
+    func recordTwoTakesWithMarker(named name: String) async throws -> URL {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
         try recorder.startTake()
         deliver(48_000, to: audio)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         try recorder.startTake()
         deliver(24_000, to: audio)
         recorder.addMarker(named: name)
         deliver(24_000, to: audio)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         return device.appending(path: "2026-10-06 Show")
     }
 
     @Test("Markers appear on the Reaper timeline at their Take's start plus their position")
-    func markersInReaperProject() throws {
-        let show = try recordTwoTakesWithMarker(named: "Encore")
+    func markersInReaperProject() async throws {
+        let show = try await recordTwoTakesWithMarker(named: "Encore")
 
         let rpp = try String(contentsOf: show.appending(path: "2026-10-06 Show.RPP"), encoding: .utf8)
         let markerLines = rpp.split(separator: "\n").filter { $0.trimmingCharacters(in: .whitespaces).hasPrefix("MARKER ") && $0.contains("Encore") }
@@ -141,8 +141,8 @@ extension MarkerTests {
     }
 
     @Test("The Show report lists each Take's Markers with their time, names escaped")
-    func markersInReport() throws {
-        let show = try recordTwoTakesWithMarker(named: "<Solo> & Out")
+    func markersInReport() async throws {
+        let show = try await recordTwoTakesWithMarker(named: "<Solo> & Out")
 
         let html = try String(contentsOf: show.appending(path: "Report.html"), encoding: .utf8)
         #expect(html.contains("&lt;Solo&gt; &amp; Out"))

@@ -44,7 +44,7 @@ struct CutOffTakeTests {
         try first.arm(audio)
         try first.startTake()
         audio.deliver([Array(repeating: 0.2, count: 480), Array(repeating: 0.2, count: 480)])
-        try first.stopTake()
+        try await first.stopTake()
         await first.waitForRepair()
         first.disarm()
         for stem in stems(device) { try append(100, stray: 2, to: stem) }

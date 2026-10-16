@@ -41,7 +41,7 @@ struct BothDestinationsTests {
                 audio.deliver((0..<4).map { channel in (0..<480).map { Float(channel * 100_000 + take * 50_000 + block * 480 + $0) / 8_388_608 } })
                 while recorder.bufferedFrameCount > 48_000 { try await Task.sleep(for: .milliseconds(2)) }
             }
-            try recorder.stopTake()
+            try await recorder.stopTake()
         }
 
         let deviceCopy = try contents(of: device)
@@ -55,21 +55,21 @@ struct BothDestinationsTests {
     }
 
     @Test("Without a Drive folder, the Take is written to the Device only")
-    func noDriveWritesDeviceOnly() throws {
+    func noDriveWritesDeviceOnly() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay })
         try recorder.arm(audio)
 
         try recorder.startTake()
         audio.deliver([[0]])
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         #expect(FileManager.default.fileExists(atPath: device.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav").path))
         #expect(try FileManager.default.contentsOfDirectory(atPath: drive.path).isEmpty)
     }
 
     @Test("A Drive that appears mid-Show gets the same Show folder, from the next Take on")
-    func driveAppearingMidShowJoinsNextTake() throws {
+    func driveAppearingMidShowJoinsNextTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let available = DriveSwitch()
         let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } }, now: { RecordingTakeTests.showDay })
@@ -77,11 +77,11 @@ struct BothDestinationsTests {
 
         try recorder.startTake()
         audio.deliver([[0]])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         available.folder = drive
         try recorder.startTake()
         audio.deliver([[0]])
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let driveShow = drive.appending(path: "2026-10-06 Show")
         #expect(!FileManager.default.fileExists(atPath: driveShow.appending(path: "Take 01").path))
@@ -89,7 +89,7 @@ struct BothDestinationsTests {
     }
 
     @Test("A Show name already used on the Drive isn't reused on either Copy")
-    func showNameTakenOnDriveIsSkipped() throws {
+    func showNameTakenOnDriveIsSkipped() async throws {
         try FileManager.default.createDirectory(at: drive.appending(path: "2026-10-06 Show"), withIntermediateDirectories: true)
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let drive = drive
@@ -97,7 +97,7 @@ struct BothDestinationsTests {
         try recorder.arm(audio)
 
         try recorder.startTake()
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         #expect(recorder.currentShow?.name == "2026-10-06 Show 2")
         #expect(FileManager.default.fileExists(atPath: device.appending(path: "2026-10-06 Show 2/Take 01").path))
@@ -105,7 +105,7 @@ struct BothDestinationsTests {
     }
 
     @Test("The Drive folder is released when the Take stops")
-    func driveAccessReleasedAtStop() throws {
+    func driveAccessReleasedAtStop() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let released = ReleaseCounter()
         let drive = drive
@@ -114,7 +114,7 @@ struct BothDestinationsTests {
 
         try recorder.startTake()
         #expect(released.count == 0)
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         #expect(released.count == 1)
     }

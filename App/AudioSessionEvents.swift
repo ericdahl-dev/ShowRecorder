@@ -12,8 +12,8 @@ extension RecordScreenModel {
     static let sessionLog = Logger(subsystem: "dev.ericdahl.ShowRecorder", category: "AudioSession")
 
     /// Feeds one event to the policy; the `TakeSequencer` carries out what it decides.
-    func handle(_ event: InterruptionPolicy.Event) {
-        sequencer.handle(event)
+    func handle(_ event: InterruptionPolicy.Event) async {
+        await sequencer.handle(event)
     }
 
     #if os(iOS)
@@ -24,14 +24,14 @@ extension RecordScreenModel {
         let interruptions = NotificationCenter.default
             .notifications(named: AVAudioSession.interruptionNotification)
             .compactMap { Self.interruptionEvent(from: $0.userInfo) }
-        for await event in interruptions { handle(event) }
+        for await event in interruptions { await handle(event) }
     }
 
     private func watchMediaServicesResets() async {
         let resets = NotificationCenter.default
             .notifications(named: AVAudioSession.mediaServicesWereResetNotification)
             .map { _ in () }
-        for await _ in resets { handle(.mediaServicesReset) }
+        for await _ in resets { await handle(.mediaServicesReset) }
     }
 
     nonisolated private static func interruptionEvent(from info: [AnyHashable: Any]?) -> InterruptionPolicy.Event? {

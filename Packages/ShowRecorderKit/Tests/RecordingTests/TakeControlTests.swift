@@ -73,8 +73,8 @@ struct TakeControlTests {
         try await deliverBlocks(2, to: audio, recorder)
 
         free.bytes = 0
-        recorder.checkDestinations()
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
+        await recorder.checkDestinations()
 
         let seen = await told(&events, through: .takeEnded(TakeEnd(take: 1, reason: .outOfSpace)))
         #expect(seen == [.takeStarted(take: 1), .takeEnded(TakeEnd(take: 1, reason: .outOfSpace))])
@@ -113,7 +113,7 @@ struct TakeControlTests {
 
         sequencer.addMarker()
         sequencer.addMarker()
-        sequencer.stop()
+        await sequencer.stop()
 
         let end = TakeEvent.takeEnded(TakeEnd(take: 1, reason: .stopped))
         #expect(await told(&events, through: end) == [.takeStarted(take: 1), .markerPlaced(count: 1), end])
@@ -143,7 +143,7 @@ struct TakeControlTests {
         try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
 
         free.bytes = 0
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
 
         #expect(!recorder.isRecording)
         #expect(sequencer.recordError == TakeEnd.Reason.outOfSpace.message)
@@ -156,7 +156,7 @@ struct TakeControlTests {
         sequencer.record(sources: [], allowance: nil)
         try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
 
-        sequencer.stop()
+        await sequencer.stop()
 
         #expect(sequencer.recordError == nil)
     }
@@ -171,7 +171,7 @@ struct TakeControlTests {
         for _ in 0..<2 {
             sequencer.record(sources: [], allowance: nil)
             try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
-            sequencer.stop()
+            await sequencer.stop()
         }
 
         try sequencer.endShow()
@@ -193,7 +193,7 @@ struct TakeControlTests {
 
         #expect(throws: RecorderError.takeRunning) { try sequencer.endShow() }
         #expect(throws: RecorderError.takeRunning) { try sequencer.startNewShow(name: "Late", venue: "") }
-        sequencer.stop()
+        await sequencer.stop()
 
         #expect(recorder.currentShow?.name == show)
         let seen = await told(&events, through: .takeEnded(TakeEnd(take: 1, reason: .stopped)))
@@ -211,7 +211,7 @@ struct TakeControlTests {
         try sequencer.startNewShow(name: "Friday", venue: "")
         sequencer.record(sources: [], allowance: nil)
         try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
-        sequencer.stop()
+        await sequencer.stop()
 
         _ = await told(&events, through: .takeEnded(TakeEnd(take: 1, reason: .stopped)))
 
@@ -233,7 +233,7 @@ struct TakeControlTests {
         try sequencer.startNewShow(name: "Friday", venue: "")
         sequencer.record(sources: [], allowance: nil)
         try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
-        sequencer.stop()
+        await sequencer.stop()
 
         _ = await told(&events, through: .takeEnded(TakeEnd(take: 1, reason: .stopped)))
 
@@ -281,7 +281,7 @@ struct TakeControlTests {
                 audio.deliver([[Float](repeating: 0.5, count: 480), [Float](repeating: 0.5, count: 480)])
                 if recorder.isRecording, recorder.takeMarkers.isEmpty {
                     free.bytes = 0
-                    recorder.checkDestinations()
+                    await recorder.checkDestinations()
                 }
                 try? await Task.sleep(for: .milliseconds(5))
             }
@@ -309,10 +309,10 @@ struct TakeControlTests {
         try recorder.startTake()
         try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
         sequencer.tick()
-        sequencer.stop()
+        await sequencer.stop()
 
         let next = await events.next(isolation: #isolation)
-        #expect(next == .takeEnded(TakeEnd(take: 1, reason: .stopped)), "only the end is told: every Take that's told started went through record()")
+        #expect(next == .takeEnded(TakeEnd(take: 1, reason: .stopped)), "only the end is told: every Take that's told started went through await record()")
     }
 
     @Test("The Soundcheck Take's end is told as the Soundcheck's, so nothing after it offers Pro; any other Take's isn't")
@@ -338,7 +338,7 @@ struct TakeControlTests {
 
         sequencer.record(sources: [], allowance: nil)
         try await deliverBlocks(2, to: audio, recorder)
-        sequencer.stop()
+        await sequencer.stop()
         let next = await told(&events, through: .takeEnded(TakeEnd(take: 1, reason: .stopped)))
         #expect(next.last == .takeEnded(TakeEnd(take: 1, reason: .stopped)), "the next Take isn't the Soundcheck's")
     }

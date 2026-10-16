@@ -10,7 +10,7 @@ struct TakeEndHookTests {
     let root = FileManager.default.temporaryDirectory.appending(path: "TakeEndHookTests-\(UUID().uuidString)")
 
     @Test("Every Take end is told to onTakeEnded as it happens, with its reason, after lastTakeEnd is set")
-    func toldAsItHappens() throws {
+    func toldAsItHappens() async throws {
         let recorder = Recorder(deviceFolder: root, destinationCheckInterval: nil)
         var heard: [TakeEnd] = []
         var lastTakeEndWhenTold: [TakeEnd?] = []
@@ -21,9 +21,9 @@ struct TakeEndHookTests {
         try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
 
         try recorder.startTake()
-        try recorder.stopTake()
+        try await recorder.stopTake()
         try recorder.startTake()
-        try recorder.restartInput(on: FakeAudioDevice(inputChannelCount: 2))
+        try await recorder.restartInput(on: FakeAudioDevice(inputChannelCount: 2))
 
         let ends = [TakeEnd(take: 1, reason: .stopped), TakeEnd(take: 2, reason: .inputChanged)]
         #expect(heard == ends)

@@ -20,7 +20,7 @@ struct TakeDeleterTests {
     }
 
     /// Three Takes in an ended Show, in both Copies.
-    func threeTakes() throws -> Recorder {
+    func threeTakes() async throws -> Recorder {
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 1)
@@ -28,7 +28,7 @@ struct TakeDeleterTests {
         for _ in 1...3 {
             try recorder.startTake()
             audio.deliver([[0.1]])
-            try recorder.stopTake()
+            try await recorder.stopTake()
         }
         recorder.disarm()
         try recorder.endShow()
@@ -38,8 +38,8 @@ struct TakeDeleterTests {
     func exists(_ parent: URL, _ path: String) -> Bool { FileManager.default.fileExists(atPath: parent.appending(path: path).path) }
 
     @Test("Deleting Take 2 from both Copies leaves Takes 1 and 3 with their numbers, and the report and Reaper project no longer list it")
-    func takeGoesOthersStay() throws {
-        _ = try threeTakes()
+    func takeGoesOthersStay() async throws {
+        _ = try await threeTakes()
 
         let outcome = TakeDeleter.delete(take: 2, ofShow: show, from: [.device, .drive], device: device, drive: drive, openShow: nil)
 
@@ -55,8 +55,8 @@ struct TakeDeleterTests {
     }
 
     @Test("One Copy only, and a Drive that isn't there is reported and not touched")
-    func oneCopyAndMissingDrive() throws {
-        _ = try threeTakes()
+    func oneCopyAndMissingDrive() async throws {
+        _ = try await threeTakes()
         let deviceOnly = TakeDeleter.delete(take: 1, ofShow: show, from: [.device], device: device, drive: drive, openShow: nil)
         #expect(deviceOnly.deleted == [.device])
         #expect(!exists(device, "\(show)/Take 01") && exists(drive, "\(show)/Take 01"))
@@ -68,8 +68,8 @@ struct TakeDeleterTests {
     }
 
     @Test("The open Show, a Take that isn't there, an unsafe Show name and a Take folder with no Take.json are all refused, deleting nothing")
-    func refusals() throws {
-        _ = try threeTakes()
+    func refusals() async throws {
+        _ = try await threeTakes()
         try FileManager.default.createDirectory(at: device.appending(path: "\(show)/Take 09"), withIntermediateDirectories: true)
 
         for (take, name, open) in [(1, show, show), (7, show, nil), (0, show, nil), (9, show, nil), (1, "../Drive", nil), (1, "", nil)] as [(Int, String, String?)] {
@@ -81,21 +81,21 @@ struct TakeDeleterTests {
     }
 
     @Test("Deleting the last Take of a Show leaves the Show folder, with no Takes")
-    func lastTake() throws {
-        _ = try threeTakes()
+    func lastTake() async throws {
+        _ = try await threeTakes()
         for n in 1...3 { _ = TakeDeleter.delete(take: n, ofShow: show, from: [.device], device: device, drive: nil, openShow: nil) }
         #expect(exists(device, "\(show)/Show.json"))
         #expect(!exists(device, "\(show)/Take 01") && !exists(device, "\(show)/Take 03"))
     }
 
     @Test("The recorder refuses during a Take and for the open Show, and deletes through the Drive when it is there")
-    func recorderDelete() throws {
-        let recorder = try threeTakes()
+    func recorderDelete() async throws {
+        let recorder = try await threeTakes()
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         try recorder.startTake()   // a new Show, now open and recording
         #expect(recorder.deleteTake(2, ofShow: show, from: [.device, .drive]).deleted.isEmpty, "during a Take")
-        try recorder.stopTake()
+        try await recorder.stopTake()
         let open = try #require(recorder.currentShow?.name)
         #expect(recorder.deleteTake(1, ofShow: open, from: [.device]).deleted.isEmpty, "the open Show")
 

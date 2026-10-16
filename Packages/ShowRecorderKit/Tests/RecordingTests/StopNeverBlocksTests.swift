@@ -51,7 +51,7 @@ struct StopNeverBlocksTests {
         try await Task.sleep(for: .milliseconds(100))
 
         let started = ContinuousClock.now
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(ContinuousClock.now - started < .seconds(2), "Stop waited on the stuck Drive")
         #expect(!recorder.isRecording)
         #expect(recorder.copies[.drive] == .hasGaps)
@@ -131,7 +131,7 @@ struct StopNeverBlocksTests {
         let showFile = drive.appending(path: "\(show)/Show.json")
         let before = try Data(contentsOf: showFile)
 
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(recorder.copies[.drive] == .hasGaps)
         #expect(try Data(contentsOf: showFile) == before, "Stop wrote the abandoned Drive's Show.json")
         gate.open()
@@ -148,7 +148,7 @@ struct StopNeverBlocksTests {
         let take = drive.appending(path: "\(show)/Take 01")
         let before = try Data(contentsOf: take.appending(path: "Take.json"))
 
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(try Data(contentsOf: take.appending(path: "Take.json")) == before, "Stop wrote the abandoned Drive's Take.json")
         gate.open()
         await recorder.waitForRepair()
@@ -166,7 +166,7 @@ struct StopNeverBlocksTests {
 
         // Stop returns while the Drive hangs on its Take.json.
         let started = ContinuousClock.now
-        try recorder.stopTake()
+        try await recorder.stopTake()
         // A write on the main thread would hold Stop for `hangGuard`.
         #expect(ContinuousClock.now - started < .seconds(30), "Stop waited on the abandoned Drive's Take.json")
         gate.open()
@@ -189,7 +189,7 @@ struct StopNeverBlocksTests {
         try await Task.sleep(for: .milliseconds(100))
         asked.urls = []
 
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(!asked.urls.contains { $0.path.hasPrefix(drive.path) }, "asked the abandoned Drive for its free space")
         gate.open()
         await recorder.waitForRepair()
@@ -220,7 +220,7 @@ struct StopNeverBlocksTests {
 
         // One after the other, two stuck Copies hold Stop for at least 6 s; at once, about 3 s.
         let started = ContinuousClock.now
-        try recorder.stopTake()
+        try await recorder.stopTake()
         let elapsed = ContinuousClock.now - started
         #expect(elapsed >= .seconds(3), "Stop didn't wait on the stuck Copies")
         #expect(elapsed < .seconds(5), "Stop waited on the stuck Copies one after the other")
@@ -248,7 +248,7 @@ struct StopNeverBlocksTests {
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
         try await Task.sleep(for: .milliseconds(100))
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         #expect(FileManager.default.fileExists(atPath: device.appending(path: "\(show)/Report.html").path))
         #expect(FileManager.default.fileExists(atPath: device.appending(path: "\(show)/\(show).RPP").path))
@@ -277,10 +277,10 @@ struct StopNeverBlocksTests {
         audio.deliver([Array(repeating: 0.2, count: 4_800)])
         try await waitUntil { recorder.bufferedFrameCount == 0 }
         available.folder = drive
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         audio.deliver([Array(repeating: 0.2, count: 4_800)])
         try await waitUntil { recorder.bufferedFrameCount == 0 }
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         // Take 2 starts before that Repair is done; its end must not write the report mid-Take.
         try recorder.startTake()
@@ -289,7 +289,7 @@ struct StopNeverBlocksTests {
         await recorder.waitForRepair()
         #expect(!FileManager.default.fileExists(atPath: report.path), "written during Take 2")
 
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         #expect(FileManager.default.fileExists(atPath: report.path))
         #expect(FileManager.default.fileExists(atPath: device.appending(path: "\(show)/\(show).RPP").path))

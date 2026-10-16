@@ -38,20 +38,21 @@ struct PreRollFillTests {
     }
 
     @Test("Moving to a device with a different format empties it; the same format keeps it")
-    func deviceChange() throws {
+    func deviceChange() async throws {
         let first = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root, preRollSeconds: 1)
         try recorder.arm(first)
         deliver(5_000, to: first, block: 480, sample: Self.value)
 
         let same = FakeAudioDevice(inputChannelCount: 2)
-        #expect(try recorder.restartInput(on: same))
+        #expect(try await recorder.restartInput(on: same))
         #expect(try #require(recorder.armedPreRoll).totalWrittenFrames == 5_000)
         deliver(1_000, from: 5_000, to: same, block: 480, sample: Self.value)
         #expect(try #require(recorder.armedPreRoll).totalWrittenFrames == 6_000)
 
         let different = FakeAudioDevice(inputChannelCount: 4)
-        #expect(try !recorder.restartInput(on: different))
+        let continuedOnDifferent = try await recorder.restartInput(on: different)
+        #expect(!continuedOnDifferent)
         let buffer = try #require(recorder.armedPreRoll)
         #expect(buffer.channelCount == 4)
         #expect(buffer.totalWrittenFrames == 0)
@@ -72,14 +73,14 @@ struct PreRollFillTests {
     }
 
     @Test("The buffer keeps filling during a Take")
-    func fillsDuringTake() throws {
+    func fillsDuringTake() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root, preRollSeconds: 1)
         try recorder.arm(device)
         deliver(2_000, to: device, block: 480, sample: Self.value)
         try recorder.startTake()
         deliver(3_000, from: 2_000, to: device, block: 480, sample: Self.value)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(try #require(recorder.armedPreRoll).totalWrittenFrames == 5_000)
     }
 }

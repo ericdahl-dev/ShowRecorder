@@ -31,7 +31,7 @@ struct NameLimitTests {
     }
 
     @Test("A Marker name is cut to the limit when it is added or renamed")
-    func longMarkerName() throws {
+    func longMarkerName() async throws {
         let root = FileManager.default.temporaryDirectory.appending(path: "NameLimitTests-\(UUID().uuidString)")
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 1)
@@ -44,6 +44,6 @@ struct NameLimitTests {
         recorder.addMarker()
         _ = recorder.renameMarker(at: 1, to: String(repeating: "é", count: 500))
         #expect(recorder.takeMarkers.last?.name.utf8.count == NameLimit.maxBytes)
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 }

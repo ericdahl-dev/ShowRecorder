@@ -90,7 +90,7 @@ extension DriveOnlyTakeTests {
         #expect(latch())
         #expect(await recorder.moveDriveOnlyTakes().isEmpty, "no move starts during a Take")
         try await deliverBlocks(2, to: audio, recorder)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         #expect(latch(), "a stop is never taken back")
         #expect(!recorder.moveStop.latch()(), "a move started now isn't stopped")
@@ -105,7 +105,7 @@ extension DriveOnlyTakeTests {
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         let summary = CopySummary.ofLastTake(recorder.copies, dropoutCount: 0)?.text
         #expect(summary == "Drive copy: complete")

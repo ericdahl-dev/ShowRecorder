@@ -35,7 +35,8 @@ extension RecordScreenModel {
             },
             stop: { [weak self] in
                 guard let self, recorder.isRecording else { return false }
-                stop()
+                // The reply is "stopped", as before; the Stop itself finishes after it.
+                Task { await stop() }
                 return true
             },
             marker: { [weak self] in

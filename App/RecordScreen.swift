@@ -151,11 +151,13 @@ struct RecordScreen: View {
             switch phase {
             case .active:
                 model.screenBecameActive()
-                model.handle(.becameActive)
-                model.drive.refresh()
+                Task {
+                    await model.handle(.becameActive)
+                    model.drive.refresh()
+                }
             case .background:
                 model.screenBecameIdle()
-                model.handle(.movedToBackground)
+                Task { await model.handle(.movedToBackground) }
             default: break
             }
         }
@@ -178,7 +180,7 @@ struct RecordScreen: View {
         }
         #endif
         .confirmationDialog("Stop \(model.takeTitle)?", isPresented: $model.confirmingStop, titleVisibility: .visible) {
-            Button("Stop Take", role: .destructive) { model.stop() }
+            Button("Stop Take", role: .destructive) { Task { await model.stop() } }
             Button("Keep Going", role: .cancel) {}
         }
         // A Take the recorder ended by itself (out of space, no Destination) takes the question with it, so it
@@ -272,7 +274,7 @@ struct RecordScreen: View {
     @ViewBuilder private func recordButton(size: CGFloat) -> some View {
         if model.recorder.isRecording, TakeStopStyle.current(isIOS: isIOS) == .hold {
             // Hold to stop (#753): no dialog. A tap only shows the hint.
-            HoldToStopRecordButton(size: size, label: "Stop \(model.takeTitle)", stop: { model.stop() }, hint: { model.showStopHint() })
+            HoldToStopRecordButton(size: size, label: "Stop \(model.takeTitle)", stop: { Task { await model.stop() } }, hint: { model.showStopHint() })
         } else {
             Button {
                 if model.recorder.isRecording {
@@ -984,9 +986,11 @@ final class RecordScreenModel {
         case .checkDrive:
             // Look again now, and say so if it's still not there.
             drive.refresh()
-            recorder.checkDestinations()
-            refreshDestinations()
-            driveCheckedAndNotFound = takeCopies[.drive] == .interrupted
+            Task { [self] in
+                await recorder.checkDestinations()
+                refreshDestinations()
+                driveCheckedAndNotFound = takeCopies[.drive] == .interrupted
+            }
         }
     }
 
@@ -1004,7 +1008,7 @@ final class RecordScreenModel {
         case .device: break
         case .drive:
             drive.refresh()
-            recorder.checkDestinations()
+            Task { [self] in await recorder.checkDestinations() }
         case .mixer:
             Task { await mixer.retry() }
         }
@@ -1110,9 +1114,9 @@ final class RecordScreenModel {
         UserDefaults.standard.set(transportLeading, forKey: Self.transportLeadingKey)
     }
 
-    func stop() {
+    func stop() async {
         clearStopHint()
-        sequencer.stop()
+        await sequencer.stop()
     }
 
     func clearStopHint() {
@@ -1539,7 +1543,7 @@ final class RecordScreenModel {
             guard Self.isRouteInput(selectedDeviceID) else { continue }
             // Whatever iOS just routed to is now the selection; re-arming must not pull it back.
             selectCurrentRouteInput()
-            sequencer.routeChanged()
+            await sequencer.routeChanged()
         }
     }
 
@@ -1570,13 +1574,13 @@ final class RecordScreenModel {
             // One plug or unplug arrives as a burst of notifications; let it settle first.
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
-            applyDeviceListChange()
+            await applyDeviceListChange()
         }
     }
 
     /// Re-reads the device list; the `TakeSequencer` keeps, switches, re-Arms or disarms as `InputDeviceChange` decides.
-    private func applyDeviceListChange() {
-        sequencer.deviceListChanged()
+    private func applyDeviceListChange() async {
+        await sequencer.deviceListChanged()
     }
     #endif
 

@@ -28,11 +28,11 @@ struct DropoutCountTests {
         #expect(recorder.dropoutCount == 0)
 
         try await recordWithADropout(recorder, on: device)
-        try await waitUntil { recorder.checkDestinations(); return recorder.dropoutCount == 1 }
+        try await waitUntilAsync { await recorder.checkDestinations(); return recorder.dropoutCount == 1 }
         #expect(recorder.dropoutCount == 1)
         #expect(recorder.markerEntries.map(\.kind) == [.dropout])
         #expect(recorder.markerEntries.map(\.isDropout) == [true])
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("The operator's Marker count doesn't include Dropout Markers")
@@ -41,12 +41,12 @@ struct DropoutCountTests {
         let recorder = Recorder(deviceFolder: root, destinationCheckInterval: nil)
         try recorder.arm(device)
         try await recordWithADropout(recorder, on: device)
-        try await waitUntil { recorder.checkDestinations(); return recorder.dropoutCount == 1 }
+        try await waitUntilAsync { await recorder.checkDestinations(); return recorder.dropoutCount == 1 }
 
         recorder.addMarker()
         #expect(recorder.takeMarkers.count == 1)
         #expect(recorder.takeMarkers.first?.origin == .operator)
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("The count stays after the Take ends and starts again at zero for the next one")
@@ -55,11 +55,11 @@ struct DropoutCountTests {
         let recorder = Recorder(deviceFolder: root, destinationCheckInterval: nil)
         try recorder.arm(device)
         try await recordWithADropout(recorder, on: device)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(recorder.dropoutCount == 1)
 
         try recorder.startTake()
         #expect(recorder.dropoutCount == 0)
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 }

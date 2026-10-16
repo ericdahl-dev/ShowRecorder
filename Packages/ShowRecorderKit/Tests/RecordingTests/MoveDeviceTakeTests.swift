@@ -30,7 +30,7 @@ extension DriveOnlyTakeTests {
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         switched.connected = true
         return recorder
@@ -67,9 +67,9 @@ extension DriveOnlyTakeTests {
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         switched.connected = true
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await deliverBlocks(10, from: 4_800, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         #expect(try TakeMetadata.read(fromTakeFolder: drive.appending(path: take)).outcome(ofCopy: .drive) == .repaired)
         #expect(try StemWriter.readSamples(url: device.appending(path: "\(take)/01 USB 01.wav"), frames: 0..<9_600) == (0..<9_600).map { counting()($0, 0) })
@@ -116,13 +116,13 @@ extension DriveOnlyTakeTests {
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         switched.connected = false
         recorder.recordsToDriveOnly = true
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         switched.connected = true
         let twoCopies = device.appending(path: take)

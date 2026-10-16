@@ -27,7 +27,7 @@ struct MarkerListTests {
 
 
     @Test("Each Marker is listed with its time in the Take, its name and its index among the operator's Markers")
-    func listsMarkers() throws {
+    func listsMarkers() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
         try recorder.arm(audio)
@@ -41,7 +41,7 @@ struct MarkerListTests {
         #expect(recorder.markerEntries.map(\.name) == ["Marker 1", "Chorus"])
         #expect(recorder.markerEntries.map(\.seconds) == [0.1, 0.15])
         #expect(recorder.markerEntries.map(\.operatorIndex) == [0, 1])
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
 
@@ -54,14 +54,14 @@ struct MarkerListTests {
         audio.deliver([Array(repeating: 0, count: 4_800)])
         audio.deliver([Array(repeating: 0, count: 300_000)])  // more than a ring holds: dropped
         audio.deliver([Array(repeating: 0, count: 480)])
-        try await waitUntil { recorder.checkDestinations(); return recorder.dropoutCount == 1 }
+        try await waitUntilAsync { await recorder.checkDestinations(); return recorder.dropoutCount == 1 }
         recorder.addMarker()
 
         #expect(recorder.markerEntries.map(\.name) == ["Dropout", "Marker 1"])
         #expect(recorder.markerEntries.map(\.operatorIndex) == [nil, 0])
         #expect(recorder.markerEntries.first?.isDropout == true)
         #expect(recorder.markerEntries.first?.seconds == 0.1)
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("A Dropout appears in the list as soon as the recorder notices it, not when the next Marker is placed")
@@ -73,14 +73,14 @@ struct MarkerListTests {
         audio.deliver([Array(repeating: 0, count: 4_800)])
         audio.deliver([Array(repeating: 0, count: 300_000)])
         audio.deliver([Array(repeating: 0, count: 480)])
-        try await waitUntil { recorder.checkDestinations(); return recorder.dropoutCount == 1 }
+        try await waitUntilAsync { await recorder.checkDestinations(); return recorder.dropoutCount == 1 }
 
         #expect(recorder.markerEntries.map(\.name) == ["Dropout"])
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("The list stays after the Take, with a Dropout noticed only at the end, and clears when the next Take starts")
-    func staysAfterTheTake() throws {
+    func staysAfterTheTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
         try recorder.arm(audio)
@@ -89,12 +89,12 @@ struct MarkerListTests {
         recorder.addMarker()
         audio.deliver([Array(repeating: 0, count: 300_000)])  // dropped, and nothing has looked since
         audio.deliver([Array(repeating: 0, count: 480)])
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         #expect(recorder.markerEntries.map(\.name) == ["Marker 1", "Dropout"])
         try recorder.startTake()
         #expect(recorder.markerEntries.isEmpty)
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     func names(_ copy: URL) throws -> [String] {
@@ -114,7 +114,7 @@ struct MarkerListTests {
         audio.deliver([Array(repeating: 0, count: 4_800)])
         recorder.addMarker()
         audio.deliver([Array(repeating: 0, count: 480)])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         let releasedBefore = released.count
 
@@ -142,7 +142,7 @@ struct MarkerListTests {
         try recorder.startTake()
         audio.deliver([Array(repeating: 0, count: 4_800)])
         recorder.addMarker()
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         flag.available = false
 
@@ -167,11 +167,11 @@ struct MarkerListTests {
         recorder.addMarker()
         #expect(await recorder.renameLastTakeMarker(at: 0, to: "Intro").result == .notRecording, "use renameMarker while recording")
         #expect(recorder.takeMarkers.map(\.name) == ["Marker 1"])
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("With Pre-roll, a Marker's time since Record was pressed is its audio time minus the Pre-roll")
-    func timeSincePress() throws {
+    func timeSincePress() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let drive = drive
         let recorder = Recorder(
@@ -187,11 +187,11 @@ struct MarkerListTests {
         #expect(entry.seconds == 1.1, "from the start of the audio, as in the files")
         #expect(entry.secondsSincePress == 0.1, "from the press, as on the screen's timer")
         #expect(recorder.takePreRollSeconds == 1)
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("Without Pre-roll the two times are the same")
-    func noPreRollSameTimes() throws {
+    func noPreRollSameTimes() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
         try recorder.arm(audio)
@@ -200,6 +200,6 @@ struct MarkerListTests {
         recorder.addMarker()
         #expect(recorder.markerEntries.first?.secondsSincePress == recorder.markerEntries.first?.seconds)
         #expect(recorder.takePreRollSeconds == 0)
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 }

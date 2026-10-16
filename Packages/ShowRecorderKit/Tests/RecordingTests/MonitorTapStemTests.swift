@@ -17,7 +17,7 @@ struct MonitorTapStemTests {
         try recorder.arm(wrap(device))
         try recorder.startTake()
         try await deliver(9_600, to: device, recorder) { frame, channel in Float(frame % 97) / 97 - Float(channel) * 0.5 }
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         let take = root.appending(path: "2026-10-06 Show/Take 01")
         let stems = try FileManager.default.contentsOfDirectory(atPath: take.path).filter { $0.hasSuffix(".wav") }.sorted()

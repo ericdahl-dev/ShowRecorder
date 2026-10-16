@@ -32,10 +32,10 @@ struct SampleRateTakeTests {
         audio.deliver([Array(repeating: 0.25, count: half), Array(repeating: 0.5, count: half)])
         try await waitUntil { recorder.bufferedFrameCount == 0 }
         available.folder = drive
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         audio.deliver([Array(repeating: 0.25, count: half), Array(repeating: 0.5, count: half)])
         try await waitUntil { recorder.bufferedFrameCount == 0 }
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         for parent in [device, drive] {

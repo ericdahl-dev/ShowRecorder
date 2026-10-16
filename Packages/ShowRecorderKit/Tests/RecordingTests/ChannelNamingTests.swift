@@ -113,7 +113,7 @@ struct ChannelNamingTests {
         try recorder.arm(audio)
         try recorder.startTake()
         audio.deliver([[0.1], [0.1]])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         recorder.setChannelName("Bass", forChannel: 1)
         recorder.setChannelName("Keys", forChannel: 2)
 
@@ -123,7 +123,7 @@ struct ChannelNamingTests {
         #expect(ShowFile.read(from: root.appending(path: "2026-10-06 Show"))?.channelNames == ["2": "Keys"])
         try recorder.startTake()
         audio.deliver([[0.1], [0.1]])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         #expect(FileManager.default.fileExists(atPath: root.appending(path: "2026-10-06 Show/Take 02/01 USB 01.wav").path))
         #expect(FileManager.default.fileExists(atPath: root.appending(path: "2026-10-06 Show/Take 02/02 Keys.wav").path))

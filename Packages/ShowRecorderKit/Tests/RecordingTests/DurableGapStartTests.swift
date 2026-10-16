@@ -100,9 +100,9 @@ extension GapTests {
         // Past the commit the file holds garbage, which the rejoin must cut off.
         #expect(try driveSamplesOnDisk("01 USB 01.wav") >= appended)
 
-        try await waitUntil { recorder.checkDestinations(); return lossy.driveResumes.count == 2 }
+        try await waitUntilAsync { await recorder.checkDestinations(); return lossy.driveResumes.count == 2 }
         try await deliver(4800, from: 144_000, to: audio, recorder, block: 480, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(lossy.driveResumes.last == committed)
@@ -126,7 +126,7 @@ extension GapTests {
         try await waitUntil { recorder.copies[.drive] == .interrupted }
         let committed = try #require(lossy.stem).committedFrameCount
         #expect(committed > 0)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         let gaps = try decodedTake(device).gaps
@@ -151,9 +151,9 @@ extension GapTests {
         let committed = lossy.stems.map(\.committedFrameCount)
         #expect(committed[0] > committed[1])
 
-        try await waitUntil { recorder.checkDestinations(); return lossy.driveResumes.count == 4 }
+        try await waitUntilAsync { await recorder.checkDestinations(); return lossy.driveResumes.count == 4 }
         try await deliver(4800, from: 144_000, to: audio, recorder, block: 480, sample: counting(channelStep: 100_000))
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(Array(lossy.driveResumes.suffix(2)) == committed.map { Optional($0) })
@@ -189,7 +189,7 @@ extension GapTests {
         try await waitUntil { recorder.copies[.device] == .interrupted }
         let stem = try #require(keeping.stem)
         #expect(stem.committedFrameCount < stem.frameCount)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         let gaps = try decodedTake(drive).gaps

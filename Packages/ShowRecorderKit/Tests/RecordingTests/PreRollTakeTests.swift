@@ -50,7 +50,7 @@ struct PreRollTakeTests {
 
         try recorder.startTake()
         try await deliver(1_000, from: 144_000, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         for (index, name) in ["01 USB 01.wav", "02 USB 02.wav"].enumerated() {
             let stem = try ParsedStem(contentsOf: take01(device).appending(path: name))
@@ -67,7 +67,7 @@ struct PreRollTakeTests {
 
         try recorder.startTake()
         try await deliver(1_000, from: 24_000, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let stem = try ParsedStem(contentsOf: take01(device).appending(path: "01 USB 01.wav"))
         #expect(stem.samples == (0..<25_000).map { Int32($0) })
@@ -81,7 +81,7 @@ struct PreRollTakeTests {
         try await deliver(24_000, from: 0, to: audio, recorder, sample: counting())
         try recorder.startTake()
         try await deliver(1_000, from: 24_000, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let stem = try ParsedStem(contentsOf: take01(device).appending(path: "01 USB 01.wav"))
         #expect(stem.samples == (24_000..<25_000).map { Int32($0) })
@@ -96,7 +96,7 @@ struct PreRollTakeTests {
         try await deliver(96_000, from: 0, to: audio, recorder, sample: counting())
         try recorder.startTake()
         try await deliver(480, from: 96_000, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         // 21:30:00 is 77,400 s after midnight; the Pre-roll is the 48,000 frames before it.
         let atPress: UInt64 = 77_400 * 48_000
@@ -118,7 +118,7 @@ struct PreRollTakeTests {
         try await deliver(960, from: 48_000, to: audio, recorder, sample: counting())
         recorder.addMarker()
         try await deliver(480, from: 48_960, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         #expect(recorder.takeMarkers.map(\.position) == [48_000 + 960])
     }
@@ -133,7 +133,7 @@ struct PreRollTakeTests {
         recorder.preRollSeconds = 0.5
         try recorder.startTake()
         try await deliver(480, from: 96_000, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         let shorter = try ParsedStem(contentsOf: take01(device).appending(path: "01 USB 01.wav"))
         #expect(shorter.samples == (72_000..<96_480).map { Int32($0) })
         #expect(try decodedTake(device).preRollFrames == 24_000)
@@ -149,7 +149,7 @@ struct PreRollTakeTests {
         recorder.preRollSeconds = 15
         try recorder.startTake()
         try await deliver(480, from: 240_000, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         // The buffer holds 2 s and keeps 1 s as margin, so a Take gets at most 1 s.
         #expect(try decodedTake(device).preRollFrames == 48_000)
     }
@@ -163,7 +163,7 @@ struct PreRollTakeTests {
         recorder.preRollSeconds = 0
         try recorder.startTake()
         try await deliver(480, from: 48_000, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(try decodedTake(device).preRollFrames == nil)
         #expect(try ParsedStem(contentsOf: take01(device).appending(path: "01 USB 01.wav")).samples == (48_000..<48_480).map { Int32($0) })
     }
@@ -179,9 +179,9 @@ struct PreRollTakeTests {
         try await deliver(2_400, from: 48_000, to: audio, recorder, sample: counting())
 
         available.value = true
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await deliver(2_400, from: 50_400, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         let deviceStem = try Data(contentsOf: take01(device).appending(path: "01 USB 01.wav"))
@@ -199,7 +199,7 @@ struct PreRollTakeTests {
         try recorder.arm(audio)
         try await deliver(48_000, from: 0, to: audio, recorder, sample: counting())
         try recorder.startTake()
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(try decodedTake(device).gaps.isEmpty)
