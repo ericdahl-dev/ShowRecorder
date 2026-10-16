@@ -133,11 +133,20 @@ final class SampleRing: @unchecked Sendable {
     }
 
     /// Consumer: hands up to `maxFrames` of each channel to `body` (in up to two contiguous pieces)
-    /// and then releases them. Returns the number of frames consumed.
+    /// and then releases them. Returns the number of frames consumed. Never reads past the next drop, even when audio
+    /// has been stored after the drop since the caller last looked at it: its silence belongs where it fell (#734).
     @discardableResult
     func consume(maxFrames: Int, _ body: (_ channel: Int, _ samples: UnsafeBufferPointer<Float>) throws -> Void) rethrows -> Int {
         let start = read.load(ordering: .relaxed)
-        let frames = min(maxFrames, written.load(ordering: .acquiring) - start)
+        // `written` first: a drop at or before it was logged before the audio that follows it was stored, so it is seen.
+        var end = written.load(ordering: .acquiring)
+        let nextDropIndex = dropsRead.load(ordering: .relaxed)
+        if nextDropIndex < dropsLogged.load(ordering: .acquiring) {
+            let fell = dropStorage[(nextDropIndex % dropCapacity) * 2]
+            // `max` is only defensive: a drop before `start` has audio after it, so the writer has already taken it.
+            if fell < end { end = max(fell, start) }
+        }
+        let frames = min(maxFrames, end - start)
         guard frames > 0 else { return 0 }
         let offset = start % capacity
         let first = min(frames, capacity - offset)
