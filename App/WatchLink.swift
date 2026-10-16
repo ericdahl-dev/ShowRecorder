@@ -92,6 +92,11 @@ extension WatchLink: WCSessionDelegate {
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any],
                              replyHandler: @escaping ([String: Any]) -> Void) {
         let reply = ReplyHandler(send: replyHandler)
+        if WatchStatusRequest.isRequest(message) {
+            // The watch asking what is true now: answer with the status and the time now. Nothing else happens.
+            Task { @MainActor in reply.send(self.status().message) }
+            return
+        }
         guard let command = try? WatchCommand(message: message) else {
             reply.send(WatchReply.refused(WatchReply.updateText).message)
             return

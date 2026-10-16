@@ -42,6 +42,15 @@ final class WatchSessionLink: NSObject, WatchLinkTransport {
         session.sendMessage(command.message, replyHandler: relay.replied, errorHandler: relay.failed)
     }
 
+    func requestStatus(reply: @escaping @MainActor (WatchStatus?) -> Void) {
+        guard let session, isReachable else {
+            reply(nil)
+            return
+        }
+        let relay = WatchStatusRelay(reply: reply)
+        session.sendMessage(WatchStatusRequest.message, replyHandler: relay.replied, errorHandler: relay.failed)
+    }
+
     fileprivate func receivedContext(_ status: WatchStatus) {
         model.received(status)
     }
