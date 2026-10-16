@@ -128,7 +128,7 @@ struct RecordScreen: View {
         .sheet(isPresented: $showingAutoGain) { AutoGainSheet(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingTrialOffer) { TrialSheet(store: model.pro).modifier(AppearanceRoot(mode: model.appearance)) }
         .sheet(isPresented: $showingTrialStatus) { TrialStatusSheet(store: model.pro).modifier(AppearanceRoot(mode: model.appearance)) }
-        .sheet(item: $shownPaywall) { request in PaywallSheet(store: model.pro, moment: request.moment).modifier(AppearanceRoot(mode: model.appearance)) }
+        .sheet(item: $shownPaywall) { request in PaywallSheet(store: model.pro, moment: request.moment, mixerModel: model.mixer.identity?.model).modifier(AppearanceRoot(mode: model.appearance)) }
         // The first-launch Trial offer: once, when the Pro price has loaded, never during a Take and never over another
         // sheet. A paywall that came due waits for other sheets too: presenting over Settings closed both (#357).
         .onChange(of: model.pro.proProduct?.displayPrice, initial: true) { _, _ in presentWaitingSheet() }
@@ -1046,6 +1046,7 @@ final class RecordScreenModel {
         mixerGain.makeProtection = { [weak self] queue in self?.makeClipProtection(queue: queue) }
         mixerGain.takeAllowance = { [weak self] in self?.recorder.takeAllowance }
         mixerGain.allowsAutoGain = { [weak self] in self?.pro.license().allowsAutoGain ?? true }
+        pro.armedFamily = { [weak self] in self?.armedFamily }
         followTakes()
         sequencer.didArm = { [unowned self] device in
             #if DEBUG && os(iOS)
