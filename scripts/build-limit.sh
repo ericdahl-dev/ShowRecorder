@@ -25,6 +25,8 @@ if [ -n "$record" ] && [ -f "$record" ]; then
   fi
   rm -f "$record"
 fi
+# With no command, only that: build-lock.sh checks each free slot this way before a build takes one.
+[ $# -gt 0 ] || exit 0
 minutes=${SHOWRECORDER_BUILD_TIMEOUT:-20}
 seconds=$(awk -v m="$minutes" 'BEGIN { s = m * 60; if (m ~ /^[0-9]*\.?[0-9]+$/ && s >= 1) printf "%d", s + 0.5 }')
 if [ -z "$seconds" ]; then

@@ -164,6 +164,12 @@ done
 out=$(VERIFY_QUICK=0 SHOWRECORDER_BUILD_JOBS=6 VERIFY_FILES="Packages/ShowRecorderKit/Sources/Recording/AutoGainSession.swift" ./scripts/verify.sh 2>&1) || true
 expect "verify.sh's package tests get N/3 (args: $(cat "$work/args"))" grep -q "^swift test -j 2 --parallel\$" "$work/args"
 expect "verify.sh's app builds get N/3 each" [ "$(grep -c -- "-jobs 2\$" "$work/args")" = 2 ]
+# Each of verify.sh's builds gets at least 2 jobs: by default, 2 slots on this Mac, N / 3 can be 1.
+: > "$work/args"
+out=$(env -u SHOWRECORDER_BUILD_JOBS SHOWRECORDER_BUILD_SLOTS=2 VERIFY_QUICK=0 \
+  VERIFY_FILES="Packages/ShowRecorderKit/Sources/Recording/AutoGainSession.swift" ./scripts/verify.sh 2>&1) || true
+expect "verify.sh's package tests get at least 2 jobs (args: $(cat "$work/args"))" grep -q "^swift test -j 2 --parallel\$" "$work/args"
+expect "verify.sh's app builds get at least 2 jobs each" [ "$(grep -c -- "-jobs 2\$" "$work/args")" = 2 ]
 
 # 7. A build that holds the lock past the time limit (#578) is stopped, its whole process group, says why, and the
 #    lock is free again. SHOWRECORDER_BUILD_TIMEOUT is minutes; 0.05 is 3 s.

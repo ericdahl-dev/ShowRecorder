@@ -44,7 +44,7 @@ build_lock_exec() {
   # The build runs under a time limit (scripts/build-limit.sh, #578), so a hung one can't hold every other build up.
   limit=$(CDPATH= cd -P -- "$(dirname -- "$0")/.." 2>/dev/null && pwd -P)/build-limit.sh
   [ -x "$limit" ] || limit=$(git rev-parse --show-toplevel 2>/dev/null)/scripts/build-limit.sh
-  # The first free slot. Each free slot is probed holding its lock, with build-limit.sh running only `true`: that stops
+  # The first free slot. Each free slot is probed holding its lock, with build-limit.sh and no command: that stops
   # a build left running on that slot by a force-killed build-limit.sh (#608), whichever slot this build then takes,
   # and never a live one, whose slot is locked. A probe never exits 75 itself, so its 75 (lockf's "already locked")
   # always means taken, and the build's own exit status passes through the lockf below untouched. lockf's own
@@ -60,7 +60,7 @@ build_lock_exec() {
       slot_probe=0
       if [ -x "$limit" ]; then
         lockf -k -t 0 "$slot_file" env SHOWRECORDER_BUILD_RECORD="$slot_file.build" \
-          sh -c 'exec "$0" true 2>&3' "$limit" 3>&2 2>/dev/null || slot_probe=$?
+          sh -c 'exec "$0" 2>&3' "$limit" 3>&2 2>/dev/null || slot_probe=$?
       else
         lockf -k -t 0 "$slot_file" true 2>/dev/null || slot_probe=$?
       fi
