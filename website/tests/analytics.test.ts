@@ -136,13 +136,19 @@ describe("named click events", () => {
     expect(click({ "data-track": "contact_email_clicked" }, "/", false)).toEqual([]);
   });
 
-  it("only uses the five named events", () => {
+  it("sends the event named on a button, such as Chat with us", () => {
+    expect(click({ "data-track": "chat_opened" }, "/support")).toEqual([["chat_opened", { path: "/support" }]]);
+    expect(clickTrackingScript()).toContain('closest("a, button[data-track]")');
+  });
+
+  it("only uses the six named events", () => {
     expect([...TRACK_EVENTS]).toEqual([
       "join_beta_clicked",
       "app_store_clicked",
       "compare_viewed_cta",
       "contact_email_clicked",
       "mixer_page_cta_clicked",
+      "chat_opened",
     ]);
   });
 
@@ -151,7 +157,7 @@ describe("named click events", () => {
     const badge = read("components", "AppStoreBadge.tsx");
     expect(badge).toMatch(/trackAttrs\("app_store_clicked"/);
     expect(badge).toMatch(/trackAttrs\("join_beta_clicked"/);
-    for (const file of [["components", "Footer.tsx"], ["components", "GetBand.tsx"], ["app", "features", "page.tsx"], ["app", "support", "page.mdx"], ["app", "privacy", "page.mdx"]]) {
+    for (const file of [["components", "Footer.tsx"], ["components", "GetBand.tsx"], ["app", "features", "page.tsx"], ["app", "support", "page.mdx"], ["app", "privacy", "page.mdx"], ["components", "ChatButton.tsx"]]) {
       const mailto = read(...file).split("\n").filter((l) => l.includes("mailto:"));
       for (const line of mailto) expect(line).toMatch(/contact_email_clicked/);
     }
