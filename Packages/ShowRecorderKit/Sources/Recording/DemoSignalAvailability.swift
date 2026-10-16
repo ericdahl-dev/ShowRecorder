@@ -37,7 +37,7 @@ public enum DemoSignalAvailability {
     }
 
     /// The environment `resolveEnvironment()` has found so far; nil before it has answered.
-    static var environment: DistributionEnvironment? { resolved.environment }
+    public static var environment: DistributionEnvironment? { resolved.environment }
 
     /// The answer for the running app, from what `resolveEnvironment()` has found so far.
     public static var isAvailableInThisBuild: Bool {
