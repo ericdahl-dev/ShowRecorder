@@ -182,7 +182,7 @@ struct RecordScreen: View {
         // A Take the recorder ended by itself (out of space, no Destination) takes the question with it, so it
         // never offers "Keep Going" with nothing recording (#322).
         .onChange(of: model.recorder.isRecording) { _, recording in
-            if !recording { model.confirmingStop = false }
+            if !recording { model.confirmingStop = false; model.clearStopHint() }
         }
     }
 
@@ -258,19 +258,33 @@ struct RecordScreen: View {
         .padding(.vertical, 8)
     }
 
-    private func recordButton(size: CGFloat) -> some View {
-        Button {
-            if model.recorder.isRecording {
-                model.confirmingStop = true
-            } else {
-                model.record()
+    /// Hold to stop is for the iPhone only (#753): the iPad and the Mac keep tap and confirm.
+    private var isPhone: Bool {
+        #if os(iOS)
+        UIDevice.current.userInterfaceIdiom == .phone
+        #else
+        false
+        #endif
+    }
+
+    @ViewBuilder private func recordButton(size: CGFloat) -> some View {
+        if model.recorder.isRecording, TakeStopStyle.current(isPhone: isPhone) == .hold {
+            // Hold to stop (#753): no dialog. A tap only shows the hint.
+            HoldToStopRecordButton(size: size, label: "Stop \(model.takeTitle)", stop: { model.stop() }, hint: { model.showStopHint() })
+        } else {
+            Button {
+                if model.recorder.isRecording {
+                    model.confirmingStop = true
+                } else {
+                    model.record()
+                }
+            } label: {
+                RecordButtonLabel(isRecording: model.recorder.isRecording, size: size)
             }
-        } label: {
-            RecordButtonLabel(isRecording: model.recorder.isRecording, size: size)
+            .buttonStyle(.plain)
+            .disabled(!model.recorder.isArmed)
+            .accessibilityLabel(model.recorder.isRecording ? "Stop \(model.takeTitle)" : "Record")
         }
-        .buttonStyle(.plain)
-        .disabled(!model.recorder.isArmed)
-        .accessibilityLabel(model.recorder.isRecording ? "Stop \(model.takeTitle)" : "Record")
     }
 
     /// Always in place, dimmed when no Take is running, so Record never shifts under the thumb.
@@ -374,7 +388,9 @@ struct RecordScreen: View {
 
     private var markerPlacedText: String {
         // On Free a Take keeps 3 Markers (#705); a press past them places nothing, and this line says why.
-        guard let last = model.recorder.takeMarkers.last, model.recorder.isRecording else { return " " }
+        guard model.recorder.isRecording else { return " " }
+        if model.stopHintShown { return "Hold to stop" }
+        guard let last = model.recorder.takeMarkers.last else { return " " }
         if model.recorder.markerLimitReached { return "\(last.name) placed · \(Entitlement.freeMarkerLimit) per Take on Free" }
         return "\(last.name) placed"
     }
@@ -448,7 +464,10 @@ struct RecordScreen: View {
             // This spacer takes the slack and the note truncates first, so Marker and Record stay put when the note comes and goes.
             Spacer(minLength: 8)
             markerButton(size: 64)
-            Color.clear.frame(height: 24)
+            // The same 24 pt gap: the hint takes its place, so nothing moves and the meters keep their height.
+            Text(model.stopHintShown ? "Hold to stop" : " ")
+                .font(.caption).lineLimit(1).minimumScaleFactor(0.7).secondaryText().frame(height: 24)
+                .accessibilityHidden(!model.stopHintShown)
             recordButton(size: 64)
         }
         .frame(width: 128)
@@ -644,6 +663,9 @@ final class RecordScreenModel {
     }
     /// Whether the "Stop Take N?" question is showing. In the model so the Take menu can ask it too.
     var confirmingStop = false
+    /// The "Hold to stop" hint after a tap on the hold button (#753).
+    private(set) var stopHintShown = false
+    private var stopHintTask: Task<Void, Never>?
     /// The level meters, in their own model: they change 30 times a second, and only the meter grid reads them.
     let meterModel = MeterModel()
     private(set) var armError: String? {
@@ -1073,7 +1095,23 @@ final class RecordScreenModel {
     }
 
     func stop() {
+        clearStopHint()
         sequencer.stop()
+    }
+
+    func clearStopHint() {
+        stopHintTask?.cancel()
+        stopHintShown = false
+    }
+
+    /// "Hold to stop" for two seconds after a tap on the hold button (#753).
+    func showStopHint() {
+        stopHintShown = true
+        stopHintTask?.cancel()
+        stopHintTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            if !Task.isCancelled { self?.stopHintShown = false }
+        }
     }
 
     /// After a Take: a Free Take that went to the Device only with a Drive connected, a Free Take whose Stems got
