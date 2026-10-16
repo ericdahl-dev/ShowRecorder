@@ -1,3 +1,4 @@
+import Foundation
 @testable import Recording
 import Testing
 
@@ -59,6 +60,10 @@ struct AlertQueueTests {
 @Suite("Swiped alerts")
 struct SwipedAlertsTests {
     let battery = ScreenAlert(id: "battery", priority: .power, tone: .warning, text: "Battery 20%")
+
+    func alert(_ id: String, _ priority: ScreenAlert.Priority, tone: ScreenAlert.Tone = .warning) -> ScreenAlert {
+        ScreenAlert(id: id, priority: priority, tone: tone, text: id)
+    }
 
     @Test("A swiped warning is no longer shown")
     func swipedWarningIsHidden() {
@@ -143,5 +148,66 @@ struct SwipedAlertsTests {
         swiped.swipe(at20[0])
 
         #expect(swiped.showing(at15).isEmpty)
+    }
+
+    // MARK: - Good news fades (#758)
+
+    @Test("A green good-news banner fades 10 s after it first shows; a blue hint, which is something to do, doesn't (#758)")
+    func goodNewsFades() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let copies = alert("copies", .copyResult, tone: .ok), hint = alert("hint", .hint, tone: .info)
+        var swiped = SwipedAlerts()
+        #expect(swiped.fade([copies, hint], at: start) == start.addingTimeInterval(10))
+        #expect(swiped.fade([copies, hint], at: start.addingTimeInterval(9.9)) == start.addingTimeInterval(10))
+        #expect(swiped.showing([copies, hint]).map(\.id) == ["copies", "hint"])
+        #expect(swiped.fade([copies, hint], at: start.addingTimeInterval(10)) == nil)
+        #expect(swiped.showing([copies, hint]).map(\.id) == ["hint"], "the green one faded, as if swiped; the hint stays")
+    }
+
+    @Test("A green banner behind a warning isn't on screen, so it doesn't fade: its 10 s start once it's on top (#758)")
+    func fadesOnlyOnTop() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let copies = alert("copies", .copyResult, tone: .ok), battery = alert("battery", .power)
+        var swiped = SwipedAlerts()
+        #expect(swiped.fade([battery, copies], at: start) == nil)
+        #expect(swiped.fade([battery, copies], at: start.addingTimeInterval(60)) == nil)
+        #expect(swiped.showing([battery, copies]).map(\.id) == ["battery", "copies"], "not faded unseen")
+        swiped.swipe(battery)
+        #expect(swiped.fade([battery, copies], at: start.addingTimeInterval(61)) == start.addingTimeInterval(71))
+        #expect(swiped.fade([battery, copies], at: start.addingTimeInterval(71)) == nil)
+        #expect(swiped.showing([battery, copies]).isEmpty)
+    }
+
+    @Test("A clock set back doesn't hold a green banner past its 10 s (#758)")
+    func clockSetBack() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let copies = alert("copies", .copyResult, tone: .ok)
+        var swiped = SwipedAlerts()
+        _ = swiped.fade([copies], at: start)
+        #expect(swiped.fade([copies], at: start.addingTimeInterval(-3_600)) == start.addingTimeInterval(-3_590))
+    }
+
+    @Test("Problem banners never fade: a warning or critical alert stays until its problem is gone (#758)")
+    func problemsDontFade() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let problems = [alert("no drive", .destination), alert("cannot record", .cannotRecord, tone: .critical)]
+        var swiped = SwipedAlerts()
+        #expect(swiped.fade(problems, at: start) == nil)
+        #expect(swiped.fade(problems, at: start.addingTimeInterval(3_600)) == nil)
+        #expect(swiped.showing(problems).count == 2)
+    }
+
+    @Test("A faded banner stays away for the same event; new text is a new event and shows again, fading 10 s later (#758)")
+    func fadedStaysAway() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        var swiped = SwipedAlerts()
+        let first = ScreenAlert(id: "copies", priority: .copyResult, tone: .ok, text: "Device copy: complete")
+        _ = swiped.fade([first], at: start)
+        _ = swiped.fade([first], at: start.addingTimeInterval(10))
+        #expect(swiped.fade([first], at: start.addingTimeInterval(60)) == nil)
+        #expect(swiped.showing([first]).isEmpty)
+        let next = ScreenAlert(id: "copies", priority: .copyResult, tone: .ok, text: "Device copy: complete · Drive copy: complete")
+        #expect(swiped.showing([next]).count == 1)
+        #expect(swiped.fade([next], at: start.addingTimeInterval(70)) == start.addingTimeInterval(80))
     }
 }
