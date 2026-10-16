@@ -389,7 +389,7 @@ struct RecordScreen: View {
     private var markerPlacedText: String {
         // On Free a Take keeps 3 Markers (#705); a press past them places nothing, and this line says why.
         guard model.recorder.isRecording else { return " " }
-        if model.stopHintShown { return "Hold to stop" }
+        if model.stopHint.isShown { return "Hold to stop" }
         guard let last = model.recorder.takeMarkers.last else { return " " }
         if model.recorder.markerLimitReached { return "\(last.name) placed · \(Entitlement.freeMarkerLimit) per Take on Free" }
         return "\(last.name) placed"
@@ -465,9 +465,9 @@ struct RecordScreen: View {
             Spacer(minLength: 8)
             markerButton(size: 64)
             // The same 24 pt gap: the hint takes its place, so nothing moves and the meters keep their height.
-            Text(model.stopHintShown ? "Hold to stop" : " ")
+            Text(model.stopHint.isShown ? "Hold to stop" : " ")
                 .font(.caption).lineLimit(1).minimumScaleFactor(0.7).secondaryText().frame(height: 24)
-                .accessibilityHidden(!model.stopHintShown)
+                .accessibilityHidden(!model.stopHint.isShown)
             recordButton(size: 64)
         }
         .frame(width: 128)
@@ -664,7 +664,7 @@ final class RecordScreenModel {
     /// Whether the "Stop Take N?" question is showing. In the model so the Take menu can ask it too.
     var confirmingStop = false
     /// The "Hold to stop" hint after a tap on the hold button (#753).
-    private(set) var stopHintShown = false
+    private(set) var stopHint = StopHint()
     private var stopHintTask: Task<Void, Never>?
     /// The level meters, in their own model: they change 30 times a second, and only the meter grid reads them.
     let meterModel = MeterModel()
@@ -1101,16 +1101,16 @@ final class RecordScreenModel {
 
     func clearStopHint() {
         stopHintTask?.cancel()
-        stopHintShown = false
+        stopHint.clear()
     }
 
     /// "Hold to stop" for two seconds after a tap on the hold button (#753).
     func showStopHint() {
-        stopHintShown = true
+        let token = stopHint.show()
         stopHintTask?.cancel()
         stopHintTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(2))
-            if !Task.isCancelled { self?.stopHintShown = false }
+            try? await Task.sleep(for: .seconds(StopHint.seconds))
+            if !Task.isCancelled { self?.stopHint.expire(token) }
         }
     }
 
