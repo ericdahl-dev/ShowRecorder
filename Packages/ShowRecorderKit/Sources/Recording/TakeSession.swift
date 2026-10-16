@@ -282,7 +282,9 @@ final class TakeSession {
 
     /// What each Copy holds so far, from its writer: the one source of Gaps and Dropouts (#441). A Copy that failed,
     /// retired or never joined stopped early, so it lacks everything past where it got to.
-    private var coverage: CopyCoverage {
+    private var coverage: CopyCoverage { Self.coverage(copies: copies, standby: standby) }
+
+    nonisolated private static func coverage(copies: [CopyRecord], standby: Standby?) -> CopyCoverage {
         var all = copies.map { copy in
             CopyCoverage.Copy(
                 // A Drive that went away may have lost what it wrote since its last commit (#595); a Device keeps it.
@@ -303,9 +305,11 @@ final class TakeSession {
 
     /// Stretches written as silence in any Copy, as `Take.json` records them. With `takeEnd`, a Copy that stopped
     /// early is missing everything from where it stopped to there.
-    func gaps(takeEnd: Int? = nil) -> [TakeMetadata.Gap] {
+    func gaps(takeEnd: Int? = nil) -> [TakeMetadata.Gap] { Self.gaps(copies: copies, standby: standby, takeEnd: takeEnd) }
+
+    nonisolated private static func gaps(copies: [CopyRecord], standby: Standby?, takeEnd: Int?) -> [TakeMetadata.Gap] {
         // A Drive only Take has no Device Copy to have Gaps in: the standby only stands in.
-        coverage.gaps(takeEnd: takeEnd).filter { standby == nil || $0.copy != .device }
+        coverage(copies: copies, standby: standby).gaps(takeEnd: takeEnd).filter { standby == nil || $0.copy != .device }
     }
 
     /// Looks for a Destination that has become available since the Take started. A Drive that appears
@@ -360,13 +364,32 @@ final class TakeSession {
     /// Stops capturing, waits until every Stem is written and finalized and records the Gaps.
     /// A Copy that failed during the Take doesn't make this throw.
     func finish() -> Finished {
+        let finished = Self.finish(FinishInput(
+            capture: capture, copies: copies, standby: standby, metadata: metadata, levels: levels, stopTimeout: stopTimeout))
+        metadata = finished.metadata
+        return finished
+    }
+
+    /// What `finish` works on, copied out of the session so the join and the file writes need no main actor (#652).
+    struct FinishInput: Sendable {
+        let capture: Capture
+        let copies: [CopyRecord]
+        let standby: Standby?
+        var metadata: TakeMetadata
+        let levels: TakeLevels
+        let stopTimeout: Duration?
+    }
+
+    nonisolated static func finish(_ input: FinishInput) -> Finished {
+        let capture = input.capture, copies = input.copies, standby = input.standby, levels = input.levels
+        var metadata = input.metadata
         capture.stopCapturing()
         // Every writer is told to stop first, then all are waited on against one deadline, so two stuck Copies
         // hold Stop for one timeout, not two (#652). The deadline is taken after every stop request, so each writer
         // still gets the full timeout from its own request (#320).
         for copy in copies { copy.writer.requestStop() }
         standby?.writer.requestStop()
-        let deadline = stopTimeout.map(TakeWriter.deadline)
+        let deadline = input.stopTimeout.map(TakeWriter.deadline)
         for copy in copies { copy.writer.waitStopped(until: deadline) }
         standby?.writer.waitStopped(until: deadline)
         // A standby is a Copy only if it stood in or its folder is kept: its empty folder isn't one, even if removing it fails.
@@ -380,16 +403,16 @@ final class TakeSession {
                 standbyFolder = nil
             }
         }
-        collectDropouts()
+        collectDropouts(&metadata, copies: copies, standby: standby)
         // Levels are kept per captured channel; Take.json lists only the recorded ones, by USB Channel number.
         for (channel, summary) in levels.summary.enumerated() {
             guard let index = metadata.usbChannels.firstIndex(where: { $0.usbChannel == channel + 1 }) else { continue }
             metadata.usbChannels[index].peakDbfs = summary.peakDbfs
             metadata.usbChannels[index].averageDbfs = summary.averageDbfs
         }
-        writeMetadata()
+        writeMetadata(metadata, copies: copies, standby: standby)
         // A Take whose Copies were never fed a first block is empty, not missing everything.
-        persistGaps(takeEnd: capture.awaitingFirstBlock ? 0 : capture.takeFrameCount)
+        persistGaps(&metadata, copies: copies, standby: standby, takeEnd: capture.awaitingFirstBlock ? 0 : capture.takeFrameCount)
         var folders: [DestinationKind: URL] = [:]
         folders[.device] = standbyFolder
         for copy in copies { folders[copy.kind] = copy.folder }
@@ -470,7 +493,9 @@ final class TakeSession {
         metadata.stemCueMarkers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
     }
 
-    private func writeMetadata() {
+    private func writeMetadata() { Self.writeMetadata(metadata, copies: copies, standby: standby) }
+
+    nonisolated private static func writeMetadata(_ metadata: TakeMetadata, copies: [CopyRecord], standby: Standby?) {
         // A Copy Stop gave up on (set only at Stop) may hang on any file operation: Repair writes its Take.json off the main thread (#652).
         for copy in copies where !copy.writer.wasAbandoned { try? metadata.write(to: copy.folder) }
         // A stand-in's Take.json lets a crash mid-Take find it (and Repair it) on the next launch.
@@ -530,24 +555,30 @@ final class TakeSession {
 
     /// Moves the audio the writers had to drop into `Take.json` as Dropouts (one per Copy and stretch), with
     /// one Dropout Marker at each position where any Copy lost audio.
-    private func collectDropouts() {
+    private func collectDropouts() { Self.collectDropouts(&metadata, copies: copies, standby: standby) }
+
+    nonisolated private static func collectDropouts(_ metadata: inout TakeMetadata, copies: [CopyRecord], standby: Standby?) {
         // Only audio every Copy lacks; a stretch another Copy has is a Gap (see `gaps(takeEnd:)`).
-        let found = coverage.dropouts
+        let found = coverage(copies: copies, standby: standby).dropouts
         guard found != metadata.dropouts else { return }
         let marked = Set(metadata.dropoutMarkers.map(\.position))
         for position in Set(found.map(\.start)).subtracting(marked).sorted() {
             metadata.markers.append(.init(position: position, name: "Dropout", origin: .dropout))
         }
         metadata.dropouts = found
-        writeMetadata()
+        writeMetadata(metadata, copies: copies, standby: standby)
     }
 
     /// Writes the Gaps found so far into `Take.json` in every Copy.
-    private func persistGaps(takeEnd: Int? = nil) {
-        let gaps = gaps(takeEnd: takeEnd)
+    private func persistGaps(takeEnd: Int? = nil) { Self.persistGaps(&metadata, copies: copies, standby: standby, takeEnd: takeEnd) }
+
+    nonisolated private static func persistGaps(
+        _ metadata: inout TakeMetadata, copies: [CopyRecord], standby: Standby?, takeEnd: Int?
+    ) {
+        let gaps = gaps(copies: copies, standby: standby, takeEnd: takeEnd)
         guard gaps != metadata.gaps else { return }
         metadata.gaps = gaps
-        writeMetadata()
+        writeMetadata(metadata, copies: copies, standby: standby)
     }
 }
 
