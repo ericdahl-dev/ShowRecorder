@@ -920,7 +920,8 @@ final class RecordScreenModel {
         if let notice = interruptions.notice {
             list.append(ScreenAlert(id: "interruption", priority: .input, tone: .warning, text: notice))
         }
-        if let alert = NoSignalAlert.make(isSilent: noSignalSilent, isRecording: recorder.isRecording) { list.append(alert) }
+        // Not while input is stopped by an interruption: its own notice says why nothing arrives.
+        if let alert = NoSignalAlert.make(isSilent: noSignalSilent, isRecording: recorder.isRecording && !interruptions.isInputStopped) { list.append(alert) }
         // A re-patch on the Mixer during the Take (#21), until the Take ends or the operator has seen it.
         let routing = recorder.routingChanges
         if recorder.isRecording, routingChangeSeen?.take != takeNumber || routingChangeSeen?.changes != routing,
