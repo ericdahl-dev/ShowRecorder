@@ -16,11 +16,21 @@ public struct InterruptionPolicy: Sendable, Equatable {
         case builtInMicMuted
         /// The audio input was disconnected.
         case routeDisconnected
+
+        /// From the raw value of `AVAudioSessionInterruptionReasonKey`: 2 is `builtInMicMuted` and 4 is
+        /// `routeDisconnected` (AVAudioSessionTypes.h). Anything else, or no value, is `.other`.
+        public init(sessionReason raw: UInt?) {
+            switch raw {
+            case 2: self = .builtInMicMuted
+            case 4: self = .routeDisconnected
+            default: self = .other
+            }
+        }
     }
 
     public enum Event: Sendable, Equatable {
         /// The audio session was interrupted and input has stopped. `reason` says why, when the system does.
-        case interruptionBegan(reason: Reason = .other)
+        case interruptionBegan(reason: Reason)
         /// The interruption is over. `shouldResume` is the system's hint.
         case interruptionEnded(shouldResume: Bool)
         /// The system's media services were reset: every audio object must be rebuilt.
@@ -86,13 +96,13 @@ public struct InterruptionPolicy: Sendable, Equatable {
                 detail = ""
             case .builtInMicMuted:
                 notice = isRecording
-                    ? "The built-in microphone was muted (an iPad's Smart Folio closed, for example). The Take is still open, but nothing is recorded until it is unmuted."
+                    ? "The built-in microphone was muted (an iPad's Smart Folio closed, for example). The Take is still open, but nothing is recorded until input comes back."
                     : "The built-in microphone was muted (an iPad's Smart Folio closed, for example)."
                 detail = " (built-in microphone muted)"
             case .routeDisconnected:
                 notice = isRecording
-                    ? "The audio input was disconnected. Check the cable or hub. The Take is still open, but nothing is recorded until input comes back."
-                    : "The audio input was disconnected. Check the cable or hub."
+                    ? "The audio input was disconnected. Check the connection. The Take is still open, but nothing is recorded until input comes back."
+                    : "The audio input was disconnected. Check the connection."
                 detail = " (input disconnected)"
             }
             self.notice = notice

@@ -523,7 +523,7 @@ struct TakeSequencerTests {
         let device = try #require(source.opened.last)
         sequencer.record(sources: [], allowance: nil)
 
-        sequencer.handle(.interruptionBegan)
+        sequencer.handle(.interruptionBegan(reason: .other))
         device.stop()  // The system stops input.
         sequencer.handle(.interruptionEnded(shouldResume: true))
 
@@ -542,7 +542,7 @@ struct TakeSequencerTests {
         sequencer.record(sources: [], allowance: nil)
         var events = sequencer.events.makeAsyncIterator()
 
-        sequencer.handle(.interruptionBegan)
+        sequencer.handle(.interruptionBegan(reason: .other))
         device.stop()
         sequencer.handle(.interruptionEnded(shouldResume: true))
 
@@ -560,7 +560,7 @@ struct TakeSequencerTests {
         sequencer.start()
         let device = try #require(source.opened.last)
         sequencer.record(sources: [], allowance: nil)
-        sequencer.handle(.interruptionBegan)
+        sequencer.handle(.interruptionBegan(reason: .other))
         device.stop()
         sequencer.handle(.interruptionEnded(shouldResume: true))
         sequencer.stop()
@@ -626,7 +626,7 @@ struct TakeSequencerTests {
     func failedRestart() {
         let (sequencer, _) = makeSequencer()  // Nothing Armed, so there's nothing to restart.
 
-        sequencer.handle(.interruptionBegan)
+        sequencer.handle(.interruptionBegan(reason: .other))
         sequencer.handle(.interruptionEnded(shouldResume: true))
 
         #expect(sequencer.interruptions.isInputStopped)

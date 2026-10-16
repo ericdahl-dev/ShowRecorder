@@ -44,13 +44,7 @@ extension RecordScreenModel {
             // AVAudioSessionDeactivationContext.interruptionDetails.reason, isn't adopted yet because it
             // can't be tried without an iOS 27 device. The deployment target is iOS 26, so no #available
             // is needed. A missing key falls back to the general wording.
-            let reason = (info?[AVAudioSessionInterruptionReasonKey] as? UInt)
-                .flatMap(AVAudioSession.InterruptionReason.init(rawValue:))
-            switch reason {
-            case .builtInMicMuted: return .interruptionBegan(reason: .builtInMicMuted)
-            case .routeDisconnected: return .interruptionBegan(reason: .routeDisconnected)
-            default: return .interruptionBegan(reason: .other)
-            }
+            return .interruptionBegan(reason: .init(sessionReason: info?[AVAudioSessionInterruptionReasonKey] as? UInt))
         case .ended:
             let options = (info?[AVAudioSessionInterruptionOptionKey] as? UInt).map(AVAudioSession.InterruptionOptions.init(rawValue:)) ?? []
             return .interruptionEnded(shouldResume: options.contains(.shouldResume))
