@@ -316,6 +316,8 @@ public final class TakeSequencer {
     /// The list of Audio interfaces changed (the Mac): keeps, switches, re-Arms or disarms as `InputDeviceChange`
     /// decides. A Take on an interface that went away or changed format ends as an input change, with its message.
     public func deviceListChanged() async {
+        // A Take being saved is still the Take: decide once it is on disk, so the Arm below can succeed.
+        await recorder.waitWhileFinishing()
         let fresh = source.devices()
         let change = InputDeviceChange.decide(
             old: devices.map(\.info), new: fresh.map(\.info),
@@ -349,6 +351,7 @@ public final class TakeSequencer {
     /// The iOS input route really changed (the App filters out its own changes and selects the route's input first):
     /// re-Arm between Takes, move a running Take onto the new route, as `InterruptionPolicy.routeChanged` decides.
     public func routeChanged() async {
+        await recorder.waitWhileFinishing()
         switch interruptions.routeChanged(isRecording: recorder.isRecording) {
         case .none: break
         case .rearm: arm()

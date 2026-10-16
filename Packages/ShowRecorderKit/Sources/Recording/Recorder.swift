@@ -874,7 +874,7 @@ public final class Recorder {
             hadDrive: finished.folders[.drive] != nil)
         lastTakeGeneration += 1
         currentShow = session.show
-        for change in gainChangesWhileFinishing { currentShow?.logGainChange(change) }
+        for change in gainChangesWhileFinishing { currentShow?.logGainChange(change, skipping: finished.abandoned) }
         gainChangesWhileFinishing = []
         // A Copy Stop gave up on may hang on any file operation, so the main thread leaves it alone (#652).
         currentShow?.setChannelNames(channelNames, skipping: finished.abandoned)

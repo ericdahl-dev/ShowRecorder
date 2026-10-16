@@ -383,6 +383,64 @@ struct AsyncStopOffMainTests {
         #expect(recorder.usbChannelCount == 2)
     }
 
+    @Test("A device list change while the Take is being saved waits for the save, then Arms on the new format")
+    func deviceListChangedWhileFinishing() async throws {
+        let gate = TestGate()
+        nonisolated(unsafe) var gated: GatedStem?
+        let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
+        let source = FakeInputDevices([("xr18", 1)])
+        let sequencer = TakeSequencer(recorder: recorder, devices: source, capsAt48k: { false })
+        sequencer.arm()
+        let audio = try #require(source.opened.last)
+        let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
+        source.choices = [source.choice(id: "xr18", channels: 2)]
+        nonisolated(unsafe) var returned = false
+        let change = Task { @MainActor in
+            await sequencer.deviceListChanged()
+            returned = true
+        }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(!returned)
+        gate.open()
+        try await stop.value
+        await change.value
+        #expect(recorder.isArmed)
+        #expect(recorder.usbChannelCount == 2, "the recorder kept the old format")
+    }
+
+    @Test("A gain change buffered during the save doesn't write the Show.json of a Drive Stop gave up on")
+    func gainChangeSkipsAbandonedDrive() async throws {
+        let drive = root.appending(path: "Drive")
+        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
+        let driveGate = TestGate()
+        defer { driveGate.open() }
+        let recorder = Recorder(
+            deviceFolder: root.appending(path: "Device"), driveFolder: { DriveAccess(folder: drive) },
+            now: { RecordingTakeTests.showDay },
+            makeStem: { url, info, resume in
+                let writer = try StemWriter.open(url: url, info: info, resumingAt: resume)
+                return url.path.hasPrefix(drive.path) ? StopNeverBlocksTests.HangingStem(writer, gate: driveGate) : writer
+            },
+            destinationCheckInterval: nil, writerStopTimeout: .milliseconds(500), asyncStopAvailable: true)
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0.25, count: 4_800)])
+        try await Task.sleep(for: .milliseconds(100))
+        let showFile = drive.appending(path: "\(show)/Show.json")
+        let before = try Data(contentsOf: showFile)
+
+        let stop = Task { @MainActor in try await recorder.stopTake() }
+        try await waitUntil { recorder.isFinishing }
+        recorder.logGainChange(TakeMetadata.GainChange(usbChannel: 1, channel: 1, headamp: 1, fromGainDb: 14.5, toGainDb: 11.5, reason: .clipProtection, compensations: []))
+        try await stop.value
+        #expect(recorder.copies[.drive] == .hasGaps, "the Drive wasn't given up on, so the test proves nothing")
+        #expect(recorder.currentShow?.gainChanges.count == 1)
+        #expect(try Data(contentsOf: showFile) == before, "the replay wrote the abandoned Drive's Show.json")
+        driveGate.open()
+        await recorder.waitForRepair()
+    }
+
     @Test("With the rule off, Stop doesn't suspend: the Take is published when the call returns")
     func ruleOffIsInline() async throws {
         let recorder = makeRecorder(in: root, asyncStop: false)
