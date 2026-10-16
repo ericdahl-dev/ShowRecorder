@@ -56,9 +56,9 @@ public struct SupportDiagnostics: Equatable, Sendable {
         self.mixerLink = mixerLink
     }
 
-    /// "ShowRecorder support (v1.1.6.34.1)": the version, then the build.
+    /// "ShowRecorder support (v1.1.6 (34.1))": the version, then the build.
     public var subject: String {
-        "ShowRecorder support (v\(version ?? "?").\(build ?? "?"))"
+        "ShowRecorder support (v\(version ?? "?") (\(build ?? "?")))"
     }
 
     /// Blank lines to write in, then the titled block.
