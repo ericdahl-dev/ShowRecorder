@@ -13,17 +13,11 @@ export const featureGroups: {
     title: 'Recording',
     intro: 'One file per USB Channel, recorded on your iPhone or iPad.',
     features: [
-      // source: Packages/ShowRecorderKit/Sources/Recording/Entitlement.swift (freeChannelCount = 2), App/ProSection.swift (First/Second recorded channel)
-      {
-        title: '2 USB Channels of your choice',
-        body: 'Free records the 2 USB Channels you pick in Settings, with names and colors from the mixer. Every channel is still metered.',
-        tier: 'free',
-      },
-      // source: Packages/ShowRecorderKit/Sources/Recording/ProOffer.swift ("Every USB Channel, not just 2")
+      // source: docs/adr/0004-one-time-pro-unlock-and-show-safe-limits.md (Free records every USB Channel, 2026-10-15, #705)
       {
         title: 'Every USB Channel',
-        body: 'Pro records every USB Channel the mixer sends: 18 Stems from an XR18 or MR18, in step with each other.',
-        tier: 'pro',
+        body: 'Free records every USB Channel the mixer sends, on the Device: 18 Stems from an XR18 or MR18, in step with each other.',
+        tier: 'free',
       },
       // source: docs/adr/0001-mono-bwf-per-stem.md, Packages/ShowRecorderKit/Sources/BroadcastWave/StemWriter.swift (bytesPerSample = 3, bext chunk)
       {
@@ -34,7 +28,7 @@ export const featureGroups: {
       // source: Packages/ShowRecorderKit/Sources/Recording/SampleRateSetting.swift (capAt48k for Free)
       {
         title: '48 kHz',
-        body: 'Records at the mixer\'s 48 kHz. Free records at up to 48 kHz on any interface.',
+        body: 'Records at the mixer\'s 48 kHz. Free records at 44.1 or 48 kHz on any interface.',
         tier: 'free',
       },
       // source: Packages/ShowRecorderKit/Sources/Recording/SampleRateSetting.swift, Packages/ShowRecorderKit/Sources/Recording/ProOffer.swift ("96 kHz recording")
@@ -52,7 +46,7 @@ export const featureGroups: {
       // source: App/RecordScreen.swift (markerButton, "Add Marker"), Packages/ShowRecorderKit/Sources/Recording/TakeSession.swift (addMarker)
       {
         title: 'Markers',
-        body: 'Tap the flag during a Take to mark a song or a moment. Markers go into every Stem and the Reaper project.',
+        body: 'Tap the flag during a Take to mark a song or a moment. Markers go into every Stem and the Reaper project. Free has up to 3 per Take; Pro has no limit.',
         tier: 'free',
       },
       // source: Packages/ShowRecorderKit/Sources/Recording/CutOffTake.swift (header committed every 2 s), docs/app-store/listing.md
@@ -86,11 +80,11 @@ export const featureGroups: {
         body: 'Find Mixers lists the mixers on your network. Tap one to link it; there is no IP address to type.',
         tier: 'free',
       },
-      // source: Packages/ShowRecorderKit/Sources/Recording/StemFileName.swift, Packages/ShowRecorderKit/Sources/Recording/Entitlement.swift (Free keeps Source names)
+      // source: Packages/ShowRecorderKit/Sources/Recording/StemFileName.swift, Packages/ShowRecorderKit/Sources/Recording/Entitlement.swift (mixerLinkNames: false on Free)
       {
         title: 'Names and colors from the mixer',
-        body: 'Channel 3 arrives as "03 Snare.wav", not "USB 03". Without the Mixer Link, Stems are named by USB Channel number.',
-        tier: 'free',
+        body: 'Channel 3 arrives as "03 Snare.wav", not "USB 03". On Free, the meters show the names and the Stems have generic names.',
+        tier: 'pro',
       },
       // source: App/ChannelNamesView.swift ("Channel names"), Packages/ShowRecorderKit/Sources/Recording/Recorder.swift (namingByHand)
       {
@@ -109,13 +103,13 @@ export const featureGroups: {
       {
         title: 'Device and Drive at once',
         body: 'Choose a folder on a USB drive and every Take is written to the Device and the Drive together. Neither Copy is the primary.',
-        tier: 'free',
+        tier: 'pro',
       },
       // source: Packages/ShowRecorderKit/Sources/Recording/TakeRepair.swift, Packages/ShowRecorderKit/Sources/Recording/DestinationAlert.swift
       {
         title: 'Repair',
         body: 'If the Drive drops out, recording continues on the Device. After the Take, the Gap is filled in from the other Copy.',
-        tier: 'free',
+        tier: 'pro',
       },
     ],
   },
@@ -191,7 +185,7 @@ export const featureGroups: {
 
 // In the public TestFlight beta, not yet in the App Store release (1.1). Each was checked against its availability
 // rule: shown to TestFlight builds, never only Debug. Move an entry into featureGroups when 1.1 ships.
-export const inBetaFeatures: { title: string; body: string }[] = [
+export const inBetaFeatures: { title: string; body: string; tier?: 'pro' }[] = [
   // source: Watch/ (the watch app, in TestFlight since 1.1.3)
   {
     title: 'Apple Watch remote',
@@ -205,11 +199,13 @@ export const inBetaFeatures: { title: string; body: string }[] = [
   // source: Packages/ShowRecorderKit/Sources/Recording/AutoGainAvailability.swift (Debug and TestFlight, #691)
   {
     title: 'Auto-gain',
+    tier: 'pro',
     body: 'Over Mixer Link, sets each channel\'s preamp to -18 dBFS and moves the fader, sends and dynamics the other way, so the mix stays the same. Undo puts it all back.',
   },
   // source: Packages/ShowRecorderKit/Sources/Recording/ClipProtection.swift (ClipProtectionSetting.isOffered: Debug and TestFlight, #699)
   {
     title: 'Clip protection',
+    tier: 'pro',
     body: 'During a Take, turns a clipping channel\'s preamp down on the mixer and raises its fader to match, at most 12 dB per Take, with a Marker for each move. Off until you switch it on.',
   },
 ];

@@ -197,7 +197,9 @@ describe("mixer page facts", () => {
 
     it(`/mixers/${slug} gives Pro's price, one time, without making the Trial sound paid`, () => {
       const pricing = section(body, "## Free, Trial and Pro", "## Where to get it");
-      expect(pricing).toMatch(/Pro is a one-time \$19\.99 purchase/);
+      expect(pricing).toMatch(/Pro is a one-time \$4\.99 purchase/);
+      expect(pricing).toMatch(/launch price/);
+      expect(pricing).not.toMatch(/so every USB Channel records/);
       expect(pricing).not.toMatch(/Trial and Pro\]\(\/docs\/pricing\), a one-time/);
     });
   }
@@ -245,10 +247,10 @@ describe("the mixer pages' questions (#704)", () => {
     expect(page).toMatch(new RegExp(`faqPageJsonLd\\(${list}\\)`));
   });
 
-  it("the beta page's answers say beta and keep Free at 2 USB Channels", () => {
+  it("the beta page's answers say beta and keep Free at all 32 USB Channels", () => {
     const text = X32_FAQS.map((f) => f.a).join(" ");
     expect(text).toMatch(/public beta/);
-    expect(text).toMatch(/Free records 2 USB Channels/);
+    expect(text).toMatch(/Free records all 32 USB Channels/);
     expect(text).not.toMatch(/DJM/);
   });
 });

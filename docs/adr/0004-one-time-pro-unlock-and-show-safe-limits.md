@@ -43,6 +43,7 @@ This replaces "Free = 2 USB Channels" above and in the mixer packs section. A fr
 - **Pro or a pack** adds: names and colors from the Mixer, typed names, the Drive (second Copy, Repair, Drive only), unlimited Markers, auto-gain, clip protection, the Show report, Reaper export, 96 kHz and Templates.
 - Pack prices change to X Air $7.99, X32/M32 $7.99; DJM stays $6.99. Pro stays $19.99.
 - Still judged only when record is pressed and frozen into the Take (`TakeAllowance`); auto-gain, which runs between Takes, is judged when it runs.
+- **Launch price ladder (Eric, 2026-10-15/16):** Launch Pro $4.99, packs $2.99, upgrade to Pro $1.99; Step 2 $9.99 / $4.99 / $4.99; Full $19.99 / $7.99 / $11.99. Moved by Eric at about 25 and 50 buyers. Pro went to $4.99 in App Store Connect on 2026-10-16. X Air and X32 packs first (DJM waits for #364); one upgrade product repriced per stage; a second pack is hidden; only a pack the person bought earns the upgrade offer; packs and the upgrade share with family like Pro.
 
 ## Consequences
 

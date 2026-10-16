@@ -12,7 +12,7 @@ export const DOCS: readonly DocLink[] = [
   { slug: "markers-and-pre-roll", title: "Markers and Pre-roll", description: "Keep the count-in with Pre-roll, and tap the flag to mark songs and moments. Markers go into every Stem, the Show report and the Reaper project." },
   { slug: "templates", title: "Templates", description: "Save a venue's setup as a Template (channel names, mixer, Show name and Pre-roll) and start a Show from it in one tap. A Pro feature." },
   { slug: "daw", title: "Opening a Show in Reaper or your DAW", description: "How a ShowRecorder Show folder is laid out, how Stems are named, what the Reaper project holds, and how to get the files onto your computer." },
-  { slug: "pricing", title: "Free, 14-day Trial and Pro", description: "ShowRecorder is free to download with a 14-day Trial of everything. Pro is a one-time $19.99 purchase with Family Sharing. No subscription." },
+  { slug: "pricing", title: "Free, 14-day Trial and Pro", description: "ShowRecorder is free to download and records every USB Channel. Pro is a one-time $4.99 purchase with Family Sharing and a 14-day Trial. No subscription." },
   { slug: "troubleshooting", title: "Troubleshooting", description: "Step-by-step fixes: a mixer the iPhone can't see, missing channels, Mixer Link, a Drive that fails or is slow, TestFlight and finding your files." },
 ];
 

@@ -7,7 +7,7 @@ import { APP_STORE_URL, REPO_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL, TESTFLI
 
 // The text of /llms.txt (a short map) and /llms-full.txt (everything on one page), for AI assistants and AI search
 // (#704). Both read the site's own lists, so a new docs page, feature or release shows up without editing this file.
-// Keep the facts true to what ships: Free records 2 USB Channels of your choice, the X32 and M32 and the Mac are in
+// Keep the facts true to what ships: Free records every USB Channel with generic names, the X32 and M32 and the Mac are in
 // the public beta, and the items in inBetaFeatures are TestFlight only. Pioneer DJM mixers are planned, not available.
 
 export const abs = (path: string) => (path === "/" ? SITE_URL : SITE_URL + path);
@@ -29,9 +29,9 @@ export function facts(): string[] {
     "",
     "- What it is: a multitrack recorder. It records every USB Channel a mixer sends to its own file, on an iPhone or iPad, with no laptop.",
     `- Get it: ${getIt}.`,
-    "- Price: free to download, with a 14-day Trial of everything. Free records 2 USB Channels of your choice. Pro is a one-time $19.99 purchase, shared with Family Sharing. No subscription.",
+    "- Price: free to download. Free records every USB Channel on the iPhone or iPad, with generic names on the files and up to 3 Markers per Take. Pro is a one-time purchase, at a launch price of $4.99, shared with Family Sharing, with a 14-day Trial. Pro adds names and colors from the mixer on the files, typed names, a second Copy on a USB drive, unlimited Markers, the Show report, the Reaper project, 96 kHz and Templates. No subscription.",
     "- Needs: a USB-C iPhone (iPhone 15 or later) on iOS 26, or a USB-C iPad on iPadOS 26, a USB cable to the mixer, and a class-compliant USB mixer or audio interface. Wi-Fi is optional, for channel names and colors. No account.",
-    "- Files: one mono 24-bit Broadcast WAV file (a Stem) per USB Channel, at the mixer's sample rate, 48 kHz for the XR18 and MR18, with a second copy on a USB drive. Pro adds a Show report and a Reaper project.",
+    "- Files: one mono 24-bit Broadcast WAV file (a Stem) per USB Channel, at the mixer's sample rate, 48 kHz for the XR18 and MR18. Pro adds a second copy on a USB drive, a Show report and a Reaper project.",
     `- Works now: ${worksNow.map((m) => m.name).join("; ")}.`,
     `- In the public beta (TestFlight, not the App Store version): ${inBeta.map((m) => m.name).join("; ")}, tested only against an emulator so far. The Mac version, in testing on macOS 26, is also in the beta.`,
     `- Planned, not available: ${planned.filter((m) => /DJM/.test(m.name)).map((m) => m.name).join("; ")}.`,
@@ -73,7 +73,6 @@ export function llmsTxt(): string {
 }
 
 export function llmsFullTxt(): string {
-  const list = (items: { title: string; body: string }[]) => items.map((i) => `- ${i.title}: ${i.body}`);
   return [
     `# ${SITE_NAME}`,
     "",
@@ -98,7 +97,7 @@ export function llmsFullTxt(): string {
     ]),
     "### In the public beta (TestFlight only, not in the App Store version)",
     "",
-    ...list(inBetaFeatures),
+    ...inBetaFeatures.map((f) => `- ${f.title}${f.tier === "pro" ? " (In beta, Pro)" : ""}: ${f.body}`),
     "",
     "## Docs",
     "",

@@ -1,6 +1,6 @@
 # App Store listing (1.1 draft for Eric's review, #411; 1.0 was #64)
 
-Paste into App Store Connect > ShowRecorder > the 1.1 version (and App Information for the name and subtitle). The number after each heading is Apple's character limit; every field here is within it (checked 2026-10-13, with the Apple Watch: subtitle 30, promotional text 170, keywords 100, description 3878 with the auto-gain block and 3634 without, What's New 605).
+Paste into App Store Connect > ShowRecorder > the 1.1 version (and App Information for the name and subtitle). The number after each heading is Apple's character limit; every field here is within it (checked 2026-10-13, with the Apple Watch: subtitle 30, promotional text 170, keywords 100, description 3996 with the auto-gain block and 3753 without (recounted 2026-10-16 for "with Pro" under each heading), What's New 615).
 
 Brand names (Behringer, Midas, X Air, XR18, MR18, X32, M32) appear only as compatibility text in the description and What's New. They are not in the name, subtitle or keywords (Guideline 2.3.7).
 
@@ -25,7 +25,9 @@ Multitrack recorder for mixers
 
 ## Promotional text (170)
 
-Record every channel of your mixer on your iPhone, iPad or Mac. One file per channel, named from the mixer, with a second copy on a USB drive. Try everything for 14 days.
+Record every channel of your mixer to your iPhone, iPad or Mac, free. Pro adds names from the mixer, a second copy on a USB drive and more. Try Pro free for 14 days.
+
+Leads with Free (Eric, 2026-10-16). 165 characters. It says "your mixer", not XR18 or X32: brand names stay out of the promotional text (2.3.7, above).
 
 ## Keywords (100)
 
@@ -41,10 +43,10 @@ EVERY CHANNEL, ITS OWN FILE
 One Broadcast WAV per USB channel, at the mixer's 48 kHz or up to 96 kHz on interfaces that offer it. From an 18-channel mixer you get 18 Stems in step with each other; from an X32 or M32, 32.
 
 NAMED FROM THE MIXER
-On the mixer's network, ShowRecorder reads your channel names and colors, so channel 3 arrives as "03 Snare.wav", not "USB 03". If you re-patch an X Air or X32's USB outputs, each file is named after what's really routed there. Find Mixers locates the mixer on the network; there is no IP address to type.
+With Pro, on the mixer's network, ShowRecorder reads your channel names and colors, so channel 3 arrives as "03 Snare.wav", not "USB 03". If you re-patch an X Air or X32's USB outputs, each file is named after what's really routed there. Find Mixers finds it on the network; no IP address to type.
 
 A SECOND COPY AS YOU RECORD
-Add a USB drive and every Take is written to the device and the drive at once. If the drive drops out, the missing part is filled back in from the other copy after the Take.
+With Pro, add a USB drive and every Take is written to the device and the drive at once. If the drive drops out, the missing part is filled back in from the other copy after the Take.
 
 NOTHING LOST TO A CRASH
 Files are saved every 2 seconds. If the app is closed mid-Take, it finishes that Take the next time it opens. A phone call or another app taking the input leaves silence of the exact length, marked, so every file stays in sync with your video.
@@ -53,16 +55,16 @@ PRE-ROLL AND MARKERS
 A Take starts with the seconds before you pressed record, so the count-in isn't lost. Tap the flag to mark a song or a moment; Markers go into the files and your DAW project.
 
 READY TO MIX
-Each Show gets a report (Takes, levels, any gaps) and a Reaper project with every track and Marker in place.
+With Pro, each Show gets a report (Takes, levels, any gaps) and a Reaper project with every track and Marker in place.
 
 TEMPLATES FOR EACH VENUE
-Save a room's setup (channel names, mixer, Show name and Pre-roll) and start a Show from it in one tap.
+With Pro, save a room's setup (channel names, mixer, Show name and Pre-roll) and start a Show from it in one tap.
 
 BUILT FOR THE STAGE
 Big level meters with a target band, clip marks you can see across the room, a Sunlight appearance for bright stages and a Dark one for dark rooms. Works with VoiceOver.
 
 AUTO-GAIN
-With an X Air or X32 mixer, Auto-gain sets each channel's preamp so it records at a healthy level, and moves the faders, sends and thresholds to match so the mix stays where you set it. One tap puts it all back. Never during a Take.
+With Pro and an X Air or X32 mixer, Auto-gain sets each channel's preamp so it records at a healthy level, and moves the faders, sends and thresholds so the mix stays where you set it. One tap puts it all back. Never during a Take.
 
 ON YOUR WRIST
 With an Apple Watch, see that you're recording and for how long, drop Markers, and start or stop a Take from the stage. Stop takes a press and hold, so a stray tap can't end a song. Free for everyone.
@@ -71,8 +73,9 @@ THE SHOW-SAFE PROMISE
 A Take never stops, and your audio is never held back, because of a Trial, a limit or a license. Limits are checked only when you press record. Your past Shows are never locked.
 
 FREE, 14-DAY TRIAL AND PRO
-ShowRecorder is free to download. Start a 14-day Trial of everything at no cost. After the Trial, Free records 2 USB channels of your choice, with names and colors from the mixer.
-Pro is a one-time purchase, shared with your family and across your iPhone, iPad and Mac: every USB channel, typed channel names, the Show report and Reaper project, 96 kHz and Templates. No subscription.
+Free records every USB channel to your iPhone, iPad or Mac, with generic file names ("USB 07") and up to 3 Markers per Take.
+Pro is a one-time purchase at a launch price of $4.99, shared with your family: names and colors from the mixer on the files, typed names, a second copy on a USB drive, unlimited Markers, the Show report and Reaper project, 96 kHz and Templates. No subscription.
+A 14-day Trial of everything in Pro costs nothing. When it ends, every channel still records.
 
 WHAT YOU NEED
 - A Behringer X Air XR18 or MR18 for 18 channels with names and colors.
@@ -91,7 +94,7 @@ ShowRecorder is not affiliated with or endorsed by Behringer, Midas or Music Tri
 
 - Records the Behringer X32 and Midas M32: all 32 USB channels, each file named and colored from the mixer over its network.
 - Files are named after what's really routed to each USB channel on X Air and X32 mixers, even after a re-patch.
-- Auto-gain sets each channel's preamp on an X Air or X32 and keeps the mix the same, with one-tap Undo.
+- With Pro, auto-gain sets each channel's preamp on an X Air or X32 and keeps the mix the same, with one-tap Undo.
 - Settings shows your USB drive by its name.
 - An Apple Watch app: see the Take and drop Markers from your wrist, start a Take, and stop with a press and hold. Free.
 - If the mixer's USB routing changes during a Take, ShowRecorder warns you and marks the moment.
@@ -110,7 +113,7 @@ First release.
 
 | Product ID | Display name | Description (55) |
 |---|---|---|
-| `dev.ericdahl.ShowRecorder.pro` | ShowRecorder Pro | Every USB Channel, report, Reaper, 96 kHz, Templates |
+| `dev.ericdahl.ShowRecorder.pro` | ShowRecorder Pro | Mixer names, Drive copy, report, Reaper, 96 kHz, more |
 | `dev.ericdahl.ShowRecorder.trial` | 14-day Trial | Everything in Pro for 14 days, at no cost |
 
 ## Screenshots (to take)
