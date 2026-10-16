@@ -36,7 +36,7 @@ struct TakeEndTests {
         try await deliverBlocks(2, to: audio, recorder)
         free.device = 5_000_000
         free.drive = 5_000_000
-        try await waitUntil { !recorder.isRecording }
+        try await waitUntil { !recorder.isRecording && !recorder.isFinishing }
 
         #expect(!recorder.isRecording)
         #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .outOfSpace))
@@ -55,7 +55,7 @@ struct TakeEndTests {
 
         try recorder.startTake()
         try await deliverBlocks(3, to: audio, recorder)
-        try await waitUntil { !recorder.isRecording }
+        try await waitUntil { !recorder.isRecording && !recorder.isFinishing }
 
         #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .noDestination))
     }

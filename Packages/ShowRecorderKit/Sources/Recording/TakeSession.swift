@@ -55,7 +55,7 @@ final class TakeSession {
     }
 
     /// What Repair needs once the Take has ended.
-    struct Finished {
+    struct Finished: Sendable {
         var metadata: TakeMetadata
         var folders: [DestinationKind: URL]
         var access: DriveAccess?

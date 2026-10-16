@@ -17,6 +17,8 @@ public final class Recorder {
     /// Stop is writing the last Take's Copies (#652): no Take starts until it is done. True from the start of `stopTake`
     /// to the end of its publishing.
     public private(set) var isFinishing = false
+    /// Callers of `waitForRepair` that came while the last Take was still being written: resumed when it is published.
+    @ObservationIgnored private var finishWaiters: [CheckedContinuation<Void, Never>] = []
     public private(set) var usbChannelCount = 0
     /// The open Show, if any. Created on the first record press.
     public private(set) var currentShow: Show?
@@ -123,7 +125,7 @@ public final class Recorder {
     public var recordsToDriveOnly = false
     /// The host clock's ticks per second, for spotting a stop in the input (#317). Tests set it.
     @ObservationIgnored private let hostTicksPerSecond: Double
-    /// Whether `AsyncStopAvailability` allows the asynchronous Stop. Nothing reads it for behavior yet (#652, A3a).
+    /// Whether `AsyncStopAvailability` allows the asynchronous Stop: `stopTake` finishes the Take off the main actor (#652).
     @ObservationIgnored let asyncStopAvailable: Bool
     /// Whether the last Take was Drive only (#196, ADR 0006), Drive or not: its summary speaks of the Drive alone.
     private(set) var lastTakeWasDriveOnly = false
@@ -207,6 +209,7 @@ public final class Recorder {
 
     /// Starts receiving audio from `device`. Any previously Armed device is stopped first.
     public func arm(_ device: any AudioIODevice) throws {
+        guard !isFinishing else { throw RecorderError.finishing }
         disarm()
         let capture = Capture(
             channelCount: device.inputChannelCount, sampleRate: device.sampleRate, preRollSeconds: preRollSeconds,
@@ -307,6 +310,7 @@ public final class Recorder {
     /// "YYYY-MM-DD Name" ("YYYY-MM-DD Show" for no name). The next Take lands in it.
     func startNewShow(name: String, venue: String) throws {
         guard !isRecording else { throw RecorderError.takeRunning }
+        guard !isFinishing else { throw RecorderError.finishing }
         let date = now()
         nextShow = nil
         var show = try Show.create(in: deviceFolder, drive: nil, on: date, name: name, venue: venue)
@@ -335,7 +339,7 @@ public final class Recorder {
     /// returns whether it did.
     @discardableResult
     func prepareNextShow(from template: Template) -> Bool {
-        guard !isRecording else { return false }
+        guard !isRecording, !isFinishing else { return false }
         endIdleShow(at: now())
         guard currentShow == nil else { return false }
         naming.replace(with: [:])
@@ -349,6 +353,7 @@ public final class Recorder {
     /// Ends the open Show, so the next record starts a new one. Nothing happens when no Show is open.
     func endShow() throws {
         guard !isRecording else { throw RecorderError.takeRunning }
+        guard !isFinishing else { throw RecorderError.finishing }
         if currentShow != nil { naming.replace(with: [:]) }
         currentShow?.end(at: now())
         currentShow = nil
@@ -796,11 +801,14 @@ public final class Recorder {
         try await stopTake(because: .stopped)
     }
 
-    /// Three steps (#652, A3a): `beginStop` and `publishStop` run on the main actor, the finish between them is
-    /// still inline here. `isFinishing` is true from the start of the first to the end of the last.
+    /// Three steps (#652): `beginStop` and `publishStop` run on the main actor. With `asyncStopAvailable` the finish
+    /// between them runs on its own thread (it blocks on the writers, so never a pool thread) and the main actor is free
+    /// meanwhile; otherwise it is inline. `isFinishing` is true from the start of the first to the end of the last. The
+    /// await is not a cancellation point, so canceling the caller skips neither the finish nor the publish.
     func stopTake(because reason: TakeEnd.Reason) async throws {
         guard let stopping = beginStop(because: reason) else { return }
-        let finished = TakeSession.finish(stopping.input)
+        let input = stopping.input
+        let finished = asyncStopAvailable ? await runOffPool { TakeSession.finish(input) } : TakeSession.finish(input)
         publishStop(stopping, finished)
     }
 
@@ -833,7 +841,12 @@ public final class Recorder {
     }
 
     private func publishStop(_ stopping: Stopping, _ finished: TakeSession.Finished) {
-        defer { isFinishing = false }
+        defer {
+            isFinishing = false
+            let waiting = finishWaiters
+            finishWaiters = []
+            for waiter in waiting { waiter.resume() }
+        }
         let session = stopping.session, reason = stopping.reason
         session.adopt(finished)
         lastTakeWasDriveOnly = session.driveOnly
@@ -1054,17 +1067,26 @@ public final class Recorder {
 
     /// Waits for Repair of the last Take to finish.
     public func waitForRepair() async {
+        // A Take that is still being written has nothing to repair yet.
+        if isFinishing { await withCheckedContinuation { finishWaiters.append($0) } }
         await repair.wait()
         await namingTask?.value
     }
 }
 
-public enum RecorderError: Error, Equatable {
+public enum RecorderError: Error, Equatable, LocalizedError {
     case notArmed
     /// A Show can't be started or ended while a Take is running.
     case takeRunning
     /// The last Take's Copies are still being written (#652).
     case finishing
+
+    public var errorDescription: String? {
+        switch self {
+        case .finishing: "The last Take is still being saved."
+        default: nil
+        }
+    }
 }
 
 /// One line of the Marker list: a Marker with its time in the Take (counted from the start of the audio,
