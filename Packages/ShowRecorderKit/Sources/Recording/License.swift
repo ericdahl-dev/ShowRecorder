@@ -77,13 +77,15 @@ public struct ProStatus: Equatable, Sendable {
         tierKnown = lastKnown != nil
     }
 
-    /// Takes the App Store's answer. Returns whether the known tier changed, so the recorder can re-Arm between Takes.
+    /// Takes the App Store's answer. Returns whether the known tier or the owned mixer packs changed (#705), so the
+    /// recorder can re-Arm between Takes.
     @discardableResult
     public mutating func appStoreAnswered(_ owned: [OwnedPurchase], now: Date) -> Bool {
         let before = knownTier(now: now)
+        let packsBefore = purchases.ownedPacks
         purchases = ProPurchases(owned: owned)
         tierKnown = true
-        return knownTier(now: now) != before
+        return knownTier(now: now) != before || purchases.ownedPacks != packsBefore
     }
 
     public func license(proOffered: Bool, now: Date) -> License {
