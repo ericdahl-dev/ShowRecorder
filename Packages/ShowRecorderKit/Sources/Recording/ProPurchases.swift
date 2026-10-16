@@ -25,6 +25,10 @@ public struct ProPurchases: Equatable, Sendable {
     /// Mixer packs (#412): each unlocks Pro while its family's interface is the Armed input. Proposed IDs, not yet
     /// created in App Store Connect (#705); the DJM pack waits for DJM support (#364).
     public static let packProductIDs: [MixerFamily: String] = [.xAir: "dev.ericdahl.ShowRecorder.pack.xair", .x32: "dev.ericdahl.ShowRecorder.pack.x32"]
+    /// The upgrade to Pro for a pack owner (#705): offered only to them, repriced at each price stage like Pro. Counts
+    /// as Pro only while a pack is still owned, so refunding the pack takes it back (ADR 0004). Proposed ID, not yet in
+    /// App Store Connect.
+    public static let upgradeProductID = "dev.ericdahl.ShowRecorder.upgrade.pro"
 
     public private(set) var ownsPro = false
     public private(set) var trialStartedAt: Date?
@@ -35,6 +39,8 @@ public struct ProPurchases: Equatable, Sendable {
         ownsPro = owned.contains { $0.productID == Self.proProductID }
         trialStartedAt = owned.first { $0.productID == Self.trialProductID }?.purchaseDate
         ownedPacks = Set(Self.packProductIDs.filter { pack in owned.contains { $0.productID == pack.value } }.keys)
+        // The upgrade is Pro only alongside a pack still owned (#705).
+        if !ownedPacks.isEmpty, owned.contains(where: { $0.productID == Self.upgradeProductID }) { ownsPro = true }
     }
 
     private static let lastKnownProKey = "proPurchases.ownsPro"
