@@ -12,7 +12,7 @@ struct MixerGainControlTests {
         let link = MixerLinkController(timeout: Loopback.replyTimeout)
         await link.connect(to: "127.0.0.1:\(mixer.port)", usbChannelCount: 32)
 
-        let control = try #require(link.gainControl)
+        let control = try #require(link.gainControl, "the Link is \(link.status)")
         #expect(control.channel(forUSBChannel: 5) == 5)
     }
 
@@ -24,8 +24,8 @@ struct MixerGainControlTests {
         state.usbRouting = (0..<18).map { [Int32($0), 0] }
         let mixer = try await FakeXAirMixer(state)
         await link.connect(to: "127.0.0.1:\(mixer.port)", usbChannelCount: 18)
-        #expect(link.identity?.model == "XR18")
-        let control = try #require(link.gainControl)
+        #expect(link.identity?.model == "XR18", "the Link is \(link.status)")
+        let control = try #require(link.gainControl, "the Link is \(link.status)")
         #expect(control.channel(forUSBChannel: 5) == 5)
         #expect(control.channel(forUSBChannel: 17) == nil, "the aux return has no preamp")
     }

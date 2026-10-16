@@ -3,7 +3,9 @@ import Synchronization
 /// Finds out which family's Mixer answers at a host and talks to it with that family's driver (#199, #442).
 ///
 /// Every family in the registry (`MixerFamily`) is asked on its own port at once (the X-Air listens on 10024, the X32
-/// on 10023), so an X32 costs no timeout on the X-Air's port. The model in the reply picks the driver.
+/// on 10023), so an X32 costs no timeout on the X-Air's port. The model in the reply picks the driver. The connection
+/// that identified the Mixer is the one the Link keeps, so there is one connection per Link (#776); only a Mixer of
+/// another family than the port's (an X32 behind a port typed on purpose) gets a driver of its own.
 public final class DetectingMixerDriver: MixerDriver {
     /// One family asked on one port.
     public struct Candidate: Equatable, Sendable {
@@ -19,13 +21,19 @@ public final class DetectingMixerDriver: MixerDriver {
     private let host: String
     private let candidates: [Candidate]
     private let timeout: Duration
+    private let makeDriver: @Sendable (MixerFamily, MixerEndpoint, Duration) -> any MixerDriver
     /// The family and driver of the Mixer that answered, once `identify` has found one.
     private let chosen = Mutex<(family: MixerFamily, driver: any MixerDriver)?>(nil)
 
-    public init(host: String, candidates: [Candidate], timeout: Duration = .seconds(1.5)) {
+    /// `makeDriver` builds a family's driver for an endpoint; a test passes its own to count them.
+    public init(
+        host: String, candidates: [Candidate], timeout: Duration = .seconds(1.5),
+        makeDriver: @escaping @Sendable (MixerFamily, MixerEndpoint, Duration) -> any MixerDriver = { $0.makeDriver(endpoint: $1, timeout: $2) }
+    ) {
         self.host = host
         self.candidates = candidates
         self.timeout = timeout
+        self.makeDriver = makeDriver
     }
 
     /// Each port asked as the family that listens there, or the X-Air's way when none does.
@@ -56,25 +64,27 @@ public final class DetectingMixerDriver: MixerDriver {
     }
 
     /// Once a Mixer has been found, asks it again on the same connection, as the Link does when it comes back after
-    /// the Mixer went quiet. Probes the ports again only when another kind of Mixer now answers there.
+    /// the Mixer went quiet. Probes the ports again only when another kind of Mixer now answers there. The probe that
+    /// answers becomes the Link's driver when its family matches the model, so no second connection to the same host and
+    /// port is opened (#776); the other probes are dropped.
     public func identify() async throws(MixerLinkProblem) -> MixerIdentity {
         if let (family, driver) = chosen.withLock({ $0 }) {
             let identity = try await driver.identify()
             if MixerFamily.reading(model: identity.model) == family { return identity }
         }
-        let found = await withTaskGroup(of: (Candidate, Result<MixerIdentity, MixerLinkProblem>).self) { group in
+        let found = await withTaskGroup(of: (Candidate, any MixerDriver, Result<MixerIdentity, MixerLinkProblem>).self) { group in
             for candidate in candidates {
-                group.addTask { [host, timeout] in
-                    let probe = candidate.family.makeDriver(endpoint: MixerEndpoint(host: host, port: candidate.port), timeout: timeout)
-                    return (candidate, await Self.identity(of: probe))
+                group.addTask { [host, timeout, makeDriver] in
+                    let probe = makeDriver(candidate.family, MixerEndpoint(host: host, port: candidate.port), timeout)
+                    return (candidate, probe, await Self.identity(of: probe))
                 }
             }
             var failures: [UInt16: MixerLinkProblem] = [:]
-            for await (candidate, result) in group {
+            for await (candidate, probe, result) in group {
                 switch result {
                 case .success(let identity):
                     group.cancelAll()
-                    return Result<(UInt16, MixerIdentity), MixerLinkProblem>.success((candidate.port, identity))
+                    return Result<(Candidate, any MixerDriver, MixerIdentity), MixerLinkProblem>.success((candidate, probe, identity))
                 case .failure(let problem):
                     failures[candidate.port] = problem
                 }
@@ -82,9 +92,18 @@ public final class DetectingMixerDriver: MixerDriver {
             // The problem on the first candidate port says most about the address the operator typed.
             return .failure(candidates.first.flatMap { failures[$0.port] } ?? .noReply(host: host))
         }
-        let (port, identity) = try found.get()
+        let (candidate, answeringProbe, identity) = try found.get()
+        var probe: (any MixerDriver)? = answeringProbe
         let family = MixerFamily.reading(model: identity.model)
-        let driver = family.makeDriver(endpoint: MixerEndpoint(host: host, port: port), timeout: timeout)
+        let driver: any MixerDriver
+        if family == candidate.family, let kept = probe {
+            driver = kept
+        } else {
+            // A Mixer of another family than the port's (an X32 behind a port typed on purpose) needs its own driver:
+            // let go of the probe first, so its connection isn't open beside the new one.
+            probe = nil
+            driver = makeDriver(family, MixerEndpoint(host: host, port: candidate.port), timeout)
+        }
         chosen.withLock { $0 = (family, driver) }
         return identity
     }
