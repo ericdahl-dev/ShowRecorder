@@ -25,7 +25,9 @@ Multitrack recorder for mixers
 
 ## Promotional text (170)
 
-Record every channel of your mixer on your iPhone, iPad or Mac. One file per channel, named from the mixer, with a second copy on a USB drive. Try everything for 14 days.
+Record every channel of your mixer to your iPhone, iPad or Mac, free. Pro adds names from the mixer, a second copy on a USB drive and more. Try Pro free for 14 days.
+
+Leads with Free (Eric, 2026-10-16). 165 characters. It says "your mixer", not XR18 or X32: brand names stay out of the promotional text (2.3.7, above).
 
 ## Keywords (100)
 
