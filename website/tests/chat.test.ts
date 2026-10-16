@@ -162,6 +162,11 @@ describe("support chat (Chatwoot, click to load)", () => {
     expect(rule).toMatch(/right: 20px/);
     expect(rule).toMatch(/bottom: 20px/);
     expect(css).toMatch(/\.chat-bubble-button \{[^}]*width: 64px[^}]*height: 64px/);
+    // Narrow screens: 48 px (over the 44 px tap target), 16 px offsets, and the footer padding to match.
+    const narrow = css.split("@media (max-width: 480px)").slice(1).join("");
+    expect(narrow).toMatch(/\.chat-bubble \{\s*right: 16px;\s*bottom: 16px;/);
+    expect(narrow).toMatch(/\.chat-bubble-button \{\s*width: 48px;\s*height: 48px;/);
+    expect(narrow).toMatch(/\.site-footer \{\s*padding-bottom: 88px;/);
     expect(css).toMatch(/\.chat-bubble-button:focus-visible \{[^}]*outline: 3px solid var\(--focus\)/);
     const motion = css.split("@media (prefers-reduced-motion: no-preference)").slice(1).join("");
     expect(motion).toMatch(/\.chat-bubble-spinner \{\s*animation/);

@@ -7,7 +7,7 @@ import { CONTACT_EMAIL } from "@/lib/site";
 
 // The chat launcher in the bottom-right corner of every page (rendered once by app/layout.tsx). It is our own static
 // button, not Chatwoot's: nothing from the chat server loads, and nothing is stored, until it is pressed (lib/chat.ts).
-// It sits where Chatwoot's launcher goes (64 px, 20 px from the right and bottom), and once the chat has loaded, from
+// It sits where Chatwoot's launcher goes (64 px, 20 px from the right and bottom; smaller on narrow screens), and once the chat has loaded, from
 // here or from "Chat with us" on /support, it hides itself and Chatwoot's launcher takes over opening and closing.
 export function ChatBubble() {
   const chat = useChat("bubble");

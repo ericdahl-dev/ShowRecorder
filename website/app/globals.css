@@ -366,8 +366,14 @@ html:not([data-js]) .theme-toggle {
   font-size: 14px;
   line-height: 1.45;
   color: var(--muted);
-  /* The bottom leaves room for the chat bubble (84 px), so the last lines are never under it. */
+  /* The bottom leaves room for the chat bubble (84 px; 64 px on narrow screens), so the last lines are never under it. */
   padding-block: 40px 112px;
+}
+
+@media (max-width: 480px) {
+  .site-footer {
+    padding-bottom: 88px;
+  }
 }
 
 .footer-brand {
@@ -1637,7 +1643,7 @@ ol.cards {
 }
 
 /* Chat bubble (components/ChatBubble.tsx): our own launcher on every page, in the spot and at the size of Chatwoot's
-   (64 px, 20 px from the right and bottom). It loads the chat only when pressed, then hides for Chatwoot's own. */
+   (64 px, 20 px from the right and bottom; 48 px and 16 px on narrow screens). It loads the chat only when pressed, then hides for Chatwoot's own. */
 .chat-bubble {
   position: fixed;
   right: 20px;
@@ -1660,6 +1666,28 @@ ol.cards {
   color: var(--button-ink);
   box-shadow: var(--shadow);
   cursor: pointer;
+}
+
+/* Narrow screens: a smaller bubble (still well over the 44 px tap target) that covers less text. */
+@media (max-width: 480px) {
+  .chat-bubble {
+    right: 16px;
+    bottom: 16px;
+  }
+
+  .chat-bubble-button {
+    width: 48px;
+    height: 48px;
+  }
+
+  .chat-bubble-button svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .chat-bubble-note {
+    max-width: calc(100vw - 32px);
+  }
 }
 
 .chat-bubble-button[aria-busy="true"] {
