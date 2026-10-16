@@ -110,3 +110,24 @@ struct TakeActivityMarkerButtonTests {
         #expect(tracker.next(Self.content(button: true, limit: true)) == .update(Self.content(button: true, limit: true)))
     }
 }
+
+@Suite("Marker button wording (#684)")
+struct MarkerButtonWordingTests {
+    @Test("Under the limit the button says Marker; at it, why it is off, in the record screen's words")
+    func caption() {
+        var content = TakeActivityContent(showName: "Show", takeTitle: "Take 01", startedAt: .now, markerCount: 1,
+                                          showsMarkerButton: true)
+        #expect(content.markerButtonCaption == nil)
+        content.markerLimitReached = true
+        content.markerLimit = 3
+        #expect(content.markerButtonCaption == "3 per Take on Free")
+    }
+
+    @Test("A limit older payloads lack reads as none")
+    func oldPayloadLimit() throws {
+        let old = #"{"showName":"S","takeTitle":"T","startedAt":1000,"markerCount":0}"#
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        #expect(try decoder.decode(TakeActivityContent.self, from: Data(old.utf8)).markerLimit == 0)
+    }
+}

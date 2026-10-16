@@ -803,7 +803,8 @@ final class RecordScreenModel {
                 TakeActivityContent(showName: $0.name, takeTitle: takeTitle, startedAt: started,
                                     markerCount: recorder.takeMarkers.count, problems: liveActivityProblems,
                                     showsMarkerButton: MarkerButtonAvailability.isAvailableInThisBuild,
-                                    markerLimitReached: recorder.markerLimitReached)
+                                    markerLimitReached: recorder.markerLimitReached,
+                                    markerLimit: Entitlement.freeMarkerLimit)
             }
         } : nil
         liveActivity.follow(take)
