@@ -40,7 +40,11 @@ extension RecordScreenModel {
         else { return nil }
         switch type {
         case .began:
-            return .interruptionBegan
+            // The reason key is deprecated in the iOS 27 SDK. Its replacement,
+            // AVAudioSessionDeactivationContext.interruptionDetails.reason, isn't adopted yet because it
+            // can't be tried without an iOS 27 device. The deployment target is iOS 26, so no #available
+            // is needed. A missing key falls back to the general wording.
+            return .interruptionBegan(reason: .init(sessionReason: info?[AVAudioSessionInterruptionReasonKey] as? UInt))
         case .ended:
             let options = (info?[AVAudioSessionInterruptionOptionKey] as? UInt).map(AVAudioSession.InterruptionOptions.init(rawValue:)) ?? []
             return .interruptionEnded(shouldResume: options.contains(.shouldResume))

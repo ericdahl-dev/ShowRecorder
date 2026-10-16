@@ -8,9 +8,29 @@
 /// While input is stopped no audio reaches the Take. When it comes back, the stretch it missed is written as
 /// silence with a Dropout (the recorder sees the jump in the input's host time, #317), so the Stems keep their length.
 public struct InterruptionPolicy: Sendable, Equatable {
+    /// Why the system interrupted audio.
+    public enum Reason: Sendable, Equatable {
+        /// Another app, a call or Siri took the audio session, or the system gave no reason.
+        case other
+        /// The built-in microphone was muted (an iPad's Smart Folio closed, for example).
+        case builtInMicMuted
+        /// The audio input was disconnected.
+        case routeDisconnected
+
+        /// From the raw value of `AVAudioSessionInterruptionReasonKey`: 2 is `builtInMicMuted` and 4 is
+        /// `routeDisconnected` (AVAudioSessionTypes.h). Anything else, or no value, is `.other`.
+        public init(sessionReason raw: UInt?) {
+            switch raw {
+            case 2: self = .builtInMicMuted
+            case 4: self = .routeDisconnected
+            default: self = .other
+            }
+        }
+    }
+
     public enum Event: Sendable, Equatable {
-        /// Another app, a call or Siri took the audio session. Input has stopped.
-        case interruptionBegan
+        /// The audio session was interrupted and input has stopped. `reason` says why, when the system does.
+        case interruptionBegan(reason: Reason)
         /// The interruption is over. `shouldResume` is the system's hint.
         case interruptionEnded(shouldResume: Bool)
         /// The system's media services were reset: every audio object must be rebuilt.
@@ -64,12 +84,29 @@ public struct InterruptionPolicy: Sendable, Equatable {
             guard isInputStopped else { return Response(action: .none, log: nil) }
             return Response(action: restartAction, log: "App became active with input stopped; restarting input")
 
-        case .interruptionBegan:
+        case .interruptionBegan(let reason):
             isInputStopped = true
-            notice = isRecording
-                ? "Audio input was interrupted (a call, Siri or another app). The Take is still open, but nothing is recorded until input comes back."
-                : "Audio input was interrupted (a call, Siri or another app)."
-            return Response(action: .none, log: "Audio session interruption began" + (isRecording ? " during a Take" : ""))
+            let notice: String
+            let detail: String
+            switch reason {
+            case .other:
+                notice = isRecording
+                    ? "Audio input was interrupted (a call, Siri or another app). The Take is still open, but nothing is recorded until input comes back."
+                    : "Audio input was interrupted (a call, Siri or another app)."
+                detail = ""
+            case .builtInMicMuted:
+                notice = isRecording
+                    ? "The built-in microphone was muted (an iPad's Smart Folio closed, for example). The Take is still open, but nothing is recorded until input comes back."
+                    : "The built-in microphone was muted (an iPad's Smart Folio closed, for example)."
+                detail = " (built-in microphone muted)"
+            case .routeDisconnected:
+                notice = isRecording
+                    ? "The audio input was disconnected. Check the connection. The Take is still open, but nothing is recorded until input comes back."
+                    : "The audio input was disconnected. Check the connection."
+                detail = " (input disconnected)"
+            }
+            self.notice = notice
+            return Response(action: .none, log: "Audio session interruption began" + (isRecording ? " during a Take" : "") + detail)
 
         case .interruptionEnded(let shouldResume):
             guard isInputStopped else { return Response(action: .none, log: "Audio session interruption ended") }
