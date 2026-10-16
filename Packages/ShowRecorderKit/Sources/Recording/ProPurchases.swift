@@ -39,22 +39,30 @@ public struct ProPurchases: Equatable, Sendable {
 
     private static let lastKnownProKey = "proPurchases.ownsPro"
     private static let lastKnownTrialKey = "proPurchases.trialStartedAt"
+    /// The owned packs as their product IDs, which stay the same when the code changes (#705). A device that saved
+    /// before this key existed restores no packs.
+    private static let lastKnownPacksKey = "proPurchases.ownedPacks"
 
-    private init(ownsPro: Bool, trialStartedAt: Date?) {
+    private init(ownsPro: Bool, trialStartedAt: Date?, ownedPacks: Set<MixerFamily>) {
         self.ownsPro = ownsPro
         self.trialStartedAt = trialStartedAt
+        self.ownedPacks = ownedPacks
     }
 
     /// What was owned the last time the App Store was asked, kept on the device so a launch knows the tier at once
     /// (#316). Nil before the first answer (a fresh install or a new device).
     public static func lastKnown(from defaults: UserDefaults = .standard) -> ProPurchases? {
         guard defaults.object(forKey: lastKnownProKey) != nil else { return nil }
-        return ProPurchases(ownsPro: defaults.bool(forKey: lastKnownProKey), trialStartedAt: defaults.object(forKey: lastKnownTrialKey) as? Date)
+        let packIDs = defaults.stringArray(forKey: lastKnownPacksKey) ?? []
+        return ProPurchases(
+            ownsPro: defaults.bool(forKey: lastKnownProKey), trialStartedAt: defaults.object(forKey: lastKnownTrialKey) as? Date,
+            ownedPacks: Set(packProductIDs.filter { packIDs.contains($0.value) }.keys))
     }
 
     public func saveAsLastKnown(to defaults: UserDefaults = .standard) {
         defaults.set(ownsPro, forKey: Self.lastKnownProKey)
         defaults.set(trialStartedAt, forKey: Self.lastKnownTrialKey)
+        defaults.set(ownedPacks.compactMap { Self.packProductIDs[$0] }.sorted(), forKey: Self.lastKnownPacksKey)
     }
 
     /// Free, Trial or Pro at `now`. Read when record is pressed, never awaited.
