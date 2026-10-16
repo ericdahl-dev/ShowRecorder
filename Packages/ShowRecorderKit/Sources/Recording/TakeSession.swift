@@ -371,6 +371,9 @@ final class TakeSession {
     }
 
     /// What `finish` works on, copied out of the session so the join and the file writes need no main actor (#652).
+    /// A snapshot: take it after the last `accumulate`, after `Recorder` has dropped the session and cancelled the
+    /// destination checks (a late `attachDrive` or stand-in would be missing from it), and change nothing on the session
+    /// until `finish()` writes the metadata back.
     struct FinishInput: Sendable {
         let capture: Capture
         let copies: [CopyRecord]
