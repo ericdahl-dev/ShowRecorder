@@ -4,7 +4,8 @@ import Synchronization
 ///
 /// Every family in the registry (`MixerFamily`) is asked on its own port at once (the X-Air listens on 10024, the X32
 /// on 10023), so an X32 costs no timeout on the X-Air's port. The model in the reply picks the driver. The connection
-/// that identified the Mixer is the one the Link keeps, so there is one connection per Link (#776).
+/// that identified the Mixer is the one the Link keeps, so there is one connection per Link (#776); only a Mixer of
+/// another family than the port's (an X32 behind a port typed on purpose) gets a driver of its own.
 public final class DetectingMixerDriver: MixerDriver {
     /// One family asked on one port.
     public struct Candidate: Equatable, Sendable {
@@ -91,10 +92,18 @@ public final class DetectingMixerDriver: MixerDriver {
             // The problem on the first candidate port says most about the address the operator typed.
             return .failure(candidates.first.flatMap { failures[$0.port] } ?? .noReply(host: host))
         }
-        let (candidate, probe, identity) = try found.get()
+        let (candidate, answeringProbe, identity) = try found.get()
+        var probe: (any MixerDriver)? = answeringProbe
         let family = MixerFamily.reading(model: identity.model)
-        let driver = family == candidate.family
-            ? probe : makeDriver(family, MixerEndpoint(host: host, port: candidate.port), timeout)
+        let driver: any MixerDriver
+        if family == candidate.family, let kept = probe {
+            driver = kept
+        } else {
+            // A Mixer of another family than the port's (an X32 behind a port typed on purpose) needs its own driver:
+            // let go of the probe first, so its connection isn't open beside the new one.
+            probe = nil
+            driver = makeDriver(family, MixerEndpoint(host: host, port: candidate.port), timeout)
+        }
         chosen.withLock { $0 = (family, driver) }
         return identity
     }

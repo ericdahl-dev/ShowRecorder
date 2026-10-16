@@ -42,6 +42,7 @@ struct DetectingMixerDriverConnectionTests {
 
         _ = try await driver.identify()
         _ = try await driver.sources(usbChannelCount: 18)
+        _ = try await driver.identify()  // the Link asking again, on the same connection
 
         #expect(factory.made.count == 1)
         #expect(factory.made.first?.driver.state.withLock { $0.sourceReads } == [18], "the Sources were read on the driver that identified")
@@ -53,8 +54,12 @@ struct DetectingMixerDriverConnectionTests {
         let driver = detecting([.init(family: .xAir, port: 10024), .init(family: .x32, port: 10023)], factory)
 
         _ = try await driver.identify()
+        _ = try await driver.sources(usbChannelCount: 18)
 
         #expect(factory.made.count == 2)
+        let reads = factory.made.map { ($0.family, $0.driver.state.withLock { $0.sourceReads }) }
+        #expect(reads.first { $0.0 == .xAir }?.1 == [18], "the Sources were read on the probe that answered")
+        #expect(reads.first { $0.0 == .x32 }?.1 == [], "and not on the one that didn't")
     }
 
     @Test("A Mixer that names another family than the one asked gets that family's driver")
