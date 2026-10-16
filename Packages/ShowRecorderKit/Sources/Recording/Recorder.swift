@@ -19,6 +19,8 @@ public final class Recorder {
     public private(set) var isFinishing = false
     /// Callers of `waitForRepair` that came while the last Take was still being written: resumed when it is published.
     @ObservationIgnored private var finishWaiters: [CheckedContinuation<Void, Never>] = []
+    /// Gain changes made while the last Take was being written: the publish replaces `currentShow`, so they go on it after.
+    @ObservationIgnored private var gainChangesWhileFinishing: [TakeMetadata.GainChange] = []
     public private(set) var usbChannelCount = 0
     /// The open Show, if any. Created on the first record press.
     public private(set) var currentShow: Show?
@@ -244,7 +246,7 @@ public final class Recorder {
               replacement.inputChannelCount == capture.channelCount,
               replacement.sampleRate == device.sampleRate
         else {
-            if isRecording { try await stopTake(because: .inputChanged) }
+            if isRecording || isFinishing { try await stopTake(because: .inputChanged) }
             try arm(replacement)
             return false
         }
@@ -373,7 +375,7 @@ public final class Recorder {
     public func setChannelName(_ name: String, forChannel usbChannel: Int) -> Bool {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return false }
-        if !isRecording { endIdleShow(at: now()) }
+        if !isRecording, !isFinishing { endIdleShow(at: now()) }
         naming.type(name, for: usbChannel)
         currentShow?.setChannelNames(channelNames)
         savedChannelNames = SavedChannelNames.adding(name, to: savedChannelNames)
@@ -418,6 +420,7 @@ public final class Recorder {
     public func deleteShow(named name: String, from copies: Set<DestinationKind>) -> ShowDeleter.Outcome {
         let kinds = copies.sorted { $0.index < $1.index }
         guard !isRecording else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "A Take is running.") }) }
+        guard !isFinishing else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: RecorderError.finishing.errorDescription ?? "") }) }
         // A move to the Drive works on these files too (#630).
         guard !isMoving else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "Takes are moving to the Drive.") }) }
         let access = copies.contains(.drive) ? driveFolder() : nil
@@ -462,6 +465,7 @@ public final class Recorder {
     public func deleteTake(_ take: Int, ofShow show: String, from copies: Set<DestinationKind>) -> ShowDeleter.Outcome {
         let kinds = copies.sorted { $0.index < $1.index }
         guard !isRecording else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "A Take is running.") }) }
+        guard !isFinishing else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: RecorderError.finishing.errorDescription ?? "") }) }
         // A move to the Drive works on these files too (#630).
         guard !isMoving else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "Takes are moving to the Drive.") }) }
         let access = copies.contains(.drive) ? driveFolder() : nil
@@ -474,6 +478,7 @@ public final class Recorder {
     public func deleteChannel(_ channel: Int, inTake take: Int, ofShow show: String, from copies: Set<DestinationKind>) -> ShowDeleter.Outcome {
         let kinds = copies.sorted { $0.index < $1.index }
         guard !isRecording else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "A Take is running.") }) }
+        guard !isFinishing else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: RecorderError.finishing.errorDescription ?? "") }) }
         // A move to the Drive works on these files too (#630).
         guard !isMoving else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "Takes are moving to the Drive.") }) }
         let access = copies.contains(.drive) ? driveFolder() : nil
@@ -622,6 +627,8 @@ public final class Recorder {
             let name = session.channelName(change.usbChannel) ?? String(format: "USB %02d", change.usbChannel)
             session.logGainChange(change, markerName: GainLog.markerName(for: change, channelName: name))
             refreshMarkers(from: session.metadata)
+        } else if isFinishing {
+            gainChangesWhileFinishing.append(change)
         } else {
             currentShow?.logGainChange(change)
         }
@@ -731,6 +738,7 @@ public final class Recorder {
     /// The Drive is reached again for the rename and let go after. The outcome names any Copy that wasn't
     /// updated. Waits for Repair first, which would otherwise write the old name back.
     public func renameLastTakeMarker(at index: Int, to name: String) async -> MarkerRenamer.Outcome {
+        await waitWhileFinishing()
         await repair.wait()
         // A move works on these files too (#630); the rename runs once none is.
         await waitWhileMoving()
@@ -806,7 +814,8 @@ public final class Recorder {
     /// meanwhile; otherwise it is inline. `isFinishing` is true from the start of the first to the end of the last. The
     /// await is not a cancellation point, so canceling the caller skips neither the finish nor the publish.
     func stopTake(because reason: TakeEnd.Reason) async throws {
-        guard let stopping = beginStop(because: reason) else { return }
+        // Already stopping: this Stop returns once that one is published, so a quit or an Arm after it is safe.
+        guard let stopping = beginStop(because: reason) else { return await waitWhileFinishing() }
         let input = stopping.input
         let finished = asyncStopAvailable ? await runOffPool { TakeSession.finish(input) } : TakeSession.finish(input)
         publishStop(stopping, finished)
@@ -823,6 +832,8 @@ public final class Recorder {
         let session: TakeSession
         let input: TakeSession.FinishInput
         let reason: TakeEnd.Reason
+        /// The names as they were at Stop: names typed afterwards are for the next Take.
+        var naming: ChannelNaming
     }
 
     /// Everything up to the snapshot, in this order: the last window is accumulated after the session is dropped and
@@ -835,9 +846,13 @@ public final class Recorder {
         self.session = nil
         destinationChecks?.cancel()
         destinationChecks = nil
+        // The Take ends here, not when the finish thread gets to it.
+        capture?.stopCapturing()
         // The last window, which the screen hasn't read yet, is still part of the Take.
         session.accumulate(capture?.meters.takeLevels() ?? [])
-        return Stopping(session: session, input: session.finishInput(), reason: reason)
+        let namingAtStop = naming
+        _ = naming.takeEnded(allowance: lastAllowance, onFiles: [:])
+        return Stopping(session: session, input: session.finishInput(), reason: reason, naming: namingAtStop)
     }
 
     private func publishStop(_ stopping: Stopping, _ finished: TakeSession.Finished) {
@@ -859,13 +874,15 @@ public final class Recorder {
             hadDrive: finished.folders[.drive] != nil)
         lastTakeGeneration += 1
         currentShow = session.show
+        for change in gainChangesWhileFinishing { currentShow?.logGainChange(change) }
+        gainChangesWhileFinishing = []
         // A Copy Stop gave up on may hang on any file operation, so the main thread leaves it alone (#652).
         currentShow?.setChannelNames(channelNames, skipping: finished.abandoned)
         currentShow?.noteTakeEnded(at: now(), skipping: finished.abandoned)
         // The Takes are safe either way; the report and project are regenerated next time.
         regenerateReports(skipping: finished.abandoned)
         repair.enqueue(finished.metadata, folders: finished.folders, holding: finished.access, abandoned: finished.abandoned)
-        nameChannels(of: finished.metadata)
+        nameChannels(of: finished.metadata, naming: stopping.naming)
         onTakeEnded(TakeEnd(take: finished.metadata.take, reason: reason))
         // A Drive connected during the Take, or a Take left on the Device by it, moves once it is repaired and named.
         driveMayHaveConnected()
@@ -873,9 +890,10 @@ public final class Recorder {
 
     /// Puts the names typed during the Take on its files. Waits for Repair first, which works on the Stems
     /// by their file names.
-    private func nameChannels(of metadata: TakeMetadata) {
+    private func nameChannels(of metadata: TakeMetadata, naming atStop: ChannelNaming) {
+        var atStop = atStop
         let onFiles = Dictionary(metadata.usbChannels.map { ($0.usbChannel, $0.name) }) { first, _ in first }
-        let (names, late) = naming.takeEnded(allowance: lastAllowance, onFiles: onFiles)
+        let (names, late) = atStop.takeEnded(allowance: lastAllowance, onFiles: onFiles)
         guard !names.isEmpty, let take = lastTake else { return }
         let allowsProExtras = lastAllowance?.showReport ?? true
         let previous = namingTask
@@ -920,7 +938,7 @@ public final class Recorder {
     /// - Parameter shouldStop: replaces `moveStop` in tests.
     @discardableResult
     func moveDriveOnlyTakes(shouldStop: (@Sendable () -> Bool)? = nil) async -> [StandInMove.Result] {
-        guard !isRecording, !isMoving, let access = driveFolder() else { return [] }
+        guard !isRecording, !isFinishing, !isMoving, let access = driveFolder() else { return [] }
         isMoving = true
         defer {
             isMoving = false
@@ -1032,6 +1050,7 @@ public final class Recorder {
     /// Renames the operator Marker at `index` in Take `take` of Show `show`, in every Copy it reaches (Show detail).
     /// A move works on these files too (#630): the rename runs once none is.
     public func renameMarker(at index: Int, to name: String, inTake take: Int, ofShow show: String, allowsProExtras: Bool) async -> MarkerRenamer.Outcome {
+        await waitWhileFinishing()
         await waitWhileMoving()
         // Counted while its file work runs off the main actor, so a move waits for it before it starts.
         editsInProgress += 1
@@ -1065,10 +1084,15 @@ public final class Recorder {
         await moveTrigger?.value
     }
 
+    /// Returns once the Take being written is published (at once when none is).
+    func waitWhileFinishing() async {
+        if isFinishing { await withCheckedContinuation { finishWaiters.append($0) } }
+    }
+
     /// Waits for Repair of the last Take to finish.
     public func waitForRepair() async {
         // A Take that is still being written has nothing to repair yet.
-        if isFinishing { await withCheckedContinuation { finishWaiters.append($0) } }
+        await waitWhileFinishing()
         await repair.wait()
         await namingTask?.value
     }

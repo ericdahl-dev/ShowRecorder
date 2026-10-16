@@ -84,14 +84,22 @@ struct AsyncStopOffMainTests {
         #expect(recorder.lastTakeEnd == nil, "nothing is published until the finish is done")
         #expect(throws: RecorderError.finishing) { try recorder.startTake() }
         #expect(!recorder.isRecording)
-        // A second Stop returns at once: it neither waits on the first nor finishes a second time.
-        try await recorder.stopTake()
+        // A second Stop waits for the first one's publish and does not finish a second time.
+        nonisolated(unsafe) var secondReturned = false
+        let second = Task { @MainActor in
+            try await recorder.stopTake()
+            secondReturned = true
+        }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(!secondReturned, "a second Stop returned while the first was still saving")
         #expect(recorder.isFinishing)
 
         gate.open()
         try await stop.value
+        try await second.value
+        #expect(secondReturned)
+        #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .stopped), "the second Stop returned before the publish")
         #expect(!recorder.isFinishing)
-        #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .stopped))
 
         let name = "\(show)/Take 01"
         let inlineJSON = try Data(contentsOf: inlineRoot.appending(path: "Device/\(name)/Take.json"))
@@ -216,6 +224,163 @@ struct AsyncStopOffMainTests {
         await waiter.value
         #expect(published == TakeEnd(take: 1, reason: .stopped))
         #expect(recorder.currentShow?.takeCount == 1)
+    }
+
+    /// Starts a Take on `recorder` and a Stop of it that is blocked in the gated Device Stem.
+    private func startBlockedStop(
+        _ recorder: Recorder, audio: FakeAudioDevice, gated: @escaping () -> GatedStem?
+    ) async throws -> Task<Void, any Error> {
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0.25, count: 4_800)])
+        let stop = Task { @MainActor in try await recorder.stopTake() }
+        try await waitUntil { gated()?.entered == true }
+        return stop
+    }
+
+    @Test("A Drive that is up before Stop does join the Take (the control for the late-Drive test)")
+    func driveUpBeforeStopJoins() async throws {
+        let drive = root.appending(path: "Drive")
+        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
+        nonisolated(unsafe) var driveUp = false
+        let recorder = makeRecorder(in: root, asyncStop: true, drive: drive, driveIsUp: { driveUp })
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0.25, count: 4_800)])
+        driveUp = true
+        await recorder.checkDestinations()
+        try await recorder.stopTake()
+        #expect(recorder.copies[.drive] != .missing)
+        #expect(FileManager.default.fileExists(atPath: drive.appending(path: "\(show)/Take 01").path))
+    }
+
+    @Test("Quit and window close ask to stop while the Take is being saved, and a Stop from there waits for the save")
+    func quitWhileFinishing() async throws {
+        let gate = TestGate()
+        nonisolated(unsafe) var gated: GatedStem?
+        let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
+        let source = FakeInputDevices([("xr18", 1)])
+        let sequencer = TakeSequencer(recorder: recorder, devices: source, capsAt48k: { false })
+        sequencer.arm()
+        let audio = try #require(source.opened.last)
+        let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
+        #expect(sequencer.quitRequested() == .askToStop)
+        #expect(sequencer.windowCloseRequested() == .askToStop)
+        // The operator answers "stop": the sequencer's Stop returns only once the Take is published.
+        nonisolated(unsafe) var returned = false
+        let answered = Task { @MainActor in
+            await sequencer.stop()
+            returned = true
+        }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(!returned)
+        gate.open()
+        try await stop.value
+        await answered.value
+        #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .stopped))
+        #expect(sequencer.quitRequested() == .quit)
+    }
+
+    @Test("A gain change made while the Take is being saved is kept on the Show, not overwritten by the publish")
+    func gainChangeWhileFinishing() async throws {
+        let gate = TestGate()
+        nonisolated(unsafe) var gated: GatedStem?
+        let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
+        recorder.logGainChange(TakeMetadata.GainChange(usbChannel: 1, channel: 1, headamp: 1, fromGainDb: 14.5, toGainDb: 11.5, reason: .clipProtection, compensations: []))
+        gate.open()
+        try await stop.value
+        #expect(recorder.currentShow?.gainChanges.count == 1)
+    }
+
+    @Test("A name typed after Stop was pressed is for the next Take: the saved Take's files keep their names")
+    func nameTypedWhileFinishing() async throws {
+        let gate = TestGate()
+        nonisolated(unsafe) var gated: GatedStem?
+        let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
+        #expect(recorder.setChannelName("Late", forChannel: 1))
+        gate.open()
+        try await stop.value
+        await recorder.waitForRepair()
+        let folder = root.appending(path: "Device/\(show)/Take 01")
+        let names = try FileManager.default.contentsOfDirectory(atPath: folder.path)
+        #expect(names.contains("01 USB 01.wav"), "the new name reached the Take that had just ended: \(names)")
+    }
+
+    @Test("While the Take is being saved, deletes and direct moves are refused, and Marker renames wait for the save")
+    func editsWhileFinishing() async throws {
+        let gate = TestGate()
+        nonisolated(unsafe) var gated: GatedStem?
+        let drive = root.appending(path: "Drive")
+        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
+        let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 }, drive: drive, driveIsUp: { true })
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
+        let deleted = [
+            recorder.deleteShow(named: "Other", from: [.device]),
+            recorder.deleteTake(1, ofShow: "Other", from: [.device]),
+            recorder.deleteChannel(1, inTake: 1, ofShow: "Other", from: [.device]),
+        ]
+        for outcome in deleted {
+            #expect(outcome.deleted.isEmpty)
+            #expect(outcome.failed.map(\.reason) == ["The last Take is still being saved."])
+        }
+        #expect(await recorder.moveDriveOnlyTakes().isEmpty)
+        nonisolated(unsafe) var renamedAfterPublish: Bool?
+        let rename = Task { @MainActor in
+            _ = await recorder.renameLastTakeMarker(at: 0, to: "x")
+            renamedAfterPublish = recorder.lastTakeEnd != nil
+        }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(renamedAfterPublish == nil)
+        gate.open()
+        try await stop.value
+        await rename.value
+        #expect(renamedAfterPublish == true)
+    }
+
+    @Test("A refused Arm while the Take is being saved leaves the sequencer's armed device alone; a route move waits for the save")
+    func sequencerArmWhileFinishing() async throws {
+        let gate = TestGate()
+        nonisolated(unsafe) var gated: GatedStem?
+        let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
+        let source = FakeInputDevices([("xr18", 1)])
+        let sequencer = TakeSequencer(recorder: recorder, devices: source, capsAt48k: { false })
+        sequencer.arm()
+        let armed = sequencer.armedDevice
+        #expect(armed != nil)
+        let audio = try #require(source.opened.last)
+        let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
+        sequencer.arm()
+        #expect(recorder.isArmed)
+        #expect(sequencer.armedDevice?.id == armed?.id, "the sequencer forgot a device the recorder still has")
+        gate.open()
+        try await stop.value
+    }
+
+    @Test("A mismatched replacement device waits for the save before it Arms")
+    func restartInputWhileFinishing() async throws {
+        let gate = TestGate()
+        nonisolated(unsafe) var gated: GatedStem?
+        let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
+        nonisolated(unsafe) var continued: Bool?
+        let move = Task { @MainActor in continued = try await recorder.restartInput(on: FakeAudioDevice(inputChannelCount: 2)) }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(continued == nil)
+        gate.open()
+        try await stop.value
+        try await move.value
+        #expect(continued == false)
+        #expect(recorder.usbChannelCount == 2)
     }
 
     @Test("With the rule off, Stop doesn't suspend: the Take is published when the call returns")

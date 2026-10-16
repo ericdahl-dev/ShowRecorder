@@ -132,7 +132,7 @@ public final class TakeSequencer {
 
     /// The operator asked to close the window (the close button or Command-W).
     public func windowCloseRequested() -> WindowCloseAction {
-        recorder.isRecording ? .askToStop : .close
+        recorder.isRecording || recorder.isFinishing ? .askToStop : .close
     }
 
     /// What to do when the operator quits the app (the Mac).
@@ -144,7 +144,7 @@ public final class TakeSequencer {
 
     /// The operator asked to quit (Command-Q or the Dock menu).
     public func quitRequested() -> QuitAction {
-        recorder.isRecording ? .askToStop : .quit
+        recorder.isRecording || recorder.isFinishing ? .askToStop : .quit
     }
 
     /// The first Arm, once the App may use the input. Never Arms over an Armed recorder, because Arming again stops
@@ -183,6 +183,7 @@ public final class TakeSequencer {
             armedDevice = nil
             return
         }
+        let previous = armedDevice
         do {
             armedDevice = nil
             let device = try choice.make(sampleRateChoice, capsAt48k())
@@ -191,6 +192,10 @@ public final class TakeSequencer {
             armError = nil
             emit.yield(.armed(choice.info))
             didArm(device)
+        } catch RecorderError.finishing {
+            // The recorder kept the device it had, so the sequencer does too.
+            armedDevice = previous
+            armError = "Couldn't start \(choice.name): \(RecorderError.finishing.localizedDescription)"
         } catch {
             armError = "Couldn't start \(choice.name): \(error)"
             didArm(nil)
