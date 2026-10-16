@@ -14,6 +14,9 @@ import Synchronization
 public final class Recorder {
     public private(set) var isArmed = false
     public private(set) var isRecording = false
+    /// Stop is writing the last Take's Copies (#652): no Take starts until it is done. True only inside `stopTake` while
+    /// Stop is synchronous; it is the guard an asynchronous Stop will rely on.
+    public private(set) var isFinishing = false
     public private(set) var usbChannelCount = 0
     /// The open Show, if any. Created on the first record press.
     public private(set) var currentShow: Show?
@@ -473,6 +476,7 @@ public final class Recorder {
     /// - Parameter allowance: what this Take may do, frozen at the press (ADR 0004). Nil records every USB Channel.
     func startTake(sources: [Source] = [], allowance: TakeAllowance? = nil) throws {
         guard let device, let capture else { throw RecorderError.notArmed }
+        guard !isFinishing else { throw RecorderError.finishing }
         guard !isRecording else { return }
         let date = now()
 
@@ -787,6 +791,8 @@ public final class Recorder {
 
     func stopTake(because reason: TakeEnd.Reason) throws {
         guard isRecording, let session else { return }
+        isFinishing = true
+        defer { isFinishing = false }
         // Not recording from here on, so a Copy that fails while draining doesn't stop the Take again.
         isRecording = false
         self.session = nil
@@ -1022,6 +1028,8 @@ public enum RecorderError: Error, Equatable {
     case notArmed
     /// A Show can't be started or ended while a Take is running.
     case takeRunning
+    /// The last Take's Copies are still being written (#652).
+    case finishing
 }
 
 /// One line of the Marker list: a Marker with its time in the Take (counted from the start of the audio,
