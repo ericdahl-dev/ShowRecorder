@@ -1,4 +1,5 @@
 import Foundation
+import MixerLink
 @testable import Recording
 import Testing
 
@@ -47,5 +48,38 @@ struct ProPurchasesTests {
         #expect(ProPurchases(owned: [trial]).tier(now: threeDaysOn) == .trial(daysLeft: 11))
         #expect(ProPurchases(owned: [trial, pro]).tier(now: threeDaysOn) == .pro)
         #expect(ProPurchases(owned: []).tier(now: threeDaysOn) == .free)
+    }
+
+    // MARK: - Mixer packs (#412, #705)
+
+    func pack(_ family: MixerFamily, revoked: Bool = false) -> OwnedPurchase {
+        OwnedPurchase(productID: ProPurchases.packProductIDs[family]!, purchaseDate: bought, revocationDate: revoked ? bought : nil)
+    }
+
+    @Test("A mixer pack is Pro while its family's interface is the Armed input; any other input, or none, stays Free (#412)")
+    func packIsProForItsFamily() {
+        let owned = ProPurchases(owned: [pack(.xAir)])
+        #expect(owned.ownedPacks == [.xAir])
+        #expect(!owned.ownsPro)
+        #expect(owned.tier(now: bought, armedFamily: .xAir) == .pro)
+        #expect(owned.tier(now: bought, armedFamily: .x32) == .free)
+        #expect(owned.tier(now: bought, armedFamily: nil) == .free, "a generic interface needs full Pro")
+        #expect(owned.tier(now: bought) == .free)
+    }
+
+    @Test("A refunded or revoked pack isn't owned (#412)")
+    func revokedPack() {
+        #expect(ProPurchases(owned: [pack(.x32, revoked: true)]).ownedPacks.isEmpty)
+    }
+
+    @Test("With a Trial running, a pack is Pro on its family and the Trial covers the rest; Pro covers every input (#412)")
+    func packWithTrialAndPro() {
+        let trial = OwnedPurchase(productID: ProPurchases.trialProductID, purchaseDate: bought)
+        let both = ProPurchases(owned: [pack(.xAir), trial])
+        #expect(both.tier(now: bought, armedFamily: .xAir) == .pro)
+        #expect(both.tier(now: bought, armedFamily: .x32) == .trial(daysLeft: 14))
+        #expect(both.tier(now: bought.addingTimeInterval(30 * 86_400), armedFamily: .xAir) == .pro, "a pack doesn't depend on the Trial")
+        let pro = ProPurchases(owned: [OwnedPurchase(productID: ProPurchases.proProductID, purchaseDate: bought)])
+        #expect(pro.tier(now: bought, armedFamily: nil) == .pro)
     }
 }
