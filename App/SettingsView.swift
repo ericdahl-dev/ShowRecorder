@@ -157,7 +157,7 @@ struct SettingsView: View {
             .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
             .sheet(isPresented: $showingSoundcheck) { SoundcheckView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
             .sheet(isPresented: $showingTrial) { TrialSheet(store: model.pro).modifier(AppearanceRoot(mode: model.appearance)) }
-            .sheet(isPresented: $showingPaywall) { PaywallSheet(store: model.pro, moment: nil).modifier(AppearanceRoot(mode: model.appearance)) }
+            .sheet(isPresented: $showingPaywall) { PaywallSheet(store: model.pro, moment: nil, mixerModel: model.mixer.identity?.model).modifier(AppearanceRoot(mode: model.appearance)) }
             .fileImporter(isPresented: $choosing, allowedContentTypes: [.folder]) { result in
                 if case .success(let url) = result { model.drive.choose(url) }
             }

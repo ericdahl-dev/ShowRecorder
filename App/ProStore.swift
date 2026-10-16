@@ -1,4 +1,5 @@
 import Foundation
+import MixerLink
 import Recording
 import StoreKit
 
@@ -17,13 +18,19 @@ final class ProStore {
     private(set) var status = ProStatus(lastKnown: ProStore.debugTrial ?? ProPurchases.lastKnown())
     /// Whether Pro is owned and when the Trial started.
     var purchases: ProPurchases { status.purchases }
-    /// Called when the known tier changes (the App Store answered, a purchase, a refund), so the recorder can re-Arm
-    /// between Takes at the rate it may now use.
+    /// Called when the known tier or owned packs change (the App Store answered, a purchase, a refund; #705), so the
+    /// recorder can re-Arm between Takes at the rate it may now use.
     @ObservationIgnored var onTierChange: (() -> Void)?
+    /// The Armed input's Mixer family, set by the record screen model, so an owned pack counts on its own family (#705).
+    @ObservationIgnored var armedFamily: () -> MixerFamily? = { nil }
     /// The Pro product, once loaded. Nil until then, or when the App Store doesn't offer it.
     private(set) var proProduct: Product?
     /// The $0 14-day Trial product, once loaded.
     private(set) var trialProduct: Product?
+    /// The mixer pack products, once loaded, only where packs are offered (#705).
+    private(set) var packProducts: [MixerFamily: Product] = [:]
+    /// The upgrade to Pro for a pack owner, once loaded, only where packs are offered (#705).
+    private(set) var upgradeProduct: Product?
     private(set) var loadingProducts = true
     /// A purchase or restore in progress.
     private(set) var busy = false
@@ -47,6 +54,12 @@ final class ProStore {
 
     /// What the operator may do right now. Every Pro, Free and Trial question goes through it (#439).
     func license(now: Date = Date()) -> License {
+        status.license(proOffered: Self.isOffered, armedFamily: armedFamily(), now: now)
+    }
+
+    /// The plan as owned, whatever is Armed (#705): for Settings' plan line and offers, so they don't change with the
+    /// input and a running Trial isn't hidden by a pack on the Armed family. Record press and limits use `license()`.
+    func planLicense(now: Date = Date()) -> License {
         status.license(proOffered: Self.isOffered, now: now)
     }
 
@@ -66,9 +79,13 @@ final class ProStore {
     func loadProducts() async {
         loadingProducts = true
         defer { loadingProducts = false }
-        let products = (try? await Product.products(for: [ProPurchases.proProductID, ProPurchases.trialProductID])) ?? []
+        var ids = [ProPurchases.proProductID, ProPurchases.trialProductID]
+        if PackAvailability.isAvailableInThisBuild { ids += ProPurchases.packProductIDs.values + [ProPurchases.upgradeProductID] }
+        let products = (try? await Product.products(for: ids)) ?? []
         proProduct = products.first { $0.id == ProPurchases.proProductID }
         trialProduct = products.first { $0.id == ProPurchases.trialProductID }
+        packProducts = ProPurchases.packProductIDs.compactMapValues { id in products.first { $0.id == id } }
+        upgradeProduct = products.first { $0.id == ProPurchases.upgradeProductID }
     }
 
     /// The Trial's disclosure, once Pro's price is known (Guideline 3.1.1 asks for it).
@@ -79,6 +96,11 @@ final class ProStore {
     func buyPro() async {
         guard let proProduct else { return }
         await purchase(proProduct, failure: "Couldn't buy Pro")
+    }
+
+    /// Buys Pro, a mixer pack or the upgrade (#705).
+    func buy(_ product: Product) async {
+        await purchase(product, failure: "Couldn't buy \(product.displayName)")
     }
 
     /// Starts the 14-day Trial: a $0 purchase, so its start date is the App Store's and survives reinstalling.
@@ -120,7 +142,7 @@ final class ProStore {
         do {
             try await AppStore.sync()
             await refreshOwned()
-            if !purchases.ownsPro { note = "No Pro purchase found for this Apple Account." }
+            note = PackOffer.restoreNote(ownsPro: purchases.ownsPro, ownedPacks: purchases.ownedPacks)
         } catch {
             note = "Couldn't restore purchases: \(error.localizedDescription)"
         }
@@ -135,7 +157,8 @@ final class ProStore {
             owned.append(OwnedPurchase(
                 productID: transaction.productID,
                 purchaseDate: transaction.purchaseDate,
-                revocationDate: transaction.revocationDate))
+                revocationDate: transaction.revocationDate,
+                isFamilyShared: transaction.ownershipType == .familyShared))
         }
         let changed = status.appStoreAnswered(owned, now: Date())
         status.purchases.saveAsLastKnown()

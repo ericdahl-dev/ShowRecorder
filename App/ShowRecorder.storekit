@@ -15,7 +15,7 @@
   ],
   "products" : [
     {
-      "displayPrice" : "19.99",
+      "displayPrice" : "4.99",
       "familyShareable" : true,
       "internalID" : "6753000001",
       "localizations" : [
@@ -42,6 +42,51 @@
       ],
       "productID" : "dev.ericdahl.ShowRecorder.trial",
       "referenceName" : "Trial",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "2.99",
+      "familyShareable" : true,
+      "internalID" : "6753000003",
+      "localizations" : [
+        {
+          "description" : "Everything Pro does, while an X Air mixer is the Armed input.",
+          "displayName" : "X Air pack",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "dev.ericdahl.ShowRecorder.pack.xair",
+      "referenceName" : "X Air pack",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "2.99",
+      "familyShareable" : true,
+      "internalID" : "6753000004",
+      "localizations" : [
+        {
+          "description" : "Everything Pro does, while an X32 mixer is the Armed input.",
+          "displayName" : "X32 pack",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "dev.ericdahl.ShowRecorder.pack.x32",
+      "referenceName" : "X32 pack",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "1.99",
+      "familyShareable" : true,
+      "internalID" : "6753000005",
+      "localizations" : [
+        {
+          "description" : "Pro on every input, for an owner of a mixer pack.",
+          "displayName" : "Upgrade to Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "dev.ericdahl.ShowRecorder.upgrade.pro",
+      "referenceName" : "Upgrade to Pro",
       "type" : "NonConsumable"
     }
   ],
