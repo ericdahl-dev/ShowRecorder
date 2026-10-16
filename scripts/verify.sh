@@ -140,8 +140,9 @@ xcodebuild="$(pwd)/scripts/bin/xcodebuild"
 heavy=$((package + app * 2))
 [ $app = 1 ] && [ -n "${DEVICE_ID:-}" ] && heavy=$((heavy + 1))
 if [ $heavy -gt 1 ]; then
+  # At least 2 each, so a full run on 2 slots (5 / 3 on a 12-core Mac) isn't slower than with one slot.
   share=$(( $(build_jobs) / heavy ))
-  [ $share -ge 1 ] || share=1
+  [ $share -ge 2 ] || share=2
   export SHOWRECORDER_BUILD_JOBS=$share
 fi
 
