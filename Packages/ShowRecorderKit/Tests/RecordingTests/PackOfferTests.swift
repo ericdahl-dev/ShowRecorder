@@ -61,4 +61,32 @@ struct PackOfferTests {
         #expect(PackAvailability.isAvailable(isDebugBuild: true))
         #expect(!PackAvailability.isAvailable(isDebugBuild: false))
     }
+
+    @Test("The license honors a pack on the Armed family: Pro on an X Air with the X Air pack, Free on an X32 (#705)")
+    func licenseWithFamily() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let pack = OwnedPurchase(productID: ProPurchases.packProductIDs[.xAir]!, purchaseDate: now)
+        var status = ProStatus(lastKnown: nil)
+        _ = status.appStoreAnswered([pack], now: now)
+        #expect(status.license(proOffered: true, armedFamily: .xAir, now: now).tier == .pro)
+        #expect(status.license(proOffered: true, armedFamily: .x32, now: now).tier == .free)
+        #expect(status.license(proOffered: true, now: now).tier == .free, "no family: as before")
+    }
+
+    @Test("Settings names a pack owner's plan after the pack, unless Pro or a running Trial says more (#705)")
+    func planTitle() {
+        #expect(PackOffer.planTitle(tier: .free, ownsPro: false, ownedPacks: [.xAir]) == "X Air pack")
+        #expect(PackOffer.planTitle(tier: .pro, ownsPro: false, ownedPacks: [.x32]) == "X32 pack", "Pro on its own family, still a pack")
+        #expect(PackOffer.planTitle(tier: .pro, ownsPro: true, ownedPacks: [.xAir]) == "Pro")
+        #expect(PackOffer.planTitle(tier: .trial(daysLeft: 3), ownsPro: false, ownedPacks: [.xAir]) == "14-day Trial, 3 days left")
+        #expect(PackOffer.planTitle(tier: .free, ownsPro: false, ownedPacks: []) == "Free")
+        #expect(PackOffer.planTitle(tier: nil, ownsPro: false, ownedPacks: []) == "Checking with the App Store…")
+    }
+
+    @Test("Restore says what came back: Pro, a pack, or nothing (Eric, #705)")
+    func restoreNote() {
+        #expect(PackOffer.restoreNote(ownsPro: true, ownedPacks: [.xAir]) == nil)
+        #expect(PackOffer.restoreNote(ownsPro: false, ownedPacks: [.xAir]) == "Restored: X Air pack")
+        #expect(PackOffer.restoreNote(ownsPro: false, ownedPacks: []) == "No Pro purchase found for this Apple Account.")
+    }
 }

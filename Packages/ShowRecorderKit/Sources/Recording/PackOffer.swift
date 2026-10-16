@@ -42,6 +42,25 @@ public enum PackOffer {
         return [.pro]
     }
 
+    /// How Settings names the plan (#705): a pack owner's plan is their pack ("X Air pack"), unless Pro is owned or a
+    /// Trial is running, which say more. Pass the tier without the Armed family (`license(proOffered:now:)`), so the
+    /// line doesn't change with the input and a running Trial isn't hidden by a pack on the Armed family.
+    public static func planTitle(tier: Tier?, ownsPro: Bool, ownedPacks: Set<MixerFamily>) -> String {
+        guard let tier else { return "Checking with the App Store…" }
+        if ownsPro { return Tier.pro.title }
+        if case .trial = tier { return tier.title }
+        if let pack = ownedPacks.sorted(by: { $0.name < $1.name }).first { return "\(pack.name) pack" }
+        return tier.title
+    }
+
+    /// What Restore Purchases says once the App Store has synced (#705): nothing when Pro came back, the pack when only
+    /// a pack did, else that no purchase was found.
+    public static func restoreNote(ownsPro: Bool, ownedPacks: Set<MixerFamily>) -> String? {
+        if ownsPro { return nil }
+        if let pack = ownedPacks.sorted(by: { $0.name < $1.name }).first { return "Restored: \(pack.name) pack" }
+        return "No Pro purchase found for this Apple Account."
+    }
+
     /// The pack headline (#705): the linked Mixer's model, else the family's name.
     public static func headline(family: MixerFamily, mixerModel: String?) -> String {
         let model = mixerModel?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -50,8 +69,8 @@ public enum PackOffer {
 }
 
 extension MixerFamily {
-    /// The family's name in the paywall (#705).
-    var name: String {
+    /// The family's name in copy: "X Air", "X32" (#705).
+    public var name: String {
         switch self {
         case .xAir: "X Air"
         case .x32: "X32"
