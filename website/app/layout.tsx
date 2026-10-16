@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import { ChatBubble } from "@/components/ChatBubble";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { OG_IMAGE, PAGES } from "@/lib/metadata";
@@ -58,6 +59,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
         </main>
         <Footer />
+        {/* Click-to-load support chat on every page; nothing loads from the chat server until it is pressed. */}
+        <ChatBubble />
         {/* Cookieless visit counts; see lib/analytics.ts and the privacy page. */}
         <Script id="posthog-init" strategy="afterInteractive">
           {posthogInitScript()}

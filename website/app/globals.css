@@ -366,7 +366,8 @@ html:not([data-js]) .theme-toggle {
   font-size: 14px;
   line-height: 1.45;
   color: var(--muted);
-  padding-block: 40px 48px;
+  /* The bottom leaves room for the chat bubble (84 px), so the last lines are never under it. */
+  padding-block: 40px 112px;
 }
 
 .footer-brand {
@@ -1633,6 +1634,106 @@ ol.cards {
   margin-top: 8px;
   color: var(--muted);
   font-size: 0.9375rem;
+}
+
+/* Chat bubble (components/ChatBubble.tsx): our own launcher on every page, in the spot and at the size of Chatwoot's
+   (64 px, 20 px from the right and bottom). It loads the chat only when pressed, then hides for Chatwoot's own. */
+.chat-bubble {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.chat-bubble-button {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--button-bg);
+  color: var(--button-ink);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+.chat-bubble-button[aria-busy="true"] {
+  cursor: progress;
+}
+
+.chat-bubble-button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .chat-bubble-button {
+    transition: transform 150ms ease;
+  }
+
+  .chat-bubble-button:hover {
+    transform: scale(1.05);
+  }
+
+  .chat-bubble-spinner {
+    animation: chat-bubble-spin 0.9s linear infinite;
+  }
+}
+
+@keyframes chat-bubble-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.chat-bubble-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: min(320px, calc(100vw - 40px));
+  padding: 12px 12px 12px 16px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: var(--bg-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.chat-bubble-note a {
+  color: var(--link);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+.chat-bubble-dismiss {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.chat-bubble-dismiss:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+
+@media print {
+  .chat-bubble {
+    display: none;
+  }
 }
 
 /* "Being looked at" mixers: a plain two-column list, lighter than the cards above it. */
