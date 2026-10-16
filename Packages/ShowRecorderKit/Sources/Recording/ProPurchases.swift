@@ -1,4 +1,5 @@
 import Foundation
+import MixerLink
 
 /// One in-app purchase the App Store says this person has, their own or Family Shared. A plain copy of the
 /// StoreKit transaction, so what it means can be decided and tested without StoreKit.
@@ -21,14 +22,19 @@ public struct ProPurchases: Equatable, Sendable {
     public static let proProductID = "dev.ericdahl.ShowRecorder.pro"
     /// The 14-day Trial: a $0 non-consumable (App Review Guideline 3.1.1). Its purchase date starts the Trial.
     public static let trialProductID = "dev.ericdahl.ShowRecorder.trial"
+    /// Mixer packs (#412): each unlocks Pro while its family's interface is the Armed input. Proposed IDs, not yet
+    /// created in App Store Connect (#705); the DJM pack waits for DJM support (#364).
+    public static let packProductIDs: [MixerFamily: String] = [.xAir: "dev.ericdahl.ShowRecorder.pack.xair", .x32: "dev.ericdahl.ShowRecorder.pack.x32"]
 
     public private(set) var ownsPro = false
     public private(set) var trialStartedAt: Date?
+    public private(set) var ownedPacks: Set<MixerFamily> = []
 
     public init(owned: [OwnedPurchase]) {
         let owned = owned.filter { $0.revocationDate == nil }
         ownsPro = owned.contains { $0.productID == Self.proProductID }
         trialStartedAt = owned.first { $0.productID == Self.trialProductID }?.purchaseDate
+        ownedPacks = Set(Self.packProductIDs.filter { pack in owned.contains { $0.productID == pack.value } }.keys)
     }
 
     private static let lastKnownProKey = "proPurchases.ownsPro"
@@ -53,6 +59,13 @@ public struct ProPurchases: Equatable, Sendable {
 
     /// Free, Trial or Pro at `now`. Read when record is pressed, never awaited.
     public func tier(now: Date) -> Tier {
-        Entitlement.tier(ownsPro: ownsPro, trialStartedAt: trialStartedAt, now: now)
+        tier(now: now, armedFamily: nil)
+    }
+
+    /// Free, Trial or Pro at `now` with `armedFamily`'s interface as the Armed input (nil for any other input): a
+    /// mixer pack is Pro only on its own family (ADR 0004, #412).
+    public func tier(now: Date, armedFamily: MixerFamily?) -> Tier {
+        if ownsPro || armedFamily.map(ownedPacks.contains) == true { return .pro }
+        return Entitlement.tier(ownsPro: false, trialStartedAt: trialStartedAt, now: now)
     }
 }
