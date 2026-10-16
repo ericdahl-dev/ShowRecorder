@@ -1,4 +1,5 @@
 import Foundation
+import MixerLink
 
 /// What the operator may do right now (ADR 0004, CONTEXT.md): every Pro, Free and Trial question is answered here,
 /// from the tier and whether Pro is offered. It is read from what the App Store last said and never waits on it, and
@@ -88,9 +89,13 @@ public struct ProStatus: Equatable, Sendable {
         return knownTier(now: now) != before || purchases.ownedPacks != packsBefore
     }
 
-    public func license(proOffered: Bool, now: Date) -> License {
-        License(proOffered: proOffered, tier: knownTier(now: now), trialStarted: purchases.trialStartedAt != nil)
+    /// - Parameter armedFamily: the Armed input's mixer family, so a pack for it counts as Pro (#705); nil for any other
+    ///   input, or where nothing is Armed.
+    public func license(proOffered: Bool, armedFamily: MixerFamily? = nil, now: Date) -> License {
+        License(proOffered: proOffered, tier: knownTier(now: now, armedFamily: armedFamily), trialStarted: purchases.trialStartedAt != nil)
     }
 
-    private func knownTier(now: Date) -> Tier? { tierKnown ? purchases.tier(now: now) : nil }
+    private func knownTier(now: Date, armedFamily: MixerFamily? = nil) -> Tier? {
+        tierKnown ? purchases.tier(now: now, armedFamily: armedFamily) : nil
+    }
 }
