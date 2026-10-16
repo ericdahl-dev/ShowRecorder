@@ -113,7 +113,7 @@ struct CopyJoinTests {
         })
         capture.attachMidTake(capture.feeds[1])
         writer.start()
-        joinedInPause.wait()
+        #expect(joinedInPause.wait(timeout: .now() + .seconds(120)) == .success, "the writer reached its join pause")
         writer.stop()
 
         #expect(pauses == 1)
@@ -182,7 +182,7 @@ struct CopyJoinTests {
             })
         capture.attachMidTake(capture.feeds[1])
         writer.start()
-        joinedInPause.wait()
+        #expect(joinedInPause.wait(timeout: .now() + .seconds(120)) == .success, "the writer reached its join pause")
         writer.stop()
 
         let calls = stem.calls

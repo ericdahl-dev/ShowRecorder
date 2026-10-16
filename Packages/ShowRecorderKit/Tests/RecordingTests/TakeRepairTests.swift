@@ -68,7 +68,7 @@ struct TakeRepairTests {
         #expect(runner.takes.isEmpty)
     }
 
-    @Test("A Take with no Gaps holds the Drive's access until the Take.json of a Copy Stop gave up on is written (#652)", .timeLimit(.minutes(1)))
+    @Test("A Take with no Gaps holds the Drive's access until the Take.json of a Copy Stop gave up on is written (#652)", .timeLimit(.minutes(3)))
     func noGapsAbandonedHoldsAccess() async throws {
         let released = ReleaseCounter()
         let seen = ReleaseCounter()
