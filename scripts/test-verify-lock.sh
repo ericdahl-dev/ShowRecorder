@@ -7,6 +7,8 @@ dir=$(mktemp -d)
 trap 'rm -rf "$dir"' EXIT
 export SHOWRECORDER_BUILD_LOCK="$dir/verify.lock"
 unset SHOWRECORDER_BUILD_LOCK_HELD || true
+# One build slot (the rollback setting), so a second run waits for the first.
+export SHOWRECORDER_BUILD_SLOTS=1
 
 fail=0
 # Waits until FILE has PATTERN (up to 60 s): a run has started its step, so it holds the lock. A fixed sleep isn't

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Checks the one-heavy-build-at-a-time lock for the shims (scripts/build-lock.sh, scripts/bin/swift and
+# Checks the heavy-builds-at-a-time lock for the shims (scripts/build-lock.sh, scripts/bin/swift and
 # scripts/bin/xcodebuild; verify.sh's own lock is scripts/test-verify-lock.sh) with stand-in tools and a lock of its own, so it never waits on, or holds up, a real build on this Mac.
 set -eu
 cd "$(dirname "$0")/.."
@@ -23,6 +23,8 @@ old="$work/old-worktree"
 # The temporary worktree check 5 makes goes too, even if the test is stopped partway.
 trap '[ -d "$old" ] && git worktree remove --force "$old" 2>/dev/null; rm -rf "$work"' EXIT
 export SHOWRECORDER_BUILD_LOCK="$work/test.lock"
+# One slot, today's one build at a time, for checks 1-12 (the rollback setting); check 13 sets more itself.
+export SHOWRECORDER_BUILD_SLOTS=1
 unset SHOWRECORDER_BUILD_LOCK_HELD SHOWRECORDER_BUILD_RECORD || true
 log="$work/runs.log"
 
@@ -38,6 +40,7 @@ sleep \${STUB_SLEEP:-1}
 echo "end \$\$ \$(date +%s)" >> "$log"
 echo "ran $tool \$*"
 echo "$tool \$*" >> "$work/args"
+exit \${STUB_EXIT:-0}
 STUB
   chmod +x "$work/real-$tool"
 done
@@ -263,6 +266,74 @@ wait "$bystander" 2>/dev/null || true
 #     runs in, though it inherits that build's environment (#608).
 out=$(SHOWRECORDER_BUILD_RECORD="$work/outer.build" "$repo/scripts/build-limit.sh" sh -c "'$repo/scripts/build-limit.sh' true; echo survived" 2>&1) || true
 expect "a nested build-limit.sh leaves the outer build alone (output: $out)" has "survived"
+
+# 13. Two slots (SHOWRECORDER_BUILD_SLOTS, default 2): slot 1 is the lock file, slot 2 is <lock>.2. With one taken a
+#     build runs at once in the other; with both taken it waits until either frees. One slot serializes, as before.
+#     No build check here relies on timing alone: the slots are held and freed by hand.
+not_waiting() { ! printf '%s\n' "$out" | grep -q "Waiting for another build"; }
+hold_lock
+timed env SHOWRECORDER_BUILD_SLOTS=2 "$repo/scripts/bin/swift" build
+expect "with 2 slots and slot 1 taken, a build runs at once (output: $out)" not_waiting
+expect "and it runs (output: $out)" has "ran swift build"
+for slots in unset abc 0; do
+  if [ $slots = unset ]; then
+    timed env -u SHOWRECORDER_BUILD_SLOTS "$repo/scripts/bin/swift" build
+  else
+    timed env SHOWRECORDER_BUILD_SLOTS=$slots "$repo/scripts/bin/swift" build
+  fi
+  expect "SHOWRECORDER_BUILD_SLOTS=$slots means 2 slots: no wait with slot 1 taken (output: $out)" not_waiting
+done
+release_lock
+
+# Both slots taken: a third build waits, says so, and runs as soon as slot 2 frees (slot 1 stays taken).
+hold_lock
+lockf -k "$SHOWRECORDER_BUILD_LOCK.2" sleep 30 &
+holder2=$!
+sleep 0.5
+: > "$log"
+SHOWRECORDER_BUILD_SLOTS=2 STUB_SLEEP=0 "$repo/scripts/bin/swift" build > "$work/third.out" 2>&1 &
+third=$!
+i=0
+until grep -q "Waiting for another build" "$work/third.out" || [ $i -ge 200 ]; do i=$((i + 1)); sleep 0.1; done
+expect "with both slots taken, a third build says it is waiting" grep -q "Waiting for another build" "$work/third.out"
+expect "and hasn't started" sh -c "! grep -q start '$log'"
+pkill -P "$holder2" sleep 2>/dev/null || true
+wait "$holder2" 2>/dev/null || true
+i=0
+while kill -0 "$third" 2>/dev/null && [ $i -lt 150 ]; do i=$((i + 1)); sleep 0.1; done
+expect "it runs once a slot frees, without waiting for the other (output: $(cat "$work/third.out"))" grep -q "ran swift build" "$work/third.out"
+kill "$third" 2>/dev/null || true
+release_lock
+
+# SHOWRECORDER_BUILD_SLOTS=1, the rollback: slot 2 free, slot 1 taken, and a build still waits.
+hold_lock
+SHOWRECORDER_BUILD_SLOTS=1 STUB_SLEEP=0 "$repo/scripts/bin/swift" build > "$work/one.out" 2>&1 &
+one=$!
+i=0
+until grep -q "Waiting for another build" "$work/one.out" || [ $i -ge 200 ]; do i=$((i + 1)); sleep 0.1; done
+expect "with 1 slot, a build waits for slot 1 even with slot 2 free" grep -q "Waiting for another build" "$work/one.out"
+release_lock
+wait "$one" || true
+expect "and then runs" grep -q "ran swift build" "$work/one.out"
+
+# A build that itself exits 75 (lockf's own "already locked" code) is reported as 75 and isn't run again.
+: > "$log"
+status=0
+out=$(SHOWRECORDER_BUILD_SLOTS=2 STUB_SLEEP=0 STUB_EXIT=75 "$repo/scripts/bin/swift" build 2>&1) || status=$?
+expect "a build exiting 75 reports 75 (status $status)" [ "$status" = 75 ]
+expect "and runs once (log: $(tr '\n' ' ' < "$log"))" [ "$(grep -c '^start' "$log")" = 1 ]
+
+# Compile jobs split between the slots: (cores - 2) / slots, at least 1. One slot keeps today's cores less 4.
+for slots in 2 3; do
+  want=$(( (cores - 2) / slots )); [ $want -ge 1 ] || want=1
+  timed env SHOWRECORDER_BUILD_SLOTS=$slots "$repo/scripts/bin/swift" build
+  expect "with $slots slots swift build gets -j $want (output: $out)" has "ran swift build -j $want\$"
+done
+timed env -u SHOWRECORDER_BUILD_SLOTS "$repo/scripts/bin/swift" build
+want=$(( (cores - 2) / 2 )); [ $want -ge 1 ] || want=1
+expect "by default (2 slots) swift build gets -j $want (output: $out)" has "ran swift build -j $want\$"
+timed env SHOWRECORDER_BUILD_SLOTS=2 SHOWRECORDER_BUILD_JOBS=7 "$repo/scripts/bin/swift" build
+expect "SHOWRECORDER_BUILD_JOBS still wins (output: $out)" has "ran swift build -j 7\$"
 
 [ $fail = 0 ] && echo "build lock: all checks passed"
 exit $fail

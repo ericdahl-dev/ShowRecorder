@@ -1,6 +1,6 @@
 #!/bin/sh
-# `xcodebuild`, one heavy build at a time on this Mac (scripts/build-lock.sh). Put scripts/bin first on PATH.
-# Inside a ShowRecorder checkout, builds and tests wait for the shared lock; listing commands (-list, -version,
+# `xcodebuild`, two heavy builds at a time on this Mac (scripts/build-lock.sh). Put scripts/bin first on PATH.
+# Inside a ShowRecorder checkout, builds and tests wait for a shared build slot; listing commands (-list, -version,
 # -showdestinations, -showsdks, -showBuildSettings, -help) and anything outside this repo run straight away.
 real="${SHOWRECORDER_REAL_XCODEBUILD:-/usr/bin/xcodebuild}"
 . "$(dirname "$0")/../build-lock.sh"

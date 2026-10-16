@@ -1,6 +1,6 @@
 #!/bin/sh
-# `swift`, one heavy build at a time on this Mac (scripts/build-lock.sh). Put scripts/bin first on PATH.
-# Inside a ShowRecorder checkout, swift build, test and run wait for the shared lock; light commands (--version,
+# `swift`, two heavy builds at a time on this Mac (scripts/build-lock.sh). Put scripts/bin first on PATH.
+# Inside a ShowRecorder checkout, swift build, test and run wait for a shared build slot; light commands (--version,
 # package describe/resolve, help) and anything outside this repo run straight away.
 real="${SHOWRECORDER_REAL_SWIFT:-/usr/bin/swift}"
 . "$(dirname "$0")/../build-lock.sh"
