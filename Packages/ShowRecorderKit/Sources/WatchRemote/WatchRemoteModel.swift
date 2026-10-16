@@ -8,6 +8,13 @@ public protocol WatchLinkTransport: AnyObject {
     var isReachable: Bool { get }
     /// Sends a command now, never later; `reply` gets the iPhone's answer, or nil when it didn't arrive.
     func send(_ command: WatchCommand, reply: @escaping @MainActor (WatchReply?) -> Void)
+    /// Asks the iPhone what is true now; `reply` gets it, or nil when it didn't answer (a link down, or an iPhone a
+    /// version behind): then the watch waits for the iPhone's push, as before.
+    func requestStatus(reply: @escaping @MainActor (WatchStatus?) -> Void)
+}
+
+extension WatchLinkTransport {
+    public func requestStatus(reply: @escaping @MainActor (WatchStatus?) -> Void) { reply(nil) }
 }
 
 /// The watch's side of the remote (#100): what it shows, and each command pending until the iPhone confirms it.
@@ -95,6 +102,7 @@ public final class WatchRemoteModel {
     /// The app came to the front (a raised wrist): show Connecting for a moment while the link comes back.
     public func appBecameActive() {
         connecting = true
+        askForStatus()
         connectingSince += 1
         let attempt = connectingSince
         after(Self.connectingSeconds) { [weak self] in
@@ -125,6 +133,16 @@ public final class WatchRemoteModel {
         let was = isReachable
         isReachable = link.isReachable
         if isReachable != was { statusIsLive = false }
+        if isReachable, !was { askForStatus() }
+    }
+
+    /// The watch pulls rather than wait for the iPhone's push, which can land while the link still looks down and then
+    /// never comes again (#751).
+    private func askForStatus() {
+        guard link.isReachable else { return }
+        link.requestStatus { [weak self] status in
+            if let status { self?.received(status) }
+        }
     }
 
     public func send(_ kind: WatchCommand.Kind) {

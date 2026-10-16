@@ -11,6 +11,10 @@ struct WatchRemoteModelTests {
         var isReachable = true
         var sent: [WatchCommand] = []
         var replies: [(WatchReply?) -> Void] = []
+        var statusAnswers: [(WatchStatus?) -> Void] = []
+        func requestStatus(reply: @escaping @MainActor (WatchStatus?) -> Void) {
+            statusAnswers.append(reply)
+        }
         func send(_ command: WatchCommand, reply: @escaping @MainActor (WatchReply?) -> Void) {
             sent.append(command)
             replies.append(reply)
@@ -35,6 +39,47 @@ struct WatchRemoteModelTests {
         link.isReachable = false
         model.reachabilityChanged()
         #expect(model.display == .lastKnown(Self.recording), "the iPhone is likely still recording: say so, but not as live")
+    }
+
+    @Test("A status that landed while the link was down doesn't strand the watch on last known: the link coming back asks the iPhone what's true now (#751)")
+    func asksWhenTheLinkComesBack() {
+        let link = Link()
+        link.isReachable = false
+        let model = Self.model(link, status: nil)
+        model.received(Self.recording)
+        #expect(model.display == .lastKnown(Self.recording))
+
+        link.isReachable = true
+        model.reachabilityChanged()
+        #expect(link.statusAnswers.count == 1, "the watch asks; it doesn't wait for a push that may not come")
+        link.statusAnswers[0](Self.armed)
+        #expect(model.display == .status(Self.armed))
+    }
+
+    @Test("A wrist raise on a running model reaches the same live state as a cold launch: it asks, and the answer is live (#751)")
+    func asksOnWake() {
+        let link = Link()
+        let model = Self.model(link)
+        link.isReachable = false
+        model.reachabilityChanged()
+        link.isReachable = true
+        model.reachabilityChanged()
+        link.statusAnswers[0](nil)
+        #expect(model.display == .lastKnown(Self.recording), "no answer: wait for the push")
+
+        model.appBecameActive()
+        #expect(link.statusAnswers.count == 2)
+        link.statusAnswers[1](Self.armed)
+        #expect(model.display == .status(Self.armed))
+    }
+
+    @Test("A wrist raise with no link doesn't ask; a late push still shows live once the link is back")
+    func noAskWhenDown() {
+        let link = Link()
+        link.isReachable = false
+        let model = Self.model(link, status: nil)
+        model.appBecameActive()
+        #expect(link.statusAnswers.isEmpty)
     }
 
     @Test("A Marker is pending until the iPhone confirms it, then confirmed, with a light tap on the wrist")
