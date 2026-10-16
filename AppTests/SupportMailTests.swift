@@ -3,41 +3,13 @@ import Testing
 @testable import ShowRecorder
 
 struct SupportMailTests {
-    private let linked = SupportMail.Details(
-        version: "ShowRecorder 1.1.6 (34.1)", device: "iPhone16,1", system: "iOS 26.0.1",
-        armedInput: "X18/XR18 · 18 USB Channels", mixerLink: "X Air · XR18, firmware 1.22")
-
-    @Test("The body leaves room to write above the app and device details, one per line (#722)")
-    func bodyWithEverything() {
-        #expect(SupportMail.body(linked) == """
-
-
-            ---
-            App: ShowRecorder 1.1.6 (34.1)
-            Device: iPhone16,1
-            System: iOS 26.0.1
-            Armed input: X18/XR18 · 18 USB Channels
-            Mixer Link: X Air · XR18, firmware 1.22
-            """)
-    }
-
-    @Test("With nothing Armed and no Mixer Link, the body says so instead of leaving blanks (#722)")
-    func bodyWithNothingArmed() {
-        var details = linked
-        details.armedInput = nil
-        details.mixerLink = nil
-        let body = SupportMail.body(details)
-        #expect(body.contains("\nArmed input: No audio interface\n"))
-        #expect(body.hasSuffix("\nMixer Link: Not linked"))
-    }
-
     @Test("The mailto link goes to showrecorder@ericdahl.dev with the subject and the body, line breaks kept (#722)")
     func mailtoLink() throws {
-        let url = try #require(SupportMail.mailtoURL(body: "Hi\nApp: 1.1.6 & more"))
+        let url = try #require(SupportMail.mailtoURL(subject: "ShowRecorder support (v1.1.6.34.1)", body: "Hi\nApp: 1.1.6 & more"))
         #expect(url.scheme == "mailto")
         let parts = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
         #expect(parts.path == "showrecorder@ericdahl.dev")
-        #expect(parts.queryItems?.first { $0.name == "subject" }?.value == SupportMail.subject)
+        #expect(parts.queryItems?.first { $0.name == "subject" }?.value == "ShowRecorder support (v1.1.6.34.1)")
         #expect(parts.queryItems?.first { $0.name == "body" }?.value == "Hi\nApp: 1.1.6 & more")
         // Spaces as %20, never "+", which Mail would show as a plus sign.
         #expect(!url.absoluteString.contains("+"))

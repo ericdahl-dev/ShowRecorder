@@ -65,6 +65,8 @@ public struct InterruptionPolicy: Sendable, Equatable {
 
     /// True from an interruption or reset until input is running again.
     public private(set) var isInputStopped = false
+    /// Why the system last interrupted audio since launch; kept after input comes back, for the support email (#722).
+    public private(set) var lastReason: Reason?
     /// What the record screen's banner says, or nil for no banner.
     public private(set) var notice: String?
     /// The next restart has to build a new device rather than restart the old one.
@@ -86,6 +88,7 @@ public struct InterruptionPolicy: Sendable, Equatable {
 
         case .interruptionBegan(let reason):
             isInputStopped = true
+            lastReason = reason
             let notice: String
             let detail: String
             switch reason {

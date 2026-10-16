@@ -12,6 +12,17 @@ struct InterruptionPolicyTests {
         #expect(policy.notice == nil)
     }
 
+    @Test("The last interruption's reason is remembered after input comes back, for the support email (#722)")
+    func remembersLastReason() {
+        var policy = InterruptionPolicy()
+        #expect(policy.lastReason == nil)
+        _ = policy.handle(.interruptionBegan(reason: .routeDisconnected), isRecording: false)
+        _ = policy.handle(.restarted, isRecording: false)
+        #expect(policy.lastReason == .routeDisconnected)
+        _ = policy.handle(.interruptionBegan(reason: .builtInMicMuted), isRecording: false)
+        #expect(policy.lastReason == .builtInMicMuted)
+    }
+
     @Test("An interruption marks input stopped and tells the operator the Take is still open")
     func interruptionBeganWhileRecording() {
         var policy = InterruptionPolicy()
