@@ -14,6 +14,17 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.11",
+    date: "2026-10-16",
+    channel: "TestFlight beta",
+    summary: "Clearer word on what interrupted a Take.",
+    changes: [
+      "When audio input is interrupted, the banner says why: a muted built-in mic, a disconnected input, or another app or a call.",
+      "After a Dropout, the silence that fills the gap sits exactly where the audio was lost.",
+      "Pro shows its launch price.",
+    ],
+  },
+  {
     version: "1.1.10",
     date: "2026-10-16",
     channel: "TestFlight beta",
