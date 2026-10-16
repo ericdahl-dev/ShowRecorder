@@ -1,4 +1,5 @@
 import { PAGES, pageMetadata } from "@/lib/metadata";
+import { ChatButton } from "@/components/ChatButton";
 import { CONTACT_EMAIL, ISSUES_URL } from "@/lib/site";
 
 export const metadata = pageMetadata(PAGES.support);
@@ -6,6 +7,10 @@ export const metadata = pageMetadata(PAGES.support);
 # Support
 
 Email <a href={`mailto:${CONTACT_EMAIL}`} data-track="contact_email_clicked">{CONTACT_EMAIL}</a> with your iPhone or iPad model, your iOS or iPadOS version, your mixer or audio interface, and what happened. A screenshot helps. You can also <a href={ISSUES_URL}>report a problem on GitHub</a>.
+
+Or chat with the developer here:
+
+<ChatButton />
 
 Something not working? Try [Troubleshooting](/docs/troubleshooting) first: it has short, step-by-step fixes for the mixer not showing up, missing channels, Mixer Link, the Drive, TestFlight and finding your files.
 

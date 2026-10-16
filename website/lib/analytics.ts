@@ -29,7 +29,7 @@ export const POSTHOG_OPTIONS = {
   capture_exceptions: false,
 } as const;
 
-// Named click events (autocapture stays off). Put trackAttrs(event) on a link; one delegated listener sends
+// Named click events (autocapture stays off). Put trackAttrs(event) on a link or button; one delegated listener sends
 // posthog.capture(event, { path }) when it is clicked. Add `destination` to say where it goes. On /mixers/* pages the
 // join-the-beta and App Store links send mixer_page_cta_clicked instead, with the destination ("testflight" or
 // "app_store"). Links to /compare send compare_viewed_cta without any attribute.
@@ -39,6 +39,8 @@ export const TRACK_EVENTS = [
   "compare_viewed_cta",
   "contact_email_clicked",
   "mixer_page_cta_clicked",
+  // The "Chat with us" button (components/ChatButton.tsx), which loads the support chat.
+  "chat_opened",
 ] as const;
 export type TrackEvent = (typeof TRACK_EVENTS)[number];
 
@@ -48,7 +50,7 @@ export function trackAttrs(event: TrackEvent, destination?: string): Record<stri
 
 export function clickTrackingScript(): string {
   return `document.addEventListener("click", function (e) {
-  var el = e.target && e.target.closest ? e.target.closest("a") : null;
+  var el = e.target && e.target.closest ? e.target.closest("a, button[data-track]") : null;
   if (!el || !window.posthog) return;
   var name = el.getAttribute("data-track");
   if (!name && el.getAttribute("href") === "/compare") name = "compare_viewed_cta";
