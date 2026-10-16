@@ -51,8 +51,8 @@ A Take never stops, and your audio is never held back, because of a trial, a lim
 
 ShowRecorder will be a free download with a **14-day Trial** of everything.
 
-- **Free** records every USB channel to your iPhone, iPad or Mac, with generic names and up to 3 Markers per Take.
-- **Pro** is a one-time purchase, shared with your family: names and colors from the mixer, channel names you type, a second copy on an external drive, unlimited Markers, the Show report and Reaper project, 96 kHz, and Templates. $19.99.
+- **Free** records every USB Channel to your iPhone, iPad or Mac, with generic names and up to 3 Markers per Take.
+- **Pro** is a one-time purchase, shared with your family: names and colors from the mixer, channel names you type, a second copy on an external drive, unlimited Markers, the Show report and Reaper project, 96 kHz, and Templates. $4.99, a launch price. No subscription.
 
 In the TestFlight beta, the Trial and Pro use sandbox purchases, which cost testers nothing.
 

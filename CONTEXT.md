@@ -136,7 +136,7 @@ _Avoid_: Remote button, hotkey, GPI
 ### Licensing
 
 **Pro**:
-The one-time unlock that records every USB Channel and adds naming channels by hand, the Show report, Reaper export, 96 kHz recording and Templates. Mixer Triggers join it only once they are built.
+The one-time unlock that adds, on top of Free: names and colors from the Mixer on the Stems, naming channels by hand, the Drive (a second Copy, Repair and Drive only), unlimited Markers, the Show report, Reaper export, 96 kHz recording and Templates (Eric, 2026-10-15, #705). Mixer Triggers join it only once they are built.
 _Avoid_: Premium, full version, paid tier
 
 **Trial**:

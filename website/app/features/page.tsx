@@ -33,7 +33,7 @@ export default function FeaturesPage() {
             <dt>
               <Tier tier="pro" />
             </dt>
-            <dd>With Pro, a one-time $19.99, and during the 14-day Trial.</dd>
+            <dd>With Pro, a one-time $4.99 at its launch price, and during the 14-day Trial.</dd>
           </div>
         </dl>
         <p className="features-links">

@@ -10,7 +10,7 @@ export const XR18_FAQS: readonly Faq[] = [
   },
   {
     q: "How many channels does it record?",
-    a: "All 18 USB Channels: the 16 inputs and the aux line in, recorded in step with each other. Free records 2 USB Channels of your choice; the 14-day Trial and Pro record all 18.",
+    a: "All 18 USB Channels: the 16 inputs and the aux line in, recorded in step with each other. Free records all 18, with generic names on the files; Pro and the 14-day Trial add the names and colors from the mixer.",
   },
   {
     q: "Does it work with the XR12 and XR16?",
@@ -26,7 +26,7 @@ export const XR18_FAQS: readonly Faq[] = [
   },
   {
     q: "What does it cost?",
-    a: "ShowRecorder is free to download, with a 14-day Trial of everything. Pro is a one-time $19.99 purchase, with no subscription.",
+    a: "ShowRecorder is free to download, and Free records all 18 USB Channels. Pro is a one-time purchase, at a launch price of $4.99, with a 14-day Trial and no subscription.",
   },
 ];
 
@@ -53,6 +53,6 @@ export const X32_FAQS: readonly Faq[] = [
   },
   {
     q: "What does it cost?",
-    a: "ShowRecorder is free to download. Free records 2 USB Channels of your choice; the 14-day Trial and Pro record all 32. Pro is a one-time $19.99 purchase, with no subscription.",
+    a: "ShowRecorder is free to download, and Free records all 32 USB Channels, with generic names on the files. Pro adds the names and colors from the mixer, and is a one-time purchase, at a launch price of $4.99, with a 14-day Trial and no subscription.",
   },
 ];

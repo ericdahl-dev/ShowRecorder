@@ -50,9 +50,10 @@ describe("compare data", () => {
     expect(AS_OF).toBe("October 2026");
   });
 
-  it("keeps Free at 2 USB Channels and Pro as a one-time purchase", () => {
+  it("keeps Free at every USB Channel and Pro as a one-time purchase", () => {
     const price = ROWS[0].cells.showrecorder;
-    expect(price).toMatch(/2 USB Channels/);
+    expect(price).toMatch(/every USB Channel/);
+    expect(price).not.toMatch(/2 USB Channels/);
     expect(price).toMatch(/one-time/);
     expect(price).toMatch(/No subscription/);
   });

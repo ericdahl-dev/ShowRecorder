@@ -74,10 +74,11 @@ describe("the home page order and FAQs (#719)", () => {
     expect(home).toMatch(/test Take/);
   });
 
-  it("answers what the beta costs: nothing, 90 days per build, Free is 2 USB Channels", () => {
+  it("answers what the beta costs: nothing, 90 days per build, Free is every USB Channel", () => {
     expect(home).toMatch(/q: "What does the beta cost\?"/);
     expect(home).toMatch(/expire after 90 days/);
-    expect(home).toMatch(/Free records 2 USB Channels/);
+    expect(home).toMatch(/Free records every USB Channel/);
+    expect(home).not.toMatch(/so every USB Channel records/);
   });
 
   it("does not claim beta recordings carry over", () => {

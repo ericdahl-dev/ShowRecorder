@@ -31,10 +31,10 @@ describe("structured data", () => {
     expect(data.operatingSystem).toMatch(/macOS/);
   });
 
-  it("lists two offers: Free at $0 and Pro at $19.99, one time", () => {
+  it("lists two offers: Free at $0 and Pro at $4.99, one time", () => {
     expect(data.offers).toEqual([
       expect.objectContaining({ "@type": "Offer", name: "Free", price: "0", priceCurrency: "USD" }),
-      expect.objectContaining({ "@type": "Offer", name: "Pro", price: "19.99", priceCurrency: "USD" }),
+      expect.objectContaining({ "@type": "Offer", name: "Pro", price: "4.99", priceCurrency: "USD" }),
     ]);
     expect(data.offers[1].description).toMatch(/One-time/);
   });
@@ -102,8 +102,8 @@ describe("one description everywhere (#704)", () => {
 describe("llms.txt facts (#704)", () => {
   it("states price, requirements, file format and what is in the beta", async () => {
     const body = await llmsTxt().text();
-    expect(body).toMatch(/\$19\.99/);
-    expect(body).toMatch(/Free records 2 USB Channels of your choice/);
+    expect(body).toMatch(/\$4\.99/);
+    expect(body).toMatch(/Free records every USB Channel/);
     expect(body).toMatch(/iPhone 15 or later/);
     expect(body).toMatch(/mono 24-bit Broadcast WAV/);
     expect(body).toMatch(/public beta/);

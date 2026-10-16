@@ -1,6 +1,6 @@
 # App Store listing (1.1 draft for Eric's review, #411; 1.0 was #64)
 
-Paste into App Store Connect > ShowRecorder > the 1.1 version (and App Information for the name and subtitle). The number after each heading is Apple's character limit; every field here is within it (checked 2026-10-13, with the Apple Watch: subtitle 30, promotional text 170, keywords 100, description 3878 with the auto-gain block and 3634 without, What's New 605).
+Paste into App Store Connect > ShowRecorder > the 1.1 version (and App Information for the name and subtitle). The number after each heading is Apple's character limit; every field here is within it (checked 2026-10-13, with the Apple Watch: subtitle 30, promotional text 170, keywords 100, description 3975 with the auto-gain block and 3731 without (recounted 2026-10-16 for the Free/Pro change), What's New 605).
 
 Brand names (Behringer, Midas, X Air, XR18, MR18, X32, M32) appear only as compatibility text in the description and What's New. They are not in the name, subtitle or keywords (Guideline 2.3.7).
 
@@ -71,8 +71,9 @@ THE SHOW-SAFE PROMISE
 A Take never stops, and your audio is never held back, because of a Trial, a limit or a license. Limits are checked only when you press record. Your past Shows are never locked.
 
 FREE, 14-DAY TRIAL AND PRO
-ShowRecorder is free to download. Start a 14-day Trial of everything at no cost. After the Trial, Free records 2 USB channels of your choice, with names and colors from the mixer.
-Pro is a one-time purchase, shared with your family and across your iPhone, iPad and Mac: every USB channel, typed channel names, the Show report and Reaper project, 96 kHz and Templates. No subscription.
+Free records every USB channel to your iPhone, iPad or Mac, with generic file names ("USB 07") and up to 3 Markers per Take.
+Pro is a one-time purchase at a launch price of $4.99, shared with your family: names and colors from the mixer on the files, typed names, a second copy on a USB drive, unlimited Markers, the Show report and Reaper project, 96 kHz and Templates. No subscription.
+A 14-day Trial of everything in Pro costs nothing. When it ends, every channel still records.
 
 WHAT YOU NEED
 - A Behringer X Air XR18 or MR18 for 18 channels with names and colors.
@@ -110,7 +111,7 @@ First release.
 
 | Product ID | Display name | Description (55) |
 |---|---|---|
-| `dev.ericdahl.ShowRecorder.pro` | ShowRecorder Pro | Every USB Channel, report, Reaper, 96 kHz, Templates |
+| `dev.ericdahl.ShowRecorder.pro` | ShowRecorder Pro | Mixer names, Drive copy, report, Reaper, 96 kHz, more |
 | `dev.ericdahl.ShowRecorder.trial` | 14-day Trial | Everything in Pro for 14 days, at no cost |
 
 ## Screenshots (to take)

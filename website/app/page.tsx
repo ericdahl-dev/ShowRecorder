@@ -105,9 +105,10 @@ const plans = [
     title: "Free",
     price: "$0",
     items: [
-      "Records 2 USB Channels of your choice",
-      "Names and colors from the mixer",
-      "Pre-roll, Markers and a Drive Copy",
+      "Records every USB Channel, on your iPhone or iPad",
+      "Generic names on the files, such as USB 07",
+      "Pre-roll, and up to 3 Markers per Take",
+      "Crash recovery and the Apple Watch remote",
       "Every past Show stays open",
     ],
   },
@@ -122,14 +123,16 @@ const plans = [
   },
   {
     title: "Pro",
-    price: "$19.99, once",
+    price: "$4.99, once",
     items: [
-      "Every USB Channel",
+      "Names and colors from the mixer, on the files",
       "Channel names you type, on the files",
+      "A second Copy on a Drive, with Repair",
+      "Unlimited Markers",
       "The Show report and Reaper project",
       "96 kHz recording",
       "Templates for each venue",
-      "Shared with Family Sharing, across your iPhone and iPad",
+      "At a launch price, shared with Family Sharing and across your devices",
     ],
   },
 ];
@@ -142,7 +145,7 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
   },
   {
     q: "What does the beta cost?",
-    a: "Nothing to join. Free records 2 USB Channels of your choice; to record every USB Channel in the beta, start the 14-day Trial in Settings › Pro. Buying Pro in the beta isn't charged. TestFlight builds expire after 90 days, so install the newest build from TestFlight to carry on.",
+    a: "Nothing to join. Free records every USB Channel; to try the Pro features in the beta, start the 14-day Trial in Settings › Pro. Buying Pro in the beta isn't charged. TestFlight builds expire after 90 days, so install the newest build from TestFlight to carry on.",
   },
   {
     q: "How much space does a Show take?",
@@ -186,7 +189,7 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
   },
   {
     q: "What happens when the Trial ends?",
-    a: "The app goes back to Free: new Takes record 2 USB Channels of your choice. A Take in progress is never stopped, and every Show you recorded stays open, with all its files. You can buy Pro at any time.",
+    a: "The app goes back to Free: new Takes still record every USB Channel, on the Device, with generic names and up to 3 Markers per Take. A Take in progress is never stopped, and every Show you recorded stays open, with all its files. You can buy Pro at any time.",
   },
   {
     q: "How does ShowRecorder compare with other apps?",

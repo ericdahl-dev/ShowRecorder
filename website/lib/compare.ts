@@ -4,7 +4,7 @@
 // - Claim only what the product's own listing or page says. "Not mentioned" means we could not find it on the page
 //   we read, not that the product lacks it. Sources, read in October 2026: Manytrack Recorder and Auria on the US
 //   App Store; X-Live on a retailer's product page (Turra Music); the laptop column is general knowledge of a DAW.
-// - Free stays "2 USB Channels" until #705 lands. The X32, M32 and Mac are in the beta. No DJM claims.
+// - Free records every USB Channel, with generic names (#705). The X32, M32 and Mac are in the beta. No DJM claims.
 
 export const AS_OF = "October 2026";
 
@@ -48,7 +48,7 @@ export const ROWS: readonly { label: string; cells: Record<ProductId, string> }[
     label: "Price",
     cells: {
       showrecorder:
-        "Free to download, and records 2 USB Channels. Pro is a one-time $19.99, with a 14-day Trial of everything. No subscription.",
+        "Free to download, and records every USB Channel, with generic names. Pro is a one-time $4.99 at its launch price, with a 14-day Trial. No subscription.",
       manytrack: "Free. Its listing shows no in-app purchases.",
       laptop: "The laptop, plus a paid license for the software.",
       xlive: "A card you buy for the X32, plus SD cards.",
@@ -139,7 +139,7 @@ export const ROWS: readonly { label: string; cells: Record<ProductId, string> }[
 export const COMPARE_FAQS: readonly { q: string; a: string }[] = [
   {
     q: "Is there a free multitrack recorder for iPhone and iPad?",
-    a: "Yes, two. Manytrack Recorder is free, with no in-app purchases listed. ShowRecorder is free to download and records 2 USB Channels; Pro is a one-time $19.99 and comes with a 14-day Trial of everything. There is no subscription.",
+    a: "Yes, two. Manytrack Recorder is free, with no in-app purchases listed. ShowRecorder is free to download and records every USB Channel, with generic names; Pro is a one-time $4.99 at its launch price and comes with a 14-day Trial. There is no subscription.",
   },
   {
     q: "Does ShowRecorder save a separate file for each channel?",

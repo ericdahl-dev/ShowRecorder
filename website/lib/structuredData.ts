@@ -3,7 +3,7 @@ import { APP_STORE_URL, REPO_URL, SITE_NAME, SITE_URL } from "@/lib/site";
 
 // schema.org data, as JSON-LD. Search engines read it to show ShowRecorder as an app (name, platform,
 // price) rather than a plain web page. Two offers: the download is free, and Pro is a one-time in-app
-// purchase. Free records 2 USB Channels; the 14-day Trial and Pro record every channel (#705 changes Free).
+// purchase. Free records every USB Channel with generic names; the 14-day Trial and Pro add names, the Drive and more (#705).
 // The Mac version is in the TestFlight beta, so macOS is listed with "(beta)".
 const OFFERS = [
   {
@@ -11,14 +11,14 @@ const OFFERS = [
     name: "Free",
     price: "0",
     priceCurrency: "USD",
-    description: "Free to download, with a 14-day Trial of everything. Free records 2 USB Channels of your choice.",
+    description: "Free to download. Free records every USB Channel, with generic names on the files.",
   },
   {
     "@type": "Offer",
     name: "Pro",
-    price: "19.99",
+    price: "4.99",
     priceCurrency: "USD",
-    description: "One-time in-app purchase, no subscription. Records every USB Channel.",
+    description: "One-time in-app purchase at a launch price, with a 14-day Trial, no subscription. Adds names from the mixer, a second Copy on a Drive, the Show report and Reaper project.",
   },
 ];
 
