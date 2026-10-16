@@ -67,7 +67,7 @@ describe("support chat (Chatwoot, click to load)", () => {
     const privacy = read("app", "privacy", "page.mdx");
     expect(privacy).toMatch(/## Support chat/);
     expect(privacy).toMatch(/Nothing loads until you click "Chat with us"/);
-    expect(privacy).toMatch(/Chatwoot, run by the developer on his own server/);
+    expect(privacy).toMatch(/Chatwoot, run on the developer's own server/);
     expect(privacy).toMatch(/a cookie and local storage/);
     expect(privacy).toMatch(/stores nothing in your browser or on your device, unless you open the support chat/);
   });
