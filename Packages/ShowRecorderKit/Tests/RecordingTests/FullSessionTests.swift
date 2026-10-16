@@ -31,7 +31,7 @@ struct FullSessionTests {
                 try await Task.sleep(for: .milliseconds(2))
             }
         }
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let take = root.appending(path: "2026-10-06 Show/Take 01")
         let total = blocks * blockFrames
@@ -73,6 +73,6 @@ struct FullSessionTests {
             #expect(samples.count >= 96_000, "channel \(channel + 1) has at least 2 s committed")
             #expect(samples == (0..<samples.count).map { value(channel, $0) }, "channel \(channel + 1) content")
         }
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 }

@@ -37,7 +37,7 @@ struct RoutingChangeTests {
 
         #expect(recorder.isRecording)
         #expect(recorder.routingChanges.map(\.usbChannel) == [1])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         let changes = try #require(try metadata().routingChanges)
         #expect(changes.map(\.usbChannel) == [1] && changes[0].from == "Kick" && changes[0].to == "Snare" && changes[0].position > 0)
@@ -62,7 +62,7 @@ struct RoutingChangeTests {
         #expect(entries.map(\.kind) == [.operator, .routing])
         #expect(entries.map(\.isDropout) == [false, false])
         #expect(entries.map { $0.operatorIndex != nil } == [true, false])
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("A rename on the Mixer, same routing, stays a quiet rename: no routing change, no Marker")
@@ -76,7 +76,7 @@ struct RoutingChangeTests {
         recorder.offerSources([Self.source("Kick In", routedFrom: "ch:1"), Self.start[1]])
 
         #expect(recorder.routingChanges.isEmpty)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         #expect(try metadata().routingChanges == nil)
         #expect(try metadata().renames?.map(\.to) == ["Kick In"])
@@ -109,7 +109,7 @@ struct RoutingChangeEdgeTests {
         recorder.offerSources([source("Kick In", "ch:1"), source("Lead Vocal", "ch:2")])   // quiet rename
         recorder.offerSources([source("Snare", "ch:3"), source("Lead Vocal", "ch:2")])     // re-patch
         #expect(recorder.routingNotice == "USB 01 now carries Snare (was Kick In). Its Stem keeps the name Kick; a Marker marks the change.")
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("A Mixer Link that arrives after the press sets the routing to watch; a re-patch after that is caught")
@@ -121,7 +121,7 @@ struct RoutingChangeEdgeTests {
         try await deliver(4_800, to: audio, recorder)
         recorder.offerSources([source("Snare", "ch:3"), source("Lead Vocal", "ch:2")])
         #expect(recorder.routingChanges.map(\.usbChannel) == [1])
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("Stepping one USB Channel's source through several channels within a second is one routing change, one Marker")
@@ -133,7 +133,7 @@ struct RoutingChangeEdgeTests {
             try await deliver(480, to: audio, recorder)
         }
         #expect(recorder.routingChanges.count == 1)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         let changes = try #require(try metadata().routingChanges)
         #expect(changes.count == 1 && changes[0].from == "Kick" && changes[0].to == "Ch 6" && changes[0].position == 4_800)
         #expect(try metadata().markers.filter { $0.origin == .routing }.map(\.name) == ["USB 01 re-patched: Kick to Ch 6"])
@@ -148,7 +148,7 @@ struct RoutingChangeEdgeTests {
         recorder.offerSources([source("Tom", "ch:4"), source("Lead Vocal", "ch:2")])
         #expect(recorder.routingChanges.map(\.to) == ["Snare", "Tom"])
         #expect(recorder.routingNotice == "2 re-patches during this Take (USB 01). The Stems keep their names; Markers mark each change.")
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("Renaming an operator Marker after the Take keeps the routing cue in every Stem")
@@ -159,7 +159,7 @@ struct RoutingChangeEdgeTests {
         try await deliver(2_400, to: audio, recorder)
         recorder.offerSources([source("Snare", "ch:3"), source("Lead Vocal", "ch:2")])
         try await deliver(480, to: audio, recorder)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         let outcome = MarkerRenamer.rename(markerAt: 0, to: "Intro", in: [.device: take], allowsProExtras: true)

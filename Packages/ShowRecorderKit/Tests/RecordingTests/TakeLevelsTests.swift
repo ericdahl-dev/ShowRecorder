@@ -37,7 +37,7 @@ struct TakeLevelsTests {
     }
 
     @Test("Take.json holds each channel's peak and average from the press: audio before it isn't counted, and silence reads the floor")
-    func takeJSONHasLevels() throws {
+    func takeJSONHasLevels() async throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: folder, driveFolder: { nil }, now: { RecordingTakeTests.showDay })
         try recorder.arm(device)
@@ -48,7 +48,7 @@ struct TakeLevelsTests {
             _ = recorder.takeChannelLevels()
         }
         device.deliver([Array(repeating: -0.1, count: 480), Array(repeating: 0, count: 480)])  // not read by the screen
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let channels = try metadata().usbChannels
         let peak = try #require(channels[0].peakDbfs), average = try #require(channels[0].averageDbfs)

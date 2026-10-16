@@ -55,7 +55,7 @@ extension DriveOnlyTakeTests {
         await recorder.waitForMoves()
         #expect(recorder.driveOnlyMoves.isEmpty, "nothing moves during a Take")
 
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         await recorder.waitForMoves()
 
@@ -136,7 +136,7 @@ extension DriveOnlyTakeTests {
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         recorder.addMarker()
         try await deliverBlocks(1, from: 4_800, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         switched.connected = true
         return recorder
@@ -157,7 +157,7 @@ extension DriveOnlyTakeTests {
 
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         gate.open()
 
         let results = await moving.value
@@ -325,7 +325,7 @@ extension DriveOnlyTakeTests {
         try recorder.startTake()
 
         #expect(recorder.moveReport.entries.isEmpty)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
     }
 }

@@ -26,7 +26,7 @@ struct InterruptionDropoutTests {
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_960 + 48_000)
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_960 + 48_480)
         try await waitUntil { recorder.bufferedFrameCount == 0 }
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         let take = root.appending(path: "\(show)/Take 01")
@@ -48,7 +48,7 @@ struct InterruptionDropoutTests {
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_000)
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_000 + 480 + 30)  // 30 frames late
         try await waitUntil { recorder.bufferedFrameCount == 0 }
-        try recorder.stopTake()
+        try await recorder.stopTake()
         let metadata = try TakeMetadata.read(fromTakeFolder: root.appending(path: "\(show)/Take 01"))
         #expect(metadata.dropouts.isEmpty)
     }

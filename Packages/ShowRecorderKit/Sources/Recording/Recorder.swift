@@ -14,8 +14,8 @@ import Synchronization
 public final class Recorder {
     public private(set) var isArmed = false
     public private(set) var isRecording = false
-    /// Stop is writing the last Take's Copies (#652): no Take starts until it is done. True only inside `stopTake` while
-    /// Stop is synchronous; it is the guard an asynchronous Stop will rely on.
+    /// Stop is writing the last Take's Copies (#652): no Take starts until it is done. True from the start of `stopTake`
+    /// to the end of its publishing.
     public private(set) var isFinishing = false
     public private(set) var usbChannelCount = 0
     /// The open Show, if any. Created on the first record press.
@@ -123,6 +123,8 @@ public final class Recorder {
     public var recordsToDriveOnly = false
     /// The host clock's ticks per second, for spotting a stop in the input (#317). Tests set it.
     @ObservationIgnored private let hostTicksPerSecond: Double
+    /// Whether `AsyncStopAvailability` allows the asynchronous Stop. Nothing reads it for behavior yet (#652, A3a).
+    @ObservationIgnored let asyncStopAvailable: Bool
     /// Whether the last Take was Drive only (#196, ADR 0006), Drive or not: its summary speaks of the Drive alone.
     private(set) var lastTakeWasDriveOnly = false
     /// Whether Repair moved the last Take's stand-in to the Drive and off the Device.
@@ -145,8 +147,10 @@ public final class Recorder {
         hostTicksPerSecond: Double? = nil,
         writerStopTimeout: Duration = .seconds(5),
         driveStallLimit: Duration = .seconds(2),
-        writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) }
+        writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) },
+        asyncStopAvailable: Bool = AsyncStopAvailability.isAvailableInThisBuild
     ) {
+        self.asyncStopAvailable = asyncStopAvailable
         self.destinationCheckInterval = destinationCheckInterval
         self.driveStallLimit = driveStallLimit
         self.hostTicksPerSecond = hostTicksPerSecond ?? Capture.machTicksPerSecond
@@ -232,12 +236,12 @@ public final class Recorder {
     /// on into the same Stems and this returns `true`. Otherwise the Take is stopped and finalized
     /// (its end's reason is `.inputChanged`), the recorder Arms on `replacement`, and this returns `false`.
     @discardableResult
-    public func restartInput(on replacement: any AudioIODevice) throws -> Bool {
+    public func restartInput(on replacement: any AudioIODevice) async throws -> Bool {
         guard let device, let capture,
               replacement.inputChannelCount == capture.channelCount,
               replacement.sampleRate == device.sampleRate
         else {
-            if isRecording { try stopTake(because: .inputChanged) }
+            if isRecording { try await stopTake(because: .inputChanged) }
             try arm(replacement)
             return false
         }
@@ -248,8 +252,11 @@ public final class Recorder {
     }
 
     /// Stops any Take, stops the device and clears the meters.
+    ///
+    /// Stays synchronous (#652, A3a): an `async` disarm would reach every Arm. A running Take is stopped with
+    /// `stopTakeNow`, as before.
     public func disarm() {
-        if isRecording { try? stopTake() }
+        if isRecording { stopTakeNow() }
         device?.stop()
         device = nil
         capture = nil
@@ -497,7 +504,7 @@ public final class Recorder {
             opened = try openTake(sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: nil)
         }
         let (show, session, takeFolders) = opened
-        session.onCopyFailed = { [weak self, weak session] in self?.copyFailed(in: session) }
+        session.onCopyFailed = { [weak self, weak session] in Task { @MainActor in await self?.copyFailed(in: session) } }
         session.stopTimeout = writerStopTimeout
         session.driveStallLimit = driveStallLimit
         if takeFolders[.drive] == nil { drive?.end() }
@@ -522,7 +529,7 @@ public final class Recorder {
             destinationChecks = Task { [weak self] in
                 while !Task.isCancelled {
                     try? await Task.sleep(for: destinationCheckInterval)
-                    self?.checkDestinations()
+                    await self?.checkDestinations()
                 }
             }
         }
@@ -764,7 +771,7 @@ public final class Recorder {
     /// a Gap in `Take.json` on both Copies. Also ends the Take when the last healthy Destination is about to
     /// fill. The Recorder does this on its own every `destinationCheckInterval` while recording; call it to
     /// look straight away, as Check Drive does.
-    public func checkDestinations() {
+    public func checkDestinations() async {
         guard isRecording, let session else { return }
         switch session.checkDestinations(drive: driveFolder) {
         case .carryOn:
@@ -773,26 +780,48 @@ public final class Recorder {
             dropoutCount = session.dropoutCount
             refreshMarkers(from: session.metadata)
         case .outOfSpace:
-            try? stopTake(because: .outOfSpace)
+            try? await stopTake(because: .outOfSpace)
         }
     }
 
     /// A Copy's writer failed. Once every Copy has, there's nowhere left to record: end the Take.
-    private func copyFailed(in failed: TakeSession?) {
+    private func copyFailed(in failed: TakeSession?) async {
         guard isRecording, let session, session === failed, session.allFailed else { return }
-        try? stopTake(because: .noDestination)
+        try? await stopTake(because: .noDestination)
     }
 
     /// Stops the Take and waits until every Stem is written and finalized.
     /// A Copy that failed during the Take doesn't make this throw; see `copies`.
-    func stopTake() throws {
-        try stopTake(because: .stopped)
+    func stopTake() async throws {
+        try await stopTake(because: .stopped)
     }
 
-    func stopTake(because reason: TakeEnd.Reason) throws {
-        guard isRecording, let session else { return }
+    /// Three steps (#652, A3a): `beginStop` and `publishStop` run on the main actor, the finish between them is
+    /// still inline here. `isFinishing` is true from the start of the first to the end of the last.
+    func stopTake(because reason: TakeEnd.Reason) async throws {
+        guard let stopping = beginStop(because: reason) else { return }
+        let finished = TakeSession.finish(stopping.input)
+        publishStop(stopping, finished)
+    }
+
+    /// The same three steps with no suspension point, for what can't be `async`: `disarm`, and so Arming over a running Take.
+    private func stopTakeNow(because reason: TakeEnd.Reason = .stopped) {
+        guard let stopping = beginStop(because: reason) else { return }
+        let finished = TakeSession.finish(stopping.input)
+        publishStop(stopping, finished)
+    }
+
+    private struct Stopping {
+        let session: TakeSession
+        let input: TakeSession.FinishInput
+        let reason: TakeEnd.Reason
+    }
+
+    /// Everything up to the snapshot, in this order: the last window is accumulated after the session is dropped and
+    /// the destination checks are canceled, and the snapshot is taken after that (a late `attachDrive` would be missing).
+    private func beginStop(because reason: TakeEnd.Reason) -> Stopping? {
+        guard isRecording, let session else { return nil }
         isFinishing = true
-        defer { isFinishing = false }
         // Not recording from here on, so a Copy that fails while draining doesn't stop the Take again.
         isRecording = false
         self.session = nil
@@ -800,7 +829,13 @@ public final class Recorder {
         destinationChecks = nil
         // The last window, which the screen hasn't read yet, is still part of the Take.
         session.accumulate(capture?.meters.takeLevels() ?? [])
-        let finished = session.finish()
+        return Stopping(session: session, input: session.finishInput(), reason: reason)
+    }
+
+    private func publishStop(_ stopping: Stopping, _ finished: TakeSession.Finished) {
+        defer { isFinishing = false }
+        let session = stopping.session, reason = stopping.reason
+        session.adopt(finished)
         lastTakeWasDriveOnly = session.driveOnly
         lastTakeSignal = finished.signal
         dropoutCount = finished.metadata.dropoutCount

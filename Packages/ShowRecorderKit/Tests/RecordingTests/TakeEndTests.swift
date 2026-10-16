@@ -78,7 +78,7 @@ struct TakeEndTests {
         try await waitUntil { recorder.copies[.drive] == .recording }
 
         #expect(recorder.copies[.drive] == .recording)
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("Only a Take the recorder ended has something to tell the operator, and both say the audio was saved")
@@ -96,12 +96,12 @@ struct TakeEndTests {
 
         try recorder.startTake()
         try await deliverBlocks(1, to: audio, recorder)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .stopped))
 
         try recorder.startTake()
         try await deliverBlocks(1, to: audio, recorder)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(recorder.lastTakeEnd == TakeEnd(take: 2, reason: .stopped))
     }
 }

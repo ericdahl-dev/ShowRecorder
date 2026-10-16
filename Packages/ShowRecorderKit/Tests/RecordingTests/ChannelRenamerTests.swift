@@ -20,7 +20,7 @@ struct ChannelRenamerTests {
     }
 
     /// Records a Take of 2 channels in both Copies, with a Marker.
-    func recordTake() throws {
+    func recordTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
@@ -29,7 +29,7 @@ struct ChannelRenamerTests {
         audio.deliver((0..<2).map { channel in (0..<4_800).map { Float($0 % 1000 + channel * 1000) / 8_388_608 } })
         recorder.addMarker()
         audio.deliver((0..<2).map { channel in (0..<480).map { Float($0 % 1000 + channel * 1000) / 8_388_608 } })
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     func metadata(_ copy: URL) throws -> TakeMetadata {
@@ -39,8 +39,8 @@ struct ChannelRenamerTests {
     }
 
     @Test("Naming a channel renames its Stem, bext description and Take.json in every Copy, and leaves the audio and the other channels as they were")
-    func renameOnDisk() throws {
-        try recordTake()
+    func renameOnDisk() async throws {
+        try await recordTake()
         let before = try copies.values.map { try ParsedStem(contentsOf: $0.appending(path: "02 USB 02.wav")) }
 
         let outcome = ChannelRenamer.rename(names: [2: "Lead Vocal"], in: copies, allowsProExtras: true)
@@ -65,8 +65,8 @@ struct ChannelRenamerTests {
     }
 
     @Test("The report and the Reaper project show the new name")
-    func reportAndProject() throws {
-        try recordTake()
+    func reportAndProject() async throws {
+        try await recordTake()
         _ = ChannelRenamer.rename(names: [2: "Lead Vocal"], in: copies, allowsProExtras: true)
         for copy in [device, drive] {
             let show = copy.appending(path: "2026-10-06 Show")
@@ -78,8 +78,8 @@ struct ChannelRenamerTests {
     }
 
     @Test("On Free naming a channel writes no Show report or Reaper project that wasn't there (#438)")
-    func freeWritesNoExtras() throws {
-        try recordTake()
+    func freeWritesNoExtras() async throws {
+        try await recordTake()
         for copy in [device, drive] {
             let show = copy.appending(path: "2026-10-06 Show")
             try FileManager.default.removeItem(at: show.appending(path: "Report.html"))
@@ -94,8 +94,8 @@ struct ChannelRenamerTests {
     }
 
     @Test("With a Copy not reachable the others are renamed and the outcome names it; an empty name is refused")
-    func oneCopyMissingAndEmptyName() throws {
-        try recordTake()
+    func oneCopyMissingAndEmptyName() async throws {
+        try await recordTake()
         #expect(ChannelRenamer.rename(names: [2: "  "], in: copies, allowsProExtras: true).result == .emptyName)
         #expect(FileManager.default.fileExists(atPath: take(device).appending(path: "02 USB 02.wav").path), "nothing changed")
 
@@ -109,8 +109,8 @@ struct ChannelRenamerTests {
     }
 
     @Test("A stand-in folder that is a link is never followed: the Device isn't renamed and what it points at is untouched (#627)")
-    func standInLinkNotFollowed() throws {
-        try recordTake()
+    func standInLinkNotFollowed() async throws {
+        try await recordTake()
         var metadata = try metadata(take(device))
         let standIn = TakeMetadata.StandIn(start: 0, end: 1)
         metadata.standIns = [standIn]
@@ -141,7 +141,7 @@ struct ChannelRenamerTests {
         #expect(recorder.channelNames == [2: "Lead Vocal"])
         #expect(FileManager.default.fileExists(atPath: take(device).appending(path: "02 USB 02.wav").path), "open Stem untouched")
 
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         for copy in copies.values {
             #expect(FileManager.default.fileExists(atPath: copy.appending(path: "02 Lead Vocal.wav").path))
@@ -151,7 +151,7 @@ struct ChannelRenamerTests {
         try recorder.startTake()
         audio.deliver([[0.1], [0.1]])
         #expect(FileManager.default.fileExists(atPath: device.appending(path: "2026-10-06 Show/Take 02/02 Lead Vocal.wav").path))
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
     }
 
@@ -168,7 +168,7 @@ struct ChannelRenamerTests {
         try first.startTake()
         audio.deliver([[0.1], [0.1]])
         first.setChannelName("Lead Vocal", forChannel: 2)
-        try first.stopTake()
+        try await first.stopTake()
         await first.waitForRepair()
 
         let relaunched = recorder()
@@ -178,7 +178,7 @@ struct ChannelRenamerTests {
         try relaunched.startTake()
         audio2.deliver([[0.1], [0.1]])
         #expect(FileManager.default.fileExists(atPath: device.appending(path: "2026-10-06 Show/Take 02/02 Lead Vocal.wav").path))
-        try relaunched.stopTake()
+        try await relaunched.stopTake()
         await relaunched.waitForRepair()
     }
 
@@ -190,14 +190,14 @@ struct ChannelRenamerTests {
         try recorder.startTake()
         audio.deliver([[0.1], [0.1]])
         recorder.setChannelName("Lead Vocal", forChannel: 2)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         try recorder.startNewShow(name: "Late", venue: "")
         #expect(recorder.channelNames.isEmpty)
         try recorder.startTake()
         audio.deliver([[0.1], [0.1]])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         #expect(FileManager.default.fileExists(atPath: device.appending(path: "2026-10-06 Late/Take 01/02 USB 02.wav").path))
         #expect(ShowFile.read(from: device.appending(path: "2026-10-06 Show"))?.channelNames == ["2": "Lead Vocal"])
@@ -217,7 +217,7 @@ struct ChannelRenamerTests {
         try recorder.startTake()
         audio.deliver([[0.1], [0.1]])
         recorder.setChannelName("Lead Vocal", forChannel: 2)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         clock.now = clock.now.addingTimeInterval(7 * 3600)
@@ -225,7 +225,7 @@ struct ChannelRenamerTests {
         #expect(recorder.channelNames == [1: "Bass"])
         try recorder.startTake()
         audio.deliver([[0.1], [0.1]])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         let next = try #require(recorder.currentShow)
         #expect(next.name != "2026-10-06 Show")

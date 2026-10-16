@@ -43,7 +43,7 @@ struct GainLogTests {
         // Listed at once as a gain Marker, not as a Dropout (#528).
         #expect(recorder.markerEntries.map(\.kind) == [.gain])
         #expect(recorder.markerEntries.map(\.isDropout) == [false])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         let metadata = try Self.decoder().decode(TakeMetadata.self, from: Data(contentsOf: show.appending(path: "Take 01/Take.json")))
@@ -64,7 +64,7 @@ struct GainLogTests {
         try recorder.arm(device)
         try recorder.startTake()
         device.deliver(Array(repeating: [0], count: 2))
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         recorder.logGainChange(Self.change)

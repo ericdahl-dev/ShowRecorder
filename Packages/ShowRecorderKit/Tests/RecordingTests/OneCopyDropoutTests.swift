@@ -55,8 +55,8 @@ struct OneCopyDropoutTests {
         }
         gate.open()
         try await waitUntil { recorder.bufferedFrameCount == 0 }
-        recorder.checkDestinations()
-        try recorder.stopTake()
+        await recorder.checkDestinations()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         let metadata = try TakeMetadata.read(fromTakeFolder: device.appending(path: "\(show)/Take 01"))

@@ -29,7 +29,7 @@ struct MarkerRenameTests {
     }
 
     @Test("Renaming a Marker changes its name in Take.json and in every Stem's cue labels, in both Copies, and nothing else")
-    func renameReachesEverything() throws {
+    func renameReachesEverything() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let recorder = recorder()
         try recorder.arm(audio)
@@ -45,7 +45,7 @@ struct MarkerRenameTests {
         deliver(480, to: audio)
         recorder.addMarker()
         #expect(recorder.takeMarkers.map(\.name) == ["Marker 1", "Chorus", "Marker 3"], "numbering carries on from the operator's Markers")
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let expected = [
             CuePoint(position: 4_800, label: "Marker 1"), CuePoint(position: 7_200, label: "Chorus"), CuePoint(position: 8_160, label: "Marker 3"),
@@ -59,7 +59,7 @@ struct MarkerRenameTests {
     }
 
     @Test("A rename that can't be done says so and changes nothing: no Take, no such Marker, an empty name")
-    func refusals() throws {
+    func refusals() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let recorder = recorder()
         try recorder.arm(audio)
@@ -73,6 +73,6 @@ struct MarkerRenameTests {
         #expect(recorder.renameMarker(at: 0, to: "") == .emptyName)
         #expect(recorder.renameMarker(at: 0, to: "  \n ") == .emptyName)
         #expect(recorder.takeMarkers.map(\.name) == ["Marker 1"])
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 }

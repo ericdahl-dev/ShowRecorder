@@ -30,6 +30,23 @@ func waitUntil(
     }
 }
 
+/// The same, for a condition that awaits (it asks the Recorder to check its Destinations first).
+func waitUntilAsync(
+    timeout: Duration = hangGuard, isolation: isolated (any Actor)? = #isolation,
+    sourceLocation: SourceLocation = #_sourceLocation, _ condition: () async -> Bool
+) async throws {
+    let deadline = ContinuousClock.now + timeout
+    var looks = 0
+    while await !condition() {
+        looks += 1
+        guard ContinuousClock.now < deadline || looks < minimumLooks(timeout) else {
+            Issue.record("Timed out after \(timeout) waiting for a condition", sourceLocation: sourceLocation)
+            throw WaitTimedOut()
+        }
+        try await Task.sleep(for: .milliseconds(5))
+    }
+}
+
 /// The same, for code off the main actor that can't await (it sleeps the thread).
 func waitUntilBlocking(
     timeout: Duration = hangGuard, sourceLocation: SourceLocation = #_sourceLocation, _ condition: () -> Bool

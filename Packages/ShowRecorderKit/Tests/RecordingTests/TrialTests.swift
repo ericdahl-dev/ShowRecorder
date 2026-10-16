@@ -17,7 +17,7 @@ struct TrialTests {
     }
 
     @Test("A Trial that runs out during a Take records to the end: every USB Channel, the whole Take")
-    func expiresMidTake() throws {
+    func expiresMidTake() async throws {
         let purchases = ProPurchases(owned: [OwnedPurchase(productID: ProPurchases.trialProductID, purchaseDate: started)])
         var clock = day(13.99)
         let recorder = Recorder(deviceFolder: root, now: { clock })
@@ -31,7 +31,7 @@ struct TrialTests {
         clock = day(14.5)
         #expect(purchases.tier(now: clock) == .free)
         audio.deliver((0..<4).map { _ in Array(repeating: 0.2, count: 480) })
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let take = try #require(FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
             .first { !$0.lastPathComponent.hasPrefix(".") }?.appending(path: "Take 01"))

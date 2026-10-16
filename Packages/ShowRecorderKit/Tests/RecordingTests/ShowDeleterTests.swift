@@ -27,19 +27,19 @@ struct ShowDeleterTests {
     }
 
     /// Records one Take in "2026-10-06 Show", ends it, then records another Show a day later (left open).
-    func twoShows(_ recorder: Recorder) throws {
-        func record() throws {
+    func twoShows(_ recorder: Recorder) async throws {
+        func record() async throws {
             let audio = FakeAudioDevice(inputChannelCount: 1)
             try recorder.arm(audio)
             try recorder.startTake()
             audio.deliver([[0.1]])
-            try recorder.stopTake()
+            try await recorder.stopTake()
             recorder.disarm()
         }
-        try record()
+        try await record()
         try recorder.endShow()
         clock.now = clock.now.addingTimeInterval(24 * 3600)
-        try record()
+        try await record()
     }
 
     func exists(_ parent: URL, _ show: String) -> Bool {
@@ -47,8 +47,8 @@ struct ShowDeleterTests {
     }
 
     @Test("Deleting from both Copies removes that Show's folder from the Device and the Drive, and no other Show")
-    func bothCopies() throws {
-        try twoShows(recorder())
+    func bothCopies() async throws {
+        try await twoShows(recorder())
 
         let outcome = ShowDeleter.delete(show: "2026-10-06 Show", from: [.device, .drive], device: device, drive: drive, openShow: "2026-10-07 Show")
 
@@ -59,8 +59,8 @@ struct ShowDeleterTests {
     }
 
     @Test("Device only leaves the Drive Copy, and a Drive that isn't there is reported and not touched")
-    func oneCopyAndMissingDrive() throws {
-        try twoShows(recorder())
+    func oneCopyAndMissingDrive() async throws {
+        try await twoShows(recorder())
 
         let deviceOnly = ShowDeleter.delete(show: "2026-10-06 Show", from: [.device], device: device, drive: drive, openShow: nil)
         #expect(deviceOnly.deleted == [.device])
@@ -73,8 +73,8 @@ struct ShowDeleterTests {
     }
 
     @Test("The open Show is refused, and nothing is deleted")
-    func openShowRefused() throws {
-        try twoShows(recorder())
+    func openShowRefused() async throws {
+        try await twoShows(recorder())
 
         let outcome = ShowDeleter.delete(show: "2026-10-07 Show", from: [.device, .drive], device: device, drive: drive, openShow: "2026-10-07 Show")
 
@@ -84,8 +84,8 @@ struct ShowDeleterTests {
     }
 
     @Test("A name that isn't one Show folder directly inside the Shows folder is refused", arguments: ["", ".", "..", "a/b", "../Drive", "2026-10-06 Show/Take 01", ".hidden"])
-    func unsafeNamesRefused(name: String) throws {
-        try twoShows(recorder())
+    func unsafeNamesRefused(name: String) async throws {
+        try await twoShows(recorder())
         try FileManager.default.createDirectory(at: device.appending(path: ".hidden"), withIntermediateDirectories: true)
 
         let outcome = ShowDeleter.delete(show: name, from: [.device, .drive], device: device, drive: drive, openShow: nil)
@@ -97,8 +97,8 @@ struct ShowDeleterTests {
     }
 
     @Test("A folder that isn't a Show (no Show.json, no Take folders) is refused")
-    func notAShowRefused() throws {
-        try twoShows(recorder())
+    func notAShowRefused() async throws {
+        try await twoShows(recorder())
         try FileManager.default.createDirectory(at: device.appending(path: "Holiday photos"), withIntermediateDirectories: true)
         try Data("x".utf8).write(to: device.appending(path: "Holiday photos/a.jpg"))
 
@@ -117,9 +117,9 @@ struct ShowDeleterTests {
     }
 
     @Test("A link named like a Show is never followed: what it points at is untouched")
-    func symlinkNotFollowed() throws {
+    func symlinkNotFollowed() async throws {
         let recorder = recorder()
-        try twoShows(recorder)
+        try await twoShows(recorder)
         try FileManager.default.createSymbolicLink(at: device.appending(path: "2026-10-01 Linked"), withDestinationURL: drive.appending(path: "2026-10-06 Show"))
 
         let outcome = ShowDeleter.delete(show: "2026-10-01 Linked", from: [.device], device: device, drive: nil, openShow: nil)
@@ -129,14 +129,14 @@ struct ShowDeleterTests {
     }
 
     @Test("The recorder refuses while a Take is running and for the open Show, and deletes through the Drive when it is there")
-    func recorderDelete() throws {
+    func recorderDelete() async throws {
         let recorder = recorder()
-        try twoShows(recorder)
+        try await twoShows(recorder)
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         try recorder.startTake()
         #expect(recorder.deleteShow(named: "2026-10-06 Show", from: [.device, .drive]).deleted.isEmpty, "during a Take")
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         #expect(recorder.deleteShow(named: "2026-10-07 Show", from: [.device]).deleted.isEmpty, "the open Show")
         let outcome = recorder.deleteShow(named: "2026-10-06 Show", from: [.device, .drive])

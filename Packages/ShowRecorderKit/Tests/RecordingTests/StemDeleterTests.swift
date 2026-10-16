@@ -20,14 +20,14 @@ struct StemDeleterTests {
     }
 
     /// One Take of 3 channels in an ended Show, in both Copies.
-    func record() throws -> Recorder {
+    func record() async throws -> Recorder {
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 3)
         try recorder.arm(audio)
         try recorder.startTake()
         audio.deliver([[0.1], [0.1], [0.1]])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         recorder.disarm()
         try recorder.endShow()
         return recorder
@@ -42,8 +42,8 @@ struct StemDeleterTests {
     }
 
     @Test("Deleting channel 2 removes its file and its Take.json entry in both Copies, leaves channels 1 and 3, and drops it from the report and Reaper project")
-    func channelGoes() throws {
-        _ = try record()
+    func channelGoes() async throws {
+        _ = try await record()
 
         let outcome = StemDeleter.delete(channel: 2, inTake: 1, ofShow: show, from: [.device, .drive], device: device, drive: drive, openShow: nil)
 
@@ -58,8 +58,8 @@ struct StemDeleterTests {
     }
 
     @Test("Device only keeps the channel on the Drive; a later Marker rename and channel rename still work on the Copy that lacks it")
-    func oneCopyThenRename() throws {
-        let recorder = try record()
+    func oneCopyThenRename() async throws {
+        let recorder = try await record()
         _ = StemDeleter.delete(channel: 2, inTake: 1, ofShow: show, from: [.device], device: device, drive: drive, openShow: nil)
         #expect(try channels(device) == [1, 3] && channels(drive) == [1, 2, 3])
         #expect(exists(drive, "\(show)/Take 01/02 USB 02.wav"))
@@ -73,8 +73,8 @@ struct StemDeleterTests {
     }
 
     @Test("Refused: open Show, a channel that isn't there, an unsafe name or Take; a Drive that isn't there is reported")
-    func refusals() throws {
-        _ = try record()
+    func refusals() async throws {
+        _ = try await record()
         for (channel, take, name, open) in [(2, 1, show, show), (9, 1, show, nil), (0, 1, show, nil), (2, 5, show, nil), (2, 1, "../Drive", nil)] as [(Int, Int, String, String?)] {
             let outcome = StemDeleter.delete(channel: channel, inTake: take, ofShow: name, from: [.device, .drive], device: device, drive: drive, openShow: open)
             #expect(outcome.deleted.isEmpty, "\(name) take \(take) channel \(channel)")
@@ -87,8 +87,8 @@ struct StemDeleterTests {
     }
 
     @Test("A stand-in folder that is a link is never followed: the delete is refused and what it points at is untouched (#627)")
-    func standInLinkNotFollowed() throws {
-        _ = try record()
+    func standInLinkNotFollowed() async throws {
+        _ = try await record()
         let takeFolder = device.appending(path: "\(show)/Take 01")
         var take = try TakeMetadata.read(fromTakeFolder: takeFolder)
         let standIn = TakeMetadata.StandIn(start: 0, end: 1)
@@ -108,8 +108,8 @@ struct StemDeleterTests {
     }
 
     @Test("An empty list of stand-ins is no stand-in: the Stem at the top of the Take folder goes (#627)")
-    func emptyStandInsIsNone() throws {
-        _ = try record()
+    func emptyStandInsIsNone() async throws {
+        _ = try await record()
         let takeFolder = device.appending(path: "\(show)/Take 01")
         var take = try TakeMetadata.read(fromTakeFolder: takeFolder)
         take.standIns = []
@@ -121,13 +121,13 @@ struct StemDeleterTests {
     }
 
     @Test("The recorder refuses during a Take and for the open Show")
-    func recorderDelete() throws {
-        let recorder = try record()
+    func recorderDelete() async throws {
+        let recorder = try await record()
         let audio = FakeAudioDevice(inputChannelCount: 3)
         try recorder.arm(audio)
         try recorder.startTake()
         #expect(recorder.deleteChannel(2, inTake: 1, ofShow: show, from: [.device]).deleted.isEmpty, "during a Take")
-        try recorder.stopTake()
+        try await recorder.stopTake()
         let open = try #require(recorder.currentShow?.name)
         #expect(recorder.deleteChannel(1, inTake: 1, ofShow: open, from: [.device]).deleted.isEmpty, "the open Show")
         #expect(recorder.deleteChannel(2, inTake: 1, ofShow: show, from: [.device, .drive]).deleted == [.device, .drive])

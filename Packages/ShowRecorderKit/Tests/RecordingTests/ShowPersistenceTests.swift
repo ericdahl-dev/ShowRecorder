@@ -27,24 +27,24 @@ struct ShowPersistenceTests {
             now: { now })
     }
 
-    func record(_ recorder: Recorder) throws {
+    func record(_ recorder: Recorder) async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.1, count: 480)])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         recorder.disarm()
     }
 
     @Test("After a relaunch the next Take lands in the same Show, numbered on from the last")
-    func relaunchKeepsTheShow() throws {
+    func relaunchKeepsTheShow() async throws {
         let first = launch()
-        try record(first)
+        try await record(first)
         #expect(first.currentShow?.name == "2026-10-06 Show")
 
         let second = launch()
         #expect(second.currentShow?.name == "2026-10-06 Show", "found again at launch")
-        try record(second)
+        try await record(second)
 
         let fm = FileManager.default
         #expect(fm.fileExists(atPath: device.appending(path: "2026-10-06 Show/Take 02").path))
@@ -52,8 +52,8 @@ struct ShowPersistenceTests {
     }
 
     @Test("Show.json is written in the Device Copy and the Drive Copy, with the name and the start")
-    func showFileInBothCopies() throws {
-        try record(launch(withDrive: true))
+    func showFileInBothCopies() async throws {
+        try await record(launch(withDrive: true))
         for parent in [device, drive] {
             let file = try #require(ShowFile.read(from: parent.appending(path: "2026-10-06 Show")), "\(parent.lastPathComponent)")
             #expect(file.name == "2026-10-06 Show")
@@ -91,7 +91,7 @@ struct ShowPersistenceTests {
     }
 
     @Test("Shows with a broken or missing Show.json, and ended Shows, are never the open Show; recording still works")
-    func ignoresWhatItCannotUse() throws {
+    func ignoresWhatItCannotUse() async throws {
         let fm = FileManager.default
         let broken = device.appending(path: "2026-10-01 Broken")
         let old = device.appending(path: "2026-10-02 Old")
@@ -102,7 +102,7 @@ struct ShowPersistenceTests {
 
         let recorder = launch()
         #expect(recorder.currentShow == nil)
-        try record(recorder)
+        try await record(recorder)
         #expect(recorder.currentShow?.name == "2026-10-06 Show", "a new Show, with Take 01")
         #expect(fm.fileExists(atPath: device.appending(path: "2026-10-06 Show/Take 01").path))
     }

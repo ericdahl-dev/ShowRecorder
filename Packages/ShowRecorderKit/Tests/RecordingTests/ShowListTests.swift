@@ -29,12 +29,12 @@ struct ShowListTests {
             now: { MainActor.assumeIsolated { clock.now } })
     }
 
-    func record(_ recorder: Recorder) throws {
+    func record(_ recorder: Recorder) async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.1, count: 480)])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         recorder.disarm()
     }
 
@@ -48,24 +48,24 @@ struct ShowListTests {
     }
 
     @Test("A Shows folder that is empty or not made yet is no Shows, and Shows come back as Shows")
-    func emptyIsNotFailure() throws {
+    func emptyIsNotFailure() async throws {
         #expect(ShowList.load(device: device, drive: nil) == .shows([]))
         try FileManager.default.createDirectory(at: device, withIntermediateDirectories: true)
         #expect(ShowList.load(device: device, drive: drive) == .shows([]))
-        try record(recorder())
+        try await record(recorder())
         guard case .shows(let shows) = ShowList.load(device: device, drive: nil) else { Issue.record("expected Shows"); return }
         #expect(shows.count == 1)
     }
 
     @Test("Shows are listed newest first with their start, Take count and duration from first Take start to last Take end")
-    func newestFirst() throws {
+    func newestFirst() async throws {
         let recorder = recorder()
-        try record(recorder)
+        try await record(recorder)
         clock.now = clock.now.addingTimeInterval(3600)
-        try record(recorder)
+        try await record(recorder)
         try recorder.endShow()
         clock.now = RecordingTakeTests.showDay.addingTimeInterval(24 * 3600)
-        try record(recorder)
+        try await record(recorder)
 
         let shows = ShowList.read(device: device, drive: nil)
         #expect(shows.map(\.name) == ["2026-10-07 Show", "2026-10-06 Show"])
@@ -76,12 +76,12 @@ struct ShowListTests {
     }
 
     @Test("A Show on both Copies says complete for each; a Show on the Device only has no Drive Copy")
-    func copyStates() throws {
+    func copyStates() async throws {
         let both = recorder(withDrive: true)
-        try record(both)
+        try await record(both)
         try both.endShow()
         clock.now = RecordingTakeTests.showDay.addingTimeInterval(24 * 3600)
-        try record(recorder())
+        try await record(recorder())
 
         let shows = ShowList.read(device: device, drive: drive)
         #expect(shows[1].deviceCopy == .complete)
@@ -108,11 +108,11 @@ struct ShowListTests {
     }
 
     @Test("A Copy's state is the worst of its Takes: has Gaps, Repaired or Repair failed")
-    func gapsAndRepairs() throws {
+    func gapsAndRepairs() async throws {
         let both = recorder(withDrive: true)
-        try record(both)
+        try await record(both)
         clock.now = clock.now.addingTimeInterval(60)
-        try record(both)
+        try await record(both)
         let take1 = device.appending(path: "2026-10-06 Show/Take 01")
         let take2 = device.appending(path: "2026-10-06 Show/Take 02")
         try edit(take1) { $0.gaps = [.init(copy: .drive, start: 0, end: 10)] }
@@ -130,14 +130,14 @@ struct ShowListTests {
     }
 
     @Test("An empty Show, a Show on the Drive only and an old Show with no Show.json all list without error")
-    func oddShows() throws {
+    func oddShows() async throws {
         let both = recorder(withDrive: true)
         try both.startNewShow(name: "Empty", venue: "")
         try both.endShow()
 
         // An old Show: Takes, but no Show.json on either Copy.
         clock.now = RecordingTakeTests.showDay.addingTimeInterval(24 * 3600)
-        try record(both)
+        try await record(both)
         try both.endShow()
         for parent in [device, drive] {
             try FileManager.default.removeItem(at: parent.appending(path: "2026-10-07 Show/Show.json"))
@@ -145,7 +145,7 @@ struct ShowListTests {
 
         // A Show only on the Drive: the Device Copy was lost.
         clock.now = RecordingTakeTests.showDay.addingTimeInterval(48 * 3600)
-        try record(both)
+        try await record(both)
         try FileManager.default.removeItem(at: device.appending(path: "2026-10-08 Show"))
 
         let shows = ShowList.read(device: device, drive: drive)
@@ -159,12 +159,12 @@ struct ShowListTests {
     }
 
     @Test("A Show can be shared from the Device Copy when it has one, and not when only the Drive does")
-    func shareFolder() throws {
+    func shareFolder() async throws {
         let both = recorder(withDrive: true)
-        try record(both)
+        try await record(both)
         try both.endShow()
         clock.now = RecordingTakeTests.showDay.addingTimeInterval(24 * 3600)
-        try record(both)
+        try await record(both)
         try FileManager.default.removeItem(at: device.appending(path: "2026-10-07 Show"))
 
         let shows = ShowList.read(device: device, drive: drive)
@@ -176,12 +176,12 @@ struct ShowListTests {
     }
 
     @Test("Show.json says a Drive Copy was written once one was, in both Copies; a Device-only Show says not")
-    func showFileRemembersDrive() throws {
+    func showFileRemembersDrive() async throws {
         let both = recorder(withDrive: true)
-        try record(both)
+        try await record(both)
         try both.endShow()
         clock.now = RecordingTakeTests.showDay.addingTimeInterval(24 * 3600)
-        try record(recorder())
+        try await record(recorder())
 
         #expect(ShowFile.read(from: device.appending(path: "2026-10-06 Show"))?.driveCopyWritten == true)
         #expect(ShowFile.read(from: drive.appending(path: "2026-10-06 Show"))?.driveCopyWritten == true)
@@ -189,12 +189,12 @@ struct ShowListTests {
     }
 
     @Test("The Copy note: nothing when both Copies are complete, 'No Drive copy' when a Drive Copy never existed, 'Drive not connected now' when one was written but the Drive is away")
-    func copyNote() throws {
+    func copyNote() async throws {
         let both = recorder(withDrive: true)
-        try record(both)
+        try await record(both)
         try both.endShow()
         clock.now = RecordingTakeTests.showDay.addingTimeInterval(24 * 3600)
-        try record(recorder())
+        try await record(recorder())
 
         let connected = ShowList.read(device: device, drive: drive)
         #expect(connected[1].copyNote == nil, "both complete")
@@ -226,9 +226,9 @@ struct ShowListTests {
     }
 
     @Test("A Show on both Copies reads its Takes' lengths from the Device, as before Drive only (#625)")
-    func bothCopiesReadFromDevice() throws {
+    func bothCopiesReadFromDevice() async throws {
         let both = recorder(withDrive: true)
-        try record(both)
+        try await record(both)
         let show = try #require(both.currentShow)
         #expect(show.driveFolder != nil)
         #expect(abs(try show.recordedSeconds(leavingOut: nil) - 0.01) < 0.000_1, "one Take, not one per Copy")
@@ -262,10 +262,10 @@ struct ShowListTests {
     }
 
     @Test("An ordinary Show whose Device Take folder was deleted still counts that Take from the Drive (#625)")
-    func deletedDeviceTakeCountsFromDrive() throws {
+    func deletedDeviceTakeCountsFromDrive() async throws {
         let both = recorder(withDrive: true)
-        try record(both)
-        try record(both)
+        try await record(both)
+        try await record(both)
         try FileManager.default.removeItem(at: device.appending(path: "2026-10-06 Show/Take 02"))
 
         #expect(ShowList.read(device: device, drive: drive).map(\.takeCount) == [2])

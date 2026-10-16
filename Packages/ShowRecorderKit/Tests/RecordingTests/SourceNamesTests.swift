@@ -16,18 +16,18 @@ struct SourceNamesTests {
 
     var take: URL { root.appending(path: "2026-10-06 Show/Take 01") }
 
-    func record(channels: Int, sources: [Source]) throws {
+    func record(channels: Int, sources: [Source]) async throws {
         let device = FakeAudioDevice(inputChannelCount: channels)
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
         try recorder.arm(device)
         try recorder.startTake(sources: sources)
         device.deliver(Array(repeating: [0], count: channels))
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("Stems are named after their Source, and bext carries the Source name")
-    func stemsNamedAfterSources() throws {
-        try record(channels: 2, sources: [
+    func stemsNamedAfterSources() async throws {
+        try await record(channels: 2, sources: [
             Source(name: "Kick", color: MixerColor(hue: .red, inverted: false)),
             Source(name: "Lead Vocal", color: MixerColor(hue: .yellow, inverted: true)),
         ])
@@ -43,15 +43,15 @@ struct SourceNamesTests {
         ("...", "01 USB 01.wav"),
         (String(repeating: "x", count: 100), "01 " + String(repeating: "x", count: 64) + ".wav"),
     ])
-    func unsafeNamesCleaned(name: String, file: String) throws {
-        try record(channels: 1, sources: [Source(name: name, color: .off)])
+    func unsafeNamesCleaned(name: String, file: String) async throws {
+        try await record(channels: 1, sources: [Source(name: name, color: .off)])
 
         #expect(try ParsedStem(contentsOf: take.appending(path: file)).description == name)
     }
 
     @Test("Take.json records each USB Channel's Stem and Source state")
-    func takeMetadataRecordsSources() throws {
-        try record(channels: 2, sources: [
+    func takeMetadataRecordsSources() async throws {
+        try await record(channels: 2, sources: [
             Source(name: "Kick", color: MixerColor(hue: .red, inverted: false), isMuted: false, fader: 0.75, inputSource: 1),
             Source.fallback(usbChannel: 2),
         ])
@@ -80,8 +80,8 @@ struct SourceNamesTests {
     }
 
     @Test("USB Channels without a Source get the USB Channel name")
-    func missingSourcesFallBack() throws {
-        try record(channels: 3, sources: [Source(name: "Kick", color: .off)])
+    func missingSourcesFallBack() async throws {
+        try await record(channels: 3, sources: [Source(name: "Kick", color: .off)])
 
         let files = try FileManager.default.contentsOfDirectory(atPath: take.path).filter { $0.hasSuffix(".wav") }.sorted()
         #expect(files == ["01 Kick.wav", "02 USB 02.wav", "03 USB 03.wav"])

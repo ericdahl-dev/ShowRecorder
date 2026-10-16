@@ -19,8 +19,12 @@ final class QuitGuard: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: "Keep Going")
         alert.addButton(withTitle: "Stop Take").hasDestructiveAction = true
         guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
-        model.stop()
-        return .terminateNow
+        // Quit waits for the Take to finish (Stems written), then replies.
+        Task {
+            await model.stop()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 }
 #endif

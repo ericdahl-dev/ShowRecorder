@@ -198,12 +198,12 @@ struct TakeSequencerTests {
     }
 
     @Test("Stop ends the Take and clears its start time")
-    func stop() throws {
+    func stop() async throws {
         let (sequencer, recorder) = makeSequencer()
         sequencer.arm()
         sequencer.record(sources: [], allowance: nil)
 
-        sequencer.stop()
+        await sequencer.stop()
 
         #expect(!recorder.isRecording)
         #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .stopped))
@@ -231,7 +231,7 @@ struct TakeSequencerTests {
         _ = await events.next()  // .armed
         _ = await events.next()  // .takeStarted
 
-        sequencer.stop()
+        await sequencer.stop()
 
         #expect(await events.next() == .takeEnded(TakeEnd(take: 1, reason: .stopped)))
     }
@@ -245,7 +245,7 @@ struct TakeSequencerTests {
 
         sequencer.record(sources: [], allowance: nil)
         sequencer.tick()
-        sequencer.stop()
+        await sequencer.stop()
 
         #expect(await events.next() == .takeStarted(take: 1))
         #expect(await events.next() == .takeEnded(TakeEnd(take: 1, reason: .stopped)))
@@ -345,7 +345,7 @@ struct TakeSequencerTests {
     }
 
     @Test("Tearing down the screen and building it again during a Take leaves the Take, its Markers and its Stem untouched")
-    func screenRebuiltDuringATake() throws {
+    func screenRebuiltDuringATake() async throws {
         let source = FakeInputDevices([("fake", 1)])
         let (sequencer, recorder) = makeSequencer(source)
         func sample(_ value: Int32) -> Float { Float(value) / 8_388_608 }
@@ -362,7 +362,7 @@ struct TakeSequencerTests {
         #expect(recorder.isRecording)
         #expect(recorder.takeMarkers.map(\.name) == ["Verse"])
         device.deliver([[sample(3), sample(4)]])
-        sequencer.stop()
+        await sequencer.stop()
 
         let stem = try ParsedStem(contentsOf: try #require(recorder.currentShow).folder.appending(path: "Take 01/01 USB 01.wav"))
         #expect(stem.samples == [1, 2, 3, 4])
@@ -387,7 +387,7 @@ struct TakeSequencerTests {
     }
 
     @Test("A Take never disarms, and counts as use: the 30 minutes start again after it")
-    func takeResetsIdle() {
+    func takeResetsIdle() async {
         let clock = TestClock(start)
         let (sequencer, recorder) = makeSequencer(now: { clock.date })
         sequencer.start()
@@ -398,7 +398,7 @@ struct TakeSequencerTests {
         clock.minutes(45, after: start)
         sequencer.tick()
         #expect(recorder.isRecording)
-        sequencer.stop()
+        await sequencer.stop()
 
         clock.minutes(74, after: start)
         sequencer.tick()
@@ -464,11 +464,11 @@ struct TakeSequencerTests {
         var events = sequencer.events.makeAsyncIterator()
         _ = await events.next()  // .armed
         sequencer.record(sources: [], allowance: nil)
-        sequencer.stop()
+        await sequencer.stop()
         try recorder.endShow()
 
         sequencer.record(sources: [], allowance: nil)
-        sequencer.stop()
+        await sequencer.stop()
         sequencer.record(sources: [], allowance: nil)
 
         #expect(await events.next() == .takeStarted(take: 1))
@@ -484,7 +484,7 @@ struct TakeSequencerTests {
         sequencer.arm()
         for _ in 0..<20 {
             sequencer.record(sources: [], allowance: nil)
-            sequencer.stop()
+            await sequencer.stop()
         }
         var events = sequencer.events.makeAsyncIterator()
 
@@ -504,7 +504,7 @@ struct TakeSequencerTests {
         sequencer.record(sources: [], allowance: nil)
         _ = await events.next()  // .takeStarted
 
-        try recorder.restartInput(on: FakeAudioDevice(inputChannelCount: 2))
+        try await recorder.restartInput(on: FakeAudioDevice(inputChannelCount: 2))
         #expect(sequencer.takeStartedAt == nil)
         sequencer.screenDisappeared()
 
@@ -516,16 +516,16 @@ struct TakeSequencerTests {
     // MARK: - Interruptions
 
     @Test("An interruption during a Take stops input; when it ends, input restarts on the same device and the Take goes on")
-    func interruptionDuringATake() throws {
+    func interruptionDuringATake() async throws {
         let source = FakeInputDevices()
         let (sequencer, recorder) = makeSequencer(source)
         sequencer.start()
         let device = try #require(source.opened.last)
         sequencer.record(sources: [], allowance: nil)
 
-        sequencer.handle(.interruptionBegan(reason: .other))
+        await sequencer.handle(.interruptionBegan(reason: .other))
         device.stop()  // The system stops input.
-        sequencer.handle(.interruptionEnded(shouldResume: true))
+        await sequencer.handle(.interruptionEnded(shouldResume: true))
 
         #expect(device.isRunning)
         #expect(recorder.isRecording)
@@ -542,11 +542,11 @@ struct TakeSequencerTests {
         sequencer.record(sources: [], allowance: nil)
         var events = sequencer.events.makeAsyncIterator()
 
-        sequencer.handle(.interruptionBegan(reason: .other))
+        await sequencer.handle(.interruptionBegan(reason: .other))
         device.stop()
-        sequencer.handle(.interruptionEnded(shouldResume: true))
+        await sequencer.handle(.interruptionEnded(shouldResume: true))
 
-        sequencer.stop()
+        await sequencer.stop()
 
         let told = await told(&events, through: .takeEnded(TakeEnd(take: 1, reason: .stopped)))
         #expect(told.filter { $0 == .inputStopped }.count == 1)
@@ -554,16 +554,16 @@ struct TakeSequencerTests {
     }
 
     @Test("Starting a Take clears an interruption's old notice")
-    func recordClearsTheNotice() throws {
+    func recordClearsTheNotice() async throws {
         let source = FakeInputDevices()
         let (sequencer, _) = makeSequencer(source)
         sequencer.start()
         let device = try #require(source.opened.last)
         sequencer.record(sources: [], allowance: nil)
-        sequencer.handle(.interruptionBegan(reason: .other))
+        await sequencer.handle(.interruptionBegan(reason: .other))
         device.stop()
-        sequencer.handle(.interruptionEnded(shouldResume: true))
-        sequencer.stop()
+        await sequencer.handle(.interruptionEnded(shouldResume: true))
+        await sequencer.stop()
         #expect(sequencer.interruptions.notice != nil)
 
         sequencer.record(sources: [], allowance: nil)
@@ -572,69 +572,69 @@ struct TakeSequencerTests {
     }
 
     @Test("A new iOS route between Takes re-Arms on the selected interface")
-    func routeChangeBetweenTakes() {
+    func routeChangeBetweenTakes() async {
         let source = FakeInputDevices()
         let (sequencer, recorder) = makeSequencer(source)
         sequencer.start()
         #expect(source.opened.count == 1)
 
-        sequencer.routeChanged()
+        await sequencer.routeChanged()
 
         #expect(source.opened.count == 2)
         #expect(recorder.isArmed && !recorder.isRecording)
     }
 
     @Test("A new iOS route during a Take moves the Take onto it: same format goes on, another ends as an input change")
-    func routeChangeDuringATake() throws {
+    func routeChangeDuringATake() async throws {
         let source = FakeInputDevices()
         let (sequencer, recorder) = makeSequencer(source)
         sequencer.start()
         sequencer.record(sources: [], allowance: nil)
 
-        sequencer.routeChanged()
+        await sequencer.routeChanged()
         #expect(recorder.isRecording)
         #expect(try #require(source.routeOpened.last).isRunning)
         #expect(sequencer.recordError == nil)
 
         source.route = (2, 48_000)
-        sequencer.routeChanged()
+        await sequencer.routeChanged()
         #expect(!recorder.isRecording)
         #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .inputChanged))
         #expect(sequencer.recordError == TakeEnd.Reason.inputChanged.message)
     }
 
     @Test("A move that fails leaves input stopped, and the next route change tries again and brings it back")
-    func failedRouteMoveRetries() throws {
+    func failedRouteMoveRetries() async throws {
         let source = FakeInputDevices()
         let (sequencer, recorder) = makeSequencer(source)
         sequencer.start()
         sequencer.record(sources: [], allowance: nil)
 
         source.route = nil
-        sequencer.routeChanged()
+        await sequencer.routeChanged()
         #expect(sequencer.interruptions.isInputStopped)
         #expect(recorder.isRecording)
 
         source.route = (18, 48_000)
-        sequencer.routeChanged()
+        await sequencer.routeChanged()
         #expect(!sequencer.interruptions.isInputStopped)
         #expect(recorder.isRecording)
         #expect(try #require(source.routeOpened.last).isRunning)
     }
 
     @Test("A restart that fails leaves input stopped and says so in the notice")
-    func failedRestart() {
+    func failedRestart() async {
         let (sequencer, _) = makeSequencer()  // Nothing Armed, so there's nothing to restart.
 
-        sequencer.handle(.interruptionBegan(reason: .other))
-        sequencer.handle(.interruptionEnded(shouldResume: true))
+        await sequencer.handle(.interruptionBegan(reason: .other))
+        await sequencer.handle(.interruptionEnded(shouldResume: true))
 
         #expect(sequencer.interruptions.isInputStopped)
         #expect(sequencer.interruptions.notice?.hasPrefix("Couldn't restart audio input: ") == true)
     }
 
     @Test("A media reset during a Take opens the interface again at the Take's rate, uncapped, and the Take goes on when the format matches")
-    func mediaResetSameFormat() throws {
+    func mediaResetSameFormat() async throws {
         let source = FakeInputDevices()
         let (sequencer, recorder) = makeSequencer(source, capsAt48k: true)
         sequencer.start()
@@ -642,7 +642,7 @@ struct TakeSequencerTests {
         var heard: [String?] = []
         sequencer.didArm = { device in heard.append(device?.name) }
 
-        sequencer.handle(.mediaServicesReset)
+        await sequencer.handle(.mediaServicesReset)
 
         #expect(source.opened.count == 2)
         #expect(source.asked.last?.chosen == 48_000)
@@ -661,7 +661,7 @@ struct TakeSequencerTests {
         sequencer.record(sources: [], allowance: nil)
         source.reopensWith["xr18"] = 2
 
-        sequencer.handle(.mediaServicesReset)
+        await sequencer.handle(.mediaServicesReset)
 
         #expect(!recorder.isRecording)
         #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .inputChanged))
@@ -681,7 +681,7 @@ struct TakeSequencerTests {
         var events = sequencer.events.makeAsyncIterator()
 
         source.choices.removeAll { $0.id == "xr18" }
-        sequencer.deviceListChanged()
+        await sequencer.deviceListChanged()
 
         #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .inputChanged))
         #expect(sequencer.recordError == "xr18 was disconnected during the Take. Recording stopped and the Stems recorded so far were saved.")
@@ -692,14 +692,14 @@ struct TakeSequencerTests {
     }
 
     @Test("The Armed interface changes format during a Take: the Take ends as an input change and the recorder re-Arms on the new format")
-    func armedInterfaceChangesFormatDuringATake() {
+    func armedInterfaceChangesFormatDuringATake() async {
         let source = FakeInputDevices([("xr18", 18)])
         let (sequencer, recorder) = makeSequencer(source)
         sequencer.start()
         sequencer.record(sources: [], allowance: nil)
 
         source.choices = [source.choice(id: "xr18", channels: 12)]
-        sequencer.deviceListChanged()
+        await sequencer.deviceListChanged()
 
         #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .inputChanged))
         #expect(sequencer.recordError == "xr18 now sends 12 USB Channels during the Take. Recording stopped and the Stems recorded so far were saved. Press record to start a new Take.")
@@ -723,7 +723,7 @@ struct TakeSequencerTests {
     }
 
     @Test("When the tier comes to cap at 48 kHz, an input running faster re-Arms between Takes; a running Take keeps its rate")
-    func tierCapReArmsOnlyBetweenTakes() {
+    func tierCapReArmsOnlyBetweenTakes() async {
         let source = FakeInputDevices()
         source.rates["xr18"] = 96_000
         var capped = false
@@ -737,7 +737,7 @@ struct TakeSequencerTests {
         sequencer.tierChanged()
         #expect(recorder.isRecording && recorder.sampleRate == 96_000)
 
-        sequencer.stop()
+        await sequencer.stop()
         sequencer.tierChanged()
         #expect(recorder.sampleRate == 48_000)
         #expect(source.asked.last?.capAt48k == true)
@@ -752,8 +752,8 @@ struct TakeSequencerTests {
         var events = sequencer.events.makeAsyncIterator()
         source.reopensWith["xr18"] = 2
 
-        sequencer.handle(.mediaServicesReset)
-        sequencer.stop()  // nothing to stop: a known last event to read up to
+        await sequencer.handle(.mediaServicesReset)
+        await sequencer.stop()  // nothing to stop: a known last event to read up to
         sequencer.screenDisappeared()
 
         let told = await told(&events, through: .disarmed(reason: .screenGone))

@@ -165,7 +165,7 @@ public enum Soundcheck {
             // It runs through the sequencer, so it has a start time like any Take (#551).
             if sequencer.record(sources: sources, allowance: allowance, soundcheck: true) {
                 try? await Task.sleep(for: takeLength)
-                sequencer.stop()
+                await sequencer.stop()
                 await recorder.waitForRepair()
             } else if let failed = sequencer.recordError {
                 takeError = "The test Take couldn't be recorded: \(failed)"

@@ -21,7 +21,7 @@ struct CopyCheckTests {
     }
 
     /// Two Takes of 2 channels in both Copies, the Show ended.
-    func record() throws {
+    func record() async throws {
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 2)
@@ -29,7 +29,7 @@ struct CopyCheckTests {
         for _ in 1...2 {
             try recorder.startTake()
             audio.deliver((0..<2).map { c in (0..<4_800).map { Float(($0 + c * 7) % 1000) / 8_388_608 } })
-            try recorder.stopTake()
+            try await recorder.stopTake()
         }
         recorder.disarm()
         try recorder.endShow()
@@ -38,8 +38,8 @@ struct CopyCheckTests {
     func verify() -> CopyCheck.Result { CopyCheck.verify(show: show, device: device, drive: drive) }
 
     @Test("A Show whose Drive Copy matches the Device Copy passes")
-    func cleanShowPasses() throws {
-        try record()
+    func cleanShowPasses() async throws {
+        try await record()
         #expect(verify() == .passed)
     }
 
@@ -49,8 +49,8 @@ struct CopyCheckTests {
     }
 
     @Test("A Take missing on the Drive, or the whole Show missing, fails and says which")
-    func missingTake() throws {
-        try record()
+    func missingTake() async throws {
+        try await record()
         try FileManager.default.removeItem(at: drive.appending(path: "\(show)/Take 02"))
         #expect(failures(verify()) == ["Take 02 is missing on the Drive."])
 
@@ -59,8 +59,8 @@ struct CopyCheckTests {
     }
 
     @Test("While the Device holds a stand-in the check fails, even with the Drive's Take complete (#627)")
-    func standInOnDeviceFails() throws {
-        try record()
+    func standInOnDeviceFails() async throws {
+        try await record()
         let takeFolder = device.appending(path: "\(show)/Take 01")
         var take = try TakeMetadata.read(fromTakeFolder: takeFolder)
         let standIn = TakeMetadata.StandIn(start: 0, end: 4_800)
@@ -76,8 +76,8 @@ struct CopyCheckTests {
     }
 
     @Test("A Drive Copy with Gaps left fails; once Repaired it passes")
-    func gaps() throws {
-        try record()
+    func gaps() async throws {
+        try await record()
         let url = drive.appending(path: "\(show)/Take 01/Take.json")
         let decoder = JSONDecoder(), encoder = JSONEncoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -93,8 +93,8 @@ struct CopyCheckTests {
     }
 
     @Test("A Stem that is shorter, has different audio, or is missing on the Drive fails")
-    func stemDiffers() throws {
-        try record()
+    func stemDiffers() async throws {
+        try await record()
         let stem1 = drive.appending(path: "\(show)/Take 01/01 USB 01.wav")
         let stem2 = drive.appending(path: "\(show)/Take 01/02 USB 02.wav")
 
@@ -124,7 +124,7 @@ struct CopyCheckTests {
 
     @Test("Deleting the Device copy after the check removes only the Device copy; a failed check, a missing Drive or an open Show deletes nothing")
     func deleteDeviceCopyAfterCheck() async throws {
-        try record()
+        try await record()
 
         // The Show is ended and the Drive is not connected: nothing is deleted.
         let noDrive = await recorderWithDrive(false).deleteDeviceCopy(of: show)
@@ -154,7 +154,7 @@ struct CopyCheckTests {
         try recorder.arm(audio)
         try recorder.startTake()
         audio.deliver([[0.1]])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         let outcome = await recorder.deleteDeviceCopy(of: show)
         #expect(outcome.deleted.isEmpty)
         #expect(FileManager.default.fileExists(atPath: device.appending(path: show).path))
@@ -210,8 +210,8 @@ struct CopyCheckTests {
     func verifyStandIn(drive: URL? = nil) -> CopyCheck.Result { CopyCheck.verifyStandIn(deviceTake: take(device), driveTake: drive ?? take(self.drive)) }
 
     @Test("One Take whose Copies match passes; a one-sample difference or a missing Drive Take fail, with the Show check's words")
-    func verifyOneTake() throws {
-        try record()
+    func verifyOneTake() async throws {
+        try await record()
         #expect(verifyTake() == .passed)
 
         try changeSample(take(drive).appending(path: "02 USB 02.wav"), frame: 1_000)
@@ -222,8 +222,8 @@ struct CopyCheckTests {
     }
 
     @Test("A Take is never checked against itself, or through a link")
-    func verifyTakeSameOrLinked() throws {
-        try record()
+    func verifyTakeSameOrLinked() async throws {
+        try await record()
         #expect(verifyTake(drive: take(device)) == .failed(["Take 01's Device and Drive Copies are the same folder."]))
         #expect(verifyTake(drive: drive.appending(path: "\(show)/../\(show)/Take 01/.")) == .passed, "the same Drive folder spelled differently")
 
@@ -233,8 +233,8 @@ struct CopyCheckTests {
     }
 
     @Test("A Take with no channels, from another recording, or at another sample rate never passes")
-    func verifyTakeIdentity() throws {
-        try record()
+    func verifyTakeIdentity() async throws {
+        try await record()
         try change(take(drive)) { $0.startedAt = $0.startedAt.addingTimeInterval(60) }
         #expect(verifyTake() == .failed(["Take 01 on the Drive is another recording."]))
         try change(take(drive)) { $0.startedAt = $0.startedAt.addingTimeInterval(-60) }
@@ -247,8 +247,8 @@ struct CopyCheckTests {
     }
 
     @Test("A stand-in whose every Stem equals the Drive's samples over its stretch passes, up to the Drive's last frame")
-    func standInMatches() throws {
-        try record()
+    func standInMatches() async throws {
+        try await record()
         try standIns([1_200..<3_600])
         #expect(verifyStandIn() == .passed)
 
@@ -258,8 +258,8 @@ struct CopyCheckTests {
     }
 
     @Test("A one-sample difference in the stand-in or on the Drive fails")
-    func standInDiffers() throws {
-        try record()
+    func standInDiffers() async throws {
+        try await record()
         let folder = try #require(try standIns([1_200..<3_600]).first)
         try changeSample(folder.appending(path: "01 USB 01.wav"), frame: 2_399)
         #expect(verifyStandIn() == .failed(["Take 01, channel 1 of the stand-in at 0:00 has different audio on the Drive."]), "last frame of the stand-in")
@@ -271,8 +271,8 @@ struct CopyCheckTests {
     }
 
     @Test("A stand-in Stem shorter than its stretch, or a stretch past the Drive's end, fails")
-    func standInShort() throws {
-        try record()
+    func standInShort() async throws {
+        try await record()
         try standIns([1_200..<3_600], short: 1)
         #expect(verifyStandIn() == .failed([
             "Take 01, channel 1 of the stand-in at 0:00 can't be read whole on the Device.",
@@ -288,8 +288,8 @@ struct CopyCheckTests {
     }
 
     @Test("Two stand-ins in one Take are each checked; a channel missing on the Drive is named once")
-    func twoStandIns() throws {
-        try record()
+    func twoStandIns() async throws {
+        try await record()
         let folders = try standIns([0..<1_200, 2_400..<4_800])
         #expect(verifyStandIn() == .passed)
 
@@ -302,8 +302,8 @@ struct CopyCheckTests {
     }
 
     @Test("No stand-in, a Drive Take.json missing, or a stand-in Take.json can't hold all fail")
-    func standInRefusals() throws {
-        try record()
+    func standInRefusals() async throws {
+        try await record()
         #expect(verifyStandIn() == .failed(["Take 01 has no stand-in on the Device."]))
 
         try standIns([1_200..<3_600])
@@ -319,8 +319,8 @@ struct CopyCheckTests {
     }
 
     @Test("A stand-in folder with files the Take doesn't list, or that is a link, or checked against itself, fails")
-    func standInFolderGuards() throws {
-        try record()
+    func standInFolderGuards() async throws {
+        try await record()
         let folder = try #require(try standIns([1_200..<3_600]).first)
         #expect(verifyStandIn(drive: take(device)) == .failed(["Take 01's Device and Drive Copies are the same folder."]))
 
@@ -335,16 +335,16 @@ struct CopyCheckTests {
     }
 
     @Test("A zero-length stand-in passes only with empty Stems")
-    func zeroLengthStandIn() throws {
-        try record()
+    func zeroLengthStandIn() async throws {
+        try await record()
         try standIns([2_400..<2_400])
         #expect(verifyStandIn() == .passed)
     }
 
     @Test("A stand-in longer than one 4 MB piece is compared to its end")
-    func longStandIn() throws {
+    func longStandIn() async throws {
         defer { try? FileManager.default.removeItem(at: root) }
-        try record()
+        try await record()
         let frames = 1_500_000
         for stem in ["01 USB 01.wav", "02 USB 02.wav"] {
             try writeStem(take(drive).appending(path: stem), (0..<frames).map { Float($0 % 1000) / 8_388_608 })

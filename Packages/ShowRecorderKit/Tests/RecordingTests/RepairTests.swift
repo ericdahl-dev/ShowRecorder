@@ -23,9 +23,9 @@ extension GapTests {
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await waitUntil { recorder.copies[.drive] == .interrupted }
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await deliverBlocks(5, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         let deviceFiles = try takeFiles(in: device)
@@ -55,7 +55,7 @@ extension GapTests {
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting(channelStep: 100_000))
         try await waitUntil { recorder.copies[.drive] == .interrupted }
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         let deviceFiles = try takeFiles(in: device)
@@ -76,9 +76,9 @@ extension GapTests {
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         recorder.addMarker(named: "Verse")
         available.folder = drive
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await deliverBlocks(5, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         let deviceFiles = try takeFiles(in: device)
@@ -111,7 +111,7 @@ extension GapTests {
 
         try recorder.startTake()
         try await deliverBlocks(3, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         #expect(recorder.copies[.device] == .complete)
@@ -134,9 +134,9 @@ extension GapTests {
         try recorder.startTake()
         try await deliverBlocks(4, to: audio, recorder, sample: counting())
         free.device = 5_000_000  // under the 60 s reserve: the Device Copy stops here
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
 
         let take = "2026-10-06 Show/Take 01"
@@ -154,10 +154,10 @@ extension GapTests {
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await waitUntil { recorder.copies[.drive] == .interrupted }
-        try recorder.stopTake()  // Take 1 has a Gap: Repair starts
+        try await recorder.stopTake()  // Take 1 has a Gap: Repair starts
         try recorder.startTake()
         audio.deliver([[0]])
-        try recorder.stopTake()  // Take 2 is complete, before Take 1's Repair gets to run
+        try await recorder.stopTake()  // Take 2 is complete, before Take 1's Repair gets to run
         await recorder.waitForRepair()
 
         #expect(recorder.copies[.device] == .complete)

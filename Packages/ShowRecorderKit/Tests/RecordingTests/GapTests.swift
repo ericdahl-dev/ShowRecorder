@@ -67,7 +67,7 @@ struct GapTests {
 
         #expect(recorder.copies[.device] == .interrupted)
         #expect(recorder.copies[.drive] == .recording)
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let driveStem = try ParsedStem(contentsOf: drive.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
         #expect(driveStem.samples.count == 4800)
@@ -109,7 +109,7 @@ struct GapTests {
 
         #expect(recorder.copies[.device] == .recording)
         #expect(recorder.copies[.drive] == .interrupted)
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let deviceStem = try ParsedStem(contentsOf: device.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
         #expect(deviceStem.samples.count == 4800)
@@ -123,7 +123,7 @@ struct GapTests {
     }
 
     @Test("With no Drive at record the Take starts on the Device and the Drive Copy is missing")
-    func noDriveAtStartIsMissing() throws {
+    func noDriveAtStartIsMissing() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         try recorder.arm(audio)
@@ -133,7 +133,7 @@ struct GapTests {
         #expect(recorder.isRecording)
         #expect(recorder.copies[.device] == .recording)
         #expect(recorder.copies[.drive] == .missing)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(recorder.copies[.drive] == .missing)
     }
 
@@ -147,10 +147,10 @@ struct GapTests {
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         available.folder = drive
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         #expect(recorder.copies[.drive] == .recording)
         try await deliverBlocks(5, from: 4_800, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let take = "2026-10-06 Show/Take 01"
         let deviceStem = try ParsedStem(contentsOf: device.appending(path: "\(take)/01 USB 01.wav"))
@@ -182,10 +182,10 @@ struct GapTests {
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await waitUntil { recorder.copies[.drive] == .interrupted }
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         #expect(recorder.copies[.drive] == .recording)
         try await deliverBlocks(5, from: 4_800, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let take = "2026-10-06 Show/Take 01"
         let deviceStem = try ParsedStem(contentsOf: device.appending(path: "\(take)/01 USB 01.wav"))
@@ -220,7 +220,7 @@ struct GapTests {
         try await waitUntil { recorder.copies[.device] == .interrupted }
         try await deliverBlocks(5, to: audio, recorder, sample: counting())
         recorder.addMarker(named: "Encore")
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         #expect(try decodedTake(drive).markers.map(\.position) == [7200])
         let cues = try cuePoints(drive.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
@@ -251,9 +251,9 @@ struct GapTests {
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         recorder.addMarker(named: "Verse")
         available.folder = drive
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await deliverBlocks(5, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let take = "2026-10-06 Show/Take 01/01 USB 01.wav"
         let expected = [CuePoint(position: 4800, label: "Verse")]
@@ -282,9 +282,9 @@ struct GapTests {
         try await waitUntil { recorder.copies[.drive] == .interrupted }
         try FileManager.default.moveItem(at: drive, to: remounted)
         available.folder = remounted
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         try await deliverBlocks(5, to: audio, recorder, sample: counting())
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let moved = try ParsedStem(contentsOf: remounted.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
         #expect(moved.samples.count == 7200)
@@ -307,14 +307,14 @@ struct GapTests {
         try await deliverBlocks(4, to: audio, recorder, sample: counting())
         // 60 s of one 48 kHz 24-bit channel is 8.64 MB.
         free.device = 5_000_000
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
         #expect(recorder.isRecording)
         #expect(recorder.copies[.device] == .interrupted)
         #expect(recorder.copies[.drive] == .recording)
 
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
         free.drive = 5_000_000
-        recorder.checkDestinations()
+        await recorder.checkDestinations()
 
         #expect(!recorder.isRecording)
         let take = "2026-10-06 Show/Take 01"

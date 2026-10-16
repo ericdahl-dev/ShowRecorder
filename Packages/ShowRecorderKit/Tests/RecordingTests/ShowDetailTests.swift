@@ -21,7 +21,7 @@ struct ShowDetailTests {
     }
 
     /// Records a Take with `markers` operator Markers, 0.1 s apart from 0.1 s in.
-    func record(_ recorder: Recorder, markers: Int) throws {
+    func record(_ recorder: Recorder, markers: Int) async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         try recorder.startTake()
@@ -30,7 +30,7 @@ struct ShowDetailTests {
             recorder.addMarker()
         }
         audio.deliver([Array(repeating: 0.1, count: 480)])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         recorder.disarm()
     }
 
@@ -40,10 +40,10 @@ struct ShowDetailTests {
     }
 
     @Test("Markers are listed by Take with their time in the Take; a Take with none lists none; a Dropout Marker has no rename index")
-    func markersByTake() throws {
+    func markersByTake() async throws {
         let recorder = recorder()
-        try record(recorder, markers: 2)
-        try record(recorder, markers: 0)
+        try await record(recorder, markers: 2)
+        try await record(recorder, markers: 0)
         // Put a Dropout Marker between the operator's two, and take Take 2's Markers away as an old Take would have.
         let take1 = device.appending(path: "2026-10-06 Show/Take 01/Take.json")
         let decoder = JSONDecoder(), encoder = JSONEncoder()
@@ -64,10 +64,10 @@ struct ShowDetailTests {
     }
 
     @Test("Renaming from the detail changes that Take's Marker in both Copies, and no other Take")
-    func renameFromDetail() throws {
+    func renameFromDetail() async throws {
         let recorder = recorder()
-        try record(recorder, markers: 2)
-        try record(recorder, markers: 1)
+        try await record(recorder, markers: 2)
+        try await record(recorder, markers: 1)
 
         let outcome = ShowDetail.renameMarker(
             at: 1, to: "Encore", inTake: 1, ofShow: "2026-10-06 Show", device: device, drive: drive, allowsProExtras: true)
@@ -82,9 +82,9 @@ struct ShowDetailTests {
     }
 
     @Test("With no Drive, only the Device Copy is renamed and nothing is reported as failed")
-    func renameWithoutDrive() throws {
+    func renameWithoutDrive() async throws {
         let recorder = recorder()
-        try record(recorder, markers: 1)
+        try await record(recorder, markers: 1)
         try FileManager.default.removeItem(at: drive.appending(path: "2026-10-06 Show"))
 
         let outcome = ShowDetail.renameMarker(at: 0, to: "Intro", inTake: 1, ofShow: "2026-10-06 Show", device: device, drive: nil, allowsProExtras: true)

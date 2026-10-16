@@ -31,7 +31,7 @@ struct TemplateTests {
     }
 
     @Test("Starting a Show from a Template names it after the Template and brings its venue and channel names, even replacing an open Show; never during a Take")
-    func startShow() throws {
+    func startShow() async throws {
         let root = FileManager.default.temporaryDirectory.appending(path: "TemplateTests-\(UUID().uuidString)")
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, savedNames: defaults)
         let audio = FakeAudioDevice(inputChannelCount: 4)
@@ -47,7 +47,7 @@ struct TemplateTests {
 
         try recorder.startTake()
         #expect(throws: RecorderError.takeRunning) { try recorder.startNewShow(from: sunday()) }
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("Templates can be used between Takes; on Free (once Pro is offered) they are listed as Pro, and nothing saved is lost")
@@ -70,7 +70,7 @@ struct TemplateTests {
     }
 
     @Test("The default Template readies the next Show without creating one: the next record starts it, named after the Template, with its names (#34)")
-    func prepareNextShow() throws {
+    func prepareNextShow() async throws {
         let root = FileManager.default.temporaryDirectory.appending(path: "TemplateTests-\(UUID().uuidString)")
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, savedNames: defaults)
         let audio = FakeAudioDevice(inputChannelCount: 4)
@@ -81,7 +81,7 @@ struct TemplateTests {
         #expect(recorder.channelNames == [1: "Pastor", 3: "Keys"])
 
         try recorder.startTake()
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(recorder.currentShow?.name.hasSuffix(" Sunday Service") == true)
         #expect(recorder.currentShow?.venue == "Main hall")
         #expect(recorder.currentShow?.channelNames == [1: "Pastor", 3: "Keys"])

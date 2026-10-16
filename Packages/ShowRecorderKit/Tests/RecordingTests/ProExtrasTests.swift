@@ -15,7 +15,7 @@ struct ProExtrasTests {
     func take(_ recorder: Recorder, _ audio: FakeAudioDevice, _ allowance: TakeAllowance) async throws {
         try recorder.startTake(allowance: allowance)
         audio.deliver([[0.1], [0.1]])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
     }
 
@@ -50,7 +50,7 @@ struct ProExtrasTests {
         try recorder.startTake(allowance: free)
         audio.deliver([[0.1], [0.1]])
         recorder.setChannelName("Snare", forChannel: 2)
-        try recorder.stopTake()
+        try await recorder.stopTake()
         await recorder.waitForRepair()
         #expect(exists("\(show)/Take 02/02 USB 02.wav") && !exists("\(show)/Take 02/02 Snare.wav"))
 

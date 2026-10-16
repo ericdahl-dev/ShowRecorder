@@ -207,7 +207,9 @@ public final class TakeSequencer {
             takeStartedAt = now()
             recordError = nil
             emit.yield(.takeStarted(take: recorder.currentShow?.takeCount ?? 0))
-            handle(.takeStarted)
+            // `.takeStarted` has no action and nothing to log, so it needs no `await`.
+            _ = interruptions.handle(.takeStarted, isRecording: recorder.isRecording)
+            tellInputState()
             return true
         } catch {
             recordError = "Couldn't start recording: \(error.localizedDescription)"
@@ -216,10 +218,10 @@ public final class TakeSequencer {
     }
 
     /// Ends the running Take.
-    public func stop() {
+    public func stop() async {
         takeStartedAt = nil
         do {
-            try recorder.stopTake()
+            try await recorder.stopTake()
         } catch {
             recordError = "The Take didn't finish cleanly: \(error.localizedDescription)"
         }
@@ -308,7 +310,7 @@ public final class TakeSequencer {
 
     /// The list of Audio interfaces changed (the Mac): keeps, switches, re-Arms or disarms as `InputDeviceChange`
     /// decides. A Take on an interface that went away or changed format ends as an input change, with its message.
-    public func deviceListChanged() {
+    public func deviceListChanged() async {
         let fresh = source.devices()
         let change = InputDeviceChange.decide(
             old: devices.map(\.info), new: fresh.map(\.info),
@@ -318,7 +320,7 @@ public final class TakeSequencer {
         devices = fresh
         if change.stopsTake {
             do {
-                try recorder.stopTake(because: .inputChanged)
+                try await recorder.stopTake(because: .inputChanged)
                 recordError = change.message
             } catch {
                 recordError = "\(change.message ?? "The input device changed during the Take.") But the Take didn't finish cleanly: \(error.localizedDescription)"
@@ -341,44 +343,50 @@ public final class TakeSequencer {
 
     /// The iOS input route really changed (the App filters out its own changes and selects the route's input first):
     /// re-Arm between Takes, move a running Take onto the new route, as `InterruptionPolicy.routeChanged` decides.
-    public func routeChanged() {
+    public func routeChanged() async {
         switch interruptions.routeChanged(isRecording: recorder.isRecording) {
         case .none: break
         case .rearm: arm()
-        case .moveInput: moveTakeToCurrentRoute()
+        case .moveInput: await moveTakeToCurrentRoute()
         }
     }
 
     /// Moves a running Take onto the current route, keeping it if the format still matches (#10). It asks for the
     /// Take's rate (#195): the default 48 kHz would end a 96 or 44.1 kHz Take.
-    private func moveTakeToCurrentRoute() {
+    private func moveTakeToCurrentRoute() async {
         let wasStopped = interruptions.isInputStopped
         do {
             let device = try source.currentRouteDevice(sampleRate: recorder.sampleRate)
-            let continued = try recorder.restartInput(on: device)
+            let continued = try await recorder.restartInput(on: device)
             armedDevice = devices.first { $0.id == selectedDeviceID }?.info
             if !continued, let armedDevice { emit.yield(.armed(armedDevice)) }
             didArm(device)
             log("Input route changed during a Take; \(continued ? "the Take continues" : "the format changed, so the Take was stopped and saved")")
             if !continued { recordError = TakeEnd.Reason.inputChanged.message }
             // A retry that works ends the "input is stopped" state the failed move left behind.
-            if wasStopped { handle(.restarted) }
+            if wasStopped { await handle(.restarted) }
         } catch {
             // The policy says what's missing and tries again on the next route change or foreground.
-            handle(.moveFailed(String(describing: error)))
+            await handle(.moveFailed(String(describing: error)))
         }
     }
 
     /// An audio session interruption, a media services reset or a change of app state: `InterruptionPolicy` decides,
     /// and this carries it out on the recorder. Nothing here ends a Take, except a reset whose new input can't take it.
-    public func handle(_ event: InterruptionPolicy.Event) {
-        // Told against what was last told, not the state on entry: `handle` calls itself for a restart.
-        defer {
-            if interruptions.isInputStopped != toldInputStopped {
-                toldInputStopped = interruptions.isInputStopped
-                emit.yield(toldInputStopped ? .inputStopped : .inputRestarted)
-            }
+    public func handle(_ event: InterruptionPolicy.Event) async {
+        await carryOut(event)
+        tellInputState()
+    }
+
+    /// Told against what was last told, not the state on entry: `handle` calls itself for a restart.
+    private func tellInputState() {
+        if interruptions.isInputStopped != toldInputStopped {
+            toldInputStopped = interruptions.isInputStopped
+            emit.yield(toldInputStopped ? .inputStopped : .inputRestarted)
         }
+    }
+
+    private func carryOut(_ event: InterruptionPolicy.Event) async {
         let response = interruptions.handle(event, isRecording: recorder.isRecording)
         if let line = response.log { log(line) }
         switch response.action {
@@ -387,29 +395,29 @@ public final class TakeSequencer {
         case .restartInput:
             do {
                 try recorder.restartInput()
-                handle(.restarted)
+                await handle(.restarted)
             } catch {
-                handle(.restartFailed(String(describing: error)))
+                await handle(.restartFailed(String(describing: error)))
             }
         case .replaceDevice:
             guard let choice = devices.first(where: { $0.id == selectedDeviceID }) else {
-                handle(.restartFailed("no audio interface is selected"))
+                await handle(.restartFailed("no audio interface is selected"))
                 return
             }
             do {
                 let wasRecording = recorder.isRecording
                 // The replacement keeps the rate the recorder runs at, uncapped, so a running Take can continue.
                 let device = try choice.make(recorder.sampleRate ?? sampleRateChoice, false)
-                let continued = try recorder.restartInput(on: device)
+                let continued = try await recorder.restartInput(on: device)
                 if !continued {
                     // A new format re-Armed the recorder on the new device.
                     armedDevice = choice.info
                     emit.yield(.armed(choice.info))
                 }
                 didArm(device)
-                handle(wasRecording && !continued ? .takeEndedByReset : .restarted)
+                await handle(wasRecording && !continued ? .takeEndedByReset : .restarted)
             } catch {
-                handle(.restartFailed(String(describing: error)))
+                await handle(.restartFailed(String(describing: error)))
             }
         }
     }

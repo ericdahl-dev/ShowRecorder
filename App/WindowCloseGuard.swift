@@ -67,8 +67,11 @@ struct WindowCloseGuard: NSViewRepresentable {
             alert.addButton(withTitle: "Stop Take").hasDestructiveAction = true
             alert.beginSheetModal(for: window) { [weak self, weak window] response in
                 guard response == .alertSecondButtonReturn else { return }
-                self?.model.stop()
-                window?.close()
+                guard let self else { return }
+                Task {
+                    await self.model.stop()
+                    window?.close()
+                }
             }
         }
     }

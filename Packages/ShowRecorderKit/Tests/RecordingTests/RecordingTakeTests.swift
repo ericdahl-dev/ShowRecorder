@@ -24,7 +24,7 @@ struct RecordingTakeTests {
     static func sample(_ value: Int32) -> Float { Float(value) / 8_388_608 }
 
     @Test("Pressing record with no open Show creates a Show and Take 01 with a Stem per USB Channel")
-    func recordCreatesShowTakeAndStems() throws {
+    func recordCreatesShowTakeAndStems() async throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
         try recorder.arm(device)
@@ -34,7 +34,7 @@ struct RecordingTakeTests {
             [100, -200, 300].map(Self.sample),
             [-1, 2, -3].map(Self.sample),
         ])
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let take = root.appending(path: "2026-10-06 Show/Take 01")
         let first = try ParsedStem(contentsOf: take.appending(path: "01 USB 01.wav"))
@@ -47,14 +47,14 @@ struct RecordingTakeTests {
     }
 
     @Test("Every Stem's bext carries its name, the originator and the same time reference")
-    func bextDescribesStemAndSharesTimeReference() throws {
+    func bextDescribesStemAndSharesTimeReference() async throws {
         let device = FakeAudioDevice(inputChannelCount: 3)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
         try recorder.arm(device)
 
         try recorder.startTake()
         device.deliver([[0], [0], [0]])
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let take = root.appending(path: "2026-10-06 Show/Take 01")
         let stems = try ["01 USB 01", "02 USB 02", "03 USB 03"].map {
@@ -67,17 +67,17 @@ struct RecordingTakeTests {
     }
 
     @Test("A second record press starts Take 02 in the same Show")
-    func secondRecordStartsTake02InSameShow() throws {
+    func secondRecordStartsTake02InSameShow() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
         try recorder.arm(device)
 
         try recorder.startTake()
         device.deliver([[Self.sample(1)]])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         try recorder.startTake()
         device.deliver([[Self.sample(2)]])
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         let show = root.appending(path: "2026-10-06 Show")
         #expect(recorder.currentShow?.name == "2026-10-06 Show")
@@ -88,7 +88,7 @@ struct RecordingTakeTests {
     }
 
     @Test("Audio outside a Take isn't written")
-    func audioOutsideTakeIsNotWritten() throws {
+    func audioOutsideTakeIsNotWritten() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
         try recorder.arm(device)
@@ -96,7 +96,7 @@ struct RecordingTakeTests {
         device.deliver([[Self.sample(9)]])
         try recorder.startTake()
         device.deliver([[Self.sample(1)]])
-        try recorder.stopTake()
+        try await recorder.stopTake()
         device.deliver([[Self.sample(9)]])
 
         let stem = try ParsedStem(contentsOf: root.appending(path: "2026-10-06 Show/Take 01/01 USB 01.wav"))
@@ -112,13 +112,13 @@ struct RecordingTakeTests {
     }
 
     @Test("A Show folder that already exists isn't reused")
-    func existingShowFolderIsNotReused() throws {
+    func existingShowFolderIsNotReused() async throws {
         try FileManager.default.createDirectory(at: root.appending(path: "2026-10-06 Show"), withIntermediateDirectories: false)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
         try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
 
         try recorder.startTake()
-        try recorder.stopTake()
+        try await recorder.stopTake()
 
         #expect(recorder.currentShow?.name == "2026-10-06 Show 2")
     }

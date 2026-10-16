@@ -47,7 +47,7 @@ struct ClipIndicatorTests {
     }
 
     @Test("Starting a Take clears the marks; a clip during the Take stays marked after it ends")
-    func nextTakeClears() throws {
+    func nextTakeClears() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
         try recorder.arm(device)
@@ -59,12 +59,12 @@ struct ClipIndicatorTests {
         #expect(recorder.clippedChannels.isEmpty)
         device.deliver([[1.0]])
         _ = recorder.takeChannelLevels()
-        try recorder.stopTake()
+        try await recorder.stopTake()
         #expect(recorder.clippedChannels == [0], "still marked after the Take, until tapped or the next Take")
 
         try recorder.startTake()
         #expect(recorder.clippedChannels.isEmpty)
-        try recorder.stopTake()
+        try await recorder.stopTake()
     }
 
     @Test("Disarming clears the marks: the next input's channels aren't these ones")
