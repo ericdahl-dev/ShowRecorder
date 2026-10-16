@@ -14,6 +14,17 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.10",
+    date: "2026-10-16",
+    channel: "TestFlight beta",
+    summary: "Hold to stop on the iPhone, and a watch that reconnects by itself.",
+    changes: [
+      "Stop a Take on the iPhone or iPad by holding Stop for a second, like on the Apple Watch.",
+      "The Apple Watch reconnects by itself when you raise your wrist.",
+      "Green banners fade after 10 seconds, and you can tap × or swipe one away.",
+    ],
+  },
+  {
     version: "1.1.9",
     date: "2026-10-15",
     channel: "TestFlight beta",
