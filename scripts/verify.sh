@@ -20,11 +20,11 @@
 #                       site, as the changes need
 #   DERIVED_DATA=<dir>  Xcode build folders' prefix (default build/dd: build/dd-mac, build/dd-ios, build/dd-device)
 #
-# One heavy build at a time on this Mac (scripts/build-lock.sh): a second verify.sh, or a swift build/test or
-# xcodebuild through scripts/bin, waits for the first to finish, and says so. verify.sh runs at low priority with
+# Two heavy builds at a time on this Mac (scripts/build-lock.sh; SHOWRECORDER_BUILD_SLOTS=1 for one): a third verify.sh,
+# or a swift build/test or xcodebuild through scripts/bin, waits for one to finish, and says so. verify.sh runs at low priority with
 # SHOWRECORDER_BUILD_LOCK_HELD=1, so its own side-by-side builds don't wait for it. A queued run can take longer than
 # an agent's 10-minute command limit: run it as a background task. VERIFY_PLAN_ONLY=1 never waits. Builds are capped
-# at SHOWRECORDER_BUILD_JOBS compile jobs (default: cores less 4), split between the builds that run at once.
+# at SHOWRECORDER_BUILD_JOBS compile jobs (default: cores less 2, split between the slots), split between the builds that run at once.
 # A run that holds the lock longer than SHOWRECORDER_VERIFY_TIMEOUT minutes (default 45) is stopped, its whole process
 # group, and the lock freed for the next build (#578); its own builds share that limit.
 #   VERIFY_LOCK_PROBE=<sh>  once the lock is held, run this instead of the checks (scripts/test-verify-lock.sh)
@@ -133,7 +133,7 @@ fi
 
 # The builds go through the shims (scripts/bin), so each is capped at its share of the compile jobs even when
 # scripts/bin isn't on PATH: the package tests and the app builds run at once, so they split SHOWRECORDER_BUILD_JOBS
-# (by default this Mac's cores less 4) between them.
+# (by default this Mac's cores less 2, split between the slots) between them.
 . ./scripts/build-lock.sh
 swift="$(pwd)/scripts/bin/swift"
 xcodebuild="$(pwd)/scripts/bin/xcodebuild"
