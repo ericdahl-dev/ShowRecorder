@@ -6,6 +6,6 @@ public enum NoSignalAlert {
         let seconds = Int(NoSignalDetector.defaultWaitSeconds)
         return ScreenAlert(
             id: "noSignal", priority: .input, tone: .warning,
-            text: "No signal on any channel for \(seconds) seconds. Check the mixer's USB routing, the cable and any muted microphone. The Take is still recording.")
+            text: "No signal on any channel for \(seconds) seconds. Check the Mixer's USB routing, the cable and any muted microphone. The Take is still recording.")
     }
 }

@@ -10,7 +10,7 @@ struct NoSignalAlertTests {
         #expect(alert.priority == .input)
         #expect(alert.tone == .warning)
         #expect(alert.action == nil)
-        #expect(alert.text == "No signal on any channel for 10 seconds. Check the mixer's USB routing, the cable and any muted microphone. The Take is still recording.")
+        #expect(alert.text == "No signal on any channel for 10 seconds. Check the Mixer's USB routing, the cable and any muted microphone. The Take is still recording.")
     }
 
     @Test("No warning when there is signal")
