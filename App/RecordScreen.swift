@@ -146,6 +146,8 @@ struct RecordScreen: View {
         // Locking the screen or leaving the app never ends a Take; becoming active retries input
         // that an interruption left stopped.
         .onChange(of: scenePhase) { _, phase in
+            // A green banner's 10 s count only while the app is in front, not under Control Center or behind other windows (#758).
+            model.setOnScreen(phase == .active)
             switch phase {
             case .active:
                 model.screenBecameActive()
@@ -454,8 +456,9 @@ struct RecordScreen: View {
                     .buttonStyle(.plain)
                     // On a short screen the note truncates, so the column never outgrows it (#645).
                     .layoutPriority(-1)
-                    // The green Copy summary swipes away here too (#698); it comes back when its text changes.
-                    .simultaneousGesture(DragGesture(minimumDistance: 20).onEnded { drag in
+                    // The green Copy summary swipes away here too (#698), and fades after 10 s (#758); it comes back when its text changes.
+                    // High priority, so a sideways drag wins over the Button's tap.
+                    .highPriorityGesture(DragGesture(minimumDistance: 20).onEnded { drag in
                         if abs(drag.translation.width) > 60, SwipedAlerts.isSwipeable(note) { model.swipe(note) }
                     })
                     .accessibilityActions { if SwipedAlerts.isSwipeable(note) { Button("Dismiss") { model.swipe(note) } } }
@@ -868,7 +871,8 @@ final class RecordScreenModel {
     /// and counts the rest.
     var alerts: AlertQueue { AlertQueue(swipedAlerts.showing(raisedAlerts)) }
 
-    /// Warnings and green summaries the operator swiped away, until their message changes or their problem clears.
+    /// Warnings and green summaries the operator swiped away, until their message changes or their problem clears. A green
+    /// banner also fades by itself after 10 s on top (#758).
     private var swipedAlerts = SwipedAlerts()
 
     func swipe(_ alert: ScreenAlert) { swipedAlerts.swipe(alert) }
@@ -877,6 +881,17 @@ final class RecordScreenModel {
     private func forgetClearedSwipes() {
         var swiped = swipedAlerts
         swiped.forget(absentFrom: raisedAlerts)
+        if swiped != swipedAlerts { swipedAlerts = swiped }
+    }
+
+    /// Whether the app is in front; a green banner's 10 s count only then (#758).
+    @ObservationIgnored private var isOnScreen = true
+
+    /// Checked about once a second: the green banner on top fades after 10 s on screen (#758).
+    private func fadeGoodNews() {
+        guard isOnScreen else { return }
+        var swiped = swipedAlerts
+        _ = swiped.fade(raisedAlerts, at: Date())
         if swiped != swipedAlerts { swipedAlerts = swiped }
     }
 
@@ -1152,6 +1167,13 @@ final class RecordScreenModel {
     /// The app is in front again: stop counting, and Arm again if it was disarmed for being idle.
     func screenBecameActive() {
         sequencer.appBecameActive()
+    }
+
+    /// Whether the app is in front (#758): leaving it pauses a green banner's fade, so it gets its 10 s once back.
+    func setOnScreen(_ onScreen: Bool) {
+        guard onScreen != isOnScreen else { return }
+        isOnScreen = onScreen
+        if !onScreen { swipedAlerts.pauseFade() }
     }
 
     /// Chips after the Destination and Mixer ones: a Dropout count when the Take has lost audio, then battery and heat.
@@ -1468,7 +1490,7 @@ final class RecordScreenModel {
         var lastPoll = ContinuousClock.now
         while !Task.isCancelled {
             tick += 1
-            if tick % 30 == 0 { sequencer.tick(); refreshDestinations(); announceChanges(); forgetClearedSwipes() }
+            if tick % 30 == 0 { sequencer.tick(); refreshDestinations(); announceChanges(); forgetClearedSwipes(); fadeGoodNews() }
             // Re-check the Drive every few seconds so an unplugged one shows before record is pressed.
             if tick % 90 == 0 { drive.refresh() }
             let now = ContinuousClock.now

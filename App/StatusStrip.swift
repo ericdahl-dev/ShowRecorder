@@ -149,23 +149,29 @@ struct AlertSlot: View {
     @GestureState(resetTransaction: Transaction(animation: .default)) private var dragX: CGFloat = 0
     /// The slide off once the swipe is far enough.
     @State private var flyOffX: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
             if let alert = queue.top {
                 let swipeable = swipe != nil && SwipedAlerts.isSwipeable(alert)
-                AlertBanner(alert: alert, moreCount: queue.moreCount, lines: lines, perform: perform) { listing = true }
+                AlertBanner(alert: alert, moreCount: queue.moreCount, lines: lines, perform: perform,
+                            dismiss: swipeable && alert.tone == .ok ? { swipe?(alert) } : nil) { listing = true }
                     .offset(x: dragX + flyOffX)
-                    .gesture(swipeAway(alert), including: swipeable ? .all : .subviews)
+                    // High priority, so a sideways drag wins over the banner's buttons on a device; taps still reach them (#758).
+                    .highPriorityGesture(swipeAway(alert), including: swipeable ? .all : .subviews)
                     .accessibilityActions {
                         if swipeable { Button("Dismiss") { swipe?(alert) } }
                     }
+                    // Each alert is its own view, so the next one (after a fade or a swipe) cross-fades in, never slides (#758).
+                    .id(alert.id)
+                    .transition(.opacity)
             } else {
                 Color.clear
             }
         }
         .frame(height: slotHeight)
-        .onChange(of: queue.top?.id) { flyOffX = 0 }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: queue.top?.id)
         .popover(isPresented: $listing) {
             VStack(spacing: 8) {
                 // Here every alert is shown in full (#292): the slot's 2 lines can cut a long one off.
@@ -190,12 +196,17 @@ struct AlertSlot: View {
             .onEnded { drag in
                 let x = drag.translation.width
                 guard abs(x) > 80, abs(x) > abs(drag.translation.height) else { return }
+                // Reduce Motion: no slide off, the alert just goes (#758).
+                if reduceMotion { swipe?(alert); return }
                 flyOffX = x
                 withAnimation(.easeOut(duration: 0.2)) {
                     flyOffX = x > 0 ? 1000 : -1000
                 } completion: {
+                    // The offset goes back without animating, so the next banner doesn't slide in from the side (#758).
+                    var reset = Transaction()
+                    reset.disablesAnimations = true
+                    withTransaction(reset) { flyOffX = 0 }
                     swipe?(alert)
-                    flyOffX = 0
                 }
             }
     }
@@ -261,6 +272,8 @@ struct AlertBanner: View {
     /// The slot's lines of text; one line never shrinks.
     var lines = 2
     let perform: (ScreenAlert.Action) -> Void
+    /// The × on a green banner in the slot (#758); nil where it can't be swiped.
+    var dismiss: (() -> Void)?
     let showMore: () -> Void
     @Environment(\.appearanceMode) private var mode
 
@@ -285,6 +298,11 @@ struct AlertBanner: View {
                 Button(action: showMore) { Text("+\(moreCount) more").underline().tapTarget() }
                     .font(.callout.weight(.semibold))
                     .buttonStyle(.plain)
+            }
+            if let dismiss, alert.tone == .ok, !inFull {
+                Button(action: dismiss) { Image(systemName: "xmark").tapTarget() }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Dismiss")
             }
         }
         .padding(.horizontal, 12)
