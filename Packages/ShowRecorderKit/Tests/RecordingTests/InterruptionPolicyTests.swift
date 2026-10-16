@@ -187,4 +187,51 @@ struct InterruptionPolicyTests {
         _ = policy.handle(.interruptionBegan, isRecording: true)
         #expect(policy.routeChanged(isRecording: true) == .none)
     }
+
+    @Test("A muted built-in microphone says so, not a call or Siri")
+    func builtInMicMutedWhileRecording() {
+        var policy = InterruptionPolicy()
+        let response = policy.handle(.interruptionBegan(reason: .builtInMicMuted), isRecording: true)
+        #expect(policy.isInputStopped)
+        #expect(policy.notice?.contains("microphone was muted") == true)
+        #expect(policy.notice?.contains("Smart Folio") == true)
+        #expect(policy.notice?.contains("Take is still open") == true)
+        #expect(policy.notice?.contains("Siri") == false)
+        #expect(response.log?.contains("built-in microphone muted") == true)
+    }
+
+    @Test("A muted built-in microphone between Takes has a shorter notice")
+    func builtInMicMutedIdle() {
+        var policy = InterruptionPolicy()
+        _ = policy.handle(.interruptionBegan(reason: .builtInMicMuted), isRecording: false)
+        #expect(policy.notice?.contains("microphone was muted") == true)
+        #expect(policy.notice?.contains("Take is still open") == false)
+    }
+
+    @Test("A disconnected input points at the cable or hub")
+    func routeDisconnectedWhileRecording() {
+        var policy = InterruptionPolicy()
+        let response = policy.handle(.interruptionBegan(reason: .routeDisconnected), isRecording: true)
+        #expect(policy.isInputStopped)
+        #expect(policy.notice?.contains("disconnected") == true)
+        #expect(policy.notice?.contains("cable or hub") == true)
+        #expect(policy.notice?.contains("Take is still open") == true)
+        #expect(response.log?.contains("input disconnected") == true)
+    }
+
+    @Test("An interruption with no known reason keeps the general wording")
+    func otherReasonKeepsGeneralNotice() {
+        var policy = InterruptionPolicy()
+        _ = policy.handle(.interruptionBegan(reason: .other), isRecording: true)
+        #expect(policy.notice?.contains("a call, Siri or another app") == true)
+    }
+
+    @Test("Whatever the reason, the end of the interruption restarts input during a Take")
+    func everyReasonRestarts() {
+        for reason in [InterruptionPolicy.Reason.other, .builtInMicMuted, .routeDisconnected] {
+            var policy = InterruptionPolicy()
+            _ = policy.handle(.interruptionBegan(reason: reason), isRecording: true)
+            #expect(policy.handle(.interruptionEnded(shouldResume: false), isRecording: true).action == .restartInput)
+        }
+    }
 }
