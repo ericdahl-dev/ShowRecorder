@@ -102,4 +102,25 @@ struct ProPurchasesTests {
         #expect(!refunded.ownsPro)
         #expect(refunded.tier(now: bought, armedFamily: .x32) == .free)
     }
+
+    @Test("A pack bought by this person is in boughtPacks; one shared through Family Sharing is owned but not bought (#705)")
+    func boughtVersusShared() {
+        let shared = OwnedPurchase(productID: ProPurchases.packProductIDs[.x32]!, purchaseDate: bought, isFamilyShared: true)
+        let owned = ProPurchases(owned: [pack(.xAir), shared])
+        #expect(owned.ownedPacks == [.xAir, .x32])
+        #expect(owned.boughtPacks == [.xAir])
+    }
+
+    @Test("An upgrade bought by this person needs a pack they bought: refunding it can't lean on a family member's pack (#705)")
+    func boughtUpgradeNeedsBoughtPack() {
+        let sharedPack = OwnedPurchase(productID: ProPurchases.packProductIDs[.x32]!, purchaseDate: bought, isFamilyShared: true)
+        #expect(!ProPurchases(owned: [pack(.xAir, revoked: true), sharedPack, upgrade()]).ownsPro)
+    }
+
+    @Test("An upgrade shared through Family Sharing rests on the shared pack: the family keeps Pro (#705)")
+    func sharedUpgradeWithSharedPack() {
+        let sharedPack = OwnedPurchase(productID: ProPurchases.packProductIDs[.xAir]!, purchaseDate: bought, isFamilyShared: true)
+        let sharedUpgrade = OwnedPurchase(productID: ProPurchases.upgradeProductID, purchaseDate: bought, isFamilyShared: true)
+        #expect(ProPurchases(owned: [sharedPack, sharedUpgrade]).ownsPro)
+    }
 }
