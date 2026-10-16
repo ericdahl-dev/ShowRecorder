@@ -39,7 +39,8 @@ export const TRACK_EVENTS = [
   "compare_viewed_cta",
   "contact_email_clicked",
   "mixer_page_cta_clicked",
-  // The "Chat with us" button (components/ChatButton.tsx), which loads the support chat.
+  // The chat bubble on every page (components/ChatBubble.tsx) and "Chat with us" on /support
+  // (components/ChatButton.tsx), which load the support chat. `path` tells them apart except on /support.
   "chat_opened",
 ] as const;
 export type TrackEvent = (typeof TRACK_EVENTS)[number];
