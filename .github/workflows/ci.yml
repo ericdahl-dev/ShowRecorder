@@ -117,6 +117,9 @@ jobs:
       - name: Package tests, Release
         if: matrix.check == 'package tests (Release)'
         working-directory: Packages/ShowRecorderKit
+        # The leg takes 3 to 7 minutes. Once (run 38842824719, #681) the whole test process went silent for 35 minutes
+        # until the 40 minute job limit; this fails the step in 20, with its log, so a hang costs half as much.
+        timeout-minutes: 20
         run: swift test -c release
 
       - name: Build for macOS
