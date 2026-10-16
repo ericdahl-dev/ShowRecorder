@@ -95,7 +95,7 @@ extension GapTests {
 
         try recorder.startTake()
         try await deliverBlocks(3, to: audio, recorder, sample: counting())
-        try await waitUntil { !recorder.isRecording }
+        try await waitUntil { !recorder.isRecording && !recorder.isFinishing }
         await recorder.waitForRepair()
 
         #expect(recorder.copies[.device] == .repairFailed)

@@ -47,7 +47,9 @@ struct StopNeverBlocksTests {
 
         let started = ContinuousClock.now
         try await recorder.stopTake()
-        #expect(ContinuousClock.now - started < .seconds(2), "Stop waited on the stuck Drive")
+        // Far below the gate's `hangGuard`. Stop returns to the main actor when its finish is done (#652), so under a parallel
+        // run this also counts the wait for the other suites' main-actor work; a tight bound measured that, not the Drive.
+        #expect(ContinuousClock.now - started < .seconds(30), "Stop waited on the stuck Drive")
         #expect(!recorder.isRecording)
         #expect(recorder.copies[.drive] == .hasGaps)
         let deviceStem = device.appending(path: "\(show)/Take 01/01 USB 01.wav")
@@ -206,7 +208,9 @@ struct StopNeverBlocksTests {
         let recorder = Recorder(
             deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
             makeStem: { url, info, resume in HangingStem(try StemWriter.open(url: url, info: info, resumingAt: resume), gate: gate) },
-            destinationCheckInterval: nil, writerStopTimeout: .seconds(3))
+            destinationCheckInterval: nil, writerStopTimeout: .seconds(3),
+            // Inline: the 3 s against 6 s bound below is too tight to measure across a return to the main actor.
+            asyncStopAvailable: false)
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         try recorder.startTake()

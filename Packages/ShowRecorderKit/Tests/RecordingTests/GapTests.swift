@@ -81,7 +81,7 @@ struct GapTests {
 
         try recorder.startTake()
         try await deliverBlocks(3, to: audio, recorder, sample: counting())
-        try await waitUntil { !recorder.isRecording }
+        try await waitUntil { !recorder.isRecording && !recorder.isFinishing }
 
         #expect(!recorder.isRecording)
         #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .noDestination))

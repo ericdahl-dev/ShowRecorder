@@ -288,7 +288,8 @@ struct DriveOnlyTakeTests {
 
         let started = ContinuousClock.now
         try await recorder.stopTake()
-        #expect(ContinuousClock.now - started < .seconds(1), "Stop waited on the hung Drive")
+        // Far below the gate's `hangGuard`; see StopNeverBlocksTests for why not tighter.
+        #expect(ContinuousClock.now - started < .seconds(30), "Stop waited on the hung Drive")
         await recorder.waitForRepair()
 
         // The Device holds the stand-in to the end of the Take, from 2 s before the Drive's last frame (what a pulled

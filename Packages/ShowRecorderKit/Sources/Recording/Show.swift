@@ -112,10 +112,10 @@ public struct Show: Sendable, Equatable {
             gainChanges: gainChanges.isEmpty ? nil : gainChanges, takes: takeCount > 0 ? takeCount : nil, unknownFields: newerFields)
     }
 
-    /// Logs a gain change made between Takes, in every Copy's `Show.json`.
-    mutating func logGainChange(_ change: TakeMetadata.GainChange) {
+    /// Logs a gain change made between Takes, in every Copy's `Show.json` but `skipped`.
+    mutating func logGainChange(_ change: TakeMetadata.GainChange, skipping skipped: Set<DestinationKind> = []) {
         gainChanges.append(change)
-        for copy in [folder] + (driveFolder.map { [$0] } ?? []) { try? file.write(to: copy) }
+        for kind in DestinationKind.allCases where !skipped.contains(kind) { if let copy = copies[kind] { try? file.write(to: copy.folder) } }
     }
 
     /// Adopts `names` for later Takes without rewriting the files (they were written when the names were typed).
