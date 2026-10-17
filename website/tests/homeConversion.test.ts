@@ -50,11 +50,13 @@ describe("the home hero (#719)", () => {
     expect(compat).toMatch(/iOS 26/);
   });
 
-  it("puts the Show-Safe line under the button, and links /compare and the XR18 page", () => {
-    expect(hero).toMatch(/A Take never stops because of a Trial, a limit or a license\./);
-    expect(hero).toMatch(/href="\/compare"/);
+  it("keeps the XR18 page link in the hero, and puts the Show-Safe line and /compare under the button in the section below the pricing", () => {
     expect(hero).toMatch(/href="\/mixers\/xr18"/);
-    expect(hero.indexOf("<AppStoreBadge")).toBeLessThan(hero.indexOf("A Take never stops"));
+    const home = read("app", "page.tsx");
+    const section = home.slice(home.indexOf('id="email"'), home.indexOf('id="faq"'));
+    expect(section).toMatch(/A Take never stops because of a Trial, a limit or a license\./);
+    expect(section).toMatch(/href="\/compare"/);
+    expect(section.indexOf("<AppStoreBadge")).toBeLessThan(section.indexOf("A Take never stops"));
   });
 });
 

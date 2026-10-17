@@ -32,11 +32,9 @@ describe("the launch email signup (#719, was the Android signup #404)", () => {
     expect(form).toMatch(/one-click unsubscribe/);
   });
 
-  it("sits under the hero button, with the question above it, and replaces the separate Android section", () => {
+  it("sits in its own section below the pricing (tests/signupPlacement.test.ts), with the question above it, and replaces the separate Android section", () => {
     const home = read("app", "page.tsx");
-    const hero = home.slice(home.indexOf('<section id="top"'), home.indexOf("</section>", home.indexOf('<section id="top"')));
-    expect(hero).toMatch(/<SignupForm \/>/);
-    expect(hero.indexOf("<AppStoreBadge")).toBeLessThan(hero.indexOf("<SignupForm"));
+    expect(home).toMatch(/<Section id="email" title="Join the beta, or wait for the launch">[\s\S]*?<SignupForm \/>/);
     expect(read("components", "SignupForm.tsx")).toMatch(/Not ready to install\? Get the launch email\./);
     expect(home).not.toMatch(/id="android"/);
     expect(home).not.toMatch(/AndroidSignup/);
