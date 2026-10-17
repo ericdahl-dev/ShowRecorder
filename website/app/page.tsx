@@ -276,17 +276,6 @@ export default function Home() {
             </p>
             <div className="hero-actions">
               <AppStoreBadge id="app-store-link" />
-              <p className="price">{ctaNote(false)}</p>
-              <p className="safe">A Take never stops because of a Trial, a limit or a license.</p>
-              <SignupForm />
-              <p className="hero-links">
-                <a className="see-need" href="#need">
-                  See what you need
-                </a>
-                <a className="see-need" href="/compare">
-                  Compare with other ways to record
-                </a>
-              </p>
             </div>
           </div>
           <div className="devices">
@@ -403,6 +392,23 @@ export default function Home() {
               isn&apos;t kept for the App Store version. <a href="/docs/pricing">Free, Trial and Pro in detail</a>
             </p>
           </div>
+        </div>
+      </Section>
+
+      <Section id="email" title="Join the beta, or wait for the launch">
+        <div className="hero-actions">
+          <AppStoreBadge id="app-store-link-email" />
+          <p className="price">{ctaNote(false)}</p>
+          <p className="safe">A Take never stops because of a Trial, a limit or a license.</p>
+          <SignupForm />
+          <p className="hero-links">
+            <a className="see-need" href="#need">
+              See what you need
+            </a>
+            <a className="see-need" href="/compare">
+              Compare with other ways to record
+            </a>
+          </p>
         </div>
       </Section>
 

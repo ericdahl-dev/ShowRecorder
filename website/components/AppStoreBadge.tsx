@@ -17,7 +17,7 @@ import { APP_STORE_URL, TESTFLIGHT_URL } from "@/lib/site";
 //
 // `beta` keeps it on the public beta even once the App Store link is set: for a mixer only the beta records (the
 // X32 page, #482), the App Store build would be the wrong download.
-export function AppStoreBadge({ id, beta = false }: { id: "app-store-link" | "app-store-link-footer"; beta?: boolean }) {
+export function AppStoreBadge({ id, beta = false }: { id: "app-store-link" | "app-store-link-email" | "app-store-link-footer"; beta?: boolean }) {
   if (APP_STORE_URL && !(beta && TESTFLIGHT_URL)) {
     return (
       <a id={id} className="store-slot is-live" href={APP_STORE_URL} {...trackAttrs("app_store_clicked", "app_store")}>
