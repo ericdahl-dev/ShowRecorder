@@ -947,12 +947,6 @@ html:not([data-js]) .theme-toggle {
   align-items: start;
 }
 
-@media (min-width: 1024px) {
-  .pricing-grid {
-    grid-template-columns: minmax(0, 1fr) 300px;
-  }
-}
-
 .plans {
   display: grid;
   gap: 16px;
@@ -1026,6 +1020,11 @@ html:not([data-js]) .theme-toggle {
 .once {
   margin-top: 24px;
   font-weight: 600;
+}
+
+.buy {
+  margin-top: 8px;
+  max-width: 62ch;
 }
 
 /* FAQ */
