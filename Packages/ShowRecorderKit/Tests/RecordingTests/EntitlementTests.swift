@@ -37,25 +37,12 @@ struct EntitlementTests {
         }
     }
 
-    @Test("Free records the 2 USB Channels the operator chose, and no extras")
+    @Test("Free records every USB Channel, whatever was chosen before 1.0.3, and no extras")
     func freeAllowance() {
         let allowance = Entitlement.allowance(for: .free, channelCount: 18, freeChoice: [7, 3])
-        #expect(allowance.recordedChannels == [3, 7])
+        #expect(allowance.recordedChannels == Set(1...18))
         #expect(!allowance.showReport && !allowance.reaperExport && !allowance.namingByHand)
-    }
-
-    @Test("Free always records exactly 2 when there are 2: none chosen means the first 2; extra or out-of-range picks are dropped; gaps are filled from the lowest channels")
-    func freeChoiceIsCleaned() {
-        func recorded(_ choice: [Int], of count: Int = 18) -> Set<Int> {
-            Entitlement.allowance(for: .free, channelCount: count, freeChoice: choice).recordedChannels
-        }
-        #expect(recorded([]) == [1, 2])
-        #expect(recorded([5]) == [1, 5])
-        #expect(recorded([4, 9, 12]) == [4, 9], "only the first 2 picks")
-        #expect(recorded([30, 9]) == [1, 9], "30 doesn't exist on an 18-channel input")
-        #expect(recorded([2, 2]) == [1, 2], "a channel counts once")
-        #expect(recorded([], of: 1) == [1], "a 1-channel input records its only channel")
-        #expect(recorded([], of: 0) == [])
+        #expect(Entitlement.allowance(for: .free, channelCount: 0, freeChoice: []).recordedChannels.isEmpty)
     }
 
     @Test("Settings names the tier in the glossary's words: Free, 14-day Trial with the days left, Pro")
@@ -70,7 +57,7 @@ struct EntitlementTests {
     func atPress() throws {
         #expect(Entitlement.allowanceAtPress(proOffered: false, tier: .free, channelCount: 18, freeChoice: [7, 3]) == nil)
         let free = try #require(Entitlement.allowanceAtPress(proOffered: true, tier: .free, channelCount: 18, freeChoice: [7, 3]))
-        #expect(free.recordedChannels == [3, 7])
+        #expect(free.recordedChannels == Set(1...18))
         let trial = try #require(Entitlement.allowanceAtPress(proOffered: true, tier: .trial(daysLeft: 3), channelCount: 18, freeChoice: [7, 3]))
         #expect(trial.recordedChannels.count == 18)
     }

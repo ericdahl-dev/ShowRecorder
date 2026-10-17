@@ -7,8 +7,8 @@ import MixerLink
 struct StemSpec {
     var file: String
     var description: String
-    /// False for a USB Channel this Take doesn't record (Free records 2): it is captured like the others, so
-    /// every channel stays in step, but its samples go nowhere and no file is made.
+    /// False for a USB Channel this Take doesn't record (its allowance leaves it out): it is captured like the
+    /// others, so every channel stays in step, but its samples go nowhere and no file is made.
     var isRecorded = true
 }
 

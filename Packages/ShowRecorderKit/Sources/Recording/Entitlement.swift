@@ -47,17 +47,15 @@ public struct TakeAllowance: Equatable, Sendable {
 }
 
 extension Entitlement {
-    /// How many USB Channels Free records.
-    public static let freeChannelCount = 2
-
-    /// - Parameter freeChoice: the USB Channels (from 1) the operator chose to record on Free.
+    /// - Parameter freeChoice: ignored; Free records every USB Channel now. Kept from 1.0.2 and earlier, when Free
+    ///   recorded the 2 USB Channels the operator chose.
     public static func allowance(for tier: Tier, channelCount: Int, freeChoice: [Int]) -> TakeAllowance {
         let all = channelCount > 0 ? Set(1...channelCount) : []
         switch tier {
         case .pro, .trial:
             return TakeAllowance(recordedChannels: all, showReport: true, reaperExport: true, namingByHand: true)
         case .free:
-            return TakeAllowance(recordedChannels: freeChannels(freeChoice, channelCount: channelCount), showReport: false, reaperExport: false, namingByHand: false)
+            return TakeAllowance(recordedChannels: all, showReport: false, reaperExport: false, namingByHand: false)
         }
     }
 
@@ -68,20 +66,5 @@ extension Entitlement {
     public static func allowanceAtPress(proOffered: Bool, tier: Tier?, channelCount: Int, freeChoice: [Int]) -> TakeAllowance? {
         guard proOffered, let tier else { return nil }
         return allowance(for: tier, channelCount: channelCount, freeChoice: freeChoice)
-    }
-
-    /// The operator's picks that exist on this input, first two only, topped up from the lowest channels.
-    static func freeChannels(_ choice: [Int], channelCount: Int) -> Set<Int> {
-        guard channelCount > 0 else { return [] }
-        var picked: [Int] = []
-        for channel in choice where (1...channelCount).contains(channel) && !picked.contains(channel) && picked.count < freeChannelCount {
-            picked.append(channel)
-        }
-        var next = 1
-        while picked.count < min(freeChannelCount, channelCount) {
-            if !picked.contains(next) { picked.append(next) }
-            next += 1
-        }
-        return Set(picked)
     }
 }

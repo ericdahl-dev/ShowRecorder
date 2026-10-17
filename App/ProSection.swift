@@ -1,8 +1,8 @@
 import Recording
 import SwiftUI
 
-/// The Pro section of Settings: the tier, Buy Pro, Restore Purchases and, on Free, which 2 USB Channels are
-/// recorded. Calm and out of the way: no prompts, and hidden during a Take (`SettingsLock`).
+/// The Pro section of Settings: the tier, Buy Pro and Restore Purchases. Calm and out of the way: no prompts, and hidden
+/// during a Take (`SettingsLock`).
 struct ProSection: View {
     /// On in every build since the Pro and Trial products exist in App Store Connect (#371, 2026-10-11): the section,
     /// the first-launch Trial offer, the paywall, the days-left chip and the Free limit at record. Turning it off makes
@@ -40,9 +40,6 @@ struct ProSection: View {
             if let note = store.note {
                 Text(note).font(.footnote).secondaryText()
             }
-            if tier == .free {
-                freePicker
-            }
         } header: {
             Text("Pro")
         } footer: {
@@ -57,28 +54,6 @@ struct ProSection: View {
 
     private var footer: String {
         if store.tier() == .pro { return "Thank you. Every USB Channel is recorded." }
-        return "Pro is a one-time purchase, shared with your family. It records every USB Channel and adds channel names you type, the Show report, Reaper export, 96 kHz recording and Templates for each venue."
-    }
-
-    /// The 2 USB Channels Free records, out of those the Armed input offers.
-    @ViewBuilder private var freePicker: some View {
-        let count = model.recorder.usbChannelCount
-        if count > 0 {
-            let recorded = Entitlement.allowance(for: .free, channelCount: count, freeChoice: store.freeChoice)
-                .recordedChannels.sorted()
-            ForEach(Array(recorded.enumerated()), id: \.offset) { index, channel in
-                Picker(index == 0 ? "First recorded channel" : "Second recorded channel", selection: Binding(
-                    get: { channel },
-                    set: { store.freeChoice = FreeChannelChoice.picking($0, slot: index, in: recorded) }
-                )) {
-                    ForEach(1...count, id: \.self) { usb in
-                        Text("USB \(usb)").tag(usb)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
-            Text("Free records 2 USB Channels. Every channel is still metered.")
-                .font(.footnote).secondaryText()
-        }
+        return "Pro is a one-time purchase, shared with your family. It adds channel names you type, the Show report, Reaper export, 96 kHz recording and Templates for each venue."
     }
 }

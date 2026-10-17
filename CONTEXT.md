@@ -129,7 +129,7 @@ A 14-day period in which everything Pro does is available. It starts when the op
 _Avoid_: Demo, free trial (in UI copy say "14-day Trial")
 
 **Free**:
-What the app does without Pro or a Trial: records 2 USB Channels of the operator's choice, with the names and colors from the Mixer.
+What the app does without Pro or a Trial: records every USB Channel, with the names and colors from the Mixer.
 _Avoid_: Lite, basic
 
 **Show-Safe Promise**:

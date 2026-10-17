@@ -56,8 +56,8 @@ THE SHOW-SAFE PROMISE
 A Take never stops, and your audio is never held back, because of a Trial, a limit or a license. Limits are checked only when you press record. Your past Shows are never locked.
 
 FREE, 14-DAY TRIAL AND PRO
-ShowRecorder is free to download. Start a 14-day Trial of everything at no cost. After the Trial, Free records 2 USB channels of your choice, with names and colors from the mixer.
-Pro is a one-time purchase, shared with your family and across your iPhone and iPad: every USB channel, typed channel names, the Show report and Reaper project, 96 kHz and Templates. No subscription.
+ShowRecorder is free to download. Start a 14-day Trial of everything at no cost. After the Trial, Free still records every USB channel, with names and colors from the mixer.
+Pro is a one-time purchase, shared with your family and across your iPhone and iPad: typed channel names, the Show report and Reaper project, 96 kHz and Templates. No subscription.
 
 WHAT YOU NEED
 - A Behringer X Air XR18 or MR18 for 18 channels with names and colors. Other class-compliant USB audio interfaces record too, without names.
