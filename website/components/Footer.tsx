@@ -42,7 +42,7 @@ export function Footer() {
                 Privacy
               </a>
             </li>
-            <li>
+            <li className="footer-wide">
               <a href={`mailto:${CONTACT_EMAIL}`} {...trackAttrs("contact_email_clicked")}>{CONTACT_EMAIL}</a>
             </li>
             <li>
@@ -55,7 +55,7 @@ export function Footer() {
         </nav>
         <nav aria-label="Supported mixers">
           <ul className="footer-links">
-            <li className="footer-group">Supported mixers</li>
+            <li className="footer-group footer-wide">Supported mixers</li>
             <li>
               <a href="/mixers/xr18" data-current-match="">
                 XR18 and MR18

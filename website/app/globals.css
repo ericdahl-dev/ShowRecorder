@@ -398,14 +398,21 @@ html:not([data-js]) .theme-toggle {
   font-size: 17px;
 }
 
+/* Phones: two columns, so ten links are not one long column. The group label and the email span both. */
 .footer-links {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
   margin-top: 12px;
+}
+
+.footer-wide {
+  grid-column: 1 / -1;
 }
 
 @media (min-width: 768px) {
   .footer-links {
+    display: flex;
     flex-direction: row;
     flex-wrap: wrap;
     column-gap: 24px;
