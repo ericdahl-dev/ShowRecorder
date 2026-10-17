@@ -12,7 +12,7 @@ struct UnknownTierTests {
         #expect(!SampleRateSetting.capAt48k(proOffered: true, tier: nil))
         #expect(TemplateAccess(proOffered: true, tier: nil, isRecording: false) == .usable)
         // A known Free tier still limits.
-        #expect(Entitlement.allowanceAtPress(proOffered: true, tier: .free, channelCount: 18, freeChoice: [1, 2])?.recordedChannels == [1, 2])
+        #expect(Entitlement.allowanceAtPress(proOffered: true, tier: .free, channelCount: 18, freeChoice: [1, 2])?.showReport == false)
     }
 
     @Test("What was owned is kept on the device: nothing before the first look, then the last one seen")

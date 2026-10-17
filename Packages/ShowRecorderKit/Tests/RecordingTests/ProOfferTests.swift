@@ -96,7 +96,6 @@ struct ProOfferTests {
         #expect(Paywall(moment: .trialEndingSoon(daysLeft: 1), proPrice: "$19.99").headline == "Your 14-day Trial ends in 1 day")
         #expect(Paywall(moment: nil, proPrice: "$19.99").headline == "ShowRecorder Pro")
         #expect(limitedTake.features == [
-            "Every USB Channel, not just 2",
             "Channel names you type, on the files",
             "The Show report and Reaper export",
             "96 kHz recording",

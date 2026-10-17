@@ -49,7 +49,8 @@ struct TrialTests {
         #expect(disclosure.title == "14-day Trial")
         #expect(text.contains("14 days"))
         #expect(text.contains("at no cost"))
-        #expect(text.contains("2 USB Channels"))
+        #expect(text.contains("Free still records every USB Channel"))
+        #expect(!text.contains("2 USB Channels"))
         #expect(text.contains("Show report"))
         #expect(text.contains("$19.99"))
         #expect(text.contains("one-time"))
@@ -59,7 +60,7 @@ struct TrialTests {
     @Test("The Trial names everything Pro adds, as the paywall does (ADR 0004 launch scope)")
     func disclosureNamesEveryProFeature() {
         let first = TrialDisclosure(proPrice: "$19.99").lines[0]
-        for feature in ["every USB Channel", "channel names you type", "the Show report", "Reaper export", "96 kHz", "Templates"] {
+        for feature in ["channel names you type", "the Show report", "Reaper export", "96 kHz", "Templates"] {
             #expect(first.contains(feature), "\(feature)")
         }
     }
