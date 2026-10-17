@@ -379,7 +379,7 @@ export default function Home() {
 
       <Section
         id="pricing"
-        title="Free, Trial and Pro"
+        title="Pricing"
         intro="ShowRecorder is free to download. Try everything for 14 days, then keep Free or buy Pro once."
       >
         <div className="pricing-grid">

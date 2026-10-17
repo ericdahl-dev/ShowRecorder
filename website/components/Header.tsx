@@ -15,7 +15,7 @@ export function Header() {
         <nav aria-label="Main" className="site-nav">
           <ul>
             {NAV.map((item) => (
-              <li key={item.href}>
+              <li key={item.href} className={item.wide ? "nav-wide" : undefined}>
                 <a href={item.href} data-current-match={item.href === "/docs" ? "prefix" : ""}>
                   {item.label}
                 </a>

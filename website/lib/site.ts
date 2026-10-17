@@ -61,12 +61,14 @@ export const ROUTES: readonly string[] = [
 ];
 
 // Header navigation. Anchors carry the leading slash so they work from every page.
-export const NAV: readonly { label: string; href: string }[] = [
+export const NAV: readonly { label: string; href: string; wide?: boolean }[] = [
   { label: "Features", href: "/features" },
   { label: "Setup", href: "/#need" },
   { label: "Pricing", href: "/#pricing" },
   { label: "Docs", href: "/docs" },
   { label: "FAQ", href: "/#faq" },
+  { label: "Compare", href: "/compare", wide: true },
+  { label: "Support", href: "/support", wide: true },
 ];
 
 export const TRADEMARK_LINE =
