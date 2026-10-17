@@ -64,7 +64,7 @@ export default function ComparePage() {
           <h2 id="pick-title">When to pick the other one</h2>
           <p>These are good tools. Here is when each of them suits you better than ShowRecorder does.</p>
         </div>
-        <ul className="cards cards--3">
+        <ul className="cards">
           {others.map((p) => (
             <li key={p.id} className="card">
               <h3>{p.name}</h3>
