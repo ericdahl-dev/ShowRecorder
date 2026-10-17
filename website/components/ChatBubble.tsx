@@ -1,8 +1,9 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { trackAttrs } from "@/lib/analytics";
-import { useChat } from "@/lib/chat";
+import { bubbleVisible, useChat } from "@/lib/chat";
 import { CONTACT_EMAIL } from "@/lib/site";
 
 // The chat launcher in the bottom-right corner of every page (rendered once by app/layout.tsx). It is our own static
@@ -11,8 +12,11 @@ import { CONTACT_EMAIL } from "@/lib/site";
 // here or from "Chat with us" on /support, it hides itself and Chatwoot's launcher takes over opening and closing.
 export function ChatBubble() {
   const chat = useChat("bubble");
+  const pathname = usePathname();
   const [dismissed, setDismissed] = useState(false);
   if (chat.status === "loaded") return null;
+  // Not on /support, which has its own "Chat with us" button.
+  if (!bubbleVisible(pathname)) return null;
 
   const loading = chat.status === "loading" && chat.mine;
   const failed = chat.status === "failed" && chat.mine && !dismissed;

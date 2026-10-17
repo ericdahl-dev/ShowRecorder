@@ -17,6 +17,15 @@ export const CHATWOOT_SETTINGS = { hideMessageBubble: false, position: "right", 
 export const READY_TIMEOUT_MS = 15000;
 
 // Which control started the last load, so only that one shows the email fallback if it fails.
+/** Pages that have their own "Chat with us" button, so the floating bubble would only repeat it. */
+const PAGES_WITH_OWN_CHAT_BUTTON = ["/support"];
+
+/** Whether the floating bubble shows on `pathname`; true while the path is not known yet. */
+export function bubbleVisible(pathname: string | null): boolean {
+  if (pathname === null) return true;
+  return !PAGES_WITH_OWN_CHAT_BUTTON.includes(pathname.replace(/\/+$/, "") || "/");
+}
+
 export type ChatSource = "bubble" | "support";
 export type ChatStatus = "idle" | "loading" | "loaded" | "failed";
 export type ChatState = { status: ChatStatus; source: ChatSource | null };
