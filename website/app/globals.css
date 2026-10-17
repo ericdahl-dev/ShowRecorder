@@ -1704,6 +1704,8 @@ ol.cards {
 
 .chat-bubble-button[aria-busy="true"] {
   cursor: progress;
+  /* A cue that needs no motion: the spinner only turns when motion is allowed. Same dimming as .chat-button. */
+  opacity: 0.8;
 }
 
 .chat-bubble-button:focus-visible {
