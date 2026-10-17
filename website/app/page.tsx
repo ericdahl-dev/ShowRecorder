@@ -398,11 +398,11 @@ export default function Home() {
               ))}
             </ul>
             <p className="once">One-time purchase. No subscription.</p>
+            <p className="buy">
+              Buy Pro in the app: <strong>Settings › Pro</strong>. In the beta, buying Pro isn&apos;t charged, and the purchase
+              isn&apos;t kept for the App Store version. <a href="/docs/pricing">Free, Trial and Pro in detail</a>
+            </p>
           </div>
-          <figure className="shot">
-            <Screenshot shot={SHOTS.pro} sizes={FIGURE_SIZES} />
-            <figcaption>The Pro screen in the app.</figcaption>
-          </figure>
         </div>
       </Section>
 
