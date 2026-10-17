@@ -37,7 +37,7 @@ export default function FeaturesPage() {
           </div>
         </dl>
         <p className="features-links">
-          What each plan includes is in <a href="/docs/pricing">Free, 14-day Trial and Pro</a>. Prices are on
+          What each plan includes is in <a href="/docs/pricing">Pricing</a>. Prices are on
           the <a href="/#pricing">home page</a>.
         </p>
         <nav aria-label="Feature groups" className="group-jump">

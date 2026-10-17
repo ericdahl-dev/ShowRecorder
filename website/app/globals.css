@@ -296,6 +296,17 @@ main:focus {
   }
 }
 
+/* Compare and Support: only where the row has room (1024px and up); phones keep the five anchors and find them in the footer. */
+.site-nav .nav-wide {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .site-nav .nav-wide {
+    display: list-item;
+  }
+}
+
 .site-nav a {
   display: inline-flex;
   align-items: center;
