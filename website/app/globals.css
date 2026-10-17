@@ -90,6 +90,8 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* A focused link scrolled into view stays clear of the sticky header (0 on phones, where it scrolls away). */
+  scroll-padding-top: calc(var(--header-h) + 16px);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1822,6 +1824,26 @@ ol.cards {
 
 .compare-table td {
   color: var(--muted);
+}
+
+/* "Swipe sideways" only where the table does not fit: phones. */
+.compare-hint {
+  display: none;
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 639px) {
+  .compare-hint {
+    display: block;
+  }
+
+  /* The pinned first column takes less of a phone, so the next column starts to show. */
+  .compare-table tbody th {
+    width: 7rem;
+    min-width: 7rem;
+  }
 }
 
 .compare-table tbody tr:last-child th,

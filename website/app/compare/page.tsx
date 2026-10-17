@@ -31,8 +31,10 @@ export default function ComparePage() {
         <div className="section-head">
           <h2 id="table-title">Side by side, as of {AS_OF}</h2>
         </div>
+        <p className="compare-hint">Swipe the table sideways to compare.</p>
         <div className="compare-scroll" role="region" aria-labelledby="table-title" tabIndex={0}>
           <table className="compare-table">
+            <caption className="sr-only">ShowRecorder compared with the other ways to record a mixer, as of {AS_OF}</caption>
             <thead>
               <tr>
                 <td />
