@@ -14,6 +14,18 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.12",
+    date: "2026-10-17",
+    channel: "TestFlight beta",
+    summary: "A warning when a Take records only silence.",
+    changes: [
+      "If every channel stays silent for about 13 seconds during a Take, a banner says so and what to check. The Take keeps recording.",
+      "Mixer Link keeps one connection to the mixer, so connecting is steadier.",
+      "A slow Drive no longer holds up the rest of the app.",
+      "The Contact support email has the version and build in its subject and a Diagnostics block you can delete.",
+    ],
+  },
+  {
     version: "1.1.11",
     date: "2026-10-16",
     channel: "TestFlight beta",
