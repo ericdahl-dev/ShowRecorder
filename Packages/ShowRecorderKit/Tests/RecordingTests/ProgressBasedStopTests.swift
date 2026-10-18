@@ -63,7 +63,7 @@ struct ProgressBasedStopTests {
                 slow = stem
                 return stem
             },
-            destinationCheckInterval: nil, writerStopTimeout: .seconds(2), asyncStopAvailable: asyncStop)
+            destinationCheckInterval: nil, writerStopTimeout: .seconds(2), asyncStopAvailable: { asyncStop })
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         try recorder.startTake()
@@ -101,7 +101,7 @@ struct ProgressBasedStopTests {
                 let writer = try StemWriter.open(url: url, info: info, resumingAt: resume)
                 return url.path.hasPrefix(drive.path) ? SlowStem(writer, gate: gate) : writer
             },
-            destinationCheckInterval: nil, writerStopTimeout: .seconds(10), asyncStopAvailable: true)
+            destinationCheckInterval: nil, writerStopTimeout: .seconds(10), asyncStopAvailable: { true })
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         try recorder.startTake()
@@ -114,6 +114,46 @@ struct ProgressBasedStopTests {
         gate.open()
         try await stopping.value
         #expect(recorder.finishProgress == nil)
+    }
+
+    @Test("The rule is read at each Stop, not once at launch: a rule that turns on later (StoreKit answering late) applies to the next Stop")
+    func ruleIsReadAtEachStop() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let device = root.appending(path: "Device")
+        let drive = root.appending(path: "Drive")
+        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
+        // The first Take's Drive Stem is never held; the second's waits on its gate.
+        let first = TestGate(), second = TestGate()
+        first.open()
+        defer { second.open() }
+        nonisolated(unsafe) var driveStems = 0
+        nonisolated(unsafe) var on = false
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            makeStem: { url, info, resume in
+                let writer = try StemWriter.open(url: url, info: info, resumingAt: resume)
+                guard url.path.hasPrefix(drive.path) else { return writer }
+                driveStems += 1
+                return SlowStem(writer, gate: driveStems == 1 ? first : second)
+            },
+            destinationCheckInterval: nil, writerStopTimeout: .seconds(2), asyncStopAvailable: { on })
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0.25, count: 4_800)])
+        try await Task.sleep(for: .milliseconds(50))
+        try await recorder.stopTake()
+        #expect(recorder.lastTakeEnd?.take == 1)
+
+        on = true
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0.25, count: 4_800)])
+        let stopping = Task { @MainActor in try await recorder.stopTake() }
+        // Off the main actor, Stop is seen in progress from here; inline it would hold the main actor until it gave up.
+        try await waitUntil { recorder.isFinishing }
+        second.open()
+        try await stopping.value
+        #expect(recorder.lastTakeEnd?.take == 2)
     }
 
     @Test("With the asynchronous Stop off, the same slow Drive is still abandoned at the fixed deadline")
@@ -137,7 +177,7 @@ struct ProgressBasedStopTests {
                 let writer = try StemWriter.open(url: url, info: info, resumingAt: resume)
                 return url.path.hasPrefix(drive.path) ? SlowStem(writer, gate: gate) : writer
             },
-            destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300), asyncStopAvailable: true)
+            destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300), asyncStopAvailable: { true })
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         try recorder.startTake()
@@ -161,7 +201,7 @@ struct ProgressBasedStopTests {
                 let writer = try StemWriter.open(url: url, info: info, resumingAt: resume)
                 return url.path.hasPrefix(drive.path) ? SlowStem(writer, gate: gate, finalizeDelay: 0.15) : writer
             },
-            destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300), asyncStopAvailable: true)
+            destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300), asyncStopAvailable: { true })
         let audio = FakeAudioDevice(inputChannelCount: 3)
         try recorder.arm(audio)
         try recorder.startTake()

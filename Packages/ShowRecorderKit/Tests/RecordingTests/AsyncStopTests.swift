@@ -12,8 +12,8 @@ struct AsyncStopTests {
 
     @Test("The Recorder takes the rule's answer as given, off in a Release build's default")
     func injectedRule() {
-        #expect(Recorder(deviceFolder: root, destinationCheckInterval: nil, asyncStopAvailable: true).asyncStopAvailable)
-        #expect(!Recorder(deviceFolder: root, destinationCheckInterval: nil, asyncStopAvailable: false).asyncStopAvailable)
+        #expect(Recorder(deviceFolder: root, destinationCheckInterval: nil, asyncStopAvailable: { true }).asyncStopAvailable)
+        #expect(!Recorder(deviceFolder: root, destinationCheckInterval: nil, asyncStopAvailable: { false }).asyncStopAvailable)
         #expect(Recorder(deviceFolder: root, destinationCheckInterval: nil).asyncStopAvailable == AsyncStopAvailability.isAvailableInThisBuild)
     }
 
