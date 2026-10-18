@@ -157,6 +157,8 @@ public final class MixerGain {
         case .takeStarted:
             isTakeRunning = true
             session?.stop()
+            // A start while one is running must not leave the old protection live beside the new (#695).
+            protection?.stop()
             // Clip protection is Pro (#705): judged from the Take's allowance, frozen at its press.
             let allowed = takeAllowance()?.clipProtection ?? true
             protection = offersClipProtection && isClipProtectionOn() && allowed ? makeProtection(queue) : nil
