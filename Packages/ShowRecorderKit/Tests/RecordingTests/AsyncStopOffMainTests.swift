@@ -49,7 +49,7 @@ struct AsyncStopOffMainTests {
                 stem(gated)
                 return gated
             },
-            destinationCheckInterval: checkInterval, writerStopTimeout: .seconds(60), asyncStopAvailable: asyncStop)
+            destinationCheckInterval: checkInterval, writerStopTimeout: .seconds(60), asyncStopAvailable: { asyncStop })
     }
 
     @Test("With the rule on, the main actor is free while a writer is blocked; the result equals the inline result")
@@ -444,7 +444,7 @@ struct AsyncStopOffMainTests {
                 let writer = try StemWriter.open(url: url, info: info, resumingAt: resume)
                 return url.path.hasPrefix(drive.path) ? StopNeverBlocksTests.HangingStem(writer, gate: driveGate) : writer
             },
-            destinationCheckInterval: nil, writerStopTimeout: .milliseconds(500), asyncStopAvailable: true)
+            destinationCheckInterval: nil, writerStopTimeout: .milliseconds(500), asyncStopAvailable: { true })
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         try recorder.startTake()

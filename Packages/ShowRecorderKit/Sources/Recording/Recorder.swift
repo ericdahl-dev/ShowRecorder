@@ -141,7 +141,9 @@ public final class Recorder {
     /// The host clock's ticks per second, for spotting a stop in the input (#317). Tests set it.
     @ObservationIgnored private let hostTicksPerSecond: Double
     /// Whether `AsyncStopAvailability` allows the asynchronous Stop: `stopTake` finishes the Take off the main actor (#652).
-    @ObservationIgnored let asyncStopAvailable: Bool
+    @ObservationIgnored private let asyncStopRule: () -> Bool
+    /// The rule's answer now, asked at each Stop rather than once at launch: StoreKit may answer after it.
+    var asyncStopAvailable: Bool { asyncStopRule() }
     /// Whether the last Take was Drive only (#196, ADR 0006), Drive or not: its summary speaks of the Drive alone.
     private(set) var lastTakeWasDriveOnly = false
     /// Whether Repair moved the last Take's stand-in to the Drive and off the Device.
@@ -166,9 +168,9 @@ public final class Recorder {
         writerStopTimeout: Duration = .seconds(5),
         driveStallLimit: Duration = .seconds(2),
         writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) },
-        asyncStopAvailable: Bool = AsyncStopAvailability.isAvailableInThisBuild
+        asyncStopAvailable: @escaping () -> Bool = { AsyncStopAvailability.isAvailableInThisBuild }
     ) {
-        self.asyncStopAvailable = asyncStopAvailable
+        asyncStopRule = asyncStopAvailable
         self.destinationCheckInterval = destinationCheckInterval
         self.driveStallLimit = driveStallLimit
         self.hostTicksPerSecond = hostTicksPerSecond ?? Capture.machTicksPerSecond
@@ -853,7 +855,7 @@ public final class Recorder {
         try await stopTake(because: .stopped)
     }
 
-    /// Three steps (#652): `beginStop` and `publishStop` run on the main actor. With `asyncStopAvailable` the finish
+    /// Three steps (#652): `beginStop` and `publishStop` run on the main actor. With the rule on (`asyncStopAvailable`, asked at each Stop) the finish
     /// between them runs on its own thread (it blocks on the writers, so never a pool thread) and the main actor is free
     /// meanwhile; otherwise it is inline. `isFinishing` is true from the start of the first to the end of the last. The
     /// await is not a cancellation point, so canceling the caller skips neither the finish nor the publish.
@@ -862,13 +864,14 @@ public final class Recorder {
         guard let stopping = beginStop(because: reason) else { return await waitWhileFinishing() }
         var input = stopping.input
         // Only the off-main finish waits on a slow Drive: the inline one holds the main thread, so it keeps the deadline.
-        input.progressBased = asyncStopAvailable
-        if asyncStopAvailable {
+        let offMain = asyncStopAvailable
+        input.progressBased = offMain
+        if offMain {
             let progress = FinishProgress()
             finishProgress = progress
             input.progress = progress
         }
-        let finished = asyncStopAvailable ? await runOffPool { [input] in TakeSession.finish(input) } : TakeSession.finish(input)
+        let finished = offMain ? await runOffPool { [input] in TakeSession.finish(input) } : TakeSession.finish(input)
         publishStop(stopping, finished)
     }
 

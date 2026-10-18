@@ -210,7 +210,7 @@ struct StopNeverBlocksTests {
             makeStem: { url, info, resume in HangingStem(try StemWriter.open(url: url, info: info, resumingAt: resume), gate: gate) },
             destinationCheckInterval: nil, writerStopTimeout: .seconds(3),
             // Inline: the 3 s against 6 s bound below is too tight to measure across a return to the main actor.
-            asyncStopAvailable: false)
+            asyncStopAvailable: { false })
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         try recorder.startTake()
