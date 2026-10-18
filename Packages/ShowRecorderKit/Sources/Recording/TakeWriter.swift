@@ -15,6 +15,8 @@ final class TakeWriter: @unchecked Sendable {
     private let abandoned = Atomic<Bool>(false)
     private struct Abandoned: Error {}
     private let retired = Atomic<Bool>(false)
+    /// Writes and header commits done so far: how Stop tells a Destination that is slow from one that has stopped (#817).
+    private let progress = Atomic<Int>(0)
     /// Whether the real-time side ever told this Copy which Take frame it starts at.
     private let joined = Atomic<Bool>(false)
     /// Called on the writer thread when this Copy fails, so capture can stop feeding it.
@@ -94,6 +96,11 @@ final class TakeWriter: @unchecked Sendable {
     /// Stretches written as silence because the ring had no room for that audio.
     var dropouts: [Range<Int>] { dropoutRanges.withLock { $0 } }
 
+    /// Writes and header commits done so far; it moves while the Destination is working, however slowly.
+    var progressCount: Int { progress.load(ordering: .relaxed) }
+
+    private func noteProgress() { _ = progress.wrappingAdd(1, ordering: .relaxed) }
+
     /// Whether the writer thread has finished, so its files are closed and can be reopened.
     var isFinished: Bool { done.load(ordering: .acquiring) }
 
@@ -138,11 +145,42 @@ final class TakeWriter: @unchecked Sendable {
             finished.wait()
             return
         }
-        if finished.wait(timeout: deadline) == .timedOut {
-            // A Destination that hangs (a Drive pulled mid-write) doesn't hold up Stop (#320): the Copy is abandoned and
-            // failed. A write already under way can't be taken back, but the writer starts no new one when it wakes.
-            abandoned.store(true, ordering: .releasing)
-            failed.store(true, ordering: .releasing)
+        if finished.wait(timeout: deadline) == .timedOut { abandon() }
+    }
+
+    /// A Destination that hangs (a Drive pulled mid-write) doesn't hold up Stop (#320): the Copy is abandoned and
+    /// failed. A write already under way can't be taken back, but the writer starts no new one when it wakes.
+    private func abandon() {
+        // One that just finished is not abandoned: its Take.json would be skipped.
+        guard !done.load(ordering: .acquiring) else { return }
+        abandoned.store(true, ordering: .releasing)
+        failed.store(true, ordering: .releasing)
+    }
+
+    /// Waits for every writer to finish. One that makes no progress for `window` is abandoned, as a hung Destination is
+    /// (#320); one that is slow but still writing is waited for, however long its backlog takes (#817). Call
+    /// `requestStop()` on each first. Blocks, so never on the main actor.
+    static func waitAll(_ writers: [TakeWriter], noProgressFor window: Duration) {
+        let clock = ContinuousClock()
+        var open = Array(writers.indices)
+        var counts = writers.map(\.progressCount)
+        var since = writers.map { _ in clock.now }
+        while !open.isEmpty {
+            let now = clock.now
+            open.removeAll { index in
+                let writer = writers[index]
+                if writer.isFinished { return true }
+                let count = writer.progressCount
+                if count != counts[index] {
+                    counts[index] = count
+                    since[index] = now
+                } else if now - since[index] >= window {
+                    writer.abandon()
+                    return true
+                }
+                return false
+            }
+            if !open.isEmpty { Thread.sleep(forTimeInterval: 0.02) }
         }
     }
 
@@ -190,7 +228,8 @@ final class TakeWriter: @unchecked Sendable {
                 try writeDropout(unlogged)
                 try writeMarkers()
             }
-            for stem in stems { try stem.finalize() }
+            // One slow finalize is counted like a write; a single one slower than Stop's window still looks hung.
+            for stem in stems { try stem.finalize(); noteProgress() }
         } catch where !abandoned.load(ordering: .acquiring) {
             failed.store(true, ordering: .releasing)
             onFailure()
@@ -209,6 +248,7 @@ final class TakeWriter: @unchecked Sendable {
         for (index, stem) in stems.enumerated() {
             try checkAbandoned()
             try stem.commitHeader()
+            noteProgress()
             let count = stem.frameCount
             committedCounts.withLock { $0[index] = count }
         }
@@ -221,6 +261,7 @@ final class TakeWriter: @unchecked Sendable {
            samples.allSatisfy({ $0.count == join }) {
             for (index, stem) in stems.enumerated() {
                 try samples[index].withUnsafeBufferPointer { try stem.append($0) }
+                noteProgress()
             }
         }
         let start = framesWritten
@@ -231,6 +272,7 @@ final class TakeWriter: @unchecked Sendable {
             while remaining > 0 {
                 let count = min(remaining, silence.count)
                 try silence.withUnsafeBufferPointer { try stem.append(UnsafeBufferPointer(rebasing: $0[..<count])) }
+                noteProgress()
                 remaining -= count
             }
         }
@@ -252,6 +294,7 @@ final class TakeWriter: @unchecked Sendable {
         return try ring.consume(maxFrames: limit) { channel, samples in
             try checkAbandoned()
             try stems[channel].append(samples)
+            noteProgress()
         }
     }
 
@@ -259,7 +302,7 @@ final class TakeWriter: @unchecked Sendable {
     private func writeMarkers() throws {
         let dropoutMarkers = dropouts.map { StemMarker(position: UInt32(clamping: $0.lowerBound), label: "Dropout") }
         let all = (operatorMarkers + dropoutMarkers).sorted { $0.position < $1.position }
-        for stem in stems { try stem.setMarkers(all) }
+        for stem in stems { try stem.setMarkers(all); noteProgress() }
     }
 
     /// Writes silence for audio the ring dropped, and remembers where.
@@ -276,6 +319,7 @@ final class TakeWriter: @unchecked Sendable {
             while remaining > 0 {
                 let count = min(remaining, silence.count)
                 try silence.withUnsafeBufferPointer { try stem.append(UnsafeBufferPointer(rebasing: $0[..<count])) }
+                noteProgress()
                 remaining -= count
             }
         }
