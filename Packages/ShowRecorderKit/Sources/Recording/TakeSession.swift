@@ -326,6 +326,13 @@ final class TakeSession {
         coverage(copies: copies, standby: standby).gaps(takeEnd: takeEnd).filter { standby == nil || $0.copy != .device }
     }
 
+    /// The folders `checkDestinations` reads the free space of: each healthy Copy, and a standing-in standby.
+    var spaceFolders: [URL] {
+        var folders = copies.filter { !$0.writer.hasFailed }.map(\.folder)
+        if let standby, standby.start != nil, !standby.writer.hasFailed { folders.append(standby.folder) }
+        return folders
+    }
+
     /// Looks for a Destination that has become available since the Take started. A Drive that appears
     /// joins the running Take: its Stems start with silence up to the join point, which is recorded as
     /// a Gap in `Take.json` on both Copies. A Drive Copy that failed rejoins the same way when its
@@ -334,7 +341,11 @@ final class TakeSession {
     ///
     /// `drive` is asked only when a Drive could join or rejoin, and each access it returns is either
     /// kept for the Take or released here.
-    func checkDestinations(drive: () -> DriveAccess?) -> Check {
+    ///
+    /// `freeSpace` replaces the session's own free-space reads with ones taken beforehand (off the main thread, #814);
+    /// a folder it doesn't know falls back to the session's.
+    func checkDestinations(drive: () -> DriveAccess?, freeSpace readFree: ((URL) -> Int64)? = nil) -> Check {
+        let freeSpace = readFree ?? self.freeSpace
         // Keep 60 s of audio free on each Destination. A Copy that's short stops cleanly while another
         // has room; when the last healthy one is short the Take finalizes, before anything fills.
         let reserve = SpaceReserve(channelCount: metadata.usbChannels.count, sampleRate: info.sampleRate)
