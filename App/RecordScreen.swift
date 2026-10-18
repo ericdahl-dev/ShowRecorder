@@ -645,6 +645,7 @@ final class RecordScreenModel {
     let drive: DriveFolderModel
     /// The Drive speed test (#807, Debug only); while it runs Record is locked.
     let speedTest = DriveSpeedTestModel()
+    @ObservationIgnored private let saveTask = SaveBackgroundTask()
     /// The Mixer Link as the app uses it (#556).
     let mixer: MixerSession
     /// The Mixer's address, remembered between launches by the Mixer session (#556).
@@ -848,6 +849,8 @@ final class RecordScreenModel {
         if takeCopies[.drive] != .interrupted { driveCheckedAndNotFound = false }
         driveRejoin.update(copies: takeCopies)
         followLiveActivity()
+        // A save the recorder began itself (out of space, no Destination) gets the same time (#818).
+        saveTask.follow(isFinishing: recorder.isFinishing)
     }
 
     /// Starts, updates or ends the Live Activity to match the running Take. The sequencer's events call it at each start,
@@ -1155,6 +1158,9 @@ final class RecordScreenModel {
 
     func stop() async {
         clearStopHint()
+        // iOS gives the save a little time if the app goes to the background meanwhile (#818).
+        saveTask.hold()
+        defer { saveTask.release() }
         await sequencer.stop()
     }
 

@@ -31,6 +31,7 @@
 		47525D0C9DECC739535A5E15 /* DemoAudioDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */; };
 		4B1D83A876DD31D7B6E31F73 /* AppearanceStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F1B5EEDD8FA484B7416BB0B /* AppearanceStyle.swift */; };
 		4B277180EC441F56D74ED665 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8F032F2B06E5F2F3AA51A95B /* Assets.xcassets */; };
+		5728BC31633F5D4D4AB0BF99 /* SaveBackgroundTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = D83A06F2A87BD02D91E46F2B /* SaveBackgroundTask.swift */; };
 		5D5D12F59403A4A68536795A /* SupportMail.swift in Sources */ = {isa = PBXBuildFile; fileRef = E951F97A3A234FFB9E4215B5 /* SupportMail.swift */; };
 		67544CE867E86B27CB07C95E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FEA294E3885AFF04F6D8CED9 /* Assets.xcassets */; };
 		70AA117DAA1414DE3DC7CC7F /* RecordScreen+Watch.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC3CAB67C71FB3C5018C1B22 /* RecordScreen+Watch.swift */; };
@@ -172,6 +173,7 @@
 		BB46E32691A6C070E799F33D /* MeterGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeterGrid.swift; sourceTree = "<group>"; };
 		BFEAAED834B651D2EB178389 /* TakeLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TakeLiveActivityWidget.swift; sourceTree = "<group>"; };
 		CAE710202D63B74CD7D41083 /* ShowRecorderWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShowRecorderWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D83A06F2A87BD02D91E46F2B /* SaveBackgroundTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveBackgroundTask.swift; sourceTree = "<group>"; };
 		D942D124B2BCC55DD0044462 /* MonitorExperiment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitorExperiment.swift; sourceTree = "<group>"; };
 		DBBDC7B3AA4C8B14B57747DD /* ShowRecorder.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ShowRecorder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DDDF413BFBEF5212621189D4 /* TrialSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrialSheet.swift; sourceTree = "<group>"; };
@@ -286,6 +288,7 @@
 				38DF639C46586DCDF4866E87 /* QuitGuard.swift */,
 				84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */,
 				AC3CAB67C71FB3C5018C1B22 /* RecordScreen+Watch.swift */,
+				D83A06F2A87BD02D91E46F2B /* SaveBackgroundTask.swift */,
 				8CC47A3C7EE61A034F3F6FE0 /* SettingsView.swift */,
 				2220CC601D180E6771D03197 /* ShowDetailView.swift */,
 				034579A5DCE44DCC61521CA4 /* ShowListView.swift */,
@@ -565,6 +568,7 @@
 				F7769B6393421DB1EE75F743 /* QuitGuard.swift in Sources */,
 				70AA117DAA1414DE3DC7CC7F /* RecordScreen+Watch.swift in Sources */,
 				992430B53737588E241A07B2 /* RecordScreen.swift in Sources */,
+				5728BC31633F5D4D4AB0BF99 /* SaveBackgroundTask.swift in Sources */,
 				BDB211EC46C2B160A043D06F /* SettingsView.swift in Sources */,
 				CD0970AC1E67A961E697395E /* ShowDetailView.swift in Sources */,
 				255D20FDD3402F29F4A72FE9 /* ShowListView.swift in Sources */,
