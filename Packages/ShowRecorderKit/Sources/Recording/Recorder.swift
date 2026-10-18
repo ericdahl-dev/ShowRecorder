@@ -229,6 +229,49 @@ public final class Recorder {
         }
     }
 
+    @ObservationIgnored private var isRecoveringAbandoned = false
+    /// Takes this launch abandoned a Drive Copy of, by Show name: the writer thread may still be alive and writing, so recovery
+    /// leaves them to the next launch.
+    @ObservationIgnored private var abandonedThisLaunch: [String: Set<Int>] = [:]
+
+    /// Finishes the open Show's Drive Copies that Stop gave up on (#817) once the Drive is back: their Stems cover the audio
+    /// on the Drive, and Repair fills what they lack from the Device. The app calls it at launch and when it comes to the
+    /// front. Does nothing during a Take, a save or a Repair, with no Drive, or when the Drive has no folder for the Show; a
+    /// marker stays until its Take's Drive Copy is reachable. The file work runs off the main thread, since a Drive that was
+    /// slow enough to be abandoned may be slow now. Only the Show's last Take is queued for Repair (it publishes the last
+    /// Take's Copies); an earlier Take is finished and its Gaps are recorded in its Take.json.
+    public func recoverAbandonedCopies() async {
+        guard !isRecording, !isFinishing, !isRecoveringAbandoned, !repair.isRunning, let show = currentShow,
+              let access = driveFolder() else { return }
+        let driveShow = access.folder.appending(path: show.name, directoryHint: .isDirectory)
+        guard FileManager.default.fileExists(atPath: driveShow.path) else {
+            access.end()
+            return
+        }
+        isRecoveringAbandoned = true
+        let deviceShow = show.folder, skipping = abandonedThisLaunch[show.name] ?? []
+        let found = await runOffPool { AbandonedCopyRecovery.finish(deviceShow: deviceShow, driveShow: driveShow, skipping: skipping) }
+        isRecoveringAbandoned = false
+        guard !found.isEmpty else {
+            access.end()
+            return
+        }
+        // A Take, a save or a Repair may have begun meanwhile, or the Show changed: the files are right, but the screen's
+        // state is left alone.
+        guard !isRecording, !isFinishing, !repair.isRunning, currentShow?.name == show.name else {
+            access.end()
+            return
+        }
+        regenerateReports()
+        guard let last = found.last, last.metadata.take == currentShow?.takeCount, !last.metadata.gaps.isEmpty else {
+            access.end()
+            return
+        }
+        lastTakeWasDriveOnly = last.metadata.standIns != nil || last.metadata.driveOnly == true
+        lastTakeGeneration += 1
+        repair.enqueue(last.metadata, folders: last.folders, holding: access, keepsStandIns: true)
+    }
+
     /// Starts receiving audio from `device`. Any previously Armed device is stopped first.
     public func arm(_ device: any AudioIODevice) throws {
         guard !isFinishing else { throw RecorderError.finishing }
@@ -935,6 +978,7 @@ public final class Recorder {
             hadDrive: finished.folders[.drive] != nil)
         lastTakeGeneration += 1
         currentShow = session.show
+        if finished.abandoned.contains(.drive) { abandonedThisLaunch[session.show.name, default: []].insert(finished.metadata.take) }
         for change in gainChangesWhileFinishing { currentShow?.logGainChange(change, skipping: finished.abandoned) }
         gainChangesWhileFinishing = []
         // A Copy Stop gave up on may hang on any file operation, so the main thread leaves it alone (#652).

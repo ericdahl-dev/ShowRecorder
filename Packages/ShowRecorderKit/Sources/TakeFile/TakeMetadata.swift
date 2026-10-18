@@ -94,6 +94,11 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     /// and the Take fell back to the Device. Nil (left out of Take.json) when the Drive was there from the press.
     public var driveNote: String?
 
+    /// Copies Stop gave up on (#320, #817): their Stems may be unfinalized, with a header shorter than the audio on disk,
+    /// and Repair left them alone. A later launch finishes and repairs them once their Destination is back. Nil (left
+    /// out of Take.json) when Stop waited for every Copy.
+    public var abandonedCopies: [DestinationKind]?
+
     public struct StandIn: Codable, Equatable, Sendable {
         public var start: Int
         public var end: Int
@@ -385,7 +390,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     public private(set) var unknownFields: UnknownFields?
 
     enum CodingKeys: String, CodingKey, CaseIterable {
-        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames, gainChanges, routingChanges, standIns, driveOnly, driveNote
+        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames, gainChanges, routingChanges, standIns, driveOnly, driveNote, abandonedCopies
     }
 
     public init(from decoder: any Decoder) throws {
@@ -407,6 +412,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         standIns = try c.decodeIfPresent([StandIn].self, forKey: .standIns)
         driveOnly = try c.decodeIfPresent(Bool.self, forKey: .driveOnly)
         driveNote = try c.decodeIfPresent(String.self, forKey: .driveNote)
+        abandonedCopies = try c.decodeIfPresent([DestinationKind].self, forKey: .abandonedCopies)
     }
 
     public init(show: String, take: Int, startedAt: Date, sampleRate: Int, timeReference: UInt64, usbChannels: [USBChannel], markers: [Marker] = []) {
