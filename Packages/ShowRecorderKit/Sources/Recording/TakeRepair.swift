@@ -78,14 +78,21 @@ final class TakeRepair {
             }
         }
         guard !metadata.gaps.isEmpty else {
-            // Drive only: a Drive that faltered but then caught up has the whole Take, so its stand-in is a spare.
-            if !keepsStandIns, metadata.standIns != nil, let device = folders[.device], let drive = folders[.drive], !abandoned.contains(.drive) {
+            // Drive only: a Drive that faltered but then caught up has the whole Take, so its stand-in is a spare. Not one on
+            // a Device Stop gave up on: its writer may still be going and that volume may be what hangs, so nothing is
+            // removed there, and never on the main thread (#664).
+            if !keepsStandIns, metadata.standIns != nil, let device = folders[.device], let drive = folders[.drive],
+               !abandoned.contains(.drive), !abandoned.contains(.device) {
                 try? FileManager.default.removeItem(at: device)
                 var done = metadata
                 done.standIns = nil
                 try? done.write(to: drive)
                 // So the Take has no Device Copy (#621).
                 self.outcomes[.device] = nil
+                onChange()
+            } else if !keepsStandIns, metadata.standIns != nil, abandoned.contains(.device), !abandoned.contains(.drive) {
+                // The stand-in stays on a Device Stop gave up on: the summary says so, as after a Repair that kept it.
+                standInKept = true
                 onChange()
             }
             if abandonedFolders.isEmpty {
@@ -116,7 +123,9 @@ final class TakeRepair {
             var done = metadata
             done.repairs = repairs
             // Drive only: once the Drive Copy has everything, nothing of the Take stays on the Device.
+            // Not off a Device Stop gave up on: its folder isn't removed, so the stand-ins stay named (#664).
             let moved = !keepsStandIns && metadata.standIns != nil && done.outcome(ofCopy: .drive) == .repaired
+                && !abandoned.contains(.device)
             // The stand-ins' folders are gone once moved, so the Take no longer names them.
             if moved { done.standIns = nil }
             // Every write to a Destination (a Drive that may have gone away) is off the cooperative pool.
