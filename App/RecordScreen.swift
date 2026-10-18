@@ -1023,9 +1023,9 @@ final class RecordScreenModel {
         case .showMoves:
             showingMoves = true
         case .checkDrive:
-            // Look again now, and say so if it's still not there.
-            drive.refresh()
+            // Look again now, and say so if it's still not there. Off the main actor: this can come mid-Take (#814).
             Task { [self] in
+                await drive.refreshInBackground(whileBusy: false)
                 await recorder.checkDestinations()
                 refreshDestinations()
                 driveCheckedAndNotFound = takeCopies[.drive] == .interrupted
@@ -1046,8 +1046,10 @@ final class RecordScreenModel {
         switch kind {
         case .device: break
         case .drive:
-            drive.refresh()
-            Task { [self] in await recorder.checkDestinations() }
+            Task { [self] in
+                await drive.refreshInBackground(whileBusy: false)
+                await recorder.checkDestinations()
+            }
         case .mixer:
             Task { await mixer.retry() }
         }
@@ -1182,6 +1184,14 @@ final class RecordScreenModel {
     /// After a Take: a Free Take that went to the Device only with a Drive connected, a Free Take whose Stems got
     /// generic names while the Mixer had names (#705), or the Trial's last days (#62).
     private func offerProAfterTake() {
+        // The Drive's status is read fresh: it wasn't asked during the Take (#814).
+        Task { [self] in
+            await drive.refreshInBackground(whileBusy: false)
+            offerProAfterTakeNow()
+        }
+    }
+
+    private func offerProAfterTakeNow() {
         let show = recorder.currentShow?.name
         let license = pro.license()
         let driveConnected = if case .available = drive.status { true } else { false }
@@ -1544,12 +1554,18 @@ final class RecordScreenModel {
         defer { deviceWatcher.cancel() }
         #endif
         var tick = 0
+        var wasBusy = takeBusy
         var lastPoll = ContinuousClock.now
         while !Task.isCancelled {
             tick += 1
             if tick % 30 == 0 { sequencer.tick(); refreshDestinations(); announceChanges(); forgetClearedSwipes(); fadeGoodNews() }
             // Re-check the Drive every few seconds so an unplugged one shows before record is pressed.
-            if tick % 90 == 0 { drive.refresh() }
+            // A Take just ended: the Drive may have changed meanwhile, so look now and not at the next count.
+            let busy = takeBusy
+            if tick % 90 == 0 || (wasBusy && !busy) {
+                Task { [self] in await drive.refreshInBackground(whileBusy: takeBusy, stillIdle: { !takeBusy }) }
+            }
+            wasBusy = busy
             let now = ContinuousClock.now
             let seconds = min(max((now - lastPoll).inSeconds, 0.001), 0.25)
             lastPoll = now

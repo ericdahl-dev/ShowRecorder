@@ -163,6 +163,24 @@ public struct DriveFolderStore: Sendable {
         }
     }
 
+    /// Runs `work` on a thread of its own and returns its result, for a caller on the main actor (#814): resolving the
+    /// bookmark, asking a volume for its name or free space and the like can take hundreds of milliseconds on a USB stick
+    /// busy with a Take. A thread, not a task, because a task that blocks holds a cooperative pool thread.
+    public static func onOwnThread<T: Sendable>(_ work: @escaping @Sendable () -> T) async -> T {
+        await withCheckedContinuation { continuation in
+            let thread = Thread { continuation.resume(returning: work()) }
+            thread.name = "ShowRecorder Drive"
+            thread.qualityOfService = .userInitiated
+            thread.start()
+        }
+    }
+
+    /// `status()` on a thread of its own (see `onOwnThread`).
+    public func currentStatus() async -> DriveStatus {
+        let store = self
+        return await Self.onOwnThread { store.status() }
+    }
+
     /// Whether the remembered Drive folder is connected and writable right now.
     public func status() -> DriveStatus {
         guard let stored = storage.load() else { return .notChosen }
