@@ -159,6 +159,41 @@ struct TakeSessionTests {
         #expect(secondReleased.count == 0)
     }
 
+    @Test("A Dropout the Drive recorded before it failed stays in Take.json after it rejoins, with its Marker (#604)")
+    func driveRejoinKeepsEarlierDropouts() async throws {
+        let opened = Opened()
+        let session = try session(withDrive: true, opened: opened, wrap: { url, real in
+            let fresh = url.path.contains("/Drive/") && opened.resumes.last! == nil
+            return fresh ? FailingStem(real, healthyFrames: 300_000) : real
+        })
+        let drive = drive
+        try await deliver(480)
+        try await deliver(200_000)  // more than a ring holds: both Copies drop it
+        try await deliver(480)
+        for _ in 0..<3 { try await deliver(48_000) }
+        try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
+
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
+        // The Stems resume at the last commit, past the Dropout, so the Dropout is still in the resumed Stems.
+        let committed = Int(try #require(opened.resumes.last ?? nil))
+        #expect(committed > 200_480)
+        try await deliver(480)
+        // An operator Marker rewrites every Stem's cue points; the resumed Drive Stem keeps its Dropout cue through it.
+        let marker = session.addMarker()
+        try await deliver(480)
+        let finished = session.finish()
+
+        #expect(finished.metadata.dropouts == [
+            .init(copy: .device, start: 480, end: 200_480),
+            .init(copy: .drive, start: 480, end: 200_480),
+        ])
+        #expect(finished.metadata.markers.filter { $0.origin == .dropout } == [.init(position: 480, name: "Dropout", origin: .dropout)])
+        let stemURL = finished.folders[.drive]!.appending(path: "01 USB 01.wav")
+        #expect(try cuePoints(stemURL) == [
+            CuePoint(position: 480, label: "Dropout"), CuePoint(position: UInt32(marker.position), label: marker.name),
+        ])
+    }
+
     @Test("A Drive Copy that fails and rejoins twice keeps every earlier Gap")
     func driveRejoinsTwice() async throws {
         let opened = Opened()
