@@ -23,6 +23,7 @@ struct DeleteShowSheet: View {
     private var isOpenShow: Bool { model.recorder.currentShow?.name == show.name }
     private var blocked: String? {
         if model.recorder.isRecording { return "A Take is running. Stop it first." }
+        if model.recorder.isFinishing { return RecorderError.finishing.errorDescription }
         if isOpenShow { return "This Show is open. End it first (tap the Show name on the record screen)." }
         return nil
     }

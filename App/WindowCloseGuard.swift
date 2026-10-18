@@ -54,7 +54,16 @@ struct WindowCloseGuard: NSViewRepresentable {
             case .close:
                 return original?.windowShouldClose?(sender) ?? true
             case .askToStop:
-                ask(in: sender)
+                // Stop was already pressed: the window closes once the Stems are written, with nothing to decide.
+                if !model.recorder.isRecording {
+                    Task { [weak self, weak sender] in
+                        guard let self else { return }
+                        await self.model.stop()
+                        sender?.close()
+                    }
+                } else {
+                    ask(in: sender)
+                }
                 return false
             }
         }

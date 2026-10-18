@@ -29,6 +29,8 @@ extension RecordScreenModel {
                 // The iPhone can't open the mic from the background: Start works only once it's Armed.
                 guard recorder.isArmed else { return WatchRemoteModel.openPhoneText }
                 guard !recorder.isRecording else { return nil }
+                // The last Take's Stop was accepted but its Stems are still being written (#652).
+                guard !recorder.isFinishing else { return RecorderError.finishing.errorDescription }
                 // The Record button's own path: the tier, the Trial and the Destinations are judged here.
                 record()
                 return recorder.isRecording ? nil : (recordError ?? recordBlock?.text ?? "Couldn't start recording")

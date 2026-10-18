@@ -281,6 +281,29 @@ struct AsyncStopOffMainTests {
         #expect(sequencer.quitRequested() == .quit)
     }
 
+    @Test("The Take's start time stays until the save is published, so the screen can freeze the timer and keep the Live Activity")
+    func startTimeKeptWhileFinishing() async throws {
+        let gate = TestGate()
+        nonisolated(unsafe) var gated: GatedStem?
+        let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
+        let source = FakeInputDevices([("xr18", 1)])
+        let sequencer = TakeSequencer(recorder: recorder, devices: source, capsAt48k: { false })
+        sequencer.arm()
+        let audio = try #require(source.opened.last)
+        #expect(sequencer.record(sources: [], allowance: nil))
+        audio.deliver([Array(repeating: 0.25, count: 4_800)])
+        #expect(sequencer.takeStartedAt != nil)
+        let stopping = Task { @MainActor in await sequencer.stop() }
+        try await waitUntil { gated?.entered == true }
+        #expect(recorder.isFinishing)
+        sequencer.tick()
+        #expect(sequencer.takeStartedAt != nil)
+        gate.open()
+        await stopping.value
+        #expect(!recorder.isFinishing)
+        #expect(sequencer.takeStartedAt == nil)
+    }
+
     @Test("A gain change made while the Take is being saved is kept on the Show, not overwritten by the publish")
     func gainChangeWhileFinishing() async throws {
         let gate = TestGate()

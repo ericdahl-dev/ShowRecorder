@@ -13,7 +13,7 @@ struct NewShowSheet: View {
     @State private var templateName = ""
 
     private var sheet: ShowSheet {
-        ShowSheet(openShowName: model.recorder.currentShow?.name, isRecording: model.recorder.isRecording)
+        ShowSheet(openShowName: model.recorder.currentShow?.name, isRecording: model.takeBusy)
     }
 
     var body: some View {

@@ -20,6 +20,8 @@ struct RecordScreen: View {
     @Environment(\.openSettings) private var openSettings
     #endif
     @State private var showingSettings = false
+    /// When Stop was pressed, so the timer holds that time while the Take is being saved.
+    @State private var finishingSince: Date?
     @State private var showingMarkers = false
     /// How wide the transport is, so the gap between Stop and Marker can shrink on a very narrow screen.
     @State private var transportWidth: CGFloat = 402
@@ -188,6 +190,9 @@ struct RecordScreen: View {
         .onChange(of: model.recorder.isRecording) { _, recording in
             if !recording { model.confirmingStop = false; model.clearStopHint() }
         }
+        .onChange(of: model.recorder.isFinishing) { _, finishing in
+            finishingSince = finishing ? .now : nil
+        }
     }
 
     /// Outside a Take a chip opens its part of Settings; during one it only retries (Drive, Mixer).
@@ -272,7 +277,13 @@ struct RecordScreen: View {
     }
 
     @ViewBuilder private func recordButton(size: CGFloat) -> some View {
-        if model.recorder.isRecording, TakeStopStyle.current(isIOS: isIOS) == .hold {
+        if model.recorder.isFinishing {
+            // Stop was accepted; the Stems are still being written. Not tappable, so nothing starts or stops meanwhile.
+            Button {} label: { FinishingButtonLabel(size: size) }
+                .buttonStyle(.plain)
+                .disabled(true)
+                .accessibilityLabel("Finishing \(model.takeTitle)")
+        } else if model.recorder.isRecording, TakeStopStyle.current(isIOS: isIOS) == .hold {
             // Hold to stop (#753): no dialog. A tap only shows the hint.
             HoldToStopRecordButton(size: size, label: "Stop \(model.takeTitle)", stop: { Task { await model.stop() } }, hint: { model.showStopHint() })
         } else {
@@ -304,7 +315,7 @@ struct RecordScreen: View {
         .opacity(model.recorder.isRecording ? 1 : 0.55)
         .accessibilityLabel("Add Marker")
         .accessibilityValue(model.recorder.takeMarkers.count == 1 ? "1 Marker" : "\(model.recorder.takeMarkers.count) Markers")
-        .accessibilityHint(model.recorder.isRecording ? "" : "Available during a Take")
+        .accessibilityHint(model.recorder.isRecording ? "" : model.recorder.isFinishing ? "Not while the Take is being saved" : "Available during a Take")
         .sensoryFeedback(.success, trigger: model.recorder.takeMarkers.count) { old, new in new > old }
     }
 
@@ -334,7 +345,7 @@ struct RecordScreen: View {
                     .tapTarget()
                 }
                 .buttonStyle(.plain)
-                .disabled(model.recorder.isRecording)
+                .disabled(model.takeBusy)
                 .accessibilityHint("Opens the Show sheet")
                 Spacer(minLength: 4)
                 // 44 pt wide each, plus a clear gap, so "Shows" and "Names" read as two buttons.
@@ -342,7 +353,7 @@ struct RecordScreen: View {
                     .padding(.trailing, 12)
                     .buttonStyle(.plain)
                     .foregroundStyle(.tint)
-                    .disabled(model.recorder.isRecording)
+                    .disabled(model.takeBusy)
                 Button { open(.channelNames) } label: { Text("Names").tapTarget() }
                     .buttonStyle(.plain)
                     .foregroundStyle(.tint)
@@ -416,13 +427,13 @@ struct RecordScreen: View {
                     .tapTarget()
                 }
                 .buttonStyle(.plain)
-                .disabled(model.recorder.isRecording)
+                .disabled(model.takeBusy)
                 .accessibilityHint("Opens the Show sheet")
                 HStack(spacing: 4) {
                     Button { showingShowList = true } label: { Text("Shows").tapTarget() }
                         .buttonStyle(.plain)
                         .foregroundStyle(.tint)
-                        .disabled(model.recorder.isRecording)
+                        .disabled(model.takeBusy)
                     Button { open(.channelNames) } label: { Text("Names").tapTarget() }
                         .buttonStyle(.plain)
                         .foregroundStyle(.tint)
@@ -507,6 +518,13 @@ struct RecordScreen: View {
                     // VoiceOver reads it when asked; it doesn't announce every second.
                     .accessibilityAddTraits(.updatesFrequently)
             }
+        } else if let started = model.takeStartedAt, model.recorder.isFinishing {
+            // Frozen at the time of Stop while the Take is saved.
+            let text = ElapsedTime.format(seconds: Int((finishingSince ?? .now).timeIntervalSince(started)))
+            Text(text)
+                .font(font.monospacedDigit())
+                .accessibilityLabel("Elapsed time")
+                .accessibilityValue(text)
         } else {
             Text(" ").font(font)
         }
@@ -633,6 +651,8 @@ final class RecordScreenModel {
     private(set) var micDenied = false
     /// When the running Take started, for the elapsed time.
     var takeStartedAt: Date? { sequencer.takeStartedAt }
+    /// A Take is running, or its Stems are still being written (#652): the Show can't change and no Take can start.
+    var takeBusy: Bool { recorder.isRecording || recorder.isFinishing }
     #if os(iOS)
     /// The running Take in the Dynamic Island and on the Lock Screen.
     @ObservationIgnored private let liveActivity = TakeLiveActivity()
@@ -773,7 +793,7 @@ final class RecordScreenModel {
 
     /// How each Copy of the last Take stands, shown once recording has stopped.
     var copySummary: (text: String, isProblem: Bool)? {
-        if recorder.isRecording { return nil }
+        if takeBusy { return nil }
         if recorder.isRepairing { return ("Repairing Gaps from the other Copy…", false) }
         guard let summary = CopySummary.ofLastTake(recorder.copies, dropoutCount: recorder.dropoutCount) else { return nil }
         return (summary.text, summary.isProblem)
@@ -802,6 +822,8 @@ final class RecordScreenModel {
         let show = recorder.currentShow
         // The Drive's coming and going is in the key: a relaunch before the SSD mounts re-reads the total once it does (#625).
         let driveAvailable = if case .available = drive.status { true } else { false }
+        // Not while the Take is being saved: its Stems aren't final, and the key would be stale at the publish.
+        guard !recorder.isFinishing else { return }
         let key = show.map { "\($0.folder.path)|\($0.takeCount)|\(recorder.isRecording)|\(driveAvailable)" }
         guard key != showRecordedKey else { return }
         showRecordedKey = key
@@ -825,11 +847,12 @@ final class RecordScreenModel {
     /// Marker and end (#551); the per-second refresh keeps its problems current.
     func followLiveActivity() {
         #if os(iOS)
-        let take = recorder.isRecording ? takeStartedAt.flatMap { started in
+        // Through the save too (#652): the sequencer clears the start time when the Take is published, which ends it.
+        let take = recorder.isRecording || recorder.isFinishing ? takeStartedAt.flatMap { started in
             recorder.currentShow.map {
                 TakeActivityContent(showName: $0.name, takeTitle: takeTitle, startedAt: started,
                                     markerCount: recorder.takeMarkers.count, problems: liveActivityProblems,
-                                    showsMarkerButton: MarkerButtonAvailability.isAvailableInThisBuild,
+                                    showsMarkerButton: MarkerButtonAvailability.isAvailableInThisBuild && !recorder.isFinishing,
                                     markerLimitReached: recorder.markerLimitReached,
                                     markerLimit: Entitlement.freeMarkerLimit)
             }
@@ -1208,6 +1231,8 @@ final class RecordScreenModel {
             return nil
         } catch RecorderError.takeRunning {
             return "A Show can't be ended during a Take."
+        } catch RecorderError.finishing {
+            return RecorderError.finishing.errorDescription
         } catch {
             return "The Show couldn't be ended: \(error.localizedDescription)"
         }
@@ -1220,6 +1245,8 @@ final class RecordScreenModel {
             return nil
         } catch RecorderError.takeRunning {
             return "A Show can't be started during a Take."
+        } catch RecorderError.finishing {
+            return RecorderError.finishing.errorDescription
         } catch {
             return "The Show couldn't be created: \(error.localizedDescription)"
         }
@@ -1250,6 +1277,8 @@ final class RecordScreenModel {
             try sequencer.startNewShow(from: template)
         } catch RecorderError.takeRunning {
             return "A Show can't be started during a Take."
+        } catch RecorderError.finishing {
+            return RecorderError.finishing.errorDescription
         } catch {
             return "The Show couldn't be created: \(error.localizedDescription)"
         }
@@ -1751,6 +1780,28 @@ struct MarkerButtonLabel: View {
 private struct TransportWidthKey: PreferenceKey {
     static let defaultValue: CGFloat = 402
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+/// The Stop button while the Take is saved (#652): a ring with a spinner, in the Record button's place and size.
+struct FinishingButtonLabel: View {
+    var size: CGFloat = 88
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .strokeBorder(.secondary, lineWidth: 4)
+                .frame(width: size, height: size)
+            VStack(spacing: 2) {
+                ProgressView()
+                Text("Finishing…")
+                    .font(.caption2)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
+            .frame(width: size * 0.8)
+        }
+        .contentShape(Circle())
+    }
 }
 
 /// A large round record button that turns into a stop square while recording.
