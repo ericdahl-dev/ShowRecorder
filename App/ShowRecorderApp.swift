@@ -51,7 +51,7 @@ struct ShowRecorderApp: App {
         CommandMenu("Take") {
             Button("Record") { model.record() }
                 .keyboardShortcut("r", modifiers: .command)
-                .disabled(!model.recorder.isArmed || model.recorder.isRecording)
+                .disabled(!model.recorder.isArmed || model.takeBusy)
             Button("Stop Take…") { model.confirmingStop = true }
                 .keyboardShortcut(".", modifiers: .command)
                 .disabled(!model.recorder.isRecording)

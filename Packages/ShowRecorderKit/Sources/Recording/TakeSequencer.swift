@@ -224,7 +224,9 @@ public final class TakeSequencer {
 
     /// Ends the running Take.
     public func stop() async {
-        takeStartedAt = nil
+        // The start time stays while the Take is being saved (the screen freezes its timer on it); the end clears it.
+        // Not if a later Take has started meanwhile (a second Stop that waited for the save returns after it).
+        defer { if !recorder.isRecording, !recorder.isFinishing { takeStartedAt = nil } }
         do {
             try await recorder.stopTake()
         } catch {
@@ -275,7 +277,7 @@ public final class TakeSequencer {
     /// About once a second: clears the start time once no Take runs, and disarms an idle recorder. Every Take starts
     /// through `record`, which tells its start (#551).
     public func tick() {
-        if !recorder.isRecording { takeStartedAt = nil }
+        if !recorder.isRecording, !recorder.isFinishing { takeStartedAt = nil }
         disarmIfIdle()
     }
 

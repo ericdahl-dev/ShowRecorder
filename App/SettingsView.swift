@@ -23,13 +23,13 @@ struct SettingsView: View {
 
     /// Whether a setting can't be changed right now: some can't while a Take runs (`SettingsLock`).
     private func locked(_ item: SettingsItem) -> Bool {
-        SettingsLock.isLocked(item, isRecording: model.recorder.isRecording)
+        SettingsLock.isLocked(item, isRecording: model.takeBusy)
     }
 
     var body: some View {
         ScrollViewReader { proxy in
             Form {
-                if model.recorder.isRecording {
+                if model.takeBusy {
                     Section {
                         Label("The audio interface, Pre-roll, Drive and Mixer Link can't be changed during a Take.", systemImage: "lock.fill")
                             .secondaryText()
@@ -134,7 +134,7 @@ struct SettingsView: View {
 
                 Section {
                     Button("Run Soundcheck") { showingSoundcheck = true }
-                        .disabled(model.recorder.isRecording)
+                        .disabled(model.takeBusy)
                 } footer: {
                     Text("A 30 s test of the Mixer Link, the USB Channels, every Copy and the files. Not during a Take.")
                 }

@@ -13,6 +13,14 @@ final class QuitGuard: NSObject, NSApplicationDelegate {
         guard let model = Self.model, model.sequencer.quitRequested() == .askToStop else {
             return .terminateNow
         }
+        // Stop was already pressed: nothing left to decide, so the app waits for the Stems to be written.
+        if !model.recorder.isRecording {
+            Task {
+                await model.stop()
+                sender.reply(toApplicationShouldTerminate: true)
+            }
+            return .terminateLater
+        }
         let alert = NSAlert()
         alert.messageText = "Stop the Take?"
         alert.informativeText = "\(model.takeTitle) is still recording. Quitting ends it."
