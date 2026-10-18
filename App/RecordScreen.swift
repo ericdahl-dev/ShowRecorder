@@ -158,6 +158,8 @@ struct RecordScreen: View {
                     model.drive.refresh()
                 }
             case .background:
+                // iOS suspends the app: a paused test would read as a stall.
+                model.speedTest.cancel()
                 model.screenBecameIdle()
                 Task { await model.handle(.movedToBackground) }
             default: break
@@ -297,7 +299,7 @@ struct RecordScreen: View {
                 RecordButtonLabel(isRecording: model.recorder.isRecording, size: size)
             }
             .buttonStyle(.plain)
-            .disabled(!model.recorder.isArmed)
+            .disabled(!model.recorder.isArmed || model.speedTest.isRunning)
             .accessibilityLabel(model.recorder.isRecording ? "Stop \(model.takeTitle)" : "Record")
         }
     }
@@ -640,6 +642,8 @@ final class RecordScreenModel {
     /// The Drive folder and Device free space, kept current here so the status strip, Settings and the
     /// recorder share one state whether or not Settings is open.
     let drive: DriveFolderModel
+    /// The Drive speed test (#807, Debug only); while it runs Record is locked.
+    let speedTest = DriveSpeedTestModel()
     /// The Mixer Link as the app uses it (#556).
     let mixer: MixerSession
     /// The Mixer's address, remembered between launches by the Mixer session (#556).
@@ -652,7 +656,9 @@ final class RecordScreenModel {
     /// When the running Take started, for the elapsed time.
     var takeStartedAt: Date? { sequencer.takeStartedAt }
     /// A Take is running, or its Stems are still being written (#652): the Show can't change and no Take can start.
-    var takeBusy: Bool { recorder.isRecording || recorder.isFinishing }
+    var takeBusy: Bool { recorder.isRecording || recorder.isFinishing || speedTest.isRunning }
+    /// The speed test starts only when nothing else is using the Drive: no Take, no Repair.
+    var speedTestMayStart: Bool { !takeBusy && !recorder.isRepairing }
     #if os(iOS)
     /// The running Take in the Dynamic Island and on the Lock Screen.
     @ObservationIgnored private let liveActivity = TakeLiveActivity()
@@ -1130,6 +1136,7 @@ final class RecordScreenModel {
     }
 
     func record() {
+        guard !speedTest.isRunning else { return }
         // Freeze whatever the Mixer Link knows right now, and what the tier allows, into the Take (Show-Safe
         // Promise: judged only here, never during the Take).
         guard sequencer.record(sources: linkedSources, allowance: currentAllowance()) else { return }
@@ -1429,6 +1436,7 @@ final class RecordScreenModel {
         applyDefaultTemplate()
         Task { await offerDemoSignalIfAvailable() }
         Task { await offerDriveOnlyMovesIfAvailable() }
+        if DriveSpeedTestAvailability.isAvailableInThisBuild { speedTest.removeLeftovers(store: drive.store) }
         // `-demoDrive` (screenshots) uses a folder in the app's own container as the Drive, so the shots show a second
         // Copy instead of a "No Drive" warning.
         // Both touch the container's data (the Drive bookmark, saved names), so they act only in the screenshot build,

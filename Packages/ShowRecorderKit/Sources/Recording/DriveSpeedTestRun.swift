@@ -99,7 +99,7 @@ extension DriveSpeedTest {
     /// access to the Drive folder started); `progress` is told what is running. Each step removes its scratch files, and
     /// a run starts by removing an earlier run's leftovers.
     public static func run(
-        on drive: URL, isCancelled: @escaping @Sendable () -> Bool = { false }, progress: ((String) -> Void)? = nil
+        on drive: URL, isCancelled: @escaping @Sendable () -> Bool = { false }, progress: (@Sendable (String) -> Void)? = nil
     ) throws -> Report {
         let plan = Plan.standard
         return try run(
@@ -110,6 +110,19 @@ extension DriveSpeedTest {
                     in: drive, channels: channels, sampleRate: rate, duration: plan.stepDuration, stallLimit: plan.stallLimit,
                     isCancelled: isCancelled)
             })
+    }
+
+    /// `run(on:)` on its own thread, for the App: the Drive's file work can block, so never on the main actor or a pool
+    /// thread (#681). Gives the report, or the error that stopped it before it began.
+    public static func runOffThread(
+        on drive: URL, isCancelled: @escaping @Sendable () -> Bool, progress: (@Sendable (String) -> Void)?
+    ) async -> Result<Report, any Error> {
+        await runOffPool { Result { try run(on: drive, isCancelled: isCancelled, progress: progress) } }
+    }
+
+    /// `removeLeftovers(in:)` on its own thread.
+    public static func removeLeftoversOffThread(in drive: URL) async {
+        await runOffPool { removeLeftovers(in: drive) }
     }
 
     /// The run with its steps and free-space reading given, so a test can drive it without a Drive.

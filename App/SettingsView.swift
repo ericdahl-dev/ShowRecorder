@@ -105,6 +105,14 @@ struct SettingsView: View {
                     Button(model.drive.status == .notChosen ? "Choose Drive Folder…" : "Change Drive Folder…") { choosing = true }
                         .disabled(locked(.drive))
                     timeLeft
+                    // Shown while it runs or has a result even if the Drive drops out, so Cancel and the result stay reachable.
+                    if DriveSpeedTestAvailability.isAvailableInThisBuild,
+                       model.drive.status.isAvailable || model.speedTest.isRunning || model.speedTest.result != nil {
+                        DriveSpeedTestRow(model: model.speedTest, canStart: model.drive.status.isAvailable && model.speedTestMayStart) {
+                            guard model.speedTestMayStart else { return }
+                            model.speedTest.start(store: model.drive.store)
+                        }
+                    }
                 } header: {
                     Text("Storage").id(SettingsSection.storage)
                 }
