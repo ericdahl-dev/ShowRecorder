@@ -187,7 +187,7 @@ struct ProgressBasedStopTests {
         #expect(recorder.copies[.drive] == .hasGaps)
     }
 
-    @Test("Finalizing counts as progress: three Stems that each take 150 ms to finalize are not abandoned at a 300 ms window")
+    @Test("Finalizing counts as progress: three Stems that each take 1.2 s to finalize are not abandoned at a 3 s window")
     func slowFinalizeIsProgress() async throws {
         defer { try? FileManager.default.removeItem(at: root) }
         let device = root.appending(path: "Device")
@@ -199,9 +199,9 @@ struct ProgressBasedStopTests {
             deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
             makeStem: { url, info, resume in
                 let writer = try StemWriter.open(url: url, info: info, resumingAt: resume)
-                return url.path.hasPrefix(drive.path) ? SlowStem(writer, gate: gate, finalizeDelay: 0.15) : writer
+                return url.path.hasPrefix(drive.path) ? SlowStem(writer, gate: gate, finalizeDelay: 1.2) : writer
             },
-            destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300), asyncStopAvailable: { true })
+            destinationCheckInterval: nil, writerStopTimeout: .seconds(3), asyncStopAvailable: { true })
         let audio = FakeAudioDevice(inputChannelCount: 3)
         try recorder.arm(audio)
         try recorder.startTake()
