@@ -74,7 +74,7 @@ final class TakeRepair {
             let previous = task, write = writeAbandoned
             task = Task {
                 await previous?.value
-                await Task.detached { for folder in abandonedFolders { write(metadata, folder) } }.value
+                await runOffPool { for folder in abandonedFolders { write(metadata, folder) } }
             }
         }
         guard !metadata.gaps.isEmpty else {
@@ -112,22 +112,25 @@ final class TakeRepair {
         let run = run, write = writeAbandoned
         task = Task { [weak self] in
             await previous?.value
-            let repairs = await Task.detached { run(copies, metadata, skip) }.value
+            let repairs = await runOffPool { run(copies, metadata, skip) }
             var done = metadata
             done.repairs = repairs
             // Drive only: once the Drive Copy has everything, nothing of the Take stays on the Device.
             let moved = !keepsStandIns && metadata.standIns != nil && done.outcome(ofCopy: .drive) == .repaired
             // The stand-ins' folders are gone once moved, so the Take no longer names them.
             if moved { done.standIns = nil }
-            for copy in copies {
-                let folder = copy.folder
-                // The Device's folder goes only when the Drive has the moved audio; a lone Copy is never removed.
-                if moved, copy.kind == .device, copies.contains(where: { $0.kind == .drive }) {
-                    try? FileManager.default.removeItem(at: folder)
-                } else if abandoned.contains(copy.kind) {
-                    await Task.detached { [done] in write(done, folder) }.value
-                } else {
-                    try? done.write(to: folder)
+            // Every write to a Destination (a Drive that may have gone away) is off the cooperative pool.
+            await runOffPool { [done] in
+                for copy in copies {
+                    let folder = copy.folder
+                    // The Device's folder goes only when the Drive has the moved audio; a lone Copy is never removed.
+                    if moved, copy.kind == .device, copies.contains(where: { $0.kind == .drive }) {
+                        try? FileManager.default.removeItem(at: folder)
+                    } else if abandoned.contains(copy.kind) {
+                        write(done, folder)
+                    } else {
+                        try? done.write(to: folder)
+                    }
                 }
             }
             guard let self else {

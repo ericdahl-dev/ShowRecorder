@@ -423,12 +423,12 @@ final class TakeSession {
         if input.progressBased, let window = input.stopTimeout {
             let drive = copies.first { $0.kind == .drive }?.writer, rate = metadata.sampleRate
             if drive != nil { input.progress?.setSavingToDrive(true) }
-            TakeWriter.waitAll(copies.map(\.writer) + (standby.map { [$0.writer] } ?? []), noProgressFor: window) {
+            TakeWriter.waitAll(copies.map(\.writer) + (standby.map { [$0.writer] } ?? []), noProgressFor: window, onPoll: {
                 guard let drive, let progress = input.progress else { return }
                 let waiting = drive.isFinished || drive.wasAbandoned
                 progress.setDriveBacklog(frames: waiting ? 0 : drive.backlogFrames, sampleRate: rate)
                 if drive.wasAbandoned { progress.setSavingToDrive(false) }
-            }
+            })
             // The Drive Copy gave up on is no longer being written; one that finished still has its Take.json to write below.
             if let drive, drive.wasAbandoned { input.progress?.setSavingToDrive(false) }
         } else {
