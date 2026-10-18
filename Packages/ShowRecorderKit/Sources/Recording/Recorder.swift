@@ -147,6 +147,8 @@ public final class Recorder {
     var asyncStopAvailable: Bool { asyncStopRule() }
     /// Whether the last Take was Drive only (#196, ADR 0006), Drive or not: its summary speaks of the Drive alone.
     private(set) var lastTakeWasDriveOnly = false
+    /// Whether the last Take was recorded to the Device by choice (#805): its summary misses no Drive.
+    private(set) var lastTakeWasDeviceOnly = false
     /// Whether Repair moved the last Take's stand-in to the Drive and off the Device.
     private(set) var lastTakeStandInMoved = false
     /// Whether the last Take's stand-in is still on the Device after Repair.
@@ -651,7 +653,8 @@ public final class Recorder {
             return try TakeSession(
                 show: show, folders: takeFolders, drive: takeFolders[.drive] != nil ? drive : nil, metadata: metadata, stems: specs,
                 info: info, capture: capture, preRollFrames: preRollFrames, makeStem: makeStem, freeSpace: freeSpace,
-                driveOnly: recordTo.isDriveOnly && (allowance?.driveCopy ?? true))
+                driveOnly: recordTo.isDriveOnly && (allowance?.driveCopy ?? true),
+                deviceOnly: !recordTo.usesDrive && (allowance?.driveCopy ?? true))
         }
     }
 
@@ -922,6 +925,7 @@ public final class Recorder {
         let session = stopping.session, reason = stopping.reason
         session.adopt(finished)
         lastTakeWasDriveOnly = session.driveOnly
+        lastTakeWasDeviceOnly = session.deviceOnly
         lastTakeSignal = finished.signal
         dropoutCount = finished.metadata.dropoutCount
         refreshMarkers(from: finished.metadata)

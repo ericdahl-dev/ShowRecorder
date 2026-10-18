@@ -42,8 +42,9 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
     ///   - copies: the Take's Copies (#550): one that stopped mid-Take says so while the Take runs.
     ///   - sampleRate: the Armed input's rate, for the time left (#298); 48 kHz when nothing is Armed.
     ///   - mixer: nil when the input isn't an X Air or X32: Mixer Link isn't offered, so there's no Mixer chip (#365).
-    ///   - driveOnly: the Drive only setting (#196), so it applies between Takes too. Drive only, or a Drive-only Take,
-    ///     shows one of the Device and Drive chips (#550).
+    ///   - recordTo: the Record to setting (#805), so it applies between Takes too. Drive only (#196), or a Drive-only Take,
+    ///     shows one of the Device and Drive chips (#550); the Device, on Pro, shows the Device chip alone, so a missing or
+    ///     unset Drive never warns.
     ///   - driveAllowed: whether a Take pressed now would also go to the Drive (`License.allowsDrive`, #705).
     public static func make(
         usbChannelCount: Int,
@@ -52,7 +53,7 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         mixer: MixerLinkState?,
         copies: TakeCopies,
         sampleRate: Int = 48_000,
-        driveOnly: Bool = false,
+        recordTo: RecordTo = .both,
         driveAllowed: Bool = true
     ) -> [StatusChip] {
         func stopped(_ kind: DestinationKind) -> Bool { copies.isRunning && copies[kind] == .interrupted }
@@ -83,12 +84,16 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
 
         var chips = [device, driveChip]
         // Drive only needs the Drive Copy: on Free a Take goes to the Device (#705).
-        if (driveOnly && driveAllowed) || copies.isDriveOnly {
+        if (recordTo.isDriveOnly && driveAllowed) || copies.isDriveOnly {
             var driveAvailable: Bool { if case .available = drive { true } else { false } }
             let deviceWrites = copies.isRunning
                 ? copies[.device] == .standingIn || (copies[.device] == .recording && copies[.drive] != .recording)
                 : !driveAvailable
             chips = [deviceWrites ? device : driveChip]
+        } else if copies.isRunning ? copies.isDeviceOnly : recordTo == .device && driveAllowed {
+            // The Device chosen: a Take has no Drive Copy, so no Drive chip (#805); a running Take's Copies say whether it has.
+            // On Free a Take goes to the Device anyway.
+            chips = [device]
         }
 
         guard let mixer else { return chips }
