@@ -60,8 +60,12 @@ _Avoid_: Dropout, hole
 Filling a Copy's Gaps from the other Copy after the Take ends.
 _Avoid_: Sync, heal, restore
 
+**Record to**:
+The setting for where a Take is written: the Device, the Drive, or Both (the default). Read at each record press. The Drive is Pro, so Free records to the Device whatever is chosen.
+_Avoid_: Destination setting, storage mode
+
 **Drive only**:
-A setting that writes a Take to the Drive alone. The Device stands in only while the Drive can't take the audio (no Drive at record, or a Drive lost mid-Take); Repair then moves that stretch to the Drive and removes it from the Device. See [ADR 0006](docs/adr/0006-drive-only-recording.md).
+The Drive choice of Record to: it writes a Take to the Drive alone. The Device stands in only while the Drive can't take the audio (no Drive at record, or a Drive lost mid-Take); Repair then moves that stretch to the Drive and removes it from the Device. See [ADR 0006](docs/adr/0006-drive-only-recording.md).
 _Avoid_: Single copy, external only
 
 **Stand-in**:
