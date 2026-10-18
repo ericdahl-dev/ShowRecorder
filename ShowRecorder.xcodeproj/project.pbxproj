@@ -43,6 +43,7 @@
 		992430B53737588E241A07B2 /* RecordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */; };
 		9FD36E125AA2BC7EE8AAEAD5 /* MonitorExperiment.swift in Sources */ = {isa = PBXBuildFile; fileRef = D942D124B2BCC55DD0044462 /* MonitorExperiment.swift */; };
 		A159D220EC3F72CD05142F7A /* LaunchFlag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 625D1286301830679767FD67 /* LaunchFlag.swift */; };
+		A36E67F5E9AE5C561F5B9B3D /* DriveSpeedTestModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73AD2B8943A74372332C3D8E /* DriveSpeedTestModel.swift */; };
 		A46EF972570A8C8B4881455D /* AppVersionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8518F1A98FCD82D02B991C62 /* AppVersionTests.swift */; };
 		A9A8E28730C7E54C34DF1CAE /* CoreAudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = F366717F80C358C5B3DD7D70 /* CoreAudioIO */; };
 		B243732DF04F2E648E20259E /* FindMixersRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 252D564B3B9FE54ED487A88C /* FindMixersRow.swift */; };
@@ -146,6 +147,7 @@
 		625D1286301830679767FD67 /* LaunchFlag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchFlag.swift; sourceTree = "<group>"; };
 		6D7ADCDE507077F908B89E77 /* SoundcheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundcheckView.swift; sourceTree = "<group>"; };
 		72C6BE33F49834B5129EA247 /* AutoGainSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoGainSheet.swift; sourceTree = "<group>"; };
+		73AD2B8943A74372332C3D8E /* DriveSpeedTestModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveSpeedTestModel.swift; sourceTree = "<group>"; };
 		7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowRecorderApp.swift; sourceTree = "<group>"; };
 		74ACE7E232B13FE02C923373 /* SupportSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportSection.swift; sourceTree = "<group>"; };
 		7D19A6F0E786B644500ED381 /* ThisHardware.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThisHardware.swift; sourceTree = "<group>"; };
@@ -267,6 +269,7 @@
 				2794C7A06BF3F0B4E5F274F6 /* DemoAudioDevice.swift */,
 				1D92CE73B1DEF77200CB6705 /* DemoStemsDevice.swift */,
 				497820F0F5EF694FC7765883 /* DriveFolderModel.swift */,
+				73AD2B8943A74372332C3D8E /* DriveSpeedTestModel.swift */,
 				252D564B3B9FE54ED487A88C /* FindMixersRow.swift */,
 				0BD8856753920B8E59A371BE /* HoldToStopRecordButton.swift */,
 				3ED85A0ECD05797420331099 /* Info.plist */,
@@ -546,6 +549,7 @@
 				47525D0C9DECC739535A5E15 /* DemoAudioDevice.swift in Sources */,
 				1FACE0728FDD70BD78B138B1 /* DemoStemsDevice.swift in Sources */,
 				BD8A89087734093AB7AABE15 /* DriveFolderModel.swift in Sources */,
+				A36E67F5E9AE5C561F5B9B3D /* DriveSpeedTestModel.swift in Sources */,
 				B243732DF04F2E648E20259E /* FindMixersRow.swift in Sources */,
 				CEBB4F6E4EDB75CF2144D738 /* HoldToStopRecordButton.swift in Sources */,
 				A159D220EC3F72CD05142F7A /* LaunchFlag.swift in Sources */,

@@ -31,6 +31,7 @@ extension RecordScreenModel {
                 guard !recorder.isRecording else { return nil }
                 // The last Take's Stop was accepted but its Stems are still being written (#652).
                 guard !recorder.isFinishing else { return RecorderError.finishing.errorDescription }
+                guard !speedTest.isRunning else { return "A Drive speed test is running." }
                 // The Record button's own path: the tier, the Trial and the Destinations are judged here.
                 record()
                 return recorder.isRecording ? nil : (recordError ?? recordBlock?.text ?? "Couldn't start recording")
