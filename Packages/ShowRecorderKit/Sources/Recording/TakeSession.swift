@@ -404,6 +404,8 @@ final class TakeSession {
         /// Wait for a Destination that is slow but still writing, abandoning only one that has stopped (#817). Off for the
         /// inline finish, which holds the main thread.
         var progressBased = false
+        /// Told how much audio the Drive still has to write, while a progress-based finish waits.
+        var progress: FinishProgress?
     }
 
     nonisolated static func finish(_ input: FinishInput) -> Finished {
@@ -416,7 +418,16 @@ final class TakeSession {
         for copy in copies { copy.writer.requestStop() }
         standby?.writer.requestStop()
         if input.progressBased, let window = input.stopTimeout {
-            TakeWriter.waitAll(copies.map(\.writer) + (standby.map { [$0.writer] } ?? []), noProgressFor: window)
+            let drive = copies.first { $0.kind == .drive }?.writer, rate = metadata.sampleRate
+            if drive != nil { input.progress?.setSavingToDrive(true) }
+            TakeWriter.waitAll(copies.map(\.writer) + (standby.map { [$0.writer] } ?? []), noProgressFor: window) {
+                guard let drive, let progress = input.progress else { return }
+                let waiting = drive.isFinished || drive.wasAbandoned
+                progress.setDriveBacklog(frames: waiting ? 0 : drive.backlogFrames, sampleRate: rate)
+                if drive.wasAbandoned { progress.setSavingToDrive(false) }
+            }
+            // The Drive Copy gave up on is no longer being written; one that finished still has its Take.json to write below.
+            if let drive, drive.wasAbandoned { input.progress?.setSavingToDrive(false) }
         } else {
             let deadline = input.stopTimeout.map(TakeWriter.deadline)
             for copy in copies { copy.writer.waitStopped(until: deadline) }

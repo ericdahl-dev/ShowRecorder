@@ -17,6 +17,8 @@ public final class Recorder {
     /// Stop is writing the last Take's Copies (#652): no Take starts until it is done. True from the start of `stopTake`
     /// to the end of its publishing.
     public private(set) var isFinishing = false
+    /// While a progress-based Stop (#817) waits on the Drive: how much audio it still has to write. Nil otherwise.
+    public private(set) var finishProgress: FinishProgress?
     /// Callers of `waitForRepair` that came while the last Take was still being written: resumed when it is published.
     @ObservationIgnored private var finishWaiters: [CheckedContinuation<Void, Never>] = []
     /// Gain changes made while the last Take was being written: the publish replaces `currentShow`, so they go on it after.
@@ -861,6 +863,11 @@ public final class Recorder {
         var input = stopping.input
         // Only the off-main finish waits on a slow Drive: the inline one holds the main thread, so it keeps the deadline.
         input.progressBased = asyncStopAvailable
+        if asyncStopAvailable {
+            let progress = FinishProgress()
+            finishProgress = progress
+            input.progress = progress
+        }
         let finished = asyncStopAvailable ? await runOffPool { [input] in TakeSession.finish(input) } : TakeSession.finish(input)
         publishStop(stopping, finished)
     }
@@ -902,6 +909,7 @@ public final class Recorder {
     private func publishStop(_ stopping: Stopping, _ finished: TakeSession.Finished) {
         defer {
             isFinishing = false
+            finishProgress = nil
             let waiting = finishWaiters
             finishWaiters = []
             for waiter in waiting { waiter.resume() }

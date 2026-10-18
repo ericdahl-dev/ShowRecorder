@@ -376,9 +376,10 @@ struct RecordScreen: View {
                 markerButton(size: 88)
             }
             // The line is always there, so a placed Marker doesn't push anything.
-            Text(markerPlacedText)
+            SavingToDriveLine(progress: model.recorder.finishProgress, fallback: markerPlacedText, compact: false)
                 .font(.caption)
-                .lineLimit(1)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
                 .truncationMode(.middle)
                 .secondaryText()
                 .id(model.recorder.takeMarkers.count)
@@ -483,9 +484,9 @@ struct RecordScreen: View {
             Spacer(minLength: 8)
             markerButton(size: 64)
             // The same 24 pt gap: the hint takes its place, so nothing moves and the meters keep their height.
-            Text(model.stopHint.isShown ? "Hold to stop" : " ")
-                .font(.caption).lineLimit(1).minimumScaleFactor(0.7).secondaryText().frame(height: 24)
-                .accessibilityHidden(!model.stopHint.isShown)
+            SavingToDriveLine(progress: model.recorder.finishProgress, fallback: model.stopHint.isShown ? "Hold to stop" : " ", compact: true)
+                .font(.caption).lineLimit(1).minimumScaleFactor(0.5).secondaryText().frame(height: 24)
+                .accessibilityHidden(!model.stopHint.isShown && model.recorder.finishProgress?.isSavingToDrive != true)
             recordButton(size: 64)
         }
         .frame(width: 128)
@@ -1791,6 +1792,34 @@ struct MarkerButtonLabel: View {
 private struct TransportWidthKey: PreferenceKey {
     static let defaultValue: CGFloat = 402
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+/// Said under the Stop button while the Drive still has audio to write (#817), read again each second; otherwise `fallback`.
+private struct SavingToDriveLine: View {
+    let progress: FinishProgress?
+    let fallback: String
+    let compact: Bool
+
+    var body: some View {
+        if let progress {
+            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                if progress.isSavingToDrive {
+                    // Until the Take is published, not only while audio waits: the Stems still have to be finalized.
+                    let seconds = Int(progress.driveBacklogSeconds.rounded(.up))
+                    let text = seconds > 0
+                        ? (compact ? "Saving… \(seconds) s left. Don't unplug." : "Saving to the Drive… \(seconds) s of audio left. Don't unplug.")
+                        : (compact ? "Saving. Don't unplug." : "Saving to the Drive… Don't unplug.")
+                    Text(text)
+                        .accessibilityLabel("Saving to the Drive. Don't unplug.")
+                        .onAppear { AccessibilityNotification.Announcement("Saving to the Drive. Don't unplug.").post() }
+                } else {
+                    Text(fallback)
+                }
+            }
+        } else {
+            Text(fallback)
+        }
+    }
 }
 
 /// The Stop button while the Take is saved (#652): a ring with a spinner, in the Record button's place and size.

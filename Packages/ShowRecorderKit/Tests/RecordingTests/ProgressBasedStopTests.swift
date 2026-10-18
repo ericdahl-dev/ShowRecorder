@@ -87,6 +87,35 @@ struct ProgressBasedStopTests {
         #expect(try StemFile.inspect(driveStem).frameCount == 96_000)
     }
 
+    @Test("While the Drive is being saved, the Recorder says how much audio it still has to write; afterwards it says nothing")
+    func backlogIsReported() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let device = root.appending(path: "Device")
+        let drive = root.appending(path: "Drive")
+        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
+        let gate = TestGate()
+        defer { gate.open() }
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            makeStem: { url, info, resume in
+                let writer = try StemWriter.open(url: url, info: info, resumingAt: resume)
+                return url.path.hasPrefix(drive.path) ? SlowStem(writer, gate: gate) : writer
+            },
+            destinationCheckInterval: nil, writerStopTimeout: .seconds(10), asyncStopAvailable: true)
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        try recorder.startTake()
+        // 2 s of audio, behind a Drive write that is held: nearly all of it is still waiting at Stop.
+        for _ in 0..<20 { audio.deliver([Array(repeating: 0.25, count: 4_800)]) }
+        let stopping = Task { @MainActor in try await recorder.stopTake() }
+        try await waitUntil { (recorder.finishProgress?.driveBacklogSeconds ?? 0) > 1 }
+        #expect(recorder.isFinishing)
+        #expect(recorder.finishProgress?.isSavingToDrive == true)
+        gate.open()
+        try await stopping.value
+        #expect(recorder.finishProgress == nil)
+    }
+
     @Test("With the asynchronous Stop off, the same slow Drive is still abandoned at the fixed deadline")
     func ruleOffKeepsTheDeadline() async throws {
         defer { try? FileManager.default.removeItem(at: root) }
