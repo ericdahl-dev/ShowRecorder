@@ -232,6 +232,49 @@ public final class Recorder {
         }
     }
 
+    @ObservationIgnored private var isRecoveringAbandoned = false
+    /// Takes this launch abandoned a Drive Copy of, by Show name: the writer thread may still be alive and writing, so recovery
+    /// leaves them to the next launch.
+    @ObservationIgnored private var abandonedThisLaunch: [String: Set<Int>] = [:]
+
+    /// Finishes the open Show's Drive Copies that Stop gave up on (#817) once the Drive is back: their Stems cover the audio
+    /// on the Drive, and Repair fills what they lack from the Device. The app calls it at launch and when it comes to the
+    /// front. Does nothing during a Take, a save or a Repair, with no Drive, or when the Drive has no folder for the Show; a
+    /// marker stays until its Take's Drive Copy is reachable. The file work runs off the main thread, since a Drive that was
+    /// slow enough to be abandoned may be slow now. Only the Show's last Take is queued for Repair (it publishes the last
+    /// Take's Copies); an earlier Take is finished and its Gaps are recorded in its Take.json.
+    public func recoverAbandonedCopies() async {
+        guard !isRecording, !isFinishing, !isRecoveringAbandoned, !repair.isRunning, let show = currentShow,
+              let access = driveFolder() else { return }
+        let driveShow = access.folder.appending(path: show.name, directoryHint: .isDirectory)
+        guard FileManager.default.fileExists(atPath: driveShow.path) else {
+            access.end()
+            return
+        }
+        isRecoveringAbandoned = true
+        let deviceShow = show.folder, skipping = abandonedThisLaunch[show.name] ?? []
+        let found = await runOffPool { AbandonedCopyRecovery.finish(deviceShow: deviceShow, driveShow: driveShow, skipping: skipping) }
+        isRecoveringAbandoned = false
+        guard !found.isEmpty else {
+            access.end()
+            return
+        }
+        // A Take, a save or a Repair may have begun meanwhile, or the Show changed: the files are right, but the screen's
+        // state is left alone.
+        guard !isRecording, !isFinishing, !repair.isRunning, currentShow?.name == show.name else {
+            access.end()
+            return
+        }
+        regenerateReports()
+        guard let last = found.last, last.metadata.take == currentShow?.takeCount, !last.metadata.gaps.isEmpty else {
+            access.end()
+            return
+        }
+        lastTakeWasDriveOnly = last.metadata.standIns != nil || last.metadata.driveOnly == true
+        lastTakeGeneration += 1
+        repair.enqueue(last.metadata, folders: last.folders, holding: access, keepsStandIns: true)
+    }
+
     /// Starts receiving audio from `device`. Any previously Armed device is stopped first.
     public func arm(_ device: any AudioIODevice) throws {
         guard !isFinishing else { throw RecorderError.finishing }
@@ -984,6 +1027,7 @@ public final class Recorder {
             hadDrive: finished.folders[.drive] != nil)
         lastTakeGeneration += 1
         currentShow = session.show
+        if finished.abandoned.contains(.drive) { abandonedThisLaunch[session.show.name, default: []].insert(finished.metadata.take) }
         for change in gainChangesWhileFinishing { currentShow?.logGainChange(change, skipping: finished.abandoned) }
         gainChangesWhileFinishing = []
         // A Copy Stop gave up on may hang on any file operation, so the main thread leaves it alone (#652).
@@ -1084,24 +1128,47 @@ public final class Recorder {
         let all = await runOffPool { TakeMover.find(deviceFolder: device, driveFolder: drive) }
         driveOnlySkips = all.filter { if case .skipped = $0.kind { true } else { false } }
         let found = all.filter { $0.kind == .standIn || $0.kind == .deviceOnly || $0.kind == .redundant }
-        guard !found.isEmpty, !isRecording else {
+        // With the Device chosen the operator is asked first, once per Drive connection (#805). Device Copies the Drive
+        // already holds go without asking, and aren't counted.
+        let waiting = found.filter { $0.kind != .redundant }.count
+        let offer = moveConsent == .approved ? .move : DriveOnlyMoveOffer.decide(
+            // The App sets recordTo from the stored choice only where Record to is offered.
+            storedChoice: recordTo, isOffered: true, isRecording: isRecording, waitingTakes: waiting,
+            askedThisConnection: moveConsent == .asked)
+        switch offer {
+        case .ask(let count):
+            moveOffer = count
+            moveConsent = .asked
+        case .move:
+            moveOffer = nil
+        case .leave:
+            // An unanswered question stays while its Takes wait, and counts the ones still waiting.
+            if moveOffer != nil { moveOffer = waiting > 0 ? waiting : nil }
+        }
+        let moving = offer == .move ? found : found.filter { $0.kind == .redundant }
+        // While a question waits, a move with nothing to say keeps what the one before it said.
+        let keepsReport = moveOffer != nil
+        guard !moving.isEmpty, !isRecording else {
             access.end()
-            return finishMoveRun(from: first)
+            return finishMoveRun(from: first, keepingEarlier: keepsReport)
         }
         foundTakesToMove = true
-        repair.move(found, holding: access, shouldStop: shouldStop) { [weak self] movable, outcome in
+        repair.move(moving, holding: access, shouldStop: shouldStop) { [weak self] movable, outcome in
             let driveTake = drive.appending(path: movable.show).appending(path: movable.deviceFolder.lastPathComponent)
             self?.driveOnlyTakeMoved(movable, outcome, driveTake: driveTake, generation: generation)
         }
         await repair.wait()
-        return finishMoveRun(from: first)
+        return finishMoveRun(from: first, keepingEarlier: keepsReport)
     }
 
     /// What this move did, from `first` in `driveOnlyMoves`; kept for `moveReport` when it found something to say.
-    private func finishMoveRun(from first: Int) -> [StandInMove.Result] {
+    /// - Parameter keepingEarlier: nothing to say leaves what an earlier move said (#805).
+    private func finishMoveRun(from first: Int, keepingEarlier: Bool = false) -> [StandInMove.Result] {
         let moves = Array(driveOnlyMoves[first...])
+        let hasSomethingToSay = moves.contains(where: { $0.outcome != .gone }) || !driveOnlySkips.isEmpty
+        if keepingEarlier, !hasSomethingToSay { return moves }
         // Nothing to say clears what an earlier move said.
-        lastMoveRun = moves.contains(where: { $0.outcome != .gone }) || !driveOnlySkips.isEmpty ? (moves, driveOnlySkips) : ([], [])
+        lastMoveRun = hasSomethingToSay ? (moves, driveOnlySkips) : ([], [])
         return moves
     }
 
@@ -1139,6 +1206,29 @@ public final class Recorder {
             guard !isRecording else { return }
             await moveDriveOnlyTakes()
         }
+    }
+
+    /// Record to (#805): how many Drive only Takes wait for the operator's answer to the move question; nil when none
+    /// is asked. The App shows it outside a Take only.
+    public private(set) var moveOffer: Int?
+    /// Record to (#805): what the operator said about moving Takes since the Drive connected.
+    enum MoveConsent { case notAsked, asked, approved }
+    /// Set for the whole Drive connection: a Move answer moves what a stopped move left, after Stop, without asking (#805).
+    @ObservationIgnored private var moveConsent = MoveConsent.notAsked
+
+    /// Record to (#805): the operator's answer to `moveOffer`. Move moves the Takes now and for the rest of the Drive
+    /// connection; Not now leaves them until the next Drive connection.
+    public func answerMoveOffer(move: Bool) {
+        moveOffer = nil
+        guard move else { return }
+        moveConsent = .approved
+        driveMayHaveConnected()
+    }
+
+    /// Record to (#805): the App calls it when the Drive folder goes away, so the Drive's next connection asks again.
+    public func driveWentAway() {
+        moveConsent = .notAsked
+        moveOffer = nil
     }
 
     /// Whether a trigger is waiting to start its move (#630).

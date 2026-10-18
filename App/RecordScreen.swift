@@ -156,6 +156,8 @@ struct RecordScreen: View {
                 Task {
                     await model.handle(.becameActive)
                     model.drive.refresh()
+                    // A Drive that was abandoned at Stop may be back (#817).
+                    await model.recorder.recoverAbandonedCopies()
                 }
             case .background:
                 // iOS suspends the app: a paused test would read as a stall.
@@ -1447,6 +1449,7 @@ final class RecordScreenModel {
         Task { await offerDemoSignalIfAvailable() }
         Task { await offerDriveOnlyMovesIfAvailable() }
         if DriveSpeedTestAvailability.isAvailableInThisBuild { speedTest.removeLeftovers(store: drive.store) }
+        Task { await recorder.recoverAbandonedCopies() }
         // `-demoDrive` (screenshots) uses a folder in the app's own container as the Drive, so the shots show a second
         // Copy instead of a "No Drive" warning.
         // Both touch the container's data (the Drive bookmark, saved names), so they act only in the screenshot build,
