@@ -75,6 +75,17 @@ public final class Recorder {
 
     @ObservationIgnored private let deviceFolder: URL
     @ObservationIgnored private let driveFolder: () -> DriveAccess?
+    /// Why the Drive isn't available right now, asked only after a press found none (#814).
+    @ObservationIgnored private let driveProblem: () -> String?
+    /// Why the running (or last) Take started without its Drive Copy, or nil when the press had one (#814). Also in the
+    /// Take's `Take.json`.
+    public private(set) var driveNotice: String?
+    /// Whether the running Take may have a Drive Copy: what the press decided from the tier (and, with Drive only
+    /// settings, from where Takes go). The Drive joins mid-Take only when this is true (#814).
+    @ObservationIgnored private var takeMayUseDrive = true
+    /// Whether the tier allows the running (or last) Take a Drive Copy. Free has none, so the screen has no "No Drive"
+    /// warning for it: the Drive chip already says Pro (Eric, #814).
+    public private(set) var driveCopyAllowed = true
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let freeSpace: (URL) -> Int64
     /// How often a running Take's Destinations are checked (`checkDestinations()`). Nil leaves it to the caller.
@@ -142,6 +153,7 @@ public final class Recorder {
     public init(
         deviceFolder: URL = Recorder.defaultDeviceFolder,
         driveFolder: @escaping () -> DriveAccess? = { nil },
+        driveProblem: @escaping () -> String? = { nil },
         now: @escaping () -> Date = Date.init,
         freeSpace: @escaping (URL) -> Int64 = { DriveFolderStore.availableBytes(at: $0) },
         preRollSeconds: Double = 0,
@@ -167,6 +179,7 @@ public final class Recorder {
         self.makeStem = makeStem
         self.deviceFolder = deviceFolder
         self.driveFolder = driveFolder
+        self.driveProblem = driveProblem
         self.now = now
         repair.onChange = { [unowned self] in
             lastTakeOutcomes = repair.outcomes
@@ -502,17 +515,34 @@ public final class Recorder {
 
         // The Drive is Pro (#705): a Take without the Drive Copy never reaches for it, so it records to the Device.
         let mayUseDrive = allowance?.driveCopy ?? true
+        // What the press decided holds for the whole Take: a Take that may not use the Drive never gets one later (#814).
+        takeMayUseDrive = mayUseDrive
+        driveCopyAllowed = allowance?.driveCopy != false
+        driveNotice = nil
         var drive = mayUseDrive ? driveFolder() : nil
+        // Why this Take has no Drive Copy from the press, kept in its Take.json and on screen (#814). No Drive chosen
+        // is not a problem: the app has no reason to give then.
+        var driveNote: String?
+        if allowance?.driveCopy == false {
+            // The tier, not where Takes are set to go: a Take sent to the Device by choice has nothing to explain.
+            driveNote = "The Drive Copy is a Pro feature."
+        } else if drive == nil, let reason = driveProblem() {
+            driveNote = "The Drive wasn't available at the press: \(reason)"
+        }
         let opened: (show: Show, session: TakeSession, folders: [DestinationKind: URL])
         do {
-            opened = try openTake(sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: drive)
+            opened = try openTake(
+                sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: drive, driveNote: driveNote)
         } catch where drive != nil {
             // A Drive that fails at the press doesn't stop the Take: it records to the Device alone (#315), and the
             // Drive's status says what's wrong. A Device that fails too throws its own error. The failed attempt
-            // already let the Drive go.
+            // already let the Drive go. The error is kept (#814): it says why the Drive Copy starts late.
             drive = nil
-            opened = try openTake(sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: nil)
+            driveNote = "The Drive failed at the press, so this Take started on the Device only: \(Self.describe(error))"
+            opened = try openTake(
+                sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: nil, driveNote: driveNote)
         }
+        driveNotice = driveNote
         let (show, session, takeFolders) = opened
         session.onCopyFailed = { [weak self, weak session] in Task { @MainActor in await self?.copyFailed(in: session) } }
         session.stopTimeout = writerStopTimeout
@@ -551,7 +581,7 @@ public final class Recorder {
     /// leaves nothing behind (#315).
     private func openTake(
         sources: [Source], allowance: TakeAllowance?, date: Date,
-        device: any AudioIODevice, capture: Capture, drive: DriveAccess?
+        device: any AudioIODevice, capture: Capture, drive: DriveAccess?, driveNote: String? = nil
     ) throws -> (show: Show, session: TakeSession, folders: [DestinationKind: URL]) {
         var show: Show
         do {
@@ -608,6 +638,7 @@ public final class Recorder {
                 show: show.name, take: show.takeCount, startedAt: date, sampleRate: sampleRate,
                 timeReference: timeReference, usbChannels: channels.filter { recorded.contains($0.usbChannel) })
             metadata.preRollFrames = preRollFrames > 0 ? preRollFrames : nil
+            metadata.driveNote = driveNote
 
             let specs = zip(channels, resolved).map { StemSpec(file: $0.stemFile, description: $1.name, isRecorded: recorded.contains($0.usbChannel)) }
             let info = StemWriter.Info(sampleRate: sampleRate, description: "", originator: "ShowRecorder", timeReference: timeReference, originationDate: date)
@@ -616,6 +647,15 @@ public final class Recorder {
                 info: info, capture: capture, preRollFrames: preRollFrames, makeStem: makeStem, freeSpace: freeSpace,
                 driveOnly: recordsToDriveOnly && (allowance?.driveCopy ?? true))
         }
+    }
+
+    /// An error as the operator or a bug report can read it: its description, with the system error's domain and code
+    /// when it has them ("NSCocoaErrorDomain 513").
+    static func describe(_ error: any Error) -> String {
+        let nsError = error as NSError
+        let description = error.localizedDescription
+        return nsError.domain.isEmpty || nsError.domain == "Foundation._GenericObjCError"
+            ? description : "\(description) (\(nsError.domain) \(nsError.code))"
     }
 
     /// Logs a gain change ShowRecorder made on the Mixer (#450): during a Take in its `Take.json`, with a Marker such
@@ -786,8 +826,10 @@ public final class Recorder {
     /// look straight away, as Check Drive does.
     public func checkDestinations() async {
         guard isRecording, let session else { return }
-        switch session.checkDestinations(drive: driveFolder) {
+        switch session.checkDestinations(drive: { [self] in takeMayUseDrive ? driveFolder() : nil }) {
         case .carryOn:
+            // The Drive joined: "wasn't available at the press" is no longer true, and would be wrong if it dropped later.
+            if driveNotice != nil, session.takeCopies[.drive] != .missing { driveNotice = nil }
             currentShow = session.show
             currentShow?.keepChannelNames(channelNames)
             dropoutCount = session.dropoutCount
