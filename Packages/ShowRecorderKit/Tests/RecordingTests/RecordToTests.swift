@@ -85,3 +85,15 @@ struct RecordToTests {
         #expect(!RecordToAvailability.isAvailable(isDebugBuild: false, environment: .unknown))
     }
 }
+
+@Suite("Record to availability in this build")
+struct RecordToAvailabilityThisBuildTests {
+    @Test("A Debug build offers it before the environment is known; a Release build waits for TestFlight (#805)")
+    func thisBuild() {
+        #if DEBUG
+        #expect(RecordToAvailability.isAvailableInThisBuild)
+        #else
+        #expect(!RecordToAvailability.isAvailableInThisBuild, "no environment resolved in tests")
+        #endif
+    }
+}
