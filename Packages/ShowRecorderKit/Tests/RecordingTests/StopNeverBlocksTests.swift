@@ -100,7 +100,7 @@ struct StopNeverBlocksTests {
 
     /// A Recorder whose Drive Stems hang on `gate`, with one Take recorded and still running.
     private func recordingOnStuckDrive(
-        gate: Gate, device: URL, drive: URL, freeSpace: @escaping (URL) -> Int64 = { DriveFolderStore.availableBytes(at: $0) },
+        gate: Gate, device: URL, drive: URL, freeSpace: @escaping @Sendable (URL) -> Int64 = { DriveFolderStore.availableBytes(at: $0) },
         writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) }
     ) throws -> Recorder {
         try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)

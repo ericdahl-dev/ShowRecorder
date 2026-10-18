@@ -76,7 +76,10 @@ public final class Recorder {
     @ObservationIgnored private let deviceFolder: URL
     @ObservationIgnored private let driveFolder: () -> DriveAccess?
     @ObservationIgnored private let now: () -> Date
-    @ObservationIgnored private let freeSpace: (URL) -> Int64
+    @ObservationIgnored private let freeSpace: @Sendable (URL) -> Int64
+    /// The free-space read under way, shared by a check that comes while it runs, so a stick that hangs on it costs one
+    /// thread and not one per check (#814).
+    @ObservationIgnored private var freeSpaceRead: Task<[URL: Int64], Never>?
     /// How often a running Take's Destinations are checked (`checkDestinations()`). Nil leaves it to the caller.
     @ObservationIgnored private let destinationCheckInterval: Duration?
     @ObservationIgnored private var destinationChecks: Task<Void, Never>?
@@ -143,7 +146,7 @@ public final class Recorder {
         deviceFolder: URL = Recorder.defaultDeviceFolder,
         driveFolder: @escaping () -> DriveAccess? = { nil },
         now: @escaping () -> Date = Date.init,
-        freeSpace: @escaping (URL) -> Int64 = { DriveFolderStore.availableBytes(at: $0) },
+        freeSpace: @escaping @Sendable (URL) -> Int64 = { DriveFolderStore.availableBytes(at: $0) },
         preRollSeconds: Double = 0,
         makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink = { try StemWriter.open(url: $0, info: $1, resumingAt: $2) },
         savedNames: UserDefaults = .standard,
@@ -786,7 +789,21 @@ public final class Recorder {
     /// look straight away, as Check Drive does.
     public func checkDestinations() async {
         guard isRecording, let session else { return }
-        switch session.checkDestinations(drive: driveFolder) {
+        // A Copy's free space is a read of its volume, and a stick busy with a Take can take hundreds of milliseconds to
+        // answer it: read them all on their own thread, once a second, and not on the main actor (#814).
+        let reading: Task<[URL: Int64], Never>
+        if let running = freeSpaceRead {
+            reading = running
+        } else {
+            let folders = session.spaceFolders, readFree = freeSpace
+            reading = Task { await runOffPool { Dictionary(folders.map { ($0, readFree($0)) }, uniquingKeysWith: { first, _ in first }) } }
+            freeSpaceRead = reading
+        }
+        let readings = await reading.value
+        if freeSpaceRead == reading { freeSpaceRead = nil }
+        // The Take may have ended, or another one begun, while that read was under way.
+        guard isRecording, self.session === session else { return }
+        switch session.checkDestinations(drive: driveFolder, freeSpace: { readings[$0] ?? .max }) {
         case .carryOn:
             currentShow = session.show
             currentShow?.keepChannelNames(channelNames)

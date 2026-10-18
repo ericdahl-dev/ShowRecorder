@@ -345,14 +345,23 @@ struct GapTests {
     }
 }
 
-@MainActor
-final class FreeSpace {
-    var device: Int64
-    var drive: Int64
+/// Free space per Destination, set by a test and read from the thread that checks Destinations (#814).
+final class FreeSpace: @unchecked Sendable {
+    private let lock = NSLock()
+    private var deviceBytes: Int64
+    private var driveBytes: Int64
+    var device: Int64 {
+        get { lock.withLock { deviceBytes } }
+        set { lock.withLock { deviceBytes = newValue } }
+    }
+    var drive: Int64 {
+        get { lock.withLock { driveBytes } }
+        set { lock.withLock { driveBytes = newValue } }
+    }
 
     init(device: Int64, drive: Int64) {
-        self.device = device
-        self.drive = drive
+        deviceBytes = device
+        driveBytes = drive
     }
 
     func bytes(at url: URL) -> Int64 {
