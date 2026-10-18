@@ -107,6 +107,11 @@ final class TakeSession {
     }
 
     private let capture: Capture
+    /// A Drive attach is under way off the main actor (#814), and its cancel switch.
+    private(set) var isAttaching = false
+    private var attachCancel = AttachCancel()
+    /// Set when the finish snapshot is taken: no Drive joins after it.
+    private var attachClosed = false
     private let stems: [StemSpec]
     private let info: StemWriter.Info
     private let makeStem: (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink
@@ -370,10 +375,10 @@ final class TakeSession {
         } else {
             let driveCopy = copies.first { $0.kind == .drive }
             if driveCopy == nil, let access = drive() {
-                attachDrive(access, replacing: nil, reserve: reserve)
+                attachDrive(access, replacing: nil)
             }
             if let driveCopy, driveCopy.writer.isFinished, driveCopy.writer.hasFailed, let access = drive() {
-                attachDrive(access, replacing: driveCopy, reserve: reserve)
+                attachDrive(access, replacing: driveCopy)
             }
         }
         collectDropouts()
@@ -396,7 +401,10 @@ final class TakeSession {
 
     /// The snapshot `finish` works on (see `FinishInput` for when to take it).
     func finishInput() -> FinishInput {
-        FinishInput(capture: capture, copies: copies, standby: standby, metadata: metadata, levels: levels, stopTimeout: stopTimeout)
+        // No Drive joins after this snapshot: one under way is canceled, and its Copy never joins (#814).
+        attachClosed = true
+        cancelAttach()
+        return FinishInput(capture: capture, copies: copies, standby: standby, metadata: metadata, levels: levels, stopTimeout: stopTimeout)
     }
 
     /// Writes what `finish(_:)` came to back into the session.
@@ -483,63 +491,200 @@ final class TakeSession {
 
     // MARK: - Drive join and rejoin
 
-    /// Starts the Drive Copy, or restarts it over `old`. Both start new Stems in a Take folder under
-    /// `access` and bring the Copy in through the same handshake; they differ in where the folder
-    /// comes from, whether the Stems resume `old`'s and what happens to `old`'s access.
-    private func attachDrive(_ access: DriveAccess, replacing old: CopyRecord?, reserve: SpaceReserve) {
-        var show = show
+    /// Cancels the Drive attach under way, if any: its file work stops between Stems, and what it made is cleaned up
+    /// (a first join removes its Take folder; a rejoin keeps the failed Copy's own files, closed). Nothing under way:
+    /// does nothing, and the next attach is not born canceled.
+    func cancelAttach() {
+        if isAttaching { attachCancel.cancel() }
+    }
+
+    /// What the Drive needs now: a first join when the Take has no Drive Copy, a rejoin when it failed and has finished.
+    /// A Drive only Take's standby stands in for the Drive instead.
+    private enum DriveNeed {
+        case join
+        case rejoin(CopyRecord)
+    }
+
+    private var driveNeed: DriveNeed? {
+        guard standby == nil else { return nil }
+        guard let driveCopy = copies.first(where: { $0.kind == .drive }) else { return .join }
+        return driveCopy.writer.isFinished && driveCopy.writer.hasFailed ? .rejoin(driveCopy) : nil
+    }
+
+    /// Whether a Drive could join or rejoin now (so asking for it is worth a thread).
+    var wantsDrive: Bool { !attachClosed && !isAttaching && driveNeed != nil }
+
+    /// What the file work of a Drive join or rejoin needs, copied out of the session so it can run off the main actor
+    /// (#814). The Stems are made on a slow stick: 18 files took 12 s on the one that stuttered.
+    private struct DriveAttachJob: @unchecked Sendable {
+        let old: CopyRecord?
+        var show: Show
+        let metadata: TakeMetadata
+        let stems: [StemSpec]
+        let info: StemWriter.Info
+        let makeStem: (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink
+        let freeSpace: (URL) -> Int64
+        let reserve: SpaceReserve
+        let cancel: AttachCancel
+    }
+
+    /// What the file work made, for the wiring on the main actor to take up.
+    private struct PreparedDrive: @unchecked Sendable {
+        let show: Show
+        let folder: URL
+        let sinks: [any StemSink]
+        let counts: [UInt64]?
+        let access: DriveAccess
+    }
+
+    private struct AttachCanceled: Error {}
+
+    private func attachJob(replacing old: CopyRecord?, cancel: AttachCancel) -> DriveAttachJob {
+        DriveAttachJob(
+            old: old, show: show, metadata: metadata, stems: stems, info: info, makeStem: makeStem, freeSpace: freeSpace,
+            reserve: SpaceReserve(channelCount: metadata.usbChannels.count, sampleRate: info.sampleRate), cancel: cancel)
+    }
+
+    /// Starts the Drive Copy, or restarts it over `old`, all on this thread (the check that tests and the
+    /// synchronous `checkDestinations` use). Both start new Stems in a Take folder under `access` and bring the Copy in
+    /// through the same handshake; they differ in where the folder comes from, whether the Stems resume `old`'s and
+    /// what happens to `old`'s access.
+    private func attachDrive(_ access: DriveAccess, replacing old: CopyRecord?) {
+        guard let prepared = Self.prepareDrive(attachJob(replacing: old, cancel: AttachCancel()), access: access) else { return }
+        completeDriveAttach(prepared, replacing: old)
+    }
+
+    /// Joins or rejoins the Drive with its file work off the main actor (#814): the Stems are made on their own thread,
+    /// and only the writer's wiring runs here. Returns whether a Drive Copy joined. At most one attach runs at a time.
+    /// `finishInput()` cancels one under way, and a Take that has finished takes no Drive.
+    func attachDriveOffMain(drive: @escaping @Sendable () -> DriveAccess?) async -> Bool {
+        guard !attachClosed, !isAttaching, let need = driveNeed else { return false }
+        let old: CopyRecord? = if case .rejoin(let record) = need { record } else { nil }
+        let cancel = AttachCancel()
+        attachCancel = cancel
+        isAttaching = true
+        let job = attachJob(replacing: old, cancel: cancel)
+        let prepared = await runOffPool { () -> PreparedDrive? in
+            guard !job.cancel.isCanceled, let access = drive() else { return nil }
+            return Self.prepareDrive(job, access: access)
+        }
+        isAttaching = false
+        guard let prepared else { return false }
+        // Stop came while the Stems were being made, or the Take changed under the join (a standby began standing in, the
+        // Copy to rejoin is no longer the Take's): this Copy is not part of the Take. Closing and removing its files is
+        // file work, so it leaves the main actor too.
+        guard !attachClosed, !cancel.isCanceled, stillNeeds(old) else {
+            let job = job
+            Task { await runOffPool { Self.discard(prepared, old: old, job: job) } }
+            return false
+        }
+        completeDriveAttach(prepared, replacing: old)
+        // The new Copy's Take.json was written from before its Stems existed: bring it up to date.
+        writeMetadata()
+        collectDropouts()
+        persistGaps()
+        return true
+    }
+
+    /// Whether the Drive Copy this attach was started for is still the one the Take needs.
+    private func stillNeeds(_ old: CopyRecord?) -> Bool {
+        guard standby == nil else { return false }
+        let current = copies.first { $0.kind == .drive }
+        guard let old else { return current == nil }
+        return current?.writer === old.writer
+    }
+
+    /// The file work of a join or rejoin: the Take folder on the Drive, the Stems and (for a first join) `Take.json`.
+    /// Touches nothing of the session, so it can run on any thread. Nil when there is no room, the Drive isn't there, a
+    /// file failed or the attach was canceled; whatever it had made is cleaned up and the access let go.
+    nonisolated private static func prepareDrive(_ job: DriveAttachJob, access: DriveAccess) -> PreparedDrive? {
+        var show = job.show
+        var madeFolder: URL?
+        var sinks: [any StemSink] = []
         do {
             let folder: URL
-            if old == nil {
-                guard !reserve.isLow(free: freeSpace(access.folder)) else { access.end(); return }
+            if job.old == nil {
+                guard !job.reserve.isLow(free: job.freeSpace(access.folder)) else { access.end(); return nil }
                 folder = try show.joinDrive(access.folder)
+                madeFolder = folder
             } else {
                 // The Drive may have come back at a different path (a remount), so find the Take folder
                 // under the folder we were just given.
                 folder = access.folder
                     .appending(path: show.name, directoryHint: .isDirectory)
                     .appending(path: TakeMetadata.name(take: show.takeCount), directoryHint: .isDirectory)
-                guard FileManager.default.fileExists(atPath: folder.path), !reserve.isLow(free: freeSpace(folder)) else {
+                guard FileManager.default.fileExists(atPath: folder.path), !job.reserve.isLow(free: job.freeSpace(folder)) else {
                     access.end()
-                    return
+                    return nil
                 }
                 try show.useDrive(access.folder)
             }
             // Each Stem resumes at its last commit (#595): what was written after it may never have reached the Drive,
             // so it is cut off and left to Repair. A Drive that failed but stayed mounted loses that stretch too, until
             // resuming at the frames really on disk (#602).
-            let counts = old?.writer.stemFramesKept
-            let sinks: [any StemSink] = try stems.enumerated().map { index, spec in
-                spec.isRecorded
-                    ? try makeStem(folder.appending(path: spec.file), info.described(spec.description), counts?[index])
-                    : DiscardingSink(frameCount: counts?[index] ?? 0)
+            let counts = job.old?.writer.stemFramesKept
+            for (index, spec) in job.stems.enumerated() {
+                if job.cancel.isCanceled { throw AttachCanceled() }
+                sinks.append(
+                    spec.isRecorded
+                        ? try job.makeStem(folder.appending(path: spec.file), job.info.described(spec.description), counts?[index])
+                        : DiscardingSink(frameCount: counts?[index] ?? 0))
             }
+            if job.cancel.isCanceled { throw AttachCanceled() }
             // A Take folder that was rejoined already has its Take.json.
-            if old == nil { try metadata.write(to: folder) }
-
-            // The Drive uses its kind's feed. A Drive joins for the first time only beside the Device.
-            assert(old != nil || copies.count == 1, "a Drive joining beside more than the Device")
-            let feed = old?.feed ?? capture.feeds[DestinationKind.drive.index]
-            // The rejoin's own Gap starts where the Stems resume, so earlier Gaps stop there (#595). The old
-            // writer's Dropouts stop there too: the Stems still hold them, with their cue points (#604).
-            let resume = Int(counts?.min() ?? 0)
-            func beforeResume(_ ranges: [Range<Int>]) -> [Range<Int>] {
-                ranges.filter { $0.lowerBound < resume }.map { $0.clamped(to: 0..<resume) }
-            }
-            let earlierGaps = beforeResume(old?.gaps ?? [])
-            let earlierDropped = beforeResume(old.map { $0.earlierDropped + $0.writer.dropouts } ?? [])
-            let writer = makeWriter(feed: feed, stems: sinks, markers: stemMarkers + CopyRecord.dropCues(earlierDropped))
-            capture.attachMidTake(feed)
-            writer.start()
-            let record = CopyRecord(
-                kind: .drive, folder: folder, feed: feed, writer: writer, earlierGaps: earlierGaps,
-                earlierDropped: earlierDropped, access: access)
-            if old == nil { copies.append(record) } else if let i = copies.firstIndex(where: { $0.kind == .drive }) { copies[i] = record }
-            old?.access?.end()
-            self.show = show
+            if job.old == nil { try job.metadata.write(to: folder) }
+            return PreparedDrive(show: show, folder: folder, sinks: sinks, counts: counts, access: access)
         } catch {
+            // Close what was opened, so its files are valid; a first join's Take folder goes, a rejoin's stays.
+            for sink in sinks { try? sink.finalize() }
+            if let madeFolder { try? FileManager.default.removeItem(at: madeFolder) }
+            Self.takeBackDriveClaim(job)
             access.end()
+            return nil
         }
+    }
+
+    /// A join that finished its file work too late to be part of the Take.
+    nonisolated private static func discard(_ prepared: PreparedDrive, old: CopyRecord?, job: DriveAttachJob) {
+        for sink in prepared.sinks { try? sink.finalize() }
+        if old == nil {
+            try? FileManager.default.removeItem(at: prepared.folder)
+            takeBackDriveClaim(job)
+        }
+        prepared.access.end()
+    }
+
+    /// `useDrive` writes `Show.json` with "a Drive copy was written" into both Show folders before the Take folder
+    /// exists. A first join that comes to nothing writes the Device's back as it was; the empty Show folder on the Drive
+    /// stays, as it does for any Show whose Drive Copy was never written.
+    nonisolated private static func takeBackDriveClaim(_ job: DriveAttachJob) {
+        guard job.old == nil, !job.show.driveCopyWritten else { return }
+        try? job.show.file.write(to: job.show.folder)
+    }
+
+    /// The wiring of a join or rejoin, on the main actor: the writer, the feed and the Copy.
+    private func completeDriveAttach(_ prepared: PreparedDrive, replacing old: CopyRecord?) {
+        let folder = prepared.folder, sinks = prepared.sinks, counts = prepared.counts
+        // The Drive uses its kind's feed. A Drive joins for the first time only beside the Device.
+        assert(old != nil || copies.count == 1, "a Drive joining beside more than the Device")
+        let feed = old?.feed ?? capture.feeds[DestinationKind.drive.index]
+        // The rejoin's own Gap starts where the Stems resume, so earlier Gaps stop there (#595). The old
+        // writer's Dropouts stop there too: the Stems still hold them, with their cue points (#604).
+        let resume = Int(counts?.min() ?? 0)
+        func beforeResume(_ ranges: [Range<Int>]) -> [Range<Int>] {
+            ranges.filter { $0.lowerBound < resume }.map { $0.clamped(to: 0..<resume) }
+        }
+        let earlierGaps = beforeResume(old?.gaps ?? [])
+        let earlierDropped = beforeResume(old.map { $0.earlierDropped + $0.writer.dropouts } ?? [])
+        let writer = makeWriter(feed: feed, stems: sinks, markers: stemMarkers + CopyRecord.dropCues(earlierDropped))
+        capture.attachMidTake(feed)
+        writer.start()
+        let record = CopyRecord(
+            kind: .drive, folder: folder, feed: feed, writer: writer, earlierGaps: earlierGaps,
+            earlierDropped: earlierDropped, access: prepared.access)
+        if old == nil { copies.append(record) } else if let i = copies.firstIndex(where: { $0.kind == .drive }) { copies[i] = record }
+        old?.access?.end()
+        show.adoptDrive(from: prepared.show)
     }
 
     // MARK: - Helpers
@@ -658,4 +803,12 @@ public enum MarkerRename: Equatable, Sendable {
     case emptyName
     /// Renaming from files: no Copy could be reached or read, so nothing was renamed.
     case noCopyUpdated
+}
+
+/// A switch for a Drive attach under way off the main actor: its file work looks at it between Stems.
+final class AttachCancel: @unchecked Sendable {
+    private let lock = NSLock()
+    private var canceled = false
+    func cancel() { lock.withLock { canceled = true } }
+    var isCanceled: Bool { lock.withLock { canceled } }
 }

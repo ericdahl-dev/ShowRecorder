@@ -76,7 +76,7 @@ public final class Recorder {
     }
 
     @ObservationIgnored private let deviceFolder: URL
-    @ObservationIgnored private let driveFolder: () -> DriveAccess?
+    @ObservationIgnored private let driveFolder: @Sendable () -> DriveAccess?
     /// Why the Drive isn't available right now, asked only after a press found none (#814).
     @ObservationIgnored private let driveProblem: () -> String?
     /// Why the running (or last) Take started without its Drive Copy, or nil when the press had one (#814). Also in the
@@ -162,7 +162,7 @@ public final class Recorder {
     ///   - driveFolder: asked at each record press for the Drive folder; nil writes to the Device only.
     public init(
         deviceFolder: URL = Recorder.defaultDeviceFolder,
-        driveFolder: @escaping () -> DriveAccess? = { nil },
+        driveFolder: @escaping @Sendable () -> DriveAccess? = { nil },
         driveProblem: @escaping () -> String? = { nil },
         now: @escaping () -> Date = Date.init,
         freeSpace: @escaping @Sendable (URL) -> Int64 = { DriveFolderStore.availableBytes(at: $0) },
@@ -580,7 +580,7 @@ public final class Recorder {
             destinationChecks = Task { [weak self] in
                 while !Task.isCancelled {
                     try? await Task.sleep(for: destinationCheckInterval)
-                    await self?.checkDestinations()
+                    await self?.checkDestinations(awaitingDrive: false)
                 }
             }
         }
@@ -837,6 +837,13 @@ public final class Recorder {
     /// fill. The Recorder does this on its own every `destinationCheckInterval` while recording; call it to
     /// look straight away, as Check Drive does.
     public func checkDestinations() async {
+        await checkDestinations(awaitingDrive: true)
+    }
+
+    /// `awaitingDrive` false is the one-second loop's: a Drive that joins is started and left to finish, so a join that
+    /// takes seconds on a slow stick (or hangs on a dead one) doesn't stop the checks that keep a Take safe, such as the
+    /// low-space one (#814). A caller that asks for the Drive, like Check Drive, waits for it.
+    func checkDestinations(awaitingDrive: Bool) async {
         guard isRecording, let session else { return }
         // A Copy's free space is a read of its volume, and a stick busy with a Take can take hundreds of milliseconds to
         // answer it: read them all on their own thread, once a second, and not on the main actor (#814).
@@ -852,17 +859,42 @@ public final class Recorder {
         if freeSpaceRead == reading { freeSpaceRead = nil }
         // The Take may have ended, or another one begun, while that read was under way.
         guard isRecording, self.session === session else { return }
-        switch session.checkDestinations(drive: { [self] in takeMayUseDrive ? driveFolder() : nil }, freeSpace: { readings[$0] ?? .max }) {
+        // The Drive joins below, off the main actor; the check itself never reaches for it.
+        switch session.checkDestinations(drive: { nil }, freeSpace: { readings[$0] ?? .max }) {
         case .carryOn:
-            // The Drive joined: "wasn't available at the press" is no longer true, and would be wrong if it dropped later.
-            if driveNotice != nil, session.takeCopies[.drive] != .missing { driveNotice = nil }
-            currentShow = session.show
-            currentShow?.keepChannelNames(channelNames)
-            dropoutCount = session.dropoutCount
-            refreshMarkers(from: session.metadata)
+            // A Drive that appears or comes back joins with its Stems made on their own thread, not here (#814); a Take
+            // the tier or the settings kept off the Drive never asks for it.
+            if takeMayUseDrive, session.wantsDrive {
+                if awaitingDrive {
+                    await joinDrive(in: session)
+                    // The Take may have ended while the Stems were being made.
+                    guard isRecording, self.session === session else { return }
+                } else {
+                    Task { [weak self] in await self?.joinDrive(in: session) }
+                }
+            }
+            refreshFromSession(session)
         case .outOfSpace:
             try? await stopTake(because: .outOfSpace)
         }
+    }
+
+    /// The Drive joins (or rejoins) the running Take: its file work runs off the main actor (#814).
+    private func joinDrive(in session: TakeSession) async {
+        guard await session.attachDriveOffMain(drive: driveFolder) else { return }
+        // The Take may have ended meanwhile; a Drive that joined after the snapshot never does (see `finishInput`).
+        guard isRecording, self.session === session else { return }
+        refreshFromSession(session)
+    }
+
+    /// What the screen reads of the running Take, brought up to date after a check or a Drive join.
+    private func refreshFromSession(_ session: TakeSession) {
+        // The Drive joined: "wasn't available at the press" is no longer true, and would be wrong if it dropped later.
+        if driveNotice != nil, session.takeCopies[.drive] != .missing { driveNotice = nil }
+        currentShow = session.show
+        currentShow?.keepChannelNames(channelNames)
+        dropoutCount = session.dropoutCount
+        refreshMarkers(from: session.metadata)
     }
 
     /// A Copy's writer failed. Once every Copy has, there's nowhere left to record: end the Take.
