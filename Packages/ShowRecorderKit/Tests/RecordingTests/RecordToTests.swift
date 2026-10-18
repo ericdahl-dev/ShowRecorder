@@ -59,6 +59,25 @@ struct RecordToTests {
         }
     }
 
+    @Test("Where it is offered the Recorder gets the stored choice; elsewhere Both, whatever is stored (#805)")
+    func forRecorder() {
+        let store = defaults()
+        #expect(RecordToSetting.forRecorder(isOffered: true, from: store) == .both)
+        for choice in RecordTo.allCases {
+            RecordToSetting.save(choice, to: store)
+            #expect(RecordToSetting.forRecorder(isOffered: true, from: store) == choice)
+            #expect(RecordToSetting.forRecorder(isOffered: false, from: store) == .both)
+        }
+    }
+
+    @Test("The picker names the choices This iPhone, Drive and Both, with the hardware's word (#805)")
+    func labels() {
+        #expect(RecordTo.device.label(deviceWord: "iPhone") == "This iPhone")
+        #expect(RecordTo.device.label(deviceWord: "Mac") == "This Mac")
+        #expect(RecordTo.drive.label(deviceWord: "iPhone") == "Drive")
+        #expect(RecordTo.both.label(deviceWord: "iPad") == "Both")
+    }
+
     @Test("Device writes no Drive Copy, Drive writes the Drive alone, Both writes both (#805)")
     func destinations() {
         #expect(!RecordTo.device.usesDrive && !RecordTo.device.isDriveOnly)

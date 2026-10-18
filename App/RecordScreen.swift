@@ -107,6 +107,8 @@ struct RecordScreen: View {
             #endif
             .modifier(AppearanceRoot(mode: model.appearance))
         }
+        // Record to (#805): an alert can't show over a sheet, so it waits for sheets to close; Settings asks itself.
+        .modifier(MoveOfferAlert(recorder: model.recorder, waits: anotherSheetOpen))
         .alert(
             "Name channel \(namingChannel ?? 0)",
             isPresented: Binding(get: { namingChannel != nil }, set: { if !$0 { namingChannel = nil } })
@@ -142,8 +144,12 @@ struct RecordScreen: View {
         // A Mixer Link that comes up during a Take names its Stems when the Take ends.
         .onChange(of: model.linkedSources) { _, sources in model.recorder.offerSources(sources) }
         // Drive only Takes left on the Device move when the Drive connects (#630); never during a Take.
-        .onChange(of: model.drive.status) { _, status in
-            if case .available = status { model.recorder.driveMayHaveConnected() }
+        .onChange(of: model.drive.status) { old, status in
+            if case .available(let drive) = status {
+                // Another Drive folder is a new connection, so Record to (#805) asks again.
+                if case .available(let before) = old, before.folder != drive.folder { model.recorder.driveWentAway() }
+                model.recorder.driveMayHaveConnected()
+            } else { model.recorder.driveWentAway() }
         }
         // Locking the screen or leaving the app never ends a Take; becoming active retries input
         // that an interruption left stopped.
@@ -175,6 +181,7 @@ struct RecordScreen: View {
         .sheet(isPresented: $showingSettings) {
             NavigationStack {
                 SettingsView(model: model, scrollTo: settingsSection)
+                    .modifier(MoveOfferAlert(recorder: model.recorder, waits: false))
                     .navigationTitle("Settings")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
@@ -674,6 +681,8 @@ final class RecordScreenModel {
     private static let transportLeadingKey = "transportLeading"
     /// The Pre-roll length in seconds (0 is Off), read when record is pressed. See `PreRollSetting`.
     var preRollSeconds: Double = PreRollSetting.load()
+    /// The Record to choice (#805) as stored, for the picker. The recorder's `recordTo`, read at the record press, is set from it.
+    var recordTo: RecordTo = RecordToSetting.load()
     /// Dark, Sunlight or System (the device's).
     var appearance: AppearanceMode = AppearanceMode.load()
     /// Battery and heat, shown as chips on the status strip.
@@ -901,6 +910,7 @@ final class RecordScreenModel {
             mixer: mixer.state,
             copies: copies,
             sampleRate: recorder.sampleRate ?? 48_000,
+            recordTo: recorder.recordTo,
             driveAllowed: pro.license().allowsDrive)
     }
 
@@ -1385,6 +1395,14 @@ final class RecordScreenModel {
         sequencer.settingsChanged()
     }
 
+    /// The Record to choice changed in Settings (#805): keep it, and give it to the recorder for the next record press.
+    func recordToChanged() {
+        RecordToSetting.save(recordTo)
+        recorder.recordTo = RecordToSetting.forRecorder(isOffered: RecordToAvailability.isAvailableInThisBuild)
+        // Drive or Both chosen while the move question waits: the Takes move and the question goes.
+        recorder.driveMayHaveConnected()
+    }
+
     /// What the chosen Pre-roll length costs in memory for the Armed input (or an 18-channel one before
     /// anything is Armed), in words for Settings.
     var preRollNote: String {
@@ -1520,6 +1538,9 @@ final class RecordScreenModel {
     /// `driveBecameAvailable` when the Drive connects.
     private func offerDriveOnlyMovesIfAvailable() async {
         if !DriveOnlyAvailability.isAvailableInThisBuild { await DemoSignalAvailability.resolveEnvironment() }
+        // Record to (#805) waits for the same answer: until then, and outside it, the recorder records to Both. Set first:
+        // turning moves on starts one, which reads it.
+        recorder.recordTo = RecordToSetting.forRecorder(isOffered: RecordToAvailability.isAvailableInThisBuild)
         recorder.movesDriveOnlyTakes = DriveOnlyAvailability.isAvailableInThisBuild
     }
 
@@ -1889,5 +1910,22 @@ extension View {
     /// At least 44 by 44 pt to hit, the whole area, as Apple's guidelines ask (#240).
     func tapTarget() -> some View {
         frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+    }
+}
+
+/// Record to (#805): with This iPhone chosen, asks before moving Drive only Takes to a Drive that connects. Never during
+/// a Take, and not while `waits` (a sheet is up over this view).
+private struct MoveOfferAlert: ViewModifier {
+    let recorder: Recorder
+    let waits: Bool
+
+    func body(content: Content) -> some View {
+        content.alert(
+            DriveOnlyMoveOffer.question(takeCount: recorder.moveOffer ?? 0, deviceWord: ThisHardware.word),
+            isPresented: Binding(get: { recorder.moveOffer != nil && !recorder.isRecording && !waits }, set: { _ in })
+        ) {
+            Button(DriveOnlyMoveOffer.notNowLabel, role: .cancel) { recorder.answerMoveOffer(move: false) }
+            Button(DriveOnlyMoveOffer.moveLabel) { recorder.answerMoveOffer(move: true) }
+        }
     }
 }

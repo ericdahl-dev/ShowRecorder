@@ -18,6 +18,15 @@ public enum RecordTo: String, CaseIterable, Sendable {
     public var usesDrive: Bool { self != .device }
     /// Whether the Drive is the Take's only Destination: Drive only (#196, ADR 0006).
     public var isDriveOnly: Bool { self == .drive }
+
+    /// The name in the Settings picker: "This iPhone" (the hardware's word), "Drive" or "Both".
+    public func label(deviceWord: String) -> String {
+        switch self {
+        case .device: "This \(deviceWord)"
+        case .drive: "Drive"
+        case .both: "Both"
+        }
+    }
 }
 
 /// The "Record to" setting: one place to read and write it.
@@ -28,6 +37,11 @@ public enum RecordToSetting {
     /// The stored choice, or the default when nothing valid is stored.
     public static func load(from defaults: UserDefaults = .standard) -> RecordTo {
         defaults.string(forKey: key).flatMap(RecordTo.init(rawValue:)) ?? .standard
+    }
+
+    /// What the Recorder's `recordTo` is set to: the stored choice where Record to is offered, else Both.
+    public static func forRecorder(isOffered: Bool, from defaults: UserDefaults = .standard) -> RecordTo {
+        isOffered ? load(from: defaults) : .both
     }
 
     public static func save(_ choice: RecordTo, to defaults: UserDefaults = .standard) {
