@@ -54,17 +54,20 @@ final class TakeRepair {
     ///     by a crash may not know all its Gaps, so its stand-in may hold the only copy of some audio (#626).
     func enqueue(
         _ metadata: TakeMetadata, folders: [DestinationKind: URL], holding access: DriveAccess?, abandoned: Set<DestinationKind> = [],
-        keepsStandIns: Bool = false
+        keepsStandIns: Bool = false, publishing: Bool = true
     ) {
         func outcomes(_ metadata: TakeMetadata) -> [DestinationKind: CopyOutcome] {
             Dictionary(uniqueKeysWithValues: folders.keys.map { ($0, metadata.outcome(ofCopy: $0)) })
         }
-        generation += 1
-        let mine = generation
-        self.outcomes = outcomes(metadata)
-        moved = false
-        standInKept = false
-        onChange()
+        // A Take that isn't the latest (a recovered earlier one, #822) repairs without taking the latest's place in `outcomes`.
+        if publishing { generation += 1 }
+        let mine = publishing ? generation : -1
+        if publishing {
+            self.outcomes = outcomes(metadata)
+            moved = false
+            standInKept = false
+            onChange()
+        }
         // A Copy Stop gave up on (#320) may hang on any file operation, so its Take.json is written off the main thread, as a
         // step of this queue: Repair's own write, and renames that wait for Repair, come after it (#652). If that Drive hangs for
         // good, the queue waits on it: later Repairs, renames, Drive only moves and anything awaiting Repair (Soundcheck's
@@ -79,7 +82,7 @@ final class TakeRepair {
         }
         guard !metadata.gaps.isEmpty else {
             // Drive only: a Drive that faltered but then caught up has the whole Take, so its stand-in is a spare.
-            if !keepsStandIns, metadata.standIns != nil, let device = folders[.device], let drive = folders[.drive], !abandoned.contains(.drive) {
+            if publishing, !keepsStandIns, metadata.standIns != nil, let device = folders[.device], let drive = folders[.drive], !abandoned.contains(.drive) {
                 try? FileManager.default.removeItem(at: device)
                 var done = metadata
                 done.standIns = nil
@@ -137,7 +140,7 @@ final class TakeRepair {
                 access?.end()
                 return
             }
-            if mine == generation {
+            if publishing, mine == generation {
                 self.outcomes = outcomes(done)
                 self.moved = moved
                 standInKept = done.standIns != nil

@@ -241,8 +241,8 @@ public final class Recorder {
     /// on the Drive, and Repair fills what they lack from the Device. The app calls it at launch and when it comes to the
     /// front. Does nothing during a Take, a save or a Repair, with no Drive, or when the Drive has no folder for the Show; a
     /// marker stays until its Take's Drive Copy is reachable. The file work runs off the main thread, since a Drive that was
-    /// slow enough to be abandoned may be slow now. Only the Show's last Take is queued for Repair (it publishes the last
-    /// Take's Copies); an earlier Take is finished and its Gaps are recorded in its Take.json.
+    /// slow enough to be abandoned may be slow now. Every recovered Take with both Copies is queued for Repair, the earlier ones
+    /// first; only the Show's latest Take publishes its Copies to the screen.
     public func recoverAbandonedCopies() async {
         guard !isRecording, !isFinishing, !isRecoveringAbandoned, !repair.isRunning, let show = currentShow,
               let access = driveFolder() else { return }
@@ -252,8 +252,8 @@ public final class Recorder {
             return
         }
         isRecoveringAbandoned = true
-        let deviceShow = show.folder, skipping = abandonedThisLaunch[show.name] ?? []
-        let found = await runOffPool { AbandonedCopyRecovery.finish(deviceShow: deviceShow, driveShow: driveShow, skipping: skipping) }
+        let deviceShow = show.folder, skipping = abandonedThisLaunch[show.name] ?? [], takeCount = show.takeCount
+        let found = await runOffPool { AbandonedCopyRecovery.finish(deviceShow: deviceShow, driveShow: driveShow, skipping: skipping, upTo: takeCount) }
         isRecoveringAbandoned = false
         guard !found.isEmpty else {
             access.end()
@@ -266,13 +266,22 @@ public final class Recorder {
             return
         }
         regenerateReports()
-        guard let last = found.last, last.metadata.take == currentShow?.takeCount, !last.metadata.gaps.isEmpty else {
+        // Every Take with a Gap and both Copies is queued, the earlier ones first; only the Show's latest Take (queued last)
+        // publishes its Copies to the screen. A Take with no Device Copy has nothing to fill its tail from.
+        let repairable = found.filter { !$0.metadata.gaps.isEmpty && $0.folders[.device] != nil && $0.folders[.drive] != nil }
+        guard !repairable.isEmpty else {
             access.end()
             return
         }
-        lastTakeWasDriveOnly = last.metadata.standIns != nil || last.metadata.driveOnly == true
-        lastTakeGeneration += 1
-        repair.enqueue(last.metadata, folders: last.folders, holding: access, keepsStandIns: true)
+        for (index, take) in repairable.enumerated() {
+            let latest = take.metadata.take == currentShow?.takeCount
+            if latest {
+                lastTakeWasDriveOnly = take.metadata.standIns != nil || take.metadata.driveOnly == true
+                lastTakeGeneration += 1
+            }
+            // Each job holds its own access to the Drive until it is done; the first holds the one taken above.
+            repair.enqueue(take.metadata, folders: take.folders, holding: index == 0 ? access : driveFolder(), keepsStandIns: true, publishing: latest)
+        }
     }
 
     /// Starts receiving audio from `device`. Any previously Armed device is stopped first.
