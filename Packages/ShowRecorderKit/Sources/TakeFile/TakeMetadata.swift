@@ -90,6 +90,10 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     /// the Drive later. Nil (left out of Take.json) for any other Take, and for one recorded before this field.
     public var driveOnly: Bool?
 
+    /// Why this Take started without its Drive Copy (#814): the Drive wasn't available at the press, or failed there
+    /// and the Take fell back to the Device. Nil (left out of Take.json) when the Drive was there from the press.
+    public var driveNote: String?
+
     public struct StandIn: Codable, Equatable, Sendable {
         public var start: Int
         public var end: Int
@@ -381,7 +385,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     public private(set) var unknownFields: UnknownFields?
 
     enum CodingKeys: String, CodingKey, CaseIterable {
-        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames, gainChanges, routingChanges, standIns, driveOnly
+        case show, take, startedAt, sampleRate, timeReference, usbChannels, markers, gaps, repairs, preRollFrames, dropouts, renames, gainChanges, routingChanges, standIns, driveOnly, driveNote
     }
 
     public init(from decoder: any Decoder) throws {
@@ -402,6 +406,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         routingChanges = try c.decodeIfPresent([RoutingChange].self, forKey: .routingChanges)
         standIns = try c.decodeIfPresent([StandIn].self, forKey: .standIns)
         driveOnly = try c.decodeIfPresent(Bool.self, forKey: .driveOnly)
+        driveNote = try c.decodeIfPresent(String.self, forKey: .driveNote)
     }
 
     public init(show: String, take: Int, startedAt: Date, sampleRate: Int, timeReference: UInt64, usbChannels: [USBChannel], markers: [Marker] = []) {

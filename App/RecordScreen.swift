@@ -933,7 +933,7 @@ final class RecordScreenModel {
         if let error = recordError {
             list.append(ScreenAlert(id: "record", priority: .cannotRecord, tone: .critical, text: error))
         }
-        if let alert = DestinationAlert.make(copies: copies, checkedAndNotFound: driveCheckedAndNotFound) {
+        if let alert = DestinationAlert.make(copies: copies, checkedAndNotFound: driveCheckedAndNotFound, driveNote: recorder.driveNotice) {
             list.append(alert)
         }
         if let rejoined = driveRejoin.alert { list.append(rejoined) }
@@ -1055,6 +1055,8 @@ final class RecordScreenModel {
         self.drive = drive
         let recorder = Recorder(driveFolder: {
             store.beginAccess()
+        }, driveProblem: {
+            store.problemDescription()
         }, preRollSeconds: PreRollSetting.load())
         self.recorder = recorder
         let pro = ProStore()

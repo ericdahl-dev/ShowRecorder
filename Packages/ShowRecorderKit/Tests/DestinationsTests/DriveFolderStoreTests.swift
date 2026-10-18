@@ -58,6 +58,42 @@ struct DriveFolderStoreTests {
         #expect(storage.load()?.name == "ShowRecorder")
     }
 
+    @Test("With no Drive chosen there is no problem to report (#814)")
+    func noProblemWhenNotChosen() {
+        #expect(DriveFolderStore(storage: storage).problemDescription() == nil)
+    }
+
+    @Test("A Drive that is there now says so: it wasn't ready when the press asked (#814)")
+    func problemWhenAvailableNow() throws {
+        try DriveFolderStore(storage: storage).choose(folder)
+
+        let problem = try #require(DriveFolderStore(storage: storage).problemDescription())
+
+        #expect(problem.contains("available now"))
+    }
+
+    @Test("A saved link that can't be opened is told apart from a missing folder (#814)")
+    func problemWhenLinkIsBroken() throws {
+        storage.save(StoredDriveFolder(bookmark: Data("not a bookmark".utf8), name: "T7 Shield"))
+
+        let problem = try #require(DriveFolderStore(storage: storage).problemDescription())
+
+        #expect(problem.contains("saved link"))
+        #expect(problem.contains("T7 Shield"))
+    }
+
+    @Test("A folder that went away says which Drive and that it isn't there (#814)")
+    func problemWhenFolderIsGone() throws {
+        try DriveFolderStore(storage: storage).choose(folder)
+        try FileManager.default.removeItem(at: folder)
+
+        let problem = try #require(DriveFolderStore(storage: storage).problemDescription())
+
+        // Which step fails first (the saved link or the folder) depends on the system; either way it names the Drive.
+        #expect(problem.contains("Gig Drive"))
+        #expect(problem.contains("couldn't be opened") || problem.contains("isn't there"))
+    }
+
     @Test("Asking the status again and again doesn't write anything while the name is unchanged")
     func noWritesWhenUnchanged() throws {
         let counting = CountingStorage()

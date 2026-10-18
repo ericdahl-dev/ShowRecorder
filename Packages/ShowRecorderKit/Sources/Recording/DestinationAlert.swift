@@ -3,7 +3,10 @@
 public enum DestinationAlert {
     /// - Parameter checkedAndNotFound: the operator tapped Check Drive and the Drive was still not there.
     /// - Parameter deviceWord: what a Drive only Take calls the device the app runs on: iPhone, iPad or Mac.
-    public static func make(copies: TakeCopies, checkedAndNotFound: Bool = false, deviceWord: String = "iPhone") -> ScreenAlert? {
+    /// - Parameter driveNote: why the Take started without its Drive, when the press found none (#814).
+    public static func make(
+        copies: TakeCopies, checkedAndNotFound: Bool = false, deviceWord: String = "iPhone", driveNote: String? = nil
+    ) -> ScreenAlert? {
         guard copies.isRunning else { return nil }
         switch (copies[.device], copies[.drive]) {
         case (.interrupted, .interrupted):
@@ -25,9 +28,9 @@ public enum DestinationAlert {
         case (_, .missing):
             return ScreenAlert(
                 id: "no-drive", priority: .destination, tone: .warning,
-                text: copies.isDriveOnly
+                text: (copies.isDriveOnly
                     ? "No Drive: recording to this \(deviceWord); it moves to the Drive when one is connected."
-                    : "No Drive. Recording to the Device only.")
+                    : "No Drive. Recording to the Device only.") + (driveNote.map { " \($0)" } ?? ""))
         default:
             return nil
         }
