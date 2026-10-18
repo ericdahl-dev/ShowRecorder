@@ -166,19 +166,15 @@ final class TakeWriter: @unchecked Sendable {
     static func waitAll(_ writers: [TakeWriter], noProgressFor window: Duration, onPoll: () -> Void = {}) {
         let clock = ContinuousClock()
         var open = Array(writers.indices)
-        var counts = writers.map(\.progressCount)
-        var since = writers.map { _ in clock.now }
+        var watches = writers.map { ProgressWatch(window: window, count: $0.progressCount, at: clock.now) }
         while !open.isEmpty {
             onPoll()
             let now = clock.now
             open.removeAll { index in
                 let writer = writers[index]
                 if writer.isFinished { return true }
-                let count = writer.progressCount
-                if count != counts[index] {
-                    counts[index] = count
-                    since[index] = now
-                } else if now - since[index] >= window {
+                // A look long after the last one means this thread was suspended; see `ProgressWatch`.
+                if watches[index].isStalled(count: writer.progressCount, at: now) {
                     writer.abandon()
                     return true
                 }
