@@ -37,9 +37,24 @@ enum CutOffTake {
         guard var metadata = deviceMetadata ?? driveTake.flatMap({ try? TakeMetadata.read(fromTakeFolder: $0) }) else { return nil }
         if let lastTakeEndedAt, metadata.startedAt <= lastTakeEndedAt { return nil }
 
+        // Drive only: a Take.json that doesn't list the stand-ins (the Drive failed before taking that write, and the
+        // Device's own was never written) leaves only the `Stand-in <start>` folders to say there were any (#632).
+        // Only a name this app makes counts: "Stand-in -1", "Stand-in 0300" and the like are someone else's folders.
+        let standInStarts = ((try? fm.contentsOfDirectory(atPath: deviceTake.path)) ?? [])
+            .compactMap { name -> Int? in
+                guard name.hasPrefix("Stand-in "), let start = Int(name.dropFirst("Stand-in ".count)), start >= 0,
+                      TakeMetadata.StandIn(start: start, end: start).folderName == name else { return nil }
+                return start
+            }.sorted()
+        if metadata.standIns?.isEmpty != false, !standInStarts.isEmpty {
+            metadata.standIns = standInStarts.map { .init(start: $0, end: $0) }
+        }
+
         var copies: [(kind: DestinationKind, folder: URL)] = []
-        // The Device is a Copy when it has the Take's Take.json or Stems (its Take.json may have failed to write).
-        if deviceMetadata != nil || metadata.usbChannels.contains(where: { fm.fileExists(atPath: deviceTake.appending(path: $0.stemFile).path) }) {
+        // The Device is a Copy when it has the Take's Take.json or Stems (its Take.json may have failed to write), or
+        // holds stand-ins.
+        if deviceMetadata != nil || !standInStarts.isEmpty
+            || metadata.usbChannels.contains(where: { fm.fileExists(atPath: deviceTake.appending(path: $0.stemFile).path) }) {
             copies.append((.device, deviceTake))
         } else if (try? fm.contentsOfDirectory(atPath: deviceTake.path).isEmpty) == true {
             // The standby's empty folder goes, as at Stop.
