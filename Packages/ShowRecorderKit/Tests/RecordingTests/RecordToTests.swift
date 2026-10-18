@@ -85,6 +85,22 @@ struct RecordToTests {
         #expect(RecordTo.both.usesDrive && !RecordTo.both.isDriveOnly)
     }
 
+    @Test("On Free the picker shows This iPhone, the choice in effect, and leaves what was saved alone (Eric, #805)")
+    func shownOnFree() {
+        for saved in RecordTo.allCases {
+            #expect(saved.shown(driveAllowed: false) == .device)
+            #expect(saved.shown(driveAllowed: true) == saved, "with Pro or the Trial the saved choice applies again")
+        }
+    }
+
+    @Test("On Free, picking Drive or Both offers Pro instead of choosing it; This iPhone is chosen as usual (Eric, #805)")
+    func pickingOnFree() {
+        #expect(RecordTo.drive.offersPro(driveAllowed: false))
+        #expect(RecordTo.both.offersPro(driveAllowed: false))
+        #expect(!RecordTo.device.offersPro(driveAllowed: false))
+        for choice in RecordTo.allCases { #expect(!choice.offersPro(driveAllowed: true)) }
+    }
+
     @Test("Debug builds offer it whatever the environment, even before it is known (#805)")
     func debugBuild() {
         for environment: DistributionEnvironment? in [nil, .unknown, .sandbox, .production] {

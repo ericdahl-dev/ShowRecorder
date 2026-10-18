@@ -14,6 +14,17 @@ public enum RecordTo: String, CaseIterable, Sendable {
         return isOffered ? self : .both
     }
 
+    /// What the Settings picker shows as chosen: Free records to the Device whatever is saved, so it shows the Device;
+    /// the saved choice applies again with Pro or the Trial (Eric, #805).
+    public func shown(driveAllowed: Bool) -> RecordTo {
+        driveAllowed ? self : .device
+    }
+
+    /// Whether picking this in Settings offers Pro instead of choosing it: on Free the Drive is Pro (Eric, #805).
+    public func offersPro(driveAllowed: Bool) -> Bool {
+        usesDrive && !driveAllowed
+    }
+
     /// Whether a Take is written to the Drive (when there is one).
     public var usesDrive: Bool { self != .device }
     /// Whether the Drive is the Take's only Destination: Drive only (#196, ADR 0006).

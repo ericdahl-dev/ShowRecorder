@@ -114,14 +114,23 @@ struct SettingsView: View {
                         }
                     }
                     if RecordToAvailability.isAvailableInThisBuild {
+                        // Free shows This iPhone, the choice in effect; Drive and Both offer Pro, and the saved choice
+                        // stays for Pro or the Trial (Eric, #805).
+                        let driveAllowed = model.pro.license().allowsDrive
                         Picker("Record to", selection: Binding(
-                            get: { model.recordTo },
-                            set: { model.recordTo = $0; model.recordToChanged() }
+                            get: { model.recordTo.shown(driveAllowed: driveAllowed) },
+                            set: { choice in
+                                if choice.offersPro(driveAllowed: driveAllowed) {
+                                    showingPaywall = true
+                                } else {
+                                    model.recordTo = choice
+                                    model.recordToChanged()
+                                }
+                            }
                         )) {
                             ForEach(RecordTo.allCases, id: \.self) { choice in
-                                // Free sees Drive and Both marked Pro and can choose them; its Takes record to this iPhone (#705).
                                 let label = choice.label(deviceWord: ThisHardware.word)
-                                Text(choice.usesDrive && !model.pro.license().allowsDrive ? "\(label) (Pro)" : label).tag(choice)
+                                Text(choice.offersPro(driveAllowed: driveAllowed) ? "\(label) (Pro)" : label).tag(choice)
                             }
                         }
                         .pickerStyle(.menu)
