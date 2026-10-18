@@ -293,6 +293,25 @@ struct MixerGainClipProtectionTests {
         #expect(control.gainDb[1] == 26, "after the Take")
     }
 
+    @Test("A second Take start in a Take stops the first clip protection before replacing it (#695)")
+    func secondStartStopsTheOldProtection() async {
+        let control = control
+        var made: [ClipProtection] = []
+        let mixerGain = makeMixerGain(on: true)
+        mixerGain.makeProtection = { _ in
+            let protection = ClipProtection(control: control, sampleRate: 48_000)
+            made.append(protection)
+            return protection
+        }
+        mixerGain.handle(.takeStarted(take: 1))
+        mixerGain.handle(.takeStarted(take: 1))
+
+        #expect(made.count == 2)
+        // The replaced one is stopped: a hot channel it is still shown moves no preamp.
+        for window in ClipProtectionTests.hot { await made[0].observe([window]) }
+        #expect(control.gainDb[1] == 30)
+    }
+
     @Test("Switched off, a Take's hot channel is left alone")
     func offLeavesAlone() async {
         let mixerGain = makeMixerGain(on: false)
