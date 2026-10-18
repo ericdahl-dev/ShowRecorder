@@ -401,6 +401,9 @@ final class TakeSession {
         var metadata: TakeMetadata
         let levels: TakeLevels
         let stopTimeout: Duration?
+        /// Wait for a Destination that is slow but still writing, abandoning only one that has stopped (#817). Off for the
+        /// inline finish, which holds the main thread.
+        var progressBased = false
     }
 
     nonisolated static func finish(_ input: FinishInput) -> Finished {
@@ -412,9 +415,13 @@ final class TakeSession {
         // still gets the full timeout from its own request (#320).
         for copy in copies { copy.writer.requestStop() }
         standby?.writer.requestStop()
-        let deadline = input.stopTimeout.map(TakeWriter.deadline)
-        for copy in copies { copy.writer.waitStopped(until: deadline) }
-        standby?.writer.waitStopped(until: deadline)
+        if input.progressBased, let window = input.stopTimeout {
+            TakeWriter.waitAll(copies.map(\.writer) + (standby.map { [$0.writer] } ?? []), noProgressFor: window)
+        } else {
+            let deadline = input.stopTimeout.map(TakeWriter.deadline)
+            for copy in copies { copy.writer.waitStopped(until: deadline) }
+            standby?.writer.waitStopped(until: deadline)
+        }
         // A standby is a Copy only if it stood in or its folder is kept: its empty folder isn't one, even if removing it fails.
         var standbyFolder = standby?.folder
         if let standby {

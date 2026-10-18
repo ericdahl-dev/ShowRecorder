@@ -816,8 +816,10 @@ public final class Recorder {
     func stopTake(because reason: TakeEnd.Reason) async throws {
         // Already stopping: this Stop returns once that one is published, so a quit or an Arm after it is safe.
         guard let stopping = beginStop(because: reason) else { return await waitWhileFinishing() }
-        let input = stopping.input
-        let finished = asyncStopAvailable ? await runOffPool { TakeSession.finish(input) } : TakeSession.finish(input)
+        var input = stopping.input
+        // Only the off-main finish waits on a slow Drive: the inline one holds the main thread, so it keeps the deadline.
+        input.progressBased = asyncStopAvailable
+        let finished = asyncStopAvailable ? await runOffPool { [input] in TakeSession.finish(input) } : TakeSession.finish(input)
         publishStop(stopping, finished)
     }
 
