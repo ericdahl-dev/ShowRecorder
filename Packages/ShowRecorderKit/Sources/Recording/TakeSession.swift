@@ -40,8 +40,17 @@ final class TakeSession {
         var writer: TakeWriter
         /// Gaps from this Copy's earlier writers, before a Drive rejoined.
         var earlierGaps: [Range<Int>] = []
+        /// Audio this Copy's earlier writers dropped, kept where the Stems resumed after it (#604).
+        var earlierDropped: [Range<Int>] = []
         /// Held until the Take is finished and Repaired. Only the Drive has one.
         var access: DriveAccess?
+
+        /// The Dropout cue points the resumed Stems still need: the writer only knows its own Dropouts (#604).
+        var earlierDropCues: [StemMarker] { Self.dropCues(earlierDropped) }
+
+        static func dropCues(_ dropped: [Range<Int>]) -> [StemMarker] {
+            dropped.map { StemMarker(position: UInt32(clamping: $0.lowerBound), label: "Dropout") }
+        }
 
         /// Stretches written as silence in this Copy because it joined after the Take began, as Take frames.
         var gaps: [Range<Int>] { earlierGaps + (writer.leadGap.map { [$0] } ?? []) }
@@ -185,7 +194,7 @@ final class TakeSession {
         // Take.json first: it's written whole and atomically, so a Marker survives even if the Stems'
         // next header commit never happens.
         writeMetadata()
-        for copy in copies { copy.writer.setMarkers(stemMarkers) }
+        for copy in copies { copy.writer.setMarkers(stemMarkers + copy.earlierDropCues) }
         standby?.writer.setMarkers(stemMarkers)
         return marker
     }
@@ -228,7 +237,7 @@ final class TakeSession {
         }
         metadata.routingChanges = changes
         writeMetadata()
-        for copy in copies { copy.writer.setMarkers(stemMarkers) }
+        for copy in copies { copy.writer.setMarkers(stemMarkers + copy.earlierDropCues) }
         standby?.writer.setMarkers(stemMarkers)
     }
 
@@ -247,7 +256,7 @@ final class TakeSession {
         guard let place = metadata.place(ofOperatorMarker: index) else { return .noSuchMarker }
         metadata.markers[place].name = name
         writeMetadata()
-        for copy in copies { copy.writer.setMarkers(stemMarkers) }
+        for copy in copies { copy.writer.setMarkers(stemMarkers + copy.earlierDropCues) }
         standby?.writer.setMarkers(stemMarkers)
         return .renamed
     }
@@ -289,7 +298,7 @@ final class TakeSession {
             CopyCoverage.Copy(
                 // A Drive that went away may have lost what it wrote since its last commit (#595); a Device keeps it.
                 kind: copy.kind, written: copy.kind == .drive ? copy.writer.framesKept : copy.writer.framesWritten,
-                dropped: copy.writer.dropouts,
+                dropped: copy.earlierDropped + copy.writer.dropouts,
                 silence: copy.gaps, stoppedEarly: copy.writer.hasFailed || copy.writer.neverJoined)
         }
         // Drive only: the standby holds the audio from where its stand-in starts, and nothing before.
@@ -473,14 +482,20 @@ final class TakeSession {
             // The Drive uses its kind's feed. A Drive joins for the first time only beside the Device.
             assert(old != nil || copies.count == 1, "a Drive joining beside more than the Device")
             let feed = old?.feed ?? capture.feeds[DestinationKind.drive.index]
-            let writer = makeWriter(feed: feed, stems: sinks, markers: stemMarkers)
+            // The rejoin's own Gap starts where the Stems resume, so earlier Gaps stop there (#595). The old
+            // writer's Dropouts stop there too: the Stems still hold them, with their cue points (#604).
+            let resume = Int(counts?.min() ?? 0)
+            func beforeResume(_ ranges: [Range<Int>]) -> [Range<Int>] {
+                ranges.filter { $0.lowerBound < resume }.map { $0.clamped(to: 0..<resume) }
+            }
+            let earlierGaps = beforeResume(old?.gaps ?? [])
+            let earlierDropped = beforeResume(old.map { $0.earlierDropped + $0.writer.dropouts } ?? [])
+            let writer = makeWriter(feed: feed, stems: sinks, markers: stemMarkers + CopyRecord.dropCues(earlierDropped))
             capture.attachMidTake(feed)
             writer.start()
-            // The rejoin's own Gap starts where the Stems resume, so earlier Gaps stop there (#595).
-            let resume = Int(counts?.min() ?? 0)
-            let earlierGaps = (old?.gaps ?? []).filter { $0.lowerBound < resume }.map { $0.clamped(to: 0..<resume) }
-
-            let record = CopyRecord(kind: .drive, folder: folder, feed: feed, writer: writer, earlierGaps: earlierGaps, access: access)
+            let record = CopyRecord(
+                kind: .drive, folder: folder, feed: feed, writer: writer, earlierGaps: earlierGaps,
+                earlierDropped: earlierDropped, access: access)
             if old == nil { copies.append(record) } else if let i = copies.firstIndex(where: { $0.kind == .drive }) { copies[i] = record }
             old?.access?.end()
             self.show = show
