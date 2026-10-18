@@ -200,7 +200,7 @@ public final class Recorder {
             lastTakeStandInKept = repair.standInKept
             isRepairing = repair.isRunning
         }
-        repair.jobDone = { [unowned self] in regenerateReports(skipping: $0) }
+        repair.jobDone = { [unowned self] in regenerateReportsOffMain(skipping: $0) }
         // A Show left open by a crash or an earlier launch is the open Show again.
         currentShow = Show.findOpen(in: deviceFolder)
         naming = ChannelNaming(typed: currentShow?.channelNames ?? [:])
@@ -1005,6 +1005,7 @@ public final class Recorder {
         lastTakeGeneration += 1
         currentShow = session.show
         if finished.abandoned.contains(.drive) { abandonedThisLaunch[session.show.name, default: []].insert(finished.metadata.take) }
+        suspectCopies = finished.abandoned
         for change in gainChangesWhileFinishing { currentShow?.logGainChange(change, skipping: finished.abandoned) }
         gainChangesWhileFinishing = []
         // A Copy Stop gave up on may hang on any file operation, so the main thread leaves it alone (#652).
@@ -1050,16 +1051,47 @@ public final class Recorder {
 
     /// Rewrites the Show report and Reaper project, when the last Take's allowance includes them (Pro or Trial). Never
     /// during a Take: a Repair that finishes mid-Take leaves them for its end (#320). A Copy Stop gave up on is skipped.
-    private func regenerateReports(skipping skipped: Set<DestinationKind> = []) {
-        guard !isRecording else { return }
-        let allowance = lastAllowance
-        let copies = currentShow?.copies ?? [:]
-        for kind in DestinationKind.allCases where !skipped.contains(kind) {
-            guard let copy = copies[kind] else { continue }
-            if allowance?.showReport ?? true { try? ShowReport.write(showFolder: copy.folder) }
-            if allowance?.reaperExport ?? true { try? copy.writeProjects() }
+    func regenerateReports(skipping skipped: Set<DestinationKind> = []) {
+        guard let job = reportJob(skipping: skipped, whileFinishing: true) else { return }
+        for copy in job.copies { reportWriter(copy, job.report, job.projects) }
+    }
+
+    /// The same rewrite for a Repair that has finished, off the main thread and one at a time: a Drive that hangs (one Stop
+    /// didn't know about) can't block the UI, and two rewrites never overlap (#588).
+    func regenerateReportsOffMain(skipping skipped: Set<DestinationKind>) {
+        guard let job = reportJob(skipping: skipped, whileFinishing: false) else { return }
+        let previous = reportTask, write = reportWriter, limit = reportWaitLimit
+        reportTask = Task {
+            // One that hangs on a Drive holds the next only for a while: they all rewrite the same files.
+            await waitBounded(previous, for: limit)
+            await runOffPool { for copy in job.copies { write(copy, job.report, job.projects) } }
         }
     }
+
+    /// What a rewrite writes and where: not during a Take, and not on a Copy `skipped` or the last Take's abandoned Copy
+    /// (`suspectCopies`) names, since its Destination may be hung (#673).
+    private func reportJob(skipping skipped: Set<DestinationKind>, whileFinishing: Bool) -> (copies: [Show], report: Bool, projects: Bool)? {
+        // A Repair's rewrite is not made while a Take is being saved either: Stop rewrites them when it is published (that
+        // call is `whileFinishing`), and the Drive it is waiting on may be the one that hangs.
+        guard !isRecording, whileFinishing || !isFinishing else { return nil }
+        let allowance = lastAllowance
+        let shows = currentShow?.copies ?? [:]
+        let skip = skipped.union(suspectCopies)
+        let copies = DestinationKind.allCases.filter { !skip.contains($0) }.compactMap { shows[$0] }
+        return (copies, allowance?.showReport ?? true, allowance?.reaperExport ?? true)
+    }
+
+    /// Writes one Copy's report and Reaper project. Tests replace it.
+    @ObservationIgnored var reportWriter: @Sendable (Show, _ report: Bool, _ projects: Bool) -> Void = Recorder.writeReports
+    nonisolated static let writeReports: @Sendable (Show, Bool, Bool) -> Void = { copy, report, projects in
+        if report { try? ShowReport.write(showFolder: copy.folder) }
+        if projects { try? copy.writeProjects() }
+    }
+    @ObservationIgnored private var reportTask: Task<Void, Never>?
+    /// How long a report rewrite, or `waitForRepair`, waits for an earlier rewrite before going on without it.
+    @ObservationIgnored var reportWaitLimit: Duration = .seconds(10)
+    /// The Copies the last Take's Stop gave up on: their Destination may be hung, so nothing writes them from the main thread.
+    @ObservationIgnored private var suspectCopies: Set<DestinationKind> = []
 
     /// Drive only (#630): moves every stand-in the Device keeps, and every Drive only Take it holds whole, in any Show,
     /// to its Take on the Drive, and removes the Device's Take once the Drive is checked to hold it. Does nothing during a Take or with no Drive; a Take
@@ -1271,6 +1303,7 @@ public final class Recorder {
         // A Take that is still being written has nothing to repair yet.
         await waitWhileFinishing()
         await repair.wait()
+        await waitBounded(reportTask, for: reportWaitLimit)
         await namingTask?.value
     }
 }
