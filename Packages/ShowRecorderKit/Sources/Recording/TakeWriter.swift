@@ -82,8 +82,11 @@ final class TakeWriter: @unchecked Sendable {
     var stemFrameCounts: [UInt64] { stems.map(\.frameCount) }
 
     /// Samples in each Stem that are sure to be there: for a Copy whose write failed, only what the last header
-    /// commit made durable, since the rest may have gone with the Destination (#595); otherwise all of them.
-    var stemFramesKept: [UInt64] { failed.load(ordering: .acquiring) ? committedCounts.withLock { $0 } : stemFrameCounts }
+    /// commit made durable, since the rest may have gone with the Destination (#595); likewise for one Stop gave up on,
+    /// whose thread may still be writing, so its live counts can't be read (#664); otherwise all of them.
+    var stemFramesKept: [UInt64] {
+        failed.load(ordering: .acquiring) || wasAbandoned ? committedCounts.withLock { $0 } : stemFrameCounts
+    }
 
     /// Frames every Stem is sure to have, as `stemFramesKept` counts them.
     var framesKept: Int { Int(stemFramesKept.min() ?? 0) }
