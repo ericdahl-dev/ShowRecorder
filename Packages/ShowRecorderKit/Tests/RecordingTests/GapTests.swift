@@ -28,6 +28,28 @@ final class FailingStem: StemSink, @unchecked Sendable {
     @discardableResult func setMarkers(_ markers: [StemMarker]) throws -> Int { try real.setMarkers(markers) }
 }
 
+/// A Stem that takes every append but fails its header commit once it holds more than `afterFrames`: a Destination that
+/// went away between a write and the commit after it, so the last commit stays where it was.
+final class CommitFailingStem: StemSink, @unchecked Sendable {
+    struct Failure: Error {}
+    private let real: StemWriter
+    private let afterFrames: Int
+    var frameCount: UInt64 { real.frameCount }
+
+    init(_ real: StemWriter, afterFrames: Int) {
+        self.real = real
+        self.afterFrames = afterFrames
+    }
+
+    func append(_ samples: UnsafeBufferPointer<Float>) throws { try real.append(samples) }
+    func commitHeader() throws {
+        if real.frameCount > UInt64(afterFrames) { throw Failure() }
+        try real.commitHeader()
+    }
+    func finalize() throws { try real.finalize() }
+    @discardableResult func setMarkers(_ markers: [StemMarker]) throws -> Int { try real.setMarkers(markers) }
+}
+
 @MainActor
 @Suite("Gaps")
 struct GapTests {
