@@ -460,6 +460,9 @@ final class TakeSession {
                 standbyFolder = nil
             }
         }
+        // Written to every Take.json below, so a later launch can find the Copy Stop gave up on (#817).
+        let abandonedKinds = copies.filter { $0.writer.wasAbandoned }.map(\.kind)
+        if !abandonedKinds.isEmpty { metadata.abandonedCopies = abandonedKinds.sorted { $0.rawValue < $1.rawValue } }
         collectDropouts(&metadata, copies: copies, standby: standby)
         // Levels are kept per captured channel; Take.json lists only the recorded ones, by USB Channel number.
         for (channel, summary) in levels.summary.enumerated() {
