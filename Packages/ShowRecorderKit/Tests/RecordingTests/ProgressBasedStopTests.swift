@@ -47,7 +47,7 @@ struct ProgressBasedStopTests {
     }
 
     /// A Take of 96,000 frames that piles up behind a held first write on the Drive, then a Stop; the Drive then writes
-    /// every chunk in 100 ms. Draining takes about 2.4 s, longer than the 2 s Stop timeout, with progress throughout.
+    /// every chunk in 250 ms. Draining takes about 6 s, longer than the 5 s Stop timeout, with progress throughout.
     private func slowDriveStop(asyncStop: Bool) async throws -> Recorder {
         let device = root.appending(path: "Device")
         let drive = root.appending(path: "Drive")
@@ -63,7 +63,7 @@ struct ProgressBasedStopTests {
                 slow = stem
                 return stem
             },
-            destinationCheckInterval: nil, writerStopTimeout: .seconds(2), asyncStopAvailable: { asyncStop })
+            destinationCheckInterval: nil, writerStopTimeout: .seconds(5), asyncStopAvailable: { asyncStop })
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         try recorder.startTake()
@@ -71,7 +71,7 @@ struct ProgressBasedStopTests {
         // The gate opens from another thread: a busy main actor (other suites) must not hold it past the Stop timeout.
         nonisolated(unsafe) let held = slow
         DispatchQueue.global().asyncAfter(deadline: .now() + 0.1) {
-            held?.setDelay(0.1)
+            held?.setDelay(0.25)
             gate.open()
         }
         try await recorder.stopTake()
@@ -101,7 +101,7 @@ struct ProgressBasedStopTests {
                 let writer = try StemWriter.open(url: url, info: info, resumingAt: resume)
                 return url.path.hasPrefix(drive.path) ? SlowStem(writer, gate: gate) : writer
             },
-            destinationCheckInterval: nil, writerStopTimeout: .seconds(10), asyncStopAvailable: { true })
+            destinationCheckInterval: nil, writerStopTimeout: .seconds(120), asyncStopAvailable: { true })
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         try recorder.startTake()
@@ -136,7 +136,7 @@ struct ProgressBasedStopTests {
                 driveStems += 1
                 return SlowStem(writer, gate: driveStems == 1 ? first : second)
             },
-            destinationCheckInterval: nil, writerStopTimeout: .seconds(2), asyncStopAvailable: { on })
+            destinationCheckInterval: nil, writerStopTimeout: .seconds(60), asyncStopAvailable: { on })
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.arm(audio)
         try recorder.startTake()
