@@ -304,9 +304,11 @@ final class TakeSession {
         // Drive only: the standby holds the audio from where its stand-in starts, and nothing before.
         if let standby {
             let start = standby.start ?? Int.max
+            // One number for the standby's length here and in the stand-in's `end`: what it committed when Stop gave up on it (#664).
+            let written = standby.writer.wasAbandoned ? standby.writer.framesKept : standby.writer.framesWritten
             all.insert(CopyCoverage.Copy(
-                kind: .device, written: standby.start == nil ? 0 : standby.writer.framesWritten, dropped: standby.writer.dropouts,
-                silence: [0..<min(start, standby.writer.framesWritten)],
+                kind: .device, written: standby.start == nil ? 0 : written, dropped: standby.writer.dropouts,
+                silence: [0..<min(start, written)],
                 stoppedEarly: standby.start == nil || standby.writer.hasFailed || standby.writer.neverJoined), at: 0)
         }
         return CopyCoverage(all)
@@ -417,7 +419,9 @@ final class TakeSession {
         var standbyFolder = standby?.folder
         if let standby {
             if let start = standby.start {
-                metadata.standIns = [.init(start: start, end: max(start, standby.writer.framesWritten))]
+                // A standby Stop gave up on may still be writing: its end is what its headers committed (#664).
+                let written = standby.writer.wasAbandoned ? standby.writer.framesKept : standby.writer.framesWritten
+                metadata.standIns = [.init(start: start, end: max(start, written))]
             } else if (try? FileManager.default.contentsOfDirectory(atPath: standby.folder.path).isEmpty) == true {
                 // The Drive took the whole Take: the Device's Take folder this press made stays empty, so it goes.
                 try? FileManager.default.removeItem(at: standby.folder)
@@ -440,7 +444,9 @@ final class TakeSession {
         return Finished(
             metadata: metadata, folders: folders, access: copies.lazy.compactMap(\.access).first,
             signal: TakeSignal(recorded: metadata.usbChannels.count, withSignal: levels.channelsWithSignal(), loudest: levels.loudest()),
-            abandoned: Set(copies.filter { $0.writer.wasAbandoned }.map(\.kind)))
+            abandoned: Set(copies.filter { $0.writer.wasAbandoned }.map(\.kind))
+                // A stand-in the Device stalled on is a Device Copy Stop gave up on too (#664).
+                .union(standby.map { $0.start != nil && $0.writer.wasAbandoned ? [DestinationKind.device] : [] } ?? []))
     }
 
     // MARK: - Drive join and rejoin
@@ -526,7 +532,7 @@ final class TakeSession {
         // A Copy Stop gave up on (set only at Stop) may hang on any file operation: Repair writes its Take.json off the main thread (#652).
         for copy in copies where !copy.writer.wasAbandoned { try? metadata.write(to: copy.folder) }
         // A stand-in's Take.json lets a crash mid-Take find it (and Repair it) on the next launch.
-        if let standby, standby.start != nil { try? metadata.write(to: standby.folder) }
+        if let standby, standby.start != nil, !standby.writer.wasAbandoned { try? metadata.write(to: standby.folder) }
     }
 
     // MARK: - Drive only

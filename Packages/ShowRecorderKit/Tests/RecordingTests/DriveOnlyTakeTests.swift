@@ -303,6 +303,51 @@ struct DriveOnlyTakeTests {
         #expect(recorder.copies[.device] == .standInKept)
     }
 
+    @Test("A stand-in Stop gave up on is reported abandoned, and its end is what its header committed, not a read of a writer that may still write (#664)")
+    func standInAbandonedAtStop() async throws {
+        final class Written: @unchecked Sendable {
+            private let lock = NSLock()
+            private var items: [(TakeMetadata, URL)] = []
+            func add(_ metadata: TakeMetadata, _ folder: URL) { lock.withLock { items.append((metadata, folder)) } }
+            var all: [(TakeMetadata, URL)] { lock.withLock { items } }
+        }
+        let written = Written()
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
+        let drive = drive
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        // The Drive hangs after 4 800 frames, and then the stand-in's own Stem hangs after 2 400 of its frames.
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            makeStem: { url, info, resuming in
+                let real = try StemWriter.open(url: url, info: info, resumingAt: resuming)
+                if url.path.hasPrefix(drive.path), resuming == nil { return BlockingStem(real, gate: gate, healthyFrames: 4_800) }
+                if url.path.contains("/Stand-in ") { return BlockingStem(real, gate: gate, healthyFrames: 2_400) }
+                return real
+            }, destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300), driveStallLimit: .milliseconds(100),
+            writeAbandoned: { written.add($0, $1) })
+        recorder.recordsToDriveOnly = true
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
+        await recorder.checkDestinations()
+        try await Task.sleep(for: .milliseconds(250))
+        deliver(480, from: 20 * 480, to: audio, sample: counting())
+        await recorder.checkDestinations()
+        for block in 21..<30 { deliver(480, from: block * 480, to: audio, sample: counting()) }
+        try await Task.sleep(for: .milliseconds(200))
+
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+
+        // Stop gave up on the stand-in's writer, so its Device folder is reported abandoned: its Take.json is written
+        // off Stop, with an end of what the header committed (the Stem's opening commit, nothing past it).
+        let deviceTake = device.appending(path: take)
+        let entry = try #require(written.all.first { $0.1.standardizedFileURL == deviceTake.standardizedFileURL })
+        #expect(entry.0.standIns == [.init(start: 0, end: 0)])
+    }
+
     @Test("After a Drive given up at Stop, a Marker is renamed in the stand-in kept on the Device too (#622)")
     func renameMarkerStandInKept() async throws {
         let gate = StopNeverBlocksTests.Gate()
