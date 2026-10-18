@@ -89,6 +89,8 @@ final class TakeSession {
     private var standby: Standby?
     /// Drive only (#196, ADR 0006): the Take was started to be written to the Drive alone.
     let driveOnly: Bool
+    /// The Device chosen (#805): the Take was started to be written to the Device alone, by choice.
+    let deviceOnly: Bool
     /// How long the Drive's writer may go without writing while audio arrives before it counts as lost (a pulled
     /// Drive can hang rather than fail).
     var driveStallLimit: Duration = .seconds(2)
@@ -116,7 +118,7 @@ final class TakeSession {
         show: Show, folders: [DestinationKind: URL], drive: DriveAccess?, metadata: TakeMetadata, stems: [StemSpec],
         info: StemWriter.Info, capture: Capture, preRollFrames: Int = 0,
         makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink,
-        freeSpace: @escaping (URL) -> Int64, driveOnly: Bool = false
+        freeSpace: @escaping (URL) -> Int64, driveOnly: Bool = false, deviceOnly: Bool = false
     ) throws {
         self.show = show
         var metadata = metadata
@@ -130,6 +132,7 @@ final class TakeSession {
         self.makeStem = makeStem
         self.freeSpace = freeSpace
         self.driveOnly = driveOnly
+        self.deviceOnly = deviceOnly
 
         // One writer per Copy, each draining its own ring, so a slow Drive never holds up the Device.
         // With Pre-roll each Copy waits for the real-time thread's first block, then writes the Pre-roll
@@ -270,7 +273,7 @@ final class TakeSession {
 
     /// Copies of the running Take (#550), from each Copy's status.
     var takeCopies: TakeCopies {
-        TakeCopies(isRunning: true, isDriveOnly: driveOnly) { kind in
+        TakeCopies(isRunning: true, isDriveOnly: driveOnly, isDeviceOnly: deviceOnly) { kind in
             if kind == .device, let standby {
                 if standby.start == nil { return .standingBy }
                 return standby.writer.hasFailed ? .interrupted : .standingIn

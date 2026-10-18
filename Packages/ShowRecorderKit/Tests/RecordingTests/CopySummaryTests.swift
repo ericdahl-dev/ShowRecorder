@@ -24,6 +24,20 @@ struct CopySummaryTests {
         #expect(!summary.isProblem)
     }
 
+    @Test("A Take recorded to the Device by choice reads as its Copy alone, with no \"(no Drive)\", and still counts Dropouts (#805)")
+    func deviceOnly() {
+        let copies = takeCopies(running: false, deviceOnly: true, device: .complete, drive: .missing)
+        #expect(CopySummary(copies: copies, dropoutCount: 0).text == "Device copy: complete")
+        #expect(CopySummary(copies: copies, dropoutCount: 1).text == "Device copy: complete · 1 Dropout")
+    }
+
+    @Test("A Take on the Device by choice whose Copy has Gaps still reads as a problem (#805)")
+    func deviceOnlyWithGaps() {
+        let summary = CopySummary(copies: takeCopies(running: false, deviceOnly: true, device: .hasGaps, drive: .missing), dropoutCount: 0)
+        #expect(!summary.text.contains("(no Drive)"))
+        #expect(summary.isProblem)
+    }
+
     @Test("A lone Drive Copy says there was no device copy")
     func oneDriveCopy() {
         let summary = CopySummary(copies: takeCopies(running: false, device: .missing, drive: .complete), dropoutCount: 0)

@@ -34,12 +34,15 @@ public struct TakeCopies: Equatable, Sendable {
     public let isRunning: Bool
     /// Drive only (#196, ADR 0006): the Device is a Stand-in for the Drive, not a Copy of its own.
     public let isDriveOnly: Bool
+    /// Recorded to the Device by choice (#805): no Drive Copy was meant, so none is missing.
+    public let isDeviceOnly: Bool
     /// Every Destination has a state, so two snapshots that read the same are equal.
     private let states: [DestinationKind: CopyState]
 
-    init(isRunning: Bool, isDriveOnly: Bool = false, state: (DestinationKind) -> CopyState) {
+    init(isRunning: Bool, isDriveOnly: Bool = false, isDeviceOnly: Bool = false, state: (DestinationKind) -> CopyState) {
         self.isRunning = isRunning
         self.isDriveOnly = isDriveOnly
+        self.isDeviceOnly = isDeviceOnly
         states = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.map { ($0, state($0)) })
     }
 

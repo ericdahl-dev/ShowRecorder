@@ -14,13 +14,14 @@ public struct CopySummary: Equatable, Sendable {
     }
 
     /// How each Copy of the last Take ended (#550); a Copy with no ended state (it never started) isn't counted.
-    /// A Drive only Take (#196, ADR 0006) speaks of the Drive alone: the Device only stood in.
+    /// A Drive only Take (#196, ADR 0006) speaks of the Drive alone: the Device only stood in. A Take recorded to the Device
+    /// by choice (#805) misses no Drive.
     public init(copies: TakeCopies, dropoutCount: Int, deviceWord: String = "iPhone") {
         let outcomes = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.compactMap { kind in
             copies[kind].outcome.map { (kind, $0) }
         })
         guard copies.isDriveOnly else {
-            self.init(outcomes: outcomes, dropoutCount: dropoutCount)
+            self.init(outcomes: outcomes, dropoutCount: dropoutCount, isDeviceOnly: copies.isDeviceOnly)
             return
         }
         let onDevice = "On this \(deviceWord) until the Drive is back"
@@ -29,12 +30,12 @@ public struct CopySummary: Equatable, Sendable {
         self.init(parts: [line] + moved, outcomes: outcomes, dropoutCount: dropoutCount)
     }
 
-    /// Each ended Copy's line; a lone Copy says which one was missing.
-    private init(outcomes: [DestinationKind: CopyOutcome], dropoutCount: Int) {
+    /// Each ended Copy's line; a lone Copy says which one was missing, unless the Device was chosen.
+    private init(outcomes: [DestinationKind: CopyOutcome], dropoutCount: Int, isDeviceOnly: Bool) {
         var parts = DestinationKind.allCases.compactMap { kind in
             outcomes[kind].map { "\(kind.name) copy: \($0.word)" }
         }
-        if outcomes.count == 1 {
+        if outcomes.count == 1, !(isDeviceOnly && outcomes[.device] != nil) {
             parts[0] += outcomes[.device] == nil ? " (no device copy)" : " (no Drive)"
         }
         self.init(parts: parts, outcomes: outcomes, dropoutCount: dropoutCount)

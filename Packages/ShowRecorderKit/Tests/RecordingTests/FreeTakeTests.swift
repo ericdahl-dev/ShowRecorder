@@ -123,6 +123,21 @@ struct FreeTakeTests {
         #expect(!FileManager.default.fileExists(atPath: drive.appending(path: show).path), "nothing on the Drive")
     }
 
+    @Test("The Device chosen on a Take without the Drive Copy (Free) still says \"(no Drive)\" (#805)")
+    func freeDeviceChosenSummary() async throws {
+        let device = root.appending(path: "Device"), drive = root.appending(path: "Drive")
+        let recorder = try freeDriveRecorder(device: device, drive: drive)
+        recorder.recordTo = .device
+        let audio = FakeAudioDevice(inputChannelCount: 2)
+        try recorder.arm(audio)
+        try recorder.startTake(allowance: noDrive([1, 2]))
+        audio.deliver((0..<2).map { _ in Array(repeating: 0.2, count: 480) })
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+
+        #expect(CopySummary.ofLastTake(recorder.copies, dropoutCount: recorder.dropoutCount)?.text == "Device copy: complete (no Drive)")
+    }
+
     @Test("Drive only on a Take without the Drive Copy (Free) records a full Device Copy, not a stand-in (#705)")
     func freeDriveOnlyRecordsToDevice() async throws {
         let device = root.appending(path: "Device"), drive = root.appending(path: "Drive")

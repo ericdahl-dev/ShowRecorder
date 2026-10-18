@@ -134,7 +134,7 @@ struct StatusChipsTests {
     @Test("Drive only between Takes, the Drive there: one chip, the Drive's, beside the Mixer's (#550)")
     func driveOnlyBetweenTakesDrive() {
         let shown = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour * 2),
-                                    mixer: .notLinked, copies: .none, driveOnly: true).map(\.text)
+                                    mixer: .notLinked, copies: .none, recordTo: .drive).map(\.text)
         #expect(shown == ["Drive 2 h 00 min", "Mixer not linked"])
     }
 
@@ -142,7 +142,7 @@ struct StatusChipsTests {
     func driveOnlyBetweenTakesNoDrive() {
         for drive in [DriveStatus.notChosen, .unavailable(.notConnected(name: "SSD"))] {
             let shown = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive,
-                                        mixer: nil, copies: .none, driveOnly: true).map(\.text)
+                                        mixer: nil, copies: .none, recordTo: .drive).map(\.text)
             #expect(shown == ["Device 1 h 00 min"])
         }
     }
@@ -198,6 +198,26 @@ struct StatusChipsTests {
         #expect(shown.map(\.text) == ["Drive 2 h 00 min", "Mixer not linked"])
     }
 
+    @Test("With the Device chosen on Pro, one chip, the Device's, whether the Drive is there, missing or not set (#805)")
+    func deviceChosenBetweenTakes() {
+        for drive in [drive(bytes: Self.anHour * 2), .notChosen, .unavailable(.notConnected(name: "SSD"))] {
+            let shown = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive,
+                                        mixer: .notLinked, copies: .none, recordTo: .device).map(\.text)
+            #expect(shown == ["Device 1 h 00 min", "Mixer not linked"])
+        }
+    }
+
+    @Test("A Take recorded to the Device shows the Device chip alone; a Take with a Drive Copy keeps both, whatever the setting (#805)")
+    func deviceChosenDuringTake() {
+        let missing = DriveStatus.unavailable(.notConnected(name: "SSD"))
+        let deviceTake = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: missing, mixer: nil,
+                                         copies: takeCopies(deviceOnly: true, device: .recording, drive: .missing))
+        #expect(deviceTake.map(\.text) == ["Device 1 h 00 min"])
+        let bothTake = StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive(bytes: Self.anHour * 2),
+                                       mixer: nil, copies: takeCopies(device: .recording, drive: .interrupted), recordTo: .device)
+        #expect(bothTake.map(\.text) == ["Device 1 h 00 min", "Drive stopped"])
+    }
+
     @Test("A Link up on another Mixer than the Armed one asks for attention and names that Mixer (#647)")
     func otherMixerLinked() {
         func mixerChip(_ identity: MixerIdentity) -> StatusChip? {
@@ -215,15 +235,17 @@ struct StatusChipsTests {
 
     @Test("On Free a connected Drive says it's Pro, not a time left, and Drive only reads the same: the Take goes to the Device (#705)")
     func driveOnFree() {
-        func make(_ drive: DriveStatus, driveOnly: Bool = false) -> [StatusChip] {
+        func make(_ drive: DriveStatus, recordTo: RecordTo = .both) -> [StatusChip] {
             StatusChip.make(usbChannelCount: 18, deviceAvailableBytes: Self.anHour, drive: drive, mixer: nil, copies: .none,
-                            driveOnly: driveOnly, driveAllowed: false)
+                            recordTo: recordTo, driveAllowed: false)
         }
         let free = make(drive(bytes: Self.anHour))
         #expect(free.map(\.kind) == [.device, .drive])
         #expect(free[1].text == "Drive · Pro")
         #expect(free[1].state == .neutral)
-        #expect(make(drive(bytes: Self.anHour), driveOnly: true) == free)
+        #expect(make(drive(bytes: Self.anHour), recordTo: .drive) == free)
+        #expect(make(drive(bytes: Self.anHour), recordTo: .device) == free, "the Device chosen on Free reads as before (#805)")
+        #expect(make(.notChosen, recordTo: .device)[1].text == "Drive not set")
         #expect(make(.notChosen)[1].text == "Drive not set", "a Drive that isn't there reads as before")
     }
 }

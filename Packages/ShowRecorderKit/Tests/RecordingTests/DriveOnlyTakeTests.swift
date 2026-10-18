@@ -952,6 +952,20 @@ struct DriveOnlyTakeTests {
         #expect(try driveOnlyField(in: device) == nil)
     }
 
+    @Test("With the Device chosen on Pro and a Drive connected, the summary reads the Device Copy alone, not \"(no Drive)\" (#805)")
+    func deviceChosenSummary() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder()
+        recorder.recordTo = .device
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(2, to: audio, recorder, sample: counting())
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+
+        #expect(CopySummary.ofLastTake(recorder.copies, dropoutCount: recorder.dropoutCount)?.text == "Device copy: complete")
+    }
+
     @Test("After a launch that finished a cut-off Drive only Take with a stand-in, the summary speaks of Drive only (#630)")
     func cutOffSummaryIsDriveOnly() async throws {
         let crashed = try await crashAfterStandIn()
