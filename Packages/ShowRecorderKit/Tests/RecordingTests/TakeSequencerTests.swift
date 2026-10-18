@@ -197,6 +197,30 @@ struct TakeSequencerTests {
         #expect(sequencer.takeStartedAt == nil)
     }
 
+    @Test("A second record press during a Take changes nothing and announces nothing (#695)")
+    func recordDuringATake() async {
+        var clock = start
+        let (sequencer, recorder) = makeSequencer(now: { clock })
+        sequencer.arm()
+        var events = sequencer.events.makeAsyncIterator()
+        _ = await events.next()  // .armed
+        sequencer.record(sources: [], allowance: nil)
+        #expect(await events.next() == .takeStarted(take: 1))
+        sequencer.recordError = "An earlier problem"
+        clock = start.addingTimeInterval(90)
+
+        let started = sequencer.record(sources: [], allowance: nil, soundcheck: true)
+
+        #expect(!started)
+        #expect(recorder.isRecording)
+        #expect(sequencer.takeStartedAt == start)
+        #expect(sequencer.recordError == "An earlier problem")
+        // A later event proves no second `.takeStarted` was queued ahead of it, and the Take still ends
+        // as a real Take, not a Soundcheck.
+        await sequencer.stop()
+        #expect(await events.next() == .takeEnded(TakeEnd(take: 1, reason: .stopped)))
+    }
+
     @Test("Stop ends the Take and clears its start time")
     func stop() async throws {
         let (sequencer, recorder) = makeSequencer()

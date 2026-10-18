@@ -206,6 +206,9 @@ public final class TakeSequencer {
     /// Returns whether it started.
     @discardableResult
     public func record(sources: [Source], allowance: TakeAllowance?, soundcheck: Bool = false) -> Bool {
+        // `Recorder.startTake` ignores a start in the middle of a Take, so this must too: no new start time,
+        // Soundcheck flag, event or cleared error (#695).
+        guard !recorder.isRecording else { return false }
         do {
             try recorder.startTake(sources: sources, allowance: allowance)
             soundcheckTake = soundcheck
