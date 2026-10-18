@@ -154,6 +154,109 @@ struct AbandonedCopyRecoveryTests {
         #expect(finishNow().count == 1)
     }
 
+    /// Two finished 480-frame Takes on both Copies, with Take `marked`'s Drive Copy as an abandoned Copy leaves it.
+    func twoTakes(marked: [Int]) async throws {
+        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
+        let drive = drive
+        let first = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try first.arm(audio)
+        for _ in 1...2 {
+            try first.startTake()
+            audio.deliver([Array(repeating: 0.2, count: 480)])
+            try await first.stopTake()
+            await first.waitForRepair()
+        }
+        first.disarm()
+        for take in marked {
+            let name = TakeMetadata.name(take: take)
+            let deviceFolder = device.appending(path: "\(show)/\(name)"), driveFolder = drive.appending(path: "\(show)/\(name)")
+            var metadata = try TakeMetadata.read(fromTakeFolder: deviceFolder)
+            let info = StemWriter.Info(
+                sampleRate: 48_000, description: "", originator: "ShowRecorder", timeReference: metadata.timeReference,
+                originationDate: metadata.startedAt)
+            for channel in metadata.usbChannels {
+                let url = driveFolder.appending(path: channel.stemFile)
+                try FileManager.default.removeItem(at: url)
+                let writer = try StemWriter.open(url: url, info: info, resumingAt: nil)
+                try writer.commitHeader()
+                try writer.append(Array(repeating: 0.2, count: 240))
+            }
+            metadata.abandonedCopies = [.drive]
+            metadata.gaps = [TakeMetadata.Gap(copy: .drive, start: 0, end: 480)]
+            try metadata.write(to: deviceFolder)
+        }
+    }
+
+    func driveStemFrames(take: Int) throws -> UInt64 {
+        let metadata = try TakeMetadata.read(fromTakeFolder: device.appending(path: "\(show)/\(TakeMetadata.name(take: take))"))
+        let folder = drive.appending(path: "\(show)/\(TakeMetadata.name(take: take))")
+        return try StemFile.inspect(folder.appending(path: metadata.usbChannels[0].stemFile)).frameCount
+    }
+
+    @Test("An earlier marked Take is finished and Repaired too, without taking the last Take's place on the screen")
+    func earlierTakeIsRepaired() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try await twoTakes(marked: [1])
+        let drive = drive
+        let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
+        let before = recorder.copies[.drive]
+        await recorder.recoverAbandonedCopies()
+        await recorder.waitForRepair()
+        #expect(try driveStemFrames(take: 1) == 480)
+        #expect(try TakeMetadata.read(fromTakeFolder: deviceTake).outcome(ofCopy: .drive) == .repaired)
+        #expect(recorder.copies[.drive] == before, "Take 1's Repair is not the last Take's")
+    }
+
+    @Test("With the last Take marked too, both are Repaired and the screen shows the last one's result")
+    func bothTakesRepaired() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try await twoTakes(marked: [1, 2])
+        let drive = drive
+        let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
+        await recorder.recoverAbandonedCopies()
+        await recorder.waitForRepair()
+        #expect(try driveStemFrames(take: 1) == 480)
+        #expect(try driveStemFrames(take: 2) == 480)
+        #expect(recorder.copies[.drive] == .repaired)
+    }
+
+    @Test("A Drive only Take whose Device folder is gone is found on the Drive: its Stems are finished and the marker cleared")
+    func driveOnlyWithNoDeviceFolder() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let original = try await abandonedTake()
+        // Stop removed the Device's empty Take folder; the marker reached only the Drive's Take.json.
+        try original.write(to: driveTake)
+        try FileManager.default.removeItem(at: deviceTake)
+        let found = try #require(finishNow().first)
+        #expect(found.folders.count == 1 && found.folders[.drive]?.path == driveTake.path)
+        #expect(found.metadata.gaps == [TakeMetadata.Gap(copy: .drive, start: 240, end: 480)])
+        for channel in original.usbChannels {
+            #expect(try StemFile.inspect(driveTake.appending(path: channel.stemFile)).frameCount == 240)
+        }
+        #expect(try TakeMetadata.read(fromTakeFolder: driveTake).abandonedCopies == nil)
+        #expect(finishNow().isEmpty)
+    }
+
+    @Test("A Take found only on the Drive is ignored above the Show's Take count, with no recorded tail, or when its Device Take.json is corrupt")
+    func driveOnlyGuards() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let original = try await abandonedTake()
+        // A Device Take.json that is there but can't be read is not replaced by the Drive's.
+        try original.write(to: driveTake)
+        try Data("{".utf8).write(to: deviceTake.appending(path: TakeMetadata.fileName))
+        #expect(finishNow().isEmpty)
+        try FileManager.default.removeItem(at: deviceTake)
+        // Above the Show's Take count: another session's Take on a Drive with the same Show name.
+        #expect(AbandonedCopyRecovery.finish(deviceShow: device.appending(path: show), driveShow: drive.appending(path: show), upTo: 0).isEmpty)
+        // No tail recorded and no Device: the Take can't be told short, so the marker stays.
+        var noTail = original
+        noTail.gaps = []
+        try noTail.write(to: driveTake)
+        #expect(finishNow().isEmpty)
+        #expect(try TakeMetadata.read(fromTakeFolder: driveTake).abandonedCopies == [.drive])
+    }
+
     @Test("A Take with no marker, or whose Drive Take folder isn't there, is left alone")
     func leavesOthersAlone() async throws {
         defer { try? FileManager.default.removeItem(at: root) }
