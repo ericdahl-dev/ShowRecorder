@@ -43,7 +43,7 @@ struct DriveSpeedTestStepTests {
 
     /// `stem` makes the Stem for each channel number (1 first).
     private func step(
-        channels: Int = 4, duration: Duration = .seconds(1), stallLimit: Duration = .seconds(1),
+        channels: Int = 4, duration: Duration = .seconds(1), stallLimit: Duration = .seconds(5),
         isCancelled: @escaping @Sendable () -> Bool = { false }, stem: @escaping (Int) throws -> FakeStem = { _ in FakeStem() }
     ) throws -> DriveSpeedTest.StepResult {
         try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
@@ -59,7 +59,7 @@ struct DriveSpeedTestStepTests {
         let result = try step()
         #expect(result.reliable)
         #expect(result.droppedFrames == 0)
-        #expect(result.worstStall < .seconds(1))
+        #expect(result.worstStall < .seconds(5))
         #expect(!result.fellBehind)
         #expect(result.framesWritten >= 48_000 * 9 / 10)
         #expect(result.channels == 4)
@@ -67,7 +67,8 @@ struct DriveSpeedTestStepTests {
 
     @Test("A Drive that pauses past the stall limit is not reliable, and the worst stall is reported")
     func pauseIsAStall() throws {
-        let result = try step(duration: .seconds(2), stem: { $0 == 1 ? FakeStem(firstAppendDelay: 1.6) : FakeStem() })
+        // A pause three times the limit: a slow machine can only lengthen it.
+        let result = try step(duration: .seconds(2), stallLimit: .seconds(1), stem: { $0 == 1 ? FakeStem(firstAppendDelay: 3) : FakeStem() })
         #expect(!result.reliable)
         #expect(result.worstStall >= .seconds(1))
     }

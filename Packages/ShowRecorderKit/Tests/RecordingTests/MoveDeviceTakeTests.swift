@@ -19,7 +19,7 @@ extension DriveOnlyTakeTests {
         let recorder = Recorder(
             deviceFolder: device, driveFolder: { switched.connected ? DriveAccess(folder: drive) : nil }, now: { RecordingTakeTests.showDay },
             destinationCheckInterval: nil)
-        recorder.recordsToDriveOnly = true
+        recorder.recordTo = .drive
         return recorder
     }
 
@@ -112,14 +112,14 @@ extension DriveOnlyTakeTests {
         switched.connected = true
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(drive: switched)
-        recorder.recordsToDriveOnly = false
+        recorder.recordTo = .both
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await recorder.stopTake()
         await recorder.waitForRepair()
         switched.connected = false
-        recorder.recordsToDriveOnly = true
+        recorder.recordTo = .drive
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await recorder.stopTake()

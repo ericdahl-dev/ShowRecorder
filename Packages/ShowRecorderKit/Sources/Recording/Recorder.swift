@@ -17,6 +17,8 @@ public final class Recorder {
     /// Stop is writing the last Take's Copies (#652): no Take starts until it is done. True from the start of `stopTake`
     /// to the end of its publishing.
     public private(set) var isFinishing = false
+    /// While a progress-based Stop (#817) waits on the Drive: how much audio it still has to write. Nil otherwise.
+    public private(set) var finishProgress: FinishProgress?
     /// Callers of `waitForRepair` that came while the last Take was still being written: resumed when it is published.
     @ObservationIgnored private var finishWaiters: [CheckedContinuation<Void, Never>] = []
     /// Gain changes made while the last Take was being written: the publish replaces `currentShow`, so they go on it after.
@@ -75,6 +77,17 @@ public final class Recorder {
 
     @ObservationIgnored private let deviceFolder: URL
     @ObservationIgnored private let driveFolder: () -> DriveAccess?
+    /// Why the Drive isn't available right now, asked only after a press found none (#814).
+    @ObservationIgnored private let driveProblem: () -> String?
+    /// Why the running (or last) Take started without its Drive Copy, or nil when the press had one (#814). Also in the
+    /// Take's `Take.json`.
+    public private(set) var driveNotice: String?
+    /// Whether the running Take may have a Drive Copy: what the press decided from the tier (and, with Drive only
+    /// settings, from where Takes go). The Drive joins mid-Take only when this is true (#814).
+    @ObservationIgnored private var takeMayUseDrive = true
+    /// Whether the tier allows the running (or last) Take a Drive Copy. Free has none, so the screen has no "No Drive"
+    /// warning for it: the Drive chip already says Pro (Eric, #814).
+    public private(set) var driveCopyAllowed = true
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let freeSpace: @Sendable (URL) -> Int64
     /// The free-space read under way, shared by a check that comes while it runs, so a stick that hangs on it costs one
@@ -125,15 +138,20 @@ public final class Recorder {
     @ObservationIgnored private let writerStopTimeout: Duration
     @ObservationIgnored private let driveStallLimit: Duration
 
-    /// Drive only (#196, ADR 0006): a Take with a Drive is written to the Drive alone, and the Device stands in only for
-    /// what the Drive can't take. Read at each record press. Offered where `DriveOnlyAvailability` allows.
-    public var recordsToDriveOnly = false
+    /// Where a Take is written (#805): the Device, the Drive (Drive only, ADR 0006: the Device stands in only for what
+    /// the Drive can't take), or Both. Read at each record press. The App sets it from `RecordToSetting` where
+    /// `RecordToAvailability` offers it, else leaves Both, which is today's behavior.
+    public var recordTo: RecordTo = .standard
     /// The host clock's ticks per second, for spotting a stop in the input (#317). Tests set it.
     @ObservationIgnored private let hostTicksPerSecond: Double
     /// Whether `AsyncStopAvailability` allows the asynchronous Stop: `stopTake` finishes the Take off the main actor (#652).
-    @ObservationIgnored let asyncStopAvailable: Bool
+    @ObservationIgnored private let asyncStopRule: () -> Bool
+    /// The rule's answer now, asked at each Stop rather than once at launch: StoreKit may answer after it.
+    var asyncStopAvailable: Bool { asyncStopRule() }
     /// Whether the last Take was Drive only (#196, ADR 0006), Drive or not: its summary speaks of the Drive alone.
     private(set) var lastTakeWasDriveOnly = false
+    /// Whether the last Take was recorded to the Device by choice (#805): its summary misses no Drive.
+    private(set) var lastTakeWasDeviceOnly = false
     /// Whether Repair moved the last Take's stand-in to the Drive and off the Device.
     private(set) var lastTakeStandInMoved = false
     /// Whether the last Take's stand-in is still on the Device after Repair.
@@ -145,6 +163,7 @@ public final class Recorder {
     public init(
         deviceFolder: URL = Recorder.defaultDeviceFolder,
         driveFolder: @escaping () -> DriveAccess? = { nil },
+        driveProblem: @escaping () -> String? = { nil },
         now: @escaping () -> Date = Date.init,
         freeSpace: @escaping @Sendable (URL) -> Int64 = { DriveFolderStore.availableBytes(at: $0) },
         preRollSeconds: Double = 0,
@@ -155,9 +174,9 @@ public final class Recorder {
         writerStopTimeout: Duration = .seconds(5),
         driveStallLimit: Duration = .seconds(2),
         writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) },
-        asyncStopAvailable: Bool = AsyncStopAvailability.isAvailableInThisBuild
+        asyncStopAvailable: @escaping () -> Bool = { AsyncStopAvailability.isAvailableInThisBuild }
     ) {
-        self.asyncStopAvailable = asyncStopAvailable
+        asyncStopRule = asyncStopAvailable
         self.destinationCheckInterval = destinationCheckInterval
         self.driveStallLimit = driveStallLimit
         self.hostTicksPerSecond = hostTicksPerSecond ?? Capture.machTicksPerSecond
@@ -170,6 +189,7 @@ public final class Recorder {
         self.makeStem = makeStem
         self.deviceFolder = deviceFolder
         self.driveFolder = driveFolder
+        self.driveProblem = driveProblem
         self.now = now
         repair.onChange = { [unowned self] in
             lastTakeOutcomes = repair.outcomes
@@ -446,7 +466,7 @@ public final class Recorder {
         guard let access = driveFolder() else { return .failed(["The Drive isn't available."]) }
         defer { access.end() }
         let device = deviceFolder, drive = access.folder
-        return await Task.detached { CopyCheck.verify(show: show, device: device, drive: drive) }.value
+        return await runOffPool { CopyCheck.verify(show: show, device: device, drive: drive) }
     }
 
     /// Deletes the Device copy of Show `show`, keeping the Drive copy, but only after `checkDriveCopy` passes.
@@ -504,18 +524,36 @@ public final class Recorder {
         endIdleShow(at: date)
 
         // The Drive is Pro (#705): a Take without the Drive Copy never reaches for it, so it records to the Device.
-        let mayUseDrive = allowance?.driveCopy ?? true
+        // Nor does a Take recorded to the Device alone (#805).
+        let mayUseDrive = recordTo.usesDrive && (allowance?.driveCopy ?? true)
+        // What the press decided holds for the whole Take: a Take that may not use the Drive never gets one later (#814).
+        takeMayUseDrive = mayUseDrive
+        driveCopyAllowed = allowance?.driveCopy != false
+        driveNotice = nil
         var drive = mayUseDrive ? driveFolder() : nil
+        // Why this Take has no Drive Copy from the press, kept in its Take.json and on screen (#814). No Drive chosen
+        // is not a problem: the app has no reason to give then.
+        var driveNote: String?
+        if allowance?.driveCopy == false {
+            // The tier, not where Takes are set to go: a Take sent to the Device by choice has nothing to explain.
+            driveNote = "The Drive Copy is a Pro feature."
+        } else if drive == nil, let reason = driveProblem() {
+            driveNote = "The Drive wasn't available at the press: \(reason)"
+        }
         let opened: (show: Show, session: TakeSession, folders: [DestinationKind: URL])
         do {
-            opened = try openTake(sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: drive)
+            opened = try openTake(
+                sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: drive, driveNote: driveNote)
         } catch where drive != nil {
             // A Drive that fails at the press doesn't stop the Take: it records to the Device alone (#315), and the
             // Drive's status says what's wrong. A Device that fails too throws its own error. The failed attempt
-            // already let the Drive go.
+            // already let the Drive go. The error is kept (#814): it says why the Drive Copy starts late.
             drive = nil
-            opened = try openTake(sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: nil)
+            driveNote = "The Drive failed at the press, so this Take started on the Device only: \(Self.describe(error))"
+            opened = try openTake(
+                sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: nil, driveNote: driveNote)
         }
+        driveNotice = driveNote
         let (show, session, takeFolders) = opened
         session.onCopyFailed = { [weak self, weak session] in Task { @MainActor in await self?.copyFailed(in: session) } }
         session.stopTimeout = writerStopTimeout
@@ -554,7 +592,7 @@ public final class Recorder {
     /// leaves nothing behind (#315).
     private func openTake(
         sources: [Source], allowance: TakeAllowance?, date: Date,
-        device: any AudioIODevice, capture: Capture, drive: DriveAccess?
+        device: any AudioIODevice, capture: Capture, drive: DriveAccess?, driveNote: String? = nil
     ) throws -> (show: Show, session: TakeSession, folders: [DestinationKind: URL]) {
         var show: Show
         do {
@@ -611,14 +649,25 @@ public final class Recorder {
                 show: show.name, take: show.takeCount, startedAt: date, sampleRate: sampleRate,
                 timeReference: timeReference, usbChannels: channels.filter { recorded.contains($0.usbChannel) })
             metadata.preRollFrames = preRollFrames > 0 ? preRollFrames : nil
+            metadata.driveNote = driveNote
 
             let specs = zip(channels, resolved).map { StemSpec(file: $0.stemFile, description: $1.name, isRecorded: recorded.contains($0.usbChannel)) }
             let info = StemWriter.Info(sampleRate: sampleRate, description: "", originator: "ShowRecorder", timeReference: timeReference, originationDate: date)
             return try TakeSession(
                 show: show, folders: takeFolders, drive: takeFolders[.drive] != nil ? drive : nil, metadata: metadata, stems: specs,
                 info: info, capture: capture, preRollFrames: preRollFrames, makeStem: makeStem, freeSpace: freeSpace,
-                driveOnly: recordsToDriveOnly && (allowance?.driveCopy ?? true))
+                driveOnly: recordTo.isDriveOnly && (allowance?.driveCopy ?? true),
+                deviceOnly: !recordTo.usesDrive && (allowance?.driveCopy ?? true))
         }
+    }
+
+    /// An error as the operator or a bug report can read it: its description, with the system error's domain and code
+    /// when it has them ("NSCocoaErrorDomain 513").
+    static func describe(_ error: any Error) -> String {
+        let nsError = error as NSError
+        let description = error.localizedDescription
+        return nsError.domain.isEmpty || nsError.domain == "Foundation._GenericObjCError"
+            ? description : "\(description) (\(nsError.domain) \(nsError.code))"
     }
 
     /// Logs a gain change ShowRecorder made on the Mixer (#450): during a Take in its `Take.json`, with a Marker such
@@ -803,8 +852,10 @@ public final class Recorder {
         if freeSpaceRead == reading { freeSpaceRead = nil }
         // The Take may have ended, or another one begun, while that read was under way.
         guard isRecording, self.session === session else { return }
-        switch session.checkDestinations(drive: driveFolder, freeSpace: { readings[$0] ?? .max }) {
+        switch session.checkDestinations(drive: { [self] in takeMayUseDrive ? driveFolder() : nil }, freeSpace: { readings[$0] ?? .max }) {
         case .carryOn:
+            // The Drive joined: "wasn't available at the press" is no longer true, and would be wrong if it dropped later.
+            if driveNotice != nil, session.takeCopies[.drive] != .missing { driveNotice = nil }
             currentShow = session.show
             currentShow?.keepChannelNames(channelNames)
             dropoutCount = session.dropoutCount
@@ -826,7 +877,7 @@ public final class Recorder {
         try await stopTake(because: .stopped)
     }
 
-    /// Three steps (#652): `beginStop` and `publishStop` run on the main actor. With `asyncStopAvailable` the finish
+    /// Three steps (#652): `beginStop` and `publishStop` run on the main actor. With the rule on (`asyncStopAvailable`, asked at each Stop) the finish
     /// between them runs on its own thread (it blocks on the writers, so never a pool thread) and the main actor is free
     /// meanwhile; otherwise it is inline. `isFinishing` is true from the start of the first to the end of the last. The
     /// await is not a cancellation point, so canceling the caller skips neither the finish nor the publish.
@@ -835,8 +886,14 @@ public final class Recorder {
         guard let stopping = beginStop(because: reason) else { return await waitWhileFinishing() }
         var input = stopping.input
         // Only the off-main finish waits on a slow Drive: the inline one holds the main thread, so it keeps the deadline.
-        input.progressBased = asyncStopAvailable
-        let finished = asyncStopAvailable ? await runOffPool { [input] in TakeSession.finish(input) } : TakeSession.finish(input)
+        let offMain = asyncStopAvailable
+        input.progressBased = offMain
+        if offMain {
+            let progress = FinishProgress()
+            finishProgress = progress
+            input.progress = progress
+        }
+        let finished = offMain ? await runOffPool { [input] in TakeSession.finish(input) } : TakeSession.finish(input)
         publishStop(stopping, finished)
     }
 
@@ -877,6 +934,7 @@ public final class Recorder {
     private func publishStop(_ stopping: Stopping, _ finished: TakeSession.Finished) {
         defer {
             isFinishing = false
+            finishProgress = nil
             let waiting = finishWaiters
             finishWaiters = []
             for waiter in waiting { waiter.resume() }
@@ -884,6 +942,7 @@ public final class Recorder {
         let session = stopping.session, reason = stopping.reason
         session.adopt(finished)
         lastTakeWasDriveOnly = session.driveOnly
+        lastTakeWasDeviceOnly = session.deviceOnly
         lastTakeSignal = finished.signal
         dropoutCount = finished.metadata.dropoutCount
         refreshMarkers(from: finished.metadata)
@@ -990,7 +1049,7 @@ public final class Recorder {
                 driveTake: driveTake, generation: generation)
         }
         driveOnlyScans += 1
-        let all = await Task.detached { TakeMover.find(deviceFolder: device, driveFolder: drive) }.value
+        let all = await runOffPool { TakeMover.find(deviceFolder: device, driveFolder: drive) }
         driveOnlySkips = all.filter { if case .skipped = $0.kind { true } else { false } }
         let found = all.filter { $0.kind == .standIn || $0.kind == .deviceOnly || $0.kind == .redundant }
         guard !found.isEmpty, !isRecording else {

@@ -141,6 +141,28 @@ public struct DriveFolderStore: Sendable {
         storage.save(nil)
     }
 
+    /// Why the Drive wasn't found, step by step, for the record of a Take that started without it (#814): the saved link
+    /// that can't be opened, the folder that isn't there, or "available now" when it was only slow to mount. Nil with no
+    /// Drive chosen. `status()` calls all of these `notConnected`, which hides which step failed.
+    public func problemDescription() -> String? {
+        guard let stored = storage.load() else { return nil }
+        var isStale = false
+        let folder: URL
+        do {
+            folder = try URL(resolvingBookmarkData: stored.bookmark, options: Self.resolutionOptions, relativeTo: nil, bookmarkDataIsStale: &isStale)
+        } catch {
+            let ns = error as NSError
+            return "The saved link to \"\(stored.name)\" couldn't be opened (\(ns.domain) \(ns.code))."
+        }
+        return Self.withAccess(to: folder) { url in
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+                return "The folder on \"\(stored.name)\" isn't there."
+            }
+            return "\"\(stored.name)\" is available now, so it was not ready when the press asked."
+        }
+    }
+
     /// Whether the remembered Drive folder is connected and writable right now.
     public func status() -> DriveStatus {
         guard let stored = storage.load() else { return .notChosen }

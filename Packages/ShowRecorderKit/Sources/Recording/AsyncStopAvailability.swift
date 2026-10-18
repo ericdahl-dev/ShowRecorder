@@ -1,8 +1,10 @@
 /// Where the asynchronous Stop (#652, part A) is used: Debug builds only, until Eric has tried it on a device and it
-/// moves up a level (its own one-line PR). In A3a nothing reads the answer for behavior yet; A3b is what finishes a
-/// Take off the main actor when it is on.
+/// moves up a level (its own one-line PR). `Recorder.stopTake` asks at each Stop, and finishes the Take off the main actor
+/// when it is on.
 public enum AsyncStopAvailability {
-    public static func isAvailable(isDebugBuild: Bool) -> Bool {
+    /// `environment` is nil until StoreKit has answered. At the Debug-only level it is not read; moving the feature to Debug +
+    /// TestFlight is `isDebugBuild || environment == .sandbox`, as for `DriveOnlyAvailability`.
+    public static func isAvailable(isDebugBuild: Bool, environment: DistributionEnvironment? = nil) -> Bool {
         isDebugBuild
     }
 
@@ -13,6 +15,6 @@ public enum AsyncStopAvailability {
         #else
         let isDebugBuild = false
         #endif
-        return isAvailable(isDebugBuild: isDebugBuild)
+        return isAvailable(isDebugBuild: isDebugBuild, environment: DemoSignalAvailability.environment)
     }
 }

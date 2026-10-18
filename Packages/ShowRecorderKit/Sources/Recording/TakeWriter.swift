@@ -96,6 +96,9 @@ final class TakeWriter: @unchecked Sendable {
     /// Stretches written as silence because the ring had no room for that audio.
     var dropouts: [Range<Int>] { dropoutRanges.withLock { $0 } }
 
+    /// Frames the ring holds that this writer has not written yet.
+    var backlogFrames: Int { ring.availableFrames }
+
     /// Writes and header commits done so far; it moves while the Destination is working, however slowly.
     var progressCount: Int { progress.load(ordering: .relaxed) }
 
@@ -160,21 +163,21 @@ final class TakeWriter: @unchecked Sendable {
     /// Waits for every writer to finish. One that makes no progress for `window` is abandoned, as a hung Destination is
     /// (#320); one that is slow but still writing is waited for, however long its backlog takes (#817). Call
     /// `requestStop()` on each first. Blocks, so never on the main actor.
-    static func waitAll(_ writers: [TakeWriter], noProgressFor window: Duration) {
-        let clock = ContinuousClock()
+    /// `now` is the clock the window is measured on; tests move it by hand.
+    static func waitAll(
+        _ writers: [TakeWriter], noProgressFor window: Duration, now clock: () -> ContinuousClock.Instant = { .now },
+        onPoll: () -> Void = {}
+    ) {
         var open = Array(writers.indices)
-        var counts = writers.map(\.progressCount)
-        var since = writers.map { _ in clock.now }
+        var watches = writers.map { ProgressWatch(window: window, count: $0.progressCount, at: clock()) }
         while !open.isEmpty {
-            let now = clock.now
+            onPoll()
+            let now = clock()
             open.removeAll { index in
                 let writer = writers[index]
                 if writer.isFinished { return true }
-                let count = writer.progressCount
-                if count != counts[index] {
-                    counts[index] = count
-                    since[index] = now
-                } else if now - since[index] >= window {
+                // A look long after the last one means this thread was suspended; see `ProgressWatch`.
+                if watches[index].isStalled(count: writer.progressCount, at: now) {
                     writer.abandon()
                     return true
                 }

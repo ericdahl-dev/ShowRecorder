@@ -8,7 +8,7 @@ extension Recorder {
         // outcome, so any other stays missing. The last Take's outcomes are kept while the next runs, but a running
         // Take reads its own.
         if isRecording, let session { return session.takeCopies }
-        return TakeCopies(isRunning: isRecording, isDriveOnly: lastTakeWasDriveOnly) { kind in
+        return TakeCopies(isRunning: isRecording, isDriveOnly: lastTakeWasDriveOnly, isDeviceOnly: lastTakeWasDeviceOnly) { kind in
             if !isRecording, kind == .device, lastTakeStandInMoved { return .moved }
             if !isRecording, kind == .device, lastTakeStandInKept { return .standInKept }
             let ended = isRecording ? nil : lastTakeOutcomes[kind].map(CopyState.init)
