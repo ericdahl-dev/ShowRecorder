@@ -461,7 +461,7 @@ public final class Recorder {
         guard let access = driveFolder() else { return .failed(["The Drive isn't available."]) }
         defer { access.end() }
         let device = deviceFolder, drive = access.folder
-        return await Task.detached { CopyCheck.verify(show: show, device: device, drive: drive) }.value
+        return await runOffPool { CopyCheck.verify(show: show, device: device, drive: drive) }
     }
 
     /// Deletes the Device copy of Show `show`, keeping the Drive copy, but only after `checkDriveCopy` passes.
@@ -1028,7 +1028,7 @@ public final class Recorder {
                 driveTake: driveTake, generation: generation)
         }
         driveOnlyScans += 1
-        let all = await Task.detached { TakeMover.find(deviceFolder: device, driveFolder: drive) }.value
+        let all = await runOffPool { TakeMover.find(deviceFolder: device, driveFolder: drive) }
         driveOnlySkips = all.filter { if case .skipped = $0.kind { true } else { false } }
         let found = all.filter { $0.kind == .standIn || $0.kind == .deviceOnly || $0.kind == .redundant }
         guard !found.isEmpty, !isRecording else {

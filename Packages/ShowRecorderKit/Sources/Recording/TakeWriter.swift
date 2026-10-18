@@ -163,13 +163,16 @@ final class TakeWriter: @unchecked Sendable {
     /// Waits for every writer to finish. One that makes no progress for `window` is abandoned, as a hung Destination is
     /// (#320); one that is slow but still writing is waited for, however long its backlog takes (#817). Call
     /// `requestStop()` on each first. Blocks, so never on the main actor.
-    static func waitAll(_ writers: [TakeWriter], noProgressFor window: Duration, onPoll: () -> Void = {}) {
-        let clock = ContinuousClock()
+    /// `now` is the clock the window is measured on; tests move it by hand.
+    static func waitAll(
+        _ writers: [TakeWriter], noProgressFor window: Duration, now clock: () -> ContinuousClock.Instant = { .now },
+        onPoll: () -> Void = {}
+    ) {
         var open = Array(writers.indices)
-        var watches = writers.map { ProgressWatch(window: window, count: $0.progressCount, at: clock.now) }
+        var watches = writers.map { ProgressWatch(window: window, count: $0.progressCount, at: clock()) }
         while !open.isEmpty {
             onPoll()
-            let now = clock.now
+            let now = clock()
             open.removeAll { index in
                 let writer = writers[index]
                 if writer.isFinished { return true }

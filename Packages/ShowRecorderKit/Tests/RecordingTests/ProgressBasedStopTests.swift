@@ -6,8 +6,8 @@ import Foundation
 import TakeFile
 import Testing
 
-/// With the asynchronous Stop on, a Drive that is slow but still writing is waited for, and only one that has stopped
-/// making progress is abandoned (#817). With it off, Stop keeps its fixed deadline.
+/// The asynchronous Stop's wiring at the Recorder (#817). Whether a slow Drive is waited for or abandoned is in WaitAllTests,
+/// with the clock under the test's control: nothing here depends on how fast the machine runs.
 @MainActor
 @Suite("Progress-based Stop")
 struct ProgressBasedStopTests {
@@ -76,15 +76,6 @@ struct ProgressBasedStopTests {
         }
         try await recorder.stopTake()
         return recorder
-    }
-
-    @Test("A Drive that is slow but still writing is waited for: its Stems are finalized and complete")
-    func slowDriveIsWaitedFor() async throws {
-        defer { try? FileManager.default.removeItem(at: root) }
-        let recorder = try await slowDriveStop(asyncStop: true)
-        #expect(recorder.copies[.drive] == .complete)
-        let driveStem = root.appending(path: "Drive/\(show)/Take 01/01 USB 01.wav")
-        #expect(try StemFile.inspect(driveStem).frameCount == 96_000)
     }
 
     @Test("While the Drive is being saved, the Recorder says how much audio it still has to write; afterwards it says nothing")
@@ -185,29 +176,5 @@ struct ProgressBasedStopTests {
         try await Task.sleep(for: .milliseconds(100))
         try await recorder.stopTake()
         #expect(recorder.copies[.drive] == .hasGaps)
-    }
-
-    @Test("Finalizing counts as progress: three Stems that each take 1.2 s to finalize are not abandoned at a 3 s window")
-    func slowFinalizeIsProgress() async throws {
-        defer { try? FileManager.default.removeItem(at: root) }
-        let device = root.appending(path: "Device")
-        let drive = root.appending(path: "Drive")
-        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
-        let gate = TestGate()
-        gate.open()
-        let recorder = Recorder(
-            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
-            makeStem: { url, info, resume in
-                let writer = try StemWriter.open(url: url, info: info, resumingAt: resume)
-                return url.path.hasPrefix(drive.path) ? SlowStem(writer, gate: gate, finalizeDelay: 1.2) : writer
-            },
-            destinationCheckInterval: nil, writerStopTimeout: .seconds(3), asyncStopAvailable: { true })
-        let audio = FakeAudioDevice(inputChannelCount: 3)
-        try recorder.arm(audio)
-        try recorder.startTake()
-        audio.deliver(Array(repeating: Array(repeating: Float(0.25), count: 4_800), count: 3))
-        try await Task.sleep(for: .milliseconds(100))
-        try await recorder.stopTake()
-        #expect(recorder.copies[.drive] == .complete)
     }
 }
