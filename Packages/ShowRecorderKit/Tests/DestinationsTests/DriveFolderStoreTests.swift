@@ -94,6 +94,17 @@ struct DriveFolderStoreTests {
         #expect(problem.contains("couldn't be opened") || problem.contains("isn't there"))
     }
 
+    @MainActor
+    @Test("The status can be read on its own thread, so the main actor isn't held while a slow volume answers (#814)")
+    func statusOffMain() async {
+        let storage = ThreadNotingStorage()
+
+        let status = await DriveFolderStore(storage: storage).currentStatus()
+
+        #expect(status == .notChosen)
+        #expect(storage.loadedOnMain == false)
+    }
+
     @Test("Asking the status again and again doesn't write anything while the name is unchanged")
     func noWritesWhenUnchanged() throws {
         let counting = CountingStorage()
@@ -187,4 +198,17 @@ final class CountingStorage: BookmarkStorage, @unchecked Sendable {
         saves += 1
         inner.save(folder)
     }
+}
+
+/// Notes which thread asked for the saved Drive folder.
+final class ThreadNotingStorage: BookmarkStorage, @unchecked Sendable {
+    private let lock = NSLock()
+    private var onMain: Bool?
+    var loadedOnMain: Bool? { lock.withLock { onMain } }
+
+    func load() -> StoredDriveFolder? {
+        lock.withLock { onMain = Thread.isMainThread }
+        return nil
+    }
+    func save(_ folder: StoredDriveFolder?) {}
 }
