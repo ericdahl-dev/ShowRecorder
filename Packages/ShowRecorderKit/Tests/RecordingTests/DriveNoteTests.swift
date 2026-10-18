@@ -143,6 +143,28 @@ struct DriveNoteTests {
         try await recorder.stopTake()
     }
 
+    @Test("A Pro Take with the Device chosen never gets the Drive mid-Take, and has nothing to explain (#805)")
+    func deviceChosenNeverJoinsTheDrive() async throws {
+        let drive = drive
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            destinationCheckInterval: nil)
+        recorder.recordTo = .device
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        try recorder.startTake(allowance: Entitlement.allowance(for: .pro, channelCount: 1))
+        audio.deliver([Array(repeating: 0.25, count: 480)])
+
+        await recorder.checkDestinations()
+        audio.deliver([Array(repeating: 0.25, count: 480)])
+        await recorder.checkDestinations()
+
+        #expect(recorder.driveNotice == nil, "the Device by choice is no problem")
+        #expect(recorder.copies[.drive] == .missing, "no Drive Copy joined")
+        #expect(!FileManager.default.fileExists(atPath: drive.appending(path: take).path), "nothing created on the Drive")
+        try await recorder.stopTake()
+    }
+
     @Test("The warning for a Take without a Drive carries the reason")
     func alertCarriesTheNote() throws {
         let alert = try #require(DestinationAlert.make(

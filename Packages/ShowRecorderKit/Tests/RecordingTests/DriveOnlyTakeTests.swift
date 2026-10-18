@@ -326,7 +326,7 @@ struct DriveOnlyTakeTests {
                 return real
             }, destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300), driveStallLimit: .milliseconds(100),
             writeAbandoned: { written.add($0, $1) })
-        recorder.recordsToDriveOnly = true
+        recorder.recordTo = .drive
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
