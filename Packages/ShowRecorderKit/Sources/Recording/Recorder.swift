@@ -133,9 +133,10 @@ public final class Recorder {
     @ObservationIgnored private let writerStopTimeout: Duration
     @ObservationIgnored private let driveStallLimit: Duration
 
-    /// Drive only (#196, ADR 0006): a Take with a Drive is written to the Drive alone, and the Device stands in only for
-    /// what the Drive can't take. Read at each record press. Offered where `DriveOnlyAvailability` allows.
-    public var recordsToDriveOnly = false
+    /// Where a Take is written (#805): the Device, the Drive (Drive only, ADR 0006: the Device stands in only for what
+    /// the Drive can't take), or Both. Read at each record press. The App sets it from `RecordToSetting` where
+    /// `RecordToAvailability` offers it, else leaves Both, which is today's behavior.
+    public var recordTo: RecordTo = .standard
     /// The host clock's ticks per second, for spotting a stop in the input (#317). Tests set it.
     @ObservationIgnored private let hostTicksPerSecond: Double
     /// Whether `AsyncStopAvailability` allows the asynchronous Stop: `stopTake` finishes the Take off the main actor (#652).
@@ -514,7 +515,8 @@ public final class Recorder {
         endIdleShow(at: date)
 
         // The Drive is Pro (#705): a Take without the Drive Copy never reaches for it, so it records to the Device.
-        let mayUseDrive = allowance?.driveCopy ?? true
+        // Nor does a Take recorded to the Device alone (#805).
+        let mayUseDrive = recordTo.usesDrive && (allowance?.driveCopy ?? true)
         // What the press decided holds for the whole Take: a Take that may not use the Drive never gets one later (#814).
         takeMayUseDrive = mayUseDrive
         driveCopyAllowed = allowance?.driveCopy != false
@@ -645,7 +647,7 @@ public final class Recorder {
             return try TakeSession(
                 show: show, folders: takeFolders, drive: takeFolders[.drive] != nil ? drive : nil, metadata: metadata, stems: specs,
                 info: info, capture: capture, preRollFrames: preRollFrames, makeStem: makeStem, freeSpace: freeSpace,
-                driveOnly: recordsToDriveOnly && (allowance?.driveCopy ?? true))
+                driveOnly: recordTo.isDriveOnly && (allowance?.driveCopy ?? true))
         }
     }
 

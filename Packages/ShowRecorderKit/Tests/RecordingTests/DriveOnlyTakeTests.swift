@@ -29,7 +29,7 @@ struct DriveOnlyTakeTests {
                 let real = try StemWriter.open(url: url, info: info, resumingAt: resuming)
                 return url.path.hasPrefix(drive.path) && resuming == nil ? driveStem(real) : real
             }, destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300), driveStallLimit: stallLimit)
-        recorder.recordsToDriveOnly = true
+        recorder.recordTo = .drive
         return recorder
     }
 
@@ -109,7 +109,7 @@ struct DriveOnlyTakeTests {
         let recorder = Recorder(
             deviceFolder: device, driveFolder: { flag.available ? DriveAccess(folder: drive) : nil },
             now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        recorder.recordsToDriveOnly = true
+        recorder.recordTo = .drive
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
@@ -145,7 +145,7 @@ struct DriveOnlyTakeTests {
     func noDriveAlert() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        recorder.recordsToDriveOnly = true
+        recorder.recordTo = .drive
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
@@ -161,7 +161,7 @@ struct DriveOnlyTakeTests {
     func summaryNoDrive() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        recorder.recordsToDriveOnly = true
+        recorder.recordTo = .drive
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
@@ -910,7 +910,7 @@ struct DriveOnlyTakeTests {
     func takeFileSaysDriveOnlyWithNoDrive() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        recorder.recordsToDriveOnly = true
+        recorder.recordTo = .drive
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
@@ -925,7 +925,7 @@ struct DriveOnlyTakeTests {
     func ordinaryTakeFileHasNoDriveOnly() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
-        recorder.recordsToDriveOnly = false
+        recorder.recordTo = .both
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
@@ -934,6 +934,22 @@ struct DriveOnlyTakeTests {
 
         #expect(try driveOnlyField(in: device) == nil)
         #expect(try driveOnlyField(in: drive) == nil)
+    }
+
+    @Test("With the Device chosen, a Take with a Drive connected writes no Drive Copy: Device only (#805)")
+    func deviceChosenWritesNoDriveCopy() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder()
+        recorder.recordTo = .device
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(2, to: audio, recorder, sample: counting())
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+
+        #expect(FileManager.default.fileExists(atPath: device.appending(path: "\(take)/01 USB 01.wav").path))
+        #expect(!FileManager.default.fileExists(atPath: drive.appending(path: take).path), "no Take folder on the Drive")
+        #expect(try driveOnlyField(in: device) == nil)
     }
 
     @Test("After a launch that finished a cut-off Drive only Take with a stand-in, the summary speaks of Drive only (#630)")
@@ -955,7 +971,7 @@ struct DriveOnlyTakeTests {
         let crashed = Recorder(
             deviceFolder: device, driveFolder: { withDrive ? DriveAccess(folder: drive) : nil }, now: { RecordingTakeTests.showDay },
             destinationCheckInterval: nil)
-        crashed.recordsToDriveOnly = driveOnly
+        crashed.recordTo = driveOnly ? .drive : .both
         try crashed.arm(audio)
         try crashed.startTake()
         try await deliverBlocks(10, to: audio, crashed, sample: counting())

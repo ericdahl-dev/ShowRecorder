@@ -127,7 +127,7 @@ struct FreeTakeTests {
     func freeDriveOnlyRecordsToDevice() async throws {
         let device = root.appending(path: "Device"), drive = root.appending(path: "Drive")
         let recorder = try freeDriveRecorder(device: device, drive: drive)
-        recorder.recordsToDriveOnly = true
+        recorder.recordTo = .drive
         let audio = FakeAudioDevice(inputChannelCount: 2)
         try recorder.arm(audio)
         try recorder.startTake(allowance: noDrive([1, 2]))
