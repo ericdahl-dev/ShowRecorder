@@ -194,6 +194,69 @@ struct TakeSessionTests {
         ])
     }
 
+    @Test("A Dropout the Drive logged after its last commit is cut off at the rejoin: a Gap in the Drive, still a Dropout of the Device (#604)")
+    func driveRejoinCutsOffDropoutPastTheResume() async throws {
+        let opened = Opened()
+        let session = try session(withDrive: true, opened: opened, wrap: { url, real in
+            let fresh = url.path.contains("/Drive/") && opened.resumes.last! == nil
+            return fresh ? CommitFailingStem(real, afterFrames: 1_000) : real
+        })
+        let drive = drive
+        try await deliver(480)
+        try await deliver(200_000)  // both Copies drop it
+        // The Drive's next header commit (after 2 s of audio) fails, so its last commit stays at the start: its Stems
+        // keep nothing of the Dropout.
+        for _ in 0..<3 { try await deliver(48_000) }
+        try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
+        #expect(!session.copies[1].writer.dropouts.isEmpty)
+
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
+        #expect(opened.resumes.last == 0)
+        let rejoinFrame = capture.takeFrameCount
+        try await deliver(480)
+        let finished = session.finish()
+
+        // The Drive's Stems start again from 0, so the stretch is a Gap there, no longer a Dropout of the Drive.
+        #expect(finished.metadata.dropouts == [.init(copy: .device, start: 480, end: 200_480)])
+        #expect(finished.metadata.gaps == [.init(copy: .drive, start: 0, end: rejoinFrame)])
+    }
+
+    @Test("A Drive that fails and rejoins twice keeps a Dropout from before the first rejoin (#604)")
+    func driveRejoinsTwiceKeepsEarlierDropouts() async throws {
+        let opened = Opened()
+        let capture = capture
+        let session = try session(withDrive: true, opened: opened, wrap: { url, real in
+            let driveOpens = opened.resumes.count - 1
+            guard url.path.contains("/Drive/"), driveOpens <= 2 else { return real }
+            if driveOpens == 1 { return FailingStem(real, healthyFrames: 300_000) }
+            // The second writer fails past its 2 s header commit, so the second rejoin resumes after the first.
+            return FailingStem(real, healthyFrames: capture.takeFrameCount - Int(opened.resumes.last! ?? 0) + 120_000)
+        })
+        let drive = drive
+        try await deliver(480)
+        try await deliver(200_000)
+        try await deliver(480)
+        for _ in 0..<3 { try await deliver(48_000) }
+        try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
+
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
+        let firstRejoin = capture.takeFrameCount
+        for _ in 0..<3 { try await deliver(48_000) }
+        try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
+
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
+        let committed2 = Int(try #require(opened.resumes.last ?? nil))
+        #expect(committed2 > firstRejoin)
+        try await deliver(480)
+        let finished = session.finish()
+
+        #expect(opened.resumes.count == 4)
+        #expect(finished.metadata.dropouts == [
+            .init(copy: .device, start: 480, end: 200_480),
+            .init(copy: .drive, start: 480, end: 200_480),
+        ])
+    }
+
     @Test("A Drive Copy that fails and rejoins twice keeps every earlier Gap")
     func driveRejoinsTwice() async throws {
         let opened = Opened()
