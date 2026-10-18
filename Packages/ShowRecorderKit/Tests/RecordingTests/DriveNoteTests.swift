@@ -152,6 +152,37 @@ struct DriveNoteTests {
         #expect(alert.text.contains("the disk is read-only"))
     }
 
+    @Test("Free has no Drive Copy to warn about: no 'No Drive' alert, though the Take's note stays in Take.json (Eric, #814)")
+    func noAlertOnFree() throws {
+        #expect(DestinationAlert.make(copies: takeCopies(device: .recording, drive: .missing), driveCopyAllowed: false) == nil)
+        #expect(DestinationAlert.make(copies: takeCopies(device: .recording, drive: .missing), driveCopyAllowed: true) != nil)
+    }
+
+    @Test("A Free Take with a Drive connected says its Drive Copy isn't allowed, and keeps the Pro note in Take.json")
+    func freeTakeIsMarkedNotAllowed() throws {
+        let drive = drive
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            destinationCheckInterval: nil)
+        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.startTake(allowance: Entitlement.allowance(for: .free, channelCount: 1))
+
+        #expect(!recorder.driveCopyAllowed)
+        #expect(try TakeMetadata.read(fromTakeFolder: device.appending(path: take)).driveNote?.contains("Pro") == true)
+    }
+
+    @Test("A Pro Take may have a Drive Copy")
+    func proTakeIsAllowed() throws {
+        let drive = drive
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            destinationCheckInterval: nil)
+        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.startTake(allowance: Entitlement.allowance(for: .pro, channelCount: 1))
+
+        #expect(recorder.driveCopyAllowed)
+    }
+
     @Test("Without a note the warning reads as before")
     func alertWithoutNote() throws {
         let alert = try #require(DestinationAlert.make(copies: takeCopies(device: .recording, drive: .missing)))

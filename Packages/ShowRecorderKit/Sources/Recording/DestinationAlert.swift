@@ -4,8 +4,10 @@ public enum DestinationAlert {
     /// - Parameter checkedAndNotFound: the operator tapped Check Drive and the Drive was still not there.
     /// - Parameter deviceWord: what a Drive only Take calls the device the app runs on: iPhone, iPad or Mac.
     /// - Parameter driveNote: why the Take started without its Drive, when the press found none (#814).
+    /// - Parameter driveCopyAllowed: false on Free, which has no Drive Copy: then having none is no warning.
     public static func make(
-        copies: TakeCopies, checkedAndNotFound: Bool = false, deviceWord: String = "iPhone", driveNote: String? = nil
+        copies: TakeCopies, checkedAndNotFound: Bool = false, deviceWord: String = "iPhone", driveNote: String? = nil,
+        driveCopyAllowed: Bool = true
     ) -> ScreenAlert? {
         guard copies.isRunning else { return nil }
         switch (copies[.device], copies[.drive]) {
@@ -26,6 +28,7 @@ public enum DestinationAlert {
                     + "The Drive stopped. Recording continues on the Device; the Gap is Repaired when the Drive comes back.",
                 action: .checkDrive)
         case (_, .missing):
+            guard driveCopyAllowed else { return nil }
             return ScreenAlert(
                 id: "no-drive", priority: .destination, tone: .warning,
                 text: (copies.isDriveOnly

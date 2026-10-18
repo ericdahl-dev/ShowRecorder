@@ -83,6 +83,9 @@ public final class Recorder {
     /// Whether the running Take may have a Drive Copy: what the press decided from the tier (and, with Drive only
     /// settings, from where Takes go). The Drive joins mid-Take only when this is true (#814).
     @ObservationIgnored private var takeMayUseDrive = true
+    /// Whether the tier allows the running (or last) Take a Drive Copy. Free has none, so the screen has no "No Drive"
+    /// warning for it: the Drive chip already says Pro (Eric, #814).
+    public private(set) var driveCopyAllowed = true
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let freeSpace: (URL) -> Int64
     /// How often a running Take's Destinations are checked (`checkDestinations()`). Nil leaves it to the caller.
@@ -514,6 +517,7 @@ public final class Recorder {
         let mayUseDrive = allowance?.driveCopy ?? true
         // What the press decided holds for the whole Take: a Take that may not use the Drive never gets one later (#814).
         takeMayUseDrive = mayUseDrive
+        driveCopyAllowed = allowance?.driveCopy != false
         driveNotice = nil
         var drive = mayUseDrive ? driveFolder() : nil
         // Why this Take has no Drive Copy from the press, kept in its Take.json and on screen (#814). No Drive chosen
