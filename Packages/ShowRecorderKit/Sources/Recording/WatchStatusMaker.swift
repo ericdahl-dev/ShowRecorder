@@ -20,9 +20,9 @@ public enum WatchStatusMaker {
 
     /// - Parameters:
     ///   - chips: the status strip's chips; one needing attention for the Device or an available Drive is low space
-    ///     (a failed one is a Copy that stopped, told by `copies`).
+    ///     (a failed one is a Copy that stopped, or one stopped for space is a Copy that is full, told by `copies`).
     ///   - driveAvailable: whether the Drive is there at all (a missing Drive isn't "low on space").
-    ///   - copies: the Take's Copies (#550); one that stopped mid-Take is a Copy stopped. Nil: no Take.
+    ///   - copies: the Take's Copies (#550); one that stopped mid-Take is a Copy stopped, one stopped for low space a Copy full (#560). Nil: no Take.
     public static func make(
         isArmed: Bool, take: Take?, chips: [StatusChip] = [], driveAvailable: Bool = false,
         copies: TakeCopies? = nil, dropoutCount: Int = 0, mixerDown: Bool = false, now: Date = .now
@@ -41,6 +41,7 @@ public enum WatchStatusMaker {
         if needsAttention(.device) { problems.append(.deviceLowSpace) }
         if driveAvailable, needsAttention(.drive) { problems.append(.driveLowSpace) }
         if !(copies?.stopped.isEmpty ?? true) { problems.append(.copyStopped) }
+        if !(copies?.full.isEmpty ?? true) { problems.append(.copyFull) }
         if dropoutCount > 0 { problems.append(.gapOrDropout) }
         if mixerDown { problems.append(.mixerLinkLost) }
         return WatchStatus(state: state, problems: problems, sentAt: now)

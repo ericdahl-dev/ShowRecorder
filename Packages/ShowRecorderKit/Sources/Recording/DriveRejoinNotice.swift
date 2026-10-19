@@ -12,7 +12,8 @@ public struct DriveRejoinNotice: Equatable, Sendable {
             showing = false
             return
         }
-        if drive == .interrupted {
+        // A Drive that was full (#560) and has room again rejoins like one that stopped: it left a Gap too.
+        if drive == .interrupted || drive == .full {
             wasInterrupted = true
             showing = false
         } else if wasInterrupted, drive == .recording {

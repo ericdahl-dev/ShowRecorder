@@ -123,6 +123,18 @@ struct StatusChipsTests {
         #expect(stopped[.drive]?.shortText == "Drive stopped")
     }
 
+    @Test("A Copy stopped for low space says it is full, not that it stopped (#560)")
+    func fullChips() {
+        let driveFull = chips(drive: drive(bytes: StatusChipsTests.anHour), copies: takeCopies(device: .recording, drive: .full))
+        #expect(driveFull[.drive]?.text == "Drive full")
+        #expect(driveFull[.drive]?.shortText == "Drive full")
+        #expect(driveFull[.drive]?.state == .failed)
+        #expect(driveFull[.device]?.text.hasPrefix("Device ") == true && driveFull[.device]?.text != "Device stopped")
+        let deviceFull = chips(drive: drive(bytes: StatusChipsTests.anHour), copies: takeCopies(device: .full, drive: .recording))
+        #expect(deviceFull[.device]?.text == "Device full")
+        #expect(deviceFull[.device]?.state == .failed)
+    }
+
     @Test("After a Take, a Copy that stopped during it no longer shows as stopped: the chips are back to time left")
     func stoppedOnlyWhileRunning() {
         let ended = TakeCopies(isRunning: false) { _ in .interrupted }

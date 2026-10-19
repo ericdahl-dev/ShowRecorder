@@ -331,7 +331,7 @@ struct GapTests {
         free.device = 5_000_000
         await recorder.checkDestinations()
         #expect(recorder.isRecording)
-        #expect(recorder.copies[.device] == .interrupted)
+        #expect(recorder.copies[.device] == .full, "retired for space, not failed (#560)")
         #expect(recorder.copies[.drive] == .recording)
 
         try await deliverBlocks(2, to: audio, recorder, sample: counting())

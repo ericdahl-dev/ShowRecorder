@@ -5,8 +5,10 @@ import TakeFile
 public enum CopyState: Equatable, Sendable {
     // While the Take runs.
     case recording
-    /// Its Destination failed or ran short of space mid-Take; the Take carries on in the other Copy.
+    /// Its Destination failed mid-Take; the Take carries on in the other Copy.
     case interrupted
+    /// Its Destination ran short of space and the Copy was stopped cleanly mid-Take (#560); the Take carries on in the other Copy.
+    case full
     /// It never started: no Destination.
     case missing
     /// Drive only (#196, ADR 0006): the Device writes nothing while the Drive takes the audio.
@@ -61,6 +63,12 @@ public struct TakeCopies: Equatable, Sendable {
         guard isRunning else { return [] }
         return Set(DestinationKind.allCases.filter { states[$0] == .interrupted })
     }
+
+    /// The Copies stopped for low space mid-Take (#560), while it runs; none once it has ended.
+    public var full: Set<DestinationKind> {
+        guard isRunning else { return [] }
+        return Set(DestinationKind.allCases.filter { states[$0] == .full })
+    }
 }
 
 extension CopyState {
@@ -72,7 +80,7 @@ extension CopyState {
         case .hasGaps: .hasGaps
         case .repaired: .repaired
         case .repairFailed: .repairFailed
-        case .recording, .interrupted, .missing, .standingBy, .standingIn: nil
+        case .recording, .interrupted, .full, .missing, .standingBy, .standingIn: nil
         }
     }
 }

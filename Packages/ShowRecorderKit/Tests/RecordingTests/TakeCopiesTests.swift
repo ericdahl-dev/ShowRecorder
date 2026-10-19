@@ -34,6 +34,25 @@ extension GapTests {
         try await recorder.stopTake()
     }
 
+    @Test("A Copy retired for low space reads full while the Take runs; one that failed reads interrupted (#560)")
+    func retiredForSpaceReadsFull() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let drive = drive
+        let free = FreeSpace(device: 100_000_000, drive: 100_000_000)
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            freeSpace: { free.bytes(at: $0) }, destinationCheckInterval: .milliseconds(10))
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(2, to: audio, recorder)
+        free.drive = 5_000_000
+        try await waitUntil { recorder.copies[.drive] == .full }
+        #expect(recorder.copies[.device] == .recording)
+        #expect(recorder.copies.full == [.drive])
+        #expect(recorder.copies.stopped.isEmpty)
+        try await recorder.stopTake()
+    }
+
     @Test("Once the Take has ended, each Copy says how it ended: the Drive that came back is Repaired")
     func copiesAfterTheTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
