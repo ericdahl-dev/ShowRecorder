@@ -38,6 +38,22 @@ struct PackOfferTests {
         #expect(PriceStage.full.label == nil)
     }
 
+    @Test("The paywall headline: a running Trial's line wins, with the pack or upgrade offered below; else the pack, the upgrade, then the moment (Eric, #705)")
+    func paywallHeadline() {
+        let trial = Paywall(moment: .trialEndingSoon(daysLeft: 2), proPrice: nil)
+        #expect(PackOffer.paywallHeadline(items: [.upgrade], mixerModel: nil, moment: .trialEndingSoon(daysLeft: 2), paywall: trial)
+            == "Your 14-day Trial ends in 2 days", "a pack owner in the Trial")
+        #expect(PackOffer.paywallHeadline(items: [.pack(.xAir), .pro], mixerModel: "XR18", moment: .trialEndingSoon(daysLeft: 2), paywall: trial)
+            == "Your 14-day Trial ends in 2 days")
+        let plain = Paywall(moment: nil, proPrice: nil)
+        #expect(PackOffer.paywallHeadline(items: [.upgrade], mixerModel: nil, moment: nil, paywall: plain) == "Pro on every audio interface")
+        #expect(PackOffer.paywallHeadline(items: [.pack(.xAir), .pro], mixerModel: "XR18", moment: nil, paywall: plain) == "Pro for your XR18")
+        let names = Paywall(moment: .genericNames, proPrice: nil)
+        #expect(PackOffer.paywallHeadline(items: [.upgrade], mixerModel: nil, moment: .genericNames, paywall: names)
+            == "Pro on every audio interface", "only the Trial's line wins over the offer")
+        #expect(PackOffer.paywallHeadline(items: [.pro], mixerModel: nil, moment: .genericNames, paywall: names) == names.headline)
+    }
+
     @Test("Pro owned: nothing to offer (#705)")
     func proOwned() {
         #expect(PackOffer.items(ownsPro: true, armedFamily: .xAir, ownedPacks: [.xAir], boughtPacks: [.xAir], packsOffered: true).isEmpty)

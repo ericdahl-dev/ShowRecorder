@@ -82,6 +82,15 @@ public enum PackOffer {
         return "Your \(pack.name) pack is Pro while an \(pack.models.joined(separator: " or ")) is the audio interface. \(rest)"
     }
 
+    /// The paywall's headline (#705): a running Trial's line first, with the pack or the upgrade offered below it (Eric);
+    /// else the pack's, then the upgrade's, then the moment's. The Trial's line is the `.trialEndingSoon` moment's; opened
+    /// from Settings (no moment), the offer's headline shows during a Trial too.
+    public static func paywallHeadline(items: [Item], mixerModel: String?, moment: ProOfferMoment?, paywall: Paywall) -> String {
+        if case .trialEndingSoon = moment { return paywall.headline }
+        if case .pack(let family)? = items.first { return headline(family: family, mixerModel: mixerModel) }
+        return upgradeHeadline(items: items) ?? paywall.headline
+    }
+
     /// The paywall headline when the only offer is the upgrade (#705); nil otherwise.
     public static func upgradeHeadline(items: [Item]) -> String? {
         items == [.upgrade] ? "Pro on every audio interface" : nil
