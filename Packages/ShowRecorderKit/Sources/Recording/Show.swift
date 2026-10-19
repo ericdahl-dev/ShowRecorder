@@ -139,9 +139,9 @@ public struct Show: Sendable, Equatable {
     }
 
     /// Marks the Show ended in every Copy it has. A Copy that can't be written is skipped: the Show ends anyway.
-    mutating func end(at date: Date) {
+    mutating func end(at date: Date, skipping skipped: Set<DestinationKind> = []) {
         endedAt = date
-        for copy in [folder] + (driveFolder.map { [$0] } ?? []) { try? file.write(to: copy) }
+        for kind in DestinationKind.allCases where !skipped.contains(kind) { if let copy = copies[kind] { try? file.write(to: copy.folder) } }
     }
 
     /// The Show that was left open: the one in `deviceParent` with a readable `Show.json` that isn't ended,

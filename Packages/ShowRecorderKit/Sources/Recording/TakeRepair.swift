@@ -75,9 +75,17 @@ final class TakeRepair {
         let abandonedFolders = abandoned.compactMap { folders[$0] }
         if !abandonedFolders.isEmpty {
             let previous = task, write = writeAbandoned
-            task = Task {
+            // Repair is running while that write is pending, so `isRepairing` says so and waiters know (#673).
+            pending += 1
+            isRunning = true
+            onChange()
+            task = Task { [weak self] in
                 await previous?.value
                 await runOffPool { for folder in abandonedFolders { write(metadata, folder) } }
+                guard let self else { return }
+                pending -= 1
+                isRunning = pending > 0
+                onChange()
             }
         }
         guard !metadata.gaps.isEmpty else {

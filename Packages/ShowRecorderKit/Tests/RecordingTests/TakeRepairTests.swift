@@ -82,6 +82,18 @@ struct TakeRepairTests {
         #expect(released.count == 1)
     }
 
+    @Test("The write to a Copy Stop gave up on counts as Repair running, so the screen and waiters know it is pending (#673)", .timeLimit(.minutes(3)))
+    func abandonedWriteIsRepairing() async throws {
+        let gate = TestGate()
+        defer { gate.open() }
+        let queue = TakeRepair(freeSpace: { _ in .max }, writeAbandoned: { _, _ in gate.wait() })
+        queue.enqueue(metadata(take: 1, gaps: []), folders: try folders("a"), holding: nil, abandoned: [.drive])
+        #expect(queue.isRunning)
+        gate.open()
+        await queue.wait()
+        #expect(!queue.isRunning)
+    }
+
     @Test("A Take with Gaps shows them as unrepaired until Repair has run, then holds its access to the end")
     func repairsAndReleases() async throws {
         let runner = Runner()
