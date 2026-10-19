@@ -253,7 +253,14 @@ public final class Recorder {
         }
         isRecoveringAbandoned = true
         let deviceShow = show.folder, skipping = abandonedThisLaunch[show.name] ?? [], takeCount = show.takeCount
-        let found = await runOffPool { AbandonedCopyRecovery.finish(deviceShow: deviceShow, driveShow: driveShow, skipping: skipping, upTo: takeCount) }
+        let found = await runOffPool {
+            let found = AbandonedCopyRecovery.finish(deviceShow: deviceShow, driveShow: driveShow, skipping: skipping, upTo: takeCount)
+            // Then the Take folders a canceled or hung Drive join left empty (#814): after the recovery, which needs the folder of
+            // a Copy Stop gave up on, and only Takes the Show had when this look began (a Take that starts meanwhile has a higher
+            // number).
+            DriveLeftovers.sweep(driveShow: driveShow, deviceShow: deviceShow, upTo: takeCount)
+            return found
+        }
         isRecoveringAbandoned = false
         guard !found.isEmpty else {
             access.end()
