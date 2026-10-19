@@ -1,7 +1,7 @@
 import Foundation
 
 /// Where a Take is written (#805): the Device, the Drive, or Both. Read at the record press.
-public enum RecordTo: String, CaseIterable, Sendable {
+public enum RecordTo: String, CaseIterable, Codable, Sendable {
     case device, drive, both
 
     /// Both, so a Take has two Copies unless the operator picks one Destination.

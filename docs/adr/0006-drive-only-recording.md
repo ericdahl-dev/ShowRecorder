@@ -12,7 +12,7 @@ Every Take is written to two Destinations at once, the Device and the Drive, and
 
 **Pre-roll** is kept in memory, so it never needs the Device.
 
-**Where the setting lives.** Settings › Storage, "Record to the Drive only", off by default, with a one-line warning when turned on ("Takes are written only to the Drive. If the Drive is lost, this iPhone records until it's back."). Templates carry it, like the Pre-roll length.
+**Where the setting lives.** Settings › Storage, the Drive choice of "Record to" (This iPhone, Drive, Both; Both by default, #805), with a one-line note when chosen ("Takes are written only to the Drive. If the Drive is lost, this iPhone records until it's back."). Templates carry the Record to choice, like the Pre-roll length (#840).
 
 ## Consequences
 

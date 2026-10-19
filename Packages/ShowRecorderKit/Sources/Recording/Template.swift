@@ -2,7 +2,7 @@ import Foundation
 import MixerLink
 
 /// A venue's whole setup, saved on this device, so one tap readies a different room (CONTEXT.md, ADR 0004). Starting
-/// a Show from it names the Show after it and brings its channel names, Pre-roll and Mixer. Not the Drive folder.
+/// a Show from it names the Show after it and brings its channel names, Pre-roll, Record to and Mixer. Not the Drive folder.
 public struct Template: Codable, Equatable, Identifiable, Sendable {
     public var id = UUID()
     /// The Template's name, which is also the Show's: "Sunday Service" starts "2026-10-12 Sunday Service".
@@ -15,10 +15,12 @@ public struct Template: Codable, Equatable, Identifiable, Sendable {
     /// The address the Mixer last had.
     public var mixerAddress: String
     public var preRollSeconds: Double
+    /// The Record to choice (#840); nil in a Template saved before Templates carried it, which leaves the current one.
+    public var recordTo: RecordTo?
 
     public init(
         name: String, venue: String?, channelNames: [Int: String],
-        mixerNetworkName: String?, mixerAddress: String, preRollSeconds: Double
+        mixerNetworkName: String?, mixerAddress: String, preRollSeconds: Double, recordTo: RecordTo? = nil
     ) {
         self.name = name
         self.venue = venue
@@ -26,6 +28,7 @@ public struct Template: Codable, Equatable, Identifiable, Sendable {
         self.mixerNetworkName = mixerNetworkName
         self.mixerAddress = mixerAddress
         self.preRollSeconds = preRollSeconds
+        self.recordTo = recordTo
     }
 
     /// Where to connect: a Mixer found with this Template's network name, wherever it is now, or else the saved
@@ -38,16 +41,16 @@ public struct Template: Codable, Equatable, Identifiable, Sendable {
     }
 
     /// A Template from a past Show's setup (#34): its channel names and venue, named like the Show without the date
-    /// ("2026-10-09 Youth Night" gives "Youth Night"). Shows don't keep a Mixer or Pre-roll, so those are today's.
-    /// Nil when the Show's file can't be read.
-    public static func fromShow(folder: URL, mixerNetworkName: String?, mixerAddress: String, preRollSeconds: Double) -> Template? {
+    /// ("2026-10-09 Youth Night" gives "Youth Night"). Shows don't keep a Mixer, Pre-roll or Record to, so those are
+    /// today's. Nil when the Show's file can't be read.
+    public static func fromShow(folder: URL, mixerNetworkName: String?, mixerAddress: String, preRollSeconds: Double, recordTo: RecordTo? = nil) -> Template? {
         guard let file = ShowFile.read(from: folder) else { return nil }
         let datePrefix = #/^\d{4}-\d{2}-\d{2} /#
         let name = file.name.replacing(datePrefix, with: "")
         let names = file.channelNames?.reduce(into: [Int: String]()) { if let number = Int($1.key) { $0[number] = $1.value } } ?? [:]
         return Template(
             name: name, venue: file.venue, channelNames: names,
-            mixerNetworkName: mixerNetworkName, mixerAddress: mixerAddress, preRollSeconds: preRollSeconds)
+            mixerNetworkName: mixerNetworkName, mixerAddress: mixerAddress, preRollSeconds: preRollSeconds, recordTo: recordTo)
     }
 
     func withID(_ id: UUID) -> Template {

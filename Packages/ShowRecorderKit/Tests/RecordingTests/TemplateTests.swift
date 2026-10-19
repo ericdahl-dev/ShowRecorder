@@ -124,6 +124,39 @@ struct TemplateTests {
         #expect(Template.fromShow(folder: root.appending(path: "nope"), mixerNetworkName: nil, mixerAddress: "", preRollSeconds: 0) == nil)
     }
 
+    @Test("A Template keeps its Record to choice on the device (#840)")
+    func recordToKept() {
+        var store = TemplateStore(defaults: defaults)
+        var template = sunday()
+        template.recordTo = .drive
+        store.save(template)
+        #expect(TemplateStore(defaults: defaults).templates.first?.recordTo == .drive)
+    }
+
+    @Test("A Template saved before Record to loads with no Record to choice (#840)")
+    func oldTemplateHasNoRecordTo() throws {
+        let old = #"[{"id":"\#(UUID().uuidString)","name":"Old","channelNames":{"1":"Pastor"},"mixerAddress":"192.168.1.146","preRollSeconds":10}]"#
+        defaults.set(Data(old.utf8), forKey: TemplateStore.key)
+        let store = TemplateStore(defaults: defaults)
+        #expect(!store.couldNotRead)
+        let template = try #require(store.templates.first)
+        #expect(template.name == "Old" && template.recordTo == nil)
+    }
+
+    @Test("A Template from a past Show takes today's Record to choice (#840)")
+    func fromPastShowRecordTo() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "TemplateTests-\(UUID().uuidString)")
+        let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, savedNames: defaults)
+        try recorder.arm(FakeAudioDevice(inputChannelCount: 2))
+        try recorder.startNewShow(name: "Youth Night", venue: "Gym")
+        let folder = try #require(recorder.currentShow?.folder)
+        try recorder.endShow()
+
+        let template = try #require(Template.fromShow(
+            folder: folder, mixerNetworkName: nil, mixerAddress: "", preRollSeconds: 0, recordTo: .device))
+        #expect(template.recordTo == .device)
+    }
+
     @Test("A Template store that can't be read is kept aside, not erased by the next save, and says it couldn't be read (#325)")
     func unreadableStoreKept() throws {
         let garbage = Data("not json".utf8)
