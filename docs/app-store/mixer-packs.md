@@ -38,7 +38,7 @@ The upgrade is the nearest App Store price point below Pro minus a pack: $4.99 â
 - [ ] **Price:** $2.99 (Launch); see the table.
 - [ ] **Family Sharing: On.**
 - [ ] **Availability:** every country Pro is in. Not before `PackAvailability` moves past Debug.
-- [ ] **Localization (English U.S.):** Display Name: brand-light, pick one of the two options in "Brand names" below. Description `Everything in Pro, with an XR18 or MR18` (39): the model names live only here (Eric, 2026-10-18).
+- [ ] **Localization (English U.S.):** Display Name `Mixer pack: 18-channel` (22 of 30; Eric, 2026-10-18). Description `Everything in Pro, with an XR18 or MR18` (39): the model names live only here.
 - [ ] **Covers:** the X Air family, `MixerFamily.xAir`: an Audio interface named XR18, MR18 or X18 (the Mac shows "X18/XR18"). The XR12 and XR16 send no multichannel USB, so they never Arm as an X Air.
 - [ ] **Review notes** (paste):
   > The X Air pack unlocks everything Pro does, but only while a Behringer XR18 or MR18 is the Audio interface the app is recording from (Settings > Recording > Audio interface). It is offered in Settings > Pro and in the Pro screen ("See what Pro adds") only while one of those mixers is connected over USB. Without one, Arm the Demo signal input (Settings > Recording > Audio interface): in this build it stands in for an XR18, so the pack is offered. The screenshot shows Settings > Pro on an iPhone with an XR18 connected. ShowRecorder Pro, the upgrade and this pack are non-consumables; Restore Purchases is in Settings > Pro.
@@ -61,7 +61,7 @@ The upgrade is the nearest App Store price point below Pro minus a pack: $4.99 â
 
 ## Brand names (Guideline 2.3.7): decided
 
-Eric (2026-10-18): **model names in the Description only; the Display Name is brand-light**, a "Mixer pack" with a qualifier that isn't a trademark. Two options for the X Air pack's Display Name (30 max):
+Eric (2026-10-18): **model names in the Description only; the Display Name is brand-light**, a "Mixer pack" with a qualifier that isn't a trademark. Eric chose option 1, **`Mixer pack: 18-channel`** (2026-10-18). The two options were:
 
 1. **`Mixer pack: 18-channel`** (22). Says what it fits by size; the XR18 and MR18 are the 18-channel X Air models. Later `Mixer pack: 32-channel` for the X32 and M32. Risk: a buyer with another 18-channel mixer may think it fits.
 2. **`Compact mixer pack`** (18). Plainer; leans on the Description for which mixer. Later the X32's would need another word ("Console mixer pack").
@@ -121,10 +121,8 @@ The StoreKit configuration has all five products with matching IDs, non-consumab
 
 ## Decisions (Eric, 2026-10-18) and what is left
 
-Decided: fix all the copy mismatches now as small PRs (pack-only text stays behind the Debug rule); model names in the Description only, brand-light Display Names; the Demo signal counts as an X Air in review and TestFlight builds; the X32 pack waits for #503, launch with the X Air pack only.
+Decided: the X Air pack's Display Name is `Mixer pack: 18-channel`; Eric changes Pro's App Store Connect description himself; fix all the copy mismatches now as small PRs (pack-only text stays behind the Debug rule); model names in the Description only, brand-light Display Names; the Demo signal counts as an X Air in review and TestFlight builds; the X32 pack waits for #503, launch with the X Air pack only.
 
 Left for you:
 
-1. **The X Air pack's Display Name:** option 1 or 2 in "Brand names".
-2. **Pro's live description in App Store Connect** ("Every USB Channel, â€¦", out of date): change it to `Mixer names, Drive copy, report, 96 kHz, more`, or another text.
-3. **When packs move past Debug** (`PackAvailability`), after your Xcode test: a one-line PR.
+1. **When packs move past Debug** (`PackAvailability`), after your Xcode test: a one-line PR.
