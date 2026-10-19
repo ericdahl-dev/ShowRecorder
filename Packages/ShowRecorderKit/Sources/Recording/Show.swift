@@ -187,6 +187,12 @@ public struct Show: Sendable, Equatable {
         return (last.name, names2)
     }
 
+    /// Takes over the Drive folder another copy of this Show got by `useDrive`, which was called off the session (#814).
+    mutating func adoptDrive(from other: Show) {
+        driveFolder = other.driveFolder
+        driveCopyWritten = other.driveCopyWritten
+    }
+
     /// Starts writing the running Take to the Drive folder `parent` too: the Show folder there (under
     /// the same name) and a folder for the current Take. Returns that Take folder.
     mutating func joinDrive(_ parent: URL) throws -> URL {

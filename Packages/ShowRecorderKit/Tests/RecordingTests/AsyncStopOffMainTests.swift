@@ -36,7 +36,7 @@ struct AsyncStopOffMainTests {
     /// Records one Take of 4 800 frames and stops it, with the Device Stem gated when `gate` is given.
     private func makeRecorder(
         in folder: URL, asyncStop: Bool, gate: TestGate? = nil, stem: @escaping (GatedStem) -> Void = { _ in },
-        drive: URL? = nil, driveIsUp: @escaping () -> Bool = { false }, checkInterval: Duration? = nil
+        drive: URL? = nil, driveIsUp: @escaping @Sendable () -> Bool = { false }, checkInterval: Duration? = nil
     ) -> Recorder {
         Recorder(
             deviceFolder: folder.appending(path: "Device"),
