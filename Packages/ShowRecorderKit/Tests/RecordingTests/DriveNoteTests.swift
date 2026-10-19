@@ -51,13 +51,27 @@ struct DriveNoteTests {
         #expect(metadata.driveNote?.contains("T7") == true)
     }
 
-    @Test("No Drive chosen is no problem: the app has no reason to give, so there is no notice and no note")
+    @Test("No Drive connected, and no reason from the app: Take.json still says there was none at the press, the screen says nothing more")
     func noDriveChosen() throws {
         let (recorder, metadata) = try recorded(access: false)
 
         #expect(recorder.isRecording)
+        #expect(recorder.driveNotice == nil, "no new text on screen")
+        #expect(metadata.driveNote?.contains("No Drive") == true, "but the file says so, for a report that asks why the Drive Copy starts late")
+    }
+
+    @Test("A Take the settings send to the Device by choice has nothing to explain: no note")
+    func deviceByChoiceHasNoNote() throws {
+        let drive = drive
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            destinationCheckInterval: nil)
+        recorder.recordTo = .device
+        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.startTake()
+
         #expect(recorder.driveNotice == nil)
-        #expect(metadata.driveNote == nil)
+        #expect(try TakeMetadata.read(fromTakeFolder: device.appending(path: take)).driveNote == nil)
     }
 
     @Test("A Drive that fails at the press still records to the Device, and the swallowed error is in the notice and Take.json (#315)")

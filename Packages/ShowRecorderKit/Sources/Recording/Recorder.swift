@@ -597,14 +597,22 @@ public final class Recorder {
         driveCopyAllowed = allowance?.driveCopy != false
         driveNotice = nil
         var drive = mayUseDrive ? driveFolder() : nil
-        // Why this Take has no Drive Copy from the press, kept in its Take.json and on screen (#814). No Drive chosen
-        // is not a problem: the app has no reason to give then.
+        // Why this Take has no Drive Copy from the press (#814): always in its Take.json, so a report that asks why the Drive
+        // Copy starts late has the answer; and on screen only when the app has a reason to give (a Drive chosen but not
+        // there, a Drive that failed), so "no Drive chosen" doesn't grow new text.
         var driveNote: String?
+        var onScreen: String?
         if allowance?.driveCopy == false {
             // The tier, not where Takes are set to go: a Take sent to the Device by choice has nothing to explain.
             driveNote = "The Drive Copy is a Pro feature."
-        } else if drive == nil, let reason = driveProblem() {
-            driveNote = "The Drive wasn't available at the press: \(reason)"
+            onScreen = driveNote
+        } else if mayUseDrive, drive == nil {
+            if let reason = driveProblem() {
+                driveNote = "The Drive wasn't available at the press: \(reason)"
+                onScreen = driveNote
+            } else {
+                driveNote = "No Drive was connected at the press."
+            }
         }
         let opened: (show: Show, session: TakeSession, folders: [DestinationKind: URL])
         do {
@@ -616,10 +624,11 @@ public final class Recorder {
             // already let the Drive go. The error is kept (#814): it says why the Drive Copy starts late.
             drive = nil
             driveNote = "The Drive failed at the press, so this Take started on the Device only: \(Self.describe(error))"
+            onScreen = driveNote
             opened = try openTake(
                 sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: nil, driveNote: driveNote)
         }
-        driveNotice = driveNote
+        driveNotice = onScreen
         let (show, session, takeFolders) = opened
         session.onCopyFailed = { [weak self, weak session] in Task { @MainActor in await self?.copyFailed(in: session) } }
         session.stopTimeout = writerStopTimeout
