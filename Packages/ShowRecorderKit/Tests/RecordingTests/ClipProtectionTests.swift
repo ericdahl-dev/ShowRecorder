@@ -1,4 +1,6 @@
+import AutoGain
 import Foundation
+import MixerLink
 import Synchronization
 import TakeFile
 @testable import Recording
@@ -559,6 +561,47 @@ struct ClipProtectionTests {
         restGap()
         for task in burst(3) { await task.value }
         #expect(mixer.gainDb[1] == 18, "the failed move's 6 dB stayed counted")
+    }
+
+    @Test("A turn-down is given the settings the Take's earlier turn-downs moved, so a gate left at its end stop keeps it (#686)")
+    func movesGivenEarlierClipMoves() async {
+        let gate = MixHold.Setting(channel: 1, parameter: .gateThreshold)
+        control.alsoMoves = MixHold.Change(setting: gate, fromDb: -70, toDb: -80)
+        let protection = ClipProtection(control: control, sampleRate: 48_000)
+        let clipping = Windows.repeating(Windows.clip, 10) + Windows.repeating(Windows.at(-20), 150)
+
+        await Self.feed(protection, clipping + clipping)
+        #expect(control.liveSeen.first == [], "nothing moved before the first turn-down")
+        #expect(control.liveSeen.dropFirst().first == [gate], "the next turn-down knows the gate is its own")
+
+        protection.takeStarted()
+        await Self.feed(protection, clipping)
+        #expect(control.liveSeen.last == [], "a new Take starts the count again")
+    }
+
+    @Test("Clip protection and auto-gain are given each other's moves: what auto-gain holds, and what a clip turn-down moved (#686)")
+    func sharedLiveSettings() async throws {
+        let queue = MixerQueue()
+        let compressor = MixHold.Setting(channel: 1, parameter: .compressorThreshold)
+        let gate = MixHold.Setting(channel: 1, parameter: .gateThreshold)
+        let mixer = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
+        mixer.mixHoldCeilingDb = 10
+        mixer.alsoMoves = MixHold.Change(setting: compressor, fromDb: -10, toDb: 0)
+        let session = AutoGainSession(control: mixer, measure: AutoGainSessionTests.meters(mixer, source: [1: -40]), queue: queue)
+        _ = await session.run(usbChannels: [1])
+
+        // Clip protection on the same queue is given what auto-gain still holds for Undo.
+        mixer.alsoMoves = MixHold.Change(setting: gate, fromDb: -70, toDb: -80)
+        let protection = ClipProtection(control: mixer, sampleRate: 48_000, queue: queue)
+        protection.takeStarted()
+        mixer.liveSeen = []
+        await Self.feed(protection, Windows.repeating(Windows.clip, 10))
+        #expect(mixer.liveSeen.first == [compressor])
+
+        // And auto-gain is given the gate that turn-down moved.
+        mixer.liveSeen = []
+        _ = await session.run(usbChannels: [1])
+        #expect(!mixer.liveSeen.isEmpty && mixer.liveSeen.allSatisfy { $0 == [compressor, gate] }, "its own held settings, and the gate")
     }
 
     @Test("A turn-down the mixer stops answering partway is still logged and counted in the Take's 12 dB (#450)")

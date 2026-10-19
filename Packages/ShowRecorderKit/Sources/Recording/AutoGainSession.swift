@@ -82,6 +82,10 @@ public final class AutoGainSession {
     public private(set) var steps: [Int: [GainStep]] = [:]
     /// The steps each channel running now has taken, before they join `steps`: another channel's move needs them (#685).
     private var inFlight: [Int: [GainStep]] = [:]
+    /// Every setting auto-gain moved and still holds for Undo, on any channel, this run's and earlier runs' (#685).
+    private var heldSettings: Set<MixHold.Setting> {
+        Set((Array(steps.values) + inFlight.values).joined().flatMap { $0.changes.map(\.setting) })
+    }
 
     /// - Parameters:
     ///   - measure: a USB Channel's Average level now, in dBFS, from the meters; nil when the audio stopped.
@@ -107,6 +111,8 @@ public final class AutoGainSession {
         self.measure = measure
         self.settle = settle
         mixerQueue = queue
+        // Clip protection on this Mixer's queue is given what this session still holds for Undo (#686).
+        queue.autoGainHeld = { [weak self] in self?.heldSettings ?? [] }
     }
 
     /// Runs auto-gain on each of `usbChannels` and says what happened to each, in the order asked. The channels are
@@ -195,7 +201,8 @@ public final class AutoGainSession {
                             if stopRequested { return nil }
                             // What auto-gain moved and still holds for Undo, on any channel, read once it's this
                             // channel's turn: Mix Hold keeps those end stops (#685).
-                            let live = Set((Array(steps.values) + inFlight.values).joined().flatMap { $0.changes.map(\.setting) })
+                            // And what clip protection's turn-downs moved this Take (#686).
+                            let live = heldSettings.union(mixerQueue.clipMoved)
                             return try await control.applyMixHold(channel: channel, gainChangeDb: db, scopes: .all, live: live)
                         }
                     } catch {

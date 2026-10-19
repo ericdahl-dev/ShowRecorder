@@ -143,6 +143,7 @@ public final class ClipProtection {
     /// waiting on the Mixer would settle its reservation against the new Take's count.
     public func takeStarted() {
         turnedDown = [:]
+        queue.clipMoved = []
     }
 
     /// The Take ended, or protection was switched off: a move still waiting on the Mixer doesn't start.
@@ -298,7 +299,12 @@ public final class ClipProtection {
             // So can the wait in the queue.
             guard let done = try await queue.run(lane: lane, { () throws(MixerLinkProblem) -> GainStep? in
                 guard !stopped else { return nil }
-                return try await control.applyMixHold(channel: channel, gainChangeDb: gainChangeDb, scopes: .all, live: [])
+                // The settings this Take's turn-downs moved and auto-gain still holds keep their end stops (#686).
+                let done = try await control.applyMixHold(
+                    channel: channel, gainChangeDb: gainChangeDb, scopes: .all, live: queue.clipMoved.union(queue.autoGainHeld()))
+                // Recorded as soon as it is written, so a move in another lane that starts next already knows it.
+                queue.clipMoved.formUnion(done.changes.map(\.setting))
+                return done
             }) else { return }
             step = done
         } catch {
@@ -309,6 +315,7 @@ public final class ClipProtection {
         // At its lowest gain, or Mix Hold out of range: nothing moved, so nothing to log or Mark.
         guard step.toGainDb < step.fromGainDb else { return }
         moved = step.fromGainDb - step.toGainDb
+        queue.clipMoved.formUnion(step.changes.map(\.setting))
         log(GainLog.change(step, usbChannel: usbChannel, reason: .clipProtection))
     }
 }

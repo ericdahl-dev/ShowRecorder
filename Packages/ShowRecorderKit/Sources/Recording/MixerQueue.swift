@@ -1,9 +1,17 @@
+import AutoGain
 import MixerLink
 
 /// One gain move or undo on the Mixer at a time, in the order asked (#554): each Mix Hold plan reads the Mixer, ramps
 /// and writes, so two at once could both rewrite a setting they both compensate (a keyed threshold) and lose one move.
 @MainActor
 public final class MixerQueue {
+    /// The settings clip protection's turn-downs moved this Take (#686). Auto-gain is given them as `live`, so a gate a turn-down
+    /// left at its end stop keeps it. Cleared when a Take starts (`ClipProtection.takeStarted`).
+    var clipMoved: Set<MixHold.Setting> = []
+    /// What auto-gain moved and still holds for Undo, asked of the session that runs (#685, #686): clip protection is given
+    /// it as `live` too. Nothing when no session holds anything.
+    var autoGainHeld: () -> Set<MixHold.Setting> = { [] }
+
     /// A whole-Mixer job is under way.
     private var whole = false
     /// The lanes with a job under way.
