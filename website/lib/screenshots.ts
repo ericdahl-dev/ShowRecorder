@@ -53,7 +53,7 @@ const SUNLIGHT_ALT =
 const MIXER_LINK_ALT =
   'Settings showing the Drive with 126 GB free, the recording time left on the Device and the Drive, and the Mixer Link up to "Skeyelab XR18" over Wi-Fi, with a Find Mixers button.';
 const PRO_ALT =
-  "The Pro screen: every USB Channel, channel names you type, the Show report and Reaper export, 96 kHz recording and Templates, with Buy Pro and Restore Purchases.";
+  "The Pro screen: names and colors from the mixer and channel names you type, on the files, a second Copy on the Drive, unlimited Markers, the Show report and Reaper export, 96 kHz recording and Templates, with Buy Pro and Restore Purchases.";
 
 const RECORDING_DARK_ALT =
   "ShowRecorder on iPhone during a Take: 18 colored level meters labeled from the mixer, a Take timer at 0:28 and the stop and Marker buttons.";
