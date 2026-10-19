@@ -760,9 +760,14 @@ final class TakeSession {
         // for the blocks that arrive meanwhile. Audio the Drive lost before that stays a Gap no stand-in covers.
         let held = Int(Double(info.sampleRate) * Self.standbySeconds)
         let newest = standby.sinks.map { Int($0.frameCount) }.max() ?? 0
-        // From where the Drive stopped, less what it may not have made durable: up to one header commit (2 s) of
-        // audio can die with a pulled Drive. The overlap costs nothing; Repair only fills Gaps.
-        let lostFrom = min(written - info.sampleRate * 2, firstDrop ?? .max)
+        // From where the Drive's audio stops being durable. A Drive whose write failed has its Stems cut back to the last
+        // header commit at a rejoin (#595), so that is exactly where the stand-in begins: no hand-written copy of the commit
+        // interval, which a late commit (a drain of up to a whole Dropout comes before it; a hung `fsync` leaves it there) can
+        // undershoot, leaving frames neither on the Drive nor in the stand-in (#602). A Drive that only stalled may yet carry on or
+        // fail later, so it starts at the earlier of its last commit and a margin of one commit interval (2 s): the overlap costs
+        // nothing; Repair only fills Gaps.
+        let durable = drive.writer.hasFailed ? drive.writer.framesKept : min(written - info.sampleRate * 2, drive.writer.committedFrames)
+        let lostFrom = min(durable, firstDrop ?? .max)
         let start = max(lostFrom, newest + info.sampleRate / 10 - held, 0)
         let folder = standby.folder.appending(path: TakeMetadata.StandIn(start: start, end: start).folderName, directoryHint: .isDirectory)
         var startInfo = info

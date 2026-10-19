@@ -188,6 +188,80 @@ struct DriveOnlyTakeTests {
         await recorder.waitForRepair()
     }
 
+    @Test("A Drive whose write failed is stood in for from its last committed frame, not from a hand-written margin before where it stopped (#602)")
+    func standInStartsAtTheCommit() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        // The Drive's Stem takes 150,000 frames and then fails: past its first header commit (2 s, about 96,000), before its next.
+        let recorder = recorder { FailingStem($0, healthyFrames: 150_000) }
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(400, to: audio, recorder, sample: counting())
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
+        await recorder.checkDestinations()
+
+        let started = try TakeMetadata.read(fromTakeFolder: device.appending(path: take)).standIns?.first?.start
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+
+        // The Drive's Stem was committed once, at the first drain that took it to 2 s (96,000 frames, or a few thousand past it
+        // when the writer drains in bigger pieces), and failed at about 149,760. Past the commit a pulled Drive may have lost
+        // the audio, so the stand-in begins there. The old margin (2 s before where it stopped, about 53,760) was a
+        // hand-written copy of the commit interval that can miss the real commit.
+        let start = try #require(started)
+        #expect((96_000...100_096).contains(start))
+    }
+
+    /// A Drive Stem whose third header commit hangs on the gate (a pulled Drive's `fsync` often hangs rather than failing).
+    /// The first is the writer's opening commit, the second the one after 2 s of audio.
+    final class CommitBlockingStem: StemSink, @unchecked Sendable {
+        let inner: StemWriter
+        let gate: StopNeverBlocksTests.Gate
+        private let lock = NSLock()
+        private var commits = 0
+        init(_ inner: StemWriter, gate: StopNeverBlocksTests.Gate) {
+            self.inner = inner
+            self.gate = gate
+        }
+        var frameCount: UInt64 { inner.frameCount }
+        func append(_ samples: UnsafeBufferPointer<Float>) throws { try inner.append(samples) }
+        func commitHeader() throws {
+            let number = lock.withLock { commits += 1; return commits }
+            if number >= 3 { gate.wait() }
+            try inner.commitHeader()
+        }
+        func finalize() throws { try inner.finalize() }
+        @discardableResult func setMarkers(_ markers: [StemMarker]) throws -> Int { try inner.setMarkers(markers) }
+    }
+
+    @Test("A Drive stalled inside a header commit is stood in for from its last commit, though that is more than 2 s behind where it stopped (#602)")
+    func standInStartsAtTheCommitWhenTheCommitHangs() async throws {
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(driveStem: { CommitBlockingStem($0, gate: gate) }, stallLimit: .milliseconds(100))
+        try recorder.arm(audio)
+        try recorder.startTake()
+        // Blocks of 4,096 frames, as a backed-up ring drains them: the first commit comes at 98,304 (24 blocks), the next
+        // after another 98,304 frames, at 196,608, and hangs.
+        for block in 0..<48 {
+            deliver(4_096, from: block * 4_096, to: audio, sample: counting())
+            try await waitUntil { recorder.bufferedFrameCount == 0 }
+        }
+        await recorder.checkDestinations()
+        try await Task.sleep(for: .milliseconds(250))
+        deliver(4_096, from: 48 * 4_096, to: audio, sample: counting())
+        await recorder.checkDestinations()
+
+        let started = try TakeMetadata.read(fromTakeFolder: device.appending(path: take)).standIns?.first?.start
+        gate.open()
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+
+        // The Drive wrote 196,608 frames but its last commit is at 98,304. A pulled Drive's Stem is cut back to that, so the
+        // stand-in has to begin there; 2 s before where the Drive stopped would be 100,608, leaving 2,304 frames in neither.
+        #expect(started == 98_304)
+    }
+
     @Test("A Drive that fails mid-Take: the Device stands in for the rest, and Repair moves it to the Drive and off the Device")
     func driveFails() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
