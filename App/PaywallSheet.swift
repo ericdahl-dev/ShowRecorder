@@ -20,6 +20,7 @@ struct PaywallSheet: View {
     }
     private var headline: String {
         if case .pack(let family)? = items.first { return PackOffer.headline(family: family, mixerModel: mixerModel) }
+        if let headline = PackOffer.upgradeHeadline(items: items) { return headline }
         return paywall.headline
     }
 
@@ -46,6 +47,7 @@ struct PaywallSheet: View {
                             }
                         }
                         .disabled(product == nil || store.busy)
+                        Text(PackOffer.packFootnote(family: family)).font(.footnote).secondaryText()
                     }
                     if items.contains(.pro) {
                         Button(paywall.buyTitle) {

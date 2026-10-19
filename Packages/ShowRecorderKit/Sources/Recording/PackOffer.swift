@@ -58,13 +58,33 @@ public enum PackOffer {
     public static func restoreNote(ownsPro: Bool, ownedPacks: Set<MixerFamily>) -> String? {
         if ownsPro { return nil }
         if let pack = ownedPacks.sorted(by: { $0.name < $1.name }).first { return "Restored: \(pack.name) pack" }
-        return "No Pro purchase found for this Apple Account."
+        return "No purchase found for this Apple Account."
     }
 
     /// The pack headline (#705): the linked Mixer's model, else the family's name.
     public static func headline(family: MixerFamily, mixerModel: String?) -> String {
         let model = mixerModel?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return "Pro for your \(model.isEmpty ? family.name : model)"
+    }
+
+    /// Under the pack offer (#705): the pack covers one family, Pro every audio interface.
+    public static func packFootnote(family: MixerFamily) -> String {
+        "The \(family.name) pack is Pro while an \(family.models.joined(separator: " or ")) is the audio interface. Pro covers every one."
+    }
+
+    /// The Settings footer for a pack owner (#705), in place of Free's; nil without a pack. Only a bought pack is offered
+    /// the upgrade (`items`); a pack shared through Family Sharing is offered full Pro.
+    public static func ownerFooter(ownedPacks: Set<MixerFamily>, boughtPacks: Set<MixerFamily>) -> String? {
+        // A bought pack first: it's the one the upgrade rests on.
+        let byName: (MixerFamily, MixerFamily) -> Bool = { $0.name < $1.name }
+        guard let pack = boughtPacks.intersection(ownedPacks).sorted(by: byName).first ?? ownedPacks.sorted(by: byName).first else { return nil }
+        let rest = boughtPacks.isEmpty ? "Pro covers every one." : "Upgrade to Pro for every one."
+        return "Your \(pack.name) pack is Pro while an \(pack.models.joined(separator: " or ")) is the audio interface. \(rest)"
+    }
+
+    /// The paywall headline when the only offer is the upgrade (#705); nil otherwise.
+    public static func upgradeHeadline(items: [Item]) -> String? {
+        items == [.upgrade] ? "Pro on every audio interface" : nil
     }
 }
 
@@ -74,6 +94,14 @@ extension MixerFamily {
         switch self {
         case .xAir: "X Air"
         case .x32: "X32"
+        }
+    }
+
+    /// The models the family's pack covers, in copy: "XR18", "MR18" (#705).
+    public var models: [String] {
+        switch self {
+        case .xAir: ["XR18", "MR18"]
+        case .x32: ["X32", "M32"]
         }
     }
 }
