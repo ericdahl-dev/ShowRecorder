@@ -35,4 +35,31 @@ struct StemRepairTests {
 
         #expect(try StemWriter.readSamples(url: drive, frames: 0..<10_000) == take)
     }
+
+    @Test("Where the source ends early, the target's own frames past that are left as they are, not overwritten with silence (#602)")
+    func shortSourceLeavesTheTargetAlone() throws {
+        let take = Self.samples(0..<1_000)
+        // The target holds real audio all the way, though its Gap says 300 to 800 (an uncommitted tail that did reach the disk).
+        let target = try write("target.wav", take)
+        // The source holds only the first 500 frames of the Take.
+        let source = try write("source.wav", Array(take[0..<500]).map { $0 * 0.5 })
+
+        try StemRepair.fill(target: target, from: source, ranges: [300..<800], length: 1_000, markers: [])
+
+        let result = try StemWriter.readSamples(url: target, frames: 0..<1_000)
+        #expect(Array(result[300..<500]) == (try StemWriter.readSamples(url: source, frames: 300..<500)), "what the source has is copied")
+        #expect(Array(result[500..<800]) == Array(take[500..<800]), "what it lacks stays as the target had it")
+        #expect(Array(result[800..<1_000]) == Array(take[800..<1_000]))
+    }
+
+    @Test("A source with nothing at all in the range changes nothing")
+    func emptySourceChangesNothing() throws {
+        let take = Self.samples(0..<1_000)
+        let target = try write("target.wav", take)
+        let source = try write("source.wav", [])
+
+        try StemRepair.fill(target: target, from: source, ranges: [0..<1_000], length: 1_000, markers: [])
+
+        #expect(try StemWriter.readSamples(url: target, frames: 0..<1_000) == take)
+    }
 }
