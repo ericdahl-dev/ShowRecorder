@@ -240,7 +240,7 @@ public final class AutoGainSession {
             // A Take that starts meanwhile doesn't stop it (Eric, #663): it puts back the operator's gain, and it is
             // bounded. It undoes only this run's steps on this channel, at most `rule.maxPasses` (one per pass). Each
             // undo is a ramp of 3 dB steps (`rampStepDb`) of Mixer requests, each limited by the driver's reply timeout (OSC, 1.5 s), and a
-            // request that times out ends the rollback. It is one job on the Mixer's queue, so a clip protection
+            // request that times out ends the rollback; each undo first reads the preamp's gain once more (#670). It is one job on the Mixer's queue, so a clip protection
             // turn-down asked for meanwhile writes right after its last undo; one queued behind several channels'
             // rollbacks waits for all of them, first in, first out. The run makes no gain move after a Take started
             // (`stopRequested`).
@@ -249,7 +249,8 @@ public final class AutoGainSession {
             _ = try? await onMixer { () throws(MixerLinkProblem) in
                 while undoProblem == nil, let step = taken.last {
                     do throws(MixerLinkProblem) {
-                        try await control.undo(step)
+                        // Not over a preamp something else moved since (a clip turn-down on a shared one, #670).
+                        try await control.undo(step, ifUnmoved: true)
                         taken.removeLast()
                         log(GainLog.change(step, usbChannel: usbChannel, reason: .undo, undoing: true))
                     } catch {

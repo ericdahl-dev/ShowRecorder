@@ -79,6 +79,10 @@ extension XAirDriver: GainControl, MixHoldDesk {
         try await undoMixHold(step)
     }
 
+    public func undo(_ step: GainStep, ifUnmoved: Bool) async throws(MixerLinkProblem) {
+        try await undoMixHold(step, ifUnmoved: ifUnmoved)
+    }
+
     /// The input channel USB Channel `usbChannel` carries, from the routing read on connect. The aux return has no
     /// preamp of its own, so it isn't one.
     public func channel(forUSBChannel usbChannel: Int) -> Int? {

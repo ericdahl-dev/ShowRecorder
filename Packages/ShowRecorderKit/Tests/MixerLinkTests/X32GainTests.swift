@@ -128,6 +128,56 @@ struct X32GainTests {
         #expect(try await driver.gainDb(ofHeadamp: 0) == -12)
     }
 
+    @Test("A rollback that must not overwrite a moved preamp writes nothing and says so; a plain Undo still puts it back (#670)")
+    func guardedUndoRefusesAMovedPreamp() async throws {
+        let mixer = try await FakeXAirMixer(Self.kickDesk())
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+        // Something else (clip protection) turns the same preamp down afterwards.
+        _ = try await driver.applyMixHold(channel: 1, gainChangeDb: -3)
+        let gainBefore = try await driver.gainDb(ofHeadamp: 0)
+        let writesBefore = mixer.writes.count
+
+        do {
+            try await driver.undo(step, ifUnmoved: true)
+            Issue.record("the rollback wrote over a gain that had moved since")
+        } catch {
+            #expect(error == .gainMovedSinceStep)
+        }
+        #expect(try await driver.gainDb(ofHeadamp: 0) == gainBefore)
+        #expect(mixer.writes.count == writesBefore, "nothing was written")
+
+        try await driver.undo(step)   // the operator's Undo is not guarded
+        #expect(try await driver.gainDb(ofHeadamp: 0) == -12)
+    }
+
+    @Test("Two steps rolled back newest first, nothing moved since: each guarded undo finds the preamp where its step left it (#670)")
+    func guardedUndoTwoSteps() async throws {
+        let mixer = try await FakeXAirMixer(Self.kickDesk())
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+        let older = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+        let newer = try await driver.applyMixHold(channel: 1, gainChangeDb: 3)
+        #expect(older.toGainDb == newer.fromGainDb)
+        try await driver.undo(newer, ifUnmoved: true)
+        try await driver.undo(older, ifUnmoved: true)
+        #expect(try await driver.gainDb(ofHeadamp: 0) == -12)
+    }
+
+    @Test("A guarded undo of a step nothing has moved since, or of a step the Mixer stopped partway through, puts it back (#670)")
+    func guardedUndoWhenUnmovedOrPartial() async throws {
+        let mixer = try await FakeXAirMixer(Self.kickDesk())
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+        try await driver.undo(step, ifUnmoved: true)
+        #expect(try await driver.gainDb(ofHeadamp: 0) == -12)
+
+        var partial = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+        _ = try await driver.applyMixHold(channel: 1, gainChangeDb: -3)
+        partial.isPartial = true   // where the gain is now isn't known, so it is put back anyway
+        try await driver.undo(partial, ifUnmoved: true)
+        #expect(try await driver.gainDb(ofHeadamp: 0) == -12)
+    }
+
     @Test("A channel with no preamp can't have its gain set, and says why")
     func noPreamp() async throws {
         var state = Self.kickDesk()
