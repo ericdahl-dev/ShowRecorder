@@ -25,6 +25,13 @@ public enum RecordTo: String, CaseIterable, Sendable {
         usesDrive && !driveAllowed
     }
 
+    /// Whether Settings › Storage shows the Drive's warning and its time left: only where Takes go to the Drive. With This
+    /// iPhone in effect (chosen, or on Free) they go away and the Drive folder button is dimmed (Eric, #805). Where Record
+    /// to isn't offered, Settings is as before.
+    public func settingsShowsDrive(isOffered: Bool, driveAllowed: Bool) -> Bool {
+        !isOffered || shown(driveAllowed: driveAllowed).usesDrive
+    }
+
     /// Whether a Take is written to the Drive (when there is one).
     public var usesDrive: Bool { self != .device }
     /// Whether the Drive is the Take's only Destination: Drive only (#196, ADR 0006).

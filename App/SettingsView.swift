@@ -98,23 +98,7 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    driveStatus
-                    // Free records to the Device only (#705): say so where the Drive is chosen, calmly, with no prompt.
-                    if !model.pro.license().allowsDrive, case .available = model.drive.status {
-                        Text("On Free, Takes record to this \(ThisHardware.word) only. A second Copy on the Drive is part of Pro.")
-                            .font(.footnote).secondaryText()
-                    }
-                    Button(model.drive.status == .notChosen ? "Choose Drive Folder…" : "Change Drive Folder…") { choosing = true }
-                        .disabled(locked(.drive))
-                    timeLeft
-                    // Shown while it runs or has a result even if the Drive drops out, so Cancel and the result stay reachable.
-                    if DriveSpeedTestAvailability.isAvailableInThisBuild,
-                       model.drive.status.isAvailable || model.speedTest.isRunning || model.speedTest.result != nil {
-                        DriveSpeedTestRow(model: model.speedTest, canStart: model.drive.status.isAvailable && model.speedTestMayStart) {
-                            guard model.speedTestMayStart else { return }
-                            model.speedTest.start(store: model.drive.store)
-                        }
-                    }
+                    // Record to first; with This iPhone in effect the Drive rows step back (Eric, #805).
                     if RecordToAvailability.isAvailableInThisBuild {
                         // Free shows This iPhone, the choice in effect; Drive and Both offer Pro, and the saved choice
                         // stays for Pro or the Trial (Eric, #805).
@@ -137,7 +121,7 @@ struct SettingsView: View {
                         }
                         .pickerStyle(.menu)
                         .disabled(locked(.recordTo))
-                        // Free has its own note above: its Takes record to this iPhone, whatever is chosen.
+                        // Free has its own note below: its Takes record to this iPhone, whatever is chosen.
                         if model.pro.license().allowsDrive {
                             switch model.recordTo {
                             case .device:
@@ -148,6 +132,24 @@ struct SettingsView: View {
                                     .font(.footnote).secondaryText()
                             case .both: EmptyView()
                             }
+                        }
+                    }
+                    driveStatus
+                    // Free records to the Device only (#705): say so where the Drive is chosen, calmly, with no prompt.
+                    if !model.pro.license().allowsDrive, case .available = model.drive.status {
+                        Text("On Free, Takes record to this \(ThisHardware.word) only. A second Copy on the Drive is part of Pro.")
+                            .font(.footnote).secondaryText()
+                    }
+                    Button(model.drive.status == .notChosen ? "Choose Drive Folder…" : "Change Drive Folder…") { choosing = true }
+                        .disabled(locked(.drive))
+                        .opacity(showsDrive ? 1 : 0.5)
+                    timeLeft
+                    // Shown while it runs or has a result even if the Drive drops out, so Cancel and the result stay reachable.
+                    if DriveSpeedTestAvailability.isAvailableInThisBuild,
+                       model.drive.status.isAvailable || model.speedTest.isRunning || model.speedTest.result != nil {
+                        DriveSpeedTestRow(model: model.speedTest, canStart: model.drive.status.isAvailable && model.speedTestMayStart) {
+                            guard model.speedTestMayStart else { return }
+                            model.speedTest.start(store: model.drive.store)
                         }
                     }
                 } header: {
@@ -224,9 +226,16 @@ struct SettingsView: View {
         case .available(let drive):
             Label("Drive: \(drive.name) · \(drive.availableBytes.formatted(.byteCount(style: .file))) free", systemImage: "externaldrive.fill.badge.checkmark")
         case .unavailable(let problem):
-            Label(problem.message, systemImage: "externaldrive.badge.exclamationmark")
-                .warningText()
+            if showsDrive {
+                Label(problem.message, systemImage: "externaldrive.badge.exclamationmark")
+                    .warningText()
+            }
         }
+    }
+
+    /// Whether the Drive's warning and time left show: not with This iPhone in effect (#805).
+    private var showsDrive: Bool {
+        model.recordTo.settingsShowsDrive(isOffered: RecordToAvailability.isAvailableInThisBuild, driveAllowed: model.pro.license().allowsDrive)
     }
 
     /// Time left on each Destination for the Armed USB Channels.
@@ -235,7 +244,7 @@ struct SettingsView: View {
         if count > 0 {
             let rate = model.recorder.sampleRate ?? 48_000
             let device = TimeLeft(availableBytes: model.drive.deviceAvailableBytes, usbChannelCount: count, sampleRate: rate)
-            let drive: TimeLeft? = if case .available(let d) = model.drive.status {
+            let drive: TimeLeft? = if showsDrive, case .available(let d) = model.drive.status {
                 TimeLeft(availableBytes: d.availableBytes, usbChannelCount: count, sampleRate: rate)
             } else { nil }
             Text("Time left · Device: \(device.description)" + (drive.map { " · Drive: \($0.description)" } ?? ""))

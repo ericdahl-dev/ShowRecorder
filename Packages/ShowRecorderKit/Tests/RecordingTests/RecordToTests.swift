@@ -101,6 +101,17 @@ struct RecordToTests {
         for choice in RecordTo.allCases { #expect(!choice.offersPro(driveAllowed: true)) }
     }
 
+    @Test("Settings shows the Drive's warning and time left only when Takes go to it: not with This iPhone in effect, on Free too (Eric, #805)")
+    func settingsShowsDrive() {
+        #expect(!RecordTo.device.settingsShowsDrive(isOffered: true, driveAllowed: true))
+        #expect(RecordTo.drive.settingsShowsDrive(isOffered: true, driveAllowed: true))
+        #expect(RecordTo.both.settingsShowsDrive(isOffered: true, driveAllowed: true))
+        for choice in RecordTo.allCases {
+            #expect(!choice.settingsShowsDrive(isOffered: true, driveAllowed: false), "Free records to this iPhone")
+            #expect(choice.settingsShowsDrive(isOffered: false, driveAllowed: false), "no picker: Settings as before")
+        }
+    }
+
     @Test("Debug builds offer it whatever the environment, even before it is known (#805)")
     func debugBuild() {
         for environment: DistributionEnvironment? in [nil, .unknown, .sandbox, .production] {
