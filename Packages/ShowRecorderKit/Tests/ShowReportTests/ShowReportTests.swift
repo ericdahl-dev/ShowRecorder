@@ -386,3 +386,110 @@ enum CSV {
         return rows
     }
 }
+
+/// Drive only (#629): a Take the Device keeps only as a stand-in. The Device's Show holds `Stand-in N/<stem>` and no whole
+/// Stem, so the report reads the lengths from the stand-in Stems and says which stretch of the Take this Copy holds.
+@MainActor
+@Suite("Show report: a kept stand-in Take")
+struct ShowReportStandInTests {
+    let root = FileManager.default.temporaryDirectory.appending(path: "ShowReportStandInTests-\(UUID().uuidString)")
+
+    /// A Show of one Take the Device holds as the given stand-ins, each with a Stem as long as its range. With `wholeStem`, also
+    /// the Take's whole Stem of `wholeFrames`.
+    func keptStandInShow(
+        standIns: [TakeMetadata.StandIn] = [.init(start: 3_000, end: 7_000)], wholeStem wholeFrames: Int? = nil
+    ) throws -> URL {
+        var show = try Show.create(in: root, drive: nil, on: ShowReportTests.showDay)
+        let folders = try show.createNextTakeFolder()
+        let take = try #require(folders[.device])
+        var metadata = TakeMetadata(
+            show: show.name, take: 1, startedAt: ShowReportTests.showDay, sampleRate: 48_000, timeReference: 0,
+            usbChannels: [.init(usbChannel: 1, stemFile: "01 USB 01.wav", source: .fallback(usbChannel: 1))])
+        metadata.driveOnly = true
+        metadata.standIns = standIns
+        try metadata.write(to: take)
+        func write(_ url: URL, frames: Int, reference: UInt64) throws {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let info = StemWriter.Info(sampleRate: 48_000, description: "", originator: "", timeReference: reference, originationDate: ShowReportTests.showDay)
+            let stem = try StemWriter(url: url, info: info)
+            try [Float](repeating: 0.1, count: frames).withUnsafeBufferPointer { try stem.append($0) }
+            try stem.finalize()
+        }
+        for standIn in standIns where standIn.end > standIn.start {
+            try write(take.appending(path: standIn.folderName).appending(path: "01 USB 01.wav"), frames: standIn.end - standIn.start, reference: UInt64(standIn.start))
+        }
+        if let wholeFrames { try write(take.appending(path: "01 USB 01.wav"), frames: wholeFrames, reference: 0) }
+        return show.folder
+    }
+
+    @Test("A kept stand-in's length is read from its Stems, not left blank")
+    func lengthFromTheStandIn() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let report = try ShowReport(showFolder: try keptStandInShow())
+
+        let channel = try #require(report.takes.first?.usbChannels.first)
+        #expect(channel.sampleCount == 4_000)
+        #expect(channel.duration == 4_000.0 / 48_000.0)
+    }
+
+    @Test("The report says which stretch of the Take the Device holds")
+    func heldRange() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let report = try ShowReport(showFolder: try keptStandInShow())
+
+        #expect(report.takes.first?.heldRanges == [.init(startSeconds: 3_000.0 / 48_000.0, endSeconds: 7_000.0 / 48_000.0)])
+        #expect(report.html.contains("Held on the Device"))
+    }
+
+    @Test("Several stand-ins add up, and are listed in Take order without the empty ones")
+    func severalStandIns() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = try keptStandInShow(standIns: [.init(start: 9_000, end: 10_000), .init(start: 5_000, end: 5_000), .init(start: 3_000, end: 7_000)])
+        let report = try ShowReport(showFolder: url)
+
+        #expect(report.takes.first?.usbChannels.first?.sampleCount == 5_000, "4,000 and 1,000 frames")
+        #expect(report.takes.first?.heldRanges == [
+            .init(startSeconds: 3_000.0 / 48_000.0, endSeconds: 7_000.0 / 48_000.0),
+            .init(startSeconds: 9_000.0 / 48_000.0, endSeconds: 10_000.0 / 48_000.0),
+        ], "sorted, and a stand-in that held nothing is not a range")
+    }
+
+    @Test("A Take holding only a stand-in labels its duration as the Device's, not as the Take's")
+    func durationLabel() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let report = try ShowReport(showFolder: try keptStandInShow())
+
+        #expect(report.html.contains("<dt>Duration on the Device</dt>"))
+        #expect(!report.html.contains("<dt>Duration</dt>"))
+    }
+
+    @Test("A Take with a whole Stem and a leftover stand-in is a whole Take: its length, no held range")
+    func wholeStemWithALeftoverStandIn() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let report = try ShowReport(showFolder: try keptStandInShow(wholeStem: 12_000))
+
+        #expect(report.takes.first?.usbChannels.first?.sampleCount == 12_000)
+        #expect(report.takes.first?.heldRanges.isEmpty == true)
+        #expect(report.html.contains("<dt>Duration</dt>"))
+    }
+
+    @Test("A Take with its whole Stems says nothing of a held range")
+    func wholeTakeHasNoHeldRange() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        var show = try Show.create(in: root, drive: nil, on: ShowReportTests.showDay)
+        let folders = try show.createNextTakeFolder()
+        let take = try #require(folders[.device])
+        let metadata = TakeMetadata(
+            show: show.name, take: 1, startedAt: ShowReportTests.showDay, sampleRate: 48_000, timeReference: 0,
+            usbChannels: [.init(usbChannel: 1, stemFile: "01 USB 01.wav", source: .fallback(usbChannel: 1))])
+        try metadata.write(to: take)
+        let stem = try StemWriter(url: take.appending(path: "01 USB 01.wav"), info: StemWriter.Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: ShowReportTests.showDay))
+        try [Float](repeating: 0.1, count: 480).withUnsafeBufferPointer { try stem.append($0) }
+        try stem.finalize()
+
+        let report = try ShowReport(showFolder: show.folder)
+
+        #expect(report.takes.first?.heldRanges.isEmpty == true)
+        #expect(!report.html.contains("Held on the Device"))
+    }
+}
