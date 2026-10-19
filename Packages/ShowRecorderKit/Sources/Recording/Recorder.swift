@@ -393,7 +393,7 @@ public final class Recorder {
         var show = try Show.create(in: deviceFolder, drive: nil, on: date, name: name, venue: venue)
         // Names belong to a Show: the one being replaced keeps its own; names typed before any Show carry over.
         if currentShow != nil { naming.replace(with: [:]) } else if !channelNames.isEmpty { show.setChannelNames(channelNames) }
-        currentShow?.end(at: date)
+        currentShow?.end(at: date, skipping: suspectDrive)
         currentShow = show
     }
 
@@ -432,14 +432,14 @@ public final class Recorder {
         guard !isRecording else { throw RecorderError.takeRunning }
         guard !isFinishing else { throw RecorderError.finishing }
         if currentShow != nil { naming.replace(with: [:]) }
-        currentShow?.end(at: now())
+        currentShow?.end(at: now(), skipping: suspectDrive)
         currentShow = nil
     }
 
     /// A Show with no Take for 6 hours is over; names typed since then are for the next one.
     private func endIdleShow(at date: Date) {
         guard let open = currentShow, open.isIdle(at: date) else { return }
-        currentShow?.end(at: date)
+        currentShow?.end(at: date, skipping: suspectDrive)
         currentShow = nil
         naming.replace(with: [:])
     }
@@ -757,7 +757,8 @@ public final class Recorder {
         } else if isFinishing {
             gainChangesWhileFinishing.append(change)
         } else {
-            currentShow?.logGainChange(change)
+            // Not to a Copy the last Stop gave up on: it may be hung (#673).
+            currentShow?.logGainChange(change, skipping: suspectDrive)
         }
     }
 
@@ -1146,7 +1147,10 @@ public final class Recorder {
     /// How long a report rewrite, or `waitForRepair`, waits for an earlier rewrite before going on without it.
     @ObservationIgnored var reportWaitLimit: Duration = .seconds(10)
     /// The Copies the last Take's Stop gave up on: their Destination may be hung, so nothing writes them from the main thread.
-    @ObservationIgnored private var suspectCopies: Set<DestinationKind> = []
+    @ObservationIgnored var suspectCopies: Set<DestinationKind> = []
+    /// The Drive, when the last Stop gave up on it: what the main thread's Show.json writes leave out. Never the Device: its
+    /// `Show.json` is the file a relaunch reads to tell whether the Show is open.
+    private var suspectDrive: Set<DestinationKind> { suspectCopies.intersection([.drive]) }
 
     /// Drive only (#630): moves every stand-in the Device keeps, and every Drive only Take it holds whole, in any Show,
     /// to its Take on the Drive, and removes the Device's Take once the Drive is checked to hold it. Does nothing during a Take or with no Drive; a Take
@@ -1259,7 +1263,8 @@ public final class Recorder {
     /// to do or what has changed. What came of each Take is in `driveOnlyMoves`.
     public func driveMayHaveConnected() {
         // One waiting trigger takes in any more asked for before it starts.
-        guard movesDriveOnlyTakes, !isRecording, !triggerWaiting else { return }
+        // Not while a Device Copy Stop gave up on may still have its writer alive: the mover could move and remove it (#838).
+        guard movesDriveOnlyTakes, !isRecording, !triggerWaiting, !suspectCopies.contains(.device) else { return }
         triggerWaiting = true
         let previous = moveTrigger
         moveTrigger = Task { [weak self] in
@@ -1296,7 +1301,7 @@ public final class Recorder {
     }
 
     /// Whether a trigger is waiting to start its move (#630).
-    @ObservationIgnored private var triggerWaiting = false
+    @ObservationIgnored var triggerWaiting = false
     /// Edits waiting for a move to end (#630).
     @ObservationIgnored private var moveWaiters: [CheckedContinuation<Void, Never>] = []
 
