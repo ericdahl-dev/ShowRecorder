@@ -625,7 +625,16 @@ final class TakeSession {
             // Each Stem resumes at its last commit (#595): what was written after it may never have reached the Drive,
             // so it is cut off and left to Repair. A Drive that failed but stayed mounted loses that stretch too, until
             // resuming at the frames really on disk (#602).
-            let counts = job.old?.writer.stemFramesKept
+            // `fsync` returning doesn't mean a USB Drive's own cache reached the medium (#602): a Drive pulled inside that
+            // window can leave a Stem shorter than its last commit, and resuming at the commit would extend it with zeros
+            // outside any Gap. Each Stem resumes at what its file really holds if that is less.
+            let counts: [UInt64]? = job.old?.writer.stemFramesKept.enumerated().map { index, committed in
+                let spec = job.stems[index]
+                // An unrecorded channel has no file. A recorded one that is there but can't be read has nothing to resume.
+                guard spec.isRecorded, FileManager.default.fileExists(atPath: folder.appending(path: spec.file).path) else { return committed }
+                guard let onDisk = try? StemFile.inspect(folder.appending(path: spec.file)).framesOnDisk else { return 0 }
+                return min(committed, onDisk)
+            }
             for (index, spec) in job.stems.enumerated() {
                 if job.cancel.isCanceled { throw AttachCanceled() }
                 sinks.append(

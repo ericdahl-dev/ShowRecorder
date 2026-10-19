@@ -1,5 +1,5 @@
 import AVFoundation
-import BroadcastWave
+@testable import BroadcastWave
 import Foundation
 import Testing
 
@@ -62,5 +62,72 @@ struct SeededGenerator: RandomNumberGenerator {
         z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
         z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
         return z ^ (z >> 31)
+    }
+}
+
+/// What `finalize` and `commitHeader` ask of the disk (#602): a Drive pulled right after a normal Stop can lose the last
+/// couple of seconds, and the header that says how long the Stem is, unless the file was flushed before it was closed.
+@Suite("Flushing a Stem to disk")
+struct StemFlushTests {
+    final class Flushes: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value = 0
+        func note() { lock.withLock { value += 1 } }
+        var count: Int { lock.withLock { value } }
+    }
+
+    let folder: URL
+
+    init() throws {
+        folder = FileManager.default.temporaryDirectory.appending(path: "StemFlushTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    }
+
+    @Test("Finalizing a Stem flushes it to disk after its final sizes are written and before it is closed")
+    func finalizeFlushes() throws {
+        let url = folder.appending(path: "a.wav")
+        let writer = try StemWriter(url: url, info: CrashSafeStemTests.info)
+        let flushes = Flushes()
+        // What the file declared at the moment of the flush: it has to be the final sizes, or the flush protects the old ones.
+        nonisolated(unsafe) var declaredAtFlush: UInt64?
+        writer.flush = { _ in
+            declaredAtFlush = (try? StemFile.inspect(url))?.declaredBytes
+            flushes.note()
+        }
+        try CrashSafeStemTests.samples(0..<1_000).withUnsafeBufferPointer { try writer.append($0) }
+
+        try writer.finalize()
+
+        #expect(flushes.count >= 1)
+        #expect(declaredAtFlush == 1_000 * UInt64(StemWriter.bytesPerSample), "flushed with its final sizes in place")
+    }
+
+    @Test("A flush that fails still closes the file, and the error reaches the caller")
+    func failedFlushStillCloses() throws {
+        struct Dead: Error {}
+        let url = folder.appending(path: "c.wav")
+        let writer = try StemWriter(url: url, info: CrashSafeStemTests.info)
+        writer.flush = { _ in throw Dead() }
+        try CrashSafeStemTests.samples(0..<1_000).withUnsafeBufferPointer { try writer.append($0) }
+
+        #expect(throws: Dead.self) { try writer.finalize() }
+
+        // Closed: with the disk answering again, a second finalize (the writer thread retries each Stem) has no open file
+        // to write to, and says so. An open one would just succeed.
+        writer.flush = { _ in }
+        #expect(throws: (any Error).self) { try writer.finalize() }
+        #expect(try StemFile.inspect(url).framesOnDisk == 1_000, "what was written is on disk")
+    }
+
+    @Test("Committing a header still flushes, once")
+    func commitFlushes() throws {
+        let writer = try StemWriter(url: folder.appending(path: "b.wav"), info: CrashSafeStemTests.info)
+        let flushes = Flushes()
+        writer.flush = { _ in flushes.note() }
+        try CrashSafeStemTests.samples(0..<1_000).withUnsafeBufferPointer { try writer.append($0) }
+
+        try writer.commitHeader()
+
+        #expect(flushes.count == 1)
     }
 }

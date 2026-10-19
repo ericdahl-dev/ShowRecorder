@@ -45,6 +45,8 @@ public final class StemWriter: StemSink {
     private(set) var isRF64 = false
 
     private let handle: FileHandle
+    /// How the file is pushed to disk: `fsync`. Swappable so a test can see when it is asked (#602).
+    var flush: (FileHandle) throws -> Void = { try $0.synchronize() }
     private var bytes: [UInt8] = []
     private let dataSizeOffset: UInt64
     private let markerRegionOffset: UInt64
@@ -198,7 +200,7 @@ public final class StemWriter: StemSink {
     public func commitHeader() throws {
         let end = try handle.offset()
         try writeSizes(dataBytes: frameCount * UInt64(Self.bytesPerSample), riffEnd: end)
-        try handle.synchronize()
+        try flush(handle)
         committedFrameCount = frameCount
         try handle.seek(toOffset: end)
     }
@@ -211,6 +213,13 @@ public final class StemWriter: StemSink {
             try handle.write(contentsOf: [0])
         }
         try writeSizes(dataBytes: dataBytes, riffEnd: try handle.offset())
+        // Flushed before it is closed: a Drive pulled right after a normal Stop would otherwise lose up to the last couple of
+        // seconds and the header that says how long the Stem is, with no Gap recorded (#602).
+        do { try flush(handle) } catch {
+            // The disk didn't take it: the error goes to the caller (the Copy fails), and the file is still closed.
+            try? handle.close()
+            throw error
+        }
         try handle.close()
     }
 
@@ -245,10 +254,10 @@ public final class StemWriter: StemSink {
         head += UInt32(0).littleEndianBytes  // table length
         try handle.seek(toOffset: 0)
         try handle.write(contentsOf: head)
-        try handle.synchronize()
+        try flush(handle)
         try handle.seek(toOffset: dataSizeOffset)
         try handle.write(contentsOf: UInt32.max.littleEndianBytes)
-        try handle.synchronize()
+        try flush(handle)
         try handle.seek(toOffset: end)
         isRF64 = true
     }
