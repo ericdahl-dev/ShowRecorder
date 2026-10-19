@@ -1265,6 +1265,86 @@ public final class Recorder {
         lastTakeOutcomes[.drive] = Self.readTake(at: driveTake)?.outcome(ofCopy: .drive)
     }
 
+    /// Drive only (#656): whether a kept Take may be deleted from the Device by hand: the Drive holds everything the Device holds
+    /// of it. The facts for the confirmation are in the answer. Deletes nothing. Not during a Take or a save, and not while a Device
+    /// Copy Stop gave up on may still be written.
+    public func checkRelease(show: String, take: Int) async -> DeviceTakeRelease.Check {
+        if let refusal = releaseRefusal(show: show, take: take) { return .no([refusal]) }
+        await waitWhileMoving()
+        // A Repair still filling the Drive's Take would change what the check compares.
+        await repair.wait()
+        if let refusal = releaseRefusal(show: show, take: take) { return .no([refusal]) }
+        guard let access = driveFolder() else { return .no(["The Drive isn't connected."]) }
+        defer { access.end() }
+        let name = TakeMetadata.name(take: take)
+        let deviceTake = deviceFolder.appending(path: show).appending(path: name)
+        let driveTake = access.folder.appending(path: show).appending(path: name)
+        let shouldStop = moveStop.latch()
+        return await runOffPool { DeviceTakeRelease.check(deviceTake: deviceTake, driveTake: driveTake, shouldStop: shouldStop) }
+    }
+
+    /// Drive only (#656): deletes a kept Take from the Device, at the operator's choice, once the Drive holds everything the
+    /// Device holds of it (`DeviceTakeRelease`). Never during a Take or a save; a Take started meanwhile stops it.
+    @discardableResult
+    public func releaseFromDevice(show: String, take: Int) async -> DeviceTakeRelease.Outcome {
+        if let refusal = releaseRefusal(show: show, take: take) { return .kept([refusal]) }
+        // A Repair still filling the Drive's Take would change what is compared; a move or delete running goes first.
+        repeat {
+            await waitWhileMoving()
+            await repair.wait()
+        } while isMoving
+        // On the main actor, what is checked here holds until the delete below sets `isMoving`.
+        if let refusal = releaseRefusal(show: show, take: take) { return .kept([refusal]) }
+        guard let access = driveFolder() else { return .kept(["The Drive isn't connected."]) }
+        isMoving = true
+        defer {
+            isMoving = false
+            let waiting = moveWaiters
+            moveWaiters = []
+            for waiter in waiting { waiter.resume() }
+        }
+        // A Show detail edit already running finishes first, as for a move.
+        while editsInProgress > 0 {
+            await withCheckedContinuation { editWaiters.append($0) }
+        }
+        if let refusal = releaseRefusal(show: show, take: take) {
+            access.end()
+            return .kept([refusal])
+        }
+        let name = TakeMetadata.name(take: take)
+        let deviceTake = deviceFolder.appending(path: show).appending(path: name)
+        let driveTake = access.folder.appending(path: show).appending(path: name)
+        let shouldStop = moveStop.latch()
+        let outcome = await runOffPool { DeviceTakeRelease.run(deviceTake: deviceTake, driveTake: driveTake, shouldStop: shouldStop) }
+        access.end()
+        guard outcome == .released else { return outcome }
+        // It is no longer kept on this device: off the moves list, and the last Take reads as moved if it is that one.
+        lastMoveRun.moves.removeAll { $0.show == show && $0.take == take }
+        lastMoveRun.skips.removeAll { $0.show == show && $0.take == take }
+        if show == currentShow?.name { regenerateReports() }
+        if !isRecording, lastTake?.showName == show, lastTake?.takeNumber == take {
+            lastTakeStandInMoved = true
+            lastTakeStandInKept = false
+            lastTake?.deviceFolder = nil
+            lastTake?.hadDrive = true
+            lastTakeOutcomes[.drive] = Self.readTake(at: driveTake)?.outcome(ofCopy: .drive)
+        }
+        return outcome
+    }
+
+    /// Why a kept Take can't be deleted from the Device now, if so.
+    private func releaseRefusal(show: String, take: Int) -> String? {
+        // `show` comes from the App and goes into a path: it must be one plain folder of the Device's, never a way out of it.
+        let plain = !show.isEmpty && show != "." && show != ".." && !show.hasPrefix(".") && !show.contains("/") && !show.contains("\0")
+        guard plain, take > 0, ShowDeleter.isRealFolder(deviceFolder.appending(path: show)) else {
+            return "That Take isn't in a Show on the Device."
+        }
+        if isRecording { return "A Take is running." }
+        if isFinishing { return "A Take is being saved." }
+        if suspectCopies.contains(.device) { return "The Device may still be writing the last Take; try again after the app is restarted." }
+        return nil
+    }
+
     /// Drive only (#630): moves the Drive only Takes of every Show to the Drive, when it is there, outside a Take and once
     /// Repair and the naming of the last Take are done. The App calls it when the Drive folder becomes available; the
     /// Recorder after each Take and when moving is turned on. Calls while one runs wait for it, then find nothing left
