@@ -19,9 +19,7 @@ struct PaywallSheet: View {
             boughtPacks: purchases.boughtPacks, packsOffered: PackAvailability.isAvailableInThisBuild)
     }
     private var headline: String {
-        if case .pack(let family)? = items.first { return PackOffer.headline(family: family, mixerModel: mixerModel) }
-        if let headline = PackOffer.upgradeHeadline(items: items) { return headline }
-        return paywall.headline
+        PackOffer.paywallHeadline(items: items, mixerModel: mixerModel, moment: moment, paywall: paywall)
     }
 
     var body: some View {
