@@ -31,7 +31,7 @@ The audio file for one USB Channel within a Take, named after that channel's Sou
 _Avoid_: Track file, channel file
 
 **Template**:
-A venue's whole setup, saved on one device, so one tap readies a different room: the typed channel names, the Mixer (at its saved address, or found by its network name when another Mixer answers there), the Show name pattern and the Pre-roll length. One Template can be the default. Not the Drive folder. A Pro feature.
+A venue's whole setup, saved on one device, so one tap readies a different room: the typed channel names, the Mixer (at its saved address, or found by its network name when another Mixer answers there), the Show name pattern, the Pre-roll length and the Record to choice. One Template can be the default. Not the Drive folder. A Pro feature.
 _Avoid_: Preset, profile, rig
 
 ### Storage

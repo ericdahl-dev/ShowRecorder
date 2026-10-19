@@ -1309,18 +1309,22 @@ final class RecordScreenModel {
         pro.license().templateAccess(isRecording: recorder.isRecording)
     }
 
-    /// Saves this setup as a Template named `name`: the typed channel names, the open Show's venue, the Pre-roll and
-    /// the Mixer (its network name, when linked, and its address).
+    /// Saves this setup as a Template named `name`: the typed channel names, the open Show's venue, the Pre-roll, Record
+    /// to where it's offered (#840), and the Mixer (its network name, when linked, and its address).
+    /// The Record to choice a Template saves: none where Record to isn't offered, so applying the Template later leaves
+    /// the operator's choice alone, as a Template from before Record to does (#840).
+    private var templateRecordTo: RecordTo? { RecordToAvailability.isAvailableInThisBuild ? recordTo : nil }
+
     func saveTemplate(named name: String) {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
         templates.save(Template(
             name: name, venue: recorder.currentShow?.venue, channelNames: recorder.channelNames,
             mixerNetworkName: mixer.networkNameForTemplates, mixerAddress: mixerAddress,
-            preRollSeconds: preRollSeconds))
+            preRollSeconds: preRollSeconds, recordTo: templateRecordTo))
     }
 
-    /// Starts a Show from `template`: its name, venue and channel names, its Pre-roll, and its Mixer. The Show starts
+    /// Starts a Show from `template`: its name, venue and channel names, its Pre-roll and Record to (#840), and its Mixer. The Show starts
     /// at once; the Mixer is connected after, and looked for by its network name when the saved address doesn't
     /// answer or another mixer is there. Returns what to tell the operator, or nil when the Show started.
     func startShow(from template: Template) -> String? {
@@ -1338,6 +1342,10 @@ final class RecordScreenModel {
             preRollSeconds = template.preRollSeconds
             preRollChanged()
         }
+        if let choice = template.recordTo, choice != recordTo {
+            recordTo = choice
+            recordToChanged()
+        }
         if !template.mixerAddress.isEmpty || template.mixerNetworkName != nil {
             Task { await connectMixer(for: template) }
         }
@@ -1351,7 +1359,7 @@ final class RecordScreenModel {
     }
 
     /// At launch with no Show open: the default Template readies the next Show (its channel names now, its name when
-    /// record starts it), and sets its Pre-roll and Mixer (#34).
+    /// record starts it), and sets its Pre-roll, Record to (#840) and Mixer (#34).
     func applyDefaultTemplate() {
         guard templateAccess == .usable, let template = templates.defaultTemplate,
               sequencer.prepareNextShow(from: template) else { return }
@@ -1359,17 +1367,21 @@ final class RecordScreenModel {
             preRollSeconds = template.preRollSeconds
             preRollChanged()
         }
+        if let choice = template.recordTo, choice != recordTo {
+            recordTo = choice
+            recordToChanged()
+        }
         if !template.mixerAddress.isEmpty || template.mixerNetworkName != nil {
             Task { await connectMixer(for: template) }
         }
     }
 
-    /// Saves a past Show's setup as a Template named `name`: its channel names and venue, with today's Pre-roll and
-    /// Mixer (#34). Returns what to tell the operator, or nil when it was saved.
+    /// Saves a past Show's setup as a Template named `name`: its channel names and venue, with today's Pre-roll,
+    /// Record to (#840) and Mixer (#34). Returns what to tell the operator, or nil when it was saved.
     func saveTemplate(fromShow folder: URL, named name: String) -> String? {
         guard var template = Template.fromShow(
             folder: folder, mixerNetworkName: mixer.networkNameForTemplates,
-            mixerAddress: mixerAddress, preRollSeconds: preRollSeconds) else { return "This Show's setup couldn't be read." }
+            mixerAddress: mixerAddress, preRollSeconds: preRollSeconds, recordTo: templateRecordTo) else { return "This Show's setup couldn't be read." }
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if !name.isEmpty { template.name = name }
         templates.save(template)
