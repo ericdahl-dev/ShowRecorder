@@ -31,7 +31,9 @@ struct SettingsView: View {
             Form {
                 if model.takeBusy {
                     Section {
-                        Label("The audio interface, Pre-roll, Drive and Mixer Link can't be changed during a Take.", systemImage: "lock.fill")
+                        Label(RecordToAvailability.isAvailableInThisBuild
+                              ? "The audio interface, Pre-roll, Drive, Record to and Mixer Link can't be changed during a Take."
+                              : "The audio interface, Pre-roll, Drive and Mixer Link can't be changed during a Take.", systemImage: "lock.fill")
                             .secondaryText()
                     }
                 }
@@ -134,6 +136,7 @@ struct SettingsView: View {
                             }
                         }
                         .pickerStyle(.menu)
+                        .disabled(locked(.recordTo))
                         // Free has its own note above: its Takes record to this iPhone, whatever is chosen.
                         if model.pro.license().allowsDrive {
                             switch model.recordTo {
