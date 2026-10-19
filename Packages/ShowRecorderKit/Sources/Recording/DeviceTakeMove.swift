@@ -132,7 +132,13 @@ enum DeviceTakeMove {
     ) -> Result<TakeMetadata?, Failure> {
         let name = deviceTake.lastPathComponent
         guard var onDrive = try? TakeMetadata.read(fromTakeFolder: driveTake) else { return .success(nil) }
-        let unrepaired = onDrive.gaps.filter { gap in
+        // The Gaps the Drive is known to miss: its own, and the Drive Gaps only the Device's Take.json lists. Stop leaves a Copy
+        // it gave up on with the Take.json it had at the start, so the Gaps of its tail are on the Device alone (#668);
+        // `StandInMove` merges them the same way. They enter the Drive's Take.json only if the check passes (`run` writes it).
+        let deviceOnly = metadata.gaps.reduce(into: [TakeMetadata.Gap]()) { found, gap in
+            if gap.copy == .drive, !onDrive.gaps.contains(gap), !found.contains(gap) { found.append(gap) }
+        }
+        let unrepaired = (onDrive.gaps + deviceOnly).filter { gap in
             gap.copy == .drive && !onDrive.repairs.contains { $0.copy == .drive && $0.start == gap.start && $0.end == gap.end && $0.outcome == .repaired }
         }
         guard !unrepaired.isEmpty else { return .success(nil) }
@@ -161,6 +167,7 @@ enum DeviceTakeMove {
                 }
             }
         }
+        onDrive.gaps += deviceOnly
         onDrive.repairs = onDrive.repairs.filter { old in !repairs.contains { $0.copy == old.copy && $0.start == old.start && $0.end == old.end } }
             + repairs
         return .success(onDrive)

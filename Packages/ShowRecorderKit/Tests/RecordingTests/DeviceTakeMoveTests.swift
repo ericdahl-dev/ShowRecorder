@@ -314,6 +314,77 @@ struct DeviceTakeMoveTests {
         #expect(FileManager.default.fileExists(atPath: deviceTake.appending(path: "Take.json").path))
     }
 
+    /// The Drive Take as Stop leaves a Copy it gave up on (#652 C2): the Take.json it had at the Take's start, with no Gaps,
+    /// and a Stem that ends where the writer stopped. Only the Device's Take.json knows the Drive's Gap.
+    func makeStaleDriveTake(_ metadata: TakeMetadata, frames: Int = 1_000, silent: Range<Int>? = nil, unfinalized: Bool = false) throws {
+        var onDrive = metadata
+        onDrive.gaps = []
+        try FileManager.default.createDirectory(at: driveTake, withIntermediateDirectories: true)
+        try onDrive.write(to: driveTake)
+        guard unfinalized else {
+            try writeStem(driveStem(), frames: frames, channel: 1, silent: silent)
+            return
+        }
+        // Stop gave up on this Copy: its Stem was never finalized, so its header is shorter than the audio that reached the disk.
+        let info = StemWriter.Info(sampleRate: 48_000, description: "", originator: "Test", timeReference: 0, originationDate: Self.startedAt)
+        let stem = try StemWriter(url: driveStem(), info: info)
+        try (0..<frames).map { counting()($0, 0) }.withUnsafeBufferPointer { try stem.append($0) }
+    }
+
+    @Test("A Drive Take whose Take.json is stale is filled in the Gap only the Device's Take.json lists, and the Device's Take removed (#668)")
+    func gapOnlyTheDeviceKnows() throws {
+        var metadata = try make()
+        metadata.gaps = [.init(copy: .drive, start: 1_000, end: 4_800)]
+        try metadata.write(to: deviceTake)
+        try makeStaleDriveTake(metadata)
+
+        #expect(run() == .moved)
+        #expect(try StemWriter.readSamples(url: driveStem(), frames: 0..<4_800) == (0..<4_800).map { counting()($0, 0) })
+        let onDrive = try TakeMetadata.read(fromTakeFolder: driveTake)
+        #expect(onDrive.gaps == [.init(copy: .drive, start: 1_000, end: 4_800)], "the Drive's Take.json knows the Gap now")
+        #expect(onDrive.outcome(ofCopy: .drive) == .repaired)
+        #expect(!FileManager.default.fileExists(atPath: deviceTake.path))
+    }
+
+    @Test("A stale Drive Take holding real frames where the Device has a Gap of its own keeps them, and the Take is kept (#668)")
+    func staleDriveTakeFramesInsideTheDevicesGap() throws {
+        var metadata = try make()
+        metadata.gaps = [.init(copy: .drive, start: 1_000, end: 4_800), .init(copy: .device, start: 2_000, end: 2_100)]
+        try metadata.write(to: deviceTake)
+        try writeStem(deviceTake.appending(path: "01 USB 01.wav"), frames: 4_800, channel: 1, silent: 2_000..<2_100)
+        // The Drive's file holds real audio to 4,800, silent only 1,000..<2,000; its Take.json says nothing of any Gap.
+        try makeStaleDriveTake(metadata, frames: 4_800, silent: 1_000..<2_000)
+        let inside = try StemWriter.readSamples(url: driveStem(), frames: 2_000..<2_100)
+
+        #expect(!reasons(run()).isEmpty)
+        #expect(try StemWriter.readSamples(url: driveStem(), frames: 2_000..<2_100) == inside)
+        #expect(FileManager.default.fileExists(atPath: deviceTake.appending(path: "Take.json").path))
+        #expect(try TakeMetadata.read(fromTakeFolder: driveTake).gaps.isEmpty, "the merged Gaps are written only after the check passes")
+    }
+
+    @Test("A stale Drive Take whose Stem Stop left unfinalized, its header shorter than the audio on disk, is filled and moves too (#668)")
+    func staleUnfinalizedDriveTake() throws {
+        var metadata = try make()
+        metadata.gaps = [.init(copy: .drive, start: 1_000, end: 4_800)]
+        try metadata.write(to: deviceTake)
+        try makeStaleDriveTake(metadata, frames: 1_000, unfinalized: true)
+
+        #expect(run() == .moved)
+        #expect(try StemWriter.readSamples(url: driveStem(), frames: 0..<4_800) == (0..<4_800).map { counting()($0, 0) })
+        #expect(try TakeMetadata.read(fromTakeFolder: driveTake).outcome(ofCopy: .drive) == .repaired)
+    }
+
+    @Test("The same Drive Gap listed twice by the Device is one Gap on the Drive (#668)")
+    func duplicateDeviceGapIsOne() throws {
+        var metadata = try make()
+        metadata.gaps = [.init(copy: .drive, start: 1_000, end: 4_800), .init(copy: .drive, start: 1_000, end: 4_800)]
+        try metadata.write(to: deviceTake)
+        try makeStaleDriveTake(metadata)
+
+        #expect(run() == .moved)
+        #expect(try TakeMetadata.read(fromTakeFolder: driveTake).gaps == [.init(copy: .drive, start: 1_000, end: 4_800)])
+    }
+
     @Test("A Take started during the fill of a long Stem stops it within the Stem, records nothing, and a later move finishes")
     func stopWithinAStem() throws {
         let metadata = try make(frames: 144_000)
