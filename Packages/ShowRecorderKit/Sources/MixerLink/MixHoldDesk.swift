@@ -124,16 +124,27 @@ extension MixHoldDesk {
                 partialHeld[change.setting] = db
                 partialChanges.append(MixHold.Change(setting: change.setting, fromDb: change.fromDb, toDb: db))
             }
-            throw .gainMoveInterrupted(GainStep(channel: channel, headamp: headamp, fromGainDb: from, toGainDb: partialTo,
-                                                changes: partialChanges, held: partialHeld, limitedBy: plan.limitedBy, restore: restore))
+            var partial = GainStep(channel: channel, headamp: headamp, fromGainDb: from, toGainDb: partialTo,
+                                   changes: partialChanges, held: partialHeld, limitedBy: plan.limitedBy, restore: restore)
+            partial.isPartial = true
+            throw .gainMoveInterrupted(partial)
         }
         return GainStep(channel: channel, headamp: headamp, fromGainDb: from, toGainDb: to, changes: plan.changes, held: held,
                         limitedBy: plan.limitedBy, restore: restore)
     }
 
     /// Puts back every value `result` changed: ramps back the way it came, then writes the exact values read before.
-    func undoMixHold(_ result: GainStep) async throws(MixerLinkProblem) {
+    ///
+    /// With `ifUnmoved` (#670), not if the preamp has moved since the step: it writes absolute values, so a rollback that runs on
+    /// its own would overwrite whatever moved it (a clip turn-down on a shared headamp or a linked pair) and ramp the mix up from
+    /// a stale value. It writes nothing and throws `.gainMovedSinceStep`; the step stays with the caller for Undo.
+    func undoMixHold(_ result: GainStep, ifUnmoved: Bool = false) async throws(MixerLinkProblem) {
         let gainAddress = Self.gainAddress(result.headamp)
+        if ifUnmoved, !result.isPartial {
+            // A quarter dB: the desks' gain steps are finer than a half, and a snapped step reads back exactly.
+            let now = try await deskGainDb(ofHeadamp: result.headamp)
+            guard abs(now - result.toGainDb) < 0.25 else { throw .gainMovedSinceStep }
+        }
         var sent: [String: Float] = [:]
         try await ramp(headamp: result.headamp, gainFrom: result.toGainDb, gainTo: result.fromGainDb,
                        moves: result.changes.map { MixHoldMove(setting: $0.setting, fromDb: result.held[$0.setting] ?? $0.toDb, toDb: $0.fromDb) },

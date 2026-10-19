@@ -37,6 +37,10 @@ final class FakeGainControl: GainControl {
     var liveSeen: [Set<MixHold.Setting>] = []
     /// The same, with the channel each move was on.
     var liveSeenOn: [(channel: Int, live: Set<MixHold.Setting>)] = []
+    /// When true, a guarded undo (`ifUnmoved`) finds the preamp moved since the step and refuses, writing nothing (#670).
+    var guardedUndoRefused = false
+    /// Undos asked for with `ifUnmoved`.
+    private(set) var guardedUndos = 0
     /// When set, each undo waits on it first, as a slow Mixer does.
     var undoAnswer: (@Sendable () async -> Void)?
     /// When set, each preamp read waits on it first, as a slow Mixer does.
@@ -101,6 +105,15 @@ final class FakeGainControl: GainControl {
                                      limitedBy: limit, restore: ["gain/\(target)": Float(from)]))
         }
         return try result.get()
+    }
+
+    nonisolated func undo(_ step: GainStep, ifUnmoved: Bool) async throws(MixerLinkProblem) {
+        let refused = await MainActor.run { () -> Bool in
+            if ifUnmoved { guardedUndos += 1 }
+            return ifUnmoved && guardedUndoRefused
+        }
+        if refused { throw .gainMovedSinceStep }
+        try await undo(step)
     }
 
     nonisolated func undo(_ step: GainStep) async throws(MixerLinkProblem) {
@@ -473,6 +486,25 @@ struct AutoGainSessionTests {
         control.undoFailsAfter = nil
         try await session.undo(usbChannel: 1)
         #expect(control.gainDb[2] == 0)
+    }
+
+    @Test("A rollback never overwrites a preamp that moved since: it is refused, the step stays, and the operator's Undo still puts it back (#670)")
+    func rollbackRefusedOverMovedPreamp() async throws {
+        let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1])
+        control.movesInstead = [1: 2]   // the level doesn't follow, so the run rolls back
+        control.guardedUndoRefused = true
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]))
+
+        let results = await session.run(usbChannels: [1])
+
+        #expect(control.guardedUndos > 0, "the rollback asked for the guarded undo")
+        #expect(results == [.error(usbChannel: 1, channel: 1, problem: .gainMovedSinceStep)])
+        #expect(control.undos == 0, "nothing was written back")
+        #expect(session.steps[1]?.count == 1, "the step stays for Undo")
+        let guarded = control.guardedUndos
+        try await session.undo(usbChannel: 1)   // the operator's Undo is not guarded
+        #expect(control.guardedUndos == guarded)
+        #expect(control.undos == 1 && control.gainDb[2] == 0)
     }
 
     @Test("Undo tapped twice while the first is still waiting on the Mixer undoes each step once")

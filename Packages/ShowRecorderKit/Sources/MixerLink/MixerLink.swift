@@ -65,6 +65,9 @@ public enum MixerLinkProblem: Error, Equatable, Sendable {
     /// The Mixer stopped answering partway through a gain move (#450). `step` is what was written before it stopped,
     /// with the exact values from before, so it can be logged and undone.
     case gainMoveInterrupted(GainStep)
+    /// Undo was asked to leave a preamp that moved after the step alone (#670), and it had: something else (clip protection,
+    /// the operator) set its gain since. Nothing was written.
+    case gainMovedSinceStep
     /// A connection to the Mixer couldn't be opened, for a reason with no words of its own: the code is kept for support.
     case cantConnect(host: String, port: UInt16, code: Int)
     case other(String)
@@ -83,6 +86,8 @@ public enum MixerLinkProblem: Error, Equatable, Sendable {
             "No Mixer named \(host) was found on this network. Check the name, or enter the Mixer's IP address."
         case .gainMoveInterrupted(let step):
             "The Mixer stopped answering partway through moving channel \(step.channel)'s gain. Undo puts back what was changed."
+        case .gainMovedSinceStep:
+            "The preamp's gain was changed after auto-gain moved it (by clip protection or on the Mixer), so it was left as it is. Undo puts the earlier gain back, and that undoes the change made since."
         case .noPreamp(let channel):
             "Channel \(channel) on the Mixer has no preamp (its input is digital), so its gain can't be set."
         case .cantConnect(let host, let port, let code):

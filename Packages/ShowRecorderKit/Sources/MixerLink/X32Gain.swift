@@ -95,6 +95,10 @@ extension X32Driver {
         try await undoMixHold(result)
     }
 
+    public func undo(_ result: GainStep, ifUnmoved: Bool) async throws(MixerLinkProblem) {
+        try await undoMixHold(result, ifUnmoved: ifUnmoved)
+    }
+
     /// Every X32 preamp: -12 to +60 dB.
     static func gainScale(_ headamp: Int) -> X32Values { .headampGain }
 
@@ -140,6 +144,14 @@ public protocol GainControl: Sendable {
     /// `live`: settings auto-gain moved and still holds for Undo; Mix Hold keeps their end stops (#685).
     func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes, live: Set<MixHold.Setting>) async throws(MixerLinkProblem) -> GainStep
     func undo(_ step: GainStep) async throws(MixerLinkProblem)
+    /// `undo`, but writing nothing and throwing `.gainMovedSinceStep` when the preamp is not where the step left it (#670): for
+    /// a rollback that runs on its own, which must not overwrite a turn-down made since. A step the Mixer stopped partway
+    /// through (`isPartial`) is put back anyway: where the preamp is then is not known.
+    func undo(_ step: GainStep, ifUnmoved: Bool) async throws(MixerLinkProblem)
+}
+
+extension GainControl {
+    public func undo(_ step: GainStep, ifUnmoved: Bool) async throws(MixerLinkProblem) { try await undo(step) }
 }
 
 /// One gain move with Mix Hold: the gain set, what the mixer holds now, and what undo needs.
@@ -156,6 +168,8 @@ public struct GainStep: Equatable, Sendable {
     public var limitedBy: MixHold.Limit?
     /// Each changed address's raw value before, for `undo`.
     public var restore: [String: Float]
+    /// The Mixer stopped answering partway through this move (#450): where its gain is now isn't known.
+    public var isPartial = false
 
     public init(channel: Int, headamp: Int, fromGainDb: Double, toGainDb: Double, changes: [MixHold.Change] = [],
                 held: [MixHold.Setting: Double], limitedBy: MixHold.Limit?, restore: [String: Float]) {
