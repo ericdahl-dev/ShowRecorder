@@ -14,6 +14,17 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.13",
+    date: "2026-10-19",
+    channel: "TestFlight beta",
+    summary: "Choose where a Take records, and steadier recording to a slow Drive.",
+    changes: [
+      "Settings › Storage › Record to: this iPhone, the Drive, or both.",
+      "A slow USB stick no longer makes the screen stutter, and a Drive Copy left unfinished is completed when the Drive is back.",
+      "A Copy that ran out of space says it's full, and Repair never writes silence over real audio.",
+    ],
+  },
+  {
     version: "1.1.12",
     date: "2026-10-17",
     channel: "TestFlight beta",
