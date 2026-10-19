@@ -219,6 +219,79 @@ struct TakeRepairTests {
         #expect(FileManager.default.fileExists(atPath: device.appending(path: metadata.standIns![0].folderName).appending(path: stem).path))
     }
 
+    /// A Drive only Take whose Device Stop gave up on: the stand-in may still be written there, and the Device may be the
+    /// volume that hangs, so nothing on it is removed (and nothing waits on it on the main thread).
+    func abandonedDeviceTake(gaps: [TakeMetadata.Gap]) throws -> (metadata: TakeMetadata, device: URL, drive: URL, standIn: URL) {
+        let stem = "01 USB 01.wav"
+        let info = StemWriter.Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: RecordingTakeTests.showDay)
+        func write(_ frames: Int, to url: URL) throws {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let writer = try StemWriter.open(url: url, info: info, resumingAt: nil)
+            try [Float](repeating: 0.1, count: frames).withUnsafeBufferPointer { try writer.append($0) }
+            try writer.finalize()
+        }
+        let device = root.appending(path: "Device/Take 01")
+        let drive = root.appending(path: "Drive/Take 01")
+        try write(10_000, to: drive.appending(path: stem))
+        var metadata = metadata(take: 1, gaps: gaps)
+        metadata.standIns = [.init(start: 3_000, end: 7_000)]
+        let standIn = device.appending(path: metadata.standIns![0].folderName)
+        try write(4_000, to: standIn.appending(path: stem))
+        try metadata.write(to: device)
+        try metadata.write(to: drive)
+        return (metadata, device, drive, standIn)
+    }
+
+    /// The folders the queue was asked to write the Take.json of off the main thread.
+    final class Written: @unchecked Sendable {
+        private let lock = NSLock()
+        private var _folders: [URL] = []
+        func add(_ folder: URL) { lock.withLock { _folders.append(folder) } }
+        var folders: [URL] { lock.withLock { _folders } }
+    }
+
+    @Test("Drive only: a spare stand-in on a Device Stop gave up on is not removed, stays named, and reads as kept")
+    func abandonedDeviceKeepsSpareStandIn() async throws {
+        let take = try abandonedDeviceTake(gaps: [])
+        let written = Written()
+        let queue = TakeRepair(freeSpace: { _ in .max }, writeAbandoned: { _, folder in written.add(folder) })
+
+        queue.enqueue(take.metadata, folders: [.device: take.device, .drive: take.drive], holding: nil, abandoned: [.device])
+        await queue.wait()
+
+        #expect(FileManager.default.fileExists(atPath: take.standIn.path), "the Device's stand-in is still there")
+        #expect(try TakeMetadata.read(fromTakeFolder: take.drive).standIns != nil, "and still named")
+        #expect(queue.standInKept, "the summary says the audio is on the Device until the Drive is back")
+        #expect(written.folders == [take.device], "the Device's Take.json is written off the main thread")
+    }
+
+    @Test("Drive only: with both Copies Stop gave up on, nothing is removed and both Take.json files are written off the main thread")
+    func bothAbandoned() async throws {
+        let take = try abandonedDeviceTake(gaps: [.init(copy: .drive, start: 3_000, end: 7_000)])
+        let written = Written()
+        let queue = TakeRepair(freeSpace: { _ in .max }, writeAbandoned: { _, folder in written.add(folder) })
+
+        queue.enqueue(take.metadata, folders: [.device: take.device, .drive: take.drive], holding: nil, abandoned: [.device, .drive])
+        await queue.wait()
+
+        #expect(FileManager.default.fileExists(atPath: take.standIn.path))
+        #expect(Set(written.folders) == [take.device, take.drive])
+    }
+
+    @Test("Drive only: Repair from a Device Stop gave up on doesn't remove the Device's Take once the Drive has it all")
+    func abandonedDeviceIsNotRemovedAfterTheMove() async throws {
+        let take = try abandonedDeviceTake(gaps: [.init(copy: .drive, start: 3_000, end: 7_000)])
+        let queue = TakeRepair(freeSpace: { _ in .max }, writeAbandoned: { _, _ in })
+
+        queue.enqueue(take.metadata, folders: [.device: take.device, .drive: take.drive], holding: nil, abandoned: [.device])
+        await queue.wait()
+
+        #expect(FileManager.default.fileExists(atPath: take.standIn.path), "the Device's stand-in is still there")
+        #expect(queue.moved == false)
+        #expect(queue.standInKept)
+        #expect(try TakeMetadata.read(fromTakeFolder: take.drive).standIns != nil, "and still named")
+    }
+
     @Test("Drive only: overlapping stand-ins with a hole between them don't count as covering the Gap")
     func overlappingStandInsWithAHole() async throws {
         let stem = "01 USB 01.wav"
