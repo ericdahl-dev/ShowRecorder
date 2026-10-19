@@ -203,7 +203,7 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
   },
   {
     q: "Can my family use Pro?",
-    a: "Yes. Pro is a one-time purchase, shared with Family Sharing and across your iPhone and iPad.",
+    a: "Yes. Pro is a one-time purchase, shared with Family Sharing and across your devices.",
   },
   {
     q: "Is there an Android version?",
