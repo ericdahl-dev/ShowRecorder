@@ -43,3 +43,15 @@ struct DemoMixerFamilyAvailabilityTests {
         }
     }
 }
+
+@Suite("Demo as an X Air in this build")
+struct DemoMixerFamilyAvailabilityThisBuildTests {
+    @Test("A Debug build counts the Demo signal before the environment is known; a Release build waits for a sandbox answer (#705)")
+    func thisBuild() {
+        #if DEBUG
+        #expect(DemoMixerFamilyAvailability.isAvailableInThisBuild)
+        #else
+        #expect(!DemoMixerFamilyAvailability.isAvailableInThisBuild, "no environment resolved in tests")
+        #endif
+    }
+}
