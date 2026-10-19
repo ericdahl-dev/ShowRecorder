@@ -48,6 +48,18 @@ struct WatchStatusMakerTests {
         #expect(status.problems == [.copyStopped])
     }
 
+    @Test("A Copy stopped for low space is its own problem on the wrist, not a Copy stopped (#560)")
+    func fullIsItsOwnProblem() {
+        let take = WatchStatusMaker.Take(startedAt: Self.started, title: "Take 02", markerCount: 0)
+        let full = WatchStatusMaker.make(
+            isArmed: true, take: take, chips: [Self.chip(.drive, .failed)], driveAvailable: true,
+            copies: takeCopies(device: .recording, drive: .full))
+        #expect(full.problems == [.copyFull])
+        let both = WatchStatusMaker.make(isArmed: true, take: take, copies: takeCopies(device: .interrupted, drive: .full))
+        #expect(both.problems == [.copyStopped, .copyFull])
+        #expect(WatchStatus.Problem.copyFull.text == "A Copy is full")
+    }
+
     @Test("After a Take, a Copy that stopped during it is no longer a problem on the wrist")
     func stoppedOnlyWhileRunning() {
         let status = WatchStatusMaker.make(isArmed: true, take: nil, copies: takeCopies(running: false, device: .interrupted, drive: .interrupted))

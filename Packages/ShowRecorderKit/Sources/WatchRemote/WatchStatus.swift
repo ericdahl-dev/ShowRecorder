@@ -13,7 +13,7 @@ public struct WatchStatus: Codable, Equatable, Sendable {
     /// Something that needs attention, shown as a symbol and a few words so it reads without color. Not the whole
     /// banner set from the record screen.
     public enum Problem: String, Codable, CaseIterable, Sendable {
-        case deviceLowSpace, driveLowSpace, copyStopped, gapOrDropout, mixerLinkLost
+        case deviceLowSpace, driveLowSpace, copyStopped, copyFull, gapOrDropout, mixerLinkLost
 
         /// An SF Symbol name.
         public var symbol: String {
@@ -21,6 +21,7 @@ public struct WatchStatus: Codable, Equatable, Sendable {
             case .deviceLowSpace: "iphone.gen3"
             case .driveLowSpace: "externaldrive.badge.exclamationmark"
             case .copyStopped: "doc.on.doc"
+            case .copyFull: "externaldrive.badge.xmark"
             case .gapOrDropout: "waveform.badge.exclamationmark"
             case .mixerLinkLost: "slider.horizontal.3"
             }
@@ -31,6 +32,7 @@ public struct WatchStatus: Codable, Equatable, Sendable {
             case .deviceLowSpace: "iPhone low on space"
             case .driveLowSpace: "Drive low on space"
             case .copyStopped: "A Copy stopped"
+            case .copyFull: "A Copy is full"
             case .gapOrDropout: "Gap or Dropout"
             case .mixerLinkLost: "Mixer Link lost"
             }

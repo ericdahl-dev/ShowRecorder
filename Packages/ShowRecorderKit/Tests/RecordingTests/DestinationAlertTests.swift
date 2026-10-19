@@ -16,6 +16,25 @@ struct DestinationAlertTests {
         #expect(alert.text.contains("Gap"))
     }
 
+    @Test("A Copy stopped for low space says it is full, and does not promise a Repair (#560)")
+    func fullAlerts() throws {
+        let drive = try #require(DestinationAlert.make(copies: takeCopies(device: .recording, drive: .full)))
+        #expect(drive.id == "drive-full")
+        #expect(drive.tone == .critical)
+        #expect(drive.text == "The Drive is full. Recording continues on the Device.")
+        #expect(drive.action == nil)
+        let device = try #require(DestinationAlert.make(copies: takeCopies(device: .full, drive: .recording), deviceWord: "iPad"))
+        #expect(device.id == "device-full")
+        #expect(device.text == "This iPad is full. Recording continues on the Drive.")
+        let both = try #require(DestinationAlert.make(copies: takeCopies(device: .full, drive: .full)))
+        #expect(both.text == "Both Copies are full.")
+        let mixed = try #require(DestinationAlert.make(copies: takeCopies(device: .full, drive: .interrupted)))
+        #expect(mixed.text == "Both Copies stopped writing.")
+        let standIn = try #require(DestinationAlert.make(copies: takeCopies(driveOnly: true, device: .standingIn, drive: .full), deviceWord: "iPhone"))
+        #expect(standIn.id == "drive-full")
+        #expect(standIn.text.hasPrefix("The Drive is full. Recording to this iPhone"))
+    }
+
     @Test("Drive only: the Device standing by or standing in says what it said as missing or recording (#196)")
     func driveOnlyStatesSayTheSame() throws {
         #expect(DestinationAlert.make(copies: takeCopies(device: .standingBy, drive: .recording)) == nil)
@@ -147,6 +166,15 @@ struct DriveRejoinNoticeTests {
 
         notice.update(copies: takeCopies(running: false, device: .recording, drive: .recording))
         #expect(notice.alert == nil, "gone once the Take ends")
+    }
+
+    @Test("A Drive that was full and has room again says it is back, like one that stopped (#560)")
+    func rejoinAfterFull() throws {
+        var notice = DriveRejoinNotice()
+        notice.update(copies: takeCopies(device: .recording, drive: .full))
+        #expect(notice.alert == nil, "still full")
+        notice.update(copies: takeCopies(device: .recording, drive: .recording))
+        #expect(notice.alert?.id == "drive-back")
     }
 
     @Test("A Drive lost in one Take doesn't make the next Take say it's back")

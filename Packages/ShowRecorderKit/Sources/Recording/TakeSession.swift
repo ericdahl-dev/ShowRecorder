@@ -269,11 +269,17 @@ final class TakeSession {
         return .renamed
     }
 
+    /// A writer's state: `running` while it writes, `.full` once it was stopped cleanly for low space (#560), else `.interrupted`.
+    private static func state(of writer: TakeWriter, running: CopyState) -> CopyState {
+        guard writer.hasFailed else { return running }
+        return writer.wasRetiredForSpace ? .full : .interrupted
+    }
+
     /// How `kind`'s Copy is doing. A Copy that never started is missing.
     func status(_ kind: DestinationKind) -> CopyState {
-        if kind == .device, let standby, standby.start != nil { return standby.writer.hasFailed ? .interrupted : .recording }
+        if kind == .device, let standby, standby.start != nil { return Self.state(of: standby.writer, running: .recording) }
         guard let copy = copies.first(where: { $0.kind == kind }) else { return .missing }
-        return copy.writer.hasFailed ? .interrupted : .recording
+        return Self.state(of: copy.writer, running: .recording)
     }
 
     /// Copies of the running Take (#550), from each Copy's status.
@@ -281,7 +287,7 @@ final class TakeSession {
         TakeCopies(isRunning: true, isDriveOnly: driveOnly, isDeviceOnly: deviceOnly) { kind in
             if kind == .device, let standby {
                 if standby.start == nil { return .standingBy }
-                return standby.writer.hasFailed ? .interrupted : .standingIn
+                return Self.state(of: standby.writer, running: .standingIn)
             }
             return status(kind)
         }

@@ -342,7 +342,7 @@ struct TakeSessionTests {
 
         driveLow = true
         #expect(session.checkDestinations(drive: { nil }) == .carryOn)
-        #expect(session.status(.drive) == .interrupted)
+        #expect(session.status(.drive) == .full, "retired for space, not failed (#560)")
         #expect(session.status(.device) == .recording)
 
         deviceLow = true

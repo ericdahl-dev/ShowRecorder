@@ -1,4 +1,4 @@
-/// What the record screen says about the Copies of a running Take. A Copy that stops mid-Take is critical and
+/// What the record screen says about the Copies of a running Take. A Copy that stops or fills mid-Take is critical and
 /// has its own id; having no Drive from the start is a quiet warning.
 public enum DestinationAlert {
     /// - Parameter checkedAndNotFound: the operator tapped Check Drive and the Drive was still not there.
@@ -10,17 +10,35 @@ public enum DestinationAlert {
         driveCopyAllowed: Bool = true
     ) -> ScreenAlert? {
         guard copies.isRunning else { return nil }
-        switch (copies[.device], copies[.drive]) {
-        case (.interrupted, .interrupted):
-            return ScreenAlert(id: "both-stopped", priority: .destination, tone: .critical, text: "Both Copies stopped writing.")
+        let device = copies[.device], drive = copies[.drive]
+        func stopped(_ state: CopyState) -> Bool { state == .interrupted || state == .full }
+        switch (device, drive) {
+        case _ where stopped(device) && stopped(drive):
+            // Full is told apart from failed (#560); two Copies of different kinds are just stopped.
+            return ScreenAlert(
+                id: "both-stopped", priority: .destination, tone: .critical,
+                text: device == .full && drive == .full ? "Both Copies are full." : "Both Copies stopped writing.")
+        case (.full, _):
+            return ScreenAlert(
+                id: "device-full", priority: .destination, tone: .critical,
+                text: "This \(deviceWord) is full. Recording continues on the Drive.")
         case (.interrupted, _):
             return ScreenAlert(
                 id: "device-stopped", priority: .destination, tone: .critical,
                 text: "The Device stopped writing. Recording continues on the Drive.")
+        case (.standingIn, .full) where copies.isDriveOnly:
+            return ScreenAlert(
+                id: "drive-full", priority: .destination, tone: .critical,
+                text: "The Drive is full. Recording to this \(deviceWord) for the rest of the Take; the audio moves to the Drive after it.")
         case (.standingIn, _) where copies.isDriveOnly:
             return ScreenAlert(
                 id: "drive-stopped", priority: .destination, tone: .critical,
                 text: "The Drive stopped. Recording to this \(deviceWord) for the rest of the Take; the audio moves to the Drive after it.")
+        case (_, .full):
+            // No Repair promised: a full Drive's Gap isn't filled until someone frees space.
+            return ScreenAlert(
+                id: "drive-full", priority: .destination, tone: .critical,
+                text: "The Drive is full. Recording continues on the Device.")
         case (_, .interrupted):
             return ScreenAlert(
                 id: "drive-stopped", priority: .destination, tone: .critical,

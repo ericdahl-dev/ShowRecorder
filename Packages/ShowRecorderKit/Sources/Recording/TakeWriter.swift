@@ -111,6 +111,9 @@ final class TakeWriter: @unchecked Sendable {
     /// it has no audio past where it began. Read once the writer has finished.
     var neverJoined: Bool { isFinished && !joined.load(ordering: .acquiring) }
 
+    /// Whether the space check retired this Copy: it ended early and cleanly because it ran short of space (#560), and no write failed.
+    var wasRetiredForSpace: Bool { retired.load(ordering: .acquiring) && !failed.load(ordering: .acquiring) }
+
     /// Whether a write failed. The Copy stops there; the Take carries on in the other Copies.
     var hasFailed: Bool { failed.load(ordering: .acquiring) || retired.load(ordering: .acquiring) }
 

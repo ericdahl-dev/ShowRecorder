@@ -57,6 +57,7 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         driveAllowed: Bool = true
     ) -> [StatusChip] {
         func stopped(_ kind: DestinationKind) -> Bool { copies.isRunning && copies[kind] == .interrupted }
+        func full(_ kind: DestinationKind) -> Bool { copies.isRunning && copies[kind] == .full }
         func timeLeft(_ bytes: Int64) -> TimeLeft {
             TimeLeft(availableBytes: bytes, usbChannelCount: usbChannelCount, sampleRate: sampleRate)
         }
@@ -66,6 +67,7 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         let deviceLeft = timeLeft(deviceAvailableBytes)
         var device = StatusChip(kind: .device, text: "Device \(deviceLeft)", state: isLow(deviceLeft) ? .attention : .ok)
         if stopped(.device) { device = StatusChip(kind: .device, text: "Device stopped", state: .failed) }
+        if full(.device) { device = StatusChip(kind: .device, text: "Device full", state: .failed) }
 
         var driveChip: StatusChip
         switch drive {
@@ -81,6 +83,7 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
             driveChip = StatusChip(kind: .drive, text: "Drive missing", state: .attention)
         }
         if stopped(.drive) { driveChip = StatusChip(kind: .drive, text: "Drive stopped", state: .failed) }
+        if full(.drive) { driveChip = StatusChip(kind: .drive, text: "Drive full", state: .failed) }
 
         var chips = [device, driveChip]
         // Drive only needs the Drive Copy: on Free a Take goes to the Device (#705).
