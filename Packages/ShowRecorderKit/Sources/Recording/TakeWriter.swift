@@ -93,6 +93,10 @@ final class TakeWriter: @unchecked Sendable {
     /// Frames every Stem is sure to have, as `stemFramesKept` counts them.
     var framesKept: Int { Int(stemFramesKept.min() ?? 0) }
 
+    /// Frames every Stem's last header commit made durable, whether or not the writer has failed (#602): a rejoin cuts a pulled
+    /// Drive's Stems back to this. Safe to read while the writer runs.
+    var committedFrames: Int { Int(committedCounts.withLock { $0 }.min() ?? 0) }
+
     /// Stretches written as silence because the ring had no room for that audio.
     var dropouts: [Range<Int>] { dropoutRanges.withLock { $0 } }
 
