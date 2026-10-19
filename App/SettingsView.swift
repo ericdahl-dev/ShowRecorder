@@ -113,6 +113,40 @@ struct SettingsView: View {
                             model.speedTest.start(store: model.drive.store)
                         }
                     }
+                    if RecordToAvailability.isAvailableInThisBuild {
+                        // Free shows This iPhone, the choice in effect; Drive and Both offer Pro, and the saved choice
+                        // stays for Pro or the Trial (Eric, #805).
+                        let driveAllowed = model.pro.license().allowsDrive
+                        Picker("Record to", selection: Binding(
+                            get: { model.recordTo.shown(driveAllowed: driveAllowed) },
+                            set: { choice in
+                                if choice.offersPro(driveAllowed: driveAllowed) {
+                                    showingPaywall = true
+                                } else {
+                                    model.recordTo = choice
+                                    model.recordToChanged()
+                                }
+                            }
+                        )) {
+                            ForEach(RecordTo.allCases, id: \.self) { choice in
+                                let label = choice.label(deviceWord: ThisHardware.word)
+                                Text(choice.offersPro(driveAllowed: driveAllowed) ? "\(label) (Pro)" : label).tag(choice)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        // Free has its own note above: its Takes record to this iPhone, whatever is chosen.
+                        if model.pro.license().allowsDrive {
+                            switch model.recordTo {
+                            case .device:
+                                Text("Takes record to this \(ThisHardware.word) only, even with a Drive connected.")
+                                    .font(.footnote).secondaryText()
+                            case .drive:
+                                Text("Takes are written only to the Drive. If the Drive is lost, this \(ThisHardware.word) records until it's back.")
+                                    .font(.footnote).secondaryText()
+                            case .both: EmptyView()
+                            }
+                        }
+                    }
                 } header: {
                     Text("Storage").id(SettingsSection.storage)
                 }
