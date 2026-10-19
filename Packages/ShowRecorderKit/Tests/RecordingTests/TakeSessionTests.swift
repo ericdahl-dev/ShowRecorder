@@ -194,6 +194,36 @@ struct TakeSessionTests {
         ])
     }
 
+    @Test("A rejoin resumes at the frames really on disk when the file is shorter than its last commit, so the shortfall is a Gap and not zeros (#602)")
+    func rejoinResumesAtWhatIsOnDisk() async throws {
+        let opened = Opened()
+        let session = try session(withDrive: true, opened: opened, wrap: { url, real in
+            let fresh = url.path.contains("/Drive/") && opened.resumes.last! == nil
+            return fresh ? FailingStem(real, healthyFrames: 300_000) : real
+        })
+        let drive = drive
+        try await deliver(480)
+        try await deliver(200_000)
+        try await deliver(480)
+        for _ in 0..<3 { try await deliver(48_000) }
+        try await waitUntil { session.status(.drive) == .interrupted && session.copies[1].writer.isFinished }
+        // The Drive was pulled inside its own write cache: `fsync` returned for the last commit, yet the file ends before it.
+        let committed = session.copies[1].writer.framesKept
+        #expect(committed > 150_000)
+        let stem = session.copies[1].folder.appending(path: "01 USB 01.wav")
+        let handle = try FileHandle(forUpdating: stem)
+        try handle.truncate(atOffset: UInt64(StemWriter.dataStart) + 150_000 * 3)
+        try handle.close()
+
+        _ = session.checkDestinations(drive: { DriveAccess(folder: drive) })
+        let rejoinFrame = capture.takeFrameCount
+        try await deliver(480)
+        let finished = session.finish()
+
+        #expect(opened.resumes.last == 150_000, "resumed at what the file really holds, not at the commit")
+        #expect(finished.metadata.gaps == [.init(copy: .drive, start: 150_000, end: rejoinFrame)])
+    }
+
     @Test("A Dropout the Drive logged after its last commit is cut off at the rejoin: a Gap in the Drive, still a Dropout of the Device (#604)")
     func driveRejoinCutsOffDropoutPastTheResume() async throws {
         let opened = Opened()
