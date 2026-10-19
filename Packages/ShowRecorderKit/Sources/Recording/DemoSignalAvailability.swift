@@ -7,7 +7,7 @@ import StoreKit
 public enum DistributionEnvironment: Sendable, Equatable {
     /// The App Store build.
     case production
-    /// A TestFlight build.
+    /// A TestFlight build, or (expected) a build under App Review.
     case sandbox
     /// Anything else (Xcode, local testing, or an environment this app doesn't know).
     case unknown

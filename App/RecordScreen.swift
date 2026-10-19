@@ -724,6 +724,13 @@ final class RecordScreenModel {
     }
     /// The Armed interface's mixer family: X Air or X32, or nil for anything else (#365).
     var armedFamily: MixerFamily? { armedDevice.flatMap { MixerFamily(audioInterfaceName: $0.name) } }
+    /// The Armed family for packs and the license only (#705): `armedFamily`, except that the Demo signal counts as an
+    /// X Air in review and TestFlight builds (`DemoMixerFamilyAvailability`), so App Review can reach the X Air pack.
+    var licenseFamily: MixerFamily? {
+        armedDevice.flatMap {
+            MixerFamily.armed(interfaceName: $0.name, isDemo: $0.id == "demo", demoCounts: DemoMixerFamilyAvailability.isAvailableInThisBuild)
+        }
+    }
 
     /// Mixer Link is offered only while an X Air or X32 is the Armed input (#365). Any other input (a built-in mic,
     /// the Demo signal, an EVO 4, a DJM) has no Mixer Link: Settings hides it, the strip has no Mixer chip and the
@@ -1118,7 +1125,7 @@ final class RecordScreenModel {
         mixerGain.makeProtection = { [weak self] queue in self?.makeClipProtection(queue: queue) }
         mixerGain.takeAllowance = { [weak self] in self?.recorder.takeAllowance }
         mixerGain.allowsAutoGain = { [weak self] in self?.pro.license().allowsAutoGain ?? true }
-        pro.armedFamily = { [weak self] in self?.armedFamily }
+        pro.armedFamily = { [weak self] in self?.licenseFamily }
         followTakes()
         sequencer.didArm = { [unowned self] device in
             #if DEBUG && os(iOS)
