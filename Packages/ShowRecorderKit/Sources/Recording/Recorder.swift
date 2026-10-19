@@ -517,12 +517,13 @@ public final class Recorder {
     /// on a Drive that was given up on at Stop (#673).
     public func showRecordedSecondsOffMain(leavingOut take: Int?) async -> Double? {
         guard let show = currentShow else { return nil }
-        // (The Drive's bookmark is still resolved here, on the main thread; the closure isn't Sendable yet.) The access is
-        // ended where the read ends, so a read stuck on a hung Drive keeps it only until that Drive lets go.
-        let access = driveFolder()
-        let driveShow = access?.folder.appending(path: show.name, directoryHint: .isDirectory)
+        // The Drive's bookmark is resolved on that thread too (it can block on a wedged Drive), and the access is ended where the
+        // read ends, so a read stuck on a hung Drive keeps it only until that Drive lets go.
+        let resolve = driveFolder
         return await runOffPool {
+            let access = resolve()
             defer { access?.end() }
+            let driveShow = access?.folder.appending(path: show.name, directoryHint: .isDirectory)
             return try? show.recordedSeconds(leavingOut: take, driveShow: driveShow)
         }
     }
