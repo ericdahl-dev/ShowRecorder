@@ -13,6 +13,12 @@ struct PackOfferTests {
         #expect(PackOffer.items(ownsPro: false, armedFamily: .x32, ownedPacks: [], boughtPacks: [], packsOffered: true) == [.pack(.x32), .pro])
     }
 
+    @Test("The Demo signal, where it counts as an X Air, is offered the X Air pack first (#705)")
+    func demoGetsXAirPack() {
+        let family = MixerFamily.armed(interfaceName: "Demo signal", isDemo: true, demoCounts: true)
+        #expect(PackOffer.items(ownsPro: false, armedFamily: family, ownedPacks: [], boughtPacks: [], packsOffered: true) == [.pack(.xAir), .pro])
+    }
+
     @Test("A generic input (no mixer family) is offered Pro only: there is no pack for it (#705)")
     func genericGetsPro() {
         #expect(PackOffer.items(ownsPro: false, armedFamily: nil, ownedPacks: [], boughtPacks: [], packsOffered: true) == [.pro])

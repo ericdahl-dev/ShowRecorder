@@ -173,7 +173,7 @@ What each Destination's Copy of one Take is doing, or ended as, keyed by Destina
 A Copy that Stop couldn't finish writing in time: the Take ends without waiting for it. With Drive only, a Drive that stalled mid-Take and never came back ends this way; the stall itself only starts the Stand-in.
 
 **Mixer family**:
-Mixers one driver reads, such as the X Air (XR18, MR18) or the X32 (X32, M32). The family is recognized from the Audio interface's name (for Mixer packs) and from the Mixer's own model (for the Mixer Link), and each family knows the port it is asked on and makes its driver.
+Mixers one driver reads, such as the X Air (XR18, MR18) or the X32 (X32, M32). The family is recognized from the Audio interface's name (for Mixer packs) and from the Mixer's own model (for the Mixer Link), and each family knows the port it is asked on and makes its driver. In Debug and sandbox builds (TestFlight, App Review) the Demo signal counts as an X Air for Mixer packs and the license, so App Review can reach the pack.
 
 **Mixer gain**:
 The one object that moves preamp gain on the linked Mixer: auto-gain between Takes and clip protection during them. Both go through one queue: auto-gain's moves and Undo one at a time on the whole Mixer, clip protection's turn-downs one at a time per preamp lane, so the two never overlap on the Mixer.
