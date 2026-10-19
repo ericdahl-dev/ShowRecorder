@@ -74,7 +74,7 @@ A Take never stops, and your audio is never held back, because of a Trial, a lim
 
 FREE, 14-DAY TRIAL AND PRO
 Free records every USB channel to your iPhone, iPad or Mac, with generic file names ("USB 07") and up to 3 Markers per Take.
-Pro is a one-time purchase at a launch price of $4.99, shared with your family: names and colors from the mixer on the files, typed names, a second copy on a USB drive, unlimited Markers, the Show report and Reaper project, 96 kHz and Templates. No subscription.
+Pro is a one-time purchase, shared with your family: names and colors from the mixer on the files, typed names, a second copy on a USB drive, unlimited Markers, the Show report and Reaper project, 96 kHz and Templates. No subscription.
 A 14-day Trial of everything in Pro costs nothing. When it ends, every channel still records.
 
 WHAT YOU NEED
@@ -113,8 +113,12 @@ First release.
 
 | Product ID | Display name | Description (55) |
 |---|---|---|
-| `dev.ericdahl.ShowRecorder.pro` | ShowRecorder Pro | Mixer names, Drive copy, report, Reaper, 96 kHz, more |
-| `dev.ericdahl.ShowRecorder.trial` | 14-day Trial | Everything in Pro for 14 days, at no cost |
+| `dev.ericdahl.ShowRecorder.pro` | ShowRecorder Pro | Mixer names, Drive copy, report, 96 kHz, more |
+| `dev.ericdahl.ShowRecorder.trial` | 14-day Trial | Everything Pro does, for 14 days. |
+
+The Trial's description is App Store Connect's live text (read 2026-10-18).
+
+App Store Connect's live Pro description (read 2026-10-18) is "Every USB Channel, report, Reaper, 96 kHz, Templates" (52 characters). It is out of date since #703, as Free records every USB Channel; Eric to change it. Proposed: "Mixer names, Drive copy, report, 96 kHz, more" (45).
 
 ## Screenshots (to take)
 
