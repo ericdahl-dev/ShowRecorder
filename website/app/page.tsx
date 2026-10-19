@@ -264,7 +264,7 @@ export default function Home() {
               <Mark />
               For iPhone and iPad
             </p>
-            <h1 id="hero-title">Record every channel of your XR18 on your iPhone. No laptop at the gig.</h1>
+            <h1 id="hero-title">Record every channel of your mixer on your iPhone. No laptop at the gig.</h1>
             <p className="lede">
               Plug your mixer into your iPhone over USB, press record, and get one 24-bit WAV file per channel,
               named from the mixer and ready for your DAW.
