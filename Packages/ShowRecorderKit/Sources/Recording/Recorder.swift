@@ -513,6 +513,20 @@ public final class Recorder {
         return try? show.recordedSeconds(leavingOut: take, driveShow: access?.folder.appending(path: show.name, directoryHint: .isDirectory))
     }
 
+    /// `showRecordedSeconds`, read off the main thread: it lists the Drive's Show and reads its Take.json files, which can hang
+    /// on a Drive that was given up on at Stop (#673).
+    public func showRecordedSecondsOffMain(leavingOut take: Int?) async -> Double? {
+        guard let show = currentShow else { return nil }
+        // (The Drive's bookmark is still resolved here, on the main thread; the closure isn't Sendable yet.) The access is
+        // ended where the read ends, so a read stuck on a hung Drive keeps it only until that Drive lets go.
+        let access = driveFolder()
+        let driveShow = access?.folder.appending(path: show.name, directoryHint: .isDirectory)
+        return await runOffPool {
+            defer { access?.end() }
+            return try? show.recordedSeconds(leavingOut: take, driveShow: driveShow)
+        }
+    }
+
     /// Checks that the Drive Copy of Show `show` is whole (see `CopyCheck`). Reads every Stem, off the main thread.
     public func checkDriveCopy(of show: String) async -> CopyCheck.Result {
         guard let access = driveFolder() else { return .failed(["The Drive isn't available."]) }

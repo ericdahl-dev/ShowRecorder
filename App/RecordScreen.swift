@@ -827,6 +827,8 @@ final class RecordScreenModel {
     /// has no audio yet. Read only when the Show or its Take count changes, not every second (#328).
     private(set) var showRecordedSeconds: Double?
     @ObservationIgnored private var showRecordedKey: String?
+    /// Counts the looks started, so only the newest one's result is shown.
+    @ObservationIgnored private var showRecordedLook = 0
 
     private func refreshShowTotal() {
         let show = recorder.currentShow
@@ -837,12 +839,23 @@ final class RecordScreenModel {
         let key = show.map { "\($0.folder.path)|\($0.takeCount)|\(recorder.isRecording)|\(driveAvailable)" }
         guard key != showRecordedKey else { return }
         showRecordedKey = key
-        // A running Take's own files are already on disk; leave it out, the screen adds its live time.
-        guard let show, let seconds = recorder.showRecordedSeconds(leavingOut: recorder.isRecording ? show.takeCount : nil) else {
+        guard let show else {
+            showRecordedLook += 1
             showRecordedSeconds = nil
             return
         }
-        showRecordedSeconds = seconds > 0 || recorder.isRecording ? seconds : nil
+        // A running Take's own files are already on disk; leave it out, the screen adds its live time. Read off the main
+        // thread (#673): a Drive that hung after Stop can't block the screen. The total shows when it arrives, unless a newer
+        // look replaced this one meanwhile.
+        let recording = recorder.isRecording
+        showRecordedLook += 1
+        let look = showRecordedLook
+        Task { [weak self] in
+            guard let self else { return }
+            let seconds = await recorder.showRecordedSecondsOffMain(leavingOut: recording ? show.takeCount : nil)
+            guard showRecordedLook == look else { return }
+            showRecordedSeconds = seconds.flatMap { $0 > 0 || recording ? $0 : nil }
+        }
     }
 
     private func refreshDestinations() {
