@@ -111,10 +111,12 @@ First release.
 
 ## In-app purchase display text
 
-| Product ID | Display name | Description (55) |
+| Product ID | Display name | Description (45) |
 |---|---|---|
 | `dev.ericdahl.ShowRecorder.pro` | ShowRecorder Pro | Mixer names, Drive copy, report, Reaper, 96 kHz, more |
 | `dev.ericdahl.ShowRecorder.trial` | 14-day Trial | Everything in Pro for 14 days, at no cost |
+
+Apple's description limit is 45 (checked 2026-10-18); this table said 55. Pro's description above is 53 and needs shortening. The mixer packs and the upgrade are drafted in [`mixer-packs.md`](mixer-packs.md).
 
 ## Screenshots (to take)
 
