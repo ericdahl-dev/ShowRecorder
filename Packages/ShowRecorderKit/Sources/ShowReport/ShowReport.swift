@@ -43,6 +43,19 @@ public struct ShowReport: Equatable, Sendable {
         /// Stretches of the Take missing from one Copy, held there as silence.
         public var gaps: [Gap] = []
 
+        /// Drive only (#629): the stretches of the Take this Copy holds, when it holds only stand-ins (the Drive has the rest).
+        /// Empty for a Copy with the whole Stems.
+        public var heldRanges: [HeldRange] = []
+
+        public struct HeldRange: Equatable, Sendable {
+            public var startSeconds: Double
+            public var endSeconds: Double
+            public init(startSeconds: Double, endSeconds: Double) {
+                self.startSeconds = startSeconds
+                self.endSeconds = endSeconds
+            }
+        }
+
         public struct Gap: Equatable, Sendable {
             public var copy: DestinationKind
             public var startSeconds: Double
@@ -229,7 +242,8 @@ public struct ShowReport: Equatable, Sendable {
             <h2>Take \(take.number)</h2>
             <dl>
             <dt>Started</dt><dd>\(Self.timestamp(take.audioStartedAt))</dd>
-            \(Self.preRollRows(for: take))<dt>Duration</dt><dd>\(take.duration.map(Self.clock) ?? "unknown")</dd>
+            \(Self.preRollRows(for: take))<dt>\(take.heldRanges.isEmpty ? "Duration" : "Duration on the Device")</dt><dd>\(take.duration.map(Self.clock) ?? "unknown")</dd>
+            \(Self.heldRows(for: take))
             <dt>Sample rate</dt><dd>\(take.sampleRate) Hz</dd>
             <dt>Folder</dt><dd>\(Self.escape(take.folderName))</dd>
             </dl>
@@ -340,6 +354,13 @@ public struct ShowReport: Equatable, Sendable {
             """
     }
 
+    /// Drive only (#629): for a Take this Copy holds only a stand-in of, which stretch of the Take that is.
+    private static func heldRows(for take: Take) -> String {
+        guard !take.heldRanges.isEmpty else { return "" }
+        let ranges = take.heldRanges.map { "\(clock($0.startSeconds)) to \(clock($0.endSeconds))" }.joined(separator: ", ")
+        return "<dt>Held on the Device</dt><dd>\(ranges) of the Take; the Drive holds the rest.</dd>\n"
+    }
+
     /// A Marker's time in the Take, to a tenth of a second ("1:05.3").
     static func markerClock(_ seconds: Double) -> String {
         let tenths = Int((seconds * 10).rounded(.down))
@@ -434,7 +455,7 @@ extension ShowReport.Take {
                     inputSource: channel.inputSource,
                     peakDbfs: channel.peakDbfs,
                     averageDbfs: channel.averageDbfs,
-                    sampleCount: try? StemFile.inspect(folder.appending(path: channel.stemFile)).frameCount,
+                    sampleCount: Self.sampleCount(of: channel.stemFile, in: folder, standIns: file.standIns ?? []),
                     sampleRate: file.sampleRate)
             },
             markers: file.markers.map { Marker(seconds: seconds($0.position), name: $0.name) },
@@ -447,5 +468,21 @@ extension ShowReport.Take {
             },
             dropouts: file.dropouts.map { Dropout(copy: $0.copy, startSeconds: Double($0.start) / rate, endSeconds: Double($0.end) / rate) },
             preRollSeconds: (file.preRollFrames ?? 0) > 0 && file.sampleRate > 0 ? Double(file.preRollFrames ?? 0) / Double(file.sampleRate) : nil)
+        // A Device that holds only the stand-ins has no whole Stem; say which stretch it does hold (#629).
+        // Only when no channel has a whole Stem; a stand-in that held nothing (start == end) is no range. In Take order.
+        let holdsOnlyStandIns = !file.usbChannels.isEmpty
+            && file.usbChannels.allSatisfy { !FileManager.default.fileExists(atPath: folder.appending(path: $0.stemFile).path) }
+        if holdsOnlyStandIns, let standIns = file.standIns {
+            heldRanges = standIns.filter { $0.end > $0.start }.sorted { $0.start < $1.start }
+                .map { HeldRange(startSeconds: Double($0.start) / rate, endSeconds: Double($0.end) / rate) }
+        }
+    }
+
+    /// A Stem's length: from the Stem in the Take folder, or, when the Device holds only stand-ins (#629), from the stand-ins'
+    /// Stems of that channel, which together are what this Copy holds.
+    private static func sampleCount(of stemFile: String, in folder: URL, standIns: [TakeMetadata.StandIn]) -> UInt64? {
+        if let whole = try? StemFile.inspect(folder.appending(path: stemFile)).frameCount { return whole }
+        let held = standIns.compactMap { try? StemFile.inspect(folder.appending(path: $0.folderName).appending(path: stemFile)).frameCount }
+        return held.isEmpty ? nil : held.reduce(0, +)
     }
 }
