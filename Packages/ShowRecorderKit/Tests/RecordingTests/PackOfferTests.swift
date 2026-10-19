@@ -87,6 +87,30 @@ struct PackOfferTests {
     func restoreNote() {
         #expect(PackOffer.restoreNote(ownsPro: true, ownedPacks: [.xAir]) == nil)
         #expect(PackOffer.restoreNote(ownsPro: false, ownedPacks: [.xAir]) == "Restored: X Air pack")
-        #expect(PackOffer.restoreNote(ownsPro: false, ownedPacks: []) == "No Pro purchase found for this Apple Account.")
+        #expect(PackOffer.restoreNote(ownsPro: false, ownedPacks: []) == "No purchase found for this Apple Account.")
+    }
+
+    @Test("The pack offer says it covers one family, naming the family's models (#705)")
+    func packFootnote() {
+        #expect(MixerFamily.xAir.models == ["XR18", "MR18"])
+        #expect(MixerFamily.x32.models == ["X32", "M32"])
+        #expect(PackOffer.packFootnote(family: .xAir) == "The X Air pack is Pro while an XR18 or MR18 is the audio interface. Pro covers every one.")
+        #expect(PackOffer.packFootnote(family: .x32) == "The X32 pack is Pro while an X32 or M32 is the audio interface. Pro covers every one.")
+    }
+
+    @Test("A pack owner's Settings footer is about their pack, not Free; only a bought pack is offered the upgrade (#705)")
+    func ownerFooter() {
+        #expect(PackOffer.ownerFooter(ownedPacks: [], boughtPacks: []) == nil)
+        #expect(PackOffer.ownerFooter(ownedPacks: [.xAir], boughtPacks: [.xAir]) == "Your X Air pack is Pro while an XR18 or MR18 is the audio interface. Upgrade to Pro for every one.")
+        #expect(PackOffer.ownerFooter(ownedPacks: [.xAir], boughtPacks: []) == "Your X Air pack is Pro while an XR18 or MR18 is the audio interface. Pro covers every one.")
+        #expect(PackOffer.ownerFooter(ownedPacks: [.xAir, .x32], boughtPacks: [.x32]) == "Your X32 pack is Pro while an X32 or M32 is the audio interface. Upgrade to Pro for every one.",
+                "a bought pack is named before a shared one: it's the one the upgrade rests on")
+    }
+
+    @Test("The upgrade-only paywall has its own headline (#705)")
+    func upgradeHeadline() {
+        #expect(PackOffer.upgradeHeadline(items: [.upgrade]) == "Pro on every audio interface")
+        #expect(PackOffer.upgradeHeadline(items: [.pro]) == nil)
+        #expect(PackOffer.upgradeHeadline(items: [.pack(.xAir), .pro]) == nil)
     }
 }

@@ -106,9 +106,9 @@ public struct Paywall: Equatable, Sendable {
     public let features = [
         "Names and colors from the Mixer, on the files",
         "Channel names you type, on the files",
-        "A second Copy on the Drive",
+        "A second Copy on a Drive, with Repair",
         "Unlimited Markers",
-        "The Show report and Reaper export",
+        "The Show report and Reaper project",
         "96 kHz recording",
         "Templates for each venue",
     ]

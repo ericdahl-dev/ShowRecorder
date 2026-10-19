@@ -36,6 +36,7 @@ struct ProSection: View {
                     LabeledContent("Buy \(family.name) pack", value: priceText(product?.displayPrice))
                 }
                 .disabled(product == nil || store.busy)
+                Text(PackOffer.packFootnote(family: family)).font(.footnote).secondaryText()
             }
             if items.contains(.pro) {
                 Button {
@@ -75,11 +76,15 @@ struct ProSection: View {
     }
 
     private var footer: String {
-        switch store.planLicense().tier {
+        let tier = store.planLicense().tier
+        switch tier {
         case .pro: return "Thank you. Everything in Pro is yours."
         case nil: return "Your plan shows here once the App Store answers. Until then, nothing is limited."
         default: break
         }
-        return "Free records every USB Channel on the Device. Pro is a one-time purchase, shared with your family. It adds names and colors from the Mixer, channel names you type, a second Copy on the Drive, unlimited Markers, the Show report, Reaper export, 96 kHz recording and Templates for each venue."
+        // During a Trial the Plan row says Trial, so the footer says what Free keeps, not the pack (#705).
+        let onTrial = if case .trial = tier { true } else { false }
+        if !onTrial, PackAvailability.isAvailableInThisBuild, let footer = PackOffer.ownerFooter(ownedPacks: store.purchases.ownedPacks, boughtPacks: store.purchases.boughtPacks) { return footer }
+        return "Free records every USB Channel on the Device. Pro is a one-time purchase, shared with your family. It adds names and colors from the Mixer, channel names you type, a second Copy on a Drive, with Repair, unlimited Markers, the Show report, the Reaper project, 96 kHz recording and Templates for each venue."
     }
 }
