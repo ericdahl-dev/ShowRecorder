@@ -75,7 +75,7 @@ public enum CopyCheck {
     }
 
     /// Whether two paths are one item on disk, however they're spelled.
-    private static func sameItem(_ a: URL, _ b: URL) -> Bool {
+    static func sameItem(_ a: URL, _ b: URL) -> Bool {
         if a.resolvingSymlinksInPath().standardizedFileURL.path == b.resolvingSymlinksInPath().standardizedFileURL.path { return true }
         let ids = [a, b].map { try? $0.resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier }
         guard let first = ids[0], let second = ids[1] else { return false }
