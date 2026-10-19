@@ -139,7 +139,8 @@ public final class ClipProtection {
     /// Set by `stop()`: no move starts after it.
     private var stopped = false
 
-    /// A Take started: each channel may be turned down `mostPerTakeDb` again.
+    /// A Take started: each channel may be turned down `mostPerTakeDb` again. Call it on a new instance only: a move still
+    /// waiting on the Mixer would settle its reservation against the new Take's count.
     public func takeStarted() {
         turnedDown = [:]
     }
@@ -224,7 +225,11 @@ public final class ClipProtection {
             guard left > 0 else { continue }
             lastMove[preamp] = clock
             let lane = lanes[index].map(Lane.pair) ?? .preamp(preamp)
-            moves.append((target.usbChannel, target.channel, preamp, lane, max(-left, Self.stepDb(peakDbfs: target.peak))))
+            let change = max(-left, Self.stepDb(peakDbfs: target.peak))
+            // Counted against the 12 dB now, not when the move is done: a move can wait on a busy Mixer longer than the rest
+            // (#696), and the next one is planned against what is left. `turnDown` settles it to what really moved.
+            turnedDown[preamp, default: 0] += -change
+            moves.append((target.usbChannel, target.channel, preamp, lane, change))
         }
         release(Set(targets.map(\.channel)).subtracting(moves.map(\.channel)))
         // Moves in one lane go one after the other, in USB Channel order (#554): the Mixer mirrors fader and sends between
@@ -280,16 +285,22 @@ public final class ClipProtection {
     /// Turns `channel`'s preamp down by `gainChangeDb` (negative) with Mix Hold, in its lane of the Mixer's queue, and
     /// logs what moved.
     private func turnDown(_ usbChannel: Int, channel: Int, preamp: Int, lane: Lane, by gainChangeDb: Double) async {
+        // The dB planned for this move are reserved in `turnedDown`; whatever way this ends, only what moved stays counted.
+        var moved = 0.0
+        defer {
+            let key = knownPreamp[channel] ?? preamp
+            turnedDown[key, default: 0] += moved - -gainChangeDb
+        }
         // A lane's earlier move can outlast the Take.
         guard !stopped else { return }
         let step: GainStep
         do throws(MixerLinkProblem) {
             // So can the wait in the queue.
-            guard let moved = try await queue.run(lane: lane, { () throws(MixerLinkProblem) -> GainStep? in
+            guard let done = try await queue.run(lane: lane, { () throws(MixerLinkProblem) -> GainStep? in
                 guard !stopped else { return nil }
                 return try await control.applyMixHold(channel: channel, gainChangeDb: gainChangeDb, scopes: .all, live: [])
             }) else { return }
-            step = moved
+            step = done
         } catch {
             // Stopped partway: whatever was written still counts and is logged (#450); otherwise nothing moved.
             guard case .gainMoveInterrupted(let partial) = error else { return }
@@ -297,7 +308,7 @@ public final class ClipProtection {
         }
         // At its lowest gain, or Mix Hold out of range: nothing moved, so nothing to log or Mark.
         guard step.toGainDb < step.fromGainDb else { return }
-        turnedDown[preamp, default: 0] += step.fromGainDb - step.toGainDb
+        moved = step.fromGainDb - step.toGainDb
         log(GainLog.change(step, usbChannel: usbChannel, reason: .clipProtection))
     }
 }
