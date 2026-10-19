@@ -20,7 +20,7 @@
       "internalID" : "6753000001",
       "localizations" : [
         {
-          "description" : "Record every USB Channel, with your own channel names, the Show report, Reaper export, 96 kHz and venue Templates.",
+          "description" : "Mixer names, Drive copy, report, 96 kHz, more",
           "displayName" : "ShowRecorder Pro",
           "locale" : "en_US"
         }
@@ -50,7 +50,7 @@
       "internalID" : "6753000003",
       "localizations" : [
         {
-          "description" : "Everything Pro does, while an X Air mixer is the Armed input.",
+          "description" : "Everything in Pro, with an XR18 or MR18",
           "displayName" : "X Air pack",
           "locale" : "en_US"
         }
@@ -65,7 +65,7 @@
       "internalID" : "6753000004",
       "localizations" : [
         {
-          "description" : "Everything Pro does, while an X32 mixer is the Armed input.",
+          "description" : "Everything in Pro, with an X32 or M32",
           "displayName" : "X32 pack",
           "locale" : "en_US"
         }
@@ -80,7 +80,7 @@
       "internalID" : "6753000005",
       "localizations" : [
         {
-          "description" : "Pro on every input, for an owner of a mixer pack.",
+          "description" : "Pro on every mixer, for a pack owner",
           "displayName" : "Upgrade to Pro",
           "locale" : "en_US"
         }
