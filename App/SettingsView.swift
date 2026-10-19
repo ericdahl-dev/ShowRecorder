@@ -31,7 +31,9 @@ struct SettingsView: View {
             Form {
                 if model.takeBusy {
                     Section {
-                        Label("The audio interface, Pre-roll, Drive and Mixer Link can't be changed during a Take.", systemImage: "lock.fill")
+                        Label(RecordToAvailability.isAvailableInThisBuild
+                              ? "The audio interface, Pre-roll, Drive, Record to and Mixer Link can't be changed during a Take."
+                              : "The audio interface, Pre-roll, Drive and Mixer Link can't be changed during a Take.", systemImage: "lock.fill")
                             .secondaryText()
                     }
                 }
@@ -111,6 +113,41 @@ struct SettingsView: View {
                         DriveSpeedTestRow(model: model.speedTest, canStart: model.drive.status.isAvailable && model.speedTestMayStart) {
                             guard model.speedTestMayStart else { return }
                             model.speedTest.start(store: model.drive.store)
+                        }
+                    }
+                    if RecordToAvailability.isAvailableInThisBuild {
+                        // Free shows This iPhone, the choice in effect; Drive and Both offer Pro, and the saved choice
+                        // stays for Pro or the Trial (Eric, #805).
+                        let driveAllowed = model.pro.license().allowsDrive
+                        Picker("Record to", selection: Binding(
+                            get: { model.recordTo.shown(driveAllowed: driveAllowed) },
+                            set: { choice in
+                                if choice.offersPro(driveAllowed: driveAllowed) {
+                                    showingPaywall = true
+                                } else {
+                                    model.recordTo = choice
+                                    model.recordToChanged()
+                                }
+                            }
+                        )) {
+                            ForEach(RecordTo.allCases, id: \.self) { choice in
+                                let label = choice.label(deviceWord: ThisHardware.word)
+                                Text(choice.offersPro(driveAllowed: driveAllowed) ? "\(label) (Pro)" : label).tag(choice)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .disabled(locked(.recordTo))
+                        // Free has its own note above: its Takes record to this iPhone, whatever is chosen.
+                        if model.pro.license().allowsDrive {
+                            switch model.recordTo {
+                            case .device:
+                                Text("Takes record to this \(ThisHardware.word) only, even with a Drive connected.")
+                                    .font(.footnote).secondaryText()
+                            case .drive:
+                                Text("Takes are written only to the Drive. If the Drive is lost, this \(ThisHardware.word) records until it's back.")
+                                    .font(.footnote).secondaryText()
+                            case .both: EmptyView()
+                            }
                         }
                     }
                 } header: {

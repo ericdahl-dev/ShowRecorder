@@ -76,7 +76,7 @@ public final class Recorder {
     }
 
     @ObservationIgnored private let deviceFolder: URL
-    @ObservationIgnored private let driveFolder: () -> DriveAccess?
+    @ObservationIgnored private let driveFolder: @Sendable () -> DriveAccess?
     /// Why the Drive isn't available right now, asked only after a press found none (#814).
     @ObservationIgnored private let driveProblem: () -> String?
     /// Why the running (or last) Take started without its Drive Copy, or nil when the press had one (#814). Also in the
@@ -162,7 +162,7 @@ public final class Recorder {
     ///   - driveFolder: asked at each record press for the Drive folder; nil writes to the Device only.
     public init(
         deviceFolder: URL = Recorder.defaultDeviceFolder,
-        driveFolder: @escaping () -> DriveAccess? = { nil },
+        driveFolder: @escaping @Sendable () -> DriveAccess? = { nil },
         driveProblem: @escaping () -> String? = { nil },
         now: @escaping () -> Date = Date.init,
         freeSpace: @escaping @Sendable (URL) -> Int64 = { DriveFolderStore.availableBytes(at: $0) },
@@ -200,7 +200,7 @@ public final class Recorder {
             lastTakeStandInKept = repair.standInKept
             isRepairing = repair.isRunning
         }
-        repair.jobDone = { [unowned self] in regenerateReports(skipping: $0) }
+        repair.jobDone = { [unowned self] in regenerateReportsOffMain(skipping: $0) }
         // A Show left open by a crash or an earlier launch is the open Show again.
         currentShow = Show.findOpen(in: deviceFolder)
         naming = ChannelNaming(typed: currentShow?.channelNames ?? [:])
@@ -241,8 +241,8 @@ public final class Recorder {
     /// on the Drive, and Repair fills what they lack from the Device. The app calls it at launch and when it comes to the
     /// front. Does nothing during a Take, a save or a Repair, with no Drive, or when the Drive has no folder for the Show; a
     /// marker stays until its Take's Drive Copy is reachable. The file work runs off the main thread, since a Drive that was
-    /// slow enough to be abandoned may be slow now. Only the Show's last Take is queued for Repair (it publishes the last
-    /// Take's Copies); an earlier Take is finished and its Gaps are recorded in its Take.json.
+    /// slow enough to be abandoned may be slow now. Every recovered Take with both Copies is queued for Repair, the earlier ones
+    /// first; only the Show's latest Take publishes its Copies to the screen.
     public func recoverAbandonedCopies() async {
         guard !isRecording, !isFinishing, !isRecoveringAbandoned, !repair.isRunning, let show = currentShow,
               let access = driveFolder() else { return }
@@ -252,8 +252,15 @@ public final class Recorder {
             return
         }
         isRecoveringAbandoned = true
-        let deviceShow = show.folder, skipping = abandonedThisLaunch[show.name] ?? []
-        let found = await runOffPool { AbandonedCopyRecovery.finish(deviceShow: deviceShow, driveShow: driveShow, skipping: skipping) }
+        let deviceShow = show.folder, skipping = abandonedThisLaunch[show.name] ?? [], takeCount = show.takeCount
+        let found = await runOffPool {
+            let found = AbandonedCopyRecovery.finish(deviceShow: deviceShow, driveShow: driveShow, skipping: skipping, upTo: takeCount)
+            // Then the Take folders a canceled or hung Drive join left empty (#814): after the recovery, which needs the folder of
+            // a Copy Stop gave up on, and only Takes the Show had when this look began (a Take that starts meanwhile has a higher
+            // number).
+            DriveLeftovers.sweep(driveShow: driveShow, deviceShow: deviceShow, upTo: takeCount)
+            return found
+        }
         isRecoveringAbandoned = false
         guard !found.isEmpty else {
             access.end()
@@ -266,13 +273,22 @@ public final class Recorder {
             return
         }
         regenerateReports()
-        guard let last = found.last, last.metadata.take == currentShow?.takeCount, !last.metadata.gaps.isEmpty else {
+        // Every Take with a Gap and both Copies is queued, the earlier ones first; only the Show's latest Take (queued last)
+        // publishes its Copies to the screen. A Take with no Device Copy has nothing to fill its tail from.
+        let repairable = found.filter { !$0.metadata.gaps.isEmpty && $0.folders[.device] != nil && $0.folders[.drive] != nil }
+        guard !repairable.isEmpty else {
             access.end()
             return
         }
-        lastTakeWasDriveOnly = last.metadata.standIns != nil || last.metadata.driveOnly == true
-        lastTakeGeneration += 1
-        repair.enqueue(last.metadata, folders: last.folders, holding: access, keepsStandIns: true)
+        for (index, take) in repairable.enumerated() {
+            let latest = take.metadata.take == currentShow?.takeCount
+            if latest {
+                lastTakeWasDriveOnly = take.metadata.standIns != nil || take.metadata.driveOnly == true
+                lastTakeGeneration += 1
+            }
+            // Each job holds its own access to the Drive until it is done; the first holds the one taken above.
+            repair.enqueue(take.metadata, folders: take.folders, holding: index == 0 ? access : driveFolder(), keepsStandIns: true, publishing: latest)
+        }
     }
 
     /// Starts receiving audio from `device`. Any previously Armed device is stopped first.
@@ -384,7 +400,7 @@ public final class Recorder {
         var show = try Show.create(in: deviceFolder, drive: nil, on: date, name: name, venue: venue)
         // Names belong to a Show: the one being replaced keeps its own; names typed before any Show carry over.
         if currentShow != nil { naming.replace(with: [:]) } else if !channelNames.isEmpty { show.setChannelNames(channelNames) }
-        currentShow?.end(at: date)
+        currentShow?.end(at: date, skipping: suspectDrive)
         currentShow = show
     }
 
@@ -423,14 +439,14 @@ public final class Recorder {
         guard !isRecording else { throw RecorderError.takeRunning }
         guard !isFinishing else { throw RecorderError.finishing }
         if currentShow != nil { naming.replace(with: [:]) }
-        currentShow?.end(at: now())
+        currentShow?.end(at: now(), skipping: suspectDrive)
         currentShow = nil
     }
 
     /// A Show with no Take for 6 hours is over; names typed since then are for the next one.
     private func endIdleShow(at date: Date) {
         guard let open = currentShow, open.isIdle(at: date) else { return }
-        currentShow?.end(at: date)
+        currentShow?.end(at: date, skipping: suspectDrive)
         currentShow = nil
         naming.replace(with: [:])
     }
@@ -504,6 +520,21 @@ public final class Recorder {
         return try? show.recordedSeconds(leavingOut: take, driveShow: access?.folder.appending(path: show.name, directoryHint: .isDirectory))
     }
 
+    /// `showRecordedSeconds`, read off the main thread: it lists the Drive's Show and reads its Take.json files, which can hang
+    /// on a Drive that was given up on at Stop (#673).
+    public func showRecordedSecondsOffMain(leavingOut take: Int?) async -> Double? {
+        guard let show = currentShow else { return nil }
+        // The Drive's bookmark is resolved on that thread too (it can block on a wedged Drive), and the access is ended where the
+        // read ends, so a read stuck on a hung Drive keeps it only until that Drive lets go.
+        let resolve = driveFolder
+        return await runOffPool {
+            let access = resolve()
+            defer { access?.end() }
+            let driveShow = access?.folder.appending(path: show.name, directoryHint: .isDirectory)
+            return try? show.recordedSeconds(leavingOut: take, driveShow: driveShow)
+        }
+    }
+
     /// Checks that the Drive Copy of Show `show` is whole (see `CopyCheck`). Reads every Stem, off the main thread.
     public func checkDriveCopy(of show: String) async -> CopyCheck.Result {
         guard let access = driveFolder() else { return .failed(["The Drive isn't available."]) }
@@ -574,14 +605,22 @@ public final class Recorder {
         driveCopyAllowed = allowance?.driveCopy != false
         driveNotice = nil
         var drive = mayUseDrive ? driveFolder() : nil
-        // Why this Take has no Drive Copy from the press, kept in its Take.json and on screen (#814). No Drive chosen
-        // is not a problem: the app has no reason to give then.
+        // Why this Take has no Drive Copy from the press (#814): always in its Take.json, so a report that asks why the Drive
+        // Copy starts late has the answer; and on screen only when the app has a reason to give (a Drive chosen but not
+        // there, a Drive that failed), so "no Drive chosen" doesn't grow new text.
         var driveNote: String?
+        var onScreen: String?
         if allowance?.driveCopy == false {
             // The tier, not where Takes are set to go: a Take sent to the Device by choice has nothing to explain.
             driveNote = "The Drive Copy is a Pro feature."
-        } else if drive == nil, let reason = driveProblem() {
-            driveNote = "The Drive wasn't available at the press: \(reason)"
+            onScreen = driveNote
+        } else if mayUseDrive, drive == nil {
+            if let reason = driveProblem() {
+                driveNote = "The Drive wasn't available at the press: \(reason)"
+                onScreen = driveNote
+            } else {
+                driveNote = "No Drive was connected at the press."
+            }
         }
         let opened: (show: Show, session: TakeSession, folders: [DestinationKind: URL])
         do {
@@ -593,10 +632,11 @@ public final class Recorder {
             // already let the Drive go. The error is kept (#814): it says why the Drive Copy starts late.
             drive = nil
             driveNote = "The Drive failed at the press, so this Take started on the Device only: \(Self.describe(error))"
+            onScreen = driveNote
             opened = try openTake(
                 sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: nil, driveNote: driveNote)
         }
-        driveNotice = driveNote
+        driveNotice = onScreen
         let (show, session, takeFolders) = opened
         session.onCopyFailed = { [weak self, weak session] in Task { @MainActor in await self?.copyFailed(in: session) } }
         session.stopTimeout = writerStopTimeout
@@ -623,7 +663,7 @@ public final class Recorder {
             destinationChecks = Task { [weak self] in
                 while !Task.isCancelled {
                     try? await Task.sleep(for: destinationCheckInterval)
-                    await self?.checkDestinations()
+                    await self?.checkDestinations(awaitingDrive: false)
                 }
             }
         }
@@ -725,7 +765,8 @@ public final class Recorder {
         } else if isFinishing {
             gainChangesWhileFinishing.append(change)
         } else {
-            currentShow?.logGainChange(change)
+            // Not to a Copy the last Stop gave up on: it may be hung (#673).
+            currentShow?.logGainChange(change, skipping: suspectDrive)
         }
     }
 
@@ -880,6 +921,13 @@ public final class Recorder {
     /// fill. The Recorder does this on its own every `destinationCheckInterval` while recording; call it to
     /// look straight away, as Check Drive does.
     public func checkDestinations() async {
+        await checkDestinations(awaitingDrive: true)
+    }
+
+    /// `awaitingDrive` false is the one-second loop's: a Drive that joins is started and left to finish, so a join that
+    /// takes seconds on a slow stick (or hangs on a dead one) doesn't stop the checks that keep a Take safe, such as the
+    /// low-space one (#814). A caller that asks for the Drive, like Check Drive, waits for it.
+    func checkDestinations(awaitingDrive: Bool) async {
         guard isRecording, let session else { return }
         // A Copy's free space is a read of its volume, and a stick busy with a Take can take hundreds of milliseconds to
         // answer it: read them all on their own thread, once a second, and not on the main actor (#814).
@@ -895,17 +943,42 @@ public final class Recorder {
         if freeSpaceRead == reading { freeSpaceRead = nil }
         // The Take may have ended, or another one begun, while that read was under way.
         guard isRecording, self.session === session else { return }
-        switch session.checkDestinations(drive: { [self] in takeMayUseDrive ? driveFolder() : nil }, freeSpace: { readings[$0] ?? .max }) {
+        // The Drive joins below, off the main actor; the check itself never reaches for it.
+        switch session.checkDestinations(drive: { nil }, freeSpace: { readings[$0] ?? .max }) {
         case .carryOn:
-            // The Drive joined: "wasn't available at the press" is no longer true, and would be wrong if it dropped later.
-            if driveNotice != nil, session.takeCopies[.drive] != .missing { driveNotice = nil }
-            currentShow = session.show
-            currentShow?.keepChannelNames(channelNames)
-            dropoutCount = session.dropoutCount
-            refreshMarkers(from: session.metadata)
+            // A Drive that appears or comes back joins with its Stems made on their own thread, not here (#814); a Take
+            // the tier or the settings kept off the Drive never asks for it.
+            if takeMayUseDrive, session.wantsDrive {
+                if awaitingDrive {
+                    await joinDrive(in: session)
+                    // The Take may have ended while the Stems were being made.
+                    guard isRecording, self.session === session else { return }
+                } else {
+                    Task { [weak self] in await self?.joinDrive(in: session) }
+                }
+            }
+            refreshFromSession(session)
         case .outOfSpace:
             try? await stopTake(because: .outOfSpace)
         }
+    }
+
+    /// The Drive joins (or rejoins) the running Take: its file work runs off the main actor (#814).
+    private func joinDrive(in session: TakeSession) async {
+        guard await session.attachDriveOffMain(drive: driveFolder) else { return }
+        // The Take may have ended meanwhile; a Drive that joined after the snapshot never does (see `finishInput`).
+        guard isRecording, self.session === session else { return }
+        refreshFromSession(session)
+    }
+
+    /// What the screen reads of the running Take, brought up to date after a check or a Drive join.
+    private func refreshFromSession(_ session: TakeSession) {
+        // The Drive joined: "wasn't available at the press" is no longer true, and would be wrong if it dropped later.
+        if driveNotice != nil, session.takeCopies[.drive] != .missing { driveNotice = nil }
+        currentShow = session.show
+        currentShow?.keepChannelNames(channelNames)
+        dropoutCount = session.dropoutCount
+        refreshMarkers(from: session.metadata)
     }
 
     /// A Copy's writer failed. Once every Copy has, there's nowhere left to record: end the Take.
@@ -996,6 +1069,7 @@ public final class Recorder {
         lastTakeGeneration += 1
         currentShow = session.show
         if finished.abandoned.contains(.drive) { abandonedThisLaunch[session.show.name, default: []].insert(finished.metadata.take) }
+        suspectCopies = finished.abandoned
         for change in gainChangesWhileFinishing { currentShow?.logGainChange(change, skipping: finished.abandoned) }
         gainChangesWhileFinishing = []
         // A Copy Stop gave up on may hang on any file operation, so the main thread leaves it alone (#652).
@@ -1041,16 +1115,50 @@ public final class Recorder {
 
     /// Rewrites the Show report and Reaper project, when the last Take's allowance includes them (Pro or Trial). Never
     /// during a Take: a Repair that finishes mid-Take leaves them for its end (#320). A Copy Stop gave up on is skipped.
-    private func regenerateReports(skipping skipped: Set<DestinationKind> = []) {
-        guard !isRecording else { return }
-        let allowance = lastAllowance
-        let copies = currentShow?.copies ?? [:]
-        for kind in DestinationKind.allCases where !skipped.contains(kind) {
-            guard let copy = copies[kind] else { continue }
-            if allowance?.showReport ?? true { try? ShowReport.write(showFolder: copy.folder) }
-            if allowance?.reaperExport ?? true { try? copy.writeProjects() }
+    func regenerateReports(skipping skipped: Set<DestinationKind> = []) {
+        guard let job = reportJob(skipping: skipped, whileFinishing: true) else { return }
+        for copy in job.copies { reportWriter(copy, job.report, job.projects) }
+    }
+
+    /// The same rewrite for a Repair that has finished, off the main thread and one at a time: a Drive that hangs (one Stop
+    /// didn't know about) can't block the UI, and two rewrites never overlap (#588).
+    func regenerateReportsOffMain(skipping skipped: Set<DestinationKind>) {
+        guard let job = reportJob(skipping: skipped, whileFinishing: false) else { return }
+        let previous = reportTask, write = reportWriter, limit = reportWaitLimit
+        reportTask = Task {
+            // One that hangs on a Drive holds the next only for a while: they all rewrite the same files.
+            await waitBounded(previous, for: limit)
+            await runOffPool { for copy in job.copies { write(copy, job.report, job.projects) } }
         }
     }
+
+    /// What a rewrite writes and where: not during a Take, and not on a Copy `skipped` or the last Take's abandoned Copy
+    /// (`suspectCopies`) names, since its Destination may be hung (#673).
+    private func reportJob(skipping skipped: Set<DestinationKind>, whileFinishing: Bool) -> (copies: [Show], report: Bool, projects: Bool)? {
+        // A Repair's rewrite is not made while a Take is being saved either: Stop rewrites them when it is published (that
+        // call is `whileFinishing`), and the Drive it is waiting on may be the one that hangs.
+        guard !isRecording, whileFinishing || !isFinishing else { return nil }
+        let allowance = lastAllowance
+        let shows = currentShow?.copies ?? [:]
+        let skip = skipped.union(suspectCopies)
+        let copies = DestinationKind.allCases.filter { !skip.contains($0) }.compactMap { shows[$0] }
+        return (copies, allowance?.showReport ?? true, allowance?.reaperExport ?? true)
+    }
+
+    /// Writes one Copy's report and Reaper project. Tests replace it.
+    @ObservationIgnored var reportWriter: @Sendable (Show, _ report: Bool, _ projects: Bool) -> Void = Recorder.writeReports
+    nonisolated static let writeReports: @Sendable (Show, Bool, Bool) -> Void = { copy, report, projects in
+        if report { try? ShowReport.write(showFolder: copy.folder) }
+        if projects { try? copy.writeProjects() }
+    }
+    @ObservationIgnored private var reportTask: Task<Void, Never>?
+    /// How long a report rewrite, or `waitForRepair`, waits for an earlier rewrite before going on without it.
+    @ObservationIgnored var reportWaitLimit: Duration = .seconds(10)
+    /// The Copies the last Take's Stop gave up on: their Destination may be hung, so nothing writes them from the main thread.
+    @ObservationIgnored var suspectCopies: Set<DestinationKind> = []
+    /// The Drive, when the last Stop gave up on it: what the main thread's Show.json writes leave out. Never the Device: its
+    /// `Show.json` is the file a relaunch reads to tell whether the Show is open.
+    private var suspectDrive: Set<DestinationKind> { suspectCopies.intersection([.drive]) }
 
     /// Drive only (#630): moves every stand-in the Device keeps, and every Drive only Take it holds whole, in any Show,
     /// to its Take on the Drive, and removes the Device's Take once the Drive is checked to hold it. Does nothing during a Take or with no Drive; a Take
@@ -1163,7 +1271,8 @@ public final class Recorder {
     /// to do or what has changed. What came of each Take is in `driveOnlyMoves`.
     public func driveMayHaveConnected() {
         // One waiting trigger takes in any more asked for before it starts.
-        guard movesDriveOnlyTakes, !isRecording, !triggerWaiting else { return }
+        // Not while a Device Copy Stop gave up on may still have its writer alive: the mover could move and remove it (#838).
+        guard movesDriveOnlyTakes, !isRecording, !triggerWaiting, !suspectCopies.contains(.device) else { return }
         triggerWaiting = true
         let previous = moveTrigger
         moveTrigger = Task { [weak self] in
@@ -1200,7 +1309,7 @@ public final class Recorder {
     }
 
     /// Whether a trigger is waiting to start its move (#630).
-    @ObservationIgnored private var triggerWaiting = false
+    @ObservationIgnored var triggerWaiting = false
     /// Edits waiting for a move to end (#630).
     @ObservationIgnored private var moveWaiters: [CheckedContinuation<Void, Never>] = []
 
@@ -1262,6 +1371,7 @@ public final class Recorder {
         // A Take that is still being written has nothing to repair yet.
         await waitWhileFinishing()
         await repair.wait()
+        await waitBounded(reportTask, for: reportWaitLimit)
         await namingTask?.value
     }
 }

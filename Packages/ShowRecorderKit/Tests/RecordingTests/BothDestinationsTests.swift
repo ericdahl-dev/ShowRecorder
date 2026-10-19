@@ -120,7 +120,12 @@ struct BothDestinationsTests {
     }
 }
 
-@MainActor
-final class DriveSwitch {
-    var folder: URL?
+/// The Drive folder a test makes available or takes away; asked from the thread that checks Destinations (#814).
+final class DriveSwitch: @unchecked Sendable {
+    private let lock = NSLock()
+    private var current: URL?
+    var folder: URL? {
+        get { lock.withLock { current } }
+        set { lock.withLock { current = newValue } }
+    }
 }

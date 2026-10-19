@@ -139,9 +139,9 @@ public struct Show: Sendable, Equatable {
     }
 
     /// Marks the Show ended in every Copy it has. A Copy that can't be written is skipped: the Show ends anyway.
-    mutating func end(at date: Date) {
+    mutating func end(at date: Date, skipping skipped: Set<DestinationKind> = []) {
         endedAt = date
-        for copy in [folder] + (driveFolder.map { [$0] } ?? []) { try? file.write(to: copy) }
+        for kind in DestinationKind.allCases where !skipped.contains(kind) { if let copy = copies[kind] { try? file.write(to: copy.folder) } }
     }
 
     /// The Show that was left open: the one in `deviceParent` with a readable `Show.json` that isn't ended,
@@ -185,6 +185,12 @@ public struct Show: Sendable, Equatable {
         guard let last = earlier.max(by: { $0.file.startedAt < $1.file.startedAt }) else { return nil }
         let names2 = last.file.channelNames?.reduce(into: [Int: String]()) { if let n = Int($1.key) { $0[n] = $1.value } } ?? [:]
         return (last.name, names2)
+    }
+
+    /// Takes over the Drive folder another copy of this Show got by `useDrive`, which was called off the session (#814).
+    mutating func adoptDrive(from other: Show) {
+        driveFolder = other.driveFolder
+        driveCopyWritten = other.driveCopyWritten
     }
 
     /// Starts writing the running Take to the Drive folder `parent` too: the Show folder there (under

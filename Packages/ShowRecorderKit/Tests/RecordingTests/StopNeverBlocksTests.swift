@@ -2,6 +2,7 @@ import AudioIO
 import BroadcastWave
 import Destinations
 import Foundation
+import Synchronization
 @testable import Recording
 import TakeFile
 import Testing
@@ -258,6 +259,150 @@ struct StopNeverBlocksTests {
         // Nor once Repair is done (#652).
         #expect(!FileManager.default.fileExists(atPath: drive.appending(path: "\(show)/Report.html").path))
         #expect(!FileManager.default.fileExists(atPath: drive.appending(path: "\(show)/\(show).RPP").path))
+    }
+
+    @Test("A Drive the last Take abandoned gets no report later either, whichever Repair or edit rewrites the reports (#588, #673)")
+    func laterReportsSkipTheAbandonedDrive() async throws {
+        let device = root.appending(path: "Device")
+        let drive = root.appending(path: "Drive")
+        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
+        let gate = Gate()
+        defer { gate.open() }
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            makeStem: { url, info, resume in
+                let writer = try StemWriter.open(url: url, info: info, resumingAt: resume)
+                return url.path.hasPrefix(drive.path) ? HangingStem(writer, gate: gate) : writer
+            },
+            destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300))
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0.25, count: 4_800)])
+        try await Task.sleep(for: .milliseconds(100))
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+        // A rewrite that knows nothing of that Take's abandoned set (an earlier Take's Repair finishing, a rename).
+        recorder.regenerateReports()
+        #expect(!FileManager.default.fileExists(atPath: drive.appending(path: "\(show)/Report.html").path))
+        #expect(FileManager.default.fileExists(atPath: device.appending(path: "\(show)/Report.html").path))
+    }
+
+    @Test("A Repair that finishes rewrites the reports off the main thread, so a Drive that hangs can't block the UI (#588)")
+    func repairReportsOffMain() async throws {
+        let device = root.appending(path: "Device")
+        let drive = root.appending(path: "Drive")
+        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
+        let available = DriveSwitch()
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } },
+            now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        // The Drive joins late, so the Take ends with a Gap that Repair fills.
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0.2, count: 4_800)])
+        try await waitUntil { recorder.bufferedFrameCount == 0 }
+        available.folder = drive
+        await recorder.checkDestinations()
+        audio.deliver([Array(repeating: 0.2, count: 4_800)])
+        try await waitUntil { recorder.bufferedFrameCount == 0 }
+        try await recorder.stopTake()
+        // Set before anything suspends: Repair's rewrite comes after this.
+        let calls = Mutex<[Bool]>([])
+        recorder.reportWriter = { copy, report, projects in
+            calls.withLock { $0.append(Thread.isMainThread) }
+            Recorder.writeReports(copy, report, projects)
+        }
+        await recorder.waitForRepair()
+        let seen = calls.withLock { $0 }
+        #expect(!seen.isEmpty, "Repair rewrote no report")
+        #expect(!seen.contains(true), "a report was written on the main thread")
+    }
+
+    @Test("After a Take abandoned its Drive, End Show and between-Take gain changes don't write the Drive's Show.json on the main thread (#673)")
+    func showWritesSkipTheAbandonedDrive() async throws {
+        let device = root.appending(path: "Device")
+        let drive = root.appending(path: "Drive")
+        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
+        let gate = Gate()
+        defer { gate.open() }
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            makeStem: { url, info, resume in
+                let writer = try StemWriter.open(url: url, info: info, resumingAt: resume)
+                return url.path.hasPrefix(drive.path) ? HangingStem(writer, gate: gate) : writer
+            },
+            destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300))
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0.25, count: 4_800)])
+        try await Task.sleep(for: .milliseconds(100))
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+
+        let change = TakeMetadata.GainChange(usbChannel: 1, channel: 1, headamp: 1, fromGainDb: 14.5, toGainDb: 11.5, reason: .clipProtection, compensations: [])
+        recorder.logGainChange(change)
+        try recorder.endShow()
+        let onDevice = try #require(ShowFile.read(from: device.appending(path: show)))
+        let onDrive = try #require(ShowFile.read(from: drive.appending(path: show)))
+        #expect(onDevice.endedAt != nil && onDevice.gainChanges?.count == 1)
+        #expect(onDrive.endedAt == nil, "the Show was ended on the abandoned Drive")
+        #expect(onDrive.gainChanges == nil, "a gain change was written to the abandoned Drive")
+    }
+
+    @Test("The Device's Show.json is always written, even when the Device was abandoned: it is the file a relaunch reads (#673)")
+    func deviceShowFileStillEnds() async throws {
+        let device = root.appending(path: "Device")
+        let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0.25, count: 4_800)])
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+        recorder.suspectCopies = [.device, .drive]
+        try recorder.endShow()
+        #expect(ShowFile.read(from: device.appending(path: show))?.endedAt != nil)
+    }
+
+    @Test("A Device Copy Stop gave up on is not moved or removed by a Drive connecting in the same launch (#838)")
+    func moverWaitsForAnAbandonedDevice() async throws {
+        let recorder = Recorder(deviceFolder: root.appending(path: "Device"), driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        recorder.suspectCopies = [.device]
+        recorder.movesDriveOnlyTakes = true  // asks for a move at once, which the abandoned Device holds off
+        recorder.driveMayHaveConnected()
+        #expect(!recorder.triggerWaiting, "a move was queued while the Device writer may still be alive")
+        recorder.suspectCopies = []
+        recorder.driveMayHaveConnected()
+        #expect(recorder.triggerWaiting)
+        await recorder.waitForRepair()
+    }
+
+    @Test("One report write that hangs doesn't hold the later rewrites or waitForRepair forever (#588)")
+    func hungReportWriteDoesNotWedge() async throws {
+        let device = root.appending(path: "Device")
+        let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0.2, count: 4_800)])
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+        let gate = Gate()
+        defer { gate.open() }
+        let calls = Mutex(0)
+        recorder.reportWaitLimit = .milliseconds(200)
+        recorder.reportWriter = { _, _, _ in
+            let call = calls.withLock { $0 += 1; return $0 }
+            if call == 1 { gate.wait() }
+        }
+        recorder.regenerateReportsOffMain(skipping: [])
+        recorder.regenerateReportsOffMain(skipping: [])
+        // The second rewrite runs although the first is stuck, and waiting for Repair returns.
+        await recorder.waitForRepair()
+        try await waitUntil { calls.withLock { $0 } >= 2 }
     }
 
     @Test("The report and Reaper project are never written during a Take: a Repair that finishes mid-Take leaves them for the Take's end")

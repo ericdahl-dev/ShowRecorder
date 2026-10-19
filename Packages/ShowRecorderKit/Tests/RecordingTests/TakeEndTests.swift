@@ -106,7 +106,12 @@ struct TakeEndTests {
     }
 }
 
-@MainActor
-final class DriveAvailability {
-    var isOn = false
+/// Whether a test's Drive is there; asked from the thread that checks Destinations (#814).
+final class DriveAvailability: @unchecked Sendable {
+    private let lock = NSLock()
+    private var on = false
+    var isOn: Bool {
+        get { lock.withLock { on } }
+        set { lock.withLock { on = newValue } }
+    }
 }

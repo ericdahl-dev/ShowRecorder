@@ -54,17 +54,20 @@ final class TakeRepair {
     ///     by a crash may not know all its Gaps, so its stand-in may hold the only copy of some audio (#626).
     func enqueue(
         _ metadata: TakeMetadata, folders: [DestinationKind: URL], holding access: DriveAccess?, abandoned: Set<DestinationKind> = [],
-        keepsStandIns: Bool = false
+        keepsStandIns: Bool = false, publishing: Bool = true
     ) {
         func outcomes(_ metadata: TakeMetadata) -> [DestinationKind: CopyOutcome] {
             Dictionary(uniqueKeysWithValues: folders.keys.map { ($0, metadata.outcome(ofCopy: $0)) })
         }
-        generation += 1
-        let mine = generation
-        self.outcomes = outcomes(metadata)
-        moved = false
-        standInKept = false
-        onChange()
+        // A Take that isn't the latest (a recovered earlier one, #822) repairs without taking the latest's place in `outcomes`.
+        if publishing { generation += 1 }
+        let mine = publishing ? generation : -1
+        if publishing {
+            self.outcomes = outcomes(metadata)
+            moved = false
+            standInKept = false
+            onChange()
+        }
         // A Copy Stop gave up on (#320) may hang on any file operation, so its Take.json is written off the main thread, as a
         // step of this queue: Repair's own write, and renames that wait for Repair, come after it (#652). If that Drive hangs for
         // good, the queue waits on it: later Repairs, renames, Drive only moves and anything awaiting Repair (Soundcheck's
@@ -72,16 +75,24 @@ final class TakeRepair {
         let abandonedFolders = abandoned.compactMap { folders[$0] }
         if !abandonedFolders.isEmpty {
             let previous = task, write = writeAbandoned
-            task = Task {
+            // Repair is running while that write is pending, so `isRepairing` says so and waiters know (#673).
+            pending += 1
+            isRunning = true
+            onChange()
+            task = Task { [weak self] in
                 await previous?.value
                 await runOffPool { for folder in abandonedFolders { write(metadata, folder) } }
+                guard let self else { return }
+                pending -= 1
+                isRunning = pending > 0
+                onChange()
             }
         }
         guard !metadata.gaps.isEmpty else {
             // Drive only: a Drive that faltered but then caught up has the whole Take, so its stand-in is a spare. Not one on
             // a Device Stop gave up on: its writer may still be going and that volume may be what hangs, so nothing is
             // removed there, and never on the main thread (#664).
-            if !keepsStandIns, metadata.standIns != nil, let device = folders[.device], let drive = folders[.drive],
+            if publishing, !keepsStandIns, metadata.standIns != nil, let device = folders[.device], let drive = folders[.drive],
                !abandoned.contains(.drive), !abandoned.contains(.device) {
                 try? FileManager.default.removeItem(at: device)
                 var done = metadata
@@ -146,7 +157,7 @@ final class TakeRepair {
                 access?.end()
                 return
             }
-            if mine == generation {
+            if publishing, mine == generation {
                 self.outcomes = outcomes(done)
                 self.moved = moved
                 standInKept = done.standIns != nil
@@ -232,6 +243,16 @@ final class TakeRepair {
         }
     }
 
+    /// The frames every Stem in `folder` holds (a Copy is as long as its shortest Stem); 0 when one can't be read.
+    nonisolated static func framesHeld(in folder: URL, stems: [String]) -> Int {
+        var shortest = Int.max
+        for stem in stems {
+            guard let file = try? StemFile.inspect(folder.appending(path: stem)) else { return 0 }
+            shortest = min(shortest, Int(file.framesOnDisk))
+        }
+        return shortest == .max ? 0 : shortest
+    }
+
     /// Whether every frame of `range` is in one of `parts`, which may overlap or come in any order.
     nonisolated static func covers(_ parts: [Range<Int>], _ range: Range<Int>) -> Bool {
         var next = range.lowerBound
@@ -288,10 +309,21 @@ final class TakeRepair {
                     copied = false
                 }
             }
+            // What the source's files really hold, not only what its metadata says (#602): a Copy that stopped early, or a
+            // stand-in cut short, has less than its Gaps and Stand-ins list.
+            let sourceExtents: [Range<Int>]? = source.map { source in
+                if let standIns {
+                    return standIns.map { standIn in
+                        let frames = Self.framesHeld(in: source.folder.appending(path: standIn.folderName), stems: stems)
+                        return standIn.start..<min(standIn.end, standIn.start + frames)
+                    }
+                }
+                return [0..<Self.framesHeld(in: source.folder, stems: stems)]
+            }
             for gap in gaps {
                 let range = gap.start..<gap.end
-                let sourceHasIt = standIns.map { Self.covers($0.map { $0.start..<$0.end }, range) }
-                    ?? !sourceGaps.contains { $0.overlaps(range) }
+                let sourceHasIt = (sourceExtents.map { Self.covers($0, range) } ?? false)
+                    && (standIns != nil || !sourceGaps.contains { $0.overlaps(range) })
                 repairs.append(.init(copy: gap.copy, start: gap.start, end: gap.end, outcome: copied && sourceHasIt ? .repaired : .failed))
             }
         }

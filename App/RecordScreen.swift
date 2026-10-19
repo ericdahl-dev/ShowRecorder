@@ -107,6 +107,8 @@ struct RecordScreen: View {
             #endif
             .modifier(AppearanceRoot(mode: model.appearance))
         }
+        // Record to (#805): an alert can't show over a sheet, so it waits for sheets to close; Settings asks itself.
+        .modifier(MoveOfferAlert(recorder: model.recorder, waits: anotherSheetOpen))
         .alert(
             "Name channel \(namingChannel ?? 0)",
             isPresented: Binding(get: { namingChannel != nil }, set: { if !$0 { namingChannel = nil } })
@@ -142,8 +144,12 @@ struct RecordScreen: View {
         // A Mixer Link that comes up during a Take names its Stems when the Take ends.
         .onChange(of: model.linkedSources) { _, sources in model.recorder.offerSources(sources) }
         // Drive only Takes left on the Device move when the Drive connects (#630); never during a Take.
-        .onChange(of: model.drive.status) { _, status in
-            if case .available = status { model.recorder.driveMayHaveConnected() }
+        .onChange(of: model.drive.status) { old, status in
+            if case .available(let drive) = status {
+                // Another Drive folder is a new connection, so Record to (#805) asks again.
+                if case .available(let before) = old, before.folder != drive.folder { model.recorder.driveWentAway() }
+                model.recorder.driveMayHaveConnected()
+            } else { model.recorder.driveWentAway() }
         }
         // Locking the screen or leaving the app never ends a Take; becoming active retries input
         // that an interruption left stopped.
@@ -175,6 +181,7 @@ struct RecordScreen: View {
         .sheet(isPresented: $showingSettings) {
             NavigationStack {
                 SettingsView(model: model, scrollTo: settingsSection)
+                    .modifier(MoveOfferAlert(recorder: model.recorder, waits: false))
                     .navigationTitle("Settings")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
@@ -674,6 +681,8 @@ final class RecordScreenModel {
     private static let transportLeadingKey = "transportLeading"
     /// The Pre-roll length in seconds (0 is Off), read when record is pressed. See `PreRollSetting`.
     var preRollSeconds: Double = PreRollSetting.load()
+    /// The Record to choice (#805) as stored, for the picker. The recorder's `recordTo`, read at the record press, is set from it.
+    var recordTo: RecordTo = RecordToSetting.load()
     /// Dark, Sunlight or System (the device's).
     var appearance: AppearanceMode = AppearanceMode.load()
     /// Battery and heat, shown as chips on the status strip.
@@ -827,6 +836,8 @@ final class RecordScreenModel {
     /// has no audio yet. Read only when the Show or its Take count changes, not every second (#328).
     private(set) var showRecordedSeconds: Double?
     @ObservationIgnored private var showRecordedKey: String?
+    /// Counts the looks started, so only the newest one's result is shown.
+    @ObservationIgnored private var showRecordedLook = 0
 
     private func refreshShowTotal() {
         let show = recorder.currentShow
@@ -837,12 +848,23 @@ final class RecordScreenModel {
         let key = show.map { "\($0.folder.path)|\($0.takeCount)|\(recorder.isRecording)|\(driveAvailable)" }
         guard key != showRecordedKey else { return }
         showRecordedKey = key
-        // A running Take's own files are already on disk; leave it out, the screen adds its live time.
-        guard let show, let seconds = recorder.showRecordedSeconds(leavingOut: recorder.isRecording ? show.takeCount : nil) else {
+        guard let show else {
+            showRecordedLook += 1
             showRecordedSeconds = nil
             return
         }
-        showRecordedSeconds = seconds > 0 || recorder.isRecording ? seconds : nil
+        // A running Take's own files are already on disk; leave it out, the screen adds its live time. Read off the main
+        // thread (#673): a Drive that hung after Stop can't block the screen. The total shows when it arrives, unless a newer
+        // look replaced this one meanwhile.
+        let recording = recorder.isRecording
+        showRecordedLook += 1
+        let look = showRecordedLook
+        Task { [weak self] in
+            guard let self else { return }
+            let seconds = await recorder.showRecordedSecondsOffMain(leavingOut: recording ? show.takeCount : nil)
+            guard showRecordedLook == look else { return }
+            showRecordedSeconds = seconds.flatMap { $0 > 0 || recording ? $0 : nil }
+        }
     }
 
     private func refreshDestinations() {
@@ -901,6 +923,7 @@ final class RecordScreenModel {
             mixer: mixer.state,
             copies: copies,
             sampleRate: recorder.sampleRate ?? 48_000,
+            recordTo: recorder.recordTo,
             driveAllowed: pro.license().allowsDrive)
     }
 
@@ -1025,9 +1048,9 @@ final class RecordScreenModel {
         case .showMoves:
             showingMoves = true
         case .checkDrive:
-            // Look again now, and say so if it's still not there.
-            drive.refresh()
+            // Look again now, and say so if it's still not there. Off the main actor: this can come mid-Take (#814).
             Task { [self] in
+                await drive.refreshInBackground(whileBusy: false)
                 await recorder.checkDestinations()
                 refreshDestinations()
                 driveCheckedAndNotFound = takeCopies[.drive] == .interrupted
@@ -1048,8 +1071,10 @@ final class RecordScreenModel {
         switch kind {
         case .device: break
         case .drive:
-            drive.refresh()
-            Task { [self] in await recorder.checkDestinations() }
+            Task { [self] in
+                await drive.refreshInBackground(whileBusy: false)
+                await recorder.checkDestinations()
+            }
         case .mixer:
             Task { await mixer.retry() }
         }
@@ -1184,6 +1209,14 @@ final class RecordScreenModel {
     /// After a Take: a Free Take that went to the Device only with a Drive connected, a Free Take whose Stems got
     /// generic names while the Mixer had names (#705), or the Trial's last days (#62).
     private func offerProAfterTake() {
+        // The Drive's status is read fresh: it wasn't asked during the Take (#814).
+        Task { [self] in
+            await drive.refreshInBackground(whileBusy: false)
+            offerProAfterTakeNow()
+        }
+    }
+
+    private func offerProAfterTakeNow() {
         let show = recorder.currentShow?.name
         let license = pro.license()
         let driveConnected = if case .available = drive.status { true } else { false }
@@ -1385,6 +1418,14 @@ final class RecordScreenModel {
         sequencer.settingsChanged()
     }
 
+    /// The Record to choice changed in Settings (#805): keep it, and give it to the recorder for the next record press.
+    func recordToChanged() {
+        RecordToSetting.save(recordTo)
+        recorder.recordTo = RecordToSetting.forRecorder(isOffered: RecordToAvailability.isAvailableInThisBuild)
+        // Drive or Both chosen while the move question waits: the Takes move and the question goes.
+        recorder.driveMayHaveConnected()
+    }
+
     /// What the chosen Pre-roll length costs in memory for the Armed input (or an 18-channel one before
     /// anything is Armed), in words for Settings.
     var preRollNote: String {
@@ -1520,6 +1561,9 @@ final class RecordScreenModel {
     /// `driveBecameAvailable` when the Drive connects.
     private func offerDriveOnlyMovesIfAvailable() async {
         if !DriveOnlyAvailability.isAvailableInThisBuild { await DemoSignalAvailability.resolveEnvironment() }
+        // Record to (#805) waits for the same answer: until then, and outside it, the recorder records to Both. Set first:
+        // turning moves on starts one, which reads it.
+        recorder.recordTo = RecordToSetting.forRecorder(isOffered: RecordToAvailability.isAvailableInThisBuild)
         recorder.movesDriveOnlyTakes = DriveOnlyAvailability.isAvailableInThisBuild
     }
 
@@ -1547,12 +1591,18 @@ final class RecordScreenModel {
         defer { deviceWatcher.cancel() }
         #endif
         var tick = 0
+        var wasBusy = takeBusy
         var lastPoll = ContinuousClock.now
         while !Task.isCancelled {
             tick += 1
             if tick % 30 == 0 { sequencer.tick(); refreshDestinations(); announceChanges(); forgetClearedSwipes(); fadeGoodNews() }
             // Re-check the Drive every few seconds so an unplugged one shows before record is pressed.
-            if tick % 90 == 0 { drive.refresh() }
+            // A Take just ended: the Drive may have changed meanwhile, so look now and not at the next count.
+            let busy = takeBusy
+            if tick % 90 == 0 || (wasBusy && !busy) {
+                Task { [self] in await drive.refreshInBackground(whileBusy: takeBusy, stillIdle: { !takeBusy }) }
+            }
+            wasBusy = busy
             let now = ContinuousClock.now
             let seconds = min(max((now - lastPoll).inSeconds, 0.001), 0.25)
             lastPoll = now
@@ -1889,5 +1939,22 @@ extension View {
     /// At least 44 by 44 pt to hit, the whole area, as Apple's guidelines ask (#240).
     func tapTarget() -> some View {
         frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+    }
+}
+
+/// Record to (#805): with This iPhone chosen, asks before moving Drive only Takes to a Drive that connects. Never during
+/// a Take, and not while `waits` (a sheet is up over this view).
+private struct MoveOfferAlert: ViewModifier {
+    let recorder: Recorder
+    let waits: Bool
+
+    func body(content: Content) -> some View {
+        content.alert(
+            DriveOnlyMoveOffer.question(takeCount: recorder.moveOffer ?? 0, deviceWord: ThisHardware.word),
+            isPresented: Binding(get: { recorder.moveOffer != nil && !recorder.isRecording && !waits }, set: { _ in })
+        ) {
+            Button(DriveOnlyMoveOffer.notNowLabel, role: .cancel) { recorder.answerMoveOffer(move: false) }
+            Button(DriveOnlyMoveOffer.moveLabel) { recorder.answerMoveOffer(move: true) }
+        }
     }
 }

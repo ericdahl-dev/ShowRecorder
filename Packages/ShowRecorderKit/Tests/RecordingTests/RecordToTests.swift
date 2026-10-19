@@ -59,11 +59,46 @@ struct RecordToTests {
         }
     }
 
+    @Test("Where it is offered the Recorder gets the stored choice; elsewhere Both, whatever is stored (#805)")
+    func forRecorder() {
+        let store = defaults()
+        #expect(RecordToSetting.forRecorder(isOffered: true, from: store) == .both)
+        for choice in RecordTo.allCases {
+            RecordToSetting.save(choice, to: store)
+            #expect(RecordToSetting.forRecorder(isOffered: true, from: store) == choice)
+            #expect(RecordToSetting.forRecorder(isOffered: false, from: store) == .both)
+        }
+    }
+
+    @Test("The picker names the choices This iPhone, Drive and Both, with the hardware's word (#805)")
+    func labels() {
+        #expect(RecordTo.device.label(deviceWord: "iPhone") == "This iPhone")
+        #expect(RecordTo.device.label(deviceWord: "Mac") == "This Mac")
+        #expect(RecordTo.drive.label(deviceWord: "iPhone") == "Drive")
+        #expect(RecordTo.both.label(deviceWord: "iPad") == "Both")
+    }
+
     @Test("Device writes no Drive Copy, Drive writes the Drive alone, Both writes both (#805)")
     func destinations() {
         #expect(!RecordTo.device.usesDrive && !RecordTo.device.isDriveOnly)
         #expect(RecordTo.drive.usesDrive && RecordTo.drive.isDriveOnly)
         #expect(RecordTo.both.usesDrive && !RecordTo.both.isDriveOnly)
+    }
+
+    @Test("On Free the picker shows This iPhone, the choice in effect, and leaves what was saved alone (Eric, #805)")
+    func shownOnFree() {
+        for saved in RecordTo.allCases {
+            #expect(saved.shown(driveAllowed: false) == .device)
+            #expect(saved.shown(driveAllowed: true) == saved, "with Pro or the Trial the saved choice applies again")
+        }
+    }
+
+    @Test("On Free, picking Drive or Both offers Pro instead of choosing it; This iPhone is chosen as usual (Eric, #805)")
+    func pickingOnFree() {
+        #expect(RecordTo.drive.offersPro(driveAllowed: false))
+        #expect(RecordTo.both.offersPro(driveAllowed: false))
+        #expect(!RecordTo.device.offersPro(driveAllowed: false))
+        for choice in RecordTo.allCases { #expect(!choice.offersPro(driveAllowed: true)) }
     }
 
     @Test("Debug builds offer it whatever the environment, even before it is known (#805)")
