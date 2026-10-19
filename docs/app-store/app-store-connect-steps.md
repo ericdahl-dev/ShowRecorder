@@ -36,7 +36,7 @@ An agent can create these two through the API once step 1 is Active: say "create
   - [ ] At about 25 buyers: **$9.99**.
   - [ ] At about 50 buyers: **$19.99**, full price. The "Launch price" line goes when `PriceStage.current` moves past `.launch`.
 - [ ] **Family Sharing: On.** This can't be turned off later (ADR 0004 wants it on).
-- [ ] **Localization (English U.S.):** Display Name `ShowRecorder Pro` (30 characters max). Description `Mixer names, Drive copy, report, Reaper, 96 kHz, more` (Free records every USB Channel now). Apple's limit is 45 characters, not 55 as this line said; this text is 53, so it needs shortening ([`mixer-packs.md`](mixer-packs.md), Open decisions).
+- [ ] **Localization (English U.S.):** Display Name `ShowRecorder Pro` (30 characters max). Description: App Store Connect has `Every USB Channel, report, Reaper, 96 kHz, Templates` (52, read 2026-10-18), out of date since Free records every USB Channel (#703). Change it to `Mixer names, Drive copy, report, 96 kHz, more` (45), or another text ([`mixer-packs.md`](mixer-packs.md), "Decisions").
 - [ ] **Review screenshot:** the paywall (taken for #324).
 
 **Mixer packs and the upgrade to Pro** (#705): drafted in [`mixer-packs.md`](mixer-packs.md), not yet created; packs are Debug-only.

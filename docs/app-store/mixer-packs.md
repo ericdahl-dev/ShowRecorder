@@ -8,7 +8,9 @@ Sources checked in code (2026-10-18): product IDs in `Packages/ShowRecorderKit/S
 
 ## Limits (Apple, checked 2026-10-18)
 
-From Apple's "In-app purchase information" page: Reference Name up to 64 characters, Product ID up to 100, **Display Name 2 to 30, Description up to 45**, review notes up to 4000. The Pro entry in `app-store-connect-steps.md` and the table in `listing.md` said 55 for the description; that was wrong and both now say 45. Pro's description there (`Mixer names, Drive copy, report, Reaper, 96 kHz, more`) is 53 characters, over the limit (see Open decisions). Every text below is counted and within the limits.
+From Apple's "In-app purchase information" page: Reference Name up to 64 characters, Product ID up to 100, Display Name 2 to 30, review notes up to 4000. Apple's page read as **45** for the Description, but App Store Connect holds Pro's live description at **52** characters ("Every USB Channel, report, Reaper, 96 kHz, Templates", read through the API on 2026-10-18, read-only), so the field takes at least 52; the 55 our docs said before is probably right. Every text below fits in 45 anyway, to be safe.
+
+**Pro's live description is out of date:** "Every USB Channel, …" was Pro's edge before Free recorded every USB Channel (#703). It is waiting for review, so only you can change it in App Store Connect. Proposed: `Mixer names, Drive copy, report, 96 kHz, more` (45).
 
 ## How the products behave (all three)
 
@@ -25,7 +27,7 @@ From Apple's "In-app purchase information" page: Reference Name up to 64 charact
 |---|---|---|---|
 | Pro (exists) | $4.99 | $9.99 | $19.99 |
 | X Air pack | $2.99 | $4.99 | $7.99 |
-| X32 pack | $2.99 | $4.99 | $7.99 |
+| X32 pack (deferred, #503) | $2.99 | $4.99 | $7.99 |
 | Upgrade to Pro | $1.99 | $4.99 | $11.99 |
 
 The upgrade is the nearest App Store price point below Pro minus a pack: $4.99 − $2.99 = $2.00 → $1.99; $9.99 − $4.99 = $5.00 → $4.99; $19.99 − $7.99 = $12.00 → $11.99. This matches `PackOffer.swift:81-83`. One upgrade product, repriced at each stage (ADR 0004's "reprice all three upgrades" line predates this). If Pro's price ever changes off this ladder, the upgrade moves with it.
@@ -36,23 +38,15 @@ The upgrade is the nearest App Store price point below Pro minus a pack: $4.99 �
 - [ ] **Price:** $2.99 (Launch); see the table.
 - [ ] **Family Sharing: On.**
 - [ ] **Availability:** every country Pro is in. Not before `PackAvailability` moves past Debug.
-- [ ] **Localization (English U.S.):** Display Name `X Air pack` (10 of 30). Description `Everything in Pro, with an XR18 or MR18` (39 of 45). Brand-free alternative: Display Name `Pro for one mixer type` (22), Description `Pro features with one mixer family only` (39). See "Brand names" below before choosing.
+- [ ] **Localization (English U.S.):** Display Name: brand-light, pick one of the two options in "Brand names" below. Description `Everything in Pro, with an XR18 or MR18` (39): the model names live only here (Eric, 2026-10-18).
 - [ ] **Covers:** the X Air family, `MixerFamily.xAir`: an Audio interface named XR18, MR18 or X18 (the Mac shows "X18/XR18"). The XR12 and XR16 send no multichannel USB, so they never Arm as an X Air.
 - [ ] **Review notes** (paste):
-  > The X Air pack unlocks everything Pro does, but only while a Behringer XR18 or MR18 is the Audio interface the app is recording from (Settings > Recording > Audio interface). It is offered in Settings > Pro and in the Pro screen ("See what Pro adds") only while one of those mixers is connected over USB. With the built-in microphone, the Demo signal or any other interface, the app offers Pro alone, so without an XR18 or MR18 this purchase can't be seen. The screenshot shows Settings > Pro on an iPhone with an XR18 connected. ShowRecorder Pro, the upgrade and this pack are non-consumables; Restore Purchases is in Settings > Pro.
+  > The X Air pack unlocks everything Pro does, but only while a Behringer XR18 or MR18 is the Audio interface the app is recording from (Settings > Recording > Audio interface). It is offered in Settings > Pro and in the Pro screen ("See what Pro adds") only while one of those mixers is connected over USB. Without one, Arm the Demo signal input (Settings > Recording > Audio interface): in this build it stands in for an XR18, so the pack is offered. The screenshot shows Settings > Pro on an iPhone with an XR18 connected. ShowRecorder Pro, the upgrade and this pack are non-consumables; Restore Purchases is in Settings > Pro.
 - [ ] **Review screenshot:** the Pro screen (paywall) on an iPhone with the XR18 Armed and nothing bought: the headline "Pro for your XR18", the button "Buy X Air pack, $2.99" above "Buy Pro, $4.99", and "Launch price" under them. Taken from Eric's iPhone and XR18 (a Debug build with the StoreKit configuration shows the same screen).
 
-## X32 pack
+## X32 pack: deferred
 
-- [ ] Type **Non-Consumable**. Reference Name `X32 pack`. Product ID `dev.ericdahl.ShowRecorder.pack.x32` (exactly; `ProPurchases.packProductIDs[.x32]`).
-- [ ] **Price:** $2.99 (Launch); see the table.
-- [ ] **Family Sharing: On.**
-- [ ] **Availability:** as the X Air pack, and **not on sale before a real X32 or M32 has been confirmed**: `MixerFamily.swift` says its card names are "not yet seen on a real card (#503)", and `listing.md` gates naming the X32 on the same test (#411).
-- [ ] **Localization (English U.S.):** Display Name `X32 pack` (8 of 30). Description `Everything in Pro, with an X32 or M32` (37 of 45). The family includes the Midas M32, which the name "X32 pack" doesn't say; the description does. Brand-free alternative: as the X Air pack's, which would make the two products read the same on the App Store (see "Brand names").
-- [ ] **Covers:** `MixerFamily.x32`: an Audio interface whose name contains X-USB, X-LIVE, X32, M32 or DN32 (DN32-USB, DN32-LIVE), so a Behringer X32 or Midas M32 with its USB card.
-- [ ] **Review notes** (paste):
-  > The X32 pack unlocks everything Pro does, but only while a Behringer X32 or Midas M32 (with its USB card) is the Audio interface the app is recording from. It is offered in Settings > Pro and the Pro screen only while one of those mixers is connected over USB; with any other input the app offers Pro alone, so without an X32 or M32 this purchase can't be seen. The screenshot shows the Pro screen with an X32 connected. Restore Purchases is in Settings > Pro.
-- [ ] **Review screenshot:** the Pro screen with an X32 or M32 Armed and nothing bought: "Pro for your X32" (or the linked Mixer's model), "Buy X32 pack, $2.99", "Buy Pro, $4.99", "Launch price". Needs a real X32 or M32 on USB; if none is at hand, a Debug build can't fake one (no demo input carries a family name).
+**Not created at launch** (Eric, 2026-10-18): it waits for a real X32 or M32 to be confirmed (#503; `MixerFamily.swift` says its card names are "not yet seen on a real card"). Launch with the X Air pack only. The Product ID `dev.ericdahl.ShowRecorder.pack.x32` stays reserved in the code; create nothing in App Store Connect for it. When it comes: Description `Everything in Pro, with an X32 or M32` (37), a display name in the same pattern as the X Air pack's, and review notes like the X Air pack's with an X32 or M32 on USB.
 
 ## Upgrade to Pro
 
@@ -62,32 +56,29 @@ The upgrade is the nearest App Store price point below Pro minus a pack: $4.99 �
 - [ ] **Availability:** as the packs.
 - [ ] **Localization (English U.S.):** Display Name `Upgrade to Pro` (14 of 30). Description `Pro on every mixer, for a pack owner` (36 of 45). No brand name either way.
 - [ ] **Review notes** (paste):
-  > Upgrade to Pro is offered only to someone who bought a mixer pack (X Air or X32) themselves, not one shared through Family Sharing. It then replaces the Buy Pro button in Settings > Pro and on the Pro screen, at Pro's price minus the pack's. It unlocks Pro on every input, and counts only while that pack is still owned: if the pack is refunded, the upgrade stops unlocking Pro. Reaching it needs a bought pack, so it needs an XR18, MR18, X32 or M32 connected to buy one first. The screenshot shows Settings > Pro after buying the X Air pack.
+  > Upgrade to Pro is offered only to someone who bought the mixer pack themselves, not one shared through Family Sharing. It then replaces the Buy Pro button in Settings > Pro and on the Pro screen, at Pro's price minus the pack's. It unlocks Pro on every input, and counts only while that pack is still owned: if the pack is refunded, the upgrade stops unlocking Pro. Reaching it needs a bought pack: in this review build, Arm the Demo signal input, buy the mixer pack, then this upgrade is offered. The screenshot shows Settings > Pro after buying the X Air pack.
 - [ ] **Review screenshot:** Settings > Pro with the X Air pack bought and no Pro: Plan "X Air pack", "Upgrade to Pro, $1.99", "Launch price", Restore Purchases. Any input can be Armed for this one: the offer depends on what's owned, not on the input. A Debug build with the StoreKit configuration (buy the pack in Xcode) or a sandbox account gets there.
 
-## Brand names (Guideline 2.3.7): your call
+## Brand names (Guideline 2.3.7): decided
 
-What Apple says:
+Eric (2026-10-18): **model names in the Description only; the Display Name is brand-light**, a "Mixer pack" with a qualifier that isn't a trademark. Two options for the X Air pack's Display Name (30 max):
 
-- 2.3.7: "don't try to pack any of your metadata with trademarked terms, popular app names, pricing information, or other irrelevant phrases just to game the system."
-- 2.3.2: if in-app purchases are promoted on the App Store, "ensure that the in-app purchase Display Name, Screenshot and Description are appropriate for a public audience".
-- 5.2.1: "Don't use protected third-party material such as trademarks … in your app without permission."
+1. **`Mixer pack: 18-channel`** (22). Says what it fits by size; the XR18 and MR18 are the 18-channel X Air models. Later `Mixer pack: 32-channel` for the X32 and M32. Risk: a buyer with another 18-channel mixer may think it fits.
+2. **`Compact mixer pack`** (18). Plainer; leans on the Description for which mixer. Later the X32's would need another word ("Console mixer pack").
 
-The Display Name and Description show on the App Store page's in-app purchase list and on Apple's purchase sheet, so they are metadata. `listing.md` already keeps Behringer, Midas, X Air, XR18, MR18, X32 and M32 out of the name, subtitle, keywords and promotional text, and names them only as compatibility in the description, with a trademark line. The guideline names no rule for in-app purchase names, so whether "X Air pack" is fine is a judgment, not a rule found:
+The in-app copy keeps naming the mixer ("Buy X Air pack", "Pro for your XR18"): it describes what the purchase works with. Apple's purchase sheet shows the Display Name, so the sheet and the button will differ in wording; option 1 reads closer.
 
-- **Option A, model names** (`X Air pack`, `X32 pack`): clearest to a buyer and matches the app's buttons. Risk: a reviewer reads a Behringer product line in a purchase name as trademark use (5.2.1) and rejects the products, or asks for the names to change. The description's "with an XR18 or MR18" reads as compatibility, the same as the app description.
-- **Option B, no brand** (`Pro for one mixer type` and a family-neutral description): no trademark question. Costs: both packs read the same on the App Store, and Apple's purchase sheet shows the App Store name while the app's button says "Buy X Air pack" (the app labels buttons from `MixerFamily.name`, not `product.displayName`; only the failure note "Couldn't buy …" in `ProStore.swift:103` uses the App Store name).
-- A middle option: model names in the Description only, a neutral Display Name.
+Apple's rules weighed: 2.3.7 (no trademarked terms to game metadata), 2.3.2 (in-app purchase names and descriptions shown publicly), 5.2.1 (no third-party trademarks without permission). The Description names models as compatibility, as the app description does.
 
-Either way the in-app copy can keep naming the mixer: it describes what the purchase works with, like the description's compatibility list.
+## App Review's path to the pack
 
-## App Review can't reach a pack without a mixer
+Eric (2026-10-18): **the Demo signal input counts as the X Air family in review and TestFlight builds**, so a reviewer without a mixer is offered the X Air pack (in progress as its own PR, red-first tests).
 
-Plainly: **there is no Demo or review path to the pack offer.** The Demo signal's interface is named "Demo signal" (`RecordScreen.swift:1817`), which no family claims, so `armedFamily` is nil and the offer is Pro alone. No launch flag fakes a family. A reviewer without an XR18, MR18, X32 or M32 sees neither pack, and so never sees the upgrade either.
+Why that reaches App Review and never a customer: the Demo signal is offered only where `DemoSignalAvailability` allows (Debug, or a StoreKit `sandbox` environment). TestFlight builds and builds under App Review both run in the sandbox (App Review's purchases are sandbox purchases); the App Store build customers download is `production`, where the Demo signal isn't offered at all, so nothing there can count as an X Air. The pack also needs `PackAvailability` moved past Debug first, its own one-line PR after your device test.
 
-Guideline 2.1(b): in-app purchases must be "visible to the reviewer and functional. If any configured in-app purchase items cannot be found or reviewed in your app, explain the reason in your review notes." The review notes above explain it, which the guideline allows; whether that is enough is App Review's call. The 1.1 decision was no review video (`listing.md`); packs may change that. When packs ship, add this to [`review-notes.md`](review-notes.md) under "In-app purchases":
+Add to [`review-notes.md`](review-notes.md) under "In-app purchases" when packs ship:
 
-> - "X Air pack" and "X32 pack" are non-consumables (Family Sharing on) that unlock everything Pro does, only while that mixer (an XR18 or MR18; an X32 or M32) is the USB audio interface. They are offered only while one is connected, so they can't be seen with the Demo signal. "Upgrade to Pro" is offered only after buying a pack. Each one's review notes say how it is reached.
+> - The mixer pack is a non-consumable (Family Sharing on) that unlocks everything Pro does while an XR18 or MR18 is the USB audio interface. Without one, Arm the Demo signal input (Settings > Recording > Audio interface): in this build it stands in for that mixer, so the pack is offered in Settings > Pro and on the Pro screen. "Upgrade to Pro" is offered after buying the pack.
 
 ## Copy check (app vs site and listing, 2026-10-18)
 
@@ -117,6 +108,7 @@ The StoreKit configuration has all five products with matching IDs, non-consumab
 - [ ] **Record press on the pack's family:** with the XR18 Armed, a Take gets Mixer names on its Stems, unlimited Markers, the Show report and Reaper project, 96 kHz if chosen, and Templates.
 - [ ] **Record press on another family or a generic input:** Arm the built-in microphone, the Demo signal (or an EVO 4 or an X32): the Take is Free (generic names, 3 Markers, Device only), with no limit applied mid-Take. Re-Arm the XR18: Pro again from the next press.
 - [ ] **Settings > Storage, Record to on a pack:** with the XR18 Armed, Drive and Both are offered plainly and a Take writes to the Drive. With another input Armed, they read "Drive (Pro)" and "Both (Pro)", choosing one opens the Pro screen, "On Free, Takes record to this iPhone only…" shows, and a Take goes to the Device only (`license().allowsDrive` on its family only).
+- [ ] **The Demo signal Armed, nothing bought:** the X Air pack is offered first, as with an XR18 (the review path; needs its PR merged). The headline names the X Air.
 - [ ] **The other family Armed, nothing bought:** with an X32 (or M32) Armed, the X32 pack is offered first. A generic input: Buy Pro only.
 - [ ] **Buy the upgrade:** after the bought X Air pack, buy "Upgrade to Pro": Plan "Pro", no offers, Pro on every input.
 - [ ] **Refund the pack under the upgrade:** in Manage Transactions, refund the X Air pack: Pro goes (the upgrade needs a pack bought by this person), Plan back to "Free", offers back. Refund the upgrade alone with the pack kept: Plan "X Air pack", the upgrade offered again.
@@ -127,11 +119,12 @@ The StoreKit configuration has all five products with matching IDs, non-consumab
 - [ ] **Trial plus a pack:** start the Trial while owning a pack: Plan says the Trial, not the pack, and every input is Pro until it ends; then the pack rule again.
 - [ ] **Auto-gain on a pack** (where it's offered): it runs on the pack's family; it is judged when it runs, not at record.
 
-## Open decisions (Eric)
+## Decisions (Eric, 2026-10-18) and what is left
 
-1. **Pro's description is 53 characters; Apple allows 45.** Is the text in App Store Connect today different, or does it need shortening (for example `Mixer names, Drive copy, report, 96 kHz` is 39)?
-2. **Brand names in the pack names:** Option A (`X Air pack`, `X32 pack`), Option B (brand-free), or the middle option.
-3. **A review path for packs:** rely on the review notes, add a review video, or build a way to reach the pack offer without a mixer (such as a Debug and TestFlight demo input that counts as an X Air). The last is a code change, not part of this file.
-4. **The X32 pack's timing:** on sale with the X Air pack, or only after a real X32 or M32 is confirmed (#503, #411).
-5. **Copy fixes 1 to 10 above:** which to make, and whether before packs leave Debug.
-6. **The level packs move to next:** Debug + TestFlight, after your device test, as a one-line PR (`PackAvailability`).
+Decided: fix all the copy mismatches now as small PRs (pack-only text stays behind the Debug rule); model names in the Description only, brand-light Display Names; the Demo signal counts as an X Air in review and TestFlight builds; the X32 pack waits for #503, launch with the X Air pack only.
+
+Left for you:
+
+1. **The X Air pack's Display Name:** option 1 or 2 in "Brand names".
+2. **Pro's live description in App Store Connect** ("Every USB Channel, …", out of date): change it to `Mixer names, Drive copy, report, 96 kHz, more`, or another text.
+3. **When packs move past Debug** (`PackAvailability`), after your Xcode test: a one-line PR.
