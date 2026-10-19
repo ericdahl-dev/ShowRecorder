@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import TakeFile
 @testable import Recording
 import Testing
@@ -491,6 +492,73 @@ struct ClipProtectionTests {
         await Self.feed(protection, clipping + clipping, on: [2])
 
         #expect(control.gainDb[1] == 18)
+    }
+
+    @Test("A move waiting on a busy Mixer counts against the 12 dB when it is planned, so a later one isn't planned against the old budget (#696)")
+    func budgetReservedWhenPlanned() async {
+        let mixer = FakeGainControl(gainDb: [1: 30, 2: 30, 3: 30], channelOfUSB: [1: 1, 2: 2, 3: 3])
+        mixer.preampOf = [2: 1, 3: 1]
+        mixer.movesInstead = [2: 1, 3: 1]
+        let protection = ClipProtection(control: mixer, sampleRate: 48_000)
+        let quiet = Windows.at(-30)
+        func burst(_ usbChannel: Int) -> [Task<Void, Never>] {
+            (0..<10).compactMap { _ in protection.meters((1...3).map { $0 == usbChannel ? Windows.at(-0.1) : quiet }) }
+        }
+        func restGap() { for _ in 0..<160 { protection.meters([quiet, quiet, quiet]) } }  // 5.3 s of audio
+
+        // Channel 1: a whole 6 dB, done.
+        for task in burst(1) { await task.value }
+        #expect(mixer.gainDb[1] == 24)
+
+        // Channel 2, on the same preamp: its 6 dB waits on a busy Mixer (only this first one is held).
+        restGap()
+        let (entered, enter) = AsyncStream<Void>.makeStream()
+        let (released, release) = AsyncStream<Void>.makeStream()
+        let calls = Mutex(0)
+        mixer.answer = {
+            guard calls.withLock({ $0 += 1; return $0 }) == 1 else { return }
+            enter.yield()
+            for await _ in released { return }
+        }
+        let second = burst(2)
+        #expect(await Self.next(entered), "the held move reaches the Mixer")
+
+        // Channel 3 runs hot past the 5 s rest later, with that move still waiting: 12 dB of the Take's budget is spoken for.
+        restGap()
+        let (readsPreamp, startsRead) = AsyncStream<Void>.makeStream()
+        mixer.preampAnswer = { startsRead.yield() }
+        let third = burst(3)
+        // Let channel 3's turn-down plan its move before the held one finishes: its preamp read has begun, and the plan follows.
+        #expect(await Self.next(readsPreamp), "channel 3's turn-down starts")
+        for _ in 0..<200 { await Task.yield() }
+        release.yield()
+        for task in second + third { await task.value }
+
+        #expect(mixer.gainDb[1] == 18, "the preamp was turned down more than 12 dB")
+        #expect(mixer.moveStarts == 2, "a third move was planned against the old budget")
+    }
+
+    @Test("A move that moves nothing gives its reserved dB back: a later one on that preamp still has the whole budget left (#696)")
+    func reservationReleasedWhenNothingMoved() async {
+        let mixer = FakeGainControl(gainDb: [1: 30, 2: 30, 3: 30], channelOfUSB: [1: 1, 2: 2, 3: 3])
+        mixer.preampOf = [2: 1, 3: 1]
+        mixer.movesInstead = [2: 1, 3: 1]
+        let protection = ClipProtection(control: mixer, sampleRate: 48_000)
+        let quiet = Windows.at(-30)
+        func burst(_ usbChannel: Int) -> [Task<Void, Never>] {
+            (0..<10).compactMap { _ in protection.meters((1...3).map { $0 == usbChannel ? Windows.at(-0.1) : quiet }) }
+        }
+        func restGap() { for _ in 0..<160 { protection.meters([quiet, quiet, quiet]) } }
+
+        for task in burst(1) { await task.value }
+        #expect(mixer.gainDb[1] == 24)
+        restGap()
+        mixer.problem = .noReply(host: "fake")
+        for task in burst(2) { await task.value }  // asked, and nothing moved
+        mixer.problem = nil
+        restGap()
+        for task in burst(3) { await task.value }
+        #expect(mixer.gainDb[1] == 18, "the failed move's 6 dB stayed counted")
     }
 
     @Test("A turn-down the mixer stops answering partway is still logged and counted in the Take's 12 dB (#450)")
