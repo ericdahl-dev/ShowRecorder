@@ -256,4 +256,50 @@ struct TakeRepairTests {
         #expect(Array(drive[1_000..<2_000]) == (1_000..<2_000).map { counting()($0, 0) }, "the rest of the Gap is filled")
         #expect(repairs == [.init(copy: .drive, start: 1_000, end: 2_500, outcome: .failed)])
     }
+
+    @Test("A stand-in that can't be read and has nothing to give doesn't fail a Gap another stand-in covers (#602)")
+    func unreadableUnusedStandInDoesNotFailTheGap() throws {
+        let stem = "01 USB 01.wav"
+        let info = StemWriter.Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: RecordingTakeTests.showDay)
+        func write(_ frames: Int, to url: URL) throws {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let writer = try StemWriter.open(url: url, info: info, resumingAt: nil)
+            try (0..<frames).map { counting()($0, 0) }.withUnsafeBufferPointer { try writer.append($0) }
+            try writer.finalize()
+        }
+        let device = root.appending(path: "Device/Take 01")
+        let drive = root.appending(path: "Drive/Take 01")
+        try write(10_000, to: drive.appending(path: stem))
+        var metadata = metadata(take: 1, gaps: [.init(copy: .drive, start: 3_000, end: 7_000)])
+        // Two stand-ins are listed; the second one's folder is gone, and no Gap needs it.
+        metadata.standIns = [.init(start: 3_000, end: 7_000), .init(start: 8_000, end: 9_000)]
+        try write(4_000, to: device.appending(path: metadata.standIns![0].folderName).appending(path: stem))
+
+        let repairs = TakeRepair.fill(
+            copies: [.init(kind: .device, folder: device), .init(kind: .drive, folder: drive)], metadata: metadata)
+
+        #expect(repairs == [.init(copy: .drive, start: 3_000, end: 7_000, outcome: .repaired)])
+    }
+
+    @Test("A source file shorter than its metadata says doesn't overwrite the target past its end, and the Gap is reported failed (#602)")
+    func physicallyShortSource() throws {
+        let folders = try folders("short")
+        let info = StemWriter.Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: RecordingTakeTests.showDay)
+        func write(_ copy: DestinationKind, frames: Int) throws {
+            let stem = try StemWriter.open(url: folders[copy]!.appending(path: "01 USB 01.wav"), info: info, resumingAt: nil)
+            try (0..<frames).map { counting()($0, 0) }.withUnsafeBufferPointer { try stem.append($0) }
+            try stem.finalize()
+        }
+        // The Device stopped writing at 2 000, though its metadata has no Gap for it. The Drive's Gap starts at 1 000, but
+        // its file holds real audio to 4 800: an uncommitted tail that reached the disk before it was pulled.
+        try write(.device, frames: 2_000)
+        try write(.drive, frames: 4_800)
+        let metadata = metadata(take: 1, gaps: [.init(copy: .drive, start: 1_000, end: 4_800)])
+
+        let repairs = TakeRepair.fill(copies: [.init(kind: .device, folder: folders[.device]!), .init(kind: .drive, folder: folders[.drive]!)], metadata: metadata)
+
+        let drive = try StemWriter.readSamples(url: folders[.drive]!.appending(path: "01 USB 01.wav"), frames: 0..<4_800)
+        #expect(Array(drive[2_000..<4_800]) == (2_000..<4_800).map { counting()($0, 0) }, "real audio the Device doesn't have is not erased")
+        #expect(repairs == [.init(copy: .drive, start: 1_000, end: 4_800, outcome: .failed)], "the Device didn't have all of it")
+    }
 }

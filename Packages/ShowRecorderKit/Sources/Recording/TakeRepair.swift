@@ -226,6 +226,16 @@ final class TakeRepair {
         }
     }
 
+    /// The frames every Stem in `folder` holds (a Copy is as long as its shortest Stem); 0 when one can't be read.
+    nonisolated static func framesHeld(in folder: URL, stems: [String]) -> Int {
+        var shortest = Int.max
+        for stem in stems {
+            guard let file = try? StemFile.inspect(folder.appending(path: stem)) else { return 0 }
+            shortest = min(shortest, Int(file.framesOnDisk))
+        }
+        return shortest == .max ? 0 : shortest
+    }
+
     /// Whether every frame of `range` is in one of `parts`, which may overlap or come in any order.
     nonisolated static func covers(_ parts: [Range<Int>], _ range: Range<Int>) -> Bool {
         var next = range.lowerBound
@@ -282,10 +292,21 @@ final class TakeRepair {
                     copied = false
                 }
             }
+            // What the source's files really hold, not only what its metadata says (#602): a Copy that stopped early, or a
+            // stand-in cut short, has less than its Gaps and Stand-ins list.
+            let sourceExtents: [Range<Int>]? = source.map { source in
+                if let standIns {
+                    return standIns.map { standIn in
+                        let frames = Self.framesHeld(in: source.folder.appending(path: standIn.folderName), stems: stems)
+                        return standIn.start..<min(standIn.end, standIn.start + frames)
+                    }
+                }
+                return [0..<Self.framesHeld(in: source.folder, stems: stems)]
+            }
             for gap in gaps {
                 let range = gap.start..<gap.end
-                let sourceHasIt = standIns.map { Self.covers($0.map { $0.start..<$0.end }, range) }
-                    ?? !sourceGaps.contains { $0.overlaps(range) }
+                let sourceHasIt = (sourceExtents.map { Self.covers($0, range) } ?? false)
+                    && (standIns != nil || !sourceGaps.contains { $0.overlaps(range) })
                 repairs.append(.init(copy: gap.copy, start: gap.start, end: gap.end, outcome: copied && sourceHasIt ? .repaired : .failed))
             }
         }
