@@ -577,6 +577,24 @@ struct TakeSequencerTests {
         #expect(told.filter { $0 == .inputRestarted }.count == 1)
     }
 
+    @Test("A Take started after an interruption that ended without resuming restarts input (#877)")
+    func recordRestartsStoppedInput() async throws {
+        let source = FakeInputDevices()
+        let (sequencer, recorder) = makeSequencer(source)
+        sequencer.start()
+        let device = try #require(source.opened.last)
+        await sequencer.handle(.interruptionBegan(reason: .other))
+        device.stop()
+        await sequencer.handle(.interruptionEnded(shouldResume: false))
+        #expect(!device.isRunning, "Armed, not recording: nothing restarts input yet")
+
+        sequencer.record(sources: [], allowance: nil)
+
+        try await waitUntil { device.isRunning }
+        #expect(recorder.isRecording)
+        #expect(!sequencer.interruptions.isInputStopped)
+    }
+
     @Test("Starting a Take clears an interruption's old notice")
     func recordClearsTheNotice() async throws {
         let source = FakeInputDevices()

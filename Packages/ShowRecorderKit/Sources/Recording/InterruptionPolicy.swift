@@ -154,8 +154,12 @@ public struct InterruptionPolicy: Sendable, Equatable {
             return Response(action: .none, log: "Take ended after a media services reset: the new input's format differs")
 
         case .takeStarted:
-            if !isInputStopped { notice = nil }
-            return Response(action: .none, log: nil)
+            // An interruption that ended without resuming left input stopped: nothing else restarts it for this Take (#877).
+            guard isInputStopped else {
+                notice = nil
+                return Response(action: .none, log: nil)
+            }
+            return Response(action: restartAction, log: "Take started with input stopped; restarting input")
         }
     }
 
