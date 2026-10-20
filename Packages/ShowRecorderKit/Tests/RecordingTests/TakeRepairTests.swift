@@ -426,4 +426,31 @@ struct TakeRepairTests {
         #expect(Array(drive[2_000..<4_800]) == (2_000..<4_800).map { counting()($0, 0) }, "real audio the Device doesn't have is not erased")
         #expect(repairs == [.init(copy: .drive, start: 1_000, end: 4_800, outcome: .failed)], "the Device didn't have all of it")
     }
+
+    @Test("A Stem Repair can't read doesn't stop it filling the Copy's other Stems (#880)")
+    func unreadableStemDoesNotStopTheOthers() throws {
+        let stems = ["01 USB 01.wav", "02 USB 02.wav"]
+        let info = StemWriter.Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: RecordingTakeTests.showDay)
+        let device = root.appending(path: "Device/Take 01")
+        let drive = root.appending(path: "Drive/Take 01")
+        for folder in [device, drive] { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
+        for stem in stems {
+            let writer = try StemWriter.open(url: device.appending(path: stem), info: info, resumingAt: nil)
+            try (0..<4_800).map { counting()($0, 0) }.withUnsafeBufferPointer { try writer.append($0) }
+            try writer.finalize()
+        }
+        // The Drive's first Stem is torn; its second holds silence in the Gap.
+        try Data(repeating: 0xAB, count: 37).write(to: drive.appending(path: stems[0]))
+        let writer = try StemWriter.open(url: drive.appending(path: stems[1]), info: info, resumingAt: nil)
+        try (0..<4_800).map { (1_000..<2_000).contains($0) ? 0 : counting()($0, 0) }.withUnsafeBufferPointer { try writer.append($0) }
+        try writer.finalize()
+        var metadata = metadata(take: 1, gaps: [.init(copy: .drive, start: 1_000, end: 2_000)])
+        metadata.usbChannels.append(.init(usbChannel: 2, stemFile: stems[1], source: .fallback(usbChannel: 2)))
+
+        let repairs = TakeRepair.fill(copies: [.init(kind: .device, folder: device), .init(kind: .drive, folder: drive)], metadata: metadata)
+
+        let filled = try StemWriter.readSamples(url: drive.appending(path: stems[1]), frames: 1_000..<2_000)
+        #expect(filled == (1_000..<2_000).map { counting()($0, 0) }, "the second Stem is filled")
+        #expect(repairs == [.init(copy: .drive, start: 1_000, end: 2_000, outcome: .failed)], "the torn Stem still fails the Gap")
+    }
 }

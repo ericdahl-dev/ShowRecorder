@@ -156,3 +156,43 @@ struct StemFlushTests {
         #expect(flushes.count == 1)
     }
 }
+
+/// A rejoin whose Stem is there but can't be read resumes it at frame 0 (#880): a Drive pulled between creating the file
+/// and its first commit leaves it empty or torn.
+@Suite("Resuming an unreadable Stem")
+struct UnreadableStemResumeTests {
+    let folder: URL
+
+    init() throws {
+        folder = FileManager.default.temporaryDirectory.appending(path: "UnreadableStemResumeTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    }
+
+    @Test("A Stem resumed at frame 0 over an empty or torn file starts again as a valid Stem (#880)", arguments: [0, 37])
+    func resumeAtZeroOverUnreadableStem(tornBytes: Int) throws {
+        let url = folder.appending(path: "torn-\(tornBytes).wav")
+        try Data(repeating: 0xAB, count: tornBytes).write(to: url)
+        let samples = CrashSafeStemTests.samples(1..<1_001)
+
+        let writer = try StemWriter.open(url: url, info: CrashSafeStemTests.info, resumingAt: 0)
+        try samples.withUnsafeBufferPointer { try writer.append($0) }
+        try writer.finalize()
+
+        #expect(try StemFile.inspect(url).framesOnDisk == 1_000)
+        #expect(try CrashSafeStemTests.readWithCoreAudio(url) == samples)
+    }
+}
+
+extension UnreadableStemResumeTests {
+    @Test("Reopening a readable Stem with no samples yet keeps its own header")
+    func reopenEmptyStemKeepsHeader() throws {
+        let url = folder.appending(path: "empty.wav")
+        let info = StemWriter.Info(sampleRate: 44_100, description: "Kick", originator: "ShowRecorder", timeReference: 0, originationDate: .now)
+        try StemWriter(url: url, info: info).finalize()
+
+        try StemWriter.reopen(url: url).finalize()
+
+        let file = try AVAudioFile(forReading: url)
+        #expect(file.fileFormat.sampleRate == 44_100)
+    }
+}
