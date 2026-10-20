@@ -14,6 +14,17 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.14",
+    date: "2026-10-20",
+    channel: "TestFlight beta",
+    summary: "Steadier Takes around a call or Siri, and safer Drive Copies.",
+    changes: [
+      "A Take started while a call or Siri has stopped the input starts its silence at the press, and input comes back on its own.",
+      "Recording to the Drive only, a short interruption or an earlier slow Drive no longer makes this iPhone stand in.",
+      "Audio only this iPhone holds is never removed until the Drive is checked to hold all of it, and a Drive that fails while saving no longer damages a Stem.",
+    ],
+  },
+  {
     version: "1.1.13",
     date: "2026-10-19",
     channel: "TestFlight beta",
