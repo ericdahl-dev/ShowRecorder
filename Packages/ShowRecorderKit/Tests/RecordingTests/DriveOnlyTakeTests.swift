@@ -22,14 +22,17 @@ struct DriveOnlyTakeTests {
     }
 
     /// A Drive only recorder; the Drive Copy's Stems are made by `driveStem` (a real one by default).
-    func recorder(driveStem: @escaping (StemWriter) -> any StemSink = { $0 }, stallLimit: Duration = .seconds(2)) -> Recorder {
+    func recorder(
+        driveStem: @escaping (StemWriter) -> any StemSink = { $0 }, stallLimit: Duration = .seconds(2), hostTicksPerSecond: Double? = nil
+    ) -> Recorder {
         let drive = drive
         let recorder = Recorder(
             deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
             makeStem: { url, info, resuming in
                 let real = try StemWriter.open(url: url, info: info, resumingAt: resuming)
                 return url.path.hasPrefix(drive.path) && resuming == nil ? driveStem(real) : real
-            }, destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300), driveStallLimit: stallLimit)
+            }, destinationCheckInterval: nil, hostTicksPerSecond: hostTicksPerSecond, writerStopTimeout: .milliseconds(300),
+            driveStallLimit: stallLimit)
         recorder.recordTo = .drive
         return recorder
     }
@@ -663,6 +666,32 @@ struct DriveOnlyTakeTests {
         #expect(recorder.copies[.drive] == .recording)
         try await recorder.stopTake()
         await recorder.waitForRepair()
+    }
+
+    @Test("A one-second input interruption in a Drive only Take with a healthy Drive is a Dropout, not a reason to stand in (#876)")
+    func interruptionDoesNotStandIn() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        // One host-clock tick per frame at 48 kHz, so the test can say exactly how long input stopped.
+        let recorder = recorder(hostTicksPerSecond: 48_000)
+        try recorder.arm(audio)
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_000)
+        audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_480)
+        // Input stops here for 48,000 frames (1 s: Siri, a call), then comes back.
+        audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_960 + 48_000)
+        audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_960 + 48_480)
+        // The Drive's writer has taken the drop, so it has logged the Dropout.
+        try await waitUntil { recorder.bufferedFrameCount == 0 }
+        await recorder.checkDestinations()
+
+        #expect(recorder.copies[.device] == .standingBy, "a healthy Drive needs no stand-in")
+        #expect(recorder.copies[.drive] == .recording)
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+
+        let metadata = try TakeMetadata.read(fromTakeFolder: drive.appending(path: take))
+        #expect(metadata.dropouts.contains(TakeMetadata.Dropout(copy: .drive, start: 960, end: 960 + 48_000)), "the interruption is still a Dropout")
+        #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "nothing of the Take is on the Device")
     }
 
     @Test("A Drive that pauses past the stall limit and then carries on isn't given up: the Take ends whole on the Drive, nothing on the Device")

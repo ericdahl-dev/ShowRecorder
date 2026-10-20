@@ -751,8 +751,9 @@ final class TakeSession {
         // and the Drive isn't given up, so Repair can fill it later.
         // The ring's overflow shows at once; the writer only logs the Dropout once it wakes, which a stuck write delays.
         let overflowed = drive.feed.ring.overflowedFrames.load(ordering: .relaxed) > 0
+        // A Dropout alone isn't a lost Drive: an input interruption gives every Copy one, and the Device had no audio to hold for it (#876).
+        guard drive.writer.hasFailed || stalled || overflowed else { return }
         let firstDrop = drive.writer.dropouts.map(\.lowerBound).min()
-        guard drive.writer.hasFailed || stalled || overflowed || firstDrop != nil else { return }
         // A stalled Drive isn't given up: one that only paused (waking up, a busy moment) carries on, and Repair fills
         // what it dropped from the stand-in. One that never comes back is abandoned at Stop, which never waits on it
         // longer than `stopTimeout` (#320).
