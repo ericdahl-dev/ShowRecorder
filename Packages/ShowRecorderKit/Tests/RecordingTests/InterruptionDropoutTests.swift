@@ -39,6 +39,33 @@ struct InterruptionDropoutTests {
         #expect(metadata.markers.contains { $0.origin == .dropout && $0.position == 960 })
     }
 
+    @Test("A Take pressed while input is stopped is silent from the press, not from when input stopped (#877)")
+    func pressWhileStopped() async throws {
+        // Input stops at host time 1_960; record is pressed 1 s later, and input comes back 1 s after the press.
+        let press: UInt64 = 1_960 + 48_000
+        let recorder = Recorder(
+            deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil, hostTicksPerSecond: 48_000,
+            hostClock: { press })
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.arm(audio)
+        audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_000)
+        audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_480)
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: press + 48_000)
+        audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: press + 48_480)
+        try await waitUntil { recorder.bufferedFrameCount == 0 }
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+
+        let take = root.appending(path: "\(show)/Take 01")
+        let stem = try ParsedStem(contentsOf: take.appending(path: "01 USB 01.wav"))
+        #expect(stem.samples.count == 48_000 + 2 * 480, "the second from the press to input's return, then the audio")
+        #expect(stem.samples[..<48_000].allSatisfy { $0 == 0 })
+        #expect(stem.samples[48_000...].allSatisfy { $0 != 0 })
+        let metadata = try TakeMetadata.read(fromTakeFolder: take)
+        #expect(metadata.dropouts == [TakeMetadata.Dropout(copy: .device, start: 0, end: 48_000)])
+    }
+
     @Test("Ordinary timing jitter between blocks is not a Dropout")
     func jitterIsNotADropout() async throws {
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil, hostTicksPerSecond: 48_000)

@@ -74,6 +74,8 @@ final class Capture: Sendable {
     /// means input stopped (an interruption), and the missing stretch becomes a Dropout (#317). 0 until the first block.
     private let hostTicksPerFrame: Double
     private let expectedHostTime = Atomic<UInt64>(0)
+    /// The host clock now, read when a Take starts (never on the real-time thread).
+    private let hostClock: @Sendable () -> UInt64
     /// A gap shorter than this (frames) is timing jitter, not lost input.
     private let gapThreshold: Int
     /// The host clock's ticks per second on this machine.
@@ -96,7 +98,9 @@ final class Capture: Sendable {
 
     /// - Parameter preRollSeconds: how much audio to keep before a Take starts; the buffer holds a second
     ///   more, so a snapshot of that length isn't cut short by the writer overwriting its oldest frames.
-    init(channelCount: Int, sampleRate: Double, preRollSeconds: Double = 0, hostTicksPerSecond: Double = Capture.machTicksPerSecond) {
+    init(channelCount: Int, sampleRate: Double, preRollSeconds: Double = 0, hostTicksPerSecond: Double = Capture.machTicksPerSecond,
+         hostClock: @escaping @Sendable () -> UInt64 = { mach_absolute_time() }) {
+        self.hostClock = hostClock
         hostTicksPerFrame = hostTicksPerSecond / max(sampleRate, 1)
         gapThreshold = Int(max(sampleRate, 1) * 0.05)
         meters = PeakMeters(channelCount: channelCount)
@@ -121,6 +125,9 @@ final class Capture: Sendable {
     func startCapturing(copies: Int, preRollFrames: Int = 0) {
         let mask = (1 << min(copies, rings.count)) - 1
         takeFrames.store(preRollFrames, ordering: .releasing)
+        // The Take starts at the press: input stopped before it is no part of the Take (#877). With input running, the
+        // next block starts before the press, so this adds nothing.
+        expectedHostTime.store(hostClock(), ordering: .relaxed)
         if preRollFrames > 0, preRoll != nil {
             preRollStart.store(-2, ordering: .releasing)
             capturing.store(0, ordering: .releasing)
