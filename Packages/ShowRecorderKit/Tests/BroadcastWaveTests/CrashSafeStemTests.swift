@@ -1,5 +1,5 @@
 import AVFoundation
-import BroadcastWave
+@testable import BroadcastWave
 import Foundation
 import Testing
 
@@ -62,5 +62,32 @@ struct SeededGenerator: RandomNumberGenerator {
         z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
         z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
         return z ^ (z >> 31)
+    }
+}
+
+@Suite("Finalizing after a failed header commit")
+struct FailedCommitFinalizeTests {
+    @Test("Finalizing after a header commit whose flush failed keeps sample 0 and the sizes intact (#878)")
+    func finalizeAfterFailedCommitKeepsAudio() throws {
+        struct Dead: Error {}
+        let folder = FileManager.default.temporaryDirectory.appending(path: "FailedCommitFinalizeTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let url = folder.appending(path: "d.wav")
+        let writer = try StemWriter(url: url, info: CrashSafeStemTests.info)
+        // An odd frame count, so finalize writes a pad byte.
+        let samples = CrashSafeStemTests.samples(1..<1_002)
+        try samples.withUnsafeBufferPointer { try writer.append($0) }
+        writer.flush = { _ in throw Dead() }
+        #expect(throws: Dead.self) { try writer.commitHeader() }
+
+        // What the writer thread does when a write fails: close what can be closed.
+        try writer.finalize()
+
+        let data = try Data(contentsOf: url)
+        func size(at offset: Int) -> Int { data[offset..<offset + 4].reversed().reduce(0) { $0 << 8 | Int($1) } }
+        #expect(try StemWriter.readSamples(url: url, frames: 0..<1_001) == samples, "sample 0 is not overwritten")
+        #expect(data.count == StemWriter.dataStart + 1_001 * StemWriter.bytesPerSample + 1, "pad byte at the end, nothing else")
+        #expect(size(at: StemWriter.dataStart - 4) == 1_001 * StemWriter.bytesPerSample, "data size")
+        #expect(size(at: 4) == data.count - 8, "RIFF size covers the whole file")
     }
 }
