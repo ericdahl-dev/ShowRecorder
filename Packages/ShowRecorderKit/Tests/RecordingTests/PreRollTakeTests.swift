@@ -204,4 +204,27 @@ struct PreRollTakeTests {
 
         #expect(try decodedTake(device).gaps.isEmpty)
     }
+
+    @Test("Stopped before any audio arrives, input that comes back after Stop is not captured, and the next Take is exact (#872)")
+    func blocksAfterStopBeforeAnyBlock() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let recorder = recorder(seconds: 1)
+        try recorder.arm(audio)
+        try await deliver(48_000, from: 0, to: audio, recorder, sample: counting())
+        try recorder.startTake()
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+
+        try await deliver(4_800, from: 48_000, to: audio, recorder, sample: counting())  // input returns after Stop
+        #expect(recorder.bufferedFrameCount == 0, "nothing is captured after Stop")
+
+        try recorder.startTake()
+        try await deliver(1_000, from: 52_800, to: audio, recorder, sample: counting())
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+
+        let take02 = device.appending(path: "2026-10-06 Show/Take 02")
+        let stem = try ParsedStem(contentsOf: take02.appending(path: "01 USB 01.wav"))
+        #expect(stem.samples == (4_800..<53_800).map { Int32($0) }, "1 s of Pre-roll, then the live audio, no frame repeated")
+    }
 }
