@@ -144,6 +144,8 @@ public final class Recorder {
     public var recordTo: RecordTo = .standard
     /// The host clock's ticks per second, for spotting a stop in the input (#317). Tests set it.
     @ObservationIgnored private let hostTicksPerSecond: Double
+    /// The host clock now, in the ticks a block's host time counts (#877). Tests set it.
+    @ObservationIgnored private let hostClock: @Sendable () -> UInt64
     /// Whether `AsyncStopAvailability` allows the asynchronous Stop: `stopTake` finishes the Take off the main actor (#652).
     @ObservationIgnored private let asyncStopRule: () -> Bool
     /// The rule's answer now, asked at each Stop rather than once at launch: StoreKit may answer after it.
@@ -171,6 +173,7 @@ public final class Recorder {
         savedNames: UserDefaults = .standard,
         destinationCheckInterval: Duration? = .seconds(1),
         hostTicksPerSecond: Double? = nil,
+        hostClock: @escaping @Sendable () -> UInt64 = { mach_absolute_time() },
         writerStopTimeout: Duration = .seconds(5),
         driveStallLimit: Duration = .seconds(2),
         writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) },
@@ -180,6 +183,7 @@ public final class Recorder {
         self.destinationCheckInterval = destinationCheckInterval
         self.driveStallLimit = driveStallLimit
         self.hostTicksPerSecond = hostTicksPerSecond ?? Capture.machTicksPerSecond
+        self.hostClock = hostClock
         self.writerStopTimeout = writerStopTimeout
         self.savedNames = savedNames
         savedChannelNames = SavedChannelNames.load(from: savedNames)
@@ -297,7 +301,7 @@ public final class Recorder {
         disarm()
         let capture = Capture(
             channelCount: device.inputChannelCount, sampleRate: device.sampleRate, preRollSeconds: preRollSeconds,
-            hostTicksPerSecond: hostTicksPerSecond)
+            hostTicksPerSecond: hostTicksPerSecond, hostClock: hostClock)
         try device.start(input: { block in capture.receive(block) })
         self.device = device
         self.capture = capture
