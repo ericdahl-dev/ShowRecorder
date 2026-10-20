@@ -214,6 +214,8 @@ struct TakeRepairTests {
         await queue.wait()
 
         #expect(FileManager.default.fileExists(atPath: take.standIn.path), "the stand-in the Drive's Take.json still names is kept")
+        #expect(!queue.moved, "and the summary doesn't say it moved")
+        #expect(queue.standInKept, "it reads as kept")
     }
 
     @Test("Drive only: a spare stand-in stays when the Drive's Take.json can't be written (#879)")
@@ -221,9 +223,12 @@ struct TakeRepairTests {
         let take = try standInTakeWithReadOnlyDrive(gaps: [])
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: take.folders[.drive]!.path) }
 
-        TakeRepair(freeSpace: { _ in .max }, run: Runner().run).enqueue(take.metadata, folders: take.folders, holding: nil)
+        let queue = TakeRepair(freeSpace: { _ in .max }, run: Runner().run)
+        queue.enqueue(take.metadata, folders: take.folders, holding: nil)
 
         #expect(FileManager.default.fileExists(atPath: take.standIn.path), "the stand-in the Drive's Take.json still names is kept")
+        #expect(queue.standInKept, "it reads as kept")
+        #expect(queue.outcomes[.device] != nil, "and the Take still has a Device Copy")
     }
 
     @Test("Drive only: a Gap the stand-ins don't fully cover is Repair failed, and the stand-in stays on the Device")
