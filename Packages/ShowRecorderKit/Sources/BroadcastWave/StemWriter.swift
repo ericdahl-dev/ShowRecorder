@@ -43,6 +43,8 @@ public final class StemWriter: StemSink {
     private(set) var isRF64 = false
 
     private let handle: FileHandle
+    /// How a header commit is pushed to disk: `fsync`. Swappable so a test can make it fail (#878).
+    var flush: (FileHandle) throws -> Void = { try $0.synchronize() }
     private var bytes: [UInt8] = []
     private let dataSizeOffset: UInt64
     private let markerRegionOffset: UInt64
@@ -204,13 +206,16 @@ public final class StemWriter: StemSink {
     public func commitHeader() throws {
         let end = try handle.offset()
         try writeSizes(dataBytes: frameCount * UInt64(Self.bytesPerSample), riffEnd: end)
-        try handle.synchronize()
+        try flush(handle)
         try handle.seek(toOffset: end)
     }
 
     /// Writes the final chunk sizes and closes the file.
     public func finalize() throws {
         let dataBytes = frameCount * UInt64(Self.bytesPerSample)
+        // A commitHeader or setMarkers that threw can leave the position inside the header (#878).
+        // dataStart is the same for plain RIFF and RF64 Stems.
+        try handle.seek(toOffset: UInt64(Self.dataStart) + dataBytes)
         if dataBytes % 2 == 1 {
             try promoteIfNeeded(riffEnd: try handle.offset() + 1)
             try handle.write(contentsOf: [0])
