@@ -104,12 +104,19 @@ struct InterruptionPolicyTests {
         #expect(policy.notice == nil)
     }
 
-    @Test("Starting a Take while input is stopped keeps the notice")
+    @Test("Starting a Take while input is stopped keeps the notice and restarts input (#877)")
     func takeStartedWhileStoppedKeepsNotice() {
         var policy = InterruptionPolicy()
         _ = policy.handle(.interruptionBegan(reason: .other), isRecording: false)
-        _ = policy.handle(.takeStarted, isRecording: true)
+        let response = policy.handle(.takeStarted, isRecording: true)
         #expect(policy.notice != nil)
+        #expect(response.action == .restartInput)
+    }
+
+    @Test("Starting a Take with input running asks for nothing")
+    func takeStartedWhileRunningDoesNothing() {
+        var policy = InterruptionPolicy()
+        #expect(policy.handle(.takeStarted, isRecording: true).action == InterruptionPolicy.Action.none)
     }
 
     @Test("A media services reset replaces the device and marks input stopped until it is back")

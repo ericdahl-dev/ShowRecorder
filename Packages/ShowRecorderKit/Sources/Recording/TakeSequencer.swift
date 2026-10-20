@@ -215,8 +215,9 @@ public final class TakeSequencer {
             takeStartedAt = now()
             recordError = nil
             emit.yield(.takeStarted(take: recorder.currentShow?.takeCount ?? 0))
-            // `.takeStarted` has no action and nothing to log, so it needs no `await`.
-            _ = interruptions.handle(.takeStarted, isRecording: recorder.isRecording)
+            // Told at once, so the notice clears with the press; a restart (input still stopped, #877) runs after.
+            let response = interruptions.handle(.takeStarted, isRecording: recorder.isRecording)
+            if response.action != .none { Task { [weak self] in await self?.perform(response) } }
             tellInputState()
             return true
         } catch {
@@ -400,7 +401,10 @@ public final class TakeSequencer {
     }
 
     private func carryOut(_ event: InterruptionPolicy.Event) async {
-        let response = interruptions.handle(event, isRecording: recorder.isRecording)
+        await perform(interruptions.handle(event, isRecording: recorder.isRecording))
+    }
+
+    private func perform(_ response: InterruptionPolicy.Response) async {
         if let line = response.log { log(line) }
         switch response.action {
         case .none:
