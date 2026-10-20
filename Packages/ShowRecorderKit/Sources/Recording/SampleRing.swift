@@ -12,7 +12,7 @@ final class SampleRing: @unchecked Sendable {
     /// Total frames ever written and read. Only the producer stores `written`, only the consumer `read`.
     private let written = Atomic<Int>(0)
     private let read = Atomic<Int>(0)
-    /// Frames dropped because the ring was full.
+    /// Frames dropped because the ring was full, since the last `discardAll()`.
     let overflowedFrames = Atomic<Int>(0)
 
     /// A stretch the ring had no room for: it fell after `storedFrames` frames had been stored, and was
@@ -161,10 +161,11 @@ final class SampleRing: @unchecked Sendable {
         return frames
     }
 
-    /// Consumer: discards everything currently in the ring, and forgets its drops.
+    /// Consumer: discards everything currently in the ring, and forgets its drops and its overflow count.
     func discardAll() {
         read.store(written.load(ordering: .acquiring), ordering: .releasing)
         dropsRead.store(dropsLogged.load(ordering: .acquiring), ordering: .releasing)
         unloggedDroppedFrames.store(0, ordering: .releasing)
+        overflowedFrames.store(0, ordering: .releasing)
     }
 }

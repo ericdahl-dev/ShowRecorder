@@ -360,7 +360,8 @@ public final class Recorder {
     /// Armed or when Pre-roll is off.
     var armedPreRoll: PreRollBuffer? { capture?.preRoll }
 
-    /// Frames lost since Arming because the writer couldn't keep up. (Dropouts proper come in #15.)
+    /// Frames lost in this Take because the writer couldn't keep up: each Copy's count starts again when its ring is emptied,
+    /// at Take start, at a rejoin and when its writer fails. (Dropouts proper come in #15.)
     public var droppedFrameCount: Int {
         capture?.maxOverflowedFrames ?? 0
     }

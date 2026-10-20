@@ -3,6 +3,7 @@ import BroadcastWave
 import Destinations
 import Foundation
 @testable import Recording
+import Synchronization
 import TakeFile
 import Testing
 
@@ -628,6 +629,40 @@ struct DriveOnlyTakeTests {
         #expect(recorder.copies[.drive] == .repaired)
         #expect(try driveSamples(frames: total) == (0..<total).map { counting()($0, 0) }, "the Drive has the whole Take")
         #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "nothing of the Take is left on the Device")
+    }
+
+    @Test("A Drive that overflowed in one Take doesn't make the Device stand in for the next, healthy one in the same Arm (#875)")
+    func overflowDoesNotCarryToTheNextTake() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
+        // Only Take 1's Drive Stem is slow; Take 2's is healthy.
+        let made = Mutex(0)
+        let recorder = recorder(driveStem: { stem in
+            made.withLock { $0 += 1; return $0 } == 1 ? SlowStem(stem, healthyFrames: 4_800, gate: gate) as any StemSink : stem
+        }, stallLimit: .seconds(60))
+        try recorder.arm(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        for second in 0..<5 {
+            deliver(48_000, from: 4_800 + second * 48_000, to: audio, block: 480, sample: counting())
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        try await waitUntil { recorder.droppedFrameCount > 0 }
+        await recorder.checkDestinations()
+        gate.open()
+        try await waitUntil { recorder.bufferedFrameCount == 0 }
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        await recorder.checkDestinations()
+
+        #expect(recorder.copies[.device] == .standingBy, "a healthy Drive needs no stand-in")
+        #expect(recorder.copies[.drive] == .recording)
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
     }
 
     @Test("A Drive that pauses past the stall limit and then carries on isn't given up: the Take ends whole on the Drive, nothing on the Device")
