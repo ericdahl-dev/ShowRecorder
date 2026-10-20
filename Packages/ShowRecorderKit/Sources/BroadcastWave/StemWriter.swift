@@ -78,7 +78,8 @@ public final class StemWriter: StemSink {
     /// `frames` samples (for a Destination that failed and came back). Anything past those samples
     /// (a half-written sample, a padding byte) is cut off.
     public static func open(url: URL, info: Info, resumingAt frames: UInt64?) throws -> StemWriter {
-        guard let frames else { return try StemWriter(url: url, info: info) }
+        // Nothing to keep at 0: the file may be empty or torn, with no header to write after (#880).
+        guard let frames, frames > 0 else { return try StemWriter(url: url, info: info) }
         return try StemWriter(resuming: url, info: info, frameCount: frames, rf64Threshold: maxRIFFSize)
     }
 
@@ -158,7 +159,8 @@ public final class StemWriter: StemSink {
         // A resumed Stem keeps its own header, so this Info is only used to find where the sizes and
         // Marker region are, and is the same for every Stem.
         let info = Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: Date(timeIntervalSince1970: 0))
-        return try open(url: url, info: info, resumingAt: frames)
+        // Not `open`: a readable Stem with no samples yet keeps its header too, rather than this placeholder Info.
+        return try StemWriter(resuming: url, info: info, frameCount: frames, rf64Threshold: maxRIFFSize)
     }
 
     /// The samples of `frames` (counted from the start of the Stem) in the Stem at `url`, as Floats in

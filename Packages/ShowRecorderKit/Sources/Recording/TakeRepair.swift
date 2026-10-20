@@ -291,8 +291,9 @@ final class TakeRepair {
             // Drive only: the Device holds stand-ins, each starting at its own Take frame, instead of a Copy.
             let standIns = target.kind == .drive ? metadata.standIns : nil
             if let source {
-                do {
-                    for stem in stems {
+                // Per Stem: one that can't be read fails the Copy's Gaps but doesn't stop the rest being filled (#880).
+                for stem in stems {
+                    do {
                         if let standIns {
                             for standIn in standIns {
                                 let ranges = gaps.map { $0.start..<$0.end }.map { $0.clamped(to: standIn.start..<standIn.end) }.filter { !$0.isEmpty }
@@ -308,9 +309,13 @@ final class TakeRepair {
                                 target: target.folder.appending(path: stem), from: source.folder.appending(path: stem),
                                 ranges: ranges, length: length, markers: markers, shouldStop: shouldStop)
                         }
+                    } catch is StemRepair.Stopped {
+                        // Stopped stops every Stem, as before (#630).
+                        copied = false
+                        break
+                    } catch {
+                        copied = false
                     }
-                } catch {
-                    copied = false
                 }
             }
             // What the source's files really hold, not only what its metadata says (#602): a Copy that stopped early, or a
