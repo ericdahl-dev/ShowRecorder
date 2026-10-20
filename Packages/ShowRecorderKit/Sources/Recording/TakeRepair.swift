@@ -94,10 +94,10 @@ final class TakeRepair {
             // removed there, and never on the main thread (#664).
             if publishing, !keepsStandIns, metadata.standIns != nil, let device = folders[.device], let drive = folders[.drive],
                !abandoned.contains(.drive), !abandoned.contains(.device) {
-                try? FileManager.default.removeItem(at: device)
                 var done = metadata
                 done.standIns = nil
-                try? done.write(to: drive)
+                // The stand-ins go only once the Drive's Take.json no longer names them (#879).
+                if (try? done.write(to: drive)) != nil { try? FileManager.default.removeItem(at: device) }
                 // So the Take has no Device Copy (#621).
                 self.outcomes[.device] = nil
                 onChange()
@@ -141,16 +141,20 @@ final class TakeRepair {
             if moved { done.standIns = nil }
             // Every write to a Destination (a Drive that may have gone away) is off the cooperative pool.
             await runOffPool { [done] in
-                for copy in copies {
-                    let folder = copy.folder
-                    // The Device's folder goes only when the Drive has the moved audio; a lone Copy is never removed.
-                    if moved, copy.kind == .device, copies.contains(where: { $0.kind == .drive }) {
-                        try? FileManager.default.removeItem(at: folder)
-                    } else if abandoned.contains(copy.kind) {
-                        write(done, folder)
+                // The Device's folder goes only when the Drive has the moved audio; a lone Copy is never removed.
+                let removesDevice = moved && copies.contains { $0.kind == .drive }
+                var driveWritten = false
+                for copy in copies where !(removesDevice && copy.kind == .device) {
+                    if abandoned.contains(copy.kind) {
+                        write(done, copy.folder)
                     } else {
-                        try? done.write(to: folder)
+                        let written = (try? done.write(to: copy.folder)) != nil
+                        if copy.kind == .drive { driveWritten = written }
                     }
+                }
+                // Only once the Drive's Take.json no longer names the stand-ins, so a failed write never strands it (#879).
+                if removesDevice, driveWritten, let device = copies.first(where: { $0.kind == .device }) {
+                    try? FileManager.default.removeItem(at: device.folder)
                 }
             }
             guard let self else {
