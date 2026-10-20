@@ -52,6 +52,47 @@ struct CopyJoinTests {
         #expect(capture.feeds[1].ring.availableFrames == 960)
     }
 
+    @Test("A Copy asked to join and then no longer fed, before the next block, never gets audio (#872)")
+    func stopFeedingBeforeJoin() {
+        let capture = capture()
+        capture.startCapturing(copies: 1)
+        receive(capture)
+        capture.attachMidTake(capture.feeds[1])
+        capture.stopFeeding(capture.feeds[1])
+        receive(capture)
+        #expect(capture.feeds[1].ring.availableFrames == 0)
+        #expect(capture.feeds[0].ring.availableFrames == 960)
+    }
+
+    @Test("Stop before a waiting Copy has joined: no block after it is captured for any Copy (#872)")
+    func stopBeforeJoin() {
+        let capture = capture()
+        capture.startCapturing(copies: 1)
+        receive(capture)
+        capture.attachMidTake(capture.feeds[1])
+        capture.stopCapturing()
+        receive(capture)
+        #expect(capture.feeds[0].ring.availableFrames == 480)
+        #expect(capture.feeds[1].ring.availableFrames == 0)
+    }
+
+    @Test("A Pre-roll Take stopped before any block: a block between the next Take's begin and its press isn't fed (#872)")
+    func preRollStopBeforeAnyBlock() {
+        let capture = capture(preRollSeconds: 1)
+        receive(capture)
+        capture.startCapturing(copies: 1, preRollFrames: 480)
+        capture.stopCapturing()
+        receive(capture)                                     // input returns after Stop
+        #expect(capture.feeds[0].ring.availableFrames == 0, "nothing is captured after Stop")
+
+        capture.begin(capture.feeds[0], joinedAt: nil)       // the next Take
+        receive(capture)                                     // a block lands before its press
+        capture.startCapturing(copies: 1, preRollFrames: 960)
+        receive(capture)
+        #expect(capture.feeds[0].joinedAt == 960)
+        #expect(capture.feeds[0].ring.availableFrames == 480, "only the join block, no frame from before it")
+    }
+
     @Test("With Pre-roll, both Copies join on the same block, at the Pre-roll's length, and the Pre-roll start is set there")
     func preRollJoinsBothTogether() {
         let capture = capture(preRollSeconds: 1)

@@ -123,6 +123,7 @@ final class Capture: Sendable {
         takeFrames.store(preRollFrames, ordering: .releasing)
         if preRollFrames > 0, preRoll != nil {
             preRollStart.store(-2, ordering: .releasing)
+            capturing.store(0, ordering: .releasing)
             joinRequests.store(mask, ordering: .releasing)
         } else {
             preRollStart.store(-1, ordering: .releasing)
@@ -147,10 +148,14 @@ final class Capture: Sendable {
     /// Stops feeding one Copy's ring (its writer failed, or it retired).
     func stopFeeding(_ feed: CopyFeed) {
         precondition(feed.slot >= 0, "a feed this Capture doesn't own")
+        // A join still waiting for its block would bring the Copy back (#872).
+        joinRequests.bitwiseAnd(~(1 << feed.slot), ordering: .acquiringAndReleasing)
         capturing.bitwiseAnd(~(1 << feed.slot), ordering: .acquiringAndReleasing)
     }
 
     func stopCapturing() {
+        // Requests first: the next block ORs any still pending back into `capturing` (#872).
+        joinRequests.store(0, ordering: .releasing)
         capturing.store(0, ordering: .releasing)
     }
 
