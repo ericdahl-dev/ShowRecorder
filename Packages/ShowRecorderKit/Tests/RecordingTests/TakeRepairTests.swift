@@ -192,6 +192,40 @@ struct TakeRepairTests {
         #expect(try TakeMetadata.read(fromTakeFolder: drive).standIns == nil, "the moved stand-ins are no longer named")
     }
 
+    /// A Drive only Take whose Drive folder is read-only, so writing its Take.json fails (#879).
+    func standInTakeWithReadOnlyDrive(gaps: [TakeMetadata.Gap]) throws -> (metadata: TakeMetadata, folders: [DestinationKind: URL], standIn: URL) {
+        let folders = try folders("readOnly")
+        var metadata = metadata(take: 1, gaps: gaps)
+        metadata.standIns = [.init(start: 480, end: 4_800)]
+        let standIn = folders[.device]!.appending(path: metadata.standIns![0].folderName)
+        try FileManager.default.createDirectory(at: standIn, withIntermediateDirectories: true)
+        try metadata.write(to: folders[.drive]!)
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: folders[.drive]!.path)
+        return (metadata, folders, standIn)
+    }
+
+    @Test("Drive only: when the Drive's Take.json can't be written after Repair, the Device's stand-in stays (#879)")
+    func standInKeptWhenDriveWriteFails() async throws {
+        let take = try standInTakeWithReadOnlyDrive(gaps: [driveGap])
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: take.folders[.drive]!.path) }
+
+        let queue = TakeRepair(freeSpace: { _ in .max }, run: Runner().run)
+        queue.enqueue(take.metadata, folders: take.folders, holding: nil)
+        await queue.wait()
+
+        #expect(FileManager.default.fileExists(atPath: take.standIn.path), "the stand-in the Drive's Take.json still names is kept")
+    }
+
+    @Test("Drive only: a spare stand-in stays when the Drive's Take.json can't be written (#879)")
+    func spareStandInKeptWhenDriveWriteFails() throws {
+        let take = try standInTakeWithReadOnlyDrive(gaps: [])
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: take.folders[.drive]!.path) }
+
+        TakeRepair(freeSpace: { _ in .max }, run: Runner().run).enqueue(take.metadata, folders: take.folders, holding: nil)
+
+        #expect(FileManager.default.fileExists(atPath: take.standIn.path), "the stand-in the Drive's Take.json still names is kept")
+    }
+
     @Test("Drive only: a Gap the stand-ins don't fully cover is Repair failed, and the stand-in stays on the Device")
     func standInKeptWhenIncomplete() async throws {
         let stem = "01 USB 01.wav"
