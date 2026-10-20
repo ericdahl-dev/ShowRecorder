@@ -97,9 +97,13 @@ final class TakeRepair {
                 var done = metadata
                 done.standIns = nil
                 // The stand-ins go only once the Drive's Take.json no longer names them (#879).
-                if (try? done.write(to: drive)) != nil { try? FileManager.default.removeItem(at: device) }
-                // So the Take has no Device Copy (#621).
-                self.outcomes[.device] = nil
+                if (try? done.write(to: drive)) != nil {
+                    try? FileManager.default.removeItem(at: device)
+                    // So the Take has no Device Copy (#621).
+                    self.outcomes[.device] = nil
+                } else {
+                    standInKept = true
+                }
                 onChange()
             } else if !keepsStandIns, metadata.standIns != nil, abandoned.contains(.device), !abandoned.contains(.drive) {
                 // The stand-in stays on a Device Stop gave up on: the summary says so, as after a Repair that kept it.
@@ -140,7 +144,7 @@ final class TakeRepair {
             // The stand-ins' folders are gone once moved, so the Take no longer names them.
             if moved { done.standIns = nil }
             // Every write to a Destination (a Drive that may have gone away) is off the cooperative pool.
-            await runOffPool { [done] in
+            let removed = await runOffPool { [done] in
                 // The Device's folder goes only when the Drive has the moved audio; a lone Copy is never removed.
                 let removesDevice = moved && copies.contains { $0.kind == .drive }
                 var driveWritten = false
@@ -153,9 +157,9 @@ final class TakeRepair {
                     }
                 }
                 // Only once the Drive's Take.json no longer names the stand-ins, so a failed write never strands it (#879).
-                if removesDevice, driveWritten, let device = copies.first(where: { $0.kind == .device }) {
-                    try? FileManager.default.removeItem(at: device.folder)
-                }
+                guard removesDevice, driveWritten, let device = copies.first(where: { $0.kind == .device }) else { return false }
+                try? FileManager.default.removeItem(at: device.folder)
+                return true
             }
             guard let self else {
                 access?.end()
@@ -163,8 +167,9 @@ final class TakeRepair {
             }
             if publishing, mine == generation {
                 self.outcomes = outcomes(done)
-                self.moved = moved
-                standInKept = done.standIns != nil
+                // A move the Drive's Take.json write cut short leaves the stand-ins on the Device (#879).
+                self.moved = removed
+                standInKept = done.standIns != nil || (moved && !removed)
             }
             jobDone(abandoned)
             access?.end()
