@@ -334,6 +334,19 @@ struct CopyCheckTests {
         #expect(verifyStandIn() == .failed(["Take 01's stand-in isn't a folder of its own on the Device."]))
     }
 
+    @Test("A stand-in Stem holding more on disk than its header and stretch fails: that tail was never checked (#871)")
+    func standInTailPastItsHeader() async throws {
+        try await record()
+        let folder = try #require(try standIns([1_200..<3_600]).first)
+        // An abandoned standby's write landed after its last header commit.
+        let handle = try FileHandle(forUpdating: folder.appending(path: "01 USB 01.wav"))
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data(repeating: 0x11, count: 100 * StemWriter.bytesPerSample))
+        try handle.close()
+
+        #expect(verifyStandIn() == .failed(["Take 01, channel 1 of the stand-in at 0:00 can't be read whole on the Device."]))
+    }
+
     @Test("A zero-length stand-in passes only with empty Stems")
     func zeroLengthStandIn() async throws {
         try await record()

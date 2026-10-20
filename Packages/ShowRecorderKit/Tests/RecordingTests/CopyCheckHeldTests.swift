@@ -351,4 +351,26 @@ struct CopyCheckHeldTests {
 
         #expect(!reasons(CopyCheck.verifyHeld(device: deviceTake, drive: driveTake)).isEmpty, "a Device file compared with itself would always match")
     }
+
+    @Test("A stand-in Stem holding more than its listed range is compared whole: a tail the Drive never had fails (#871)")
+    func standInTailPastItsEnd() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        var metadata = metadata()
+        // A standby abandoned at Stop lists its last header commit as its end; its Stem holds 500 frames more.
+        metadata.standIns = [.init(start: 3_000, end: 5_000)]
+        try writeTakes(metadata)
+        let standIn = deviceTake.appending(path: metadata.standIns![0].folderName)
+        let info = StemWriter.Info(sampleRate: 48_000, description: "", originator: "", timeReference: 3_000, originationDate: Self.startedAt)
+        try FileManager.default.createDirectory(at: standIn, withIntermediateDirectories: true)
+        let held = try StemWriter(url: stem(standIn), info: info)
+        try (3_000..<5_500).map { counting()($0, 0) }.withUnsafeBufferPointer { try held.append($0) }
+        try held.finalize()
+        // The Drive never had the tail: silence from 5,000 on.
+        try writeStem(stem(driveTake), frames: 8_000, silent: 5_000..<8_000)
+
+        #expect(!reasons(CopyCheck.verifyHeld(device: deviceTake, drive: driveTake)).isEmpty, "the tail exists only on the Device")
+
+        try writeStem(stem(driveTake), frames: 8_000)
+        #expect(CopyCheck.verifyHeld(device: deviceTake, drive: driveTake) == .passed, "a Drive that holds the tail too passes")
+    }
 }

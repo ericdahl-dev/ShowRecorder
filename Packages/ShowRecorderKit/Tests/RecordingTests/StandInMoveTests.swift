@@ -270,6 +270,19 @@ struct StandInMoveTests {
         #expect(FileManager.default.fileExists(atPath: deviceTake.appending(path: "Take.json").path))
     }
 
+    @Test("A stand-in Stem holding more on disk than its header says keeps the Take: the tail is on the Device only (#871)")
+    func standInTailPastItsHeader() throws {
+        try make()
+        let stem = deviceTake.appending(path: "Stand-in 0").appending(path: Self.channel(1).stemFile)
+        let handle = try FileHandle(forUpdating: stem)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data(repeating: 0x11, count: 100 * StemWriter.bytesPerSample))
+        try handle.close()
+
+        #expect(!reasons(run()).isEmpty)
+        #expect(FileManager.default.fileExists(atPath: stem.path))
+    }
+
     @Test("A .DS_Store the Finder left in the Device's Take or its stand-in doesn't keep the Take")
     func finderFilesDontKeepTheTake() throws {
         try make()

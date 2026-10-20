@@ -141,4 +141,22 @@ struct DeviceTakeReleaseTests {
         }
         #expect(reasons.first?.contains("channel 1") == true)
     }
+
+    @Test("A stand-in Stem holding more than its listed range, which the Drive never had, keeps the Take (#871)")
+    func standInTailKept() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        var metadata = try make(deviceFrames: [3_000], driveFrames: [5_000])
+        metadata.standIns = [.init(start: 3_000, end: 5_000)]
+        try metadata.write(to: deviceTake)
+        // An abandoned standby's Stem: frames 3,000 to 5,500, past the end its Take.json lists.
+        let standIn = deviceTake.appending(path: metadata.standIns![0].folderName).appending(path: Self.channel(1).stemFile)
+        try FileManager.default.createDirectory(at: standIn.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let info = StemWriter.Info(sampleRate: 48_000, description: "", originator: "Test", timeReference: 3_000, originationDate: Self.startedAt)
+        let stem = try StemWriter(url: standIn, info: info)
+        try (3_000..<5_500).map { counting()($0, 0) }.withUnsafeBufferPointer { try stem.append($0) }
+        try stem.finalize()
+
+        guard case .kept = run() else { Issue.record("not kept"); return }
+        #expect(FileManager.default.fileExists(atPath: standIn.path))
+    }
 }

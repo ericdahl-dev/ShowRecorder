@@ -173,7 +173,8 @@ public enum CopyCheck {
                 // A zero-length stand-in passes only when its Stems are empty: none of the Take is in it.
                 let length = UInt64(standIn.end - standIn.start) * size
                 let driveStart = UInt64(standIn.start) * size
-                guard let a = (try? StemFile.inspect(stem))?.audioRegion, a.length == length else {
+                // The file must hold no more than its header: an abandoned standby's tail past it was never checked (#871).
+                guard let held = try? StemFile.inspect(stem), held.framesOnDisk * size == length, case let a = held.audioRegion, a.length == length else {
                     problems.append("\(label) can't be read whole on the Device.")
                     continue
                 }
