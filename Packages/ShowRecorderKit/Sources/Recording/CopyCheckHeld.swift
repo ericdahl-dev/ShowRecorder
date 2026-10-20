@@ -73,7 +73,8 @@ extension CopyCheck {
                     continue
                 }
                 guard let held else { unreadable = true; continue }
-                pieces.append((url, standIn.start, min(Int(held.framesOnDisk), standIn.end - standIn.start), []))
+                // All it holds, not only `end - start`: an abandoned standby's Stem can hold more than its end (#664, #871).
+                pieces.append((url, standIn.start, Int(held.framesOnDisk), []))
             }
             if unreadable {
                 note("\(label) can't be read on the Device.")
