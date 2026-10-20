@@ -208,6 +208,9 @@ public final class StemWriter: StemSink {
     /// Writes the final chunk sizes and closes the file.
     public func finalize() throws {
         let dataBytes = frameCount * UInt64(Self.bytesPerSample)
+        // A commitHeader or setMarkers that threw can leave the position inside the header (#878).
+        // dataStart is the same for plain RIFF and RF64 Stems.
+        try handle.seek(toOffset: UInt64(Self.dataStart) + dataBytes)
         if dataBytes % 2 == 1 {
             try promoteIfNeeded(riffEnd: try handle.offset() + 1)
             try handle.write(contentsOf: [0])

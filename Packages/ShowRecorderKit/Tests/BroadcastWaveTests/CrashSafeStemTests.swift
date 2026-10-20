@@ -119,6 +119,31 @@ struct StemFlushTests {
         #expect(try StemFile.inspect(url).framesOnDisk == 1_000, "what was written is on disk")
     }
 
+    @Test("Finalizing after a header commit whose flush failed keeps sample 0 and the sizes intact (#878)")
+    func finalizeAfterFailedCommitKeepsAudio() throws {
+        struct Dead: Error {}
+        let url = folder.appending(path: "d.wav")
+        let writer = try StemWriter(url: url, info: CrashSafeStemTests.info)
+        // An odd frame count, so finalize writes a pad byte.
+        let samples = CrashSafeStemTests.samples(1..<1_002)
+        try samples.withUnsafeBufferPointer { try writer.append($0) }
+        writer.flush = { _ in throw Dead() }
+        #expect(throws: Dead.self) { try writer.commitHeader() }
+
+        // What the writer thread does when a write fails: close what can be closed.
+        writer.flush = { _ in }
+        try writer.finalize()
+
+        let stem = try StemFile.inspect(url)
+        #expect(stem.framesOnDisk == 1_001)
+        #expect(stem.declaredBytes == 1_001 * UInt64(StemWriter.bytesPerSample))
+        #expect(try StemWriter.readSamples(url: url, frames: 0..<1_001) == samples, "sample 0 is not overwritten")
+        let fileSize = try FileManager.default.attributesOfItem(atPath: url.path)[.size] as! Int
+        #expect(fileSize == StemWriter.dataStart + 1_001 * StemWriter.bytesPerSample + 1, "pad byte at the end, nothing else")
+        let riff = try Data(contentsOf: url)[4..<8].reversed().reduce(0) { $0 << 8 | Int($1) }
+        #expect(riff == fileSize - 8, "RIFF size covers the whole file")
+    }
+
     @Test("Committing a header still flushes, once")
     func commitFlushes() throws {
         let writer = try StemWriter(url: folder.appending(path: "b.wav"), info: CrashSafeStemTests.info)
