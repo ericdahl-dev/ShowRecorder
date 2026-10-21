@@ -445,7 +445,7 @@ private struct DeleteFromDeviceRow: View {
     }
 
     @State private var phase = Phase.idle
-    /// Debug and TestFlight only, until Eric has tried it (`DeviceTakeDeleteAvailability`).
+    /// Debug only, until Eric has tried it (`DeviceTakeDeleteAvailability`).
     @State private var offered = DeviceTakeDeleteAvailability.isAvailableInThisBuild
     private var word: String { ThisHardware.word }
     private var busy: Bool { recorder.isRecording || recorder.isFinishing || recorder.isMoving }
