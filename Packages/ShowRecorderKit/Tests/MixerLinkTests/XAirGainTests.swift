@@ -163,6 +163,54 @@ struct XAirGainTests {
         #expect(try await driver.mixHoldState(ofChannel: 2) == before)
     }
 
+    @Test("Two channels on one input: Mix Hold on channel 1 compensates channel 5 too, and Undo puts it back (#874)")
+    func sharedPreampCompensatesBoth() async throws {
+        var state = FakeXAirMixer.State()
+        state.channels[0].inputSource = 0
+        state.channels[4].inputSource = 0   // channel 5 on In01, like channel 1
+        state.usbRouting = XAirDriverTests.defaultRouting
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+        let before = try await driver.mixHoldState(ofChannel: 5)
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+
+        let fader5 = try #require(step.changes.first { $0.setting == MixHold.Setting(channel: 5, parameter: .mainFader) })
+        #expect(abs(fader5.toDb - (fader5.fromDb - 6)) < 0.05)
+        #expect(!step.changes.contains { $0.setting.channel == 2 }, "channel 2 is on its own input")
+        try await driver.undo(step)
+        #expect(try await driver.mixHoldState(ofChannel: 5) == before)
+    }
+
+    @Test("A linked partner that also shares the preamp is compensated once, not twice (#874)")
+    func partnerOnSharedPreampCountedOnce() async throws {
+        var state = FakeXAirMixer.State()
+        state.channels[1].inputSource = 0   // channel 2 on In01 as well as channel 1
+        state.usbRouting = XAirDriverTests.defaultRouting
+        state.set["/config/chlink/1-2"] = .int(1)
+        state.set["/config/linkcfg/preamp"] = .int(1)
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+
+        #expect(step.changes.filter { $0.setting == MixHold.Setting(channel: 2, parameter: .mainFader) }.count == 1)
+    }
+
+    @Test("A channel whose input is OFF or the aux line in is not moved with an In01 channel (#874)")
+    func otherInputsLeftAlone() async throws {
+        var state = FakeXAirMixer.State()
+        state.channels[2].inputSource = 18   // OFF
+        state.channels[3].inputSource = 16   // aux line in L
+        state.usbRouting = XAirDriverTests.defaultRouting
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 6)
+
+        #expect(step.changes.allSatisfy { $0.setting.channel == 1 })
+    }
+
     @Test("Linked strips without linked preamps: Mix Hold on channel 1 leaves channel 2 alone")
     func linkedStripsOnly() async throws {
         var state = FakeXAirMixer.State()

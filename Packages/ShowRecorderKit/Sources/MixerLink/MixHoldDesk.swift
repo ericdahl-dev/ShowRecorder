@@ -16,8 +16,10 @@ protocol MixHoldDesk: GainControl {
     func keyedDynamics(from channel: Int) async throws(MixerLinkProblem) -> [MixHold.KeyedDynamics]
     /// Where the Mixer says whether a stereo link also links the preamps (`/config/linkcfg/…`).
     static var preampLinkAddress: String { get }
-    /// Every input channel a move of `headamp` changes, `channel` (the one asked for) first. Most desks give each
-    /// channel its own preamp; on the X32 several channels can take one headamp (#473).
+    /// How many input channels the desk has: the X32 32, the X-Air 16.
+    static var channelCount: Int { get }
+    /// Every input channel a move of `headamp` changes, `channel` (the one asked for) first: on both desks several
+    /// channels can take one preamp (#473, #874).
     func channels(onHeadamp headamp: Int, movedWith channel: Int) async throws(MixerLinkProblem) -> [Int]
     static func gainAddress(_ headamp: Int) -> String
     static func gainScale(_ headamp: Int) -> X32Values
@@ -34,8 +36,12 @@ struct MixHoldMove {
 
 extension MixHoldDesk {
     public func channels(onHeadamp headamp: Int, movedWith channel: Int) async throws(MixerLinkProblem) -> [Int] {
-        guard let partner = try await linkedPartner(of: channel) else { return [channel] }
-        return [channel, partner]
+        var channels = [channel]
+        if let partner = try await linkedPartner(of: channel) { channels.append(partner) }
+        for other in 1...Self.channelCount where !channels.contains(other) {
+            if try await self.headamp(ofChannel: other) == headamp { channels.append(other) }
+        }
+        return channels
     }
 
     /// The other channel of `channel`'s stereo-linked pair, when the pair's preamps are linked too, so a gain move on
@@ -65,7 +71,7 @@ extension MixHoldDesk {
     /// The preamp a move on input channel `channel` lands on (#458): its own, or, when it is the second of a
     /// stereo-linked pair (`/config/chlink/1-2` on the X-Air and the X32) whose preamps are linked too
     /// (`preampLinkAddress`), the first channel's, since the Mixer then moves both together. A link of the channel
-    /// strips alone leaves each its own preamp. Two X32 channels on one headamp answer the same headamp.
+    /// strips alone leaves each its own preamp. Two channels on one headamp answer the same headamp.
     public func preamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int? {
         // One rule for which channels move together (`linkedPartner`): the pair answers its first channel's preamp.
         guard channel % 2 == 0, let partner = try await linkedPartner(of: channel) else { return try await headamp(ofChannel: channel) }
