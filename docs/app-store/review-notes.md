@@ -13,7 +13,7 @@ In-app purchases:
 - Restore Purchases is in Settings > Pro.
 - Free and Pro differ only when record is pressed. A recording in progress is never stopped or cut short by a Trial ending or by the Free limit.
 
-What needs a mixer: the 32 channels of an X32 or M32, channel names from the Mixer Link, and Auto-gain (only shown with an X Air or X32 connected over USB and Mixer Link up; it moves the mixer's preamps, never during a recording). The Demo signal shows every other screen.
+What needs a mixer: the 32 channels of an X32 or M32, and channel names from the Mixer Link. The Demo signal shows every other screen.
 
 Apple Watch (new in 1.1): the watch app is a remote for the iPhone app, over WatchConnectivity; it records nothing itself. With the iPhone Armed on the Demo signal, open ShowRecorder on the paired watch: it shows Armed, and Record starts a Take on the iPhone. During a Take it shows the time recorded, Marker drops a Marker, and Stop takes a one-second press and hold. With the iPhone not Armed, the watch asks you to open ShowRecorder on the iPhone (iOS doesn't let an app start the microphone from the background).
 
