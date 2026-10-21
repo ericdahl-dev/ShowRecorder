@@ -7,6 +7,9 @@ public final class XAirDriver: MixerDriver {
     let queries: MixerQueries
     /// How long a fader set takes to land on the desk (`MixHoldDesk`): 80 ms, over the 60–70 ms measured on an XR18 (#688).
     let faderSettle: Duration
+    /// Which preamp each input channel takes (`MixHoldDesk`). Kept current by the pushes `sourceChanges()` sees, so it
+    /// relies on that stream being read; a lapse in live updates marks it stale.
+    let preampMap = PreampMap()
     /// What each USB Channel carries, and the Sources last read, so pushed changes reach the right USB Channels.
     /// Until the routing is read, the XR18's default.
     let linked = Mutex<(targets: [XAirRouting.Target?], sources: [Source])>((XAirDriver.defaultTargets, []))
@@ -84,7 +87,10 @@ public final class XAirDriver: MixerDriver {
     /// is asked too, to know the Mixer is still there.
     public func renewLiveUpdates() async throws(MixerLinkProblem) {
         await client.send(OSCMessage("/xremote"))
-        _ = try await identify()
+        do { _ = try await identify() } catch {
+            preampMap.invalidate()   // pushes may be missed while the Mixer is away
+            throw error
+        }
     }
 
     /// Name and color changes pushed for input channels and the aux return, sent to every USB Channel that carries
@@ -105,6 +111,7 @@ public final class XAirDriver: MixerDriver {
     private func changes(after message: OSCMessage) async -> [SourceChange] {
         let parts = message.address.split(separator: "/").map(String.init)
         if parts.count == 3, parts[0] == "routing", parts[1] == "usb" { return await reread() }
+        if parts.count == 4, parts[0] == "ch", parts[2] == "config", parts[3] == "insrc" { preampMap.invalidate() }
         guard parts.count == 4, parts[2] == "config" else { return [] }
         let target: XAirRouting.Target
         switch (parts[0], parts[1]) {

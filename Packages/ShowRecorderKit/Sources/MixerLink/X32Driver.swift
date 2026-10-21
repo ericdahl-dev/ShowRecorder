@@ -7,6 +7,9 @@ public final class X32Driver: MixerDriver {
     let queries: MixerQueries
     /// How long a fader set takes to land on the desk (`MixHoldDesk`): 80 ms, over the 60–70 ms measured on an XR18 (#688).
     let faderSettle: Duration
+    /// Which preamp each input channel takes (`MixHoldDesk`). Kept current by the pushes `sourceChanges()` sees, so it
+    /// relies on that stream being read; a lapse in live updates marks it stale.
+    let preampMap = PreampMap()
     /// The routing and Sources last read, so pushed changes reach the right USB Channels.
     let linked = Mutex<(routing: X32Routing?, sources: [Source])>((nil, []))
 
@@ -78,7 +81,10 @@ public final class X32Driver: MixerDriver {
     /// is asked too, to know the Mixer is still there.
     public func renewLiveUpdates() async throws(MixerLinkProblem) {
         await client.send(OSCMessage("/xremote"))
-        _ = try await identify()
+        do { _ = try await identify() } catch {
+            preampMap.invalidate()   // pushes may be missed while the Mixer is away
+            throw error
+        }
     }
 
     /// Name and color changes pushed for input channels, sent to every USB Channel that carries the channel. A change
@@ -99,6 +105,7 @@ public final class X32Driver: MixerDriver {
     private func changes(after message: OSCMessage) async -> [SourceChange] {
         let parts = message.address.split(separator: "/").map(String.init)
         if parts.count == 4, parts[0] == "config", parts[1] == "routing", parts[2] == "CARD" || parts[2] == "IN" {
+            preampMap.invalidate()
             return await reread()
         }
         guard parts.count == 4, parts[0] == "ch", parts[2] == "config", let channel = Int(parts[1]) else { return [] }
@@ -108,7 +115,9 @@ public final class X32Driver: MixerDriver {
         switch (parts[3], message.arguments.first) {
         case ("name", .string(let name)?): return usbChannels.map { SourceChange(usbChannel: $0, name: name) }
         case ("color", .int(let index)?): return usbChannels.map { SourceChange(usbChannel: $0, color: MixerColor(xAirIndex: index)) }
-        case ("source", _): return await reread()
+        case ("source", _):
+            preampMap.invalidate()
+            return await reread()
         default: return []
         }
     }

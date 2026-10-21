@@ -144,6 +144,9 @@ public final class ClipProtection {
     public func takeStarted() {
         turnedDown = [:]
         queue.clipMoved = []
+        // Read which preamp each channel takes now, so a turn-down mid-Take asks the Mixer for one channel, not all (#874).
+        let link = link
+        Task { await link.control.readPreamps() }
     }
 
     /// The Take ended, or protection was switched off: a move still waiting on the Mixer doesn't start.

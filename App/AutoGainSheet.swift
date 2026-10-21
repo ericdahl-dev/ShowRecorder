@@ -33,6 +33,7 @@ struct AutoGainSheet: View {
                 compensation: { isDemo ? AutoGainList.demoCompensation[$0] : autoGain.compensationSummary($0) },
                 unavailable: isDemo ? nil : model.mixerGain.autoGainUnavailable,
                 notice: isDemo ? nil : autoGain.notice)
+                .task { await autoGain.prepare() }
                 .navigationTitle("Auto-gain")
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)

@@ -115,6 +115,11 @@ public final class AutoGainSession {
         queue.autoGainHeld = { [weak self] in self?.heldSettings ?? [] }
     }
 
+    /// Reads which preamp each channel takes ahead, as the auto-gain sheet opens (#874): a run keeps using it.
+    public func readPreamps() async {
+        await link.control.readPreamps()
+    }
+
     /// Runs auto-gain on each of `usbChannels` and says what happened to each, in the order asked. The channels are
     /// measured and stepped together: each USB Channel is measured on its own, and each moves its own preamp.
     /// `stop()` halts every channel still moving before its next move.

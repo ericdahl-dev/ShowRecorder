@@ -211,6 +211,116 @@ struct XAirGainTests {
         #expect(step.changes.allSatisfy { $0.setting.channel == 1 })
     }
 
+    /// The input source queries a Mix Hold call made, per channel.
+    static func inputQueries(_ mixer: FakeXAirMixer, after count: Int) -> [String] {
+        mixer.queries.dropFirst(count).filter { $0.hasSuffix("/config/insrc") }
+    }
+
+    @Test("The channel-to-preamp routing is read once: a second Mix Hold call asks no other channel's input (#874)")
+    func routingReadOnce() async throws {
+        var state = FakeXAirMixer.State()
+        state.channels[4].inputSource = 0
+        state.usbRouting = XAirDriverTests.defaultRouting
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+        _ = try await driver.applyMixHold(channel: 1, gainChangeDb: 3)
+        let seen = mixer.queries.count
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 3)
+
+        #expect(Self.inputQueries(mixer, after: seen) == ["/ch/01/config/insrc"], "only the channel asked for is read fresh")
+        #expect(step.changes.contains { $0.setting == MixHold.Setting(channel: 5, parameter: .mainFader) }, "channel 5 is still compensated")
+    }
+
+    @Test("Live updates that stop being renewed mark the routing stale, so it is read again (#874)")
+    func lapsedLiveUpdatesMarkStale() async throws {
+        var state = FakeXAirMixer.State()
+        state.usbRouting = XAirDriverTests.defaultRouting
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: .milliseconds(200))
+        await driver.readPreamps()
+        #expect(!driver.preampMap.snapshot().isStale)
+
+        mixer.update { $0.answers = false }
+        await #expect(throws: MixerLinkProblem.self) { try await driver.renewLiveUpdates() }
+
+        #expect(driver.preampMap.snapshot().isStale)
+    }
+
+    @Test("Reading the routing ahead leaves the first Mix Hold call asking only the channel it moves (#874)")
+    func readAhead() async throws {
+        var state = FakeXAirMixer.State()
+        state.channels[4].inputSource = 0
+        state.usbRouting = XAirDriverTests.defaultRouting
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+        await driver.readPreamps()
+        let seen = mixer.queries.count
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 3)
+
+        #expect(Self.inputQueries(mixer, after: seen) == ["/ch/01/config/insrc"])
+        #expect(step.changes.contains { $0.setting == MixHold.Setting(channel: 5, parameter: .mainFader) })
+    }
+
+    @Test("A pushed input change reads the routing again: channel 5 moved off In01 is no longer compensated (#874)")
+    func pushedInputChangeRefreshes() async throws {
+        var state = FakeXAirMixer.State()
+        state.channels[4].inputSource = 0
+        state.usbRouting = XAirDriverTests.defaultRouting
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+        var changes = driver.sourceChanges().makeAsyncIterator()
+        try await driver.renewLiveUpdates()
+        _ = try await driver.applyMixHold(channel: 1, gainChangeDb: 3)
+
+        mixer.setInput(channel: 5, to: 4)   // back on In05
+        mixer.rename(channel: 2, to: "Snare")
+        #expect(await changes.next() == SourceChange(usbChannel: 2, name: "Snare"), "the input change came before it, in order")
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 3)
+
+        #expect(!step.changes.contains { $0.setting.channel == 5 })
+    }
+
+    @Test("Channel 1 now answers another preamp than held: the routing is read again, not trusted (#874)")
+    func askedChannelMismatchRefreshes() async throws {
+        var state = FakeXAirMixer.State()
+        state.usbRouting = XAirDriverTests.defaultRouting
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+        _ = try await driver.applyMixHold(channel: 1, gainChangeDb: 3)
+        mixer.update { $0.channels[0].inputSource = 4; $0.channels[4].inputSource = 0 }   // ch1 and ch5 swap, nothing pushed
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 3)
+
+        #expect(step.changes.allSatisfy { $0.setting.channel == 1 }, "ch1 is on preamp 5 alone now; ch5 on preamp 1")
+    }
+
+    @Test("One channel's input query lost: the move still happens, that channel is left out, and the rest are not waited for (#874)")
+    func lostQueryDoesNotFailTheMove() async throws {
+        var state = FakeXAirMixer.State()
+        state.channels[6].inputSource = 0   // channel 7 shares In01 with channel 1 but its answer is lost
+        state.silentAddresses = ["/ch/07/config/insrc"]
+        state.channels[8].inputSource = 0   // channel 9 shares too and would be asked after channel 7
+        state.usbRouting = XAirDriverTests.defaultRouting
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: .milliseconds(300))
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 3)
+
+        #expect(step.toGainDb > step.fromGainDb, "the move went ahead")
+        #expect(!mixer.queries.contains("/ch/09/config/insrc"), "the read stopped at the lost query")
+        #expect(!step.changes.contains { $0.setting.channel == 7 })
+
+        mixer.update { $0.silentAddresses = [] }   // the next call asks again, and only for what is missing
+        let seen = mixer.queries.count
+        let next = try await driver.applyMixHold(channel: 1, gainChangeDb: 3)
+        let asked = Self.inputQueries(mixer, after: seen)
+        #expect(asked == (([1] + Array(7...16)).map { String(format: "/ch/%02d/config/insrc", $0) }), "channels 2-6 were read and are not asked again")
+        #expect(next.changes.contains { $0.setting == MixHold.Setting(channel: 7, parameter: .mainFader) })
+        #expect(next.changes.contains { $0.setting == MixHold.Setting(channel: 9, parameter: .mainFader) })
+    }
+
     @Test("Linked strips without linked preamps: Mix Hold on channel 1 leaves channel 2 alone")
     func linkedStripsOnly() async throws {
         var state = FakeXAirMixer.State()

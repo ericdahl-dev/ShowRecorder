@@ -66,6 +66,8 @@ final class FakeXAirMixer: Sendable {
         /// When set, the mixer stops answering anything once it has taken this many sets, as a desk that drops off the
         /// network partway through a gain change.
         var stopsAnsweringAfterWrites: Int?
+        /// Addresses the mixer never answers, as one query lost on the network.
+        var silentAddresses: Set<String> = []
         /// Like the real XR18 (firmware 1.26): every set is echoed back to its sender, with no arguments.
         var echoesSets = false
         /// Like the real XR18 in #688: a preamp gain set (`/headamp/…/gain`) takes effect only once the desk has answered
@@ -166,6 +168,12 @@ final class FakeXAirMixer: Sendable {
     func repatchCard(block: Int, to bank: Int32) {
         update { $0.cardBlocks?[block] = bank }
         responder.push(OSCMessage("/config/routing/CARD/" + Self.blockNames[block], [.int(bank)]))
+    }
+
+    /// X-Air: moves input channel `number` to input source `source` (0 = In01), pushing the change.
+    func setInput(channel number: Int, to source: Int32) {
+        update { $0.channels[number - 1].inputSource = source }
+        responder.push(OSCMessage(String(format: "/ch/%02d/config/insrc", number), [.int(source)]))
     }
 
     /// X32: moves input channel `number` to source `source` (1-32 for In01-In32), pushing the change.
@@ -272,7 +280,7 @@ final class FakeXAirMixer: Sendable {
                     state.set[address] = pending.value
                     state.history.append(state.set)
                 }
-                guard state.answers else { return nil }
+                guard state.answers, !state.silentAddresses.contains(query.address) else { return nil }
                 if let value = state.set[query.address] { return OSCMessage(query.address, [value]) }
                 let parts = query.address.split(separator: "/").map(String.init)
                 switch parts {

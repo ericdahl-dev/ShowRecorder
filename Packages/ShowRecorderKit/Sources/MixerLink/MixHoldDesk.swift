@@ -18,6 +18,8 @@ protocol MixHoldDesk: GainControl {
     static var preampLinkAddress: String { get }
     /// How many input channels the desk has: the X32 32, the X-Air 16.
     static var channelCount: Int { get }
+    /// What the driver last read of each channel's preamp (#874).
+    var preampMap: PreampMap { get }
     /// Every input channel a move of `headamp` changes, `channel` (the one asked for) first: on both desks several
     /// channels can take one preamp (#473, #874).
     func channels(onHeadamp headamp: Int, movedWith channel: Int) async throws(MixerLinkProblem) -> [Int]
@@ -38,10 +40,49 @@ extension MixHoldDesk {
     public func channels(onHeadamp headamp: Int, movedWith channel: Int) async throws(MixerLinkProblem) -> [Int] {
         var channels = [channel]
         if let partner = try await linkedPartner(of: channel) { channels.append(partner) }
+        let preamps = await preamps(confirming: channel, on: headamp)
         for other in 1...Self.channelCount where !channels.contains(other) {
-            if try await self.headamp(ofChannel: other) == headamp { channels.append(other) }
+            if let preamp = preamps[other], preamp == headamp { channels.append(other) }
         }
         return channels
+    }
+
+    /// Reads every channel's preamp now (`GainControl.readPreamps`).
+    public func readPreamps() async {
+        _ = await preamps(confirming: nil, on: nil)
+    }
+
+    /// Every channel's preamp, from what the driver holds (`PreampMap`). All of them are read again when the map is stale
+    /// or `channel` no longer answers `headamp` as held (a lookup miss); otherwise only the ones never read. A channel the
+    /// Mixer doesn't answer for keeps what was held, or is left out when the map is stale, and the read stops there, so
+    /// one lost query doesn't fail the move nor wait out a timeout per channel; the next call tries it again. Reads only,
+    /// so it doesn't wait on the Mixer's queue.
+    private func preamps(confirming channel: Int?, on headamp: Int?) async -> [Int: Int?] {
+        var snapshot = preampMap.snapshot()
+        var isHeld = false
+        if let channel, let held = snapshot.preamps[channel] {
+            if held == headamp {
+                isHeld = !snapshot.isStale
+            } else {
+                preampMap.invalidate()
+                snapshot = preampMap.snapshot()
+            }
+        }
+        let toRead = (1...Self.channelCount).filter { $0 != channel && (!isHeld || snapshot.preamps[$0] == nil) }
+        guard !toRead.isEmpty || channel.map({ snapshot.preamps[$0] == nil }) == true else { return snapshot.preamps }
+        var read: [Int: Int?] = [:]
+        var unread = toRead
+        for other in toRead {
+            guard let preamp = try? await self.headamp(ofChannel: other) else { break }
+            read[other] = .some(preamp)
+            unread.removeFirst()
+        }
+        if let channel, let headamp { read[channel] = .some(headamp) }
+        preampMap.store(read, unread: unread, generation: snapshot.generation)
+        var preamps = snapshot.preamps
+        preamps.merge(read) { _, new in new }
+        if snapshot.isStale { for channel in unread { preamps[channel] = nil } }
+        return preamps
     }
 
     /// The other channel of `channel`'s stereo-linked pair, when the pair's preamps are linked too, so a gain move on
