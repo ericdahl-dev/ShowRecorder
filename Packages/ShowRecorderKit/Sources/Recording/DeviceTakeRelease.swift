@@ -106,3 +106,31 @@ public enum DeviceTakeRelease {
         return .released
     }
 }
+
+extension DeviceTakeRelease.Summary {
+    /// "Delete Take 03 from this iPhone?"
+    public func title(deviceWord: String) -> String { "Delete \(TakeMetadata.name(take: take)) from this \(deviceWord)?" }
+
+    /// What the Drive holds, what goes, that the Drive copy stays, and that it can't be undone on this device.
+    public func message(deviceWord: String) -> String {
+        let name = TakeMetadata.name(take: take)
+        let count = stems == 1 ? "1 Stem" : "\(stems) Stems"
+        let held = holdsStandIns ? ", including what this \(deviceWord) recorded while the Drive was away" : ""
+        let lengths: String
+        if stems == 1 || Int(longestSeconds) == Int(shortestSeconds) {
+            lengths = stems == 1 ? ", \(Self.clock(longestSeconds)) long." : ", each \(Self.clock(longestSeconds)) long."
+        } else {
+            lengths = ", the longest \(Self.clock(longestSeconds)) and the shortest \(Self.clock(shortestSeconds))."
+        }
+        let goes = stems == 1 ? "that Stem" : "those \(stems) Stems"
+        return "The Drive holds everything this \(deviceWord) holds of \(name): \(count)\(held)\(lengths) "
+            + "Deleting removes \(goes) from this \(deviceWord). The Drive copy stays. This can't be undone on this \(deviceWord)."
+    }
+
+    /// 83 -> "1:23"; 3,725 -> "1:02:05".
+    static func clock(_ seconds: Double) -> String {
+        let whole = Int(seconds)
+        let (hours, minutes, rest) = (whole / 3_600, whole / 60 % 60, whole % 60)
+        return hours > 0 ? String(format: "%d:%02d:%02d", hours, minutes, rest) : String(format: "%d:%02d", minutes, rest)
+    }
+}

@@ -417,10 +417,111 @@ struct MoveReportSheet: View {
                     ForEach(entry.reasons, id: \.self) { reason in
                         Text(reason).font(.footnote).secondaryText()
                     }
+                    if entry.status == .kept {
+                        DeleteFromDeviceRow(recorder: recorder, show: entry.show, take: entry.take)
+                    }
                 }
             }
             .navigationTitle("Moving to the Drive")
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        }
+    }
+}
+
+/// Drive only (#656): deletes a kept Take from this iPhone by hand. Asks the Kit whether the Drive holds everything this
+/// iPhone holds of it; only then confirms, naming what goes and that the Drive copy stays. Never during a Take or a save.
+private struct DeleteFromDeviceRow: View {
+    let recorder: Recorder
+    let show: String
+    let take: Int
+
+    private enum Phase: Equatable {
+        case idle
+        case checking
+        case confirming(DeviceTakeRelease.Summary)
+        case deleting
+        case notDeleted(String)
+        case deleted
+    }
+
+    @State private var phase = Phase.idle
+    /// Debug and TestFlight only, until Eric has tried it (`DeviceTakeDeleteAvailability`).
+    @State private var offered = DeviceTakeDeleteAvailability.isAvailableInThisBuild
+    private var word: String { ThisHardware.word }
+    private var busy: Bool { recorder.isRecording || recorder.isFinishing || recorder.isMoving }
+    private var confirming: Binding<Bool> {
+        Binding(
+            get: { if case .confirming = phase { true } else { false } },
+            set: { if !$0, case .confirming = phase { phase = .idle } })
+    }
+
+    var body: some View {
+        if offered { content } else { Color.clear.frame(height: 0).task { await resolveOffer() } }
+    }
+
+    private func resolveOffer() async {
+        if !DeviceTakeDeleteAvailability.isAvailableInThisBuild { await DemoSignalAvailability.resolveEnvironment() }
+        offered = DeviceTakeDeleteAvailability.isAvailableInThisBuild
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            switch phase {
+            case .checking:
+                Text("Checking the Drive…").font(.footnote).secondaryText()
+            case .deleting:
+                ProgressView()
+            case .deleted:
+                Text("Deleted \(TakeMetadata.name(take: take)) from this \(word). The Drive copy stays.").font(.footnote).secondaryText()
+            case .notDeleted(let reason):
+                Text("Not deleted. The Take stays on this \(word).").font(.footnote).warningText()
+                Text(reason).font(.footnote).secondaryText()
+                button
+            case .idle, .confirming:
+                button
+            }
+            if busy, phase != .deleted {
+                Text("Available once the current Take is saved.").font(.footnote).secondaryText()
+            }
+        }
+        .confirmationDialog(
+            confirmTitle, isPresented: confirming, titleVisibility: .visible
+        ) {
+            Button("Delete from \(word)", role: .destructive) { delete() }
+            Button("Keep on \(word)", role: .cancel) {}
+        } message: {
+            if case .confirming(let summary) = phase { Text(summary.message(deviceWord: word)) }
+        }
+    }
+
+    private var confirmTitle: String {
+        if case .confirming(let summary) = phase { summary.title(deviceWord: word) } else { "" }
+    }
+
+    private var button: some View {
+        Button("Delete from \(word)", role: .destructive) { check() }
+            .disabled(busy)
+    }
+
+    private func check() {
+        phase = .checking
+        Task {
+            switch await recorder.checkRelease(show: show, take: take) {
+            case .ok(let summary): phase = .confirming(summary)
+            case .no(let reasons): phase = .notDeleted(reasons.first ?? "The Drive's copy can't be checked.")
+            case .stopped: phase = .idle
+            }
+        }
+    }
+
+    private func delete() {
+        phase = .deleting
+        Task {
+            switch await recorder.releaseFromDevice(show: show, take: take) {
+            case .released, .gone: phase = .deleted
+            case .kept(let reasons): phase = .notDeleted(reasons.first ?? "The Take couldn't be deleted.")
+            case .stopped: phase = .idle
+            }
         }
     }
 }
