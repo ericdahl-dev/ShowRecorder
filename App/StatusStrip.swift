@@ -445,6 +445,8 @@ private struct DeleteFromDeviceRow: View {
     }
 
     @State private var phase = Phase.idle
+    /// Debug and TestFlight only, until Eric has tried it (`DeviceTakeDeleteAvailability`).
+    @State private var offered = DeviceTakeDeleteAvailability.isAvailableInThisBuild
     private var word: String { ThisHardware.word }
     private var busy: Bool { recorder.isRecording || recorder.isFinishing || recorder.isMoving }
     private var confirming: Binding<Bool> {
@@ -454,6 +456,15 @@ private struct DeleteFromDeviceRow: View {
     }
 
     var body: some View {
+        if offered { content } else { Color.clear.frame(height: 0).task { await resolveOffer() } }
+    }
+
+    private func resolveOffer() async {
+        if !DeviceTakeDeleteAvailability.isAvailableInThisBuild { await DemoSignalAvailability.resolveEnvironment() }
+        offered = DeviceTakeDeleteAvailability.isAvailableInThisBuild
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 4) {
             switch phase {
             case .checking:
