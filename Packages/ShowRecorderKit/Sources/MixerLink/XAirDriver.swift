@@ -35,6 +35,8 @@ public final class XAirDriver: MixerDriver {
         }
     }
 
+    /// Input channels (1–16); the aux line in is not one.
+    static let channelCount = 16
     /// USB Channels 1–16 carry input channels 1–16 and 17–18 the aux return; any beyond are not the X-Air's.
     private static let nameableUSBChannelCount = 18
 

@@ -235,7 +235,7 @@ public final class ClipProtection {
         release(Set(targets.map(\.channel)).subtracting(moves.map(\.channel)))
         // Moves in one lane go one after the other, in USB Channel order (#554): the Mixer mirrors fader and sends between
         // the strips of a linked pair, so two moves at once could both rewrite one setting. Lanes move at once.
-        // Known gap: on an X32 a move also compensates the other channels on its headamp (#473), so a channel sharing a
+        // Known gap: on an X32 or X-Air a move also compensates the other channels on its headamp (#473), so a channel sharing a
         // headamp with one strip of a linked pair can still move alongside that pair. Rare; left for now.
         await withTaskGroup(of: Void.self) { group in
             for lane in Dictionary(grouping: moves, by: { $0.lane }).values {

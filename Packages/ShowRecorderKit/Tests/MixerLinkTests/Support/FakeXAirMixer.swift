@@ -33,7 +33,8 @@ final class FakeXAirMixer: Sendable {
         var networkName = "FOH-XR18"
         var model = "XR18"
         var firmware = "1.22"
-        var channels: [Channel] = (1...16).map { _ in Channel(name: "", color: 0) }
+        /// A real X-Air's defaults: channel n on In n (insrc n-1), so two channels share a preamp only when a test says so (#874).
+        var channels: [Channel] = (0..<16).map { Channel(name: "", color: 0, inputSource: Int32($0)) }
         var auxReturn = Channel(name: "", color: 0)
         /// When false, the mixer receives queries but never answers.
         var answers = true
