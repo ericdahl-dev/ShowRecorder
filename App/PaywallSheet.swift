@@ -70,7 +70,7 @@ struct PaywallSheet: View {
                         .disabled(product == nil || store.busy)
                     }
                     // The price stage under the offers, in every build (Eric, #705).
-                    if !items.isEmpty, let label = PriceStage.current.label {
+                    if !items.isEmpty, let label = PriceStage.label(proPrice: store.proProduct?.price, currencyCode: store.proProduct?.priceFormatStyle.currencyCode) {
                         Text(label).font(.footnote).secondaryText()
                     }
                     Button("Restore Purchases") { Task { await store.restore() } }

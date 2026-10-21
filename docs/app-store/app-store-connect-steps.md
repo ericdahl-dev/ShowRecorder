@@ -34,7 +34,7 @@ An agent can create these two through the API once step 1 is Active: say "create
 - [ ] Type **Non-Consumable**. Reference Name `Pro`. Product ID `dev.ericdahl.ShowRecorder.pro` (exactly; the app looks for this).
 - [x] **Price:** $4.99, the launch price (ADR 0004; set 2026-10-16). The app says "Launch price" under Buy Pro. Then two steps, each only after Eric says go (Claude watches sales through the App Store Connect API and asks):
   - [ ] At about 25 buyers: **$9.99**.
-  - [ ] At about 50 buyers: **$19.99**, full price. The "Launch price" line goes when `PriceStage.current` moves past `.launch`.
+  - [ ] At about 50 buyers: **$19.99**, full price. The "Launch price" line goes by itself: it shows only while Pro's live price is the launch price (#908).
 - [ ] **Family Sharing: On.** This can't be turned off later (ADR 0004 wants it on).
 - [ ] **Localization (English U.S.):** Display Name `ShowRecorder Pro` (30 characters max). Description `Mixer names, Drive copy, report, Reaper, 96 kHz, more` (55 characters max; Free records every USB Channel now).
 - [ ] **Review screenshot:** the paywall (taken for #324).
