@@ -53,7 +53,7 @@ struct AbandonedCopyRecoveryTests {
         return metadata
     }
 
-    @Test("A marked Drive Copy's Stems are finished to the audio on disk, its Gap is the missing tail, and the marker is cleared")
+    @Test("A marked Drive Copy's Stems are finished to the audio on disk, its Gap is everything past what Stop confirmed, and the marker is cleared")
     func finishesTheMarkedCopy() async throws {
         defer { try? FileManager.default.removeItem(at: root) }
         let original = try await abandonedTake()
@@ -61,7 +61,7 @@ struct AbandonedCopyRecoveryTests {
         #expect(found.count == 1)
         let metadata = try #require(found.first?.metadata)
         #expect(metadata.abandonedCopies == nil)
-        #expect(metadata.gaps == [TakeMetadata.Gap(copy: .drive, start: 240, end: 480)])
+        #expect(metadata.gaps == [TakeMetadata.Gap(copy: .drive, start: 0, end: 480)])
         #expect(found.first?.folders[.drive]?.path == driveTake.path && found.first?.folders[.device]?.path == deviceTake.path)
         for channel in original.usbChannels {
             #expect(try StemFile.inspect(driveTake.appending(path: channel.stemFile)).frameCount == 240)
@@ -69,7 +69,7 @@ struct AbandonedCopyRecoveryTests {
         for folder in [deviceTake, driveTake] {
             let written = try TakeMetadata.read(fromTakeFolder: folder)
             #expect(written.abandonedCopies == nil)
-            #expect(written.gaps == [TakeMetadata.Gap(copy: .drive, start: 240, end: 480)])
+            #expect(written.gaps == [TakeMetadata.Gap(copy: .drive, start: 0, end: 480)])
         }
         // Done once: the marker is gone, so a second look finds nothing.
         #expect(finishNow().isEmpty)
@@ -109,7 +109,8 @@ struct AbandonedCopyRecoveryTests {
     func straddlingGapIsClipped() async throws {
         defer { try? FileManager.default.removeItem(at: root) }
         var metadata = try await abandonedTake()
-        metadata.gaps = [.init(copy: .drive, start: 100, end: 400), .init(copy: .drive, start: 0, end: 480)]
+        // Stop confirmed 240 frames (the last header commit), so its tail starts there.
+        metadata.gaps = [.init(copy: .drive, start: 100, end: 400), .init(copy: .drive, start: 240, end: 480)]
         try metadata.write(to: deviceTake)
         let gaps = try #require(finishNow().first).metadata.gaps
         #expect(gaps.sorted { $0.start < $1.start } == [.init(copy: .drive, start: 100, end: 240), .init(copy: .drive, start: 240, end: 480)])
@@ -121,9 +122,38 @@ struct AbandonedCopyRecoveryTests {
         var metadata = try await abandonedTake()
         for channel in metadata.usbChannels { try FileManager.default.removeItem(at: deviceTake.appending(path: channel.stemFile)) }
         metadata.standIns = [.init(start: 240, end: 480)]
+        metadata.gaps = [.init(copy: .drive, start: 240, end: 480)]
         try metadata.write(to: deviceTake)
         let gaps = try #require(finishNow().first).metadata.gaps
         #expect(gaps == [.init(copy: .drive, start: 240, end: 480)])
+    }
+
+    @Test("A file longer than what Stop confirmed: the tail starts at the confirmed length, not at the file's end (torn bytes past the commit)")
+    func tailLongerThanTheCommit() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        var metadata = try await abandonedTake()   // 240 frames on disk, 480 in the Take
+        metadata.gaps = [.init(copy: .drive, start: 100, end: 120), .init(copy: .drive, start: 200, end: 480)]   // Stop confirmed 200
+        try metadata.write(to: deviceTake)
+        let gaps = try #require(finishNow().first).metadata.gaps
+        #expect(gaps.sorted { $0.start < $1.start } == [.init(copy: .drive, start: 100, end: 120), .init(copy: .drive, start: 200, end: 480)])
+    }
+
+    @Test("A recorded tail that stops short of the Take's end (the Device is longer than Stop knew) is still the tail")
+    func tailEndingBeforeTheTakeEnd() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        var metadata = try await abandonedTake()   // 240 frames on disk, 480 on the Device
+        metadata.gaps = [.init(copy: .drive, start: 200, end: 400)]   // Stop confirmed 200 and knew of 400 frames
+        try metadata.write(to: deviceTake)
+        #expect(try #require(finishNow().first).metadata.gaps == [.init(copy: .drive, start: 200, end: 480)])
+    }
+
+    @Test("A file shorter than what Stop confirmed: the tail starts at the file's real end")
+    func tailShorterThanTheCommit() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        var metadata = try await abandonedTake()   // 240 frames on disk
+        metadata.gaps = [.init(copy: .drive, start: 400, end: 480)]   // Stop thought 400 were durable
+        try metadata.write(to: deviceTake)
+        #expect(try #require(finishNow().first).metadata.gaps == [.init(copy: .drive, start: 240, end: 480)])
     }
 
     @Test("A Drive whose Take.json is another Take's, or with a Stem that can't be read, is not touched and the marker stays")
@@ -230,7 +260,7 @@ struct AbandonedCopyRecoveryTests {
         try FileManager.default.removeItem(at: deviceTake)
         let found = try #require(finishNow().first)
         #expect(found.folders.count == 1 && found.folders[.drive]?.path == driveTake.path)
-        #expect(found.metadata.gaps == [TakeMetadata.Gap(copy: .drive, start: 240, end: 480)])
+        #expect(found.metadata.gaps == [TakeMetadata.Gap(copy: .drive, start: 0, end: 480)])
         for channel in original.usbChannels {
             #expect(try StemFile.inspect(driveTake.appending(path: channel.stemFile)).frameCount == 240)
         }
