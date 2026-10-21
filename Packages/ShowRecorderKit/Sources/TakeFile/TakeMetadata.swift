@@ -94,7 +94,7 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     /// and the Take fell back to the Device. Nil (left out of Take.json) when the Drive was there from the press.
     public var driveNote: String?
 
-    /// Copies Stop gave up on (#320, #817): their Stems may be unfinalized, with a header shorter than the audio on disk,
+    /// Copies Stop gave up on, or a Drive Copy whose write failed (#320, #817): their Stems may be unfinalized, with a header shorter than the audio on disk,
     /// and Repair left them alone. A later launch finishes and repairs them once their Destination is back. Nil (left
     /// out of Take.json) when Stop waited for every Copy.
     public var abandonedCopies: [DestinationKind]?
