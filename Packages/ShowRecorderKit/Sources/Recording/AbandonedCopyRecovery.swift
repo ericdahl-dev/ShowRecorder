@@ -8,7 +8,8 @@ import TakeFile
 ///
 /// - Each Drive Stem's header is rewritten to cover the whole samples on disk (as for a Take cut off by a crash).
 /// - The Drive Copy's Gaps are worked out again: the tail Stop recorded, from the length the last header commit made
-///   durable, becomes the tail after what is really there. Repair then fills it from the Device Copy.
+///   durable, now starts at the smaller of that and what is really on disk (bytes past the last commit may be torn or zeroed).
+///   Repair then fills it from the Device Copy.
 /// - The marker is cleared in both Take.json files, so each Take is finished once.
 ///
 /// A Take is left marked, to wait for its Drive, when its Drive folder isn't reachable, when the Drive's Take.json is another
@@ -57,15 +58,18 @@ enum AbandonedCopyRecovery {
             // A Drive Copy whose write failed was repaired at Stop if its Drive was still there (#854): when its Stems are whole, the
             // Gaps and what Repair did about them are the record, and stay. A short Stem makes those repairs stale: Repair redoes them.
             let repairedWhole = driveFrames >= takeEnd && metadata.repairs.contains { $0.copy == .drive }
-            if driveFrames < takeEnd { metadata.repairs.removeAll { $0.copy == .drive } }
+            // Only what Stop confirmed is trusted (the tail is the Drive Gap that reaches the end Stop knew of): bytes past the tail's recorded start (the last header commit) may be zeroed or
+            // torn, so the tail starts at the smaller of that and the file's real end (Eric, 2026-10-20). Repair fills the rest.
+            let trusted = min(driveFrames, metadata.gaps.filter { $0.copy == .drive && $0.end >= recordedEnd }.map(\.start).min() ?? driveFrames)
+            if trusted < takeEnd, !repairedWhole { metadata.repairs.removeAll { $0.copy == .drive } }
             // The tail Stop recorded (it reaches the Take's end) is replaced below. A data Gap (a Dropout, late-join silence) that
-            // runs past what the Drive has is clipped to it, and one that starts past it is covered by the new tail.
+            // runs past what is trusted is clipped to it, and one that starts past it is covered by the new tail.
             metadata.gaps = metadata.gaps.compactMap { gap in
                 guard gap.copy == .drive, !repairedWhole else { return gap }
-                if gap.end >= takeEnd || gap.start >= driveFrames { return nil }
-                return gap.end > driveFrames ? .init(copy: .drive, start: gap.start, end: driveFrames) : gap
+                if gap.end >= takeEnd || gap.start >= trusted { return nil }
+                return gap.end > trusted ? .init(copy: .drive, start: gap.start, end: trusted) : gap
             }
-            if driveFrames < takeEnd { metadata.gaps.append(.init(copy: .drive, start: driveFrames, end: takeEnd)) }
+            if trusted < takeEnd, !repairedWhole { metadata.gaps.append(.init(copy: .drive, start: trusted, end: takeEnd)) }
             let remaining = marked.filter { $0 != .drive }
             metadata.abandonedCopies = remaining.isEmpty ? nil : remaining
             if hasDevice { try? metadata.write(to: deviceTake) }

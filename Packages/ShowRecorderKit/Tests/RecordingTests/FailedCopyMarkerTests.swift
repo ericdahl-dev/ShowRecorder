@@ -51,6 +51,8 @@ struct FailedCopyMarkerTests {
         let driveTake = drive.appending(path: "\(show)/Take 01")
         let stem = driveTake.appending(path: try TakeMetadata.read(fromTakeFolder: driveTake).usbChannels[0].stemFile)
         let before = try StemFile.inspect(stem).framesOnDisk
+        // Stop confirmed everything but the last 100 frames; the cut below goes further than that.
+        try rewriteDriveGap(start: Int(before) - 100)
         // The Drive's own cache never reached the medium: the file ends before what was committed.
         let handle = try FileHandle(forWritingTo: stem)
         try handle.truncate(atOffset: try handle.seekToEnd() - 600)
@@ -86,5 +88,27 @@ struct FailedCopyMarkerTests {
         #expect(after.abandonedCopies == nil)
         #expect(after.repairs.contains { $0.copy == .drive }, "what Repair did stays on the record")
         #expect(after.gaps.filter { $0.copy == .drive } == gapsBefore, "\(gapsBefore) -> \(after.gaps)")
+    }
+
+    /// The Device's Take.json as Stop wrote it, but with the Drive's tail starting at `start` (the last confirmed commit), and
+    /// no repairs: a Drive that was gone when the Take ended.
+    private func rewriteDriveGap(start: Int) throws {
+        let take = device.appending(path: "\(show)/Take 01")
+        var metadata = try TakeMetadata.read(fromTakeFolder: take)
+        metadata.gaps = metadata.gaps.filter { $0.copy != .drive } + [.init(copy: .drive, start: start, end: 4_800)]
+        metadata.repairs.removeAll { $0.copy == .drive }
+        try metadata.write(to: take)
+    }
+
+    @Test("A failed Copy whose file is longer than what Stop confirmed: the tail starts at the confirmed length")
+    func failedCopyTailLongerThanTheCommit() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try await recordTakeWithFailingDrive()   // the Drive's Stem is whole (Repair filled it), 4,800 frames
+        try rewriteDriveGap(start: 1_000)
+
+        _ = AbandonedCopyRecovery.finish(deviceShow: device.appending(path: show), driveShow: drive.appending(path: show))
+
+        let metadata = try TakeMetadata.read(fromTakeFolder: device.appending(path: "\(show)/Take 01"))
+        #expect(metadata.gaps.filter { $0.copy == .drive } == [.init(copy: .drive, start: 1_000, end: 4_800)])
     }
 }
