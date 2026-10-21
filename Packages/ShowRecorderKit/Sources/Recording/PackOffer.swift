@@ -116,14 +116,38 @@ extension MixerFamily {
 }
 
 /// Where the launch price ladder stands (Eric, 2026-10-15, #705): Launch (Pro $4.99, packs $2.99, upgrade $1.99), Step 2
-/// ($9.99, $4.99, $4.99), then Full ($19.99, $7.99, $11.99). StoreKit gives only today's price, so the stage is set here
-/// and moved by a one-line PR when App Store Connect's prices move.
-public enum PriceStage: Equatable, Sendable {
-    case launch, step2, full
+/// ($9.99, $4.99, $4.99), then Full ($19.99, $7.99, $11.99). The stage follows Pro's live StoreKit price (Eric, #908), so
+/// a price step in App Store Connect hides "Launch price" in installed copies without an update.
+public enum PriceStage {
+    /// What the paywall says beside the price: "Launch price" while Pro's live price is its launch price in that
+    /// currency, never a countdown. Nil while the price is loading, after a price step, or in a currency not listed.
+    public static func label(proPrice: Decimal?, currencyCode: String?) -> String? {
+        guard let proPrice, let currencyCode,
+              launchProPrices[currencyCode]?.contains(where: { Decimal(string: $0) == cents(proPrice) }) == true else { return nil }
+        return "Launch price"
+    }
 
-    /// The stage the App Store prices are at now.
-    public static let current = PriceStage.launch
+    /// The price to the cent: StoreKit's Decimal can carry float residue (4.9900000000000002). Every listed price is whole cents.
+    private static func cents(_ price: Decimal) -> Decimal {
+        var price = price, rounded = Decimal()
+        NSDecimalRound(&rounded, &price, 2, .plain)
+        return rounded
+    }
 
-    /// What the paywall says beside the price: "Launch price" at the Launch stage only, never a countdown.
-    public var label: String? { self == .launch ? "Launch price" : nil }
+    /// Pro's launch price in each App Store currency, as App Store Connect equalized the $4.99 US price
+    /// (read 2026-10-21; some territories in one currency differ, so a currency can list two). StoreKit gives no price
+    /// tier, so a price outside this list, from a price step or Apple re-equalizing a territory, hides the label.
+    static let launchProPrices: [String: [String]] = [
+        "AED": ["19.99"], "AUD": ["7.99"], "BRL": ["29.9"], "CAD": ["6.99"],
+        "CHF": ["4"], "CLP": ["5990"], "CNY": ["38"], "COP": ["24900"],
+        "CZK": ["129"], "DKK": ["39"], "EGP": ["249.99"], "EUR": ["4.99", "5.99"],
+        "GBP": ["4.99"], "HKD": ["38"], "HUF": ["1990"], "IDR": ["99000"],
+        "ILS": ["14.9"], "INR": ["499"], "JPY": ["800"], "KRW": ["7700"],
+        "KZT": ["2990"], "MXN": ["99"], "MYR": ["22.9"], "NGN": ["7900"],
+        "NOK": ["59"], "NZD": ["9.99"], "PEN": ["22.9"], "PHP": ["299"],
+        "PKR": ["1300"], "PLN": ["24.99"], "QAR": ["19.99"], "RON": ["29.99"],
+        "RUB": ["449"], "SAR": ["19.99"], "SEK": ["69"], "SGD": ["6.98"],
+        "THB": ["199"], "TRY": ["249.99"], "TWD": ["150"], "TZS": ["14900"],
+        "USD": ["4.99", "5.99"], "VND": ["149000"], "ZAR": ["99.99"],
+    ]
 }

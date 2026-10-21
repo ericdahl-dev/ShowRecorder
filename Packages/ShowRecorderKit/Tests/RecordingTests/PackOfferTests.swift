@@ -36,12 +36,27 @@ struct PackOfferTests {
         #expect(PackOffer.items(ownsPro: false, armedFamily: .x32, ownedPacks: [.xAir], boughtPacks: [], packsOffered: true) == [.pro])
     }
 
-    @Test("At the Launch stage the paywall says \"Launch price\"; at full price it says nothing (Eric, #705)")
+    @Test("\"Launch price\" shows only while Pro's live price is its launch price in that currency (Eric, #908)")
     func launchPrice() {
-        #expect(PriceStage.current == .launch)
-        #expect(PriceStage.launch.label == "Launch price")
-        #expect(PriceStage.step2.label == nil)
-        #expect(PriceStage.full.label == nil)
+        #expect(PriceStage.label(proPrice: Decimal(string: "4.99"), currencyCode: "USD") == "Launch price")
+        #expect(PriceStage.label(proPrice: Decimal(string: "5.99"), currencyCode: "EUR") == "Launch price")
+        #expect(PriceStage.label(proPrice: Decimal(string: "800"), currencyCode: "JPY") == "Launch price")
+        #expect(PriceStage.label(proPrice: Decimal(string: "9.99"), currencyCode: "USD") == nil)
+        #expect(PriceStage.label(proPrice: Decimal(string: "19.99"), currencyCode: "USD") == nil)
+    }
+
+    @Test("A StoreKit price with float residue or trailing zeros still matches its launch price (#908)")
+    func launchPriceRounding() {
+        #expect(PriceStage.label(proPrice: Decimal(4.99), currencyCode: "USD") == "Launch price")
+        #expect(PriceStage.label(proPrice: Decimal(string: "29.90"), currencyCode: "BRL") == "Launch price")
+        #expect(PriceStage.label(proPrice: Decimal(4), currencyCode: "CHF") == "Launch price")
+    }
+
+    @Test("No label while Pro's price is loading, or in a currency without a known launch price (#908)")
+    func launchPriceUnknown() {
+        #expect(PriceStage.label(proPrice: nil, currencyCode: "USD") == nil)
+        #expect(PriceStage.label(proPrice: Decimal(string: "4.99"), currencyCode: nil) == nil)
+        #expect(PriceStage.label(proPrice: Decimal(string: "4.99"), currencyCode: "XXX") == nil)
     }
 
     @Test("The paywall headline: a running Trial's line wins, with the pack or upgrade offered below; else the pack, the upgrade, then the moment (Eric, #705)")
