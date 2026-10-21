@@ -3,8 +3,8 @@ import Destinations
 import Foundation
 import TakeFile
 
-/// Finishes a Drive Copy that Stop gave up on (#320, #817), once its Drive is back. Stop marks such a Copy in the Device's
-/// `Take.json` (`abandonedCopies`); its Stems may be unfinalized, with a header shorter than the audio that reached the Drive.
+/// Finishes a Drive Copy that Stop gave up on (#320, #817) or whose write failed (#854), once its Drive is back. Stop marks such
+/// a Copy in the Device's `Take.json` (`abandonedCopies`); its Stems may be unfinalized, with a header shorter than the audio that reached the Drive.
 ///
 /// - Each Drive Stem's header is rewritten to cover the whole samples on disk (as for a Take cut off by a crash).
 /// - The Drive Copy's Gaps are worked out again: the tail Stop recorded, from the length the last header commit made
@@ -54,10 +54,14 @@ enum AbandonedCopyRecovery {
             guard let driveFrames = frames(in: driveTake) else { continue }
             // The Take's length: the Device's Stems, or for a Drive only Take its stand-ins, whichever the Drive falls short of.
             let takeEnd = max(driveFrames, (hasDevice ? frames(in: deviceTake) : nil) ?? 0, metadata.standIns?.map(\.end).max() ?? 0, hasDevice ? 0 : recordedEnd)
+            // A Drive Copy whose write failed was repaired at Stop if its Drive was still there (#854): when its Stems are whole, the
+            // Gaps and what Repair did about them are the record, and stay. A short Stem makes those repairs stale: Repair redoes them.
+            let repairedWhole = driveFrames >= takeEnd && metadata.repairs.contains { $0.copy == .drive }
+            if driveFrames < takeEnd { metadata.repairs.removeAll { $0.copy == .drive } }
             // The tail Stop recorded (it reaches the Take's end) is replaced below. A data Gap (a Dropout, late-join silence) that
             // runs past what the Drive has is clipped to it, and one that starts past it is covered by the new tail.
             metadata.gaps = metadata.gaps.compactMap { gap in
-                guard gap.copy == .drive else { return gap }
+                guard gap.copy == .drive, !repairedWhole else { return gap }
                 if gap.end >= takeEnd || gap.start >= driveFrames { return nil }
                 return gap.end > driveFrames ? .init(copy: .drive, start: gap.start, end: driveFrames) : gap
             }

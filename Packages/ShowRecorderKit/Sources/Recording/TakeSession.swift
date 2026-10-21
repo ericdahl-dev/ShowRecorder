@@ -474,8 +474,9 @@ final class TakeSession {
                 standbyFolder = nil
             }
         }
-        // Written to every Take.json below, so a later launch can find the Copy Stop gave up on (#817).
-        let abandonedKinds = copies.filter { $0.writer.wasAbandoned }.map(\.kind)
+        // Written to every Take.json below, so a later launch can find the Copy Stop gave up on (#817), and a Drive Copy whose
+        // write failed: its Stems may end before the committed count its tail Gap starts at (#854).
+        let abandonedKinds = copies.filter { $0.writer.wasAbandoned || ($0.kind == .drive && $0.writer.hasFailed && !$0.writer.wasRetiredForSpace) }.map(\.kind)
         if !abandonedKinds.isEmpty { metadata.abandonedCopies = abandonedKinds.sorted { $0.rawValue < $1.rawValue } }
         collectDropouts(&metadata, copies: copies, standby: standby)
         // Levels are kept per captured channel; Take.json lists only the recorded ones, by USB Channel number.
