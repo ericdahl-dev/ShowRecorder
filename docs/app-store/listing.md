@@ -1,18 +1,18 @@
 # App Store listing (1.1 draft for Eric's review, #411; 1.0 was #64)
 
-Paste into App Store Connect > ShowRecorder > the 1.1 version (and App Information for the name and subtitle). The number after each heading is Apple's character limit; every field here is within it (checked 2026-10-13, with the Apple Watch: subtitle 30, promotional text 170, keywords 100, description 3996 with the auto-gain block and 3753 without (recounted 2026-10-16 for "with Pro" under each heading), What's New 615).
+Paste into App Store Connect > ShowRecorder > the 1.1 version (and App Information for the name and subtitle). The number after each heading is Apple's character limit; every field here is within it (checked 2026-10-13, then recounted: subtitle 30, promotional text 170, keywords 100, description 3726, What's New 500; recounted 2026-10-21 without the held-back auto-gain text, which adds 243 and 115).
 
 Brand names (Behringer, Midas, X Air, XR18, MR18, X32, M32) appear only as compatibility text in the description and What's New. They are not in the name, subtitle or keywords (Guideline 2.3.7).
 
 ## Decided (Eric, 2026-10-13)
 
-- **X32 and M32 only after a real one.** 1.1 names the X32 and M32 only once a tester has confirmed a real X32 or M32 (the gate on #411). Otherwise drop the X32 lines and make Auto-gain X Air only: in the AUTO-GAIN block, its What's New line and the review notes ("X Air or X32" becomes "X Air"). Keep the review notes' Network line either way: the build still asks port 10023 and Find Mixers still looks for X32 mixers.
+- **X32 and M32 only after a real one.** 1.1 names the X32 and M32 only once a tester has confirmed a real X32 or M32 (the gate on #411). Otherwise drop the X32 lines, and when auto-gain is restored make it X Air only: in its held block, its What's New line and the review notes ("X Air or X32" becomes "X Air"). Keep the review notes' Network line either way: the build still asks port 10023 and Find Mixers still looks for X32 mixers.
 - **No "reaper" keyword** (Cockos' trademark, 2.3.7): "soundcheck" replaces it.
 - **1.1 goes to the Mac App Store too** (#374): the Mac is in the promotional text, the description and the review notes.
 
 ## Still to decide before submitting 1.1
 
-- **Auto-gain.** The AUTO-GAIN block, its What's New line and the Auto-gain sentence in review-notes.md are only for a 1.1 that ships it (#494, after the live XR18 test). Delete all three otherwise.
+- **Auto-gain.** Held back (2026-10-21): `AutoGainAvailability` is Debug + TestFlight, never the App Store, so the 1.1 listing claims nothing about it. The text is kept under "Held back: auto-gain" at the end of this file; restore all three pieces together when it opens to everyone (#494, after the live XR18 test).
 - ~~A video for App Review~~: decided (Eric, 2026-10-13), no video. The review notes point to the Demo signal, and [`review-reply-2.1.md`](review-reply-2.1.md) is ready if App Review rejects under 2.1 for needing hardware.
 
 ## Name (30)
@@ -63,9 +63,6 @@ With Pro, save a room's setup (channel names, mixer, Show name and Pre-roll) and
 BUILT FOR THE STAGE
 Big level meters with a target band, clip marks you can see across the room, a Sunlight appearance for bright stages and a Dark one for dark rooms. Works with VoiceOver.
 
-AUTO-GAIN
-With Pro and an X Air or X32 mixer, Auto-gain sets each channel's preamp so it records at a healthy level, and moves the faders, sends and thresholds so the mix stays where you set it. One tap puts it all back. Never during a Take.
-
 ON YOUR WRIST
 With an Apple Watch, see that you're recording and for how long, drop Markers, and start or stop a Take from the stage. Stop takes a press and hold, so a stray tap can't end a song. Free for everyone.
 
@@ -94,7 +91,6 @@ ShowRecorder is not affiliated with or endorsed by Behringer, Midas or Music Tri
 
 - Records the Behringer X32 and Midas M32: all 32 USB channels, each file named and colored from the mixer over its network.
 - Files are named after what's really routed to each USB channel on X Air and X32 mixers, even after a re-patch.
-- With Pro, auto-gain sets each channel's preamp on an X Air or X32 and keeps the mix the same, with one-tap Undo.
 - Settings shows your USB drive by its name.
 - An Apple Watch app: see the Take and drop Markers from your wrist, start a Take, and stop with a press and hold. Free.
 - If the mixer's USB routing changes during a Take, ShowRecorder warns you and marks the moment.
@@ -163,3 +159,23 @@ To take them again:
 - The promotional text ends with "Try everything for 14 days."
 - The trademark line stays at the end of the description.
 - The description doesn't mention the price; the store shows it.
+
+## Held back: auto-gain
+
+Not in the 1.1 listing until `AutoGainAvailability` opens to the App Store. To restore, put the three pieces back where they were and recount both fields (the block adds 243 characters to the description, the line 115 to What's New; both stay within 4000):
+
+- Description: the AUTO-GAIN block goes between BUILT FOR THE STAGE and ON YOUR WRIST.
+
+```
+AUTO-GAIN
+With Pro and an X Air or X32 mixer, Auto-gain sets each channel's preamp so it records at a healthy level, and moves the faders, sends and thresholds so the mix stays where you set it. One tap puts it all back. Never during a Take.
+```
+
+- What's New (1.1): the line goes after the file-naming line.
+
+```
+- With Pro, auto-gain sets each channel's preamp on an X Air or X32 and keeps the mix the same, with one-tap Undo.
+```
+
+- review-notes.md: the "What needs a mixer" sentence goes back to "What needs a mixer: the 32 channels of an X32 or M32, channel names from the Mixer Link, and Auto-gain (only shown with an X Air or X32 connected over USB and Mixer Link up; it moves the mixer's preamps, never during a recording). The Demo signal shows every other screen."
+- Line 3 of this file: update the description and What's New counts.
