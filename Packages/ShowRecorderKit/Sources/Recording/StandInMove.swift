@@ -88,7 +88,7 @@ enum StandInMove {
         let unrepaired = gaps.filter { gap in
             gap.copy == .drive && !drive.repairs.contains { $0.copy == .drive && $0.start == gap.start && $0.end == gap.end && $0.outcome == .repaired }
         }
-        let markers = drive.markers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
+        let markers = drive.stemCues(for: .drive)
         for (channel, stem) in targets {
             if shouldStop() { return .stopped }
             for standIn in standIns {

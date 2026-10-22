@@ -283,6 +283,31 @@ struct GapTests {
         #expect(try cuePoints(drive.appending(path: take)) == expected)
     }
 
+    @Test("After Repair the Drive's Stems carry the same cue points as the Device's: a gain change is a Marker in the Take but no cue in either (#887)")
+    func repairedStemsCarryTheSameCues() async throws {
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        let available = DriveSwitch()
+        let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+        try recorder.arm(audio)
+
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        recorder.addMarker(named: "Verse")
+        recorder.logGainChange(TakeMetadata.GainChange(
+            usbChannel: 1, channel: 1, headamp: 1, fromGainDb: 14.5, toGainDb: 11.5, reason: .clipProtection, compensations: []))
+        available.folder = drive   // joins late: its Stems start with a Gap that Repair fills
+        await recorder.checkDestinations()
+        try await deliverBlocks(5, to: audio, recorder, sample: counting())
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+
+        let stem = "2026-10-06 Show/Take 01/01 USB 01.wav"
+        let onDevice = try cuePoints(device.appending(path: stem))
+        #expect(try decodedTake(drive).markers.count == 2, "the Take lists both the Marker and the gain change")
+        #expect(onDevice == [CuePoint(position: 4800, label: "Verse")])
+        #expect(try cuePoints(drive.appending(path: stem)) == onDevice)
+    }
+
     @Test("A Drive that comes back at a new path is written there, not at the old one")
     func driveComesBackAtNewPath() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
