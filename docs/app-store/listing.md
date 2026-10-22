@@ -116,6 +116,8 @@ The Trial's description is App Store Connect's live text (read 2026-10-18).
 
 App Store Connect's live Pro description (read 2026-10-18) is "Every USB Channel, report, Reaper, 96 kHz, Templates" (52 characters). It is out of date since #703, as Free records every USB Channel; Eric to change it. Proposed: "Mixer names, Drive copy, report, 96 kHz, more" (45).
 
+The mixer pack and the upgrade to Pro are drafted in [`mixer-packs.md`](mixer-packs.md).
+
 ## Screenshots (to take)
 
 6.9" iPhone (required), 13" iPad, and for the Mac (1.1) 16:10 at 1280 × 800, 1440 × 900, 2560 × 1600 or 2880 × 1800. Captions, in order:
