@@ -163,7 +163,7 @@ public enum Soundcheck {
             try sequencer.startNewShow(name: "Soundcheck", venue: "")
             // The test Take records what a Take would under the License: Free's USB Channels, no Pro extras (#558).
             // It runs through the sequencer, so it has a start time like any Take (#551).
-            if sequencer.record(sources: sources, allowance: allowance, soundcheck: true) {
+            if await sequencer.recordOffMain(sources: sources, allowance: allowance, soundcheck: true) {
                 try? await Task.sleep(for: takeLength)
                 await sequencer.stop()
                 await recorder.waitForRepair()

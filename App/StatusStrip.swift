@@ -448,7 +448,7 @@ private struct DeleteFromDeviceRow: View {
     /// Debug only, until Eric has tried it (`DeviceTakeDeleteAvailability`).
     @State private var offered = DeviceTakeDeleteAvailability.isAvailableInThisBuild
     private var word: String { ThisHardware.word }
-    private var busy: Bool { recorder.isRecording || recorder.isFinishing || recorder.isMoving }
+    private var busy: Bool { recorder.isRecording || recorder.isStarting || recorder.isFinishing || recorder.isMoving }
     private var confirming: Binding<Bool> {
         Binding(
             get: { if case .confirming = phase { true } else { false } },
