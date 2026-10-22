@@ -358,6 +358,21 @@ struct TakeSequencerTests {
         #expect(sequencer.windowCloseRequested() == .askToStop)
     }
 
+    @Test("A Marker past the Free limit says it wasn't placed, so the watch doesn't confirm it (#882)")
+    func markerPastTheLimitSaysSo() async throws {
+        let source = FakeInputDevices([("fake", 1)])
+        let (sequencer, recorder) = makeSequencer(source)
+        sequencer.start()
+        var allowance = TakeAllowance(recordedChannels: [1], showReport: false, reaperExport: false, namingByHand: false)
+        allowance.markerLimit = 3
+        sequencer.record(sources: [], allowance: allowance)
+        for _ in 1...3 { #expect(sequencer.addMarker()) }
+        #expect(!sequencer.addMarker())
+        #expect(recorder.takeMarkers.count == 3)
+        await sequencer.stop()
+        #expect(!sequencer.addMarker(), "not recording")
+    }
+
     @Test("Quitting the Mac app during a Take asks first, like closing the window; otherwise it just quits")
     func quitAsksDuringATake() {
         let (sequencer, _) = makeSequencer()

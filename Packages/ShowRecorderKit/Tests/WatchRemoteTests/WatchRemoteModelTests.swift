@@ -170,7 +170,7 @@ struct WatchRemoteModelTests {
         model.received(WatchStatus(state: .recording(startedAt: now.addingTimeInterval(-600), takeTitle: "Take 01", markerCount: 0),
                                    sentAt: now.addingTimeInterval(-30)))   // sent 30 s ago, nothing changed since
         var markers = 0
-        let desk = WatchCommandDesk(now: { now }, actions: .init(start: { nil }, stop: { true }, marker: { markers += 1; return true }))
+        let desk = WatchCommandDesk(now: { now }, actions: .init(start: { nil }, stop: { true }, marker: { markers += 1; return nil }))
 
         model.send(.marker)
         let reply = desk.handle(link.sent[0])
@@ -179,6 +179,23 @@ struct WatchRemoteModelTests {
         #expect(reply == .done)
         #expect(markers == 1)
         #expect(model.commands[.marker] == .confirmed)
+    }
+
+    @Test("A Marker the iPhone didn't place, past the Free limit, plays no confirm click and shows why (#882)")
+    func markerPastTheLimitNotConfirmed() {
+        let link = Link()
+        let now = Date(timeIntervalSince1970: 5_000)
+        let model = WatchRemoteModel(link: link, now: { now })
+        var haptics: [WatchRemoteModel.Haptic] = []
+        model.haptic = { haptics.append($0) }
+        model.received(WatchStatus(state: .recording(startedAt: now.addingTimeInterval(-60), takeTitle: "Take 01", markerCount: 3), sentAt: now))
+        let desk = WatchCommandDesk(now: { now }, actions: .init(start: { nil }, stop: { true }, marker: { "3 per Take on Free" }))
+
+        model.send(.marker)
+        link.replies[0](desk.handle(link.sent[0]))
+
+        #expect(!haptics.contains(.markerConfirmed))
+        #expect(model.commands[.marker] == .failed("3 per Take on Free"))
     }
 
     @Test("Only the latest command of a kind sets what shows: an older one's late answer doesn't")
