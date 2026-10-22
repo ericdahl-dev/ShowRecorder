@@ -42,12 +42,13 @@ enum MoveRecovery {
         return take
     }
 
-    /// What `setAside` holds besides its Take.json and its Stems, or its listed stand-in folders (`.DS_Store` aside), in
+    /// What `setAside` holds besides its Take.json and its Stems, or its listed stand-in folders (`.DS_Store` and a staged Take.json aside), in
     /// order; nil when it can't be listed.
     private static func otherFiles(in setAside: URL, metadata: TakeMetadata?, standIns: [TakeMetadata.StandIn]?) -> [String]? {
         guard let metadata, let contents = try? FileManager.default.contentsOfDirectory(atPath: setAside.path) else { return nil }
         let own = standIns.map { $0.map(\.folderName) } ?? metadata.usbChannels.map(\.stemFile)
-        return Set(contents).subtracting([TakeMetadata.fileName, ".DS_Store"] + own).sorted()
+        let others = Set(contents).subtracting([TakeMetadata.fileName, ".DS_Store"] + own)
+        return others.filter { !TakeJsonWriter.isStagingFile($0) }.sorted()
     }
 
     private static func recover(setAside: URL, deviceTake: URL, driveTake: URL, shouldStop: () -> Bool) -> StandInMove.Outcome {

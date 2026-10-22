@@ -123,7 +123,8 @@ extension CopyCheck {
         let standIns = Set((take.standIns ?? []).map(\.folderName))
         guard let entries = try? fm.contentsOfDirectory(atPath: device.path) else { return "\(name) can't be read on the Device." }
         // The Finder's .DS_Store on macOS is no file of the Take's.
-        for entry in entries where entry != TakeMetadata.fileName && entry != ".DS_Store" {
+        // Nor is a Take.json a crash left staged (#914).
+        for entry in entries where entry != TakeMetadata.fileName && entry != ".DS_Store" && !TakeJsonWriter.isStagingFile(entry) {
             let url = device.appending(path: entry)
             if standIns.contains(entry) {
                 guard ShowDeleter.isRealFolder(url) else { return "\(name)'s stand-in isn't a folder of its own on the Device." }

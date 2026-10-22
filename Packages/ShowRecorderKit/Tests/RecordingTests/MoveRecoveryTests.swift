@@ -103,6 +103,25 @@ struct MoveRecoveryTests {
         #expect(!FileManager.default.fileExists(atPath: deviceTake.path))
     }
 
+    @Test("A set-aside Take with a staged Take.json a crash left in it is still deleted: the move is finished (#914)")
+    func stagedTakeJsonDoesntStopRecovery() throws {
+        try setAsideWholeTake()
+        try Data().write(to: setAside.appending(path: ".Take.json.\(UUID().uuidString)"))
+
+        #expect(recover() == [.init(show: "2026-10-06 Show", take: 1, outcome: .moved)])
+        #expect(!FileManager.default.fileExists(atPath: setAside.path))
+    }
+
+    @Test("A set-aside Take with a hidden file that only looks like a staged Take.json is put back, not deleted (#914)")
+    func lookAlikeIsPutBack() throws {
+        try setAsideWholeTake()
+        try Data().write(to: setAside.appending(path: ".Take.json.tmp"))
+
+        let reasons = kept(recover())
+
+        #expect(reasons.contains { $0.contains(".Take.json.tmp") }, "\(reasons)")
+    }
+
     @Test("A set-aside stand-in the Drive holds is deleted, and the stand-in still listed on the Drive is cleared")
     func standInFinishedClearsTheList() throws {
         try setAsideStandIn(listed: true)
