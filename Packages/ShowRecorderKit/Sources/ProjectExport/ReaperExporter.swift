@@ -110,8 +110,10 @@ public struct ReaperExporter: ProjectExporter {
     }
 
     /// Reaper's quoting: plain when safe, otherwise the first of `"`, `'` or `` ` `` the string
-    /// doesn't contain. If it contains all three, backticks become `'`.
-    static func quote(_ string: String) -> String {
+    /// doesn't contain. If it contains all three, backticks become `'`. CR and LF become a space, since the project
+    /// is read line by line (#888); a Stem's file name never holds them, but may hold another line separator.
+    static func quote(_ name: String) -> String {
+        let string = name.split { $0 == "\n" || $0 == "\r" || $0 == "\r\n" }.joined(separator: " ")
         for mark in ["\"", "'", "`"] where !string.contains(mark) {
             return mark + string + mark
         }
