@@ -424,7 +424,8 @@ final class TakeSession {
         // No Drive joins after this snapshot: one under way is canceled, and its Copy never joins (#814).
         attachClosed = true
         cancelAttach()
-        return FinishInput(capture: capture, copies: copies, standby: standby, metadata: metadata, levels: levels, stopTimeout: stopTimeout)
+        return FinishInput(capture: capture, copies: copies, standby: standby, metadata: metadata, levels: levels, stopTimeout: stopTimeout,
+                           takeJson: takeJson)
     }
 
     /// Writes what `finish(_:)` came to back into the session.
@@ -443,6 +444,8 @@ final class TakeSession {
         var metadata: TakeMetadata
         let levels: TakeLevels
         let stopTimeout: Duration?
+        /// The writers of `Take.json` during the Take, closed before the final write so none lands after it (#914).
+        let takeJson: TakeJsonWriters
         /// Wait for a Destination that is slow but still writing, abandoning only one that has stopped (#817). Off for the
         /// inline finish, which holds the main thread.
         var progressBased = false
@@ -451,6 +454,7 @@ final class TakeSession {
     }
 
     nonisolated static func finish(_ input: FinishInput) -> Finished {
+        input.takeJson.close()
         let capture = input.capture, copies = input.copies, standby = input.standby, levels = input.levels
         var metadata = input.metadata
         capture.stopCapturing()
@@ -769,13 +773,29 @@ final class TakeSession {
         metadata.stemCueMarkers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
     }
 
-    private func writeMetadata() { Self.writeMetadata(metadata, copies: copies, standby: standby) }
+    /// The writers that rewrite `Take.json` during the Take, off the main thread (#914).
+    private let takeJson = TakeJsonWriters()
+
+    /// How `Take.json` is staged on disk during the Take; tests slow it down.
+    var stageTakeJson: @Sendable (Data, URL) throws -> Void = { try $0.write(to: $1) } {
+        didSet { takeJson.setStage(stageTakeJson) }
+    }
+
+    /// Queues `Take.json` for every Copy, to be written off the main thread: the newest state wins, and `finish` writes the last.
+    private func writeMetadata() {
+        takeJson.submit(metadata, to: Self.metadataFolders(copies: copies, standby: standby))
+    }
+
+    nonisolated private static func metadataFolders(copies: [CopyRecord], standby: Standby?) -> [URL] {
+        // A Copy Stop gave up on (set only at Stop) may hang on any file operation: Repair writes its Take.json off the main thread (#652).
+        var folders = copies.filter { !$0.writer.wasAbandoned }.map(\.folder)
+        // A stand-in's Take.json lets a crash mid-Take find it (and Repair it) on the next launch.
+        if let standby, standby.start != nil, !standby.writer.wasAbandoned { folders.append(standby.folder) }
+        return folders
+    }
 
     nonisolated private static func writeMetadata(_ metadata: TakeMetadata, copies: [CopyRecord], standby: Standby?) {
-        // A Copy Stop gave up on (set only at Stop) may hang on any file operation: Repair writes its Take.json off the main thread (#652).
-        for copy in copies where !copy.writer.wasAbandoned { try? metadata.write(to: copy.folder) }
-        // A stand-in's Take.json lets a crash mid-Take find it (and Repair it) on the next launch.
-        if let standby, standby.start != nil, !standby.writer.wasAbandoned { try? metadata.write(to: standby.folder) }
+        for folder in metadataFolders(copies: copies, standby: standby) { try? metadata.write(to: folder) }
     }
 
     // MARK: - Drive only
@@ -837,22 +857,31 @@ final class TakeSession {
 
     /// Moves the audio the writers had to drop into `Take.json` as Dropouts (one per Copy and stretch), with
     /// one Dropout Marker at each position where any Copy lost audio.
-    private func collectDropouts() { Self.collectDropouts(&metadata, copies: copies, standby: standby) }
+    private func collectDropouts() {
+        if Self.collectDropouts(&metadata, copies: copies, standby: standby) { writeMetadata() }
+    }
 
-    nonisolated private static func collectDropouts(_ metadata: inout TakeMetadata, copies: [CopyRecord], standby: Standby?) {
+    /// Whether it found a Dropout it hadn't recorded yet. `finish` writes `Take.json` itself afterwards.
+    @discardableResult
+    nonisolated private static func collectDropouts(_ metadata: inout TakeMetadata, copies: [CopyRecord], standby: Standby?) -> Bool {
         // Only audio every Copy lacks; a stretch another Copy has is a Gap (see `gaps(takeEnd:)`).
         let found = coverage(copies: copies, standby: standby).dropouts
-        guard found != metadata.dropouts else { return }
+        guard found != metadata.dropouts else { return false }
         let marked = Set(metadata.dropoutMarkers.map(\.position))
         for position in Set(found.map(\.start)).subtracting(marked).sorted() {
             metadata.markers.append(.init(position: position, name: "Dropout", origin: .dropout))
         }
         metadata.dropouts = found
-        writeMetadata(metadata, copies: copies, standby: standby)
+        return true
     }
 
     /// Writes the Gaps found so far into `Take.json` in every Copy.
-    private func persistGaps(takeEnd: Int? = nil) { Self.persistGaps(&metadata, copies: copies, standby: standby, takeEnd: takeEnd) }
+    private func persistGaps(takeEnd: Int? = nil) {
+        let gaps = Self.gaps(copies: copies, standby: standby, takeEnd: takeEnd)
+        guard gaps != metadata.gaps else { return }
+        metadata.gaps = gaps
+        writeMetadata()
+    }
 
     nonisolated private static func persistGaps(
         _ metadata: inout TakeMetadata, copies: [CopyRecord], standby: Standby?, takeEnd: Int?

@@ -162,6 +162,9 @@ public final class Recorder {
     @ObservationIgnored private let asyncStopRule: () -> Bool
     /// The rule's answer now, asked at each Stop rather than once at launch: StoreKit may answer after it.
     var asyncStopAvailable: Bool { asyncStopRule() }
+
+    /// How a Take's `Take.json` is staged on disk while it records (#914); tests slow it down.
+    var stageTakeJson: @Sendable (Data, URL) throws -> Void = { try $0.write(to: $1) }
     /// Whether the last Take was Drive only (#196, ADR 0006), Drive or not: its summary speaks of the Drive alone.
     private(set) var lastTakeWasDriveOnly = false
     /// Whether the last Take was recorded to the Device by choice (#805): its summary misses no Drive.
@@ -667,6 +670,7 @@ public final class Recorder {
         let (show, session, takeFolders) = opened
         session.onCopyFailed = { [weak self, weak session] in Task { @MainActor in await self?.copyFailed(in: session) } }
         session.stopTimeout = writerStopTimeout
+        session.stageTakeJson = stageTakeJson
         session.driveStallLimit = driveStallLimit
         if takeFolders[.drive] == nil { drive?.end() }
         self.session = session

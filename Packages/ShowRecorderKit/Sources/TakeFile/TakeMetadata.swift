@@ -425,13 +425,18 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         self.markers = markers
     }
 
-    /// Writes `Take.json` into `takeFolder`, replacing any earlier one.
-    public func write(to takeFolder: URL) throws {
+    /// What `write(to:)` puts in `Take.json`.
+    public func encoded() throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
         let data = try encoder.encode(self)
-        try (unknownFields?.merged(into: data) ?? data).write(to: takeFolder.appending(path: Self.fileName), options: .atomic)
+        return try unknownFields?.merged(into: data) ?? data
+    }
+
+    /// Writes `Take.json` into `takeFolder`, replacing any earlier one.
+    public func write(to takeFolder: URL) throws {
+        try encoded().write(to: takeFolder.appending(path: Self.fileName), options: .atomic)
     }
 
     /// Reads `Take.json` from `takeFolder`. Throws when it is missing or can't be decoded.
