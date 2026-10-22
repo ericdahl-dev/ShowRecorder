@@ -74,6 +74,14 @@ final class Capture: Sendable {
     /// means input stopped (an interruption), and the missing stretch becomes a Dropout (#317). 0 until the first block.
     private let hostTicksPerFrame: Double
     private let expectedHostTime = Atomic<UInt64>(0)
+    /// Where the Take's timeline stands at the join block, relative to the Pre-roll buffer's own count: the Take's frame at
+    /// that block is this plus the block's start in the buffer (#915). `Int.min` when the Take has none: its frame is then
+    /// the preset one. Set when a Take starts, read by the real-time thread; a store and a load, nothing else.
+    private let joinOffset = Atomic<Int>(Int.min)
+    /// The Pre-roll length the Capture was made for: zero keeps the buffer only for a Take that starts late.
+    let preRollSeconds: Double
+    /// Frames in a second at the Capture's rate: the margin the Pre-roll buffer keeps free of reads.
+    let framesPerSecond: Int
     /// The host clock now, read when a Take starts (never on the real-time thread).
     private let hostClock: @Sendable () -> UInt64
     /// A gap shorter than this (frames) is timing jitter, not lost input.
@@ -98,14 +106,19 @@ final class Capture: Sendable {
 
     /// - Parameter preRollSeconds: how much audio to keep before a Take starts; the buffer holds a second
     ///   more, so a snapshot of that length isn't cut short by the writer overwriting its oldest frames.
-    init(channelCount: Int, sampleRate: Double, preRollSeconds: Double = 0, hostTicksPerSecond: Double = Capture.machTicksPerSecond,
-         hostClock: @escaping @Sendable () -> UInt64 = { mach_absolute_time() }) {
+    /// - Parameter startHeadroomSeconds: room in the buffer for a Take that starts late (#915): the time between the press
+    ///   and the first live block, while the Drive's files are made. With it the buffer exists even when Pre-roll is off. It is
+    ///   allocated here, at Arm, never when a Take starts.
+    init(channelCount: Int, sampleRate: Double, preRollSeconds: Double = 0, startHeadroomSeconds: Double = 0,
+         hostTicksPerSecond: Double = Capture.machTicksPerSecond, hostClock: @escaping @Sendable () -> UInt64 = { mach_absolute_time() }) {
         self.hostClock = hostClock
+        self.preRollSeconds = preRollSeconds
+        framesPerSecond = Int(max(sampleRate, 1))
         hostTicksPerFrame = hostTicksPerSecond / max(sampleRate, 1)
         gapThreshold = Int(max(sampleRate, 1) * 0.05)
         meters = PeakMeters(channelCount: channelCount)
-        preRoll = preRollSeconds > 0
-            ? PreRollBuffer(channelCount: channelCount, capacity: Int((preRollSeconds + 1) * max(sampleRate, 1)))
+        preRoll = preRollSeconds > 0 || startHeadroomSeconds > 0
+            ? PreRollBuffer(channelCount: channelCount, capacity: Int((preRollSeconds + startHeadroomSeconds + 1) * max(sampleRate, 1)))
             : nil
         // Four seconds of headroom for each writer thread.
         let feeds = (0..<2).map { CopyFeed(ring: SampleRing(channelCount: channelCount, capacity: Int(max(sampleRate, 1) * 4)), slot: $0) }
@@ -122,13 +135,19 @@ final class Capture: Sendable {
     /// Starts feeding the Copies' rings. With `preRollFrames`, the Take's timeline starts at that many
     /// frames and the Copies start at the next block boundary, which the real-time thread notes in
     /// `preRollStart` so the Pre-roll and the live audio join without a lost or repeated sample.
-    func startCapturing(copies: Int, preRollFrames: Int = 0) {
+    /// - Parameter pressPosition: the Pre-roll buffer's count of frames at the press (#915). A Take that starts late then still
+    ///   begins `preRollFrames` before the press: at the join block its timeline stands at `preRollFrames` plus the frames
+    ///   that came in since the press, and the head reaches back to the press minus Pre-roll.
+    func startCapturing(copies: Int, preRollFrames: Int = 0, pressPosition: Int? = nil) {
         let mask = (1 << min(copies, rings.count)) - 1
         takeFrames.store(preRollFrames, ordering: .releasing)
+        // Not on the real-time thread: this runs when a Take starts. Without a position (or a buffer) the preset stands.
+        let offset: Int = if preRoll != nil, let pressPosition { preRollFrames - pressPosition } else { Int.min }
+        joinOffset.store(offset, ordering: .releasing)
         // The Take starts at the press: input stopped before it is no part of the Take (#877). With input running, the
         // next block starts before the press, so this adds nothing.
         expectedHostTime.store(hostClock(), ordering: .relaxed)
-        if preRollFrames > 0, preRoll != nil {
+        if preRollFrames > 0 || pressPosition != nil, preRoll != nil {
             preRollStart.store(-2, ordering: .releasing)
             capturing.store(0, ordering: .releasing)
             joinRequests.store(mask, ordering: .releasing)
@@ -192,11 +211,15 @@ final class Capture: Sendable {
         preRoll?.write(block)
         let requested = joinRequests.load(ordering: .acquiring)
         if requested != 0 {
-            let frame = takeFrames.load(ordering: .relaxed)
             if preRollStart.load(ordering: .relaxed) == -2 {
                 // The Pre-roll buffer already holds this block, so the live audio starts before it.
-                preRollStart.store((preRoll?.totalWrittenFrames ?? block.frameCount) - block.frameCount, ordering: .releasing)
+                let start = (preRoll?.totalWrittenFrames ?? block.frameCount) - block.frameCount
+                // A Take that started late: its timeline reaches back to the press, not only to the first live block (#915).
+                let offset = joinOffset.load(ordering: .acquiring)
+                if offset != Int.min { takeFrames.store(offset + start, ordering: .releasing) }
+                preRollStart.store(start, ordering: .releasing)
             }
+            let frame = takeFrames.load(ordering: .relaxed)
             for copy in 0..<rings.count where requested & (1 << copy) != 0 {
                 feeds[copy].markJoined(at: frame)
             }
