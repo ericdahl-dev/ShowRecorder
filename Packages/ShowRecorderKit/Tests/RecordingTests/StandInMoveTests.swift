@@ -266,8 +266,53 @@ struct StandInMoveTests {
         let reasons = reasons(run())
 
         #expect(reasons.contains { $0.contains("doesn't hold") }, "\(reasons)")
-        #expect(try TakeMetadata.read(fromTakeFolder: driveTake).repairs == [.init(copy: .drive, start: 0, end: 3_000, outcome: .failed)])
+        #expect(try TakeMetadata.read(fromTakeFolder: driveTake).repairs == [
+            .init(copy: .drive, start: 0, end: 2_400, outcome: .failed), .init(copy: .drive, start: 2_400, end: 3_000, outcome: .repaired),
+        ])
         #expect(FileManager.default.fileExists(atPath: deviceTake.appending(path: "Take.json").path))
+    }
+
+    @Test("A Drive Gap that starts before the stand-in is split at its start: the part it holds is repaired, the rest failed (#916)")
+    func gapStartingBeforeTheStandIn() throws {
+        try make(standIn: .init(start: 2_400, end: 7_200), gap: 0..<7_200)
+
+        let reasons = reasons(run())
+
+        #expect(reasons.contains { $0.contains("doesn't hold") }, "\(reasons)")
+        #expect(try samples(driveStem(), 2_400..<7_200) == expected(2_400..<7_200))
+        let after = try TakeMetadata.read(fromTakeFolder: driveTake)
+        #expect(after.gaps == [.init(copy: .drive, start: 0, end: 2_400), .init(copy: .drive, start: 2_400, end: 7_200)])
+        #expect(after.repairs == [.init(copy: .drive, start: 0, end: 2_400, outcome: .failed), .init(copy: .drive, start: 2_400, end: 7_200, outcome: .repaired)])
+        #expect(after.standIns == [.init(start: 2_400, end: 7_200)])
+        #expect(FileManager.default.fileExists(atPath: deviceTake.appending(path: "Take.json").path))
+    }
+
+    @Test("A second move of a stand-in that can't fill the whole Gap writes no Stem again, and records the same (#916)")
+    func secondMoveWritesNothing() throws {
+        try make(standIn: .init(start: 2_400, end: 7_200), gap: 0..<7_200)
+        _ = run()
+        let written = try driveStem().resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+        let record = try TakeMetadata.read(fromTakeFolder: driveTake)
+
+        #expect(reasons(run()).contains { $0.contains("doesn't hold") })
+        #expect(try driveStem().resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate == written)
+        let after = try TakeMetadata.read(fromTakeFolder: driveTake)
+        #expect(after.gaps == record.gaps)
+        #expect(after.repairs == record.repairs)
+    }
+
+    @Test("A Take an earlier version recorded as failed over the whole Gap is split, and the old record goes (#916)")
+    func earlierWholeGapFailure() throws {
+        try make(standIn: .init(start: 2_400, end: 7_200), gap: 0..<7_200)
+        var drive = try TakeMetadata.read(fromTakeFolder: driveTake)
+        drive.repairs = [.init(copy: .drive, start: 0, end: 7_200, outcome: .failed)]
+        try drive.write(to: driveTake)
+
+        _ = run()
+
+        #expect(try TakeMetadata.read(fromTakeFolder: driveTake).repairs == [
+            .init(copy: .drive, start: 0, end: 2_400, outcome: .failed), .init(copy: .drive, start: 2_400, end: 7_200, outcome: .repaired),
+        ])
     }
 
     @Test("A stand-in Stem holding more on disk than its header says keeps the Take: the tail is on the Device only (#871)")
