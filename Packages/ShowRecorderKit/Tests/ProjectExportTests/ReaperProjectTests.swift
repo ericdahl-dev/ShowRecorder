@@ -1,7 +1,7 @@
 import AudioIO
 import Foundation
 import MixerLink
-import ProjectExport
+@testable import ProjectExport
 @testable import Recording
 import Testing
 
@@ -199,6 +199,27 @@ struct ReaperProjectTests {
         let track = try #require(try project().children("TRACK").first)
         #expect(track.value("NAME") == expected)
         #expect(track.children("ITEM").first?.value("NAME") == expected)
+    }
+
+    @Test("A line break in a name becomes a space, so each NAME stays on one line of the project (#888)")
+    func lineBreaksInNames() throws {
+        let show = ShowTimeline(
+            showName: "Fixture",
+            usbChannels: [.init(number: 1, name: "Gtr\nAmp", color: MixerColor(hue: .white, inverted: false))],
+            takes: [.init(number: 1, sampleRate: 44_100, frameCount: 44_100, stems: [.init(usbChannel: 1, path: "Take 01/01 Gtr.wav", name: "Gtr\r\nAmp")])])
+
+        let text = String(decoding: ReaperExporter().project(for: show), as: UTF8.self)
+        let names = text.split(whereSeparator: \.isNewline).filter { $0.contains("Amp") }
+        #expect(names.allSatisfy { $0.trimmingCharacters(in: .whitespaces).hasPrefix("NAME ") }, "\(names)")
+        let track = try #require(try RPPNode.parse(text).child("TRACK"))
+        #expect(track.value("NAME") == "Gtr Amp")
+        #expect(track.children("ITEM").first?.value("NAME") == "Gtr Amp")
+    }
+
+    @Test("Only CR and LF become a space: a line separator, which can be in a Stem's file name, is kept (#888)")
+    func onlyCRAndLF() {
+        #expect(ReaperExporter.quote("Verse\r\rChorus") == "\"Verse Chorus\"")
+        #expect(ReaperExporter.quote("Take 01/01 Gtr\u{2028}Amp.wav") == "\"Take 01/01 Gtr\u{2028}Amp.wav\"")
     }
 
     @Test("The exporter renders a Show it is handed, with no Show folder")
