@@ -203,6 +203,8 @@ struct DriveOnlyTakeTests {
         try await waitUntil { recorder.copies[.drive] == .interrupted }
         await recorder.checkDestinations()
 
+        // The stand-in's Take.json is written off the main thread (#914), so it arrives a moment after the check.
+        try await waitUntil { (try? TakeMetadata.read(fromTakeFolder: device.appending(path: take)))?.standIns?.first != nil }
         let started = try TakeMetadata.read(fromTakeFolder: device.appending(path: take)).standIns?.first?.start
         try await recorder.stopTake()
         await recorder.waitForRepair()
@@ -256,6 +258,8 @@ struct DriveOnlyTakeTests {
         deliver(4_096, from: 48 * 4_096, to: audio, sample: counting())
         await recorder.checkDestinations()
 
+        // The stand-in's Take.json is written off the main thread (#914), so it arrives a moment after the check.
+        try await waitUntil { (try? TakeMetadata.read(fromTakeFolder: device.appending(path: take)))?.standIns?.first != nil }
         let started = try TakeMetadata.read(fromTakeFolder: device.appending(path: take)).standIns?.first?.start
         gate.open()
         try await recorder.stopTake()
