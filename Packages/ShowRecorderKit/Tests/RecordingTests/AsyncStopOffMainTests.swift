@@ -431,6 +431,30 @@ struct AsyncStopOffMainTests {
         #expect(recorder.usbChannelCount == 2, "the recorder kept the old format")
     }
 
+    @Test("A tier change while the Take is being saved shows no error, and the input re-Arms at the new rate once the save ends (#884)")
+    func tierChangedWhileFinishing() async throws {
+        let gate = TestGate()
+        nonisolated(unsafe) var gated: GatedStem?
+        let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
+        let source = FakeInputDevices([("xr18", 1)])
+        source.rates["xr18"] = 96_000
+        nonisolated(unsafe) var capped = false
+        let sequencer = TakeSequencer(recorder: recorder, devices: source, capsAt48k: { capped })
+        sequencer.arm()
+        #expect(recorder.sampleRate == 96_000)
+        let audio = try #require(source.opened.last)
+        let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
+
+        capped = true   // a refund, say, while the Take is on its way to disk
+        sequencer.tierChanged()
+        #expect(sequencer.armError == nil, "no false \"Couldn't start\" after a clean Take: \(sequencer.armError ?? "")")
+        gate.open()
+        try await stop.value
+
+        try await waitUntil { recorder.sampleRate == 48_000 }
+        #expect(sequencer.armError == nil)
+    }
+
     @Test("A gain change buffered during the save doesn't write the Show.json of a Drive Stop gave up on")
     func gainChangeSkipsAbandonedDrive() async throws {
         let drive = root.appending(path: "Drive")

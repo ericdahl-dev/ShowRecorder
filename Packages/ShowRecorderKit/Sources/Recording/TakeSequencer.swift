@@ -342,6 +342,15 @@ public final class TakeSequencer {
     /// The tier changed (the App Store answered, a purchase, a refund): re-Arm between Takes when the 48 kHz cap now
     /// differs from the rate the input runs at (#316). A running Take keeps its rate; the change applies at the next Arm.
     public func tierChanged() {
+        // A Take being saved is still the Take: decide once it is on disk, as `deviceListChanged` does, or the Arm would fail
+        // with a false "Couldn't start" after a clean Take and the new rate would wait for the next Arm (#884).
+        if recorder.isFinishing {
+            Task { [self] in
+                await recorder.waitWhileFinishing()
+                tierChanged()
+            }
+            return
+        }
         guard recorder.isArmed, !recorder.isRecording, let rate = recorder.sampleRate else { return }
         let capped = capsAt48k()
         if (capped && rate > 48_000) || (!capped && (sampleRateChoice ?? rate) > rate) { arm() }
