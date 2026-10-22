@@ -130,6 +130,21 @@ struct DeviceTakeMoveTests {
         #expect(run() == .moved)
     }
 
+    @Test("A staged Take.json a crash left in the Device's Take doesn't keep it (#914)")
+    func stagedTakeJsonDoesntKeepTheTake() throws {
+        try make()
+        try Data().write(to: deviceTake.appending(path: ".Take.json.\(UUID().uuidString)"))
+        #expect(run() == .moved)
+    }
+
+    @Test("A hidden file that only looks like a staged Take.json still keeps the Take (#914)")
+    func lookAlikeKeepsTheTake() throws {
+        try make()
+        try Data().write(to: deviceTake.appending(path: ".Take.json.tmp"))
+
+        #expect(reasons(run()).contains { $0.contains(".Take.json.tmp") })
+    }
+
     @Test("A Drive that changes after it is filled is no false Repair: the Take is kept, the half-made Drive Take removed, and a later move succeeds")
     func noRepairRecordedBeforeTheCheck() throws {
         try make()

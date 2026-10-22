@@ -137,7 +137,8 @@ enum StandInMove {
         // The Finder's .DS_Store on macOS is no file of the Take's, and goes with it.
         let expected = Set([TakeMetadata.fileName, ".DS_Store"] + standIns.map(\.folderName))
         guard let contents = try? fm.contentsOfDirectory(atPath: deviceTake.path) else { return .kept(["\(name) can't be read on the Device."]) }
-        let others = Set(contents).subtracting(expected)
+        // A staged Take.json a crash left (#914) is no file of the Take's either.
+        let others = Set(contents).subtracting(expected).filter { !TakeJsonWriter.isStagingFile($0) }
         guard others.isEmpty else { return .kept(["\(name) on the Device holds other files too: \(others.sorted().joined(separator: ", "))."]) }
 
         let setAsideName = setAsideName(of: deviceTake)

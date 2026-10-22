@@ -328,6 +328,22 @@ struct StandInMoveTests {
         #expect(FileManager.default.fileExists(atPath: stem.path))
     }
 
+    @Test("A staged Take.json a crash left in the Device's Take doesn't keep it (#914)")
+    func stagedTakeJsonDoesntKeepTheTake() throws {
+        try make()
+        try Data().write(to: deviceTake.appending(path: ".Take.json.\(UUID().uuidString)"))
+
+        #expect(run() == .moved)
+    }
+
+    @Test("A hidden file that only looks like a staged Take.json still keeps the Take (#914)")
+    func lookAlikeKeepsTheTake() throws {
+        try make()
+        try Data().write(to: deviceTake.appending(path: ".Take.json.tmp"))
+
+        #expect(reasons(run()).contains { $0.contains(".Take.json.tmp") })
+    }
+
     @Test("A .DS_Store the Finder left in the Device's Take or its stand-in doesn't keep the Take")
     func finderFilesDontKeepTheTake() throws {
         try make()

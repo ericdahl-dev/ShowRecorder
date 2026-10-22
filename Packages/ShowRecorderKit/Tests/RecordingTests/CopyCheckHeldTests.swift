@@ -199,6 +199,19 @@ struct CopyCheckHeldTests {
         #expect(!reasons(CopyCheck.verifyHeld(device: deviceTake, drive: driveTake)).isEmpty)
     }
 
+    @Test("A staged Take.json a crash left in the Device's Take isn't an unlisted file (#914)")
+    func stagedTakeJsonIsNotUnlisted() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try writeTakes(metadata())
+        try writeStem(stem(deviceTake), frames: 1_000)
+        try writeStem(stem(driveTake), frames: 1_000)
+        try Data().write(to: deviceTake.appending(path: ".Take.json.\(UUID().uuidString)"))
+        #expect(CopyCheck.verifyHeld(device: deviceTake, drive: driveTake) == .passed)
+
+        try Data().write(to: deviceTake.appending(path: ".Take.json.tmp"))
+        #expect(!reasons(CopyCheck.verifyHeld(device: deviceTake, drive: driveTake)).isEmpty, "a look-alike still is")
+    }
+
     @Test("A Device Take folder holding an audio file or a stand-in folder the Take.json doesn't list fails")
     func unlistedFiles() throws {
         defer { try? FileManager.default.removeItem(at: root) }

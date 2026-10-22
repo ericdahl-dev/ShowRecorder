@@ -24,7 +24,8 @@ enum DeviceTakeMove {
         // The Device's Take holds its Take.json and Stems, nothing else that the move would delete with it.
         let expected = Set([TakeMetadata.fileName, ".DS_Store"] + metadata.usbChannels.map(\.stemFile))
         guard let contents = try? fm.contentsOfDirectory(atPath: deviceTake.path) else { return .kept(["\(name) can't be read on the Device."]) }
-        let others = Set(contents).subtracting(expected)
+        // A staged Take.json a crash left (#914) is no file of the Take's either.
+        let others = Set(contents).subtracting(expected).filter { !TakeJsonWriter.isStagingFile($0) }
         guard others.isEmpty else { return .kept(["\(name) on the Device holds other files too: \(others.sorted().joined(separator: ", "))."]) }
 
         // A Drive Take this run makes still has to record its Repair, once the check has passed; until then a failure

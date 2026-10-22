@@ -23,6 +23,19 @@ final class TakeJsonWriter: Sendable {
     /// Held while a staged file is moved into place, so `close` can tell none is under way.
     private let moving = NSLock()
 
+    /// The name a staged `Take.json` has until it is moved into place: `.Take.json.` and a UUID, nothing else.
+    static func stagingName() -> String { "\(stagingPrefix)\(UUID().uuidString)" }
+
+    /// Whether `name` is exactly a staged `Take.json`'s: a crash can leave one in a Take folder, and it is no file of the
+    /// Take's. A look-alike (`.Take.json.tmp`) is not.
+    static func isStagingFile(_ name: String) -> Bool {
+        guard name.hasPrefix(stagingPrefix) else { return false }
+        let id = String(name.dropFirst(stagingPrefix.count))
+        return UUID(uuidString: id)?.uuidString == id
+    }
+
+    private static let stagingPrefix = ".\(TakeMetadata.fileName)."
+
     /// `stage` writes the data to the file it's given; a Take's own `Take.json` is replaced only once that is done.
     /// `move` puts the staged file over `Take.json` in one step; tests hold it.
     init(folder: URL, stage: @escaping @Sendable (Data, URL) throws -> Void,
@@ -68,7 +81,7 @@ final class TakeJsonWriter: Sendable {
     private func write(_ metadata: TakeMetadata) {
         guard let data = try? metadata.encoded() else { return }
         let target = folder.appending(path: TakeMetadata.fileName)
-        let staged = folder.appending(path: ".\(TakeMetadata.fileName).\(UUID().uuidString)")
+        let staged = folder.appending(path: Self.stagingName())
         guard (try? stage(data, staged)) != nil else {
             try? FileManager.default.removeItem(at: staged)
             return
