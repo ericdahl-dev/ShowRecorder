@@ -71,8 +71,13 @@ public enum TakeMover {
                 } else if let driveTake, driveTake.startedAt != take.startedAt {
                     kind = .skipped(.anotherRecording)
                 } else if hasStandIn {
-                    // A standby exists only where a Drive was: with no Take there, moving would split the Take.
-                    kind = driveTake == nil ? .skipped(.noDriveTake) : .standIn
+                    if let driveTake, onlyUnfillableGapsLeft(device: take, drive: driveTake) {
+                        // Moving again would only reread the stand-ins (#916).
+                        kind = .skipped(.driveHasGaps)
+                    } else {
+                        // A standby exists only where a Drive was: with no Take there, moving would split the Take.
+                        kind = driveTake == nil ? .skipped(.noDriveTake) : .standIn
+                    }
                 } else if let driveTake {
                     let outcome = driveTake.outcome(ofCopy: .drive)
                     kind = outcome == .repairFailed ? .skipped(.driveHasGaps) : .redundant
@@ -83,5 +88,20 @@ public enum TakeMover {
             }
         }
         return found
+    }
+
+    /// Whether every Drive Gap not yet repaired, as `StandInMove` lists them (the Drive's, and the Device's it lacks), has a
+    /// failed Repair and lies outside every stand-in: no stand-in holds any of it, so no move can fill it.
+    private static func onlyUnfillableGapsLeft(device: TakeMetadata, drive: TakeMetadata) -> Bool {
+        let held = (device.standIns ?? []).filter { $0.start < $0.end }
+        let onDrive = drive.gaps.filter { $0.copy == .drive }.map { $0.start..<$0.end }
+        let deviceOnly = device.gaps.filter { gap in !drive.gaps.contains(gap) && !(gap.copy == .drive && TakeRepair.covers(onDrive, gap.start..<gap.end)) }
+        let left = (drive.gaps + deviceOnly).filter { gap in
+            gap.copy == .drive && !drive.repairs.contains { $0.copy == .drive && $0.start == gap.start && $0.end == gap.end && $0.outcome == .repaired }
+        }
+        return !left.isEmpty && left.allSatisfy { gap in
+            drive.repairs.contains { $0.copy == .drive && $0.start == gap.start && $0.end == gap.end && $0.outcome == .failed }
+                && !held.contains { $0.start < gap.end && gap.start < $0.end }
+        }
     }
 }

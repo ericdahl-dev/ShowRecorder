@@ -144,6 +144,54 @@ struct TakeMoverTests {
         #expect(found(isDriveOnly: true).first == "\(show) 1 redundant")
     }
 
+    @Test("A stand-in whose Drive Take has a failed Gap no stand-in touches is skipped; one a stand-in overlaps is still moved (#916)")
+    func standInWithUnfillableGap() async throws {
+        try await record()
+        for number in [1, 2] { try change(take(device, number)) { $0.standIns = [.init(start: 2_400, end: 4_800)] } }
+        // Take 1: a move split the Gap and found its head held nowhere.
+        try change(take(drive, 1)) {
+            $0.gaps = [.init(copy: .drive, start: 0, end: 2_400), .init(copy: .drive, start: 2_400, end: 4_800)]
+            $0.repairs = [.init(copy: .drive, start: 0, end: 2_400, outcome: .failed), .init(copy: .drive, start: 2_400, end: 4_800, outcome: .repaired)]
+        }
+        // Take 2: a failed Repair over the whole Gap, from before the split: the next move splits it.
+        try change(take(drive, 2)) {
+            $0.gaps = [.init(copy: .drive, start: 0, end: 4_800)]
+            $0.repairs = [.init(copy: .drive, start: 0, end: 4_800, outcome: .failed)]
+        }
+
+        #expect(found() == ["\(show) 1 skipped driveHasGaps", "\(show) 2 standIn"])
+    }
+
+    @Test("A stand-in with a Gap left that it holds is still moved, beside a failed Gap it doesn't (#916)")
+    func standInWithWorkLeft() async throws {
+        try await record()
+        for number in [1, 2] { try change(take(device, number)) { $0.standIns = [.init(start: 2_400, end: 4_800)] } }
+        // Take 1: Stop's Repair failed both, one the stand-in holds.
+        try change(take(drive, 1)) {
+            $0.gaps = [.init(copy: .drive, start: 0, end: 1_000), .init(copy: .drive, start: 2_400, end: 4_800)]
+            $0.repairs = [.init(copy: .drive, start: 0, end: 1_000, outcome: .failed), .init(copy: .drive, start: 2_400, end: 4_800, outcome: .failed)]
+        }
+        // Take 2: the Gap the stand-in holds is listed only in the Device's Take.json (#668).
+        try change(take(drive, 2)) {
+            $0.gaps = [.init(copy: .drive, start: 0, end: 1_000)]
+            $0.repairs = [.init(copy: .drive, start: 0, end: 1_000, outcome: .failed)]
+        }
+        try change(take(device, 2)) { $0.gaps = [.init(copy: .drive, start: 2_400, end: 4_800)] }
+
+        #expect(found() == ["\(show) 1 standIn", "\(show) 2 standIn"])
+    }
+
+    @Test("An empty stand-in inside a failed Gap holds none of it: the Take is skipped (#916)")
+    func emptyStandInInAFailedGap() async throws {
+        try await record()
+        try change(take(device, 1)) { $0.standIns = [.init(start: 2_400, end: 2_400)] }
+        try change(take(drive, 1)) {
+            $0.gaps = [.init(copy: .drive, start: 0, end: 4_800)]
+            $0.repairs = [.init(copy: .drive, start: 0, end: 4_800, outcome: .failed)]
+        }
+        #expect(found().first == "\(show) 1 skipped driveHasGaps")
+    }
+
     @Test("Every Show on the Device is scanned, in Show then Take order")
     func everyShow() async throws {
         try await record()
