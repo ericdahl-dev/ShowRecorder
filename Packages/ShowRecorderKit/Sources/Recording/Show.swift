@@ -90,7 +90,9 @@ public struct Show: Sendable, Equatable {
 
     /// Writes this Show's next Takes to the Drive folder `parent` as well (creating the Show folder
     /// there under the same name), or to the Device only when `parent` is nil.
-    mutating func useDrive(_ parent: URL?) throws {
+    /// `writingDevice` false leaves the Device's `Show.json` alone: a job that runs off the main actor holds only a copy of
+    /// the Show, and writing that copy later could undo what the Show has written since (#914).
+    mutating func useDrive(_ parent: URL?, writingDevice: Bool = true) throws {
         guard let parent else {
             driveFolder = nil
             return
@@ -100,7 +102,7 @@ public struct Show: Sendable, Equatable {
         driveFolder = folder
         driveCopyWritten = true
         try file.write(to: folder)
-        try? file.write(to: self.folder)
+        if writingDevice { try? file.write(to: self.folder) }
     }
 
     /// What `Show.json` holds for this Show.
@@ -195,8 +197,8 @@ public struct Show: Sendable, Equatable {
 
     /// Starts writing the running Take to the Drive folder `parent` too: the Show folder there (under
     /// the same name) and a folder for the current Take. Returns that Take folder.
-    mutating func joinDrive(_ parent: URL) throws -> URL {
-        try useDrive(parent)
+    mutating func joinDrive(_ parent: URL, writingDevice: Bool = true) throws -> URL {
+        try useDrive(parent, writingDevice: writingDevice)
         let takeFolder = driveFolder!.appending(path: TakeMetadata.name(take: takeCount), directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: takeFolder, withIntermediateDirectories: false)
         return takeFolder
