@@ -527,6 +527,8 @@ public final class Recorder {
         guard !isFinishing else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: RecorderError.finishing.errorDescription ?? "") }) }
         // A move to the Drive works on these files too (#630).
         guard !isMoving else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "Takes are moving to the Drive.") }) }
+        // Names are being put on a Take's files (#652): a delete would pull the folder from under it.
+        guard editsInProgress == 0 else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "The Take's files are being renamed.") }) }
         let access = copies.contains(.drive) ? driveFolder() : nil
         defer { access?.end() }
         return ShowDeleter.delete(show: name, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
@@ -587,6 +589,8 @@ public final class Recorder {
         guard !isFinishing else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: RecorderError.finishing.errorDescription ?? "") }) }
         // A move to the Drive works on these files too (#630).
         guard !isMoving else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "Takes are moving to the Drive.") }) }
+        // Names are being put on a Take's files (#652): a delete would pull the folder from under it.
+        guard editsInProgress == 0 else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "The Take's files are being renamed.") }) }
         let access = copies.contains(.drive) ? driveFolder() : nil
         defer { access?.end() }
         return TakeDeleter.delete(take: take, ofShow: show, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
@@ -600,6 +604,8 @@ public final class Recorder {
         guard !isFinishing else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: RecorderError.finishing.errorDescription ?? "") }) }
         // A move to the Drive works on these files too (#630).
         guard !isMoving else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "Takes are moving to the Drive.") }) }
+        // Names are being put on a Take's files (#652): a delete would pull the folder from under it.
+        guard editsInProgress == 0 else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "The Take's files are being renamed.") }) }
         let access = copies.contains(.drive) ? driveFolder() : nil
         defer { access?.end() }
         return StemDeleter.delete(channel: channel, inTake: take, ofShow: show, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
@@ -1295,6 +1301,12 @@ public final class Recorder {
         driveMayHaveConnected()
     }
 
+    /// Puts the names on the Take's files in each Copy's folder: renames the Stems and rewrites Take.json (and the report and
+    /// project). It runs off the main thread (#652). Tests replace it.
+    @ObservationIgnored var renameChannels: @Sendable (_ names: [Int: String], _ late: Set<Int>, _ copies: [DestinationKind: URL], _ allowsProExtras: Bool) -> Void = {
+        _ = ChannelRenamer.rename(names: $0, lateChannels: $1, in: $2, allowsProExtras: $3)
+    }
+
     /// Puts the names typed during the Take on its files. Waits for Repair first, which works on the Stems
     /// by their file names.
     private func nameChannels(of metadata: TakeMetadata, naming atStop: ChannelNaming) {
@@ -1308,6 +1320,10 @@ public final class Recorder {
             await previous?.value
             await repair.wait()
             await waitWhileMoving()
+            // Counted while its file work runs off the main actor, so a move waits for it and a delete is refused (#652).
+            // Nothing suspends between the last wait and this, so no move starts in the gap.
+            editsInProgress += 1
+            defer { endEdit() }
             // Repair may have moved this Take off the Device meanwhile (#618). If a later Take has ended since,
             // `lastTake` describes it, so this Take's own folders are used.
             var current = take
@@ -1320,7 +1336,10 @@ public final class Recorder {
                 if let access { copies[.drive] = access.folder.appending(path: take.showName).appending(path: TakeMetadata.name(take: take.takeNumber)) }
             }
             defer { access?.end() }
-            _ = ChannelRenamer.rename(names: names, lateChannels: late, in: copies, allowsProExtras: allowsProExtras)
+            // File work on a Drive that may be slow: not on the main thread (#652). The names are the Take's own, so a later
+            // Take's names can't reach these files.
+            let rename = renameChannels, folders = copies
+            await runOffPool { rename(names, late, folders, allowsProExtras) }
         }
     }
 
@@ -1640,6 +1659,16 @@ public final class Recorder {
     }
 
     /// Show detail renames whose file work is running (#630).
+    /// An edit's file work is done: a move waiting for it may start.
+    private func endEdit() {
+        editsInProgress -= 1
+        if editsInProgress == 0 {
+            let waiting = editWaiters
+            editWaiters = []
+            for waiter in waiting { waiter.resume() }
+        }
+    }
+
     @ObservationIgnored private var editsInProgress = 0
     /// Moves waiting for those to end (#630).
     @ObservationIgnored private var editWaiters: [CheckedContinuation<Void, Never>] = []
