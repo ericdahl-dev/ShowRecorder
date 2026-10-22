@@ -333,6 +333,8 @@ public final class Recorder {
         disarm()
         let capture = Capture(
             channelCount: device.inputChannelCount, sampleRate: device.sampleRate, preRollSeconds: preRollSeconds,
+            // Room for a Take that starts while the Drive is prepared: the deadline, a second for the rest of the start (#915).
+            startHeadroomSeconds: Double(driveStartDeadline.components.seconds) + Double(driveStartDeadline.components.attoseconds) / 1e18 + 1,
             hostTicksPerSecond: hostTicksPerSecond, hostClock: hostClock)
         try device.start(input: { block in capture.receive(block) })
         self.device = device
@@ -696,6 +698,8 @@ public final class Recorder {
         guard !isFinishing else { throw RecorderError.finishing }
         guard !isRecording, !isStarting else { return }
         let date = now()
+        // The press, in the Pre-roll buffer's own count: read with the press time, before any file work (#915).
+        let pressPosition = capture.preRoll?.totalWrittenFrames
 
         // A Show with no Take for 6 hours is over: this record starts a new one.
         endIdleShow(at: date)
@@ -728,7 +732,8 @@ public final class Recorder {
         let opened: (show: Show, session: TakeSession, folders: [DestinationKind: URL])
         do {
             opened = try openTake(
-                sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: drive, driveNote: driveNote)
+                sources: sources, allowance: allowance, date: date, pressPosition: pressPosition, device: device, capture: capture,
+                drive: drive, driveNote: driveNote)
         } catch where drive != nil {
             // A Drive that fails at the press doesn't stop the Take: it records to the Device alone (#315), and the
             // Drive's status says what's wrong. A Device that fails too throws its own error. The failed attempt
@@ -737,7 +742,8 @@ public final class Recorder {
             driveNote = "The Drive failed at the press, so this Take started on the Device only: \(Self.describe(error))"
             onScreen = driveNote
             opened = try openTake(
-                sources: sources, allowance: allowance, date: date, device: device, capture: capture, drive: nil, driveNote: driveNote)
+                sources: sources, allowance: allowance, date: date, pressPosition: pressPosition, device: device, capture: capture,
+                drive: nil, driveNote: driveNote)
         }
         takeOpened(opened, drive: drive, sources: sources, capture: capture, onScreen: onScreen)
     }
@@ -804,6 +810,7 @@ public final class Recorder {
             driveStartHandoff = nil
         }
         let date = now()
+        let pressPosition = capture.preRoll?.totalWrittenFrames
         endIdleShow(at: date)
 
         let mayUseDrive = recordTo.usesDrive && (allowance?.driveCopy ?? true)
@@ -815,7 +822,8 @@ public final class Recorder {
         var onScreen = driveNote
         // The Device's side first: the Show and the Take folder there, and what the session is made from. Nothing of the
         // Drive's is touched on this thread.
-        var plan = try planTake(sources: sources, allowance: allowance, date: date, capture: capture, drive: nil, driveNote: driveNote)
+        var plan = try planTake(
+            sources: sources, allowance: allowance, date: date, pressPosition: pressPosition, capture: capture, drive: nil, driveNote: driveNote)
         // The Show has this Take from now on: a gain change or a name typed while the Drive is prepared lands on it, and is
         // still there when the session is made.
         currentShow = plan.show
@@ -936,6 +944,8 @@ public final class Recorder {
         var specs: [StemSpec]
         var info: StemWriter.Info
         var preRollFrames: Int
+        /// The Pre-roll buffer's frame count at the press: where the Take's timeline starts, plus Pre-roll (#915).
+        var pressPosition: Int?
         var allowance: TakeAllowance?
         /// Where this Take goes, decided at the press: Record to can change while the Drive is being prepared (#914).
         var driveOnly: Bool
@@ -957,10 +967,11 @@ public final class Recorder {
     /// One attempt at opening a Take: the Show (created if none is open), its Take folders and the session. A failure
     /// leaves nothing behind (#315).
     private func openTake(
-        sources: [Source], allowance: TakeAllowance?, date: Date,
+        sources: [Source], allowance: TakeAllowance?, date: Date, pressPosition: Int?,
         device: any AudioIODevice, capture: Capture, drive: DriveAccess?, driveNote: String? = nil
     ) throws -> (show: Show, session: TakeSession, folders: [DestinationKind: URL]) {
-        let plan = try planTake(sources: sources, allowance: allowance, date: date, capture: capture, drive: drive, driveNote: driveNote)
+        let plan = try planTake(
+            sources: sources, allowance: allowance, date: date, pressPosition: pressPosition, capture: capture, drive: drive, driveNote: driveNote)
         do {
             return (plan.show, try makeSession(plan, device: device, capture: capture, drive: drive, preparedDrive: nil), plan.takeFolders)
         } catch {
@@ -973,7 +984,8 @@ public final class Recorder {
     /// The Show (created if none is open), its Take folders and what the session is made from. A failure leaves nothing
     /// behind (#315) and lets `drive` go.
     private func planTake(
-        sources: [Source], allowance: TakeAllowance?, date: Date, capture: Capture, drive: DriveAccess?, driveNote: String?
+        sources: [Source], allowance: TakeAllowance?, date: Date, pressPosition: Int?, capture: Capture, drive: DriveAccess?,
+        driveNote: String?
     ) throws -> TakePlan {
         guard let device else {
             drive?.end()
@@ -1017,9 +1029,10 @@ public final class Recorder {
         // timeline, and every Stem's time reference, begin that long before the press.
         let preRollFrames = max(0, min(
             Int((preRollSeconds * device.sampleRate).rounded()),
-            capture.preRoll?.totalWrittenFrames ?? 0,
-            // Leave the buffer's second of margin, so the writer can't overwrite what's being read.
-            (capture.preRoll?.capacity ?? 0) - Int(device.sampleRate.rounded())))
+            pressPosition ?? 0,
+            // What the buffer was made to keep. Its second of margin (so the writer can't overwrite what's being read) and
+            // its room for a Take that starts late (#915) are not Pre-roll.
+            Int((capture.preRollSeconds * device.sampleRate).rounded())))
         let pressReference = UInt64(date.timeIntervalSince(Calendar.current.startOfDay(for: date)) * Double(sampleRate))
         let timeReference = pressReference >= UInt64(preRollFrames) ? pressReference - UInt64(preRollFrames) : 0
         let resolved = naming.sources(for: sources, channelCount: capture.channelCount, allowance: allowance)
@@ -1041,7 +1054,7 @@ public final class Recorder {
         let specs = zip(channels, resolved).map { StemSpec(file: $0.stemFile, description: $1.name, isRecorded: recorded.contains($0.usbChannel)) }
         let info = StemWriter.Info(sampleRate: sampleRate, description: "", originator: "ShowRecorder", timeReference: timeReference, originationDate: date)
         return TakePlan(
-            show: show, takeFolders: takeFolders, metadata: metadata, specs: specs, info: info, preRollFrames: preRollFrames,
+            show: show, takeFolders: takeFolders, metadata: metadata, specs: specs, info: info, preRollFrames: preRollFrames, pressPosition: pressPosition,
             allowance: allowance, driveOnly: driveOnly, deviceOnly: deviceOnly, wanted: wanted, alreadyThere: alreadyThere)
     }
 
@@ -1051,7 +1064,8 @@ public final class Recorder {
         try TakeSession(
             show: plan.show, folders: plan.takeFolders, drive: plan.takeFolders[.drive] != nil ? drive : nil, metadata: plan.metadata,
             stems: plan.specs, info: plan.info, capture: capture, preRollFrames: plan.preRollFrames, makeStem: makeStem, freeSpace: freeSpace,
-            driveOnly: plan.driveOnly, deviceOnly: plan.deviceOnly, preparedDrive: preparedDrive)
+            driveOnly: plan.driveOnly, deviceOnly: plan.deviceOnly, preparedDrive: preparedDrive,
+            pressPosition: plan.pressPosition)
     }
 
     /// An error as the operator or a bug report can read it: its description, with the system error's domain and code

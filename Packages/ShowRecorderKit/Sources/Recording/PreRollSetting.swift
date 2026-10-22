@@ -20,10 +20,13 @@ public enum PreRollSetting {
         defaults.set(seconds, forKey: key)
     }
 
-    /// What the Armed recorder holds in memory for `seconds` of Pre-roll: that long plus a second of margin,
-    /// as 4-byte samples for every channel. Nothing when off.
+    /// Room the buffer keeps for a Take that starts while the Drive is prepared (#915): the Drive start deadline and a second.
+    public static let startHeadroomSeconds = 2.5
+
+    /// What the Armed recorder holds in memory for `seconds` of Pre-roll: that long plus a second of margin and the room for a
+    /// late start, as 4-byte samples for every channel. Nothing when off (the room for a late start is not Pre-roll).
     public static func memoryBytes(seconds: Double, channelCount: Int, sampleRate: Double) -> Int {
         guard seconds > 0 else { return 0 }
-        return Int((seconds + 1) * sampleRate) * channelCount * MemoryLayout<Float>.size
+        return Int((seconds + 1 + startHeadroomSeconds) * sampleRate) * channelCount * MemoryLayout<Float>.size
     }
 }
