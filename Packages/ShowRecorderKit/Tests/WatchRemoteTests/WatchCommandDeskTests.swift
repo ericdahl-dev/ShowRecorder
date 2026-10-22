@@ -11,6 +11,7 @@ struct WatchCommandDeskTests {
     final class Recorder {
         var isRecording = false
         var refusal: String?
+        var markerRefusal: String?
         var starts = 0, stops = 0, markers = 0
     }
 
@@ -31,14 +32,24 @@ struct WatchCommandDeskTests {
                 return true
             },
             marker: {
-                guard recorder.isRecording else { return false }
+                guard recorder.isRecording else { return WatchCommandDesk.notRecording }
+                if let refusal = recorder.markerRefusal { return refusal }
                 recorder.markers += 1
-                return true
+                return nil
             }))
     }
 
     static func command(_ kind: WatchCommand.Kind, at time: Date = t0) -> WatchCommand {
         WatchCommand(id: UUID(), kind: kind, sentAt: time)
+    }
+
+    @Test("A Marker the recorder didn't place is refused with why, not confirmed (#882)")
+    func markerNotPlaced() {
+        let recorder = Recorder()
+        recorder.isRecording = true
+        recorder.markerRefusal = "3 per Take on Free"
+        #expect(Self.desk(recorder).handle(Self.command(.marker)) == .refused("3 per Take on Free"))
+        #expect(recorder.markers == 0)
     }
 
     @Test("Start, Marker and Stop run the recorder's own actions and say they're done")

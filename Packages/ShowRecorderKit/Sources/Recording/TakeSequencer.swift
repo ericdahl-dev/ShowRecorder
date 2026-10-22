@@ -268,9 +268,12 @@ public final class TakeSequencer {
 
     /// Places a Marker in the running Take and tells it. Does nothing with no Take running, or past the Take's
     /// Marker limit (Free, #705).
-    public func addMarker(named name: String? = nil) {
-        guard recorder.isRecording, recorder.addMarker(named: name) else { return }
+    /// - Returns: whether a Marker was placed: none without a Take, or past the Take's Marker limit (#882).
+    @discardableResult
+    public func addMarker(named name: String? = nil) -> Bool {
+        guard recorder.isRecording, recorder.addMarker(named: name) else { return false }
         emit.yield(.markerPlaced(count: recorder.takeMarkers.count))
+        return true
     }
 
     /// Starts a Show on purpose, ending the open one (see `Recorder.startNewShow`). Never during a Take.

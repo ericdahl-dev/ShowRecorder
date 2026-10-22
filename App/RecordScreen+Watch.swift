@@ -45,9 +45,9 @@ extension RecordScreenModel {
                 return true
             },
             marker: { [weak self] in
-                guard let self, recorder.isRecording else { return false }
-                sequencer.addMarker()
-                return true
+                guard let self, recorder.isRecording else { return WatchCommandDesk.notRecording }
+                // Past the Free limit nothing is placed, and the watch says why instead of confirming it (#882).
+                return sequencer.addMarker() ? nil : "\(Entitlement.freeMarkerLimit) per Take on Free"
             })
     }
 }

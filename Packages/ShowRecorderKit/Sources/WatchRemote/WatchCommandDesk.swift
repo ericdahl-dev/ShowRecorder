@@ -12,10 +12,10 @@ public final class WatchCommandDesk {
         public var start: () -> String?
         /// Stops the running Take; false when there is none.
         public var stop: () -> Bool
-        /// Drops a Marker in the running Take; false when there is none.
-        public var marker: () -> Bool
+        /// Drops a Marker in the running Take: nil when it was placed, or why not (#882).
+        public var marker: () -> String?
 
-        public init(start: @escaping () -> String?, stop: @escaping () -> Bool, marker: @escaping () -> Bool) {
+        public init(start: @escaping () -> String?, stop: @escaping () -> Bool, marker: @escaping () -> String?) {
             self.start = start
             self.stop = stop
             self.marker = marker
@@ -59,7 +59,7 @@ public final class WatchCommandDesk {
         case .stop:
             return actions.stop() ? .done : .refused(Self.notRecording)
         case .marker:
-            return actions.marker() ? .done : .refused(Self.notRecording)
+            return actions.marker().map(WatchReply.refused) ?? .done
         }
     }
 }
