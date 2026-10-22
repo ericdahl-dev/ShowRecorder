@@ -46,26 +46,21 @@ struct OSCCodecTests {
         #expect(try OSCMessage(decoding: expected) == message)
     }
 
-    @Test("Blobs carry a length and are padded")
-    func blobRoundTrip() throws {
-        let message = OSCMessage("/b", [.blob([1, 2, 3, 4, 5])])
-        let expected = Self.bytes("2f620000 2c620000 00000005 01020304 05000000")
-
-        #expect(message.encoded() == expected)
-        #expect(try OSCMessage(decoding: expected) == message)
+    /// A bundle of `depth` bundles, one inside the next, around one message.
+    static func nestedBundle(depth: Int) -> [UInt8] {
+        var packet = OSCMessage("/a", [.int(1)]).encoded()
+        for _ in 0..<depth {
+            packet = bytes("2362756e 646c6500 00000000 00000001") + withUnsafeBytes(of: UInt32(packet.count).bigEndian) { Array($0) } + packet
+        }
+        return packet
     }
 
-    @Test("A bundle decodes into its messages")
-    func bundleDecodes() throws {
-        let first = OSCMessage("/a", [.int(1)])
-        let second = OSCMessage("/b", ["x"])
-        var packet = Self.bytes("2362756e 646c6500 00000000 00000001")  // "#bundle", timetag "immediately"
-        for message in [first, second] {
-            let element = message.encoded()
-            packet += withUnsafeBytes(of: UInt32(element.count).bigEndian) { Array($0) } + element
-        }
-
-        #expect(try OSCPacket(decoding: packet) == .bundle([.message(first), .message(second)]))
+    @Test("Bundles and blobs are refused, not decoded: neither mixer sends them, and nested bundles could crash the app (#886)")
+    func bundlesAndBlobsRefused() {
+        #expect(throws: OSCError.self) { try OSCPacket(decoding: Self.nestedBundle(depth: 1)) }
+        // About as deep as one 64 KB datagram allows: refused at once, with no recursion.
+        #expect(throws: OSCError.self) { try OSCPacket(decoding: Self.nestedBundle(depth: 3_000)) }
+        #expect(throws: OSCError.self) { try OSCMessage(decoding: Self.bytes("2f620000 2c620000 00000005 01020304 05000000")) }
     }
 
     @Test("Truncated or malformed data throws instead of crashing", arguments: [
