@@ -586,6 +586,66 @@ public final class Recorder {
         }
     }
 
+    /// Deletes Take `take`'s Device copy, once the Drive is checked to hold everything the Device holds of it (#925): the
+    /// check and delete of Delete from iPhone (#656, `releaseFromDevice`). A Take the Drive doesn't have is the only copy and
+    /// is deleted as it is, unless it was recorded for the Drive: then the Drive it was recorded to must be connected.
+    public func deleteDeviceCopy(of show: String, take: Int) async -> ShowDeleter.Outcome {
+        func refuse(_ reasons: [String]) -> ShowDeleter.Outcome { .init(deleted: [], failed: reasons.map { .init(copy: .device, reason: $0) }) }
+        switch deviceCopyDelete(of: show, take: take) {
+        case .refused(let reason): return refuse([reason])
+        case .onlyCopy: return deleteTake(take, ofShow: show, from: [.device])
+        case .checked: break
+        }
+        switch await releaseFromDevice(show: show, take: take) {
+        case .released:
+            // As `TakeDeleter` does: the Device's report and projects no longer list the Take.
+            let folder = deviceFolder.appending(path: show, directoryHint: .isDirectory)
+            try? ShowReport.write(showFolder: folder)
+            try? Show(name: show, folder: folder, takeCount: 0).writeProjects()
+            return .init(deleted: [.device], failed: [])
+        case .kept(let reasons): return refuse(reasons)
+        case .stopped: return refuse(["A Take started, so nothing was deleted."])
+        case .gone: return refuse(["There is no such Take in this Copy."])
+        }
+    }
+
+    /// What `deleteDeviceCopy(of:take:)` would do, for the Check the Drive copy button: passed where it deletes, failed
+    /// with why where it refuses. Deletes nothing.
+    public func checkDeviceCopyDelete(of show: String, take: Int) async -> CopyCheck.Result {
+        switch deviceCopyDelete(of: show, take: take) {
+        case .refused(let reason): return .failed([reason])
+        case .onlyCopy: return .passed
+        case .checked: break
+        }
+        switch await checkRelease(show: show, take: take) {
+        case .ok: return .passed
+        case .no(let reasons): return .failed(reasons)
+        case .stopped: return .failed(["A Take started. Check again after it."])
+        }
+    }
+
+    private enum DeviceCopyDelete { case refused(String), onlyCopy, checked }
+
+    /// Whether Take `take`'s Device copy is refused, is the only copy, or needs the Drive check first (#925).
+    private func deviceCopyDelete(of show: String, take: Int) -> DeviceCopyDelete {
+        if isRecording || isStarting { return .refused("A Take is running.") }
+        if show == currentShow?.name { return .refused("This Show is open. End it first.") }
+        let name = TakeMetadata.name(take: take)
+        let folder = deviceFolder.appending(path: show).appending(path: name)
+        guard FileManager.default.fileExists(atPath: folder.appending(path: TakeMetadata.fileName).path) else { return .onlyCopy }
+        guard let deviceTake = Self.readTake(at: folder) else {
+            return .refused("This Take's details can't be read on the Device, so it can't be checked against the Drive.")
+        }
+        let forDrive = deviceTake.driveOnly == true || deviceTake.standIns?.isEmpty == false
+        let access = driveFolder()
+        defer { access?.end() }
+        let onDrive = access.map { FileManager.default.fileExists(atPath: $0.folder.appending(path: show).appending(path: name).path) } ?? false
+        if onDrive { return .checked }
+        // The Device's is the only copy of a Take recorded to it; a Take recorded for the Drive needs its Drive checked.
+        if !forDrive { return .onlyCopy }
+        return access == nil ? .refused("This Take was recorded for the Drive. Connect that Drive, so it can be checked first.") : .checked
+    }
+
     /// Deletes Take `take` of Show `show` from the chosen Copies, for good, with the same refusals as `deleteShow`.
     public func deleteTake(_ take: Int, ofShow show: String, from copies: Set<DestinationKind>) -> ShowDeleter.Outcome {
         let kinds = copies.sorted { $0.index < $1.index }
