@@ -315,6 +315,16 @@ struct StandInMoveTests {
         ])
     }
 
+    @Test("After a move splits a Gap its stand-in can't fill, the mover skips the Take instead of nominating it again (#916)")
+    func moverSkipsAfterTheSplit() throws {
+        try make(standIn: .init(start: 2_400, end: 7_200), gap: 0..<7_200)
+        #expect(TakeMover.find(deviceFolder: root.appending(path: "Device"), driveFolder: root.appending(path: "Drive")).map(\.kind) == [.standIn])
+
+        _ = run()
+
+        #expect(TakeMover.find(deviceFolder: root.appending(path: "Device"), driveFolder: root.appending(path: "Drive")).map(\.kind) == [.skipped(.driveHasGaps)])
+    }
+
     @Test("A stand-in Stem holding more on disk than its header says keeps the Take: the tail is on the Device only (#871)")
     func standInTailPastItsHeader() throws {
         try make()
