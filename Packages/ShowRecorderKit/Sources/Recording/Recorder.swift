@@ -261,6 +261,17 @@ public final class Recorder {
     /// Takes this launch abandoned a Drive Copy of, by Show name: the writer thread may still be alive and writing, so recovery
     /// leaves them to the next launch.
     @ObservationIgnored private var abandonedThisLaunch: [String: Set<Int>] = [:]
+    /// The Drive writers Stop gave up on this launch, by Show name and Take: a move leaves their Takes while one still
+    /// runs, since it could write over what the move puts on the Drive (#916). Held weakly: a writer's thread keeps it
+    /// alive while it runs, and its open Stems close once it is gone.
+    @ObservationIgnored private var abandonedDriveWriters: [String: [Int: WeakWriter]] = [:]
+    struct WeakWriter { weak var writer: TakeWriter? }
+    /// Waits for the writers a move left Takes for, then moves again.
+    @ObservationIgnored private var writerWait: Task<Void, Never>?
+    /// The Shows and Takes whose abandoned Drive writer still runs.
+    private var runningDriveWriters: [String: Set<Int>] {
+        abandonedDriveWriters.mapValues { Set($0.filter { $0.value.writer?.isFinished == false }.keys) }.filter { !$0.value.isEmpty }
+    }
 
     /// Finishes the open Show's Drive Copies that Stop gave up on (#817) once the Drive is back: their Stems cover the audio
     /// on the Drive, and Repair fills what they lack from the Device. The app calls it at launch and when it comes to the
@@ -1382,6 +1393,9 @@ public final class Recorder {
         currentShow = finished.show ?? session.show
         if currentShow?.channelNames != channelNames { currentShow?.setChannelNames(channelNames, skipping: finished.abandoned) }
         if finished.abandoned.contains(.drive) { abandonedThisLaunch[session.show.name, default: []].insert(finished.metadata.take) }
+        if let writer = finished.abandonedDriveWriter {
+            abandonedDriveWriters[session.show.name, default: [:]][finished.metadata.take] = WeakWriter(writer: writer)
+        }
         suspectCopies = finished.abandoned
         for change in gainChangesWhileFinishing { currentShow?.logGainChange(change, skipping: finished.abandoned) }
         gainChangesWhileFinishing = []
@@ -1533,7 +1547,19 @@ public final class Recorder {
                 driveTake: driveTake, generation: generation)
         }
         driveOnlyScans += 1
-        let all = await runOffPool { TakeMover.find(deviceFolder: device, driveFolder: drive) }
+        let running = runningDriveWriters
+        // Writers that stopped, or are gone, are let go.
+        abandonedDriveWriters = abandonedDriveWriters.compactMapValues { takes in
+            let left = takes.filter { $0.value.writer?.isFinished == false }
+            return left.isEmpty ? nil : left
+        }
+        let all = await runOffPool { TakeMover.find(deviceFolder: device, driveFolder: drive) }.map { movable in
+            guard running[movable.show]?.contains(movable.take) == true else { return movable }
+            var waiting = movable
+            waiting.kind = .skipped(.driveStillWriting)
+            return waiting
+        }
+        if !running.isEmpty { moveOnceWritersStop() }
         driveOnlySkips = all.filter { if case .skipped = $0.kind { true } else { false } }
         let found = all.filter { $0.kind == .standIn || $0.kind == .deviceOnly || $0.kind == .redundant }
         // With the Device chosen the operator is asked first, once per Drive connection (#805). Device Copies the Drive
@@ -1567,6 +1593,20 @@ public final class Recorder {
         }
         await repair.wait()
         return finishMoveRun(from: first, keepingEarlier: keepsReport)
+    }
+
+    /// Once every Drive writer a move left a Take for has stopped, moves again (#916). One wait at a time; it looks once a
+    /// second, since such a writer finishes at most the one write it is stuck in.
+    private func moveOnceWritersStop() {
+        guard writerWait == nil else { return }
+        writerWait = Task { [weak self] in
+            // The Recorder isn't held through the sleeps.
+            while self?.runningDriveWriters.isEmpty == false {
+                try? await Task.sleep(for: .seconds(1))
+            }
+            self?.writerWait = nil
+            self?.driveMayHaveConnected()
+        }
     }
 
     /// What this move did, from `first` in `driveOnlyMoves`; kept for `moveReport` when it found something to say.

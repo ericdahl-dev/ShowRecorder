@@ -39,6 +39,32 @@ extension DriveOnlyTakeTests {
         #expect(recorder.copies[.drive] == .repaired)
     }
 
+    @Test("While the Drive writer Stop gave up on is still running, a move leaves its Take, with why; once it stops, the move goes ahead (#916)")
+    func moveWaitsForTheAbandonedWriter() async throws {
+        let gate = StopNeverBlocksTests.Gate()
+        defer { gate.open() }
+        let recorder = try await recordStandInKeptTake(gate: gate)
+
+        let waiting = await recorder.moveDriveOnlyTakes()
+
+        #expect(waiting.isEmpty)
+        #expect(recorder.driveOnlySkips.map(\.kind) == [.skipped(.driveStillWriting)])
+        #expect(recorder.moveReport.entries.first?.reasons == ["The Drive is still finishing a write for this Take. It moves after that."])
+        try expectStandInKept()
+
+        // Once the writer stops, the move goes ahead by itself, with moving on as the App has it.
+        let scans = recorder.driveOnlyScans
+        recorder.movesDriveOnlyTakes = true
+        try await waitUntil { recorder.driveOnlyScans > scans && !recorder.isMoving }
+        #expect(recorder.driveOnlySkips.map(\.kind) == [.skipped(.driveStillWriting)], "moving turned on still leaves it")
+        gate.open()
+        try await waitUntil(timeout: .seconds(20)) { recorder.driveOnlyMoves.contains { $0.outcome == .moved } }
+
+        #expect(recorder.driveOnlyMoves.map(\.outcome) == [.moved])
+        #expect(recorder.driveOnlySkips.isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "the Device's Take is gone")
+    }
+
     @Test("A kept stand-in that doesn't match the Drive stays on the Device, with why, and nothing is deleted (#630)")
     func moveKeepsMismatchingStandIn() async throws {
         let crashed = try await crashAfterStandIn()
