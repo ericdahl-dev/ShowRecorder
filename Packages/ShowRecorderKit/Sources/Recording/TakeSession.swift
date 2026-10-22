@@ -350,7 +350,10 @@ final class TakeSession {
             // One number for the standby's length here and in the stand-in's `end`: what it committed when Stop gave up on it (#664).
             let written = standby.writer.wasAbandoned ? standby.writer.framesKept : standby.writer.framesWritten
             all.insert(CopyCoverage.Copy(
-                kind: .device, written: standby.start == nil ? 0 : written, dropped: standby.writer.dropouts,
+                // A standby records nothing before it stands in, so it has lost no audio there: an input interruption it shared
+                // with the Drive before that is the Drive's Dropout alone (#903).
+                kind: .device, written: standby.start == nil ? 0 : written,
+                dropped: standby.writer.dropouts.map { $0.clamped(to: start..<Int.max) }.filter { !$0.isEmpty },
                 silence: [0..<min(start, written)],
                 stoppedEarly: standby.start == nil || standby.writer.hasFailed || standby.writer.neverJoined), at: 0)
         }
