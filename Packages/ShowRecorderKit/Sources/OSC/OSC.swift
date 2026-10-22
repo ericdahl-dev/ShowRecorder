@@ -3,7 +3,6 @@ public enum OSCArgument: Equatable, Sendable, ExpressibleByStringLiteral {
     case int(Int32)
     case float(Float)
     case string(String)
-    case blob([UInt8])
 
     public init(stringLiteral value: String) { self = .string(value) }
 
@@ -12,7 +11,6 @@ public enum OSCArgument: Equatable, Sendable, ExpressibleByStringLiteral {
         case .int: UInt8(ascii: "i")
         case .float: UInt8(ascii: "f")
         case .string: UInt8(ascii: "s")
-        case .blob: UInt8(ascii: "b")
         }
     }
 }
@@ -36,10 +34,6 @@ public struct OSCMessage: Equatable, Sendable {
             case .int(let value): out.appendBigEndian(UInt32(bitPattern: value))
             case .float(let value): out.appendBigEndian(value.bitPattern)
             case .string(let value): out.appendOSCString(value)
-            case .blob(let bytes):
-                out.appendBigEndian(UInt32(bytes.count))
-                out += bytes
-                out.padToFour()
             }
         }
         return out
@@ -57,40 +51,26 @@ public struct OSCMessage: Equatable, Sendable {
             case UInt8(ascii: "i"): arguments.append(.int(Int32(bitPattern: try reader.uint32())))
             case UInt8(ascii: "f"): arguments.append(.float(Float(bitPattern: try reader.uint32())))
             case UInt8(ascii: "s"): arguments.append(.string(try reader.string()))
-            case UInt8(ascii: "b"): arguments.append(.blob(try reader.blob()))
             default: throw .malformed("unsupported type tag \(Character(UnicodeScalar(tag)))")
             }
         }
     }
 }
 
-/// A received OSC packet: a message or a bundle of packets.
+/// A received OSC packet: one message. Bundles are refused (#886): neither the XR18 nor the X32 sends them, and
+/// decoding bundles nested in bundles could crash the app on a spoofed packet.
 public enum OSCPacket: Equatable, Sendable {
     case message(OSCMessage)
-    case bundle([OSCPacket])
 
     public init(decoding bytes: [UInt8]) throws(OSCError) {
-        guard bytes.starts(with: Array("#bundle\0".utf8)) else {
-            self = .message(try OSCMessage(decoding: bytes))
-            return
-        }
-        var reader = OSCReader(bytes)
-        _ = try reader.string()   // "#bundle"
-        _ = try reader.uint32()   // time tag, high
-        _ = try reader.uint32()   // time tag, low
-        var elements: [OSCPacket] = []
-        while !reader.isAtEnd {
-            let size = Int(try reader.uint32())
-            elements.append(try OSCPacket(decoding: try reader.bytes(size)))
-        }
-        self = .bundle(elements)
+        guard !bytes.starts(with: Array("#bundle\0".utf8)) else { throw .malformed("bundles aren't supported") }
+        self = .message(try OSCMessage(decoding: bytes))
     }
 
-    /// Every message in the packet, in order, with bundles flattened.
+    /// The packet's messages, in order.
     public var messages: [OSCMessage] {
         switch self {
         case .message(let message): [message]
-        case .bundle(let elements): elements.flatMap(\.messages)
         }
     }
 }
@@ -124,8 +104,6 @@ private struct OSCReader {
 
     init(_ bytes: [UInt8]) { self.bytes = bytes }
 
-    var isAtEnd: Bool { offset >= bytes.count }
-
     mutating func bytes(_ count: Int) throws(OSCError) -> [UInt8] {
         guard count >= 0, offset + count <= bytes.count else { throw .truncated }
         defer { offset += count }
@@ -143,14 +121,6 @@ private struct OSCReader {
         let padded = (end - offset + 1 + 3) & ~3
         guard offset + padded <= bytes.count else { throw .truncated }
         offset += padded
-        return value
-    }
-
-    mutating func blob() throws(OSCError) -> [UInt8] {
-        let count = Int(try uint32())
-        let value = try bytes(count)
-        offset += (4 - count % 4) % 4
-        guard offset <= bytes.count else { throw .truncated }
         return value
     }
 }
