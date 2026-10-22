@@ -71,6 +71,19 @@ final class TakeSession {
         var signal: TakeSignal
         /// Copies Stop gave up on (#320): their files are left as they are, and Repair doesn't touch them.
         var abandoned: Set<DestinationKind> = []
+        /// The Show with the Take's end written into it, when the finish was given one (`FinishInput.showEnd`).
+        var show: Show?
+    }
+
+    /// What the finish writes into the Show once the Take's files are final, so the main thread does none of that file work
+    /// (#652): a snapshot of the Show, the names typed and when the Take ended, and how to write them.
+    struct ShowEnd: Sendable {
+        var show: Show
+        var names: [Int: String]
+        var date: Date
+        var write: @Sendable (Show, [Int: String], Date, Set<DestinationKind>) -> Show
+        /// Rewrites the Show's report and Reaper project in every Copy but those skipped.
+        var reports: @Sendable (Show, Set<DestinationKind>) -> Void
     }
 
     /// How long Stop waits for each Copy's writer before giving it up (#320). Nil waits for ever.
@@ -446,6 +459,8 @@ final class TakeSession {
         let stopTimeout: Duration?
         /// The writers of `Take.json` during the Take, closed before the final write so none lands after it (#914).
         let takeJson: TakeJsonWriters
+        /// The Show's end-of-Take writes, made after the Take's own (#652); `Recorder` fills it in.
+        var showEnd: ShowEnd?
         /// Wait for a Destination that is slow but still writing, abandoning only one that has stopped (#817). Off for the
         /// inline finish, which holds the main thread.
         var progressBased = false
@@ -509,12 +524,19 @@ final class TakeSession {
         var folders: [DestinationKind: URL] = [:]
         folders[.device] = standbyFolder
         for copy in copies { folders[copy.kind] = copy.folder }
+        let abandoned = Set(copies.filter { $0.writer.wasAbandoned }.map(\.kind))
+            // A stand-in the Device stalled on is a Device Copy Stop gave up on too (#664).
+            .union(standby.map { $0.start != nil && $0.writer.wasAbandoned ? [DestinationKind.device] : [] } ?? [])
+        // A Copy Stop gave up on may hang on any file operation, so the Show is left alone there (#652).
+        let show = input.showEnd.map { end -> Show in
+            let written = end.write(end.show, end.names, end.date, abandoned)
+            end.reports(written, abandoned)
+            return written
+        }
         return Finished(
             metadata: metadata, folders: folders, access: copies.lazy.compactMap(\.access).first,
             signal: TakeSignal(recorded: metadata.usbChannels.count, withSignal: levels.channelsWithSignal(), loudest: levels.loudest()),
-            abandoned: Set(copies.filter { $0.writer.wasAbandoned }.map(\.kind))
-                // A stand-in the Device stalled on is a Device Copy Stop gave up on too (#664).
-                .union(standby.map { $0.start != nil && $0.writer.wasAbandoned ? [DestinationKind.device] : [] } ?? []))
+            abandoned: abandoned, show: show)
     }
 
     // MARK: - Drive join and rejoin
