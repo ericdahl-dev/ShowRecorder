@@ -1,4 +1,5 @@
 import AudioIO
+import BroadcastWave
 import Destinations
 import Foundation
 @testable import Recording
@@ -61,6 +62,22 @@ struct MarkerRenamerTests {
         let after = try copies.values.flatMap { copy in try stems.map { try ParsedStem(contentsOf: copy.appending(path: $0)) } }
         #expect(after.map(\.samples) == before.map(\.samples), "the audio is untouched")
         #expect(after.map(\.timeReference) == before.map(\.timeReference))
+    }
+
+    @Test("A Stem another program re-saved is left as it is, and the outcome names it (#881)")
+    func resavedStemIsLeftAlone() async throws {
+        try await recordTake()
+        let stem = take(device).appending(path: "02 USB 02.wav")
+        var bytes = [UInt8](try Data(contentsOf: stem))
+        bytes.insert(contentsOf: Array("JUNK".utf8) + [32, 0, 0, 0] + [UInt8](repeating: 0, count: 32), at: StemWriter.dataStart - 8)
+        try Data(bytes).write(to: stem)
+        let before = try Data(contentsOf: stem)
+
+        let outcome = MarkerRenamer.rename(markerAt: 1, to: "Chorus", in: [.device: take(device)], allowsProExtras: true)
+
+        #expect(outcome.failed.map(\.copy) == [.device])
+        #expect(outcome.failed.first?.reason.contains("02 USB 02.wav") == true, "\(outcome.failed)")
+        #expect(try Data(contentsOf: stem) == before)
     }
 
     @Test("With a Copy not reachable, the others are renamed and the outcome names the Copy that wasn't")

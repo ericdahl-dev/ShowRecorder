@@ -1,4 +1,5 @@
 import AudioIO
+import BroadcastWave
 import Destinations
 import Foundation
 @testable import Recording
@@ -62,6 +63,25 @@ struct ChannelRenamerTests {
             #expect(channels[0].stemFile == "01 USB 01.wav", "the other channel is untouched")
             #expect(try ParsedStem(contentsOf: copy.appending(path: "01 USB 01.wav")).description == "USB 01")
         }
+    }
+
+    @Test("A Stem another program re-saved isn't renamed or written: the file keeps its name and bytes, and the Take.json keeps the old name (#881)")
+    func resavedStemIsLeftAlone() async throws {
+        try await recordTake()
+        let stem = take(device).appending(path: "02 USB 02.wav")
+        var bytes = [UInt8](try Data(contentsOf: stem))
+        let dataChunk = StemWriter.dataStart - 8
+        bytes.insert(contentsOf: Array("JUNK".utf8) + [32, 0, 0, 0] + [UInt8](repeating: 0, count: 32), at: dataChunk)
+        try Data(bytes).write(to: stem)
+        let before = try Data(contentsOf: stem)
+
+        let outcome = ChannelRenamer.rename(names: [2: "Lead Vocal"], in: [.device: take(device)], allowsProExtras: true)
+
+        #expect(outcome.result == .noCopyUpdated)
+        #expect(outcome.failed.map(\.copy) == [.device])
+        #expect(try Data(contentsOf: stem) == before, "the Stem is as the other program left it, under its old name")
+        #expect(!FileManager.default.fileExists(atPath: take(device).appending(path: "02 Lead Vocal.wav").path))
+        #expect(try metadata(take(device)).usbChannels[1].name != "Lead Vocal")
     }
 
     @Test("The report and the Reaper project show the new name")

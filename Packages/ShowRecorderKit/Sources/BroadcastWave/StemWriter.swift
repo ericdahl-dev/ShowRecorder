@@ -65,7 +65,7 @@ public final class StemWriter: StemSink {
         self.url = url
         self.rf64Threshold = rf64Threshold
         guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
-            throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: url.path])
+            throw CocoaError(.fileReadCorruptFile, userInfo: [NSFilePathErrorKey: url.path])
         }
         handle = try FileHandle(forWritingTo: url)
         let header = Self.header(info: info)
@@ -155,7 +155,14 @@ public final class StemWriter: StemSink {
     /// Reopens the Stem at `url` to write into it again: `overwrite` over its Gaps, `append` after its
     /// last whole sample. The header is kept as it is; only the sizes are rewritten at `finalize`.
     public static func reopen(url: URL) throws -> StemWriter {
-        let frames = try StemFile.inspect(url).framesOnDisk
+        let stem = try StemFile.inspect(url)
+        // A Stem a DAW re-saved can start its audio later than this writer's header does. Writing at this writer's offsets
+        // would cut it short and write over the start of its audio (#881): refused, nothing is touched.
+        guard stem.dataStart == UInt64(dataStart) else {
+            throw CocoaError(.fileWriteUnknown, userInfo: [
+                NSFilePathErrorKey: url.path, NSLocalizedDescriptionKey: "\(url.lastPathComponent) was saved by another program and can't be edited here."])
+        }
+        let frames = stem.framesOnDisk
         // A resumed Stem keeps its own header, so this Info is only used to find where the sizes and
         // Marker region are, and is the same for every Stem.
         let info = Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: Date(timeIntervalSince1970: 0))
