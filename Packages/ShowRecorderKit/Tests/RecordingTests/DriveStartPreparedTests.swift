@@ -363,7 +363,7 @@ struct DriveStartPreparedTests {
         #expect(released.n == 1, "the access Repair gets is the prepared one")
     }
 
-    @Test("A session that can't start on the Device cleans up the prepared Drive it was given")
+    @Test("A session that can't start on the Device leaves the prepared Drive to its caller, who discards it off the main thread")
     func initFailureCleansUp() throws {
         struct Boom: Error {}
         let (show, deviceFolders, metadata) = try deviceTake()
@@ -380,6 +380,9 @@ struct DriveStartPreparedTests {
                 makeStem: { _, _, _ in throw Boom() }, freeSpace: { _ in .max }, preparedDrive: prepared)
         }
 
+        #expect(FileManager.default.fileExists(atPath: prepared.folder.path), "the session leaves the Drive to its caller")
+        #expect(released.n == 0)
+        TakeSession.discardDriveStart(prepared)
         #expect(!FileManager.default.fileExists(atPath: prepared.folder.path))
         #expect(released.n == 1)
     }
