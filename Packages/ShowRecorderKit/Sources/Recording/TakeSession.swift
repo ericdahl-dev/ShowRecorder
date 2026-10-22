@@ -123,8 +123,16 @@ final class TakeSession {
         show: Show, folders: [DestinationKind: URL], drive: DriveAccess?, metadata: TakeMetadata, stems: [StemSpec],
         info: StemWriter.Info, capture: Capture, preRollFrames: Int = 0,
         makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink,
-        freeSpace: @escaping (URL) -> Int64, driveOnly: Bool = false, deviceOnly: Bool = false
+        freeSpace: @escaping (URL) -> Int64, driveOnly: Bool = false, deviceOnly: Bool = false, preparedDrive: PreparedDrive? = nil
     ) throws {
+        // A prepared Drive is the one source of the Drive's folder and access (#914).
+        precondition(preparedDrive == nil || !deviceOnly, "a prepared Drive for a Take kept off the Drive")
+        var folders = folders
+        var drive = drive
+        if let preparedDrive {
+            folders[.drive] = preparedDrive.folder
+            drive = preparedDrive.access
+        }
         self.show = show
         var metadata = metadata
         // Every Copy's Take.json says the Take is Drive only, so one left on the Device can be found and moved (#630).
@@ -165,17 +173,29 @@ final class TakeSession {
             }, head: head)
             standby = Standby(folder: folders[.device]!, feed: feed, writer: writer, sinks: sinks)
         }
-        for kind in DestinationKind.allCases where !(standingBy && kind == .device) {
-            guard let folder = folders[kind] else { continue }
-            let feed = feeds[kind]!
-            let sinks: [any StemSink] = try stems.map { spec in
-                spec.isRecorded ? try makeStem(folder.appending(path: spec.file), info.described(spec.description), nil) : DiscardingSink()
+        // A Take that can't start on the Device drops the Drive that was prepared for it.
+        do {
+            for kind in DestinationKind.allCases where !(standingBy && kind == .device) {
+                guard let folder = folders[kind] else { continue }
+                let feed = feeds[kind]!
+                // A Drive prepared before the session has its Stems and `Take.json` already, made off the main actor (#914).
+                let sinks: [any StemSink]
+                if kind == .drive, let preparedDrive {
+                    sinks = preparedDrive.sinks
+                } else {
+                    sinks = try stems.map { spec in
+                        spec.isRecorded ? try makeStem(folder.appending(path: spec.file), info.described(spec.description), nil) : DiscardingSink()
+                    }
+                    try metadata.write(to: folder)
+                }
+                records.append(CopyRecord(
+                    kind: kind, folder: folder, feed: feed,
+                    writer: makeWriter(feed: feed, stems: sinks, head: head),
+                    access: kind == .drive ? drive : nil))
             }
-            try metadata.write(to: folder)
-            records.append(CopyRecord(
-                kind: kind, folder: folder, feed: feed,
-                writer: makeWriter(feed: feed, stems: sinks, head: head),
-                access: kind == .drive ? drive : nil))
+        } catch {
+            if let preparedDrive { Self.discardDriveStart(preparedDrive) }
+            throw error
         }
         for record in records {
             capture.begin(record.feed, joinedAt: head == nil ? 0 : nil)
@@ -536,10 +556,12 @@ final class TakeSession {
         let freeSpace: (URL) -> Int64
         let reserve: SpaceReserve
         let cancel: AttachCancel
+        /// False for the job that starts a Take (#914): it never writes the Device's `Show.json`.
+        var writesDeviceShow = true
     }
 
     /// What the file work made, for the wiring on the main actor to take up.
-    private struct PreparedDrive: @unchecked Sendable {
+    struct PreparedDrive: @unchecked Sendable {
         let show: Show
         let folder: URL
         let sinks: [any StemSink]
@@ -614,8 +636,11 @@ final class TakeSession {
         do {
             let folder: URL
             if job.old == nil {
+                guard !job.cancel.isCanceled else { throw AttachCanceled() }
                 guard !job.reserve.isLow(free: job.freeSpace(access.folder)) else { access.end(); return nil }
-                folder = try show.joinDrive(access.folder)
+                // A cancel that came while the stick was answering stops the job before it writes anything.
+                guard !job.cancel.isCanceled else { throw AttachCanceled() }
+                folder = try show.joinDrive(access.folder, writingDevice: job.writesDeviceShow)
                 madeFolder = folder
             } else {
                 // The Drive may have come back at a different path (a remount), so find the Take folder
@@ -663,6 +688,34 @@ final class TakeSession {
         }
     }
 
+    /// The Drive's file work for a Take that is about to start, done before its session exists (#914): the Drive's access
+    /// (`drive` is asked here, so a stick that is slow to answer holds this thread and not the main actor), the Show and
+    /// Take folders on it, the Stems and `Take.json`. `show` has its Take number and Device folder already. Nil when the
+    /// Drive isn't there, has no room, a file failed or `cancel` was set; whatever was made is then cleaned up (only the Take
+    /// folder this call made, never the Show folder or an earlier Take) and the access let go. Touches nothing else, so it
+    /// can run on any thread.
+    nonisolated static func prepareDriveStart(
+        show: Show, metadata: TakeMetadata, stems: [StemSpec], info: StemWriter.Info,
+        makeStem: @escaping @Sendable (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink,
+        freeSpace: @escaping @Sendable (URL) -> Int64, drive: @Sendable () -> DriveAccess?, cancel: AttachCancel
+    ) -> PreparedDrive? {
+        guard !cancel.isCanceled, let access = drive() else { return nil }
+        let job = DriveAttachJob(
+            old: nil, show: show, metadata: metadata, stems: stems, info: info, makeStem: makeStem, freeSpace: freeSpace,
+            reserve: SpaceReserve(channelCount: metadata.usbChannels.count, sampleRate: info.sampleRate), cancel: cancel,
+            writesDeviceShow: false)
+        return prepareDrive(job, access: access)
+    }
+
+    /// Drops a prepared Drive the Take will not use (the deadline came as the job finished, or the session could not
+    /// start): the Stems are closed, the Take folder the job made is removed, the access is let go. The Show folder on the
+    /// Drive and earlier Takes stay, and no `Show.json` is written.
+    nonisolated static func discardDriveStart(_ prepared: PreparedDrive) {
+        for sink in prepared.sinks { try? sink.finalize() }
+        try? FileManager.default.removeItem(at: prepared.folder)
+        prepared.access.end()
+    }
+
     /// A join that finished its file work too late to be part of the Take.
     nonisolated private static func discard(_ prepared: PreparedDrive, old: CopyRecord?, job: DriveAttachJob) {
         for sink in prepared.sinks { try? sink.finalize() }
@@ -677,7 +730,7 @@ final class TakeSession {
     /// exists. A first join that comes to nothing writes the Device's back as it was; the empty Show folder on the Drive
     /// stays, as it does for any Show whose Drive Copy was never written.
     nonisolated private static func takeBackDriveClaim(_ job: DriveAttachJob) {
-        guard job.old == nil, !job.show.driveCopyWritten else { return }
+        guard job.old == nil, job.writesDeviceShow, !job.show.driveCopyWritten else { return }
         try? job.show.file.write(to: job.show.folder)
     }
 
