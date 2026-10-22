@@ -27,8 +27,10 @@ struct DeleteShowSheet: View {
         if isOpenShow { return "This Show is open. End it first (tap the Show name on the record screen)." }
         return nil
     }
-    /// Deleting only the Device copy of a Show that has a Drive copy is allowed after the Drive copy is checked.
-    private var needsCheck: Bool { take == nil && chosen == [.device] && show.driveCopy != nil }
+    /// Deleting only the Device copy of a Show, or of one Take (#925), that has a Drive copy is allowed after the Drive copy is checked.
+    private var needsCheck: Bool { channel == nil && chosen == [.device] && show.driveCopy != nil }
+    /// Deleting one Take's Device copy goes through the Drive check whenever it runs (#925).
+    private var deletesTakeDeviceCopy: Bool { take != nil && channel == nil && chosen == [.device] }
     private var confirmation: DeleteConfirmation { DeleteConfirmation.needed(take: take, channel: channel) }
     private var checkPassed: Bool { check == .passed }
     private var chosen: Set<DestinationKind> {
@@ -72,7 +74,9 @@ struct DeleteShowSheet: View {
                     } header: {
                         Text("Check first")
                     } footer: {
-                        Text("The Device copy is only deleted when every Take and channel is on the Drive with the same audio and no Gaps.")
+                        Text(take == nil
+                            ? "The Device copy is only deleted when every Take and channel is on the Drive with the same audio and no Gaps."
+                            : "The Device copy is only deleted when the Drive holds all the audio the Device holds of this Take.")
                     }
                 }
                 if confirmation == .typedName {
@@ -127,12 +131,17 @@ struct DeleteShowSheet: View {
         checking = true
         check = nil
         Task {
-            check = await model.recorder.checkDriveCopy(of: show.name)
+            if let take { check = await model.recorder.checkDeviceCopyDelete(of: show.name, take: take) }
+            else { check = await model.recorder.checkDriveCopy(of: show.name) }
             checking = false
         }
     }
 
     private func delete() {
+        if let take, deletesTakeDeviceCopy {
+            Task { finish(await model.recorder.deleteDeviceCopy(of: show.name, take: take)) }
+            return
+        }
         if needsCheck {
             Task { finish(await model.recorder.deleteDeviceCopy(of: show.name)) }
             return
