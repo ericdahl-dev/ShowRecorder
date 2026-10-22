@@ -37,7 +37,9 @@ public enum Entitlement {
     public static func tier(ownsPro: Bool, trialStartedAt: Date?, now: Date) -> Tier {
         if ownsPro { return .pro }
         guard let trialStartedAt else { return .free }
-        let left = trialEnd(startedAt: trialStartedAt).timeIntervalSince(now)
+        // A clock more than a day before the Trial started was set back: the Trial reads as ended (#883).
+        guard now >= trialStartedAt.addingTimeInterval(-86_400) else { return .free }
+        let left = min(trialEnd(startedAt: trialStartedAt).timeIntervalSince(now), trialLength)
         guard left > 0 else { return .free }
         return .trial(daysLeft: Int((left / 86_400).rounded(.up)))
     }

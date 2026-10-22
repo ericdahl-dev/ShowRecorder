@@ -17,6 +17,10 @@ struct EntitlementTests {
     @Test("A Trial lasts 14 days: 14 days left on day 0, 1 on day 13, Free from the moment 14 days have passed")
     func trial() {
         #expect(Entitlement.tier(ownsPro: false, trialStartedAt: start, now: start) == .trial(daysLeft: 14))
+        // The edges: a day before still counts, a second more doesn't, and the end is Free.
+        #expect(Entitlement.tier(ownsPro: false, trialStartedAt: start, now: start.addingTimeInterval(-86_400)) == .trial(daysLeft: 14))
+        #expect(Entitlement.tier(ownsPro: false, trialStartedAt: start, now: start.addingTimeInterval(-86_401)) == .free)
+        #expect(Entitlement.tier(ownsPro: false, trialStartedAt: start, now: Entitlement.trialEnd(startedAt: start)) == .free)
         #expect(Entitlement.tier(ownsPro: false, trialStartedAt: start, now: day(13)) == .trial(daysLeft: 1))
         #expect(Entitlement.tier(ownsPro: false, trialStartedAt: start, now: day(13.9)) == .trial(daysLeft: 1))
         #expect(Entitlement.tier(ownsPro: false, trialStartedAt: start, now: day(14)) == .free)
@@ -75,5 +79,18 @@ struct EntitlementTests {
         #expect(free.recordedChannels == Set(1...18))
         let trial = try #require(License(proOffered: true, tier: .trial(daysLeft: 3), trialStarted: true).allowance(channelCount: 18))
         #expect(trial.recordedChannels.count == 18)
+    }
+
+    @Test("A clock set back before the Trial started reads as ended, and days left never pass 14 (#883)")
+    func clockSetBack() {
+        let start = Date(timeIntervalSince1970: 1_791_331_200)
+        #expect(Entitlement.tier(ownsPro: false, trialStartedAt: start, now: start.addingTimeInterval(-365 * 86_400)) == .free)
+        // Within a day before the start (clock drift, time zones) the Trial still counts, at most 14 days.
+        #expect(Entitlement.tier(ownsPro: false, trialStartedAt: start, now: start.addingTimeInterval(-3_600)) == .trial(daysLeft: 14))
+        #expect(Entitlement.tier(ownsPro: false, trialStartedAt: start, now: start) == .trial(daysLeft: 14))
+        // The edges: a day before still counts, a second more doesn't, and the end is Free.
+        #expect(Entitlement.tier(ownsPro: false, trialStartedAt: start, now: start.addingTimeInterval(-86_400)) == .trial(daysLeft: 14))
+        #expect(Entitlement.tier(ownsPro: false, trialStartedAt: start, now: start.addingTimeInterval(-86_401)) == .free)
+        #expect(Entitlement.tier(ownsPro: false, trialStartedAt: start, now: Entitlement.trialEnd(startedAt: start)) == .free)
     }
 }
