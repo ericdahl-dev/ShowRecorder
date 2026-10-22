@@ -72,9 +72,7 @@ public enum MarkerRenamer {
 
         // The cue points a Copy's Stems carry: the operator's Markers, routing changes, and a Dropout cue where this
         // Copy lost audio.
-        let cues = (take.stemCueMarkers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
-            + take.dropouts.filter { $0.copy == copy }.map { StemMarker(position: UInt32(clamping: $0.start), label: "Dropout") })
-            .sorted { $0.position < $1.position }
+        let cues = take.stemCues(for: copy)
         // Every Stem is tried, so one bad file doesn't leave the others with the old name.
         var unreadable: [String] = []
         // A stand-in kept on the Device has its Stems in its own folder, counting from its start (#622).

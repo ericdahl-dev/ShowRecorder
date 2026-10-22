@@ -281,7 +281,6 @@ final class TakeRepair {
     nonisolated static func fill(
         copies: [Copy], metadata: TakeMetadata, skip: Set<DestinationKind> = [], shouldStop: () -> Bool = { false }
     ) -> [TakeMetadata.Repair] {
-        let markers = metadata.markers.map { StemMarker(position: UInt32(clamping: $0.position), label: $0.name) }
         let stems = metadata.usbChannels.map(\.stemFile)
         let length = length(copies: copies, metadata: metadata)
 
@@ -289,6 +288,7 @@ final class TakeRepair {
         for target in copies where !skip.contains(target.kind) {
             let gaps = metadata.gaps.filter { $0.copy == target.kind }
             guard !gaps.isEmpty else { continue }
+            let markers = metadata.stemCues(for: target.kind)
             let source = copies.first { $0.kind != target.kind }
             let sourceGaps = metadata.gaps.filter { $0.copy != target.kind }.map { $0.start..<$0.end }
 
