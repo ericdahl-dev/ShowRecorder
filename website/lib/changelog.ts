@@ -14,6 +14,18 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.15",
+    date: "2026-10-22",
+    channel: "TestFlight beta",
+    summary: "Record no longer freezes the screen on a slow USB stick.",
+    changes: [
+      "Pressing Record no longer freezes the screen while the app waits on the Drive. The button says Starting for at most about 1.5 seconds, and a Drive that is slower starts the Take on this iPhone and joins when it is ready.",
+      "During a Take, Markers, Gaps and Dropouts are written without freezing the screen, and names typed during a Take are put on its files after Stop the same way.",
+      "Recording to the Drive only, a Take left on this iPhone is no longer re-read on every move, and a Drive Copy whose write failed is finished when the Drive is back.",
+      "Deleting one Take's Device copy checks the Drive first.",
+    ],
+  },
+  {
     version: "1.1.14",
     date: "2026-10-20",
     channel: "TestFlight beta",
