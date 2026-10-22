@@ -138,7 +138,8 @@ final class TakeSession {
         show: Show, folders: [DestinationKind: URL], drive: DriveAccess?, metadata: TakeMetadata, stems: [StemSpec],
         info: StemWriter.Info, capture: Capture, preRollFrames: Int = 0,
         makeStem: @escaping (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink,
-        freeSpace: @escaping (URL) -> Int64, driveOnly: Bool = false, deviceOnly: Bool = false, preparedDrive: PreparedDrive? = nil
+        freeSpace: @escaping (URL) -> Int64, driveOnly: Bool = false, deviceOnly: Bool = false, preparedDrive: PreparedDrive? = nil,
+        pressPosition: Int? = nil
     ) throws {
         // A prepared Drive is the one source of the Drive's folder and access (#914).
         precondition(preparedDrive == nil || !deviceOnly, "a prepared Drive for a Take kept off the Drive")
@@ -165,11 +166,17 @@ final class TakeSession {
         // One writer per Copy, each draining its own ring, so a slow Drive never holds up the Device.
         // With Pre-roll each Copy waits for the real-time thread's first block, then writes the Pre-roll
         // before the live audio.
-        let head: (() -> [[Float]]?)? = preRollFrames > 0 && capture.preRoll != nil
+        let head: (() -> [[Float]]?)? = (preRollFrames > 0 || pressPosition != nil) && capture.preRoll != nil
             ? { [capture] in
                 let start = capture.preRollStart.load(ordering: .acquiring)
-                guard start >= preRollFrames else { return nil }
-                return capture.preRoll?.read(frames: (start - preRollFrames)..<start)
+                guard start >= preRollFrames, let buffer = capture.preRoll else { return nil }
+                // From the press minus Pre-roll (#915): the Take's frame 0. The buffer's writer must never overtake the
+                // read, so the last second it holds is left alone; what lies before that is silence, recorded as a Gap.
+                let wanted = (pressPosition ?? start) - preRollFrames
+                let oldest = start - (buffer.capacity - capture.framesPerSecond)
+                let from = max(wanted, oldest, 0)
+                guard from < start else { return nil }
+                return buffer.read(frames: from..<start)
             } : nil
         var records: [CopyRecord] = []
         precondition(DestinationKind.allCases.count <= capture.feeds.count, "more Copy kinds than Capture feeds")
@@ -215,7 +222,7 @@ final class TakeSession {
             standby.writer.start()
         }
         copies = records
-        capture.startCapturing(copies: folders.count, preRollFrames: head == nil ? 0 : preRollFrames)
+        capture.startCapturing(copies: folders.count, preRollFrames: head == nil ? 0 : preRollFrames, pressPosition: head == nil ? nil : pressPosition)
     }
 
     /// How much of the Take the standby holds: the Drive's ring (4 s), the time to notice it is lost and a margin.

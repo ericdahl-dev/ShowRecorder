@@ -268,7 +268,12 @@ final class TakeWriter: @unchecked Sendable {
     /// the Pre-roll head when there is one, then silence up to the join.
     private func writeLeadIn(join: Int) throws {
         if let head, join > 0, framesWritten == 0, let samples = head(), samples.count == stems.count,
-           samples.allSatisfy({ $0.count == join }) {
+           let count = samples.first?.count, count <= join, samples.allSatisfy({ $0.count == count }) {
+            // A head that does not reach the Take's start (#915: the buffer lost it) is preceded by silence, as a Gap.
+            if join > count {
+                leadGapRange.withLock { $0 = 0..<(join - count) }
+                try writeSilence(join - count)
+            }
             for (index, stem) in stems.enumerated() {
                 try samples[index].withUnsafeBufferPointer { try stem.append($0) }
                 noteProgress()
