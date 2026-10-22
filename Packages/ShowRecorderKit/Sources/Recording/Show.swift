@@ -204,6 +204,13 @@ public struct Show: Sendable, Equatable {
         return takeFolder
     }
 
+    /// Gives back the Take number a start that came to nothing used (#914), in `Show.json` too.
+    mutating func giveBackTake() {
+        guard takeCount > 0 else { return }
+        takeCount -= 1
+        try? file.write(to: folder)
+    }
+
     /// Creates "Take NN" for the next Take in every Copy, the Device's first, and returns the folders by Copy.
     mutating func createNextTakeFolder() throws -> [DestinationKind: URL] {
         takeCount += 1

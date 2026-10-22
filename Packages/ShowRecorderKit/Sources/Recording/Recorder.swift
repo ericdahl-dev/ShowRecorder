@@ -149,6 +149,10 @@ public final class Recorder {
     /// Whether that job is still running: the Drive does not join the Take until it has finished (#914), as both make the
     /// Take's folder on the Drive.
     @ObservationIgnored private var driveStartJobsRunning = 0
+    /// A Stop came while the Take was starting: the start ends without a Take (#914).
+    @ObservationIgnored private var startCanceled = false
+    /// The meeting point of the Drive start under way, so a cancel need not wait out the deadline.
+    @ObservationIgnored private var driveStartHandoff: DriveStartHandoff?
 
     /// Where a Take is written (#805): the Device, the Drive (Drive only, ADR 0006: the Device stands in only for what
     /// the Drive can't take), or Both. Read at each record press. The App sets it from `RecordToSetting` where
@@ -717,7 +721,11 @@ public final class Recorder {
         guard !isFinishing else { throw RecorderError.finishing }
         guard !isRecording, !isStarting else { return }
         isStarting = true
-        defer { isStarting = false }
+        startCanceled = false
+        defer {
+            isStarting = false
+            driveStartHandoff = nil
+        }
         let date = now()
         endIdleShow(at: date)
 
@@ -730,7 +738,6 @@ public final class Recorder {
         var onScreen = driveNote
         // The Device's side first: the Show and the Take folder there, and what the session is made from. Nothing of the
         // Drive's is touched on this thread.
-        let showBefore = currentShow
         var plan = try planTake(sources: sources, allowance: allowance, date: date, capture: capture, drive: nil, driveNote: driveNote)
         // The Show has this Take from now on: a gain change or a name typed while the Drive is prepared lands on it, and is
         // still there when the session is made.
@@ -753,11 +760,12 @@ public final class Recorder {
         }
         plan.metadata.driveNote = driveNote
         // The input may have been disarmed, or another one Armed, while the Drive was working: this Take is not for it.
-        guard self.capture === capture else {
+        // Nor is one that Stop canceled.
+        guard self.capture === capture, !startCanceled else {
             if let prepared { await runOffPool { TakeSession.discardDriveStart(prepared) } }
             plan.undo()
-            currentShow = showBefore ?? currentShow
-            throw RecorderError.notArmed
+            giveBackTake(of: plan)
+            throw self.capture === capture ? RecorderError.startCanceled : RecorderError.notArmed
         }
         // What the Show took meanwhile (gain changes, names) comes along; the Drive the job prepared joins it.
         if let current = currentShow, current.folder == plan.show.folder { plan.show = current }
@@ -769,7 +777,7 @@ public final class Recorder {
             // The session leaves a prepared Drive to us, and its cleanup is file work for a thread of its own.
             if let prepared { await runOffPool { TakeSession.discardDriveStart(prepared) } }
             plan.undo()
-            currentShow = showBefore ?? currentShow
+            giveBackTake(of: plan)
             throw error
         }
         // The job leaves the Device's Show.json alone; the Show now says a Drive Copy was written.
@@ -807,6 +815,7 @@ public final class Recorder {
             await job.value
             self?.driveStartJobsRunning -= 1
         }
+        driveStartHandoff = handoff
         let deadline = driveStartDeadline
         let timer = Task {
             do { try await Task.sleep(for: deadline) } catch { return }
@@ -822,6 +831,19 @@ public final class Recorder {
             if let prepared = finished.prepared { return .prepared(prepared) }
             return finished.noDrive ? .noDrive(problem: finished.problem) : .failed
         }
+    }
+
+    /// A start that came to nothing: the Show takes back the Take number its plan used.
+    private func giveBackTake(of plan: TakePlan) {
+        guard currentShow?.folder == plan.show.folder else { return }
+        currentShow?.giveBackTake()
+    }
+
+    /// Stop came while a Take was starting (`isStarting`): the start ends without a Take, and its Drive work is undone.
+    func cancelStart() {
+        guard isStarting else { return }
+        startCanceled = true
+        driveStartHandoff?.timeOut()
     }
 
     /// Waits for the Drive start job, if one is running (a Take whose Drive was too slow leaves it to finish and clean up).
@@ -1673,6 +1695,8 @@ public enum RecorderError: Error, Equatable, LocalizedError {
     case takeRunning
     /// The last Take's Copies are still being written (#652).
     case finishing
+    /// Stop came while the Take was starting (#914).
+    case startCanceled
 
     public var errorDescription: String? {
         switch self {

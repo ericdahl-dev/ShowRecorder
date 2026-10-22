@@ -208,26 +208,54 @@ public final class TakeSequencer {
     public func record(sources: [Source], allowance: TakeAllowance?, soundcheck: Bool = false) -> Bool {
         // `Recorder.startTake` ignores a start in the middle of a Take, so this must too: no new start time,
         // Soundcheck flag, event or cleared error (#695).
-        guard !recorder.isRecording else { return false }
+        guard !recorder.isRecording, !recorder.isStarting else { return false }
         do {
             try recorder.startTake(sources: sources, allowance: allowance)
-            soundcheckTake = soundcheck
-            takeStartedAt = now()
-            recordError = nil
-            emit.yield(.takeStarted(take: recorder.currentShow?.takeCount ?? 0))
-            // Told at once, so the notice clears with the press; a restart (input still stopped, #877) runs after.
-            let response = interruptions.handle(.takeStarted, isRecording: recorder.isRecording)
-            if response.action != .none { Task { [weak self] in await self?.perform(response) } }
-            tellInputState()
-            return true
+            return takeStarted(soundcheck: soundcheck)
         } catch {
             recordError = "Couldn't start recording: \(error.localizedDescription)"
             return false
         }
     }
 
+    /// `record` without the main actor waiting on the Drive (#914): the Drive's folders and Stems are made on a thread of
+    /// its own, and the Take starts once they are, or on the Device alone when the Drive is slower than
+    /// `Recorder.defaultDriveStartDeadline`. `Recorder.isStarting` is true meanwhile; a `stop()` that comes then cancels the
+    /// start. Returns whether a Take started.
+    @discardableResult
+    public func recordOffMain(sources: [Source], allowance: TakeAllowance?, soundcheck: Bool = false) async -> Bool {
+        guard !recorder.isRecording, !recorder.isStarting else { return false }
+        do {
+            try await recorder.startTakeOffMain(sources: sources, allowance: allowance)
+            return takeStarted(soundcheck: soundcheck)
+        } catch RecorderError.startCanceled {
+            return false
+        } catch {
+            recordError = "Couldn't start recording: \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    /// What a started Take sets and tells.
+    private func takeStarted(soundcheck: Bool) -> Bool {
+        soundcheckTake = soundcheck
+        takeStartedAt = now()
+        recordError = nil
+        emit.yield(.takeStarted(take: recorder.currentShow?.takeCount ?? 0))
+        // Told at once, so the notice clears with the press; a restart (input still stopped, #877) runs after.
+        let response = interruptions.handle(.takeStarted, isRecording: recorder.isRecording)
+        if response.action != .none { Task { [weak self] in await self?.perform(response) } }
+        tellInputState()
+        return true
+    }
+
     /// Ends the running Take.
     public func stop() async {
+        // A Take that is still starting (#914) has nothing to save: Stop ends the start.
+        if recorder.isStarting {
+            recorder.cancelStart()
+            return
+        }
         // The start time stays while the Take is being saved (the screen freezes its timer on it); the end clears it.
         // Not if a later Take has started meanwhile (a second Stop that waited for the save returns after it).
         defer { if !recorder.isRecording, !recorder.isFinishing { takeStartedAt = nil } }

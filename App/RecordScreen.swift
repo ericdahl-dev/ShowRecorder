@@ -288,7 +288,14 @@ struct RecordScreen: View {
     }
 
     @ViewBuilder private func recordButton(size: CGFloat) -> some View {
-        if model.recorder.isFinishing {
+        if model.recorder.isStarting {
+            // Record was pressed; the Drive's files are being made off the main thread (#914). Not tappable: a second press
+            // does nothing, and a Stop from the watch cancels the start.
+            Button {} label: { FinishingButtonLabel(size: size, title: "Starting…") }
+                .buttonStyle(.plain)
+                .disabled(true)
+                .accessibilityLabel("Starting the Take")
+        } else if model.recorder.isFinishing {
             // Stop was accepted; the Stems are still being written. Not tappable, so nothing starts or stops meanwhile.
             Button {} label: { FinishingButtonLabel(size: size) }
                 .buttonStyle(.plain)
@@ -326,7 +333,7 @@ struct RecordScreen: View {
         .opacity(model.recorder.isRecording ? 1 : 0.55)
         .accessibilityLabel("Add Marker")
         .accessibilityValue(model.recorder.takeMarkers.count == 1 ? "1 Marker" : "\(model.recorder.takeMarkers.count) Markers")
-        .accessibilityHint(model.recorder.isRecording ? "" : model.recorder.isFinishing ? "Not while the Take is being saved" : "Available during a Take")
+        .accessibilityHint(model.recorder.isRecording ? "" : model.recorder.isFinishing ? "Not while the Take is being saved" : model.recorder.isStarting ? "Not while the Take is starting" : "Available during a Take")
         .sensoryFeedback(.success, trigger: model.recorder.takeMarkers.count) { old, new in new > old }
     }
 
@@ -667,7 +674,7 @@ final class RecordScreenModel {
     /// When the running Take started, for the elapsed time.
     var takeStartedAt: Date? { sequencer.takeStartedAt }
     /// A Take is running, or its Stems are still being written (#652): the Show can't change and no Take can start.
-    var takeBusy: Bool { recorder.isRecording || recorder.isFinishing || speedTest.isRunning }
+    var takeBusy: Bool { recorder.isRecording || recorder.isStarting || startRequested || recorder.isFinishing || speedTest.isRunning }
     /// The speed test starts only when nothing else is using the Drive: no Take, no Repair.
     var speedTestMayStart: Bool { !takeBusy && !recorder.isRepairing }
     #if os(iOS)
@@ -1177,12 +1184,21 @@ final class RecordScreenModel {
     }
 
     func record() {
-        guard !speedTest.isRunning else { return }
+        guard !speedTest.isRunning, !recorder.isStarting, !recorder.isRecording, !startRequested else { return }
         // Freeze whatever the Mixer Link knows right now, and what the tier allows, into the Take (Show-Safe
         // Promise: judged only here, never during the Take).
-        guard sequencer.record(sources: linkedSources, allowance: currentAllowance()) else { return }
-        followLiveActivity()
+        let sources = linkedSources, allowance = currentAllowance()
+        // The Drive's folders and Stems are made off the main thread (#914): the screen shows "Starting…" until the Take runs.
+        startRequested = true
+        Task { [self] in
+            defer { startRequested = false }
+            guard await sequencer.recordOffMain(sources: sources, allowance: allowance) else { return }
+            followLiveActivity()
+        }
     }
+
+    /// Record was pressed and its start has not finished: true from the press (`Recorder.isStarting` follows a moment later).
+    private(set) var startRequested = false
 
     func appearanceChanged() { appearance.save() }
 
@@ -1903,6 +1919,8 @@ private struct SavingToDriveLine: View {
 /// The Stop button while the Take is saved (#652): a ring with a spinner, in the Record button's place and size.
 struct FinishingButtonLabel: View {
     var size: CGFloat = 88
+    /// "Starting…" while the Drive is prepared (#914), "Finishing…" while the Take is saved.
+    var title = "Finishing…"
 
     var body: some View {
         ZStack {
@@ -1911,7 +1929,7 @@ struct FinishingButtonLabel: View {
                 .frame(width: size, height: size)
             VStack(spacing: 2) {
                 ProgressView()
-                Text("Finishing…")
+                Text(title)
                     .font(.caption2)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
