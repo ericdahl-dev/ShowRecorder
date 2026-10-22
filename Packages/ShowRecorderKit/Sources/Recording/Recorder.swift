@@ -1255,7 +1255,18 @@ public final class Recorder {
         session.accumulate(capture?.meters.takeLevels() ?? [])
         let namingAtStop = naming
         _ = naming.takeEnded(allowance: lastAllowance, onFiles: [:])
-        return Stopping(session: session, input: session.finishInput(), reason: reason, naming: namingAtStop)
+        var input = session.finishInput()
+        // The Show report and Reaper project are rewritten in the finish too, once the Takes' files are final: the Takes are safe
+        // either way, and a Repair that finishes later rewrites them again. Not for a Copy Stop gave up on (#673).
+        let allowance = lastAllowance, writeReports = reportWriter
+        let reports: @Sendable (Show, Set<DestinationKind>) -> Void = { show, skipped in
+            let copies = show.copies
+            for kind in DestinationKind.allCases where !skipped.contains(kind) {
+                if let copy = copies[kind] { writeReports(copy, allowance?.showReport ?? true, allowance?.reaperExport ?? true) }
+            }
+        }
+        input.showEnd = TakeSession.ShowEnd(show: session.show, names: channelNames, date: now(), write: finishShowFiles, reports: reports)
+        return Stopping(session: session, input: input, reason: reason, naming: namingAtStop)
     }
 
     private func publishStop(_ stopping: Stopping, _ finished: TakeSession.Finished) {
@@ -1278,16 +1289,14 @@ public final class Recorder {
             showName: session.show.name, takeNumber: finished.metadata.take, deviceFolder: finished.folders[.device],
             hadDrive: finished.folders[.drive] != nil)
         lastTakeGeneration += 1
-        currentShow = session.show
+        // The finish already wrote the Show's end-of-Take state into Show.json and rewrote its report and project, off the
+        // main thread when Stop is async. A name typed while it ran is newer than what it wrote: only then is Show.json written again.
+        currentShow = finished.show ?? session.show
+        if currentShow?.channelNames != channelNames { currentShow?.setChannelNames(channelNames, skipping: finished.abandoned) }
         if finished.abandoned.contains(.drive) { abandonedThisLaunch[session.show.name, default: []].insert(finished.metadata.take) }
         suspectCopies = finished.abandoned
         for change in gainChangesWhileFinishing { currentShow?.logGainChange(change, skipping: finished.abandoned) }
         gainChangesWhileFinishing = []
-        // A Copy Stop gave up on may hang on any file operation, so the main thread leaves it alone (#652).
-        currentShow?.setChannelNames(channelNames, skipping: finished.abandoned)
-        currentShow?.noteTakeEnded(at: now(), skipping: finished.abandoned)
-        // The Takes are safe either way; the report and project are regenerated next time.
-        regenerateReports(skipping: finished.abandoned)
         repair.enqueue(finished.metadata, folders: finished.folders, holding: finished.access, abandoned: finished.abandoned)
         nameChannels(of: finished.metadata, naming: stopping.naming)
         onTakeEnded(TakeEnd(take: finished.metadata.take, reason: reason))
@@ -1354,6 +1363,17 @@ public final class Recorder {
         let skip = skipped.union(suspectCopies)
         let copies = DestinationKind.allCases.filter { !skip.contains($0) }.compactMap { shows[$0] }
         return (copies, allowance?.showReport ?? true, allowance?.reaperExport ?? true)
+    }
+
+    /// Writes the Show's end-of-Take state into every Copy's `Show.json` but those skipped, and returns the Show as it is then:
+    /// the typed names and when the Take ended. It runs inside the finish, off the main thread when Stop is asynchronous (#652).
+    /// Tests replace it.
+    @ObservationIgnored var finishShowFiles: @Sendable (Show, _ names: [Int: String], _ at: Date, _ skipping: Set<DestinationKind>) -> Show = Recorder.writeShowEnd
+    nonisolated static let writeShowEnd: @Sendable (Show, [Int: String], Date, Set<DestinationKind>) -> Show = { show, names, date, skipped in
+        var show = show
+        show.setChannelNames(names, skipping: skipped)
+        show.noteTakeEnded(at: date, skipping: skipped)
+        return show
     }
 
     /// Writes one Copy's report and Reaper project. Tests replace it.
