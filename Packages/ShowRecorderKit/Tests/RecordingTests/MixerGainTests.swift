@@ -249,6 +249,29 @@ struct MixerGainClipProtectionTests {
         for window in ClipProtectionTests.hot { await mixerGain.observe([window]) }
     }
 
+    @Test("A Take that starts with clip protection on reads the preamp routing ahead, once; with it off, not at all (#874)")
+    func takeStartReadsPreamps() async throws {
+        let off = makeMixerGain(on: false)
+        off.handle(.takeStarted(take: 1))   // first, so a read it wrongly made would run before the next one's
+        let on = makeMixerGain(on: true)
+        on.handle(.takeStarted(take: 1))
+        try await waitUntil { control.preampReads >= 1 }
+        for _ in 0..<20 { await Task.yield() }
+        #expect(control.preampReads == 1, "only the Take with protection on read ahead")
+    }
+
+    @Test("The auto-gain sheet opening reads the preamp routing ahead (#874)")
+    func sheetReadsPreamps() async throws {
+        let control = control
+        let mixerGain = MixerGain(makeSession: { _ in AutoGainSession(control: control, measure: { _ in nil }) })
+        mixerGain.isRecording = { false }
+        mixerGain.isDebugBuild = true
+
+        await mixerGain.prepare()
+
+        #expect(control.preampReads == 1)
+    }
+
     @Test("On Free auto-gain says it's Pro and doesn't run: no session is made and no preamp moves (#705)")
     func autoGainIsPro() async {
         var made = 0

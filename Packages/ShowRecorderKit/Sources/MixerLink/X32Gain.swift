@@ -130,6 +130,9 @@ public protocol GainControl: Sendable {
     /// on a stereo pair whose strips are linked, where the Mixer mirrors fader and sends between the two. Nil when its
     /// own preamp is its lane.
     func lane(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int?
+    /// Reads which preamp each input channel takes ahead, so a move made mid-Take doesn't ask the Mixer for them all (#874).
+    /// Never throws: a channel the Mixer doesn't answer for is asked again by the move.
+    func readPreamps() async
     /// `live`: settings auto-gain moved and still holds for Undo; Mix Hold keeps their end stops (#685).
     func applyMixHold(channel: Int, gainChangeDb: Double, scopes: MixHold.Scopes, live: Set<MixHold.Setting>) async throws(MixerLinkProblem) -> GainStep
     func undo(_ step: GainStep) async throws(MixerLinkProblem)
@@ -140,6 +143,8 @@ public protocol GainControl: Sendable {
 }
 
 extension GainControl {
+    public func readPreamps() async {}
+
     public func undo(_ step: GainStep, ifUnmoved: Bool) async throws(MixerLinkProblem) { try await undo(step) }
 }
 

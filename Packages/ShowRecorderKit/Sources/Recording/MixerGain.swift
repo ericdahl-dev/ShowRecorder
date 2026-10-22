@@ -103,6 +103,15 @@ public final class MixerGain {
     /// The sheet's buttons wait: a Take is running, or a run or Undo is under way.
     public var isLocked: Bool { isTakeRunning || isRecording() || !running.isEmpty }
 
+    /// The auto-gain sheet opened: reads the Mixer's channel-to-preamp routing now, and the runs of this visit use it (#874).
+    /// Not during a Take, and not without a Pro plan, as for a run.
+    public func prepare() async {
+        guard !isLocked, allowsAutoGain(), let session = session ?? makeSession(queue) else { return }
+        if self.session == nil { sessionMixer = mixerName() }
+        self.session = session
+        await session.readPreamps()
+    }
+
     /// Runs auto-gain on `usbChannels`. Not during a Take, and not while another run or Undo is under way.
     public func run(_ usbChannels: [Int]) async {
         dropUndoForAnotherMixer()

@@ -54,6 +54,11 @@ final class FakeGainControl: GainControl {
     var sharedThresholdDb: Double?
     static let gateAtTop = MixHold.Limit(setting: MixHold.Setting(channel: 1, parameter: .gateThreshold), endDb: 0)
 
+    /// Times the preamp routing was read ahead (`readPreamps`).
+    private(set) var preampReads = 0
+
+    nonisolated func readPreamps() async { await MainActor.run { preampReads += 1 } }
+
     init(gainDb: [Int: Double], channelOfUSB: [Int: Int]) {
         self.gainDb = gainDb
         self.channelOfUSB = channelOfUSB

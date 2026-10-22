@@ -320,6 +320,32 @@ struct X32GainTests {
         #expect(mixer.writes.last { $0.address == "/ch/17/gate/thr" }?.value == .float(0.5), "and its gate threshold")
     }
 
+    @Test("The channel-to-preamp routing is read once, and again after a pushed source change (#874)")
+    func routingReadOnceAndAfterAPush() async throws {
+        var state = FakeXAirMixer.State.x32()
+        state.headampOfChannel[16] = 0   // channel 17 shares local input 1 with channel 1
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+        _ = try await driver.sources(usbChannelCount: 32)   // as the Link does before live updates
+        var changes = driver.sourceChanges().makeAsyncIterator()
+        try await driver.renewLiveUpdates()
+        _ = try await driver.applyMixHold(channel: 1, gainChangeDb: 3)
+        var seen = mixer.queries.count
+
+        let again = try await driver.applyMixHold(channel: 1, gainChangeDb: 3)
+        #expect(mixer.queries.dropFirst(seen).filter { $0.hasSuffix("/index") } == ["/-ha/00/index"], "only the channel asked for is read fresh")
+        #expect(again.changes.contains { $0.setting == MixHold.Setting(channel: 17, parameter: .mainFader) })
+
+        seen = mixer.queries.count
+        mixer.update { $0.headampOfChannel[16] = 16 }   // channel 17 moves to its own preamp
+        mixer.setSource(channel: 17, to: 17)
+        mixer.rename(channel: 2, to: "Snare")
+        _ = await changes.next()   // the rename, after the source change in order
+        let moved = try await driver.applyMixHold(channel: 1, gainChangeDb: 3)
+        #expect(!moved.changes.contains { $0.setting.channel == 17 })
+        #expect(mixer.queries.dropFirst(seen).filter { $0.hasSuffix("/index") }.count == 32, "a source change read the routing again")
+    }
+
     @Test("A gain move the mixer stops answering partway says what it wrote, and Undo puts that back exactly (#450)")
     func interruptedMoveReportsWhatItWrote() async throws {
         var state = FakeXAirMixer.State.x32()
