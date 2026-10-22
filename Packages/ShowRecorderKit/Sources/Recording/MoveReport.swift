@@ -100,6 +100,7 @@ public struct MoveReport: Equatable, Sendable {
         switch reason {
         case .anotherRecording: "The Drive has a different \(TakeMetadata.name(take: take)) in this Show."
         case .driveHasGaps: "The Drive copy has Gaps that Repair couldn't fill."
+        case .driveStillWriting: "The Drive is still finishing a write for this Take. It moves after that."
         // A kept stand-in may hold the only copy of what its Drive missed.
         case .noDriveTake:
             "This Drive doesn't have this Take. Connect the Drive it was recorded to. This \(deviceWord) holds the part that Drive missed, so keep it."

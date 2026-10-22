@@ -24,6 +24,8 @@ public enum TakeMover {
             case anotherRecording
             /// The Drive's Take still has Gaps, or its Repair failed.
             case driveHasGaps
+            /// The Drive writer Stop gave up on is still writing this Take (#916).
+            case driveStillWriting
             /// A stand-in whose Take isn't on this Drive: its Drive was another one, or the Take was deleted there.
             case noDriveTake
             /// The Drive's Take folder is there but its `Take.json` can't be read.

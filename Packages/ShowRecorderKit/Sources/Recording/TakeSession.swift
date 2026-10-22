@@ -73,6 +73,8 @@ final class TakeSession {
         var abandoned: Set<DestinationKind> = []
         /// The Show with the Take's end written into it, when the finish was given one (`FinishInput.showEnd`).
         var show: Show?
+        /// The Drive Copy's writer, when Stop gave up on it: it may still be writing (#916).
+        var abandonedDriveWriter: TakeWriter?
     }
 
     /// What the finish writes into the Show once the Take's files are final, so the main thread does none of that file work
@@ -536,7 +538,8 @@ final class TakeSession {
         return Finished(
             metadata: metadata, folders: folders, access: copies.lazy.compactMap(\.access).first,
             signal: TakeSignal(recorded: metadata.usbChannels.count, withSignal: levels.channelsWithSignal(), loudest: levels.loudest()),
-            abandoned: abandoned, show: show)
+            abandoned: abandoned, show: show,
+            abandonedDriveWriter: copies.first { $0.kind == .drive && $0.writer.wasAbandoned }?.writer)
     }
 
     // MARK: - Drive join and rejoin
