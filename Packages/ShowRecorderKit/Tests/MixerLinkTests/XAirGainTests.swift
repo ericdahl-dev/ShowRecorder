@@ -237,7 +237,7 @@ struct XAirGainTests {
         var state = FakeXAirMixer.State()
         state.usbRouting = XAirDriverTests.defaultRouting
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: .milliseconds(200))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Self.lostQueryTimeout)
         await driver.readPreamps()
         #expect(!driver.preampMap.snapshot().isStale)
 
@@ -296,6 +296,11 @@ struct XAirGainTests {
         #expect(step.changes.allSatisfy { $0.setting.channel == 1 }, "ch1 is on preamp 5 alone now; ch5 on preamp 1")
     }
 
+    /// How long a query waits before it counts as lost, for the tests that need one to be. Every query of such a test
+    /// shares it, so it has to be long enough for the loopback fake to answer under a loaded full run; the one lost
+    /// query waits it out once.
+    static let lostQueryTimeout: Duration = .seconds(3)
+
     @Test("One channel's input query lost: the move still happens, that channel is left out, and the rest are not waited for (#874)")
     func lostQueryDoesNotFailTheMove() async throws {
         var state = FakeXAirMixer.State()
@@ -304,7 +309,7 @@ struct XAirGainTests {
         state.channels[8].inputSource = 0   // channel 9 shares too and would be asked after channel 7
         state.usbRouting = XAirDriverTests.defaultRouting
         let mixer = try await FakeXAirMixer(state)
-        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: .milliseconds(300))
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Self.lostQueryTimeout)
 
         let step = try await driver.applyMixHold(channel: 1, gainChangeDb: 3)
 
