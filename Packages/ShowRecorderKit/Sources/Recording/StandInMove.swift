@@ -80,7 +80,11 @@ enum StandInMove {
             targets.append((channel, stem))
         }
         // What the Drive is known to miss: the Gaps either Take records for it that the Drive hasn't had repaired.
-        let gaps = drive.gaps + device.gaps.filter { !drive.gaps.contains($0) }
+        // A Device Gap the Drive's own Gaps cover is known there already: a move splits a Gap on the Drive only (#916).
+        let onDrive = drive.gaps.filter { $0.copy == .drive }.map { $0.start..<$0.end }
+        let gaps = drive.gaps + device.gaps.filter { gap in
+            !drive.gaps.contains(gap) && !(gap.copy == .drive && TakeRepair.covers(onDrive, gap.start..<gap.end))
+        }
         let unrepaired = gaps.filter { gap in
             gap.copy == .drive && !drive.repairs.contains { $0.copy == .drive && $0.start == gap.start && $0.end == gap.end && $0.outcome == .repaired }
         }
@@ -107,14 +111,23 @@ enum StandInMove {
         guard let check = CopyCheck.verifyStandIn(deviceTake: deviceTake, driveTake: driveTake, shouldStop: shouldStop) else { return .stopped }
         if case .failed(let reasons) = check { return .kept(reasons) }
         if !unrepaired.isEmpty {
-            let filled = unrepaired.map { gap in
-                TakeMetadata.Repair(
-                    copy: .drive, start: gap.start, end: gap.end,
-                    outcome: TakeRepair.covers(standIns.map { $0.start..<$0.end }, gap.start..<gap.end) ? .repaired : .failed)
+            // Each Gap is split at the stand-ins' bounds: the part they hold is repaired, the rest stays a failed Gap of its
+            // own, so a later move writes nothing it already wrote (#916).
+            let held = standIns.map { $0.start..<$0.end }
+            func filling(_ gap: TakeMetadata.Gap) -> [TakeMetadata.Repair] {
+                pieces(of: gap.start..<gap.end, heldIn: held).map { part, isHeld in
+                    .init(copy: .drive, start: part.lowerBound, end: part.upperBound, outcome: isHeld ? .repaired : .failed)
+                }
             }
-            drive.gaps = gaps
-            drive.repairs = drive.repairs.filter { old in !filled.contains { $0.start == old.start && $0.end == old.end && $0.copy == old.copy } }
-                + filled
+            let filled = unrepaired.flatMap(filling)
+            // Each in its Gap's place, so a move that changes nothing writes the same lists. A Repair recorded over a whole
+            // Gap (failed, or by an earlier version) gives way to its parts.
+            drive.gaps = gaps.flatMap { gap in unrepaired.contains(gap) ? filling(gap).map { .init(copy: .drive, start: $0.start, end: $0.end) } : [gap] }
+            var repairs = drive.repairs.flatMap { old in
+                old.copy == .drive ? unrepaired.first { $0.start == old.start && $0.end == old.end }.map(filling) ?? [old] : [old]
+            }
+            for repair in filled where !repairs.contains(repair) { repairs.append(repair) }
+            drive.repairs = repairs
             guard (try? drive.write(to: driveTake)) != nil else { return .kept(["\(name)'s Take.json couldn't be written on the Drive."]) }
             if filled.contains(where: { $0.outcome == .failed }) { return .kept(["\(name) has a Gap its stand-in doesn't hold."]) }
         }
@@ -156,5 +169,23 @@ enum StandInMove {
             return .kept(["\(name) is on the Drive, but \(setAsideName) couldn't be removed from the Device."])
         }
         return .moved
+    }
+
+    /// `range` cut at the bounds of `held`, in order, each part with whether `held` covers it.
+    private static func pieces(of range: Range<Int>, heldIn held: [Range<Int>]) -> [(Range<Int>, Bool)] {
+        // An empty Gap stays one, held, as `TakeRepair.covers` says.
+        guard !range.isEmpty else { return [(range, true)] }
+        let bounds = Set([range.lowerBound, range.upperBound] + held.flatMap { [$0.lowerBound, $0.upperBound] }.filter { range.contains($0) }).sorted()
+        var parts: [(Range<Int>, Bool)] = []
+        for (start, end) in zip(bounds, bounds.dropFirst()) {
+            let isHeld = TakeRepair.covers(held, start..<end)
+            // Neighbors alike are one part.
+            if let last = parts.last, last.1 == isHeld, last.0.upperBound == start {
+                parts[parts.count - 1].0 = last.0.lowerBound..<end
+            } else {
+                parts.append((start..<end, isHeld))
+            }
+        }
+        return parts
     }
 }
