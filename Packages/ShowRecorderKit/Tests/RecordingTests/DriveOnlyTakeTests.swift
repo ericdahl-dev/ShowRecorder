@@ -694,7 +694,7 @@ struct DriveOnlyTakeTests {
         await recorder.waitForRepair()
 
         let metadata = try TakeMetadata.read(fromTakeFolder: drive.appending(path: take))
-        #expect(metadata.dropouts.contains(TakeMetadata.Dropout(copy: .drive, start: 960, end: 960 + 48_000)), "the interruption is still a Dropout")
+        #expect(metadata.dropouts == [TakeMetadata.Dropout(copy: .drive, start: 960, end: 960 + 48_000)], "the interruption is the Drive's Dropout only (#903)")
         #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "nothing of the Take is on the Device")
     }
 
