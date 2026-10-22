@@ -58,11 +58,14 @@ struct PreRollFillTests {
         #expect(buffer.totalWrittenFrames == 0)
     }
 
-    @Test("With Pre-roll off there is no buffer, and disarming drops it")
+    @Test("With Pre-roll off the buffer only has room for a Take that starts late, and disarming drops it")
     func offAndDisarm() throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let off = Recorder(deviceFolder: root, preRollSeconds: 0)
         try off.arm(device)
+        #expect(!off.isKeepingPreRoll)
+        #expect(off.armedPreRoll != nil, "room for the start wait (#915)")
+        off.disarm()
         #expect(off.armedPreRoll == nil)
 
         let on = Recorder(deviceFolder: root, preRollSeconds: 1)

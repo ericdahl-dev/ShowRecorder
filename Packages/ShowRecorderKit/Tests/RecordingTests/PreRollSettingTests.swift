@@ -41,8 +41,8 @@ struct PreRollSettingTests {
     @Test("The memory it needs grows with the length, channels and sample rate, and is nothing when off")
     func memory() {
         let tenSeconds = PreRollSetting.memoryBytes(seconds: 10, channelCount: 18, sampleRate: 48_000)
-        // 10 s plus the second of margin, in 4-byte samples.
-        #expect(tenSeconds == 11 * 48_000 * 18 * 4)
+        // 10 s plus the second of margin and the 2.5 s for a late start, in 4-byte samples.
+        #expect(tenSeconds == Int(13.5 * 48_000) * 18 * 4)
         #expect(PreRollSetting.memoryBytes(seconds: 0, channelCount: 18, sampleRate: 48_000) == 0)
         #expect(PreRollSetting.memoryBytes(seconds: 10, channelCount: 36, sampleRate: 48_000) == tenSeconds * 2)
         #expect(PreRollSetting.memoryBytes(seconds: 10, channelCount: 18, sampleRate: 96_000) == tenSeconds * 2)
