@@ -503,6 +503,23 @@ html:not([data-js]) .theme-toggle {
   flex: none;
 }
 
+.store-badge {
+  display: inline-block;
+  line-height: 0;
+  border-radius: 8px;
+}
+
+.store-badge img {
+  display: block;
+  width: auto;
+  height: 52px;
+}
+
+.store-badge:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
 .store-slot.is-live {
   background: var(--button-bg);
   color: var(--button-ink);
@@ -1156,7 +1173,8 @@ html:not([data-js]) .theme-toggle {
   color: var(--muted);
 }
 
-.closing .store-slot {
+.closing .store-slot,
+.closing .store-badge {
   margin-top: 28px;
 }
 
