@@ -115,6 +115,78 @@ struct DeviceTakeReleaseTests {
         #expect(FileManager.default.fileExists(atPath: deviceTake.path))
     }
 
+    /// What a crash leaves when it comes right after the Device's Take was set aside: the folder is `.moved Take 01`, the
+    /// Drive's Take as the release found it (#890).
+    func crashAtSetAside() throws {
+        let setAside = deviceShow.appending(path: StandInMove.setAsideName(of: deviceTake))
+        try FileManager.default.moveItem(at: deviceTake, to: setAside)
+    }
+
+    @Test("A crash after the kept Take was set aside: the next launch's recovery puts it back, and the Drive's Take is untouched (#890)")
+    func crashAtSetAsideIsPutBack() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try make()
+        let before = try driveBytes()
+        try crashAtSetAside()
+
+        let results = MoveRecovery.run(deviceFolder: root.appending(path: "Device"), driveFolder: root.appending(path: "Drive"))
+
+        #expect(results.map(\.take) == [1])
+        // Channel 2 is shorter on the Device than on the Drive (make()'s defaults): Release accepts that, recovery is stricter
+        // and puts the Take back, so a crash turns the delete into nothing and the operator tries again.
+        guard case .kept(let reasons)? = results.first?.outcome else { Issue.record("not put back: \(results)"); return }
+        #expect(!reasons.isEmpty)
+        #expect(FileManager.default.fileExists(atPath: deviceTake.appending(path: "Take.json").path), "Take 01 is back on the Device")
+        #expect(try FileManager.default.contentsOfDirectory(atPath: deviceShow.path).filter { $0.hasPrefix(".moved") }.isEmpty)
+        #expect(try driveBytes() == before, "the Drive's Take is byte for byte as it was, and no stand-in is listed on it")
+        #expect(try TakeMetadata.read(fromTakeFolder: driveTake).standIns == nil)
+    }
+
+    /// A kept Take of one channel: the Device holds only a stand-in of its start, which both Copies' Take.json list; the Drive
+    /// holds the whole Take.
+    func makeKeptStandIn() throws {
+        var metadata = TakeMetadata(
+            show: "2026-10-06 Show", take: 1, startedAt: Self.startedAt, sampleRate: 48_000, timeReference: 0, usbChannels: [Self.channel(1)])
+        metadata.driveOnly = true
+        metadata.standIns = [.init(start: 0, end: 3_000)]
+        for folder in [deviceTake, driveTake] { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
+        try metadata.write(to: deviceTake)
+        try metadata.write(to: driveTake)
+        try writeStem(deviceTake.appending(path: "Stand-in 0/\(Self.channel(1).stemFile)"), frames: 3_000, channel: 1)
+        try writeStem(driveTake.appending(path: Self.channel(1).stemFile), frames: 4_800, channel: 1)
+    }
+
+    @Test("A crash after a Take the Drive holds in full was set aside: recovery finishes the delete, and the Drive's Take is untouched (#890)")
+    func crashAtSetAsideOfAWholeTakeFinishesTheDelete() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try make(deviceFrames: [4_800, 4_800], driveFrames: [4_800, 4_800])
+        let before = try driveBytes()
+        try crashAtSetAside()
+
+        let results = MoveRecovery.run(deviceFolder: root.appending(path: "Device"), driveFolder: root.appending(path: "Drive"))
+
+        #expect(results.first?.outcome == .moved)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: deviceShow.path).isEmpty)
+        #expect(try driveBytes() == before)
+    }
+
+    @Test("A crash after a kept stand-in Take was set aside: recovery finishes the delete, and the Drive no longer lists the stand-in (#890)")
+    func crashAtSetAsideOfAStandInFinishesTheDelete() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try makeKeptStandIn()
+        try crashAtSetAside()
+
+        let results = MoveRecovery.run(deviceFolder: root.appending(path: "Device"), driveFolder: root.appending(path: "Drive"))
+
+        #expect(results.map(\.take) == [1])
+        #expect(results.first?.outcome == .moved, "the Drive holds the stand-in's audio: the delete the operator asked for is finished")
+        #expect(try FileManager.default.contentsOfDirectory(atPath: deviceShow.path).isEmpty, "nothing is left on the Device, and Take 01 is not put back")
+        // A normal Release (no crash) never writes the Drive, so there the listing stays; only recovery clears it. The listing is
+        // read nowhere that matters once the Device's stand-in is gone, so this is pinned as it is, not as a promise.
+        #expect(try TakeMetadata.read(fromTakeFolder: driveTake).standIns == nil, "and no stand-in is listed on the Drive any more")
+        #expect(FileManager.default.fileExists(atPath: driveTake.appending(path: Self.channel(1).stemFile).path))
+    }
+
     @Test("The facts for the confirmation: which Take, how many Stems, and how long the Device's longest one is")
     func summary() throws {
         defer { try? FileManager.default.removeItem(at: root) }
