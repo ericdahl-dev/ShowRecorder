@@ -1526,6 +1526,12 @@ final class RecordScreenModel {
         Task { await offerDriveOnlyMovesIfAvailable() }
         if DriveSpeedTestAvailability.isAvailableInThisBuild { speedTest.removeLeftovers(store: drive.store) }
         Task { await recorder.recoverAbandonedCopies() }
+        runScreenshotFlags()
+    }
+
+    /// The screenshot and layout-check launch flags (`-demoDrive`, `-demoNames`, `-demoRecord`). None does anything in a
+    /// normal launch.
+    private func runScreenshotFlags() {
         // `-demoDrive` (screenshots) uses a folder in the app's own container as the Drive, so the shots show a second
         // Copy instead of a "No Drive" warning.
         // Both touch the container's data (the Drive bookmark, saved names), so they act only in the screenshot build,
