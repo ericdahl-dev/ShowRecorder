@@ -64,6 +64,49 @@ struct CopyJoinTests {
         #expect(capture.feeds[0].ring.availableFrames == 960)
     }
 
+    @Test("A Copy no longer fed while the real-time thread is between reading its join request and acting on it gets no audio (#544)")
+    func stopFeedingDuringJoinRead() {
+        let box = CaptureBox()
+        let capture = Capture(channelCount: 1, sampleRate: 48_000, hostTicksPerSecond: 48_000, afterJoinRead: {
+            box.capture.map { $0.stopFeeding($0.feeds[1]) }
+        })
+        capture.startCapturing(copies: 1)
+        receive(capture)
+        capture.attachMidTake(capture.feeds[1])
+        box.capture = capture
+        receive(capture)                                     // the Drive fails as this block reads its join request
+        box.capture = nil
+        receive(capture)
+        #expect(capture.feeds[1].ring.availableFrames == 0)
+        #expect(capture.feeds[0].ring.availableFrames == 1_440)
+    }
+
+    @Test("A Copy that lost that race and joins again is fed only from its new join block, at its new join frame (#544)")
+    func rejoinAfterStopDuringJoinRead() {
+        let box = CaptureBox()
+        let capture = Capture(channelCount: 1, sampleRate: 48_000, hostTicksPerSecond: 48_000, afterJoinRead: {
+            box.capture.map { $0.stopFeeding($0.feeds[1]) }
+        })
+        capture.startCapturing(copies: 1)
+        receive(capture)
+        capture.attachMidTake(capture.feeds[1])
+        box.capture = capture
+        receive(capture)
+        box.capture = nil
+        receive(capture)
+        #expect(capture.feeds[1].ring.availableFrames == 0)
+
+        capture.attachMidTake(capture.feeds[1])              // the Drive comes back
+        receive(capture)
+        #expect(capture.feeds[1].joinedAt == 1_440)
+        #expect(capture.feeds[1].ring.availableFrames == 480)
+    }
+
+    /// Lets a Capture's own hook reach it.
+    final class CaptureBox: @unchecked Sendable {
+        var capture: Capture?
+    }
+
     @Test("Stop before a waiting Copy has joined: no block after it is captured for any Copy (#872)")
     func stopBeforeJoin() {
         let capture = capture()

@@ -63,6 +63,9 @@ final class Capture: Sendable {
     private let capturing = Atomic<Int>(0)
     /// Copies waiting for the real-time thread to start feeding them, one bit per ring.
     private let joinRequests = Atomic<Int>(0)
+    /// Copies no longer fed, one bit per ring: masks `capturing`, so a stop that lands after the real-time thread
+    /// read the join requests still keeps the Copy unfed (#544).
+    private let stoppedFeeds = Atomic<Int>(0)
     /// Frames delivered since the Take started: the Take's sample timeline. A Take with Pre-roll starts
     /// it at the Pre-roll's length, so frame 0 is the first Pre-roll sample.
     private let takeFrames = Atomic<Int>(0)
@@ -86,6 +89,8 @@ final class Capture: Sendable {
     private let hostClock: @Sendable () -> UInt64
     /// A gap shorter than this (frames) is timing jitter, not lost input.
     private let gapThreshold: Int
+    /// Tests only: runs on the real-time thread between reading the join requests and acting on them (#544). Nil otherwise.
+    private let afterJoinRead: (@Sendable () -> Void)?
     /// The host clock's ticks per second on this machine.
     static let machTicksPerSecond: Double = {
         var info = mach_timebase_info_data_t()
@@ -110,8 +115,10 @@ final class Capture: Sendable {
     ///   and the first live block, while the Drive's files are made. With it the buffer exists even when Pre-roll is off. It is
     ///   allocated here, at Arm, never when a Take starts.
     init(channelCount: Int, sampleRate: Double, preRollSeconds: Double = 0, startHeadroomSeconds: Double = 0,
-         hostTicksPerSecond: Double = Capture.machTicksPerSecond, hostClock: @escaping @Sendable () -> UInt64 = { mach_absolute_time() }) {
+         hostTicksPerSecond: Double = Capture.machTicksPerSecond, hostClock: @escaping @Sendable () -> UInt64 = { mach_absolute_time() },
+         afterJoinRead: (@Sendable () -> Void)? = nil) {
         self.hostClock = hostClock
+        self.afterJoinRead = afterJoinRead
         self.preRollSeconds = preRollSeconds
         framesPerSecond = Int(max(sampleRate, 1))
         hostTicksPerFrame = hostTicksPerSecond / max(sampleRate, 1)
@@ -147,6 +154,7 @@ final class Capture: Sendable {
         // The Take starts at the press: input stopped before it is no part of the Take (#877). With input running, the
         // next block starts before the press, so this adds nothing.
         expectedHostTime.store(hostClock(), ordering: .relaxed)
+        stoppedFeeds.store(0, ordering: .releasing)
         if preRollFrames > 0 || pressPosition != nil, preRoll != nil {
             preRollStart.store(-2, ordering: .releasing)
             capturing.store(0, ordering: .releasing)
@@ -168,12 +176,15 @@ final class Capture: Sendable {
     func attachMidTake(_ feed: CopyFeed) {
         precondition(feed.slot >= 0, "a feed this Capture doesn't own")
         feed.reset(joinedAt: nil)
+        stoppedFeeds.bitwiseAnd(~(1 << feed.slot), ordering: .acquiringAndReleasing)
         joinRequests.bitwiseOr(1 << feed.slot, ordering: .acquiringAndReleasing)
     }
 
     /// Stops feeding one Copy's ring (its writer failed, or it retired).
     func stopFeeding(_ feed: CopyFeed) {
         precondition(feed.slot >= 0, "a feed this Capture doesn't own")
+        // Stopped first: a join the real-time thread already read can't feed the Copy again (#544).
+        stoppedFeeds.bitwiseOr(1 << feed.slot, ordering: .acquiringAndReleasing)
         // A join still waiting for its block would bring the Copy back (#872).
         joinRequests.bitwiseAnd(~(1 << feed.slot), ordering: .acquiringAndReleasing)
         capturing.bitwiseAnd(~(1 << feed.slot), ordering: .acquiringAndReleasing)
@@ -211,6 +222,7 @@ final class Capture: Sendable {
         preRoll?.write(block)
         let requested = joinRequests.load(ordering: .acquiring)
         if requested != 0 {
+            afterJoinRead?()
             if preRollStart.load(ordering: .relaxed) == -2 {
                 // The Pre-roll buffer already holds this block, so the live audio starts before it.
                 let start = (preRoll?.totalWrittenFrames ?? block.frameCount) - block.frameCount
@@ -224,9 +236,12 @@ final class Capture: Sendable {
                 feeds[copy].markJoined(at: frame)
             }
             capturing.bitwiseOr(requested, ordering: .acquiringAndReleasing)
+            // A Copy stopped since its request was read: take it back out, so its bit can't outlive this block (#544).
+            let stopped = stoppedFeeds.load(ordering: .acquiring) & requested
+            if stopped != 0 { capturing.bitwiseAnd(~stopped, ordering: .acquiringAndReleasing) }
             joinRequests.bitwiseAnd(~requested, ordering: .acquiringAndReleasing)
         }
-        let mask = capturing.load(ordering: .acquiring)
+        let mask = capturing.load(ordering: .acquiring) & ~stoppedFeeds.load(ordering: .acquiring)
         noteInputGap(before: block, capturing: mask)
         var copy = 0
         while copy < rings.count {
