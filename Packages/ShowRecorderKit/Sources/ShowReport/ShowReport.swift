@@ -185,7 +185,7 @@ public struct ShowReport: Equatable, Sendable {
                     String(take.number),
                     String(channel.usbChannel),
                     channel.stemFile,
-                    channel.sourceName,
+                    Self.csvText(channel.sourceName),
                     String(channel.hasMixerName),
                     channel.colorName,
                     channel.muted.map { String($0) } ?? "",
@@ -196,6 +196,17 @@ public struct ShowReport: Equatable, Sendable {
             }
         }
         return rows.map { $0.map(Self.csvField).joined(separator: ",") + "\r\n" }.joined()
+    }
+
+    /// "\r\n" is one Character in Swift, so it is listed apart from "\r" and "\n".
+    private static let formulaStarts: Set<Character> = ["=", "+", "-", "@", "\t", "\r", "\n", "\r\n"]
+
+    /// A name a spreadsheet may read as a formula (`=`, `+`, `-` or `@` first, or a tab or line break, as OWASP lists them; #890)
+    /// gets a leading apostrophe, so the cell is text and not `#NAME?` or a command. A reader may show the apostrophe. Only
+    /// for names: numbers keep their sign.
+    static func csvText(_ value: String) -> String {
+        guard let first = value.first, Self.formulaStarts.contains(first) else { return value }
+        return "'" + value
     }
 
     static func csvField(_ value: String) -> String {

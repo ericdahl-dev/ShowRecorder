@@ -79,6 +79,26 @@ struct ShowReportTests {
         #expect(rows[1].count == rows[0].count)
     }
 
+    @Test("A Source name that starts like a formula gets a leading apostrophe, so Excel shows it as text (#890)")
+    func formulaNamesInCSV() async throws {
+        let names = ["-12dB Pad", "=SUM(A1)", "+1 Vox", "@mention", "Kick-2", "A=B"]
+        try await record(channels: names.count, sources: names.map { Source(name: $0, color: .off) }, takes: [480])
+
+        let rows = try csvRows()
+        #expect(rows.dropFirst().map { $0[3] } == ["'-12dB Pad", "'=SUM(A1)", "'+1 Vox", "'@mention", "Kick-2", "A=B"])
+        #expect(rows[1][2].hasPrefix("01 "), "the Stem file name starts with its number and is left alone")
+        #expect(rows[1][1] == "1" && rows[1][9] == "0.010", "other columns are left alone")
+    }
+
+    @Test("A formula name that also needs quoting, or that starts with a tab or a line break, is made text and quoted")
+    func formulaNamesThatNeedQuotes() async throws {
+        let names = ["=A,B", "\tcmd", "\nA", "\r\nB"]
+        try await record(channels: names.count, sources: names.map { Source(name: $0, color: .off) }, takes: [480])
+
+        let rows = try csvRows()
+        #expect(rows.dropFirst().map { $0[3] } == ["'=A,B", "'\tcmd", "'\nA", "'\r\nB"])
+    }
+
     @Test("Every Take is listed in order with its own duration, and the report is rewritten after each")
     func everyTakeInOrder() async throws {
         try await record(channels: 1, sources: [Source(name: "Vox", color: .off)], takes: [48_000, 24_000, 96_000])
