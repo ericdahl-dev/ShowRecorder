@@ -1531,11 +1531,8 @@ public final class Recorder {
         guard !isRecording, !isStarting, !isFinishing, !isMoving, let access = driveFolder() else { return [] }
         isMoving = true
         defer {
-            isMoving = false
             foundTakesToMove = false
-            let waiting = moveWaiters
-            moveWaiters = []
-            for waiter in waiting { waiter.resume() }
+            endMoving()
         }
         // A Show detail rename already running finishes first; one asked for from now on waits for this move.
         while editsInProgress > 0 {
@@ -1683,26 +1680,19 @@ public final class Recorder {
         if let refusal = releaseRefusal(show: show, take: take) { return .kept([refusal]) }
         guard let access = driveFolder() else { return .kept(["The Drive isn't connected."]) }
         isMoving = true
-        defer {
-            isMoving = false
-            let waiting = moveWaiters
-            moveWaiters = []
-            for waiter in waiting { waiter.resume() }
-        }
+        // The order is load-bearing: the access ends first, then `endMoving` lets the edits that waited go on.
+        defer { endMoving() }
+        defer { access.end() }
         // A Show detail edit already running finishes first, as for a move.
         while editsInProgress > 0 {
             await withCheckedContinuation { editWaiters.append($0) }
         }
-        if let refusal = releaseRefusal(show: show, take: take) {
-            access.end()
-            return .kept([refusal])
-        }
+        if let refusal = releaseRefusal(show: show, take: take) { return .kept([refusal]) }
         let name = TakeMetadata.name(take: take)
         let deviceTake = deviceFolder.appending(path: show).appending(path: name)
         let driveTake = access.folder.appending(path: show).appending(path: name)
         let shouldStop = moveStop.latch()
         let outcome = await runOffPool { DeviceTakeRelease.run(deviceTake: deviceTake, driveTake: driveTake, shouldStop: shouldStop) }
-        access.end()
         guard outcome == .released else { return outcome }
         // It is no longer kept on this device: off the moves list, and the last Take reads as moved if it is that one.
         lastMoveRun.moves.removeAll { $0.show == show && $0.take == take }
@@ -1778,6 +1768,14 @@ public final class Recorder {
     @ObservationIgnored var triggerWaiting = false
     /// Edits waiting for a move to end (#630).
     @ObservationIgnored private var moveWaiters: [CheckedContinuation<Void, Never>] = []
+
+    /// Ends a move or a delete from the Device: `isMoving` is false and every edit that waited for it gets going (#630).
+    private func endMoving() {
+        isMoving = false
+        let waiting = moveWaiters
+        moveWaiters = []
+        for waiter in waiting { waiter.resume() }
+    }
 
     /// Returns once no move is running (#630). On the main actor, what the caller does next runs before any move can
     /// start.

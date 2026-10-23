@@ -74,6 +74,37 @@ struct RecorderReleaseTests {
         #expect(recorder.moveReport.entries.isEmpty, "no longer listed as kept on the iPhone")
     }
 
+    final class Ended: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value = 0
+        func bump() { lock.withLock { value += 1 } }
+        var count: Int { lock.withLock { value } }
+    }
+
+    @Test("Each delete lets the Drive go exactly once, whether it deletes or keeps the Take, and leaves no move running (#890)")
+    func driveLetGoOnce() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try makeKeptTake()
+        let ended = Ended()
+        let drive = drive
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive, stop: { ended.bump() }) },
+            now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
+
+        // The Drive lacks a Stem: kept.
+        let hidden = driveTake.appending(path: DeviceTakeReleaseTests.channel(2).stemFile)
+        let aside = root.appending(path: "aside.wav")
+        try FileManager.default.moveItem(at: hidden, to: aside)
+        guard case .kept = await recorder.releaseFromDevice(show: "2026-10-06 Show", take: 1) else { Issue.record("not kept"); return }
+        #expect(ended.count == 1, "kept")
+        #expect(!recorder.isMoving)
+
+        try FileManager.default.moveItem(at: aside, to: hidden)
+        #expect(await recorder.releaseFromDevice(show: "2026-10-06 Show", take: 1) == .released)
+        #expect(ended.count == 2, "released")
+        #expect(!recorder.isMoving)
+    }
+
     @Test("Not during a Take, and not during a save: the Take stays")
     func neverWhileABusyTake() async throws {
         defer { try? FileManager.default.removeItem(at: root) }
