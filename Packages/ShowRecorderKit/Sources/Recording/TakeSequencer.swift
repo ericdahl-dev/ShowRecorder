@@ -88,6 +88,8 @@ public final class TakeSequencer {
     public private(set) var takeStartedAt: Date?
     /// Whether the recorder was disarmed for sitting idle, so coming back should Arm it again.
     public private(set) var disarmedForIdle = false
+    /// A re-Arm for a changed setting is waiting for a Take to finish saving (#932).
+    private var settingsArmWaiting = false
     /// What to do about audio interruptions, and the banner they leave.
     public private(set) var interruptions = InterruptionPolicy()
     @ObservationIgnored private var toldInputStopped = false
@@ -339,6 +341,18 @@ public final class TakeSequencer {
     /// The Pre-roll length or the sample rate choice changed: re-Arm so the input uses it. Only between Takes; a
     /// running Take keeps what it started with (Show-Safe Promise).
     public func settingsChanged() {
+        // A Take being saved is still the Take: re-Arm once it is on disk, or the Arm would fail with a false "Couldn't
+        // start" after a clean Take (#932). Several changes during one save make one Arm, as each Arm restarts the input.
+        if settingsArmWaiting { return }
+        if recorder.isFinishing {
+            settingsArmWaiting = true
+            Task { [self] in
+                await recorder.waitWhileFinishing()
+                settingsArmWaiting = false
+                settingsChanged()
+            }
+            return
+        }
         if recorder.isArmed, !recorder.isRecording { arm() }
     }
 
