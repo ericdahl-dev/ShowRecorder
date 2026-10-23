@@ -60,13 +60,14 @@ public enum ChannelRenamer {
             let file = StemFileName.make(usbChannel: channel.usbChannel, sourceName: name)
             for stemFolder in stemFolders ?? [folder] {
                 let old = stemFolder.appending(path: channel.stemFile), new = stemFolder.appending(path: file)
-                if file != channel.stemFile {
-                    guard !fm.fileExists(atPath: new.path) else { throw CocoaError(.fileWriteFileExists, userInfo: [NSFilePathErrorKey: new.path]) }
-                    try fm.moveItem(at: old, to: new)
+                if file != channel.stemFile, fm.fileExists(atPath: new.path) {
+                    throw CocoaError(.fileWriteFileExists, userInfo: [NSFilePathErrorKey: new.path])
                 }
-                let stem = try StemWriter.reopen(url: new)
+                // Before it is moved: a Stem another program saved is refused, and left under its name (#881).
+                let stem = try StemWriter.reopen(url: old)
                 try stem.setDescription(name)
                 try stem.finalize()
+                if file != channel.stemFile { try fm.moveItem(at: old, to: new) }
             }
             take.usbChannels[index].stemFile = file
             take.usbChannels[index].name = name

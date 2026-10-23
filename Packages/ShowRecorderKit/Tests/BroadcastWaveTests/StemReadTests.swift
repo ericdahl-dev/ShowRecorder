@@ -78,4 +78,36 @@ struct StemReadTests {
         #expect(after.prefix(StemWriter.dataStart - 4)[8...] == before.prefix(StemWriter.dataStart - 4)[8...])
         #expect(try StemWriter.readSamples(url: url, frames: 0..<1_500) == Self.samples(0..<1_500))
     }
+
+    /// What a DAW does on a re-save: its own chunk ahead of the audio, so the audio starts later than ours.
+    func resavedByADAW(_ url: URL) throws {
+        var bytes = [UInt8](try Data(contentsOf: url))
+        let dataChunk = StemWriter.dataStart - 8
+        let junk: [UInt8] = Array("JUNK".utf8) + [32, 0, 0, 0] + [UInt8](repeating: 0, count: 32)
+        bytes.insert(contentsOf: junk, at: dataChunk)
+        try Data(bytes).write(to: url)
+    }
+
+    @Test("A Stem a DAW re-saved, with its audio starting later than ours, isn't reopened: nothing is written to it (#881)")
+    func reopenRefusesAnotherDataStart() throws {
+        let url = try write("resaved.wav", frames: 1_000)
+        try resavedByADAW(url)
+        let before = try Data(contentsOf: url)
+        #expect(try StemFile.inspect(url).dataStart != UInt64(StemWriter.dataStart), "the fixture moved the audio")
+
+        #expect(throws: (any Error).self) { try StemWriter.reopen(url: url) }
+
+        #expect(try Data(contentsOf: url) == before)
+    }
+
+    @Test("A Stem our writer made and promoted to RF64 is reopened: the guard doesn't refuse our own files (#881)")
+    func reopenAcceptsOurRF64() throws {
+        let url = try write("ours.wav", frames: 20_000, rf64Threshold: 20_000 + UInt64(StemWriter.markerRegionSize))
+        #expect(try Data(contentsOf: url).prefix(4).elementsEqual("RF64".utf8))
+
+        let writer = try StemWriter.reopen(url: url)
+
+        #expect(writer.frameCount == 20_000)
+        try writer.finalize()
+    }
 }
