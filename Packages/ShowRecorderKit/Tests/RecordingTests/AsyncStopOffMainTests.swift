@@ -455,6 +455,32 @@ struct AsyncStopOffMainTests {
         #expect(sequencer.armError == nil)
     }
 
+    @Test("Pre-roll or sample rate changes while the Take is being saved show no error, and the input re-Arms once after the save (#932)")
+    func settingsChangedWhileFinishing() async throws {
+        let gate = TestGate()
+        nonisolated(unsafe) var gated: GatedStem?
+        let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
+        let source = FakeInputDevices([("xr18", 1)])
+        let sequencer = TakeSequencer(recorder: recorder, devices: source, capsAt48k: { false })
+        sequencer.arm()
+        let audio = try #require(source.opened.last)
+        let armsBefore = source.opened.count
+        let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
+
+        sequencer.settingsChanged()
+        sequencer.settingsChanged()
+        sequencer.settingsChanged()
+        #expect(sequencer.armError == nil, "no false \"Couldn't start\" after a clean Take: \(sequencer.armError ?? "")")
+        gate.open()
+        try await stop.value
+
+        try await waitUntil { source.opened.count > armsBefore }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(sequencer.armError == nil)
+        #expect(source.opened.count == armsBefore + 1, "three changes, one Arm")
+        #expect(recorder.isArmed)
+    }
+
     @Test("A gain change buffered during the save doesn't write the Show.json of a Drive Stop gave up on")
     func gainChangeSkipsAbandonedDrive() async throws {
         let drive = root.appending(path: "Drive")
