@@ -14,6 +14,18 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.16",
+    date: "2026-10-23",
+    channel: "TestFlight beta",
+    summary: "WAV time stamps match the moment you pressed Record.",
+    changes: [
+      "Each Stem's time stamp is the moment you pressed Record, minus Pre-roll, and its audio starts there too, even when the Drive was slow to start.",
+      "A Drive that fails as it joins a running Take no longer reports dropped frames that never happened.",
+      "Changing Pre-roll or the sample rate while a Take is being saved no longer shows \"Couldn't start\".",
+      "Renaming a Marker or repairing a Take no longer damages a Stem that a DAW saved again, and a line break in a name no longer breaks the Reaper project.",
+    ],
+  },
+  {
     version: "1.1.15",
     date: "2026-10-22",
     channel: "TestFlight beta",
