@@ -11,7 +11,9 @@ import TakeFile
 /// 3. the check passes again against what is set aside;
 /// 4. only then it is removed. Any check that fails, or a Take started meanwhile, puts it back.
 ///
-/// The Drive's Take is never written. Synchronous file I/O: call it off the main actor.
+/// The Drive's Stems are never written. Once the Device's Take is gone, a stand-in it listed is unlisted in the Drive's
+/// `Take.json` (#947), as a move or recovery does; that write is last, so a failure leaves a stale line and nothing to undo.
+/// Synchronous file I/O: call it off the main actor.
 public enum DeviceTakeRelease {
     public enum Outcome: Equatable, Sendable {
         /// Removed from the Device; the Drive holds everything it held.
@@ -99,9 +101,14 @@ public enum DeviceTakeRelease {
             }
             return second == nil ? .stopped : .kept(reasons)
         }
+        let heldStandIns = (try? TakeMetadata.read(fromTakeFolder: setAside))?.standIns?.isEmpty == false
         hook(.removing)
         guard (try? fm.removeItem(at: setAside)) != nil else {
             return .kept(["\(name) is on the Drive, but \(setAsideName) couldn't be removed from the Device."])
+        }
+        if heldStandIns, var onDrive = try? TakeMetadata.read(fromTakeFolder: driveTake), onDrive.standIns != nil {
+            onDrive.standIns = nil
+            try? onDrive.write(to: driveTake)
         }
         return .released
     }
