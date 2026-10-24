@@ -64,6 +64,36 @@ struct DeviceTakeReleaseTests {
         #expect(try driveBytes() == before, "the Drive's Take is byte for byte as it was")
     }
 
+    @Test("A kept stand-in Take deleted from the Device is no longer listed on the Drive, and its Stems are untouched (#947)")
+    func releasedStandInIsUnlisted() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try makeKeptStandIn()
+        let stem = try Data(contentsOf: driveTake.appending(path: Self.channel(1).stemFile))
+        var expected = try TakeMetadata.read(fromTakeFolder: driveTake)
+        expected.standIns = nil
+
+        #expect(run() == .released)
+        #expect(try TakeMetadata.read(fromTakeFolder: driveTake) == expected, "only the stand-in listing changed")
+        #expect(!FileManager.default.fileExists(atPath: deviceTake.path))
+        #expect(try TakeMetadata.read(fromTakeFolder: driveTake).standIns == nil, "the Drive names a stand-in only while the Device holds it")
+        #expect(try Data(contentsOf: driveTake.appending(path: Self.channel(1).stemFile)) == stem)
+    }
+
+    @Test("A kept stand-in Take put back because the Drive changed meanwhile stays listed on the Drive (#947)")
+    func putBackStandInStaysListed() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try makeKeptStandIn()
+        let driveStem = driveTake.appending(path: Self.channel(1).stemFile)
+
+        let outcome = run(at: { step in
+            if step == .setAside { try? writeStem(driveStem, frames: 4_800, channel: 1, differs: 100..<200) }
+        })
+
+        if case .kept = outcome {} else { Issue.record("expected kept, got \(outcome)") }
+        #expect(FileManager.default.fileExists(atPath: deviceTake.path))
+        #expect(try TakeMetadata.read(fromTakeFolder: driveTake).standIns == [.init(start: 0, end: 3_000)])
+    }
+
     @Test("A Drive that differs keeps the Device's Take, and says why")
     func differingDrive() throws {
         defer { try? FileManager.default.removeItem(at: root) }
@@ -181,8 +211,6 @@ struct DeviceTakeReleaseTests {
         #expect(results.map(\.take) == [1])
         #expect(results.first?.outcome == .moved, "the Drive holds the stand-in's audio: the delete the operator asked for is finished")
         #expect(try FileManager.default.contentsOfDirectory(atPath: deviceShow.path).isEmpty, "nothing is left on the Device, and Take 01 is not put back")
-        // A normal Release (no crash) never writes the Drive, so there the listing stays; only recovery clears it. The listing is
-        // read nowhere that matters once the Device's stand-in is gone, so this is pinned as it is, not as a promise.
         #expect(try TakeMetadata.read(fromTakeFolder: driveTake).standIns == nil, "and no stand-in is listed on the Drive any more")
         #expect(FileManager.default.fileExists(atPath: driveTake.appending(path: Self.channel(1).stemFile).path))
     }
