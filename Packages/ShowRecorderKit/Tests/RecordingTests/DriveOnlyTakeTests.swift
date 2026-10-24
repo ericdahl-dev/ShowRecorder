@@ -23,7 +23,8 @@ struct DriveOnlyTakeTests {
 
     /// A Drive only recorder; the Drive Copy's Stems are made by `driveStem` (a real one by default).
     func recorder(
-        driveStem: @escaping (StemWriter) -> any StemSink = { $0 }, stallLimit: Duration = .seconds(2), hostTicksPerSecond: Double? = nil
+        driveStem: @escaping (StemWriter) -> any StemSink = { $0 }, stallLimit: Duration = .seconds(2), hostTicksPerSecond: Double? = nil,
+        stopTimeout: Duration = .milliseconds(300)
     ) -> Recorder {
         let drive = drive
         let recorder = Recorder(
@@ -31,7 +32,7 @@ struct DriveOnlyTakeTests {
             makeStem: { url, info, resuming in
                 let real = try StemWriter.open(url: url, info: info, resumingAt: resuming)
                 return url.path.hasPrefix(drive.path) && resuming == nil ? driveStem(real) : real
-            }, destinationCheckInterval: nil, hostTicksPerSecond: hostTicksPerSecond, writerStopTimeout: .milliseconds(300),
+            }, destinationCheckInterval: nil, hostTicksPerSecond: hostTicksPerSecond, writerStopTimeout: stopTimeout,
             driveStallLimit: stallLimit)
         recorder.recordTo = .drive
         return recorder
@@ -589,11 +590,14 @@ struct DriveOnlyTakeTests {
         let inner: StemWriter
         let healthyFrames: Int
         let gate: StopNeverBlocksTests.Gate
+        /// How long finishing the Stem takes: a Drive that is slow to close, as on a starved runner.
+        let finalizeDelay: Duration
         private var paused = false
-        init(_ inner: StemWriter, healthyFrames: Int, gate: StopNeverBlocksTests.Gate) {
+        init(_ inner: StemWriter, healthyFrames: Int, gate: StopNeverBlocksTests.Gate, finalizeDelay: Duration = .zero) {
             self.inner = inner
             self.healthyFrames = healthyFrames
             self.gate = gate
+            self.finalizeDelay = finalizeDelay
         }
         var frameCount: UInt64 { inner.frameCount }
         func append(_ samples: UnsafeBufferPointer<Float>) throws {
@@ -604,7 +608,10 @@ struct DriveOnlyTakeTests {
             try inner.append(samples)
         }
         func commitHeader() throws { try inner.commitHeader() }
-        func finalize() throws { try inner.finalize() }
+        func finalize() throws {
+            if finalizeDelay > .zero { Thread.sleep(forTimeInterval: Double(finalizeDelay.components.seconds) + Double(finalizeDelay.components.attoseconds) / 1e18) }
+            try inner.finalize()
+        }
         @discardableResult func setMarkers(_ markers: [StemMarker]) throws -> Int { try inner.setMarkers(markers) }
     }
 
@@ -614,7 +621,10 @@ struct DriveOnlyTakeTests {
         let gate = StopNeverBlocksTests.Gate()
         defer { gate.open() }
         // The stall limit is long, so only the drop (the Drive's 4 s ring overflowing) brings the standby in.
-        let recorder = recorder(driveStem: { SlowStem($0, healthyFrames: 4_800, gate: gate) }, stallLimit: .seconds(60))
+        let recorder = recorder(driveStem: { SlowStem($0, healthyFrames: 4_800, gate: gate, finalizeDelay: .milliseconds(600)) }, stallLimit: .seconds(60),
+                                // A Drive that is slow but moving must not be given up at Stop: the window outlasts the slow close (CI's
+                                // starved runner took 34 s for this test, #950). It only bounds a hang; a finished writer returns at once.
+                                stopTimeout: .seconds(30))
         try recorder.arm(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
