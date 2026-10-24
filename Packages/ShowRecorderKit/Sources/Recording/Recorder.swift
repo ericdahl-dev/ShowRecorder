@@ -391,9 +391,6 @@ public final class Recorder {
         isArmed = false
     }
 
-    /// Whether the Armed recorder is keeping Pre-roll audio.
-    public var isKeepingPreRoll: Bool { (capture?.preRollSeconds ?? 0) > 0 }
-
     /// The Pre-roll buffer of the Armed device: the last seconds of audio since Arming. Nil when not Armed, or when Pre-roll
     /// is off and the Capture keeps no room for a Take that starts late (#915).
     var armedPreRoll: PreRollBuffer? { capture?.preRoll }

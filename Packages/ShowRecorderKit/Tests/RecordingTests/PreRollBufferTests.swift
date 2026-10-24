@@ -27,62 +27,28 @@ struct PreRollBufferTests {
         (0..<count).map { Float(start + $0 + channel * 1_000_000) }
     }
 
-    @Test("It returns the most recent N frames, exactly, across a wrap")
-    func lastFramesAcrossWrap() {
+    @Test("A range that is not all written yet is refused")
+    func notWrittenYet() {
         let buffer = PreRollBuffer(channelCount: 2, capacity: 1_000)
-        write(buffer, from: 0, count: 2_750)
-        let snapshot = buffer.snapshot(maxFrames: 700)
-
-        #expect(snapshot.startFrame == 2_050)
-        #expect(snapshot.channels.count == 2)
-        #expect(snapshot.channels[0] == expected(channel: 0, from: 2_050, count: 700))
-        #expect(snapshot.channels[1] == expected(channel: 1, from: 2_050, count: 700))
-    }
-
-    @Test("It returns less when less has been written")
-    func shorterThanRequested() {
-        let buffer = PreRollBuffer(channelCount: 2, capacity: 1_000)
+        #expect(buffer.read(frames: 0..<50) == nil)
         write(buffer, from: 0, count: 300)
-        let snapshot = buffer.snapshot(maxFrames: 700)
-
-        #expect(snapshot.startFrame == 0)
-        #expect(snapshot.channels[0] == expected(channel: 0, from: 0, count: 300))
-        #expect(buffer.snapshot(maxFrames: 100).startFrame == 200)
-    }
-
-    @Test("It never returns more than it can hold")
-    func cappedAtCapacity() {
-        let buffer = PreRollBuffer(channelCount: 1, capacity: 500)
-        write(buffer, from: 0, count: 2_000, channels: 1)
-        let snapshot = buffer.snapshot(maxFrames: 10_000)
-        #expect(snapshot.channels[0] == expected(channel: 0, from: 1_500, count: 500))
-        #expect(snapshot.startFrame == 1_500)
+        #expect(buffer.read(frames: 0..<300)?[0] == expected(channel: 0, from: 0, count: 300))
+        #expect(buffer.read(frames: 0..<700) == nil)
     }
 
     @Test("A block larger than the buffer leaves its last frames")
     func blockLargerThanBuffer() {
         let buffer = PreRollBuffer(channelCount: 1, capacity: 100)
         write(buffer, from: 0, count: 250, block: 250, channels: 1)
-        let snapshot = buffer.snapshot(maxFrames: 100)
-        #expect(snapshot.startFrame == 150)
-        #expect(snapshot.channels[0] == expected(channel: 0, from: 150, count: 100))
-    }
-
-    @Test("Asking for nothing, or from an empty buffer, returns nothing")
-    func zeroAndEmpty() {
-        let buffer = PreRollBuffer(channelCount: 2, capacity: 100)
-        #expect(buffer.snapshot(maxFrames: 50).channels.allSatisfy { $0.isEmpty })
-        write(buffer, from: 0, count: 80)
-        let none = buffer.snapshot(maxFrames: 0)
-        #expect(none.channels.count == 2)
-        #expect(none.channels.allSatisfy { $0.isEmpty })
+        #expect(buffer.read(frames: 150..<250)?[0] == expected(channel: 0, from: 150, count: 100))
+        #expect(buffer.read(frames: 149..<249) == nil)
     }
 
     final class Flag: @unchecked Sendable {
         let done = Atomic<Bool>(false)
     }
 
-    @Test("A snapshot taken while the writer keeps going is never torn")
+    @Test("A read taken while the writer keeps going is never torn")
     func concurrentWriter() async throws {
         let buffer = PreRollBuffer(channelCount: 1, capacity: 20_000)
         let flag = Flag()
@@ -104,18 +70,19 @@ struct PreRollBufferTests {
         }
         writer.start()
 
-        var snapshots = 0
+        var reads = 0
         var torn = 0
         while !flag.done.load(ordering: .acquiring) {
-            let snapshot = buffer.snapshot(maxFrames: 20_000)
-            let samples = snapshot.channels[0]
-            if !samples.isEmpty {
-                snapshots += 1
-                if samples.enumerated().contains(where: { $1 != Float(snapshot.startFrame + $0) }) { torn += 1 }
+            let end = buffer.totalWrittenFrames
+            let start = max(0, end - 19_500)   // about one block short of the capacity: the writer often laps a read
+            // Nil when the writer lapped this read; what comes back must be the ramp, whole.
+            if let samples = buffer.read(frames: start..<end)?[0], !samples.isEmpty {
+                reads += 1
+                if samples.enumerated().contains(where: { $1 != Float(start + $0) }) { torn += 1 }
             }
             try await Task.sleep(for: .milliseconds(1))
         }
-        #expect(snapshots > 50)
+        #expect(reads > 50)
         #expect(torn == 0)
     }
 }

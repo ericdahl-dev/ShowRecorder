@@ -19,10 +19,10 @@ struct PreRollFillTests {
         try recorder.arm(device)
         deliver(72_000, to: device, block: 480, sample: Self.value)
 
-        let snapshot = try #require(recorder.armedPreRoll).snapshot(maxFrames: 48_000)
-        #expect(snapshot.startFrame == 24_000)
-        #expect(snapshot.channels[0] == (24_000..<72_000).map { Float($0) })
-        #expect(snapshot.channels[1] == (24_000..<72_000).map { Float($0 + 1_000_000) })
+        let buffer = try #require(recorder.armedPreRoll)
+        let held = try #require(buffer.read(frames: 24_000..<72_000))
+        #expect(held[0] == (24_000..<72_000).map { Float($0) })
+        #expect(held[1] == (24_000..<72_000).map { Float($0 + 1_000_000) })
     }
 
     @Test("Arming again starts with an empty buffer")
@@ -63,7 +63,6 @@ struct PreRollFillTests {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let off = Recorder(deviceFolder: root, preRollSeconds: 0)
         try off.arm(device)
-        #expect(!off.isKeepingPreRoll)
         #expect(off.armedPreRoll != nil, "room for the start wait (#915)")
         off.disarm()
         #expect(off.armedPreRoll == nil)

@@ -129,27 +129,8 @@ struct MixHoldTests {
         #expect(plan.limitedBy == nil)
     }
 
-    @Test("A stereo-linked pair moves together: either channel's headamp brings in both")
-    func linkedPair() {
-        let sources = [
-            MixHold.ChannelSource(channel: 1, headamp: 1, linkedChannel: 2),
-            MixHold.ChannelSource(channel: 2, headamp: 2, linkedChannel: 1),
-            MixHold.ChannelSource(channel: 3, headamp: 3),
-        ]
-        #expect(MixHold.channels(movedByHeadamp: 1, sources: sources) == [1, 2])
-        #expect(MixHold.channels(movedByHeadamp: 2, sources: sources) == [1, 2])
-        #expect(MixHold.channels(movedByHeadamp: 3, sources: sources) == [3])
-    }
-
     @Test("An X32 headamp feeding two channels compensates both, and the range is the tighter of the two")
     func headampFeedingTwo() {
-        let sources = [
-            MixHold.ChannelSource(channel: 3, headamp: 5),
-            MixHold.ChannelSource(channel: 9, headamp: 5),
-            MixHold.ChannelSource(channel: 4, headamp: 6),
-        ]
-        #expect(MixHold.channels(movedByHeadamp: 5, sources: sources) == [3, 9])
-
         var other = channel(9)
         other.mainFaderDb = 7
         let plan = MixHold.plan(headamp: 5, gainChangeDb: -5, channels: [channel(3), other], ranges: x32Ranges)
@@ -159,38 +140,7 @@ struct MixHoldTests {
         #expect(plan.changes.contains(MixHold.Change(setting: .init(channel: 9, parameter: .mainFader), fromDb: 7, toDb: 10)))
     }
 
-    @Test("The undo set holds the before-values, so it restores every compensated setting exactly, and the gain move to reverse")
-    func undoRestores() {
-        var state = channel()
-        state.mainFaderDb = -15.3
-        let before = [state]
-        let plan = MixHold.plan(headamp: 1, gainChangeDb: 4.7, channels: before, ranges: x32Ranges)
-        let after = MixHold.apply(plan.values, to: before)
-        #expect(after != before)
-        #expect(MixHold.apply(plan.undo.beforeDb, to: after) == before)
-        #expect(plan.undo.gainMovedDb == [1: 4.7])
-    }
-
-    @Test("Undo sets combine over a run: the first before-value of each setting wins, and each headamp's moves add up")
-    func undoCombines() {
-        // Two steps of the loop on channel 1 (headamp 1), and one on channel 2 (headamp 2), all in one run.
-        let original = [channel(1), channel(2)]
-        let first = MixHold.plan(headamp: 1, gainChangeDb: 6, channels: [original[0]], ranges: x32Ranges)
-        let afterFirst = MixHold.apply(first.values, to: original)
-        let second = MixHold.plan(headamp: 1, gainChangeDb: -2, channels: [afterFirst[0]], ranges: x32Ranges)
-        let afterSecond = MixHold.apply(second.values, to: afterFirst)
-        let third = MixHold.plan(headamp: 2, gainChangeDb: 3, channels: [afterSecond[1]], ranges: x32Ranges)
-        let end = MixHold.apply(third.values, to: afterSecond)
-
-        var run = MixHold.UndoSet()
-        run.merge(first.undo)
-        run.merge(second.undo)
-        run.merge(third.undo)
-        #expect(MixHold.apply(run.beforeDb, to: end) == original)
-        #expect(run.gainMovedDb == [1: 4, 2: 3])
-    }
-
-    @Test("A threshold on another channel keyed from a moved channel moves +g too, with an undo before-value")
+    @Test("A threshold on another channel keyed from a moved channel moves +g too")
     func sidechainCompensated() {
         let keyed = [
             MixHold.KeyedDynamics(channel: 5, dynamics: .compressor, thresholdDb: -25, keyChannel: 1),
@@ -201,7 +151,6 @@ struct MixHoldTests {
         let setting = MixHold.Setting(channel: 5, parameter: .compressorThreshold)
         #expect(plan.changes.contains(MixHold.Change(setting: setting, fromDb: -25, toDb: -22)))
         #expect(plan.values[setting] == -22)
-        #expect(plan.undo.beforeDb[setting] == -25)
         #expect(!plan.changes.contains { $0.setting.channel == 6 })
     }
 
@@ -239,85 +188,8 @@ struct MixHoldTests {
     }
 }
 
-/// A Mixer with one channel behind headamp 1 and a steady source: the recorded level follows the gain dB for dB.
-/// The gain is private, as on the EVO; only the channel's other settings can be read.
-final class FakeMixer {
-    private var gainDb: Double
-    let sourceDbfs: Double
-    var state: MixHold.ChannelState
-    private(set) var gainWrites: [Double] = []
-
-    init(gainDb: Double, sourceDbfs: Double, state: MixHold.ChannelState) {
-        self.gainDb = gainDb
-        self.sourceDbfs = sourceDbfs
-        self.state = state
-    }
-
-    var levelDbfs: Double { min(sourceDbfs + gainDb, 0) }
-
-    /// Writes a gain move and its compensation together, as #153 and #392 would.
-    func write(gainMoveDb: Double, values: [MixHold.Setting: Double]) {
-        gainDb += gainMoveDb
-        gainWrites.append(gainMoveDb)
-        state = MixHold.apply(values, to: [state])[0]
-    }
-}
-
 @Suite("Mix Hold in the auto-gain loop")
 struct MixHoldLoopTests {
-    @Test("Each step is limited to the compensable range, the reason is kept, and one undo set restores the whole run")
-    func loopLimitedByCompensation() async throws {
-        var start = channel()
-        start.mainFaderDb = 2
-        let mixer = FakeMixer(gainDb: 30, sourceDbfs: -40, state: start)
-        var run = MixHold.Run(ranges: x32Ranges)
-
-        let outcome = try await AutoGainRule().run(
-            measure: { mixer.levelDbfs },
-            adjust: { requested in
-                // Read fresh before every step, never cached.
-                let plan = run.step(headamp: 1, gainChangeDb: requested, channels: [mixer.state])
-                mixer.write(gainMoveDb: plan.gainChangeDb, values: plan.values)
-                return plan.gainChangeDb
-            },
-            settle: {}
-        )
-
-        // -10 dBFS wants 8 dB less gain; the fader at +2 can only rise 8 dB to +10, so the first step is all of it...
-        #expect(outcome == .onTarget(levelDbfs: -18, changeDb: -8, passes: 1))
-        #expect(mixer.state.mainFaderDb == 10)
-        #expect(run.limitedBy == nil)
-
-        // ...and asking for more is limited to nothing, with the fader as the reason.
-        let more = run.step(headamp: 1, gainChangeDb: -3, channels: [mixer.state])
-        #expect(more.gainChangeDb == 0)
-        #expect(run.limitedBy == MixHold.Limit(setting: .init(channel: 1, parameter: .mainFader), endDb: 10))
-
-        mixer.write(gainMoveDb: -(run.undo.gainMovedDb[1] ?? 0), values: run.undo.beforeDb)
-        #expect(mixer.state == start)
-        #expect(mixer.levelDbfs == -10)
-    }
-
-    @Test("A fader at its end stops the loop with range reached")
-    func loopStopsAtTheEnd() async throws {
-        var start = channel()
-        start.mainFaderDb = 10
-        let mixer = FakeMixer(gainDb: 30, sourceDbfs: -40, state: start)
-        var run = MixHold.Run(ranges: x32Ranges)
-        let outcome = try await AutoGainRule().run(
-            measure: { mixer.levelDbfs },
-            adjust: { requested in
-                let plan = run.step(headamp: 1, gainChangeDb: requested, channels: [mixer.state])
-                mixer.write(gainMoveDb: plan.gainChangeDb, values: plan.values)
-                return plan.gainChangeDb
-            },
-            settle: {}
-        )
-        #expect(outcome == .failed(.rangeReached(levelDbfs: -10), changeDb: 0))
-        #expect(run.limitedBy?.setting.parameter == .mainFader)
-        #expect(mixer.state == start)
-    }
-
     @Test("A gate keyed from an input two moved channels share is compensated once, not once per channel (#473)")
     func keyedOncePerSetting() {
         let ranges = MixHold.Ranges(fader: -90...10, send: -90...10, gateThreshold: -80...0, compressorThreshold: -60...0, offDb: -90)

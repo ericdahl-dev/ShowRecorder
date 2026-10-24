@@ -110,7 +110,7 @@ final class Capture: Sendable {
     var isDrained: Bool { rings.allSatisfy { $0.availableFrames == 0 } }
 
     /// - Parameter preRollSeconds: how much audio to keep before a Take starts; the buffer holds a second
-    ///   more, so a snapshot of that length isn't cut short by the writer overwriting its oldest frames.
+    ///   more, so a read of that length isn't cut short by the writer overwriting its oldest frames.
     /// - Parameter startHeadroomSeconds: room in the buffer for a Take that starts late (#915): the time between the press
     ///   and the first live block, while the Drive's files are made. With it the buffer exists even when Pre-roll is off. It is
     ///   allocated here, at Arm, never when a Take starts.
