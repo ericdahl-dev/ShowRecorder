@@ -149,8 +149,6 @@ public enum MixHold {
         public var changes: [Change]
         /// Why `gainChangeDb` is less than requested; nil when it isn't.
         public var limitedBy: Limit?
-        /// What undoes this plan: the gain move and every setting's value before it.
-        public var undo: UndoSet
 
         /// Each compensated setting's new value, to write with the gain.
         public var values: [Setting: Double] {
@@ -158,72 +156,9 @@ public enum MixHold {
         }
     }
 
-    /// What restores a channel after Mix Hold: how far each headamp moved, to move it back (the gain itself is never
-    /// read back), and each compensated setting's value before the first change, to write back exactly.
-    public struct UndoSet: Equatable, Sendable {
-        public var gainMovedDb: [Int: Double]
-        public var beforeDb: [Setting: Double]
-
-        public init(gainMovedDb: [Int: Double] = [:], beforeDb: [Setting: Double] = [:]) {
-            self.gainMovedDb = gainMovedDb
-            self.beforeDb = beforeDb
-        }
-
-        /// Folds in a later undo set, so one set undoes a whole run: every step of the loop, on every channel. A
-        /// setting keeps its first before-value, and each headamp's moves add up.
-        public mutating func merge(_ later: UndoSet) {
-            gainMovedDb.merge(later.gainMovedDb, uniquingKeysWith: +)
-            beforeDb.merge(later.beforeDb, uniquingKeysWith: { first, _ in first })
-        }
-    }
-
-    /// Mix Hold over a whole auto-gain run: one channel's steps, or every channel's when the run covers them all. An
-    /// actuator plans each step from the state it has just read from the Mixer, writes the gain move with the plan's
-    /// values, and gives the loop `gainChangeDb` as how far it moved. So the loop's steps stay within the compensable
-    /// range, and stop with range reached when it runs out.
-    public struct Run: Sendable {
-        public var ranges: Ranges
-        public var scopes: Scopes
-        /// Undoes every step so far.
-        public private(set) var undo = UndoSet()
-        /// Why the latest step was limited; nil when it wasn't.
-        public private(set) var limitedBy: Limit?
-
-        public init(ranges: Ranges, scopes: Scopes = .all) {
-            self.ranges = ranges
-            self.scopes = scopes
-        }
-
-        /// Plans one step and keeps its undo set and limit. `channels` must be read fresh, just before the step.
-        public mutating func step(headamp: Int, gainChangeDb: Double, channels: [ChannelState], keyed: [KeyedDynamics] = []) -> Plan {
-            let plan = MixHold.plan(headamp: headamp, gainChangeDb: gainChangeDb, channels: channels, ranges: ranges, scopes: scopes, keyed: keyed)
-            undo.merge(plan.undo)
-            limitedBy = plan.limitedBy
-            return plan
-        }
-    }
-
-    /// `channels` with `values` written in, as the Mixer would have them after writing a plan or an undo set.
-    public static func apply(_ values: [Setting: Double], to channels: [ChannelState]) -> [ChannelState] {
-        channels.map { state in
-            var state = state
-            for (setting, value) in values where setting.channel == state.channel {
-                switch setting.parameter {
-                case .gateThreshold: state.gateThresholdDb = value
-                case .compressorThreshold: state.compressorThresholdDb = value
-                case .mainFader: state.mainFaderDb = value
-                case .otherMain(let main): state.otherMainsDb[main] = value
-                case .send(let bus):
-                    if let index = state.sends.firstIndex(where: { $0.bus == bus }) { state.sends[index].levelDb = value }
-                }
-            }
-            return state
-        }
-    }
-
     /// The compensation for moving `headamp` by `gainChangeDb`, limited to the compensable range.
     /// - Parameters:
-    ///   - channels: every channel the headamp moves (see `channels(movedByHeadamp:sources:)`), read fresh.
+    ///   - channels: every channel the headamp moves, read fresh.
     ///   - keyed: gates and compressors whose sidechain key is another channel, read fresh. Those keyed from a moved
     ///     channel, on a channel that isn't moved, have their threshold moved +g like the moved channels' own.
     public static func plan(
@@ -247,11 +182,7 @@ public enum MixHold {
             limit = range.lowerLimit
         }
         let changes = items.map { Change(setting: $0.setting, fromDb: $0.valueDb, toDb: $0.valueDb + $0.direction * g) }
-        let undo = UndoSet(
-            gainMovedDb: [headamp: g],
-            beforeDb: Dictionary(changes.map { ($0.setting, $0.fromDb) }, uniquingKeysWith: { first, _ in first })
-        )
-        return Plan(requestedDb: gainChangeDb, gainChangeDb: g, changes: changes, limitedBy: limit, undo: undo)
+        return Plan(requestedDb: gainChangeDb, gainChangeDb: g, changes: changes, limitedBy: limit)
     }
 
     /// How far the gain can move each way before a compensated setting reaches its end stop: Mix Hold's red lines.
@@ -308,33 +239,6 @@ public enum MixHold {
             self.thresholdDb = thresholdDb
             self.keyChannel = keyChannel
         }
-    }
-
-    /// Where a channel's signal comes from: its headamp, and the channel it is stereo-linked with, if any.
-    public struct ChannelSource: Equatable, Sendable {
-        public var channel: Int
-        public var headamp: Int
-        public var linkedChannel: Int?
-        public init(channel: Int, headamp: Int, linkedChannel: Int? = nil) {
-            self.channel = channel
-            self.headamp = headamp
-            self.linkedChannel = linkedChannel
-        }
-    }
-
-    /// Every channel a change to `headamp` moves, in order: the channels it feeds (on the X32 one headamp can feed
-    /// several), their stereo-linked partners, and whatever those partners' headamps feed in turn.
-    public static func channels(movedByHeadamp headamp: Int, sources: [ChannelSource]) -> [Int] {
-        var headamps: Set<Int> = [headamp]
-        var moved: Set<Int> = []
-        while true {
-            let fed = sources.filter { headamps.contains($0.headamp) }
-            let next = Set(fed.map(\.channel)).union(fed.compactMap(\.linkedChannel))
-            guard next != moved else { break }
-            moved = next
-            headamps.formUnion(sources.filter { moved.contains($0.channel) }.map(\.headamp))
-        }
-        return moved.sorted()
     }
 
     /// A setting Mix Hold moves: +1 with the gain (thresholds), -1 against it (faders and sends).

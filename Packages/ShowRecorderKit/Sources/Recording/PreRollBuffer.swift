@@ -2,22 +2,16 @@ import AudioIO
 import Synchronization
 
 /// A rolling buffer of the most recent audio: it holds up to `capacity` frames of every channel and
-/// overwrites the oldest. The real-time thread writes; any other thread can take a `snapshot` of the
-/// last N frames while writing carries on.
+/// overwrites the oldest. The real-time thread writes; any other thread can `read` a range of frames
+/// while writing carries on.
 ///
 /// `write` never allocates, locks or blocks (ADR 0002). It is single-producer: only one thread writes.
 ///
-/// A snapshot may copy frames the writer overwrites while it copies. The writer announces how far it is
+/// A read may copy frames the writer overwrites while it copies. The writer announces how far it is
 /// about to write (`writing`) before it touches the storage, and the reader checks that mark after
-/// copying and drops any frames that may have been overwritten. So a snapshot is never torn; when the
-/// writer laps the reader it is shorter instead.
+/// copying and refuses the read if any frames may have been overwritten. So a read is never torn; when
+/// the writer laps the reader it returns nil instead.
 final class PreRollBuffer: @unchecked Sendable {
-    /// Frames from `startFrame` (counted from the first frame ever written) on, one array per channel.
-    struct Snapshot {
-        var startFrame: Int
-        var channels: [[Float]]
-    }
-
     let channelCount: Int
     let capacity: Int
     private let storage: UnsafeMutablePointer<Float>
@@ -78,30 +72,5 @@ final class PreRollBuffer: @unchecked Sendable {
         }
         atomicMemoryFence(ordering: .sequentiallyConsistent)
         return writing.load(ordering: .acquiring) - capacity <= range.lowerBound ? channels : nil
-    }
-
-    /// The last `maxFrames` frames (or fewer, when less has been written or the writer lapped the copy).
-    func snapshot(maxFrames: Int) -> Snapshot {
-        let end = written.load(ordering: .acquiring)
-        let count = max(0, min(maxFrames, end, capacity))
-        let start = end - count
-        var channels = (0..<channelCount).map { _ in [Float](repeating: 0, count: count) }
-        if count > 0 {
-            let offset = start % capacity
-            let first = min(count, capacity - offset)
-            for channel in 0..<channelCount {
-                let base = UnsafePointer(storage + channel * capacity)
-                channels[channel].withUnsafeMutableBufferPointer { out in
-                    out.baseAddress!.update(from: base + offset, count: first)
-                    if first < count { (out.baseAddress! + first).update(from: base, count: count - first) }
-                }
-            }
-        }
-        // Read the mark only after the copy: frames before it may have been overwritten meanwhile.
-        atomicMemoryFence(ordering: .sequentiallyConsistent)
-        let firstValid = min(max(start, writing.load(ordering: .acquiring) - capacity), end)
-        let lost = firstValid - start
-        if lost > 0 { channels = channels.map { Array($0.dropFirst(lost)) } }
-        return Snapshot(startFrame: firstValid, channels: channels)
     }
 }
