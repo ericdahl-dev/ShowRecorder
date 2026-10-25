@@ -102,6 +102,27 @@ struct CopyJoinTests {
         #expect(capture.feeds[1].ring.availableFrames == 480)
     }
 
+    @Test("A Copy no longer fed and asked to join again while a join block is acting on its old request joins at the next block (#945)")
+    func stopAndRejoinDuringJoinBlock() {
+        let box = CaptureBox()
+        let capture = Capture(channelCount: 1, sampleRate: 48_000, hostTicksPerSecond: 48_000, afterJoinRead: {
+            guard let capture = box.capture else { return }
+            capture.stopFeeding(capture.feeds[1])            // the Drive fails
+            capture.attachMidTake(capture.feeds[1])          // and comes straight back
+        })
+        capture.startCapturing(copies: 1)
+        receive(capture)
+        capture.attachMidTake(capture.feeds[1])
+        box.capture = capture
+        receive(capture)
+        box.capture = nil
+        #expect(capture.feeds[1].ring.availableFrames == 0, "not fed on the block that served its old request")
+        receive(capture)
+        #expect(capture.feeds[1].joinedAt == 960)
+        #expect(capture.feeds[1].ring.availableFrames == 480)
+        #expect(capture.feeds[0].ring.availableFrames == 1_440)
+    }
+
     /// Lets a Capture's own hook reach it.
     final class CaptureBox: @unchecked Sendable {
         var capture: Capture?

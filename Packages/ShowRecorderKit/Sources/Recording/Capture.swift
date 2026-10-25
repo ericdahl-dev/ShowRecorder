@@ -89,7 +89,8 @@ final class Capture: Sendable {
     private let hostClock: @Sendable () -> UInt64
     /// A gap shorter than this (frames) is timing jitter, not lost input.
     private let gapThreshold: Int
-    /// Tests only: runs on the real-time thread between reading the join requests and acting on them (#544). Nil otherwise.
+    /// Tests only: runs on the real-time thread after a join block sets the join frames, before the Copies are added to
+    /// `capturing` (#544, #945). Nil otherwise.
     private let afterJoinRead: (@Sendable () -> Void)?
     /// The host clock's ticks per second on this machine.
     static let machTicksPerSecond: Double = {
@@ -220,9 +221,9 @@ final class Capture: Sendable {
     func receive(_ block: AudioBlock) {
         meters.record(block)
         preRoll?.write(block)
-        let requested = joinRequests.load(ordering: .acquiring)
+        // A read first, so a block with nothing waiting writes nothing shared; the claim is one exchange (#945).
+        let requested = joinRequests.load(ordering: .relaxed) == 0 ? 0 : joinRequests.exchange(0, ordering: .acquiringAndReleasing)
         if requested != 0 {
-            afterJoinRead?()
             if preRollStart.load(ordering: .relaxed) == -2 {
                 // The Pre-roll buffer already holds this block, so the live audio starts before it.
                 let start = (preRoll?.totalWrittenFrames ?? block.frameCount) - block.frameCount
@@ -235,11 +236,12 @@ final class Capture: Sendable {
             for copy in 0..<rings.count where requested & (1 << copy) != 0 {
                 feeds[copy].markJoined(at: frame)
             }
+            afterJoinRead?()
             capturing.bitwiseOr(requested, ordering: .acquiringAndReleasing)
-            // A Copy stopped since its request was read: take it back out, so its bit can't outlive this block (#544).
-            let stopped = stoppedFeeds.load(ordering: .acquiring) & requested
-            if stopped != 0 { capturing.bitwiseAnd(~stopped, ordering: .acquiringAndReleasing) }
-            joinRequests.bitwiseAnd(~requested, ordering: .acquiringAndReleasing)
+            // A Copy stopped, or asked to join again, since its request was claimed: take it back out; a fresh request
+            // is served at the next block at the right frame (#544, #945).
+            let stale = (stoppedFeeds.load(ordering: .acquiring) | joinRequests.load(ordering: .acquiring)) & requested
+            if stale != 0 { capturing.bitwiseAnd(~stale, ordering: .acquiringAndReleasing) }
         }
         let mask = capturing.load(ordering: .acquiring) & ~stoppedFeeds.load(ordering: .acquiring)
         noteInputGap(before: block, capturing: mask)
