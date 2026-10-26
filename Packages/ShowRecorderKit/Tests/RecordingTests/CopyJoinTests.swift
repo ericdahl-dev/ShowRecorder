@@ -123,6 +123,38 @@ struct CopyJoinTests {
         #expect(capture.feeds[0].ring.availableFrames == 1_440)
     }
 
+    @Test("Stop while a join block is acting on a mid-Take Copy's request: no Copy is captured after it (#957)")
+    func stopDuringJoinBlock() {
+        let box = CaptureBox()
+        let capture = Capture(channelCount: 1, sampleRate: 48_000, hostTicksPerSecond: 48_000, afterJoinRead: {
+            box.capture?.stopCapturing()
+        })
+        capture.startCapturing(copies: 1)
+        receive(capture)
+        capture.attachMidTake(capture.feeds[1])
+        box.capture = capture
+        receive(capture)                                     // Stop lands as this block reads its join request
+        box.capture = nil
+        receive(capture)
+        #expect(capture.feeds[1].ring.availableFrames == 0, "the Drive isn't added back after Stop")
+        #expect(capture.feeds[0].ring.availableFrames == 480, "nor the Device, past the block before Stop")
+    }
+
+    @Test("Stop while the Pre-roll join block is acting on both Copies' requests: nothing is captured after it (#957)")
+    func stopDuringPreRollJoinBlock() {
+        let box = CaptureBox()
+        let capture = Capture(channelCount: 1, sampleRate: 48_000, preRollSeconds: 1, hostTicksPerSecond: 48_000,
+                              afterJoinRead: { box.capture?.stopCapturing() })
+        receive(capture)
+        capture.startCapturing(copies: 2, preRollFrames: 480)
+        box.capture = capture
+        receive(capture)                                     // Stop lands as this block reads the join requests
+        box.capture = nil
+        receive(capture)
+        #expect(capture.feeds[0].ring.availableFrames == 0)
+        #expect(capture.feeds[1].ring.availableFrames == 0)
+    }
+
     /// Lets a Capture's own hook reach it.
     final class CaptureBox: @unchecked Sendable {
         var capture: Capture?

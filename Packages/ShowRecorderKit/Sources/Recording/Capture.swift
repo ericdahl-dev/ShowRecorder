@@ -192,7 +192,9 @@ final class Capture: Sendable {
     }
 
     func stopCapturing() {
-        // Requests first: the next block ORs any still pending back into `capturing` (#872).
+        // Every Copy stopped first: a join block that claimed its requests before this ran takes them back out (#957).
+        stoppedFeeds.store(-1, ordering: .releasing)
+        // Requests next: the next block ORs any still pending back into `capturing` (#872).
         joinRequests.store(0, ordering: .releasing)
         capturing.store(0, ordering: .releasing)
     }
