@@ -4,19 +4,15 @@ import MixerLink
 /// Where mixer packs (#705) are offered: Debug builds only, never TestFlight or the App Store until Eric tries packs
 /// on a device. Moving it up is a one-line PR, like `DriveOnlyAvailability`.
 public enum PackAvailability {
+    /// Where it is offered; moving it up a level is this one line.
+    public static let level: AvailabilityLevel = .debugOnly
+
     public static func isAvailable(isDebugBuild: Bool) -> Bool {
-        isDebugBuild
+        level.isOn(isDebugBuild: isDebugBuild, environment: nil)
     }
 
     /// The answer for the running app.
-    public static var isAvailableInThisBuild: Bool {
-        #if DEBUG
-        let isDebugBuild = true
-        #else
-        let isDebugBuild = false
-        #endif
-        return isAvailable(isDebugBuild: isDebugBuild)
-    }
+    public static var isAvailableInThisBuild: Bool { level.isOnInThisBuild }
 }
 
 /// What the paywall offers with mixer packs (#705): the Armed family's pack first with Pro beside it, Pro alone for

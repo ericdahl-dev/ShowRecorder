@@ -325,6 +325,9 @@ public final class ClipProtection {
 
 /// Whether clip protection (#448) is on: off until the operator switches it on in Settings.
 public enum ClipProtectionSetting {
+    /// Where it is offered; moving it up a level is this one line.
+    public static let level: AvailabilityLevel = .debugAndTestFlight
+
     /// The key it is stored under.
     public static let key = "clipProtection"
 
@@ -332,7 +335,7 @@ public enum ClipProtectionSetting {
     /// distribution answer as auto-gain uses (`AutoGainAvailability`). Its own rule, so either can move on its own.
     /// Offered is not on: it stays off until the operator switches it on in Settings.
     public static func isOffered(isDebugBuild: Bool, environment: DistributionEnvironment?) -> Bool {
-        isDebugBuild || environment == .sandbox
+        level.isOn(isDebugBuild: isDebugBuild, environment: environment)
     }
 
     public static func isOn(in defaults: UserDefaults = .standard) -> Bool {

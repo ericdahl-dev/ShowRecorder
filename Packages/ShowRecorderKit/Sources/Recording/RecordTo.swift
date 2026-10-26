@@ -71,18 +71,14 @@ public enum RecordToSetting {
 /// on a device. Opening it up is this one rule. Outside it a Take goes to the Device, and the Drive when there is one and it's Pro.
 /// The environment is the one `DemoSignalAvailability` resolves from StoreKit.
 public enum RecordToAvailability {
+    /// Where it is offered; moving it up a level is this one line.
+    public static let level: AvailabilityLevel = .debugAndTestFlight
+
     /// `environment` is nil until StoreKit has answered; only a sandbox (TestFlight) answer offers it in a Release build.
     public static func isAvailable(isDebugBuild: Bool, environment: DistributionEnvironment?) -> Bool {
-        isDebugBuild || environment == .sandbox
+        level.isOn(isDebugBuild: isDebugBuild, environment: environment)
     }
 
     /// The answer for the running app, from what `DemoSignalAvailability.resolveEnvironment()` has found so far.
-    public static var isAvailableInThisBuild: Bool {
-        #if DEBUG
-        let isDebugBuild = true
-        #else
-        let isDebugBuild = false
-        #endif
-        return isAvailable(isDebugBuild: isDebugBuild, environment: DemoSignalAvailability.environment)
-    }
+    public static var isAvailableInThisBuild: Bool { level.isOnInThisBuild }
 }

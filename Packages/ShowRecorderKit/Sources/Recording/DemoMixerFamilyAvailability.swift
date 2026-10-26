@@ -11,19 +11,15 @@ import MixerLink
 /// even offered. Only the pack offer and the license read this; Mixer Link, channel naming and the rest still see no
 /// mixer family on the Demo signal.
 public enum DemoMixerFamilyAvailability {
+    /// Where it is offered; moving it up a level is this one line.
+    public static let level: AvailabilityLevel = .debugAndTestFlight
+
     public static func isAvailable(isDebugBuild: Bool, environment: DistributionEnvironment?) -> Bool {
-        isDebugBuild || environment == .sandbox
+        level.isOn(isDebugBuild: isDebugBuild, environment: environment)
     }
 
     /// The answer for the running app, from the environment `DemoSignalAvailability.resolveEnvironment()` has found.
-    public static var isAvailableInThisBuild: Bool {
-        #if DEBUG
-        let isDebugBuild = true
-        #else
-        let isDebugBuild = false
-        #endif
-        return isAvailable(isDebugBuild: isDebugBuild, environment: DemoSignalAvailability.environment)
-    }
+    public static var isAvailableInThisBuild: Bool { level.isOnInThisBuild }
 }
 
 extension MixerFamily {
