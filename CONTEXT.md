@@ -176,6 +176,14 @@ A Copy that Stop couldn't finish writing in time: the Take ends without waiting 
 How widely a feature that ships hidden is offered: Debug only, Debug + TestFlight, or everyone. Each feature's availability rule names one as its `level`, so moving a feature up is that one line, after Eric has tried it on a device (#557).
 _Avoid_: Feature flag, gate
 
+**Re-patch**:
+The Mixer routes something else to a USB Channel during a Take, so its Stem holds another Source from there on. It is logged with a Marker, unlike a rename, where the Mixer only gives the same routing a new name. `ChannelNaming` tells them apart and reports each to the Take (#21, #557).
+_Avoid_: Routing change (the logged record is a routing change; the event is a re-patch)
+
+**Saved name**:
+A channel name the operator typed before, kept on the device and offered as a chip on the Channel names page. Newest first, one per name whatever its case; the built-in shortcut names are not saved.
+_Avoid_: Recent name, history
+
 **Mixer family**:
 Mixers one driver reads, such as the X Air (XR18, MR18) or the X32 (X32, M32). The family is recognized from the Audio interface's name (for Mixer packs) and from the Mixer's own model (for the Mixer Link), and each family knows the port it is asked on and makes its driver. In Debug and sandbox builds (TestFlight, App Review) the Demo signal counts as an X Air for Mixer packs and the license, so App Review can reach the pack.
 

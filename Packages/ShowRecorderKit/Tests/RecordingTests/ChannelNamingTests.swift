@@ -83,6 +83,108 @@ struct ChannelNamingTests {
         #expect(next.names == [2: "Snare"], "late names are used once")
     }
 
+    static func routed(_ name: String, from route: String?) -> Source {
+        var source = Source(name: name, color: .off)
+        source.routedFrom = route
+        return source
+    }
+
+    @Test("A name the Mixer changes during a Take on the same routing is a rename, once (#557)")
+    func renamedDuringATake() {
+        var naming = ChannelNaming()
+        naming.takeStarted(with: [Self.routed("Kick", from: "In 1"), Self.routed("Snare", from: "In 2")])
+
+        let events = naming.mixerOffered([Self.routed("Kick In", from: "In 1"), Self.routed("Snare", from: "In 2")])
+
+        #expect(events == [.renamed(channel: 1, from: "Kick", to: "Kick In")])
+        #expect(naming.mixerOffered([Self.routed("Kick In", from: "In 1"), Self.routed("Snare", from: "In 2")]).isEmpty, "a repeat is nothing")
+    }
+
+    @Test("A channel the Mixer re-patches is a re-patch, not a rename; a sweep of the source selector is a re-patch each time (#557)")
+    func repatchedDuringATake() {
+        var naming = ChannelNaming()
+        naming.takeStarted(with: [Self.routed("Kick", from: "In 1")])
+
+        let first = naming.mixerOffered([Self.routed("Vox", from: "In 5")])
+        let second = naming.mixerOffered([Self.routed("Bass", from: "In 6")])
+
+        #expect(first == [.repatched(channel: 1, from: "Kick", to: "Vox")])
+        #expect(second == [.repatched(channel: 1, from: "Vox", to: "Bass")])
+    }
+
+    @Test("A re-patch and a rename in one offer come back re-patch first, even when the re-patched channel is the higher one (#557)")
+    func repatchBeforeRename() {
+        var naming = ChannelNaming()
+        naming.takeStarted(with: [Self.routed("Kick", from: "In 1"), Self.routed("Snare", from: "In 2")])
+
+        let events = naming.mixerOffered([Self.routed("Kick In", from: "In 1"), Self.routed("Vox", from: "In 9")])
+
+        #expect(events == [.repatched(channel: 2, from: "Snare", to: "Vox"), .renamed(channel: 1, from: "Kick", to: "Kick In")])
+        #expect(naming.mixerOffered([Self.routed("Kick In", from: "In 1"), Self.routed("Vox", from: "In 9")]).isEmpty, "a repeat is nothing")
+    }
+
+    @Test("Names offered late are kept for the Take's end, and their first offer is not a rename of the USB names (#557)")
+    func lateNamesAndChanges() {
+        var naming = ChannelNaming()
+        naming.takeStarted(with: [.fallback(usbChannel: 1)])
+
+        let events = naming.mixerOffered([Source(name: "Kick", color: .off)])
+        let ended = naming.takeEnded(allowance: nil, onFiles: [1: "USB 01"])
+
+        #expect(events == [.renamed(channel: 1, from: "USB 01", to: "Kick")], "logged on the Take, as before")
+        #expect(ended.names == [1: "Kick"], "and put on the files at its end")
+    }
+
+    @Test("The first routing known for a channel is only noted; a re-patch to a Source with no routing stays a rename (#557)")
+    func routingFirstKnownAndUnknown() {
+        var naming = ChannelNaming()
+        naming.takeStarted(with: [Self.routed("Kick", from: nil)])
+
+        #expect(naming.mixerOffered([Self.routed("Kick", from: "In 1")]).isEmpty, "routing arrives late: noted, no event")
+        #expect(naming.mixerOffered([Self.routed("Vox", from: nil)]) == [.renamed(channel: 1, from: "Kick", to: "Vox")])
+    }
+
+    @Test("A channel past the Take's start Sources compares with its USB name (#557)")
+    func renamedFromTheUSBName() {
+        var naming = ChannelNaming()
+        naming.takeStarted(with: [])
+
+        #expect(naming.mixerOffered([Self.routed("Kick", from: nil)]) == [.renamed(channel: 1, from: "USB 01", to: "Kick")])
+    }
+
+    @Test("Typed names are remembered as chips, newest first, one per name whatever the case; the built-in shortcut names are not (#557)")
+    func typedNamesBecomeChips() {
+        var naming = ChannelNaming()
+        for (channel, name) in [(1, "Pastor Mike"), (2, "Choir mic"), (3, "Kick"), (4, "Vox 2"), (5, "pastor mike")] { naming.type(name, for: channel) }
+
+        #expect(naming.saved == ["pastor mike", "Choir mic"])
+        naming.type("   ", for: 6)
+        #expect(naming.saved == ["pastor mike", "Choir mic"], "a refused name is not remembered")
+    }
+
+    @Test("Copying a Show's names replaces the typed ones and remembers them, the lowest channel's name newest; it says how many (#557)")
+    func copyingNames() {
+        var naming = ChannelNaming(typed: [9: "Old"], saved: ["Old"])
+
+        let count = naming.copy([1: "Pastor", 2: "Choir"])
+
+        #expect(count == 2)
+        #expect(naming.typed == [1: "Pastor", 2: "Choir"])
+        #expect(naming.saved == ["Pastor", "Choir", "Old"])
+    }
+
+    @Test("The chips are kept on the device and come back (#557)")
+    func chipsPersist() throws {
+        let suite = "ChannelNamingTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var naming = ChannelNaming()
+        naming.type("Choir mic", for: 1)
+        naming.persist(to: defaults)
+
+        #expect(ChannelNaming(typed: [:], saved: SavedChannelNames.load(from: defaults)).saved == ["Choir mic"])
+    }
+
     @Test("A Take that started with Mixer names takes no late ones, and Free puts no typed names on files")
     func noLateNamesAndFree() {
         var naming = ChannelNaming(typed: [1: "Kick In"])

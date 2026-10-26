@@ -64,7 +64,7 @@ public final class Recorder {
     /// Who names each USB Channel: typed names, and the Mixer's that arrive late in a Take (#443).
     public private(set) var naming = ChannelNaming()
     /// Names typed before on this device, newest first, offered as chips (`SavedChannelNames`).
-    public private(set) var savedChannelNames: [String] = []
+    public var savedChannelNames: [String] { naming.saved }
     @ObservationIgnored private let savedNames: UserDefaults
     /// What the current or last Take was allowed, frozen at its record press. Nil: everything (no allowance given).
     @ObservationIgnored private var lastAllowance: TakeAllowance?
@@ -207,7 +207,7 @@ public final class Recorder {
         self.hostClock = hostClock
         self.writerStopTimeout = writerStopTimeout
         self.savedNames = savedNames
-        savedChannelNames = SavedChannelNames.load(from: savedNames)
+        naming = ChannelNaming(saved: SavedChannelNames.load(from: savedNames))
         self.freeSpace = freeSpace
         self.preRollSeconds = preRollSeconds
         repair = TakeRepair(freeSpace: freeSpace, writeAbandoned: writeAbandoned)
@@ -228,7 +228,7 @@ public final class Recorder {
         repair.jobDone = { [unowned self] in regenerateReportsOffMain(skipping: $0) }
         // A Show left open by a crash or an earlier launch is the open Show again.
         currentShow = Show.findOpen(in: deviceFolder)
-        naming = ChannelNaming(typed: currentShow?.channelNames ?? [:])
+        naming = ChannelNaming(typed: currentShow?.channelNames ?? [:], saved: naming.saved)
         finishCutOffTake()
     }
 
@@ -496,8 +496,7 @@ public final class Recorder {
         if !isRecording, !isFinishing, !isStarting { endIdleShow(at: now()) }
         naming.type(name, for: usbChannel)
         currentShow?.setChannelNames(channelNames)
-        savedChannelNames = SavedChannelNames.adding(name, to: savedChannelNames)
-        SavedChannelNames.save(savedChannelNames, to: savedNames)
+        naming.persist(to: savedNames)
         return true
     }
 
@@ -507,13 +506,10 @@ public final class Recorder {
     public func copyChannelNamesFromLastShow() -> Int? {
         guard let current = currentShow, let previous = Show.lastShow(before: current, in: deviceFolder),
               !previous.channelNames.isEmpty else { return nil }
-        naming.replace(with: previous.channelNames)
+        let count = naming.copy(previous.channelNames)
         currentShow?.setChannelNames(channelNames)
-        for name in previous.channelNames.sorted(by: { $0.key > $1.key }).map(\.value) {
-            savedChannelNames = SavedChannelNames.adding(name, to: savedChannelNames)
-        }
-        SavedChannelNames.save(savedChannelNames, to: savedNames)
-        return channelNames.count
+        naming.persist(to: savedNames)
+        return count
     }
 
     /// What the naming box and the Channel names page do with what was typed: text names the channel, an empty or
@@ -766,9 +762,6 @@ public final class Recorder {
         // The levels of a Take count from the press: drop what the meters gathered before it.
         _ = capture.meters.takeLevels()
         naming.takeStarted(with: sources)
-        mixerNames = Dictionary(uniqueKeysWithValues: sources.enumerated().map { ($0.offset + 1, $0.element.name) })
-        takeRouting = Dictionary(uniqueKeysWithValues: sources.enumerated().map { ($0.offset + 1, $0.element.routedFrom) })
-            .compactMapValues { $0 }
         routingChanges = []
         isRecording = true
         moveStop.takeStarted()
@@ -1094,20 +1087,22 @@ public final class Recorder {
     /// started with real names stays frozen. Touches no audio and no files while recording.
     public func offerSources(_ sources: [Source]) {
         guard isRecording else { return }
-        logRoutingChanges(in: sources)
-        logRenames(in: sources)
-        naming.mixerOffered(sources)
+        var repatched = false
+        for change in naming.mixerOffered(sources) {
+            switch change {
+            case .repatched(let channel, let from, let to):
+                session?.logRoutingChange(usbChannel: channel, from: from, to: to)
+                routingChanges = session?.metadata.routingChanges ?? routingChanges
+                repatched = true
+            case .renamed(let channel, let from, let to):
+                session?.logRename(usbChannel: channel, from: from, to: to)
+            }
+        }
+        if repatched, let session { refreshMarkers(from: session.metadata) }
     }
-
-    /// The name the Mixer last gave each USB Channel during this Take (or, from the start, the Source the
-    /// Take began with), to tell a rename from a repeat.
-    private var mixerNames: [Int: String] = [:]
 
     /// The USB routing changes of the running Take, for the record screen's warning (#21). Cleared when a Take starts.
     public private(set) var routingChanges: [TakeMetadata.RoutingChange] = []
-    /// What the Mixer routed to each USB Channel: from the Take's start, or from when the routing was first known
-    /// (a Mixer Link that arrived after the press), and after each re-patch.
-    private var takeRouting: [Int: String] = [:]
 
     /// What the record screen says about the running Take's routing changes (#21), naming each Stem as it was
     /// named at the start. Nil when there are none.
@@ -1116,38 +1111,6 @@ public final class Recorder {
         var stems: [Int: String] = [:]
         for change in routingChanges { stems[change.usbChannel] = session.channelName(change.usbChannel) }
         return RoutingChangeNotice.message(for: routingChanges, stemNames: stems)
-    }
-
-    /// A USB Channel whose routing changed (#21) is logged as a routing change with a Marker, not as a rename: from
-    /// here on its Stem holds another Source. The first routing known for a USB Channel is only noted. A re-patch to
-    /// something the Mixer Link can't name (no `routedFrom`) isn't told apart from not knowing: it stays a rename.
-    private func logRoutingChanges(in sources: [Source]) {
-        guard let session else { return }
-        var logged = false
-        for (index, source) in sources.enumerated() {
-            let number = index + 1
-            guard let now = source.routedFrom else { continue }
-            guard let known = takeRouting[number] else { takeRouting[number] = now; continue }
-            guard now != known else { continue }
-            let from = mixerNames[number] ?? Source.fallback(usbChannel: number).name
-            session.logRoutingChange(usbChannel: number, from: from, to: source.name)
-            routingChanges = session.metadata.routingChanges ?? []
-            takeRouting[number] = now
-            mixerNames[number] = source.name
-            logged = true
-        }
-        if logged { refreshMarkers(from: session.metadata) }
-    }
-
-    private func logRenames(in sources: [Source]) {
-        guard let session else { return }
-        for (index, source) in sources.enumerated() {
-            let number = index + 1
-            let known = mixerNames[number] ?? Source.fallback(usbChannel: number).name
-            guard source.name != known else { continue }
-            session.logRename(usbChannel: number, from: known, to: source.name)
-            mixerNames[number] = source.name
-        }
     }
 
     /// What the running Take was allowed at its press (#705), for what follows the Take, such as clip protection.

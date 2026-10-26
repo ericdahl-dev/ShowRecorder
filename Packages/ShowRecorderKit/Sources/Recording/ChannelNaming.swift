@@ -18,12 +18,29 @@ public struct ChannelNameRow: Equatable, Sendable, Identifiable {
 public struct ChannelNaming: Equatable, Sendable {
     /// The names the operator typed, by USB Channel.
     public private(set) var typed: [Int: String]
+    /// The names typed before on this device, newest first, offered as chips (`SavedChannelNames`).
+    public private(set) var saved: [String]
     /// True while a Take that started with no Mixer names runs: the first Mixer names offered go on its files.
     private var acceptsLateNames = false
     private var lateMixerNames: [Int: String] = [:]
+    /// The name the Mixer last gave each USB Channel during this Take (or, from the start, the Source the Take began with),
+    /// to tell a rename from a repeat.
+    private var mixerNames: [Int: String] = [:]
+    /// What the Mixer routed to each USB Channel: from the Take's start, or from when the routing was first known (a Mixer Link
+    /// that arrived after the press), and after each re-patch.
+    private var takeRouting: [Int: String] = [:]
 
-    public init(typed: [Int: String] = [:]) {
+    /// What the Mixer changed on a USB Channel during a Take (#21): the caller logs each on the Take.
+    public enum MixerChange: Equatable, Sendable {
+        /// The Mixer renamed the channel on the same routing.
+        case renamed(channel: Int, from: String, to: String)
+        /// The Mixer routed something else to the channel (a re-patch); its Stem holds another Source from here on.
+        case repatched(channel: Int, from: String, to: String)
+    }
+
+    public init(typed: [Int: String] = [:], saved: [String] = []) {
         self.typed = typed
+        self.saved = saved
     }
 
     // MARK: Typing
@@ -34,6 +51,7 @@ public struct ChannelNaming: Equatable, Sendable {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return false }
         typed[channel] = name
+        saved = SavedChannelNames.adding(name, to: saved)
         return true
     }
 
@@ -41,6 +59,20 @@ public struct ChannelNaming: Equatable, Sendable {
     @discardableResult
     public mutating func clear(_ channel: Int) -> Bool {
         typed.removeValue(forKey: channel) != nil
+    }
+
+    /// Fills the names from the Show before: replaces every typed name and remembers them, the lowest channel's name newest.
+    /// Returns how many names were copied.
+    @discardableResult
+    public mutating func copy(_ names: [Int: String]) -> Int {
+        replace(with: names)
+        for name in names.sorted(by: { $0.key > $1.key }).map(\.value) { saved = SavedChannelNames.adding(name, to: saved) }
+        return names.count
+    }
+
+    /// Keeps the chips on the device, for the next launch.
+    public func persist(to defaults: UserDefaults) {
+        SavedChannelNames.save(saved, to: defaults)
     }
 
     /// Replaces every typed name: a new Show, a Template or the names copied from the Show before.
@@ -103,15 +135,40 @@ public struct ChannelNaming: Equatable, Sendable {
     public mutating func takeStarted(with sources: [Source]) {
         acceptsLateNames = !sources.contains { $0.hasMixerName }
         lateMixerNames = [:]
+        mixerNames = Dictionary(uniqueKeysWithValues: sources.enumerated().map { ($0.offset + 1, $0.element.name) })
+        takeRouting = Dictionary(uniqueKeysWithValues: sources.enumerated().map { ($0.offset + 1, $0.element.routedFrom) }).compactMapValues { $0 }
     }
 
-    /// The Mixer offered names during the Take; the first real ones are kept for its end.
-    public mutating func mixerOffered(_ sources: [Source]) {
-        guard acceptsLateNames else { return }
-        let names = Dictionary(uniqueKeysWithValues: sources.enumerated().filter { $0.element.hasMixerName }.map { ($0.offset + 1, $0.element.name) })
-        guard !names.isEmpty else { return }
-        lateMixerNames = names
-        acceptsLateNames = false
+    /// The Mixer offered `sources` during the Take; the first real names are kept for its end. Returns what changed since the
+    /// last offer: re-patches first, then renames. A channel whose routing changed (#21) is a re-patch, not a rename. The first
+    /// routing known for a channel is only noted. A re-patch to something the Mixer Link can't name (no `routedFrom`) isn't told
+    /// apart from not knowing: it stays a rename.
+    public mutating func mixerOffered(_ sources: [Source]) -> [MixerChange] {
+        var changes: [MixerChange] = []
+        for (index, source) in sources.enumerated() {
+            let number = index + 1
+            guard let now = source.routedFrom else { continue }
+            guard let known = takeRouting[number] else { takeRouting[number] = now; continue }
+            guard now != known else { continue }
+            changes.append(.repatched(channel: number, from: mixerNames[number] ?? Source.fallback(usbChannel: number).name, to: source.name))
+            takeRouting[number] = now
+            mixerNames[number] = source.name
+        }
+        for (index, source) in sources.enumerated() {
+            let number = index + 1
+            let known = mixerNames[number] ?? Source.fallback(usbChannel: number).name
+            guard source.name != known else { continue }
+            changes.append(.renamed(channel: number, from: known, to: source.name))
+            mixerNames[number] = source.name
+        }
+        if acceptsLateNames {
+            let names = Dictionary(uniqueKeysWithValues: sources.enumerated().filter { $0.element.hasMixerName }.map { ($0.offset + 1, $0.element.name) })
+            if !names.isEmpty {
+                lateMixerNames = names
+                acceptsLateNames = false
+            }
+        }
+        return changes
     }
 
     /// The names to put on a Take's files when it ends: typed ones (when the Take may use them) win over the Mixer's
