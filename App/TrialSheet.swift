@@ -18,7 +18,7 @@ struct TrialSheet: View {
                         Button("Start 14-day Trial") {
                             Task {
                                 await store.startTrial()
-                                if case .trial = store.license().tier { dismiss() }
+                                if Self.trialStarted(store) { dismiss() }
                             }
                         }
                         .disabled(store.trialProduct == nil || store.busy)
@@ -44,6 +44,11 @@ struct TrialSheet: View {
         .frame(minWidth: 440, minHeight: 360)
         #endif
     }
+
+    /// Whether the Trial has started, so the sheet can close: the plan as owned, so a pack on the Armed family doesn't hide the Trial (#889).
+    static func trialStarted(_ store: ProStore) -> Bool {
+        if case .trial = store.planLicense().tier { true } else { false }
+    }
 }
 
 /// What the days chip opens during a Trial (#743): what it includes, when it ends, what Free keeps after, and Buy Pro.
@@ -54,7 +59,7 @@ struct TrialStatusSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                if case .trial(let daysLeft) = store.license().tier, let started = store.purchases.trialStartedAt {
+                if case .trial(let daysLeft) = Self.tier(store), let started = store.purchases.trialStartedAt {
                     let proPrice = store.proProduct?.displayPrice
                     let ends = Entitlement.trialEnd(startedAt: started).formatted(.dateTime.month(.wide).day())
                     Section {
@@ -64,7 +69,7 @@ struct TrialStatusSheet: View {
                         Button(Paywall(moment: nil, proPrice: proPrice).buyTitle) {
                             Task {
                                 await store.buyPro()
-                                if store.license().tier == .pro { dismiss() }
+                                if Self.tier(store) == .pro { dismiss() }
                             }
                         }
                         .disabled(store.proProduct == nil || store.busy)
@@ -75,7 +80,7 @@ struct TrialStatusSheet: View {
                                 .font(.footnote).secondaryText()
                         }
                     }
-                } else if store.license().tier == .pro {
+                } else if Self.tier(store) == .pro {
                     Text("You have Pro.").secondaryText()
                 } else {
                     Text("The Trial has ended. Free keeps recording every USB Channel.").secondaryText()
@@ -93,5 +98,10 @@ struct TrialStatusSheet: View {
         #if os(macOS)
         .frame(minWidth: 440, minHeight: 360)
         #endif
+    }
+
+    /// The plan the sheet describes: the plan as owned, so a pack on the Armed family doesn't hide the Trial (#889).
+    static func tier(_ store: ProStore) -> Tier? {
+        store.planLicense().tier
     }
 }

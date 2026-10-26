@@ -39,6 +39,11 @@ final class ProStore {
 
     @ObservationIgnored private var updates: Task<Void, Never>?
 
+    /// Tests only: a store that already knows `status` and never asks the App Store.
+    init(status: ProStatus) {
+        self.status = status
+    }
+
     init() {
         updates = Task { [weak self] in
             for await update in Transaction.updates {
@@ -62,6 +67,10 @@ final class ProStore {
     func planLicense(now: Date = Date()) -> License {
         status.license(proOffered: Self.isOffered, now: now)
     }
+
+    /// The days-left chip on the record screen during a Trial: the plan as owned, so a pack on the Armed family doesn't
+    /// hide it (#889).
+    var trialChip: PowerStatus.Chip? { planLicense().chip }
 
     /// Debug builds only: `-trialDaysLeft N` acts as if a Trial with N days left is owned (0 has just ended), so the
     /// days-left chip, the last-days offer and the end of the Trial can be checked without waiting two weeks (#324).

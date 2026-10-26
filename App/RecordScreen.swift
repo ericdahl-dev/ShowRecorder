@@ -1290,7 +1290,7 @@ final class RecordScreenModel {
         let chip = dropouts > 0
             ? [PowerStatus.Chip(text: dropouts == 1 ? "1 Dropout" : "\(dropouts) Dropouts", shortText: "\(dropouts)", symbol: "waveform.badge.exclamationmark", state: .attention)]
             : []
-        let trial = pro.license().chip.map { [$0] } ?? []
+        let trial = pro.trialChip.map { [$0] } ?? []
         return chip + power.status.chips + trial
     }
 
