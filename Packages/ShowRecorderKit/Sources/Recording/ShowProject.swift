@@ -37,7 +37,9 @@ extension Show {
             }
             return ShowTimeline.Take(
                 number: entry.take.take, sampleRate: entry.take.sampleRate, frameCount: frameCount, stems: stems,
-                markers: entry.take.markers.map { .init(position: $0.position, name: $0.name) },
+                markers: entry.take.markers.map { .init(position: $0.position, name: $0.name) }
+                    // A rename on the Mixer is a marker only here: none in the Stems, no banner, no track or file renamed (#577).
+                    + (entry.take.renames ?? []).map { .init(position: $0.position, name: "USB \($0.usbChannel): \($0.from) → \($0.to)") },
                 routingChanges: (entry.take.routingChanges ?? []).map { .init(usbChannel: $0.usbChannel, position: $0.position, name: $0.to) })
         }
         return ShowTimeline(showName: name, usbChannels: channels.values.sorted { $0.number < $1.number }, takes: takes)
