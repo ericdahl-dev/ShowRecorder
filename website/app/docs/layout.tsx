@@ -9,13 +9,13 @@ function DocLinks() {
   return (
     <ul className="docs-links">
       <li>
-        <a href={docHref("")} data-current-match="">
+        <a href={docHref("")} data-current-match="" suppressHydrationWarning>
           Overview
         </a>
       </li>
       {DOCS.map((d) => (
         <li key={d.slug}>
-          <a href={docHref(d.slug)} data-current-match="">
+          <a href={docHref(d.slug)} data-current-match="" suppressHydrationWarning>
             {d.nav ?? d.title}
           </a>
         </li>
