@@ -31,26 +31,25 @@ export default function ComparePage() {
         <div className="section-head">
           <h2 id="table-title">Side by side, as of {AS_OF}</h2>
         </div>
-        <p className="compare-hint">Swipe the table sideways to compare.</p>
         <div className="compare-scroll" role="region" aria-labelledby="table-title" tabIndex={0}>
-          <table className="compare-table">
+          <table className="compare-table" role="table">
             <caption className="sr-only">ShowRecorder compared with the other ways to record a mixer, as of {AS_OF}</caption>
-            <thead>
-              <tr>
-                <td />
+            <thead role="rowgroup">
+              <tr role="row">
+                <td role="cell" />
                 {PRODUCTS.map((p) => (
-                  <th key={p.id} scope="col">
+                  <th key={p.id} scope="col" role="columnheader">
                     {p.name}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {ROWS.map((row) => (
-                <tr key={row.label}>
-                  <th scope="row">{row.label}</th>
+                <tr key={row.label} role="row">
+                  <th scope="row" role="rowheader">{row.label}</th>
                   {PRODUCTS.map((p) => (
-                    <td key={p.id}>{row.cells[p.id]}</td>
+                    <td key={p.id} role="cell" data-product={p.name}>{row.cells[p.id]}</td>
                   ))}
                 </tr>
               ))}

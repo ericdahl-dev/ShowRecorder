@@ -13,7 +13,7 @@ describe("home feature cards", () => {
     expect(block).toMatch(/display:\s*grid/);
     expect(block).toMatch(/grid-template-rows:\s*subgrid/);
     expect(block).toMatch(/grid-row:\s*span 2/);
-    expect(block).toMatch(/row-gap:\s*0/);
+    expect(block).toMatch(/row-gap:\s*8px/); // a gap between title and body; 0 left a two-line title touching its body
     expect(css).toMatch(/\.cards--4 \.card p\s*\{\s*margin-top:\s*0\b/);
   });
 });

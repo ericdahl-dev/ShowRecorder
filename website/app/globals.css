@@ -1,10 +1,11 @@
 /* Hallmark · checked: 2026-10-27 · genre: atmospheric (inferred) · surface: absolute
- * floor: 0 FAIL · fixed: 34, 48, 49a, 54, 3, 26b, 24b, F2, F24 · structural: printed (58, 59, 77, 78, 79, 85)
+ * floor: 0 FAIL · fixed: 34, 48, 49a, 54, 3, 26b, 24b, F2, F24, F25 · finish: 3 fixed (card gap, compare columns, docs current item) · structural: printed (58, 59, 77, 78, 79, 85)
  * built: the project · redesign: polish · v2.0.0 */
 /* Hallmark · waive 7b · surface: absolute · Sunlight mirrors the app: a white screen with black text for a bright stage or outdoors */
 /* Hallmark · waive 49b · inline links inside a sentence · the FAQ link to leave your email and the X32 and M32 mixer link wrap inside their sentence on a phone */
 /* Hallmark · waive 71 · accordion rows · the project centers each mixer question in its row between hairlines, and its answer opens below it */
-/* Hallmark · answered F25 · phones show the first four feature cards; the rest are on the Features page (#719) */
+/* Hallmark · reworded "Questions" to "Frequently asked questions" · 54 names it as an eyebrow */
+/* Hallmark · answered F25 · on the home page, phones show the first four feature cards; the rest are on the Features page (#719) */
 
 @import "tailwindcss";
 
@@ -657,6 +658,10 @@ html:not([data-js]) .theme-toggle {
   margin-top: 16px;
 }
 
+.hero h1:first-child {
+  margin-top: 0;
+}
+
 .hero .lede {
   margin-top: 20px;
   max-width: 34em;
@@ -817,10 +822,10 @@ html:not([data-js]) .theme-toggle {
     display: grid;
     grid-template-rows: subgrid;
     grid-row: span 2;
-    row-gap: 0;
+    row-gap: 8px;
   }
 
-  /* The grid's 16px row gap already separates the title row from the body row. */
+  /* The card's 8px row gap separates the title row from the body row, as the margin does below 1024px. */
   .cards--4 .card p {
     margin-top: 0;
   }
@@ -1540,7 +1545,7 @@ ol.cards {
   font-weight: 700;
   background: var(--bg-raised);
   box-shadow: inset 4px 0 0 var(--accent);
-  padding-inline-start: 16px;
+  padding-inline-start: 12px; /* the 4px bar, then the 8px every link has */
 }
 
 .docs-nav-mobile .docs-links a[aria-current="page"] {
@@ -1865,7 +1870,13 @@ ol.cards {
   width: 100%;
   min-width: 960px;
   border-collapse: collapse;
+  table-layout: fixed; /* five equal product columns, not sized by how much each one says */
   font-size: 0.95rem;
+}
+
+/* With a fixed layout the first row sets the widths: the label column's corner cell. */
+.compare-table thead td {
+  width: 11rem;
 }
 
 .compare-table th,
@@ -1894,23 +1905,56 @@ ol.cards {
   color: var(--muted);
 }
 
-/* "Swipe sideways" only where the table does not fit: phones. */
-.compare-hint {
-  display: none;
-  margin-top: 16px;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
+/* Phones stack each row: its label, then one line per product named from data-product, so no
+   column sits off-screen. The roles in app/compare/page.tsx keep it a table for screen readers. */
 @media (max-width: 639px) {
-  .compare-hint {
+  .compare-table,
+  .compare-table tbody,
+  .compare-table tr,
+  .compare-table th,
+  .compare-table td {
     display: block;
   }
 
-  /* The pinned first column takes less of a phone, so the next column starts to show. */
+  .compare-table {
+    min-width: 0;
+  }
+
+  .compare-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .compare-table tbody tr {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .compare-table tbody tr:last-child {
+    border-bottom: 0;
+  }
+
   .compare-table tbody th {
-    width: 7rem;
-    min-width: 7rem;
+    position: static;
+    width: auto;
+    border-bottom: 0;
+  }
+
+  .compare-table td {
+    padding-block: 4px;
+    border-bottom: 0;
+  }
+
+  .compare-table td::before {
+    content: attr(data-product);
+    content: attr(data-product) / ""; /* the column header already names it for screen readers */
+    display: block;
+    color: var(--ink);
+    font-weight: 600;
   }
 }
 
