@@ -1,0 +1,397 @@
+/* Hallmark · shape: workbench · genre: atmospheric · job: try · theme: brand (#350) · redesign: full · surface: absolute
+ * paper: #111318 (kept) · accent: #ff453a (kept) · display: system (kept) · body: system (kept) · hero: stage · nav: kept · footer: kept · signature: the live Record screen, 18 meters mid-Take
+ * axes: dark/grotesk-heavy/chromatic-red · posture: restrained · contrast: pass · fold: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H5 E4 S5 R4 V4 · weakest: P, the copy and section order are pinned; the argument is carried by scale, the record red and the captures */
+/* Hallmark · hero-review: fix · 5 findings · 3 resolved (composition, meters uncovered, tracking) · 2 unresolved: the phone's first screen holds the pinned hero text, the red chat button is shared site chrome */
+/* Hallmark · finish-review: subagent · 8 findings · 5 resolved (narrow device pair, pricing gap, beta button width, radio accent, one gallery scale) · 3 answered: the bleed and the features wall are the layout the owner approved; the iPad resize handle needs a recapture · gap: none */
+/* Hallmark · dismissed 40 · the record step's 3 is 24px bold, large text, at 3.41:1 over the 3:1 large-text line, the same pair as the TestFlight button */
+/* Hallmark · answered F19 · the shared header and footer carry 500 and 600 on every page; the home page's own type is 400 and 700 */
+
+/* The home page only (#350 brand, Hallmark redesign). Every rule is under .home, so the header, footer
+   and every other page keep the shared styles in globals.css. Colors come from the shared tokens. */
+
+.home {
+  /* The wrapper only scopes these rules; its sections stay the page's own boxes. */
+  display: contents;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --space-2xl: 64px;
+  --space-3xl: 96px;
+  --text-display-s: clamp(2.25rem, 2.6vw + 1.2rem, 3.75rem);
+  --text-section: clamp(2rem, 2.5vw + 1rem, 3.25rem);
+  --text-title: clamp(1.25rem, 0.5vw + 1rem, 1.5rem);
+  --text-lead: clamp(1.125rem, 0.35vw + 1rem, 1.3125rem);
+  --text-price: clamp(1.75rem, 1.2vw + 1.2rem, 2.5rem);
+  --text-statement: clamp(1.5rem, 1.4vw + 1rem, 2.25rem);
+}
+
+.home h2 {
+  font-size: var(--text-section);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  max-width: 22ch;
+}
+
+.home h3 {
+  font-weight: 700;
+}
+
+.home .section-head {
+  max-width: none;
+}
+
+.home .section-head p {
+  max-width: 52ch;
+  margin-top: var(--space-md);
+  font-size: var(--text-lead);
+}
+
+@media (min-width: 1024px) {
+  .home .sec-need,
+  .home .sec-pricing {
+    padding-block: 120px;
+  }
+}
+
+/* Hero: Stage. The head block on the left, the live Record screen large on the right. */
+
+.home .hero {
+  display: grid;
+  align-items: center;
+}
+
+@media (min-width: 1024px) {
+  .home .hero {
+    min-height: calc(100svh - var(--header-h));
+    padding-block: var(--space-xl);
+  }
+
+  .home .hero-grid {
+    gap: var(--space-2xl);
+  }
+}
+
+.home .hero h1 {
+  font-size: var(--text-display-s);
+  line-height: 1.02;
+  max-width: 17ch;
+}
+
+.home .hero .lede {
+  margin-top: var(--space-lg);
+  font-size: var(--text-lead);
+  color: var(--ink);
+}
+
+.home .hero .compat {
+  margin-top: var(--space-md);
+  font-size: 1rem;
+}
+
+.home .hero .hero-actions {
+  margin-top: var(--space-xl);
+}
+
+@media (min-width: 1024px) {
+  /* The Signature: the live Record screen as big as the first screen allows, past the column's right edge. */
+  /* The iPad's 18 meters lead, uncovered; the iPhone stands at its foot, beside it rather than over it. */
+  .home .devices {
+    max-width: none;
+    column-gap: var(--space-md);
+    align-items: end;
+  }
+
+  .home .devices .device--ipad {
+    grid-column: 6 / 21;
+    align-self: center;
+  }
+
+  .home .devices .device--phone {
+    grid-column: 1 / 6;
+    margin-top: 0;
+  }
+}
+
+/* Under 1024px the pair keeps the same order without the gap: the iPhone at the iPad's foot, never over its meters. */
+@media (max-width: 1023.98px) {
+  .home .devices .device--ipad {
+    grid-column: 6 / 21;
+    align-self: center;
+  }
+
+  .home .devices .device--phone {
+    grid-column: 1 / 6;
+    margin-top: 0;
+    margin-right: var(--space-xs);
+  }
+}
+
+@media (min-width: 1280px) {
+  .home .devices {
+    width: calc(100% + var(--space-2xl));
+  }
+}
+
+@media (min-width: 1440px) {
+  .home .devices {
+    width: calc(100% + var(--space-3xl));
+  }
+}
+
+/* How a show goes: one signal path, four stops on a rail. Press record is the red one. */
+
+@media (min-width: 1024px) {
+  .home .steps {
+    position: relative;
+    margin-top: var(--space-2xl);
+    gap: var(--space-xl);
+  }
+
+  .home .steps::before {
+    content: "";
+    position: absolute;
+    top: 28px;
+    left: 28px;
+    /* ends at the last stop's center: the last column's start plus half a 56px circle */
+    right: calc((100% - 3 * var(--space-xl)) / 4 - 28px);
+    border-top: 1px solid var(--edge);
+  }
+
+  .home .steps li {
+    position: relative;
+  }
+}
+
+.home .steps li::before {
+  background: var(--bg);
+}
+
+.home .steps li:nth-child(3)::before {
+  background: var(--accent);
+  color: var(--button-ink);
+}
+
+/* What you need: a spec sheet in rows beside the Settings screen. */
+
+@media (min-width: 1024px) {
+  .home .need-grid {
+    margin-top: var(--space-2xl);
+    grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+    gap: var(--space-2xl);
+    align-items: center;
+  }
+}
+
+.home .need-list {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.home .need-list li {
+  display: grid;
+  gap: var(--space-xs) var(--space-xl);
+  padding-block: var(--space-lg);
+  border-top: 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+@media (min-width: 768px) {
+  .home .need-list li {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  }
+
+  .home .need-list p {
+    margin-top: 0;
+  }
+}
+
+.home .need-list h3 {
+  font-size: var(--text-title);
+}
+
+/* The Show-Safe Promise: one statement, set big, with the record dot as its signal. */
+
+.home .promise {
+  text-align: start;
+  padding-block: var(--space-2xl);
+}
+
+@media (min-width: 1024px) {
+  .home .promise {
+    padding-block: 120px;
+  }
+}
+
+.home .promise .inner {
+  max-width: none;
+}
+
+.home .promise .rec-dot {
+  margin: 0 0 var(--space-lg);
+  box-shadow: none;
+}
+
+.home .promise .vow {
+  margin-top: var(--space-xl);
+  max-width: 48ch;
+  font-size: var(--text-statement);
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.home .promise .after {
+  margin-top: var(--space-lg);
+  max-width: 60ch;
+}
+
+/* Features: the modules as a rack between hairlines, then the screens large. */
+
+.home .sec-features .card {
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--edge);
+  border-radius: 0;
+  padding: var(--space-md) 0 0;
+}
+
+.home .sec-features .cards {
+  margin-top: var(--space-2xl);
+  gap: var(--space-xl) var(--space-lg);
+}
+
+@media (min-width: 1024px) {
+  /* One phone scale (Eric, 2026-10-27): about 450px tall each, so the row and its captions fit a 900px window. */
+  .home .figures {
+    margin-top: var(--space-2xl);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-2xl);
+    align-items: end;
+  }
+
+  .home .figures .shot .device--phone {
+    max-width: 216px;
+  }
+}
+
+/* Pricing: three columns of one sheet. Pro carries the red rule. */
+
+.home .plans {
+  gap: 0;
+}
+
+.home .plan {
+  background: none;
+  border: 0;
+  border-top: 4px solid var(--hairline);
+  border-radius: 0;
+  padding: var(--space-lg) 0 0;
+}
+
+.home .plan--pro {
+  border-top-color: var(--accent);
+}
+
+.home .plan .price {
+  margin-top: var(--space-sm);
+  font-size: var(--text-price);
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+}
+
+.home .plan ul li::before {
+  top: 0.7em;
+  width: 8px;
+  height: 2px;
+  border-radius: 0;
+  background: var(--edge);
+  box-shadow: none;
+}
+
+@media (min-width: 768px) {
+  .home .plans {
+    column-gap: var(--space-xl);
+  }
+}
+
+@media (min-width: 1280px) {
+  .home .plans {
+    column-gap: var(--space-2xl);
+  }
+}
+
+.home .once {
+  margin-top: var(--space-xl);
+  font-weight: 700;
+}
+
+/* Join the beta: the TestFlight button and its notes on the left, the launch email on the right. */
+
+@media (min-width: 1024px) {
+  .home #email .hero-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    column-gap: var(--space-2xl);
+    row-gap: var(--space-sm);
+    align-items: start;
+    justify-items: start;
+    margin-top: var(--space-2xl);
+  }
+
+  .home #email .hero-actions > * {
+    grid-column: 1;
+  }
+
+  .home #email .hero-actions > .signup {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    margin-top: 0;
+    padding-left: var(--space-2xl);
+    border-left: 1px solid var(--hairline);
+  }
+}
+
+.home .signup-interests input {
+  accent-color: var(--accent);
+}
+
+/* FAQ: the heading held on the left while the questions run on the right. */
+
+@media (min-width: 1024px) {
+  .home .sec-faq .wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+    column-gap: var(--space-2xl);
+    align-items: start;
+  }
+
+  .home .sec-faq .section-head {
+    position: sticky;
+    top: calc(var(--header-h) + var(--space-xl));
+  }
+
+  .home .sec-faq .faq {
+    margin-top: 0;
+    max-width: none;
+  }
+}
+
+.home .faq summary h3 {
+  font-size: var(--text-title);
+  font-weight: 400;
+}
+
+/* Closing call */
+
+.home .closing {
+  background: var(--bg-band);
+}
+
+.home .closing h2 {
+  max-width: none;
+}

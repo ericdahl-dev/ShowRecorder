@@ -6,6 +6,7 @@ import { SignupForm } from "@/components/SignupForm";
 import { PAGES, pageMetadata } from "@/lib/metadata";
 import { SHOTS } from "@/lib/screenshots";
 import { ctaNote } from "@/lib/site";
+import "./home.css";
 import { faqPageJsonLd, jsonLdScript, softwareApplicationJsonLd } from "@/lib/structuredData";
 
 export const metadata = pageMetadata(PAGES.home);
@@ -253,7 +254,7 @@ function Section({
 
 export default function Home() {
   return (
-    <>
+    <div className="home">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(softwareApplicationJsonLd()) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(faqPageJsonLd(faqs)) }} />
       <section id="top" aria-labelledby="hero-title" className="hero">
@@ -274,8 +275,8 @@ export default function Home() {
             </div>
           </div>
           <div className="devices">
-            <Screenshot shot={SHOTS.heroIpad} sizes="(min-width: 1024px) 380px, 70vw" priority />
-            <Screenshot shot={SHOTS.heroPhone} sizes="(min-width: 1024px) 240px, 45vw" priority />
+            <Screenshot shot={SHOTS.heroIpad} sizes="(min-width: 1024px) 470px, 70vw" priority />
+            <Screenshot shot={SHOTS.heroPhone} sizes="(min-width: 1024px) 150px, 45vw" priority />
           </div>
         </div>
       </section>
@@ -295,6 +296,7 @@ export default function Home() {
         id="need"
         title="What you need"
         intro="A compatible mixer, an iPhone or iPad, and a cable. A USB drive is optional."
+        className="sec-need"
       >
         <div className="need-grid">
           <ul className="need-list">
@@ -333,6 +335,7 @@ export default function Home() {
         id="features"
         title="Multitrack recording, one file per channel"
         intro="ShowRecorder turns the USB audio from your mixer into one file per channel, written as you play, with nothing to set up on a laptop."
+        className="sec-features"
       >
         <ul className="cards cards--4">
           {features.map((f, i) => (
@@ -365,6 +368,7 @@ export default function Home() {
         id="pricing"
         title="Pricing"
         intro="ShowRecorder is free to download. Try everything for 14 days, then keep Free or buy Pro once."
+        className="sec-pricing"
       >
         <div className="pricing-grid">
           <div>
@@ -407,7 +411,7 @@ export default function Home() {
         </div>
       </Section>
 
-      <Section id="faq" title="Frequently asked questions">
+      <Section id="faq" title="Frequently asked questions" className="sec-faq">
         <div className="faq">
           {faqs.map((f) => (
             <details key={f.q}>
@@ -425,6 +429,6 @@ export default function Home() {
       </Section>
 
       <GetBand />
-    </>
+    </div>
   );
 }
