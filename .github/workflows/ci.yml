@@ -136,7 +136,30 @@ jobs:
         run: >
           xcodebuild -project ShowRecorder.xcodeproj -scheme ShowRecorder
           -destination 'platform=macOS' -derivedDataPath build/dd
-          CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= test
+          -enableCodeCoverage YES CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= test
+
+      # App coverage (#679): the Mac app's lcov to Codecov under flag `app`. Debug keeps the app's code in
+      # ShowRecorder.debug.dylib. Report only, like the Kit upload: a problem here never fails CI. Packages/ is left
+      # out, since the Kit reports its own coverage under `kit`.
+      - name: App coverage
+        if: matrix.check == 'macOS build'
+        continue-on-error: true
+        run: |
+          profdata=$(ls build/dd/Build/ProfileData/*/Coverage.profdata | head -1)
+          binary=build/dd/Build/Products/Debug/ShowRecorder.app/Contents/MacOS/ShowRecorder
+          [ -e "$binary.debug.dylib" ] && binary="$binary.debug.dylib"
+          xcrun llvm-cov export -format=lcov -instr-profile="$profdata" \
+            -ignore-filename-regex='(/Packages/|\.build|/AppTests/|SourcePackages)' \
+            "$binary" > "$RUNNER_TEMP/app-coverage.lcov"
+      - name: Upload app coverage to Codecov
+        if: matrix.check == 'macOS build'
+        continue-on-error: true
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ runner.temp }}/app-coverage.lcov
+          flags: app
+          fail_ci_if_error: false
 
       - name: Build for iOS Simulator
         if: matrix.check == 'iOS Simulator build'

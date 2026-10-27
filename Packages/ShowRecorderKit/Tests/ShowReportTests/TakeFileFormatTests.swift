@@ -157,7 +157,10 @@ struct TakeFileFormatTests {
                         .init(usbChannel: 1, path: "Take 02/01 Kick.wav", name: "Kick"),
                         .init(usbChannel: 2, path: "Take 02/02 USB 02.wav", name: "USB 02"),
                     ],
-                    markers: [.init(position: 48_000, name: "Verse"), .init(position: 96_000, name: "Dropout")]),
+                    markers: [
+                        .init(position: 48_000, name: "Verse"), .init(position: 96_000, name: "Dropout"),
+                        .init(position: 72_000, name: "USB 1: Kick → Kick In"),  // the rename (#577)
+                    ]),
             ]))
     }
 }
