@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const read = (...p: string[]) => readFileSync(join(__dirname, "..", ...p), "utf8");
@@ -7,7 +7,14 @@ const read = (...p: string[]) => readFileSync(join(__dirname, "..", ...p), "utf8
 // each one must tell React the attribute is expected to differ, as the theme toggle does for
 // aria-pressed (#982). Without it every page logs a hydration error in development.
 describe("links the inline script marks as the current page (#982)", () => {
-  const files = ["components/Header.tsx", "components/Footer.tsx", "app/docs/layout.tsx"];
+  const files = ["app", "components"]
+    .flatMap((dir) => readdirSync(join(__dirname, "..", dir), { recursive: true }).map((f) => `${dir}/${f}`))
+    .filter((f) => f.endsWith(".tsx") && read(f).includes("data-current-match"));
+
+  it("finds the header, the footer and the docs list", () => {
+    expect(files).toEqual(expect.arrayContaining(["components/Header.tsx", "components/Footer.tsx", "app/docs/layout.tsx"]));
+  });
+
 
   it.each(files)("every data-current-match link in %s allows the attribute to differ at hydration", (file) => {
     const tags = read(file).match(/<a\b[^>]*data-current-match[^>]*>/g) ?? [];
