@@ -105,9 +105,19 @@ final class ProStore {
         upgradeProduct = products.first { $0.id == ProPurchases.upgradeProductID }
     }
 
-    /// The Trial's disclosure, once Pro's price is known (Guideline 3.1.1 asks for it).
+    /// What the Trial sheets offer: the upgrade to someone who bought a pack, as the paywall and Settings do (#962); else Pro.
+    var trialOffer: PackOffer.Item {
+        let items = PackOffer.items(
+            ownsPro: purchases.ownsPro, armedFamily: nil, ownedPacks: purchases.ownedPacks,
+            boughtPacks: purchases.boughtPacks, packsOffered: PackAvailability.isAvailableInThisBuild)
+        return items.contains(.upgrade) ? .upgrade : .pro
+    }
+
+    /// The Trial's disclosure, once the offered product's price is known (Guideline 3.1.1 asks for it): the upgrade's for a
+    /// pack owner (#972), Pro's for everyone else.
     var trialDisclosure: TrialDisclosure? {
-        proProduct.map { TrialDisclosure(proPrice: $0.displayPrice) }
+        let upgrade = trialOffer == .upgrade
+        return (upgrade ? upgradeProduct : proProduct).map { TrialDisclosure(proPrice: $0.displayPrice, upgrade: upgrade) }
     }
 
     func buyPro() async {

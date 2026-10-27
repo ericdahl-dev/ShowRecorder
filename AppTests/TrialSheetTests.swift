@@ -47,6 +47,18 @@ struct TrialSheetTests {
         #expect(TrialStatusSheet.offer(packOwnerInTrial()) == .upgrade)
     }
 
+    /// What the Trial sheet's disclosure names before the Trial starts (#972): the same offer as the status sheet.
+    @Test func packOwnerBeforeTheTrialIsToldTheUpgrade() {
+        let store = ProStore(status: ProStatus(lastKnown: ProPurchases(owned: [
+            OwnedPurchase(productID: ProPurchases.packProductIDs[.xAir]!, purchaseDate: Date().addingTimeInterval(-86_400)),
+        ])))
+        #expect(store.trialOffer == .upgrade)
+    }
+
+    @Test func noPackBeforeTheTrialIsToldFullPro() {
+        #expect(ProStore(status: ProStatus(lastKnown: ProPurchases(owned: []))).trialOffer == .pro)
+    }
+
     @Test func trialWithoutAPackIsOfferedPro() {
         let store = ProStore(status: ProStatus(lastKnown: ProPurchases(owned: [
             OwnedPurchase(productID: ProPurchases.trialProductID, purchaseDate: Date()),

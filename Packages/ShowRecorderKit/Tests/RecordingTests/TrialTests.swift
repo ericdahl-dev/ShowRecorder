@@ -98,6 +98,22 @@ struct TrialTests {
         #expect(!lines.contains { $0.hasPrefix("Pro is") }, "no full Pro price line")
     }
 
+    @Test("A pack owner's disclosure before the Trial names the upgrade and its price, not full Pro's (#972)")
+    func disclosureForAPackOwner() {
+        let lines = TrialDisclosure(proPrice: "$12.00", upgrade: true).lines
+        #expect(lines.contains { $0.hasPrefix("The upgrade to Pro is a one-time purchase of $12.00, shared with your family. Nothing is charged when the Trial ends.") })
+        #expect(!lines.contains { $0.hasPrefix("Pro is") }, "no full Pro price line")
+    }
+
+    @Test("Without a pack the disclosure is word for word as before, and the other lines are the same for a pack owner (#972)")
+    func disclosureWithoutAPack() {
+        let plain = TrialDisclosure(proPrice: "$19.99").lines
+        #expect(plain[2] == "Pro is a one-time purchase of $19.99, shared with your family. Nothing is charged when the Trial ends.")
+        let owner = TrialDisclosure(proPrice: "$12.00", upgrade: true).lines
+        #expect(owner.count == plain.count)
+        #expect(owner[0] == plain[0] && owner[1] == plain[1] && owner[3] == plain[3])
+    }
+
     @Test("The Free Marker limit in the notice is the real one")
     func markerLimitFollowsEntitlement() {
         let text = TrialStatusNotice(daysLeft: 3, endsOn: "October 18", proPrice: nil).lines.joined(separator: "\n")
