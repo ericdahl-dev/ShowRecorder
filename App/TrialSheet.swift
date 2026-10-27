@@ -62,12 +62,12 @@ struct TrialStatusSheet: View {
                 if case .trial(let daysLeft) = Self.tier(store), let started = store.purchases.trialStartedAt {
                     let proPrice = store.proProduct?.displayPrice
                     let ends = Entitlement.trialEnd(startedAt: started).formatted(.dateTime.month(.wide).day())
-                    Section {
-                        ForEach(TrialStatusNotice(daysLeft: daysLeft, endsOn: ends, proPrice: proPrice).lines, id: \.self) { Text($0) }
-                    }
                     // The upgrade or Pro (#962); either way the sheet closes once Pro is owned.
                     let upgrade = Self.offer(store) == .upgrade
                     let product = upgrade ? store.upgradeProduct : store.proProduct
+                    Section {
+                        ForEach(TrialStatusNotice(daysLeft: daysLeft, endsOn: ends, proPrice: product?.displayPrice, upgrade: upgrade).lines, id: \.self) { Text($0) }
+                    }
                     let title = upgrade
                         ? product.map { "Upgrade to Pro, \($0.displayPrice)" } ?? "Upgrade to Pro"
                         : Paywall(moment: nil, proPrice: proPrice).buyTitle
