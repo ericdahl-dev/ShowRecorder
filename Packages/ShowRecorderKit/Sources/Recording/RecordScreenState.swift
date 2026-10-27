@@ -1,5 +1,8 @@
+import Destinations
 import Foundation
+import MixerLink
 import TakeFile
+import WatchRemote
 
 /// The plain facts the record screen decides from (#552): the App reads the Recorder, the sequencer, the Drive, the
 /// Mixer Link, power and the License, and fills this in. No object from any of them goes in, so a test can build any
@@ -39,6 +42,25 @@ public struct RecordScreenSnapshot: Equatable, Sendable {
     // The device
     public var power = PowerStatus(batteryLevel: nil, charging: .unknown, thermal: .nominal)
 
+    // The status strip, the header and the watch
+    public var usbChannelCount = 0
+    /// Free space on the Device (the part the Take writes to).
+    public var deviceAvailableBytes: Int64 = 1 << 40
+    public var driveStatus = DriveStatus.notChosen
+    public var mixerState: MixerLinkState?
+    /// The Mixer Link was up and has gone down (the watch's "Mixer Link lost").
+    public var mixerDown = false
+    public var sampleRate = 48_000
+    public var recordTo = RecordTo.both
+    /// Whether a Take pressed now would also go to the Drive (the License, #705).
+    public var driveAllowed = true
+    public var armedDeviceName: String?
+    public var showName: String?
+    public var takeStartedAt: Date?
+    public var markerCount = 0
+    /// Clipped meters, by index from 0.
+    public var clippedChannels: Set<Int> = []
+
     // First launch
     public var setupHintDismissed = false
     public var driveChosen = false
@@ -61,6 +83,8 @@ public struct RecordScreenState: Equatable, Sendable {
     private var routingChangeSeen: Seen?
     /// Whether the app is in front; a green banner's 10 s count only then (#758).
     private var isOnScreen = true
+    /// What the screen showed at the last announcement check, for VoiceOver.
+    private var announced: ScreenAnnouncements.State?
 
     private struct Seen: Equatable, Sendable {
         var take: Int
@@ -106,15 +130,68 @@ public struct RecordScreenState: Equatable, Sendable {
         if !onScreen { swiped.pauseFade() }
     }
 
+    /// Tells VoiceOver about a new alert, clip or Dropout, once, when it happens (#249). Checked about once a second.
+    public mutating func announcements(_ s: RecordScreenSnapshot) -> [String] {
+        let now = ScreenAnnouncements.State(clipped: s.clippedChannels, alerts: alerts(s).ordered, dropoutCount: s.dropoutCount)
+        defer { announced = now }
+        return ScreenAnnouncements.changes(from: announced, to: now)
+    }
+
+    /// The status strip: Device and Drive time left, and the Mixer Link.
+    public func chips(_ s: RecordScreenSnapshot) -> [StatusChip] {
+        StatusChip.make(
+            usbChannelCount: s.usbChannelCount, deviceAvailableBytes: s.deviceAvailableBytes, drive: s.driveStatus,
+            mixer: s.mixerState, copies: s.copies, sampleRate: s.sampleRate, recordTo: s.recordTo, driveAllowed: s.driveAllowed)
+    }
+
+    /// What the Apple Watch shows (#100): its state and the problems that need attention. The Live Activity shows the same problems.
+    public func watchStatus(_ s: RecordScreenSnapshot, now: Date = .now) -> WatchStatus {
+        let take = s.isRecording ? s.takeStartedAt.map {
+            WatchStatusMaker.Take(startedAt: $0, title: takeTitle(s), markerCount: s.markerCount)
+        } : nil
+        let driveAvailable = if case .available = s.driveStatus { true } else { false }
+        return WatchStatusMaker.make(
+            isArmed: s.isArmed, take: take, chips: chips(s), driveAvailable: driveAvailable, copies: s.copies,
+            dropoutCount: s.isRecording ? s.dropoutCount : 0, mixerDown: s.mixerDown, now: now)
+    }
+
+    /// Just the Armed device's name, for the one-line landscape header.
+    public func compactInputSummary(_ s: RecordScreenSnapshot) -> String {
+        s.isArmed ? (s.armedDeviceName ?? "Audio interface") : "No audio interface"
+    }
+
+    /// The Armed device's name and channel count, for the header.
+    public func inputSummary(_ s: RecordScreenSnapshot) -> String {
+        guard s.isArmed else { return recordBlock(s)?.text ?? "Choose the Mixer's audio interface in Settings" }
+        let name = s.armedDeviceName ?? "Audio interface"
+        return "\(name) · \(Self.usbChannelSummary(s.usbChannelCount))"
+    }
+
+    /// "1 USB Channel" or "18 USB Channels".
+    public static func usbChannelSummary(_ count: Int) -> String {
+        count == 1 ? "1 USB Channel" : "\(count) USB Channels"
+    }
+
+    /// The running (or last) Take's number in the Show.
+    public func takeTitle(_ s: RecordScreenSnapshot) -> String {
+        TakeMetadata.name(take: s.takeNumber)
+    }
+
+    /// "2026-10-06 Show · Take 02", or a hint before the first Take.
+    public func showSummary(_ s: RecordScreenSnapshot) -> String {
+        guard let show = s.showName else { return "Press record to start a Show" }
+        return "\(show) · \(takeTitle(s))"
+    }
+
     /// Why Record is dimmed, when it is, and what to offer.
-    private func block(_ s: RecordScreenSnapshot) -> RecordAvailability.Block? {
+    public func recordBlock(_ s: RecordScreenSnapshot) -> RecordAvailability.Block? {
         RecordAvailability.block(
             isArmed: s.isArmed, isRecording: s.isRecording, micDenied: s.micDenied,
             armFailed: s.armError != nil && !s.micDenied, disarmedForIdle: s.disarmedForIdle, hasInputs: s.hasInputs)
     }
 
     /// How each Copy of the last Take stands, shown once recording has stopped.
-    private func copySummary(_ s: RecordScreenSnapshot) -> (text: String, isProblem: Bool)? {
+    public func copySummary(_ s: RecordScreenSnapshot) -> (text: String, isProblem: Bool)? {
         if s.takeBusy { return nil }
         if s.isRepairing { return ("Repairing Gaps from the other Copy…", false) }
         guard let summary = CopySummary.ofLastTake(s.recorderCopies, dropoutCount: s.dropoutCount) else { return nil }
@@ -126,7 +203,7 @@ public struct RecordScreenState: Equatable, Sendable {
         var list: [ScreenAlert] = []
         if let error = s.armError {
             list.append(ScreenAlert(id: "arm", priority: .cannotRecord, tone: .critical, text: error, action: s.micDenied ? .openSystemSettings : .arm))
-        } else if s.disarmedForIdle, let block = block(s) {
+        } else if s.disarmedForIdle, let block = recordBlock(s) {
             list.append(ScreenAlert(id: "idle", priority: .cannotRecord, tone: .warning, text: block.text, action: block.action))
         }
         if let error = s.recordError {
