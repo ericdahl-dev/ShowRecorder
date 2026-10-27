@@ -36,8 +36,10 @@ An agent can create these two through the API once step 1 is Active: say "create
   - [ ] At about 25 buyers: **$9.99**.
   - [ ] At about 50 buyers: **$19.99**, full price. The "Launch price" line goes by itself: it shows only while Pro's live price is the launch price (#908).
 - [ ] **Family Sharing: On.** This can't be turned off later (ADR 0004 wants it on).
-- [ ] **Localization (English U.S.):** Display Name `ShowRecorder Pro` (30 characters max). Description `Mixer names, Drive copy, report, Reaper, 96 kHz, more` (55 characters max; Free records every USB Channel now).
+- [ ] **Localization (English U.S.):** Display Name `ShowRecorder Pro` (30 characters max). Description: App Store Connect has `Every USB Channel, report, Reaper, 96 kHz, Templates` (52, read 2026-10-18), out of date since Free records every USB Channel (#703). Change it to `Mixer names, Drive copy, report, 96 kHz, more` (45), or another text ([`mixer-packs.md`](mixer-packs.md), "Decisions").
 - [ ] **Review screenshot:** the paywall (taken for #324).
+
+**Mixer packs and the upgrade to Pro** (#705): drafted in [`mixer-packs.md`](mixer-packs.md), not yet created; packs are Debug-only.
 
 **14-day Trial**
 
