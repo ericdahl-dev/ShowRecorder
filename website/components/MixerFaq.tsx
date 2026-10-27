@@ -6,7 +6,7 @@ export function MixerFaq({ faqs }: { faqs: readonly Faq[] }) {
   return (
     <div className="wrap">
       <section aria-labelledby="mixer-faq-title" className="doc mixer-faq">
-        <h2 id="mixer-faq-title">Questions</h2>
+        <h2 id="mixer-faq-title">Frequently asked questions</h2>
         <div className="faq">
           {faqs.map((f) => (
             <details key={f.q}>

@@ -40,6 +40,10 @@ describe("the home hero (#719)", () => {
     );
   });
 
+  it("opens on the headline, with no mark above it (the header's logo already shows it)", () => {
+    expect(hero).not.toMatch(/<Mark \/>/);
+  });
+
   it("says which mixers and devices work, under the headline", () => {
     expect(hero).toMatch(/className="compat"/);
     const compat = hero.slice(hero.indexOf('className="compat"'));

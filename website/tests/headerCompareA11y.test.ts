@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 // Website review items 7 and 8: a focused element never hides under the sticky header, and the compare table is
-// usable on a phone (a caption, a sticky first column that leaves room, and a hint that it scrolls sideways).
+// usable on a phone (a caption, and on a phone each row stacked with the product named in each cell).
 
 const read = (...p: string[]) => readFileSync(path.resolve(__dirname, "..", ...p), "utf8");
 const css = read("app", "globals.css");
@@ -21,13 +21,10 @@ describe("compare table on a phone", () => {
     expect(compare).toMatch(/<caption className="sr-only">[^<]+<\/caption>/);
   });
 
-  it("tells phone users the table scrolls sideways, and only phone users", () => {
-    expect(compare).toMatch(/className="compare-hint"/);
-    expect(css).toMatch(/\.compare-hint\s*\{[^}]*display:\s*none/);
-    expect(css).toMatch(/@media \(max-width: 639px\)\s*\{[\s\S]*?\.compare-hint\s*\{[^}]*display:\s*block/);
-  });
-
-  it("narrows the sticky first column on a phone so a second column shows", () => {
-    expect(css).toMatch(/@media \(max-width: 639px\)\s*\{[\s\S]*?\.compare-table tbody th\s*\{[^}]*width:\s*7rem/);
+  it("stacks each row on a phone instead of scrolling it, and stays a table for screen readers", () => {
+    expect(css).toMatch(/@media \(max-width: 639px\)\s*\{[\s\S]*?\.compare-table td::before\s*\{[^}]*content:\s*attr\(data-product\)/);
+    expect(compare).toMatch(/<table className="compare-table" role="table">/);
+    expect(compare).toMatch(/role="rowheader"/);
+    expect(compare).toMatch(/role="columnheader"/);
   });
 });

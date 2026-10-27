@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { AppStoreBadge } from "@/components/AppStoreBadge";
 import { GetBand } from "@/components/GetBand";
-import { Mark } from "@/components/Mark";
 import { Screenshot } from "@/components/Screenshot";
 import { SignupForm } from "@/components/SignupForm";
 import { PAGES, pageMetadata } from "@/lib/metadata";
@@ -260,10 +259,6 @@ export default function Home() {
       <section id="top" aria-labelledby="hero-title" className="hero">
         <div className="wrap hero-grid">
           <div>
-            <p className="eyebrow">
-              <Mark />
-              For iPhone and iPad
-            </p>
             <h1 id="hero-title">Record every channel of your mixer on your iPhone. No laptop at the gig.</h1>
             <p className="lede">
               Plug your mixer into your iPhone over USB, press record, and get one 24-bit WAV file per channel,
