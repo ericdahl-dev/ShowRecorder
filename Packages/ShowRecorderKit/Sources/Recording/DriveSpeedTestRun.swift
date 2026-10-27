@@ -4,15 +4,12 @@ import Foundation
 /// Where the Drive speed test (#807) is offered: Debug builds only, until Eric has tried it and it moves up a level
 /// (its own one-line PR).
 public enum DriveSpeedTestAvailability {
-    public static func isAvailable(isDebugBuild: Bool) -> Bool { isDebugBuild }
+    /// Where it is offered; moving it up a level is this one line.
+    public static let level: AvailabilityLevel = .debugOnly
 
-    public static var isAvailableInThisBuild: Bool {
-        #if DEBUG
-        isAvailable(isDebugBuild: true)
-        #else
-        isAvailable(isDebugBuild: false)
-        #endif
-    }
+    public static func isAvailable(isDebugBuild: Bool) -> Bool { level.isOn(isDebugBuild: isDebugBuild, environment: nil) }
+
+    public static var isAvailableInThisBuild: Bool { level.isOnInThisBuild }
 }
 
 extension DriveSpeedTest {

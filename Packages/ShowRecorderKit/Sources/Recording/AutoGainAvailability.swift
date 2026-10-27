@@ -2,8 +2,11 @@
 /// App Store. The distribution comes from StoreKit, as for the Demo signal (`DemoSignalAvailability`): before it has
 /// answered (nil), a Release build doesn't offer it. Opening it to the App Store is this one rule.
 public enum AutoGainAvailability {
+    /// Where it is offered; moving it up a level is this one line.
+    public static let level: AvailabilityLevel = .debugAndTestFlight
+
     public static func isAvailable(isDebugBuild: Bool, environment: DistributionEnvironment?) -> Bool {
-        isDebugBuild || environment == .sandbox
+        level.isOn(isDebugBuild: isDebugBuild, environment: environment)
     }
 }
 

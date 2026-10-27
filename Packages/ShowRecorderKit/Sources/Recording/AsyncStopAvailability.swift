@@ -2,19 +2,13 @@
 /// moves up a level (its own one-line PR). `Recorder.stopTake` asks at each Stop, and finishes the Take off the main actor
 /// when it is on.
 public enum AsyncStopAvailability {
-    /// `environment` is nil until StoreKit has answered. At the Debug-only level it is not read; moving the feature to Debug +
-    /// TestFlight is `isDebugBuild || environment == .sandbox`, as for `DriveOnlyAvailability`.
+    /// Where it is offered; moving it up a level is this one line.
+    public static let level: AvailabilityLevel = .debugOnly
+
     public static func isAvailable(isDebugBuild: Bool, environment: DistributionEnvironment? = nil) -> Bool {
-        isDebugBuild
+        level.isOn(isDebugBuild: isDebugBuild, environment: environment)
     }
 
     /// The answer for the running app.
-    public static var isAvailableInThisBuild: Bool {
-        #if DEBUG
-        let isDebugBuild = true
-        #else
-        let isDebugBuild = false
-        #endif
-        return isAvailable(isDebugBuild: isDebugBuild, environment: DemoSignalAvailability.environment)
-    }
+    public static var isAvailableInThisBuild: Bool { level.isOnInThisBuild }
 }

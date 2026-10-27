@@ -172,6 +172,10 @@ What each Destination's Copy of one Take is doing, or ended as, keyed by Destina
 **Abandoned**:
 A Copy that Stop couldn't finish writing in time: the Take ends without waiting for it. With Drive only, a Drive that stalled mid-Take and never came back ends this way; the stall itself only starts the Stand-in.
 
+**Availability level**:
+How widely a feature that ships hidden is offered: Debug only, Debug + TestFlight, or everyone. Each feature's availability rule names one as its `level`, so moving a feature up is that one line, after Eric has tried it on a device (#557).
+_Avoid_: Feature flag, gate
+
 **Mixer family**:
 Mixers one driver reads, such as the X Air (XR18, MR18) or the X32 (X32, M32). The family is recognized from the Audio interface's name (for Mixer packs) and from the Mixer's own model (for the Mixer Link), and each family knows the port it is asked on and makes its driver. In Debug and sandbox builds (TestFlight, App Review) the Demo signal counts as an X Air for Mixer packs and the license, so App Review can reach the pack.
 
