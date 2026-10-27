@@ -822,23 +822,13 @@ final class RecordScreenModel {
     var copies: TakeCopies { takeCopies.current(isRecording: recorder.isRecording, recorder.copies) }
 
     /// How each Copy of the last Take stands, shown once recording has stopped.
-    var copySummary: (text: String, isProblem: Bool)? {
-        if takeBusy { return nil }
-        if recorder.isRepairing { return ("Repairing Gaps from the other Copy…", false) }
-        guard let summary = CopySummary.ofLastTake(recorder.copies, dropoutCount: recorder.dropoutCount) else { return nil }
-        return (summary.text, summary.isProblem)
-    }
-
-    /// What the record screen showed at the last check, for VoiceOver announcements.
-    @ObservationIgnored private var announced: ScreenAnnouncements.State?
+    var copySummary: (text: String, isProblem: Bool)? { screen.copySummary(snapshot) }
 
     /// Tells VoiceOver about a new alert, clip or Dropout, once, when it happens (#249). Checked about once a second.
     private func announceChanges() {
-        let now = ScreenAnnouncements.State(clipped: recorder.clippedChannels, alerts: alerts.ordered, dropoutCount: recorder.dropoutCount)
-        for text in ScreenAnnouncements.changes(from: announced, to: now) {
+        for text in screen.announcements(snapshot) {
             AccessibilityNotification.Announcement(text).post()
         }
-        announced = now
     }
 
     /// Refreshes the Copy statuses, and says why a Take the recorder ended on its own stopped.
@@ -906,36 +896,16 @@ final class RecordScreenModel {
     }
 
     /// Just the Armed device's name, for the one-line landscape header.
-    var compactInputSummary: String {
-        recorder.isArmed ? (armedDevice?.name ?? "Audio interface") : "No audio interface"
-    }
+    var compactInputSummary: String { screen.compactInputSummary(snapshot) }
 
     /// The Armed device's name and channel count, for the header.
-    var inputSummary: String {
-        guard recorder.isArmed else { return recordBlock?.text ?? "Choose the Mixer's audio interface in Settings" }
-        let name = armedDevice?.name ?? "Audio interface"
-        return "\(name) · \(usbChannelSummary)"
-    }
+    var inputSummary: String { screen.inputSummary(snapshot) }
 
     /// Why Record is dimmed, when it is, and what to offer.
-    var recordBlock: RecordAvailability.Block? {
-        RecordAvailability.block(
-            isArmed: recorder.isArmed, isRecording: recorder.isRecording, micDenied: micDenied,
-            armFailed: armError != nil && !micDenied, disarmedForIdle: disarmedForIdle, hasInputs: !devices.isEmpty)
-    }
+    var recordBlock: RecordAvailability.Block? { screen.recordBlock(snapshot) }
 
     /// The status strip: Device and Drive time left, and the Mixer Link.
-    var chips: [StatusChip] {
-        StatusChip.make(
-            usbChannelCount: recorder.usbChannelCount,
-            deviceAvailableBytes: drive.deviceAvailableBytes,
-            drive: drive.status,
-            mixer: mixer.state,
-            copies: copies,
-            sampleRate: recorder.sampleRate ?? 48_000,
-            recordTo: recorder.recordTo,
-            driveAllowed: pro.license().allowsDrive)
-    }
+    var chips: [StatusChip] { screen.chips(snapshot) }
 
     /// What the record screen remembers between seconds, and the alerts it works out from `snapshot` (#552).
     private(set) var screen = RecordScreenState()
@@ -951,7 +921,7 @@ final class RecordScreenModel {
     private(set) var noSignalSilent = false
 
     /// The facts the alerts are worked out from, read off the Recorder, the sequencer, the Drive, the Mixer Link and power.
-    private var snapshot: RecordScreenSnapshot {
+    var snapshot: RecordScreenSnapshot {
         var s = RecordScreenSnapshot()
         s.isArmed = recorder.isArmed
         s.isRecording = recorder.isRecording
@@ -982,6 +952,19 @@ final class RecordScreenModel {
         s.hasMixerAddress = !mixerAddress.isEmpty
         s.offersMixerLink = offersMixerLink
         s.soundcheckOffered = soundcheckOffered
+        s.usbChannelCount = recorder.usbChannelCount
+        s.deviceAvailableBytes = drive.deviceAvailableBytes
+        s.driveStatus = drive.status
+        s.mixerState = mixer.state
+        s.mixerDown = if case .down = mixer.status { true } else { false }
+        s.sampleRate = recorder.sampleRate ?? 48_000
+        s.recordTo = recorder.recordTo
+        s.driveAllowed = pro.license().allowsDrive
+        s.armedDeviceName = armedDevice?.name
+        s.showName = recorder.currentShow?.name
+        s.takeStartedAt = takeStartedAt
+        s.markerCount = recorder.takeMarkers.count
+        s.clippedChannels = recorder.clippedChannels
         return s
     }
 
@@ -1128,17 +1111,12 @@ final class RecordScreenModel {
     }
 
     /// "2026-10-06 Show · Take 02", or a hint before the first Take.
-    var showSummary: String {
-        guard let show = recorder.currentShow else { return "Press record to start a Show" }
-        return "\(show.name) · \(takeTitle)"
-    }
+    var showSummary: String { screen.showSummary(snapshot) }
 
     /// The running (or last) Take's number in the Show.
     private var takeNumber: Int { recorder.currentShow?.takeCount ?? 0 }
 
-    var takeTitle: String {
-        TakeMetadata.name(take: recorder.currentShow?.takeCount ?? 0)
-    }
+    var takeTitle: String { screen.takeTitle(snapshot) }
 
     func record() {
         guard !speedTest.isRunning, !recorder.isStarting, !recorder.isRecording, !startRequested else { return }

@@ -5,17 +5,7 @@ import WatchRemote
 /// The Apple Watch remote (#100), as the record screen sees it: what the watch shows, from what the screen already
 /// shows, and the watch's three commands, through the same paths as the screen's own buttons.
 extension RecordScreenModel {
-    var watchStatus: WatchStatus {
-        let take = recorder.isRecording ? takeStartedAt.map {
-            WatchStatusMaker.Take(startedAt: $0, title: takeTitle, markerCount: recorder.takeMarkers.count)
-        } : nil
-        let mixerDown = if case .down = mixer.status { true } else { false }
-        let driveAvailable = if case .available = drive.status { true } else { false }
-        return WatchStatusMaker.make(
-            isArmed: recorder.isArmed, take: take, chips: chips, driveAvailable: driveAvailable,
-            copies: copies,
-            dropoutCount: recorder.isRecording ? recorder.dropoutCount : 0, mixerDown: mixerDown)
-    }
+    var watchStatus: WatchStatus { screen.watchStatus(snapshot) }
 
     /// The same problems for the recording Live Activity (#545), which alerts when one is new.
     var liveActivityProblems: [TakeActivityProblem] {
