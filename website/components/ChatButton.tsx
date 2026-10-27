@@ -22,7 +22,7 @@ export function ChatButton() {
         aria-describedby={noteId}
         {...trackAttrs("chat_opened")}
       >
-        {loading ? "Loading chat..." : "Chat with us"}
+        {loading ? "Loading chat…" : "Chat with us"}
       </button>
       <p id={noteId} className="chat-note" aria-live="polite">
         {chat.status === "failed" && chat.mine ? (

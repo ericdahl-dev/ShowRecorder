@@ -24,7 +24,7 @@ export function ChatBubble() {
   return (
     <div className="chat-bubble">
       <div className="chat-bubble-live" aria-live="polite">
-        {loading && <span className="sr-only">Loading chat...</span>}
+        {loading && <span className="sr-only">Loading chat…</span>}
         {failed && (
           <div className="chat-bubble-note">
             <p>
