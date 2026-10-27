@@ -1,3 +1,11 @@
+/* Hallmark · checked: 2026-10-27 · genre: atmospheric (inferred) · surface: absolute
+ * floor: 0 FAIL · fixed: 34, 48, 49a, 3, 26b, 24b, F24 · structural: printed (58, 59, 77, 78, 79, 85)
+ * built: the project · redesign: polish · v2.0.0 */
+/* Hallmark · waive 7b · surface: absolute · Sunlight mirrors the app: a white screen with black text for a bright stage or outdoors */
+/* Hallmark · waive 49b · inline links inside a sentence · the FAQ link to leave your email and the X32 and M32 mixer link wrap inside their sentence on a phone */
+/* Hallmark · waive 71 · accordion rows · the project centers each mixer question in its row between hairlines, and its answer opens below it */
+/* Hallmark · answered F25 · phones show the first four feature cards; the rest are on the Features page (#719) */
+
 @import "tailwindcss";
 
 /* ShowRecorder site design tokens (brand brief, #350).
@@ -29,6 +37,12 @@
   --meter-red: #ff4d47;
   --meter-blue: #7394b8;
   --meter-outline: transparent;
+  --mark-1: #ff453a;
+  --mark-2: #ffd60a;
+  --mark-3: #30d158;
+  --mark-4: #0a84ff;
+  --mark-5: #64d2ff;
+  --mark-6: #bf5af2;
   --mark-last: #f2f2f7;
   --bezel: #1b1e25;
   --device-edge: #3a3e47;
@@ -88,6 +102,7 @@
 /* ---------- Base ---------- */
 
 html {
+  overflow-x: clip;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   /* A focused link scrolled into view stays clear of the sticky header (0 on phones, where it scrolls away). */
@@ -101,6 +116,7 @@ html {
 }
 
 body {
+  overflow-x: clip;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font);
@@ -157,6 +173,17 @@ a:hover {
   text-decoration-thickness: 2px;
 }
 
+button:active,
+summary:active,
+.store-slot.is-live:active {
+  opacity: 0.8;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 :focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
@@ -200,7 +227,7 @@ main:focus {
   left: 8px;
   top: 8px;
   z-index: 100;
-  padding: 10px 16px;
+  padding: 8px 16px;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
@@ -257,7 +284,7 @@ main:focus {
   justify-self: start;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-height: 44px;
   color: var(--ink);
   font-weight: 600;
@@ -329,11 +356,11 @@ main:focus {
 @media (max-width: 359.98px) {
   .site-nav ul {
     gap: 0;
-    margin-inline: -6px;
+    margin-inline: -4px;
   }
 
   .site-nav a {
-    padding-inline: 6px;
+    padding-inline: 4px;
   }
 }
 
@@ -392,7 +419,7 @@ html:not([data-js]) .theme-toggle {
 .footer-brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   color: var(--ink);
   font-weight: 600;
   font-size: 17px;
@@ -464,12 +491,12 @@ html:not([data-js]) .theme-toggle {
   border-radius: 2px;
 }
 
-.mark span:nth-child(1) { height: 42%; background: #ff453a; }
-.mark span:nth-child(2) { height: 68%; background: #ffd60a; }
-.mark span:nth-child(3) { height: 88%; background: #30d158; }
-.mark span:nth-child(4) { height: 100%; background: #0a84ff; }
-.mark span:nth-child(5) { height: 80%; background: #64d2ff; }
-.mark span:nth-child(6) { height: 58%; background: #bf5af2; }
+.mark span:nth-child(1) { height: 42%; background: var(--mark-1); }
+.mark span:nth-child(2) { height: 68%; background: var(--mark-2); }
+.mark span:nth-child(3) { height: 88%; background: var(--mark-3); }
+.mark span:nth-child(4) { height: 100%; background: var(--mark-4); }
+.mark span:nth-child(5) { height: 80%; background: var(--mark-5); }
+.mark span:nth-child(6) { height: 58%; background: var(--mark-6); }
 .mark span:nth-child(7) { height: 36%; background: var(--mark-last); }
 
 /* ---------- Buttons and the App Store slot ---------- */
@@ -477,7 +504,7 @@ html:not([data-js]) .theme-toggle {
 .store-slot {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-height: 52px;
   padding: 8px 20px 8px 16px;
   border-radius: 12px;
@@ -513,12 +540,18 @@ html:not([data-js]) .theme-toggle {
   filter: brightness(1.08);
 }
 
+/* The beta label stays on one line on a 320px phone. */
+@media (max-width: 359.98px) {
+  .store-slot {
+    padding-inline: 12px;
+  }
+}
+
 /* ---------- Device frames ---------- */
 
 .device {
   background: var(--bezel);
   border: 1px solid var(--device-edge);
-  box-shadow: var(--shadow);
 }
 
 .device img {
@@ -586,7 +619,7 @@ html:not([data-js]) .theme-toggle {
 .eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   color: var(--muted);
   font-size: 15px;
   font-weight: 600;
@@ -855,7 +888,7 @@ html:not([data-js]) .theme-toggle {
 }
 
 .need-list p {
-  margin-top: 6px;
+  margin-top: 8px;
   color: var(--muted);
 }
 
@@ -923,7 +956,7 @@ html:not([data-js]) .theme-toggle {
 }
 
 .steps p {
-  margin-top: 6px;
+  margin-top: 8px;
   color: var(--muted);
 }
 
@@ -1031,7 +1064,7 @@ html:not([data-js]) .theme-toggle {
 .plan ul {
   margin-top: 16px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
   color: var(--muted);
   font-size: 16px;
 }
@@ -1091,6 +1124,7 @@ html:not([data-js]) .theme-toggle {
 }
 
 .faq summary h3 {
+  margin-top: 0;
   font-size: 18px;
 }
 
@@ -1190,7 +1224,7 @@ html:not([data-js]) .theme-toggle {
 .tier-key {
   margin-top: 24px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .tier-key div {
@@ -1211,7 +1245,7 @@ html:not([data-js]) .theme-toggle {
   display: inline-block;
   flex: none;
   min-width: 44px;
-  padding: 2px 10px;
+  padding: 2px 12px;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 600;
@@ -1246,7 +1280,7 @@ html:not([data-js]) .theme-toggle {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  padding-inline: 14px;
+  padding-inline: 16px;
   border: 1px solid var(--hairline);
   border-radius: 999px;
   background: var(--bg-raised);
@@ -1330,7 +1364,7 @@ ol.cards {
 .doc p,
 .doc ul,
 .doc ol {
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
 .doc ol {
@@ -1344,7 +1378,7 @@ ol.cards {
 }
 
 .doc li + li {
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .doc li::marker {
@@ -1368,14 +1402,14 @@ ol.cards {
 .doc code {
   white-space: normal;
   overflow-wrap: anywhere;
-  padding: 1px 5px;
+  padding: 1px 4px;
   border-radius: 5px;
   background: var(--bg-raised);
   border: 1px solid var(--hairline);
 }
 
 .doc pre {
-  margin-top: 14px;
+  margin-top: 16px;
   padding: 16px;
   overflow-x: auto;
   border-radius: 10px;
@@ -1395,7 +1429,7 @@ ol.cards {
 .doc blockquote {
   margin: 20px 0 0;
   padding: 12px 16px;
-  border-left: 3px solid var(--edge);
+  border: 1px solid var(--hairline);
   background: var(--bg-raised);
   border-radius: 8px;
 }
@@ -1406,7 +1440,7 @@ ol.cards {
 
 /* No docs page has a table yet; keep any that is added narrow enough for 375 px. */
 .doc table {
-  margin-top: 14px;
+  margin-top: 16px;
   border-collapse: collapse;
   font-size: 16px;
 }
@@ -1506,7 +1540,7 @@ ol.cards {
   font-weight: 700;
   background: var(--bg-raised);
   box-shadow: inset 4px 0 0 var(--accent);
-  padding-inline-start: 14px;
+  padding-inline-start: 16px;
 }
 
 .docs-nav-mobile .docs-links a[aria-current="page"] {
@@ -1766,7 +1800,6 @@ ol.cards {
   border-radius: 12px;
   background: var(--bg-raised);
   color: var(--ink);
-  box-shadow: var(--shadow);
   font-size: 0.9375rem;
   line-height: 1.4;
 }
@@ -1816,7 +1849,7 @@ ol.cards {
 
 .mixers-considering li {
   break-inside: avoid;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 /* ---------- Compare page ---------- */
@@ -1837,7 +1870,7 @@ ol.cards {
 
 .compare-table th,
 .compare-table td {
-  padding: 12px 14px;
+  padding: 12px 16px;
   text-align: left;
   vertical-align: top;
   border-bottom: 1px solid var(--hairline);

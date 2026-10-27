@@ -16,7 +16,7 @@ function DocLinks() {
       {DOCS.map((d) => (
         <li key={d.slug}>
           <a href={docHref(d.slug)} data-current-match="">
-            {d.title}
+            {d.nav ?? d.title}
           </a>
         </li>
       ))}
