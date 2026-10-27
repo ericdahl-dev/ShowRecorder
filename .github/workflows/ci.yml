@@ -240,10 +240,14 @@ jobs:
         run: docker build -t showrecorder-site:ci .
 
   # The required check. It passes when every job that ran passed; skipped jobs are fine.
+  # `!cancelled()`, not `always()` (#983): a run that concurrency cancels ends this job as `cancelled` at once. With
+  # `always()` it still ran, saw its canceled needs and failed a few seconds later, and that failure could land after
+  # the surviving run's pass on the same commit and block the merge. A canceled gate is still not a pass: cancel the
+  # only run on a commit and the check stays canceled, so the merge stays blocked.
   gate:
     name: Test and build
     needs: [changes, app, site]
-    if: always()
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Check results
