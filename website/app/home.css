@@ -266,19 +266,16 @@
 }
 
 @media (min-width: 1024px) {
+  /* One phone scale (Eric, 2026-10-27): about 450px tall each, so the row and its captions fit a 900px window. */
   .home .figures {
-    margin-top: var(--space-3xl);
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr);
+    margin-top: var(--space-2xl);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-2xl);
     align-items: end;
   }
 
   .home .figures .shot .device--phone {
-    max-width: 260px;
-  }
-
-  .home .figures .shot:last-child .device--phone {
-    max-width: 320px;
+    max-width: 216px;
   }
 }
 
