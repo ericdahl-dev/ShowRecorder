@@ -1249,8 +1249,14 @@ final class RecordScreenModel {
         let mixerNamed = linkedSources.contains { $0.hasMixerName }
         let moment = onDevice
             ?? show.flatMap { proOffers.afterTakeStopped(show: $0, license: license, isRecording: recorder.isRecording, mixerNamed: mixerNamed) }
-            ?? proOffers.betweenTakes(show: show, license: license, isRecording: recorder.isRecording)
+            ?? Self.trialNote(&proOffers, show: show, pro: pro, isRecording: recorder.isRecording)
         if let moment { offerPro(moment) }
+    }
+
+    /// The Trial's last days between Takes (#62), from the plan as owned so a pack on the Armed family doesn't hide them
+    /// (#961).
+    static func trialNote(_ offers: inout ProOffers, show: String?, pro: ProStore, isRecording: Bool) -> ProOfferMoment? {
+        offers.betweenTakes(show: show, license: pro.planLicense(), isRecording: isRecording)
     }
 
     /// Opens the paywall for `moment` (nil: from Settings), once whatever sheet is closing has gone.
