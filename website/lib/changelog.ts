@@ -14,6 +14,16 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.17",
+    date: "2026-10-26",
+    channel: "TestFlight beta",
+    summary: "A Drive that drops out and comes back is handled more safely.",
+    changes: [
+      "A Drive that fails and comes back within a split second joins the Take again, with its Stems lined up with this iPhone's.",
+      "Pressing Stop just as a Drive joins a Take no longer keeps writing to that Drive after Stop.",
+    ],
+  },
+  {
     version: "1.1.16",
     date: "2026-10-23",
     channel: "TestFlight beta",
