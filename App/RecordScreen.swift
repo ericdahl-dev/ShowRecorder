@@ -1253,6 +1253,12 @@ final class RecordScreenModel {
         if let moment { offerPro(moment) }
     }
 
+    /// The first Show's end (#62), from the plan as owned so a pack owner whose pack's mixer was Armed still gets it,
+    /// with the upgrade (Eric, #969).
+    static func firstShowOffer(_ offers: inout ProOffers, show: String, takeCount: Int, pro: ProStore) -> ProOfferMoment? {
+        offers.afterShowEnded(show: show, takeCount: takeCount, license: pro.planLicense())
+    }
+
     /// The Trial's last days between Takes (#62), from the plan as owned so a pack on the Armed family doesn't hide them
     /// (#961).
     static func trialNote(_ offers: inout ProOffers, show: String?, pro: ProStore, isRecording: Bool) -> ProOfferMoment? {
@@ -1305,8 +1311,7 @@ final class RecordScreenModel {
         let ending = recorder.currentShow
         do {
             try sequencer.endShow()
-            if let ending, let moment = proOffers.afterShowEnded(
-                show: ending.name, takeCount: ending.takeCount, license: pro.license()) {
+            if let ending, let moment = Self.firstShowOffer(&proOffers, show: ending.name, takeCount: ending.takeCount, pro: pro) {
                 offerPro(moment)
             }
             return nil
