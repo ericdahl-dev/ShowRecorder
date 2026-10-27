@@ -79,6 +79,7 @@ struct TrialTests {
         #expect(text.contains("up to 3 Markers per Take"))
         #expect(text.contains("never stops"))
         #expect(text.contains("$19.99") && text.contains("one-time"))
+        #expect(notice.lines.contains { $0.hasPrefix("Pro is a one-time purchase of $19.99") }, "full Pro without a pack (#968)")
         #expect(!text.contains("—"))
     }
 
@@ -88,6 +89,13 @@ struct TrialTests {
         #expect(end == day(14))
         #expect(Entitlement.tier(ownsPro: false, trialStartedAt: started, now: end.addingTimeInterval(-1)) == .trial(daysLeft: 1))
         #expect(Entitlement.tier(ownsPro: false, trialStartedAt: started, now: end) == .free)
+    }
+
+    @Test("A pack owner's notice names the upgrade and its price, not full Pro's (#968)")
+    func statusNoticeForAPackOwner() {
+        let lines = TrialStatusNotice(daysLeft: 5, endsOn: "October 31", proPrice: "$12.00", upgrade: true).lines
+        #expect(lines.contains { $0.hasPrefix("The upgrade to Pro is a one-time purchase of $12.00") })
+        #expect(!lines.contains { $0.hasPrefix("Pro is") }, "no full Pro price line")
     }
 
     @Test("The Free Marker limit in the notice is the real one")

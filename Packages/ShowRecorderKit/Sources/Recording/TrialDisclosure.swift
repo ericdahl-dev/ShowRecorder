@@ -22,22 +22,24 @@ public struct TrialDisclosure: Equatable, Sendable {
 }
 
 /// What the Trial chip opens during a Trial (#743): what it includes, when it ends, what Free keeps afterward and
-/// what Pro costs. The same words as `TrialDisclosure`, with the end date added.
+/// what Pro costs, or the upgrade for a pack owner (#968). The same words as `TrialDisclosure`, with the end date
+/// added.
 public struct TrialStatusNotice: Equatable, Sendable {
     public let title = "14-day Trial"
     public let lines: [String]
 
     /// - Parameters:
     ///   - endsOn: the end date, already written for the reader ("October 27").
-    ///   - proPrice: the Pro product's display price; nil until the App Store has it, and the price line waits.
-    public init(daysLeft: Int, endsOn: String, proPrice: String?) {
+    ///   - proPrice: the offered product's display price; nil until the App Store has it, and the price line waits.
+    ///   - upgrade: the offer is the upgrade to Pro for a pack owner (#968), so `proPrice` is the upgrade's.
+    public init(daysLeft: Int, endsOn: String, proPrice: String?, upgrade: Bool = false) {
         var lines = [
             TrialDisclosure.includes,
             "Ends \(endsOn), in \(daysLeft) \(daysLeft == 1 ? "day" : "days").",
             TrialDisclosure.afterwards,
         ]
         if let proPrice {
-            lines.append("Pro is a one-time purchase of \(proPrice), shared with your family. Nothing is charged when the Trial ends.")
+            lines.append("\(upgrade ? "The upgrade to Pro" : "Pro") is a one-time purchase of \(proPrice), shared with your family. Nothing is charged when the Trial ends.")
         }
         lines.append(TrialDisclosure.showSafe)
         self.lines = lines
