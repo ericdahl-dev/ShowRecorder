@@ -38,16 +38,24 @@ final class ProStore {
     private(set) var note: String?
 
     @ObservationIgnored private var updates: Task<Void, Never>?
+    /// The newest date the App Store has signed, so a clock held still or set back can't keep a Trial alive (#936).
+    /// `signedDate` is when the App Store signed the entitlement: a fresh answer moves it, a cached one read offline
+    /// keeps its old date, so the protection starts once the App Store has answered online.
+    @ObservationIgnored private var signedClock = SignedClock.lastKnown()
 
     /// Tests only: a store that already knows `status` and never asks the App Store.
     init(status: ProStatus) {
         self.status = status
+        signedClock = SignedClock()  // not the device's saved one, so a test doesn't depend on it
     }
 
     init() {
         updates = Task { [weak self] in
             for await update in Transaction.updates {
-                if case .verified(let transaction) = update { await transaction.finish() }
+                if case .verified(let transaction) = update {
+                    self?.noteSigned(update.signedDate)
+                    await transaction.finish()
+                }
                 await self?.refreshOwned()
             }
         }
@@ -59,13 +67,13 @@ final class ProStore {
 
     /// What the operator may do right now. Every Pro, Free and Trial question goes through it (#439).
     func license(now: Date = Date()) -> License {
-        status.license(proOffered: Self.isOffered, armedFamily: armedFamily(), now: now)
+        status.license(proOffered: Self.isOffered, armedFamily: armedFamily(), now: signedClock.now(clock: now))
     }
 
     /// The plan as owned, whatever is Armed (#705): for Settings' plan line and offers, so they don't change with the
     /// input and a running Trial isn't hidden by a pack on the Armed family. Record press and limits use `license()`.
     func planLicense(now: Date = Date()) -> License {
-        status.license(proOffered: Self.isOffered, now: now)
+        status.license(proOffered: Self.isOffered, now: signedClock.now(clock: now))
     }
 
     /// The days-left chip on the record screen during a Trial: the plan as owned, so a pack on the Armed family doesn't
@@ -157,19 +165,25 @@ final class ProStore {
         }
     }
 
+    private func noteSigned(_ signed: Date) {
+        signedClock.observe(signed)
+        signedClock.save()
+    }
+
     /// Re-reads every current entitlement, own or Family Shared, so refunds and revocations count too.
     private func refreshOwned() async {
         guard Self.debugTrial == nil else { return }  // a Debug run pretending a Trial keeps it
         var owned: [OwnedPurchase] = []
         for await entitlement in Transaction.currentEntitlements {
             guard case .verified(let transaction) = entitlement else { continue }
+            noteSigned(entitlement.signedDate)  // only a verified one: an unverified date could be forged
             owned.append(OwnedPurchase(
                 productID: transaction.productID,
                 purchaseDate: transaction.purchaseDate,
                 revocationDate: transaction.revocationDate,
                 isFamilyShared: transaction.ownershipType == .familyShared))
         }
-        let changed = status.appStoreAnswered(owned, now: Date())
+        let changed = status.appStoreAnswered(owned, now: signedClock.now(clock: Date()))
         status.purchases.saveAsLastKnown()
         if changed { onTierChange?() }
     }
