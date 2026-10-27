@@ -112,11 +112,5 @@ struct TrialStatusSheet: View {
     }
 
     /// What the sheet offers: the upgrade to someone who bought a pack, as the paywall and Settings do (#962); else Pro.
-    static func offer(_ store: ProStore) -> PackOffer.Item {
-        let purchases = store.purchases
-        let items = PackOffer.items(
-            ownsPro: purchases.ownsPro, armedFamily: nil, ownedPacks: purchases.ownedPacks,
-            boughtPacks: purchases.boughtPacks, packsOffered: PackAvailability.isAvailableInThisBuild)
-        return items.contains(.upgrade) ? .upgrade : .pro
-    }
+    static func offer(_ store: ProStore) -> PackOffer.Item { store.trialOffer }
 }
