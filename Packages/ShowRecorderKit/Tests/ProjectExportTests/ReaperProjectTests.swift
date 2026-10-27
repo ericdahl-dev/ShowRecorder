@@ -172,6 +172,52 @@ struct ReaperProjectTests {
         #expect(markers.map { Double($0[1]) } == [0, 0.5], "0.5 s into the Take, where the audio was lost")
     }
 
+    @Test("A channel renamed on the Mixer during a Take is a point marker named \"USB n: from → to\" at that moment, after the Pre-roll (#577)")
+    func renameMarkers() async throws {
+        let armed = FakeAudioDevice(inputChannelCount: 3)
+        let withPreRoll = Recorder(deviceFolder: root, now: { Self.showDay }, preRollSeconds: 1)
+        try withPreRoll.arm(armed)
+        func deliver(_ frames: Int) { armed.deliver(Array(repeating: Array(repeating: 0, count: frames), count: 3)) }
+        func source(_ name: String) -> Source { Source(name: name, color: .off) }
+        deliver(48_000)  // 1 s while Armed
+        try withPreRoll.startTake(sources: [source("Kick"), source("Snare"), source("Vox")])
+        deliver(12_000)
+        withPreRoll.offerSources([source("Kick"), source("Snare"), source("Lead Vox")])  // 0.25 s after the press
+        deliver(12_000)
+        withPreRoll.offerSources([source("Kick In"), source("Snare"), source("Lead Vox")])  // 0.5 s after the press
+        deliver(12_000)
+        try await withPreRoll.stopTake()
+
+        let rpp = try project()
+        let markers = rpp.all("MARKER")
+        #expect(markers.map { $0[0] } == ["1", "2", "3"], "numbers stay unique")
+        #expect(markers.map { $0[2] } == ["Take 01", "USB 3: Vox → Lead Vox", "USB 1: Kick → Kick In"])
+        #expect(markers.map { Double($0[1]) } == [0, 1.25, 1.5])
+        #expect(markers.map { $0[3] } == ["0", "0", "0"], "point markers, not regions")
+        #expect(rpp.children("TRACK").map { $0.value("NAME") } == ["Kick", "Snare", "Vox"], "tracks keep the names the Take started with")
+        #expect(rpp.children("TRACK").allSatisfy { $0.children("ITEM").count == 1 }, "a rename doesn't split an item")
+    }
+
+    @Test("A rename marker's name goes through the same quoting as any name, with line breaks as spaces (#577, #888)")
+    func renameMarkerQuoting() async throws {
+        func source(_ name: String) -> Source { Source(name: name, color: .off) }
+        try recorder.startTake(sources: [source("Kick"), source("Snare"), source("Vox")])
+        device.deliver(Array(repeating: Array(repeating: 0, count: 480), count: 3))
+        recorder.offerSources([source("Kick"), source("Snare"), source("Rob's\nVox")])
+        device.deliver(Array(repeating: Array(repeating: 0, count: 480), count: 3))
+        try await recorder.stopTake()
+
+        let lines = try String(contentsOf: projectFile, encoding: .utf8).split(separator: "\n").filter { $0.contains("MARKER") }
+        #expect(lines.count == 2)
+        #expect(lines.last?.contains(#""USB 3: Vox → Rob's Vox""#) == true)
+    }
+
+    @Test("A Take with no renames exports no rename markers (#577)")
+    func noRenameMarkers() async throws {
+        try await recordTake(frames: 4_800, sources: [Source(name: "Kick", color: .off)])
+        #expect(try project().all("MARKER").map { $0[2] } == ["Take 01"])
+    }
+
     @Test("A project marker sits at the start of each Take")
     func markerAtEachTakeStart() async throws {
         try await recordTake(frames: 24_000, sources: [])
