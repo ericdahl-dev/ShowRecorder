@@ -100,6 +100,10 @@ describe("compare page", () => {
     expect(ld.mainEntity).toHaveLength(COMPARE_FAQS.length);
   });
 
+  it("names the product in each cell, so a phone can stack a row instead of scrolling it", () => {
+    expect(page).toMatch(/<td key=\{p\.id\} role="cell" data-product=\{p\.name\}>/);
+  });
+
   it("shows the date next to the table", () => {
     expect(page).toMatch(/as of \{AS_OF\}/i);
   });
