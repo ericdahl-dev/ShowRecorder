@@ -65,18 +65,24 @@ struct TrialStatusSheet: View {
                     Section {
                         ForEach(TrialStatusNotice(daysLeft: daysLeft, endsOn: ends, proPrice: proPrice).lines, id: \.self) { Text($0) }
                     }
+                    // The upgrade or Pro (#962); either way the sheet closes once Pro is owned.
+                    let upgrade = Self.offer(store) == .upgrade
+                    let product = upgrade ? store.upgradeProduct : store.proProduct
+                    let title = upgrade
+                        ? product.map { "Upgrade to Pro, \($0.displayPrice)" } ?? "Upgrade to Pro"
+                        : Paywall(moment: nil, proPrice: proPrice).buyTitle
                     Section {
-                        Button(Paywall(moment: nil, proPrice: proPrice).buyTitle) {
+                        Button(title) {
                             Task {
-                                await store.buyPro()
+                                if !upgrade { await store.buyPro() } else if let product { await store.buy(product) }
                                 if Self.tier(store) == .pro { dismiss() }
                             }
                         }
-                        .disabled(store.proProduct == nil || store.busy)
+                        .disabled(product == nil || store.busy)
                         if let note = store.note {
                             Text(note).font(.footnote).secondaryText()
-                        } else if store.proProduct == nil {
-                            Text(store.loadingProducts ? "Loading the price…" : "Pro isn't available right now.")
+                        } else if product == nil {
+                            Text(store.loadingProducts ? "Loading the price…" : "\(upgrade ? "The upgrade" : "Pro") isn't available right now.")
                                 .font(.footnote).secondaryText()
                         }
                     }
@@ -103,5 +109,14 @@ struct TrialStatusSheet: View {
     /// The plan the sheet describes: the plan as owned, so a pack on the Armed family doesn't hide the Trial (#889).
     static func tier(_ store: ProStore) -> Tier? {
         store.planLicense().tier
+    }
+
+    /// What the sheet offers: the upgrade to someone who bought a pack, as the paywall and Settings do (#962); else Pro.
+    static func offer(_ store: ProStore) -> PackOffer.Item {
+        let purchases = store.purchases
+        let items = PackOffer.items(
+            ownsPro: purchases.ownsPro, armedFamily: nil, ownedPacks: purchases.ownedPacks,
+            boughtPacks: purchases.boughtPacks, packsOffered: PackAvailability.isAvailableInThisBuild)
+        return items.contains(.upgrade) ? .upgrade : .pro
     }
 }

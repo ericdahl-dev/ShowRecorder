@@ -41,4 +41,25 @@ struct TrialSheetTests {
         store.armedFamily = { .xAir }
         #expect(TrialStatusSheet.tier(store) == .free)
     }
+
+    /// What the status sheet offers (#962): the upgrade to someone who bought a pack, as the paywall and Settings do.
+    @Test func packOwnerInTheTrialIsOfferedTheUpgrade() {
+        #expect(TrialStatusSheet.offer(packOwnerInTrial()) == .upgrade)
+    }
+
+    @Test func trialWithoutAPackIsOfferedPro() {
+        let store = ProStore(status: ProStatus(lastKnown: ProPurchases(owned: [
+            OwnedPurchase(productID: ProPurchases.trialProductID, purchaseDate: Date()),
+        ])))
+        #expect(TrialStatusSheet.offer(store) == .pro)
+    }
+
+    @Test func trialWithOnlyASharedPackIsOfferedPro() {
+        let now = Date()
+        let store = ProStore(status: ProStatus(lastKnown: ProPurchases(owned: [
+            OwnedPurchase(productID: ProPurchases.packProductIDs[.xAir]!, purchaseDate: now.addingTimeInterval(-86_400), isFamilyShared: true),
+            OwnedPurchase(productID: ProPurchases.trialProductID, purchaseDate: now),
+        ])))
+        #expect(TrialStatusSheet.offer(store) == .pro)
+    }
 }
