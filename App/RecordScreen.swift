@@ -820,9 +820,6 @@ final class RecordScreenModel {
     private var takeCopies = TakeCopies.none
     /// The Copies as last refreshed; when a Take has started or stopped since, the Recorder's own straight away.
     var copies: TakeCopies { takeCopies.current(isRecording: recorder.isRecording, recorder.copies) }
-    /// The Drive stopped and Check Drive found nothing, until it comes back.
-    private var driveCheckedAndNotFound = false
-    private var driveRejoin = DriveRejoinNotice()
 
     /// How each Copy of the last Take stands, shown once recording has stopped.
     var copySummary: (text: String, isProblem: Bool)? {
@@ -884,8 +881,7 @@ final class RecordScreenModel {
     private func refreshDestinations() {
         refreshShowTotal()
         takeCopies = recorder.copies
-        if takeCopies[.drive] != .interrupted { driveCheckedAndNotFound = false }
-        driveRejoin.update(copies: takeCopies)
+        screen.update(snapshot, at: Date())
         followLiveActivity()
         // A save the recorder began itself (out of space, no Destination) gets the same time (#818).
         saveTask.follow(isFinishing: recorder.isFinishing)
@@ -941,82 +937,52 @@ final class RecordScreenModel {
             driveAllowed: pro.license().allowsDrive)
     }
 
+    /// What the record screen remembers between seconds, and the alerts it works out from `snapshot` (#552).
+    private(set) var screen = RecordScreenState()
+
     /// Everything the record screen has to say, most urgent first, but the warnings and green summaries swiped away (#644, #698); it shows one
     /// and counts the rest.
-    var alerts: AlertQueue { AlertQueue(swipedAlerts.showing(raisedAlerts)) }
+    var alerts: AlertQueue { screen.alerts(snapshot) }
 
-    /// Warnings and green summaries the operator swiped away, until their message changes or their problem clears. A green
-    /// banner also fades by itself after 10 s on top (#758).
-    private var swipedAlerts = SwipedAlerts()
+    func swipe(_ alert: ScreenAlert) { screen.swipe(alert) }
 
-    func swipe(_ alert: ScreenAlert) { swipedAlerts.swipe(alert) }
-
-    /// Checked about once a second: a swiped warning whose problem has cleared shows again if it comes back.
-    private func forgetClearedSwipes() {
-        var swiped = swipedAlerts
-        swiped.forget(absentFrom: raisedAlerts)
-        if swiped != swipedAlerts { swipedAlerts = swiped }
-    }
-
-    /// Whether the app is in front; a green banner's 10 s count only then (#758).
-    @ObservationIgnored private var isOnScreen = true
     /// Watches the meter windows for a Take that records nothing but silence (#778).
     @ObservationIgnored private var noSignalDetector = NoSignalDetector()
     private(set) var noSignalSilent = false
 
-    /// Checked about once a second: the green banner on top fades after 10 s on screen (#758).
-    private func fadeGoodNews() {
-        guard isOnScreen else { return }
-        var swiped = swipedAlerts
-        _ = swiped.fade(raisedAlerts, at: Date())
-        if swiped != swipedAlerts { swipedAlerts = swiped }
-    }
-
-    private var raisedAlerts: [ScreenAlert] {
-        var list: [ScreenAlert] = []
-        if let error = armError {
-            list.append(ScreenAlert(id: "arm", priority: .cannotRecord, tone: .critical, text: error, action: micDenied ? .openSystemSettings : .arm))
-        } else if disarmedForIdle, let block = recordBlock {
-            list.append(ScreenAlert(id: "idle", priority: .cannotRecord, tone: .warning, text: block.text, action: block.action))
-        }
-        if let error = recordError {
-            list.append(ScreenAlert(id: "record", priority: .cannotRecord, tone: .critical, text: error))
-        }
-        if let alert = DestinationAlert.make(copies: copies, checkedAndNotFound: driveCheckedAndNotFound,
-                                           driveNote: recorder.driveNotice, driveCopyAllowed: recorder.driveCopyAllowed) {
-            list.append(alert)
-        }
-        if let rejoined = driveRejoin.alert { list.append(rejoined) }
-        if let shortfall = usbChannelShortfall {
-            list.append(ScreenAlert(id: "shortfall", priority: .input, tone: .warning, text: shortfall.message))
-        }
-        if let notice = interruptions.notice {
-            list.append(ScreenAlert(id: "interruption", priority: .input, tone: .warning, text: notice))
-        }
-        // Not while input is stopped by an interruption: its own notice says why nothing arrives.
-        if let alert = NoSignalAlert.make(isSilent: noSignalSilent, isRecording: recorder.isRecording && !interruptions.isInputStopped) { list.append(alert) }
-        // A re-patch on the Mixer during the Take (#21), until the Take ends or the operator has seen it.
-        let routing = recorder.routingChanges
-        if recorder.isRecording, routingChangeSeen?.take != takeNumber || routingChangeSeen?.changes != routing,
-           let text = recorder.routingNotice {
-            list.append(ScreenAlert(id: "routing", priority: .input, tone: .warning, text: text, action: .dismissRoutingChange))
-        }
-        list += power.status.alerts
-        if let summary = copySummary, !recorder.isRecording {
-            list.append(ScreenAlert(id: "copies", priority: .copyResult, tone: summary.isProblem ? .warning : .ok, text: summary.text))
-        }
-        // Drive only Takes moving to the Drive (#630), where Drive only is offered; tap for each Take and why one stays.
-        if let alert = recorder.moveReport.alert(isOffered: recorder.movesDriveOnlyTakes, isRecording: recorder.isRecording) {
-            list.append(alert)
-        }
-        if showSetupHint {
-            list.append(ScreenAlert(id: "hint", priority: .hint, tone: .info, text: offersMixerLink ? "Choose the audio interface, Drive and Mixer in Settings (the gear)." : "Choose the audio interface and Drive in Settings (the gear).", action: .dismissHint))
-        }
-        // Offered once, as a banner rather than a sheet, so it never stacks on another first-launch sheet (#63).
-        if Soundcheck.shouldOffer(alreadyOffered: soundcheckOffered, isRecording: recorder.isRecording, setupHintShowing: showSetupHint) {
-            list.append(ScreenAlert(id: "soundcheck", priority: .hint, tone: .info, text: "Check your rig with a 30 s Soundcheck.", action: .soundcheck))
-        }
-        return list
+    /// The facts the alerts are worked out from, read off the Recorder, the sequencer, the Drive, the Mixer Link and power.
+    private var snapshot: RecordScreenSnapshot {
+        var s = RecordScreenSnapshot()
+        s.isArmed = recorder.isArmed
+        s.isRecording = recorder.isRecording
+        s.takeBusy = takeBusy
+        s.isRepairing = recorder.isRepairing
+        s.micDenied = micDenied
+        s.armError = armError
+        s.disarmedForIdle = disarmedForIdle
+        s.hasInputs = !devices.isEmpty
+        s.recordError = recordError
+        s.usbChannelShortfall = usbChannelShortfall?.message
+        s.interruptionNotice = interruptions.notice
+        s.isInputStopped = interruptions.isInputStopped
+        s.noSignalSilent = noSignalSilent
+        s.copies = copies
+        s.recorderCopies = recorder.copies
+        s.dropoutCount = recorder.dropoutCount
+        s.driveNotice = recorder.driveNotice
+        s.driveCopyAllowed = recorder.driveCopyAllowed
+        s.takeNumber = takeNumber
+        s.routingChanges = recorder.routingChanges
+        s.routingNotice = recorder.routingNotice
+        s.movesDriveOnlyTakes = recorder.movesDriveOnlyTakes
+        s.moveReport = recorder.moveReport
+        s.power = power.status
+        s.setupHintDismissed = setupHintDismissed
+        s.driveChosen = drive.status != .notChosen
+        s.hasMixerAddress = !mixerAddress.isEmpty
+        s.offersMixerLink = offersMixerLink
+        s.soundcheckOffered = soundcheckOffered
+        return s
     }
 
     /// Whether the Soundcheck has been offered (opened once from the banner or Settings).
@@ -1037,15 +1003,6 @@ final class RecordScreenModel {
             allowance: currentAllowance(), progress: progress, result: result)
     }
 
-    /// A first-run nudge, once: neither a Drive nor a Mixer is set up yet.
-    private var showSetupHint: Bool {
-        !setupHintDismissed && !recorder.isRecording && drive.status == .notChosen && mixerAddress.isEmpty
-    }
-
-    /// The routing changes the operator dismissed the warning at, in which Take: a later re-patch, or the next
-    /// Take's, warns again.
-    private var routingChangeSeen: (take: Int, changes: [TakeMetadata.RoutingChange])?
-
     func perform(_ action: ScreenAlert.Action) {
         switch action {
         case .openSystemSettings: openSystemSettings()
@@ -1058,7 +1015,7 @@ final class RecordScreenModel {
         case .soundcheck:
             showingSoundcheck = true
         case .dismissRoutingChange:
-            routingChangeSeen = (takeNumber, recorder.routingChanges)
+            screen.dismissRoutingChange(snapshot)
         case .showMoves:
             showingMoves = true
         case .checkDrive:
@@ -1067,7 +1024,7 @@ final class RecordScreenModel {
                 await drive.refreshInBackground(whileBusy: false)
                 await recorder.checkDestinations()
                 refreshDestinations()
-                driveCheckedAndNotFound = takeCopies[.drive] == .interrupted
+                screen.checkedDrive(copies: takeCopies)
             }
         }
     }
@@ -1291,9 +1248,7 @@ final class RecordScreenModel {
 
     /// Whether the app is in front (#758): leaving it pauses a green banner's fade, so it gets its 10 s once back.
     func setOnScreen(_ onScreen: Bool) {
-        guard onScreen != isOnScreen else { return }
-        isOnScreen = onScreen
-        if !onScreen { swipedAlerts.pauseFade() }
+        screen.setOnScreen(onScreen)
     }
 
     /// Chips after the Destination and Mixer ones: a Dropout count when the Take has lost audio, then battery and heat.
@@ -1647,7 +1602,7 @@ final class RecordScreenModel {
         var lastPoll = ContinuousClock.now
         while !Task.isCancelled {
             tick += 1
-            if tick % 30 == 0 { sequencer.tick(); refreshDestinations(); announceChanges(); forgetClearedSwipes(); fadeGoodNews() }
+            if tick % 30 == 0 { sequencer.tick(); refreshDestinations(); announceChanges() }
             // Re-check the Drive every few seconds so an unplugged one shows before record is pressed.
             // A Take just ended: the Drive may have changed meanwhile, so look now and not at the next count.
             let busy = takeBusy

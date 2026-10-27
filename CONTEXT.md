@@ -184,6 +184,10 @@ _Avoid_: Routing change (the logged record is a routing change; the event is a r
 A channel name the operator typed before, kept on the device and offered as a chip on the Channel names page. Newest first, one per name whatever its case; the built-in shortcut names are not saved.
 _Avoid_: Recent name, history
 
+**Record screen state**:
+The Kit value that holds what the Record screen remembers between seconds (alerts swiped away, a green banner's 10 s fade, the Drive-rejoined notice, "Check Drive found nothing", the re-patch the operator has seen) and works out the screen's alerts from a snapshot of plain facts. The App fills in the snapshot and updates the value about once a second.
+_Avoid_: Screen model, view model
+
 **Mixer family**:
 Mixers one driver reads, such as the X Air (XR18, MR18) or the X32 (X32, M32). The family is recognized from the Audio interface's name (for Mixer packs) and from the Mixer's own model (for the Mixer Link), and each family knows the port it is asked on and makes its driver. In Debug and sandbox builds (TestFlight, App Review) the Demo signal counts as an X Air for Mixer packs and the license, so App Review can reach the pack.
 
