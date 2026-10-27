@@ -15,7 +15,7 @@ export const metadata = pageMetadata(PAGES.home);
 // "mixer" in prose, "Coming soon to the App Store", Mac named once (in the FAQ).
 
 // Only the iPhone images have a 1x/2x srcset; their frames are at most 240 px wide.
-const FIGURE_SIZES = "(min-width: 1024px) 320px, 240px";
+const FIGURE_SIZES = "240px";
 
 const features: { title: string; body: ReactNode }[] = [
   {
@@ -275,13 +275,13 @@ export default function Home() {
             </div>
           </div>
           <div className="devices">
-            <Screenshot shot={SHOTS.heroIpad} sizes="(min-width: 1024px) 440px, 70vw" priority />
-            <Screenshot shot={SHOTS.heroPhone} sizes="(min-width: 1024px) 270px, 45vw" priority />
+            <Screenshot shot={SHOTS.heroIpad} sizes="(min-width: 1024px) 470px, 70vw" priority />
+            <Screenshot shot={SHOTS.heroPhone} sizes="(min-width: 1024px) 150px, 45vw" priority />
           </div>
         </div>
       </section>
 
-      <Section id="how" title="How a show goes" className="sec-how">
+      <Section id="how" title="How a show goes">
         <ol className="steps">
           {steps.map((s) => (
             <li key={s.title}>

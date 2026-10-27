@@ -3,6 +3,7 @@
  * axes: dark/grotesk-heavy/chromatic-red · posture: restrained · contrast: pass · fold: pass · v2.0.0 */
 /* Hallmark · pre-emit critique: P4 H5 E4 S5 R4 V4 · weakest: P, the copy and section order are pinned; the argument is carried by scale, the record red and the captures */
 /* Hallmark · hero-review: fix · 5 findings · 3 resolved (composition, meters uncovered, tracking) · 2 unresolved: the phone's first screen holds the pinned hero text, the red chat button is shared site chrome */
+/* Hallmark · finish-review: subagent · 8 findings · 4 resolved (narrow device pair, pricing gap, beta button width, radio accent) · 4 answered: the bleed, the features wall and the gallery scale are the layout the owner approved; the iPad resize handle needs a recapture · gap: none */
 /* Hallmark · dismissed 40 · the record step's 3 is 24px bold, large text, at 3.41:1 over the 3:1 large-text line, the same pair as the TestFlight button */
 /* Hallmark · answered F19 · the shared header and footer carry 500 and 600 on every page; the home page's own type is 400 and 700 */
 
@@ -39,10 +40,6 @@
   font-weight: 700;
 }
 
-.home .section {
-  padding-block: var(--space-2xl);
-}
-
 .home .section-head {
   max-width: none;
 }
@@ -54,10 +51,6 @@
 }
 
 @media (min-width: 1024px) {
-  .home .section {
-    padding-block: var(--space-3xl);
-  }
-
   .home .sec-need,
   .home .sec-pricing {
     padding-block: 120px;
@@ -78,7 +71,6 @@
   }
 
   .home .hero-grid {
-    grid-template-columns: minmax(0, 6fr) minmax(0, 6fr);
     gap: var(--space-2xl);
   }
 }
@@ -86,9 +78,7 @@
 .home .hero h1 {
   font-size: var(--text-display-s);
   line-height: 1.02;
-  letter-spacing: -0.02em;
   max-width: 17ch;
-  min-width: 0;
 }
 
 .home .hero .lede {
@@ -108,12 +98,9 @@
 
 @media (min-width: 1024px) {
   /* The Signature: the live Record screen as big as the first screen allows, past the column's right edge. */
-  .home .devices {
-    max-width: none;
-  }
-
   /* The iPad's 18 meters lead, uncovered; the iPhone stands at its foot, beside it rather than over it. */
   .home .devices {
+    max-width: none;
     column-gap: var(--space-md);
     align-items: end;
   }
@@ -125,8 +112,21 @@
 
   .home .devices .device--phone {
     grid-column: 1 / 6;
-    align-self: end;
     margin-top: 0;
+  }
+}
+
+/* Under 1024px the pair keeps the same order without the gap: the iPhone at the iPad's foot, never over its meters. */
+@media (max-width: 1023.98px) {
+  .home .devices .device--ipad {
+    grid-column: 6 / 21;
+    align-self: center;
+  }
+
+  .home .devices .device--phone {
+    grid-column: 1 / 6;
+    margin-top: 0;
+    margin-right: var(--space-xs);
   }
 }
 
@@ -156,7 +156,8 @@
     position: absolute;
     top: 28px;
     left: 28px;
-    right: 28px;
+    /* ends at the last stop's center: the last column's start plus half a 56px circle */
+    right: calc((100% - 3 * var(--space-xl)) / 4 - 28px);
     border-top: 1px solid var(--edge);
   }
 
@@ -171,7 +172,6 @@
 
 .home .steps li:nth-child(3)::before {
   background: var(--accent);
-  border-color: var(--accent);
   color: var(--button-ink);
 }
 
@@ -229,7 +229,6 @@
 
 .home .promise .inner {
   max-width: none;
-  margin-inline: 0;
 }
 
 .home .promise .rec-dot {
@@ -294,7 +293,7 @@
   border: 0;
   border-top: 4px solid var(--hairline);
   border-radius: 0;
-  padding: var(--space-lg) 0 var(--space-xl);
+  padding: var(--space-lg) 0 0;
 }
 
 .home .plan--pro {
@@ -343,6 +342,7 @@
     column-gap: var(--space-2xl);
     row-gap: var(--space-sm);
     align-items: start;
+    justify-items: start;
     margin-top: var(--space-2xl);
   }
 
@@ -359,6 +359,10 @@
   }
 }
 
+.home .signup-interests input {
+  accent-color: var(--accent);
+}
+
 /* FAQ: the heading held on the left while the questions run on the right. */
 
 @media (min-width: 1024px) {
@@ -370,7 +374,6 @@
   }
 
   .home .sec-faq .section-head {
-    grid-row: 1 / span 2;
     position: sticky;
     top: calc(var(--header-h) + var(--space-xl));
   }
