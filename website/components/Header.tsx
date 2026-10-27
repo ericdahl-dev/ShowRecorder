@@ -8,7 +8,7 @@ export function Header() {
   return (
     <header className="site-header">
       <div className="wrap header-inner">
-        <a href="/" className="brand" data-current-match="">
+        <a href="/" className="brand" data-current-match="" suppressHydrationWarning>
           <AppIcon size={32} priority />
           <span>{SITE_NAME}</span>
         </a>
@@ -16,7 +16,7 @@ export function Header() {
           <ul>
             {NAV.map((item) => (
               <li key={item.href} className={item.wide ? "nav-wide" : undefined}>
-                <a href={item.href} data-current-match={item.href === "/docs" ? "prefix" : ""}>
+                <a href={item.href} data-current-match={item.href === "/docs" ? "prefix" : ""} suppressHydrationWarning>
                   {item.label}
                 </a>
               </li>

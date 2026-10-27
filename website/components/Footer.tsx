@@ -13,32 +13,32 @@ export function Footer() {
         <nav aria-label="Footer">
           <ul className="footer-links">
             <li>
-              <a href="/features" data-current-match="">
+              <a href="/features" data-current-match="" suppressHydrationWarning>
                 Features
               </a>
             </li>
             <li>
-              <a href="/compare" data-current-match="">
+              <a href="/compare" data-current-match="" suppressHydrationWarning>
                 Compare
               </a>
             </li>
             <li>
-              <a href="/docs" data-current-match="">
+              <a href="/docs" data-current-match="" suppressHydrationWarning>
                 Docs
               </a>
             </li>
             <li>
-              <a href="/changelog" data-current-match="">
+              <a href="/changelog" data-current-match="" suppressHydrationWarning>
                 What&apos;s new
               </a>
             </li>
             <li>
-              <a href="/support" data-current-match="">
+              <a href="/support" data-current-match="" suppressHydrationWarning>
                 Support
               </a>
             </li>
             <li>
-              <a href="/privacy" data-current-match="">
+              <a href="/privacy" data-current-match="" suppressHydrationWarning>
                 Privacy
               </a>
             </li>
@@ -57,12 +57,12 @@ export function Footer() {
           <ul className="footer-links">
             <li className="footer-group footer-wide">Supported mixers</li>
             <li>
-              <a href="/mixers/xr18" data-current-match="">
+              <a href="/mixers/xr18" data-current-match="" suppressHydrationWarning>
                 XR18 and MR18
               </a>
             </li>
             <li>
-              <a href="/mixers/x32" data-current-match="">
+              <a href="/mixers/x32" data-current-match="" suppressHydrationWarning>
                 X32 and M32 (beta)
               </a>
             </li>
