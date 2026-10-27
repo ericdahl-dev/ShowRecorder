@@ -164,7 +164,12 @@ public struct RecordScreenState: Equatable, Sendable {
     public func inputSummary(_ s: RecordScreenSnapshot) -> String {
         guard s.isArmed else { return recordBlock(s)?.text ?? "Choose the Mixer's audio interface in Settings" }
         let name = s.armedDeviceName ?? "Audio interface"
-        return "\(name) · \(s.usbChannelCount == 1 ? "1 USB Channel" : "\(s.usbChannelCount) USB Channels")"
+        return "\(name) · \(Self.usbChannelSummary(s.usbChannelCount))"
+    }
+
+    /// "1 USB Channel" or "18 USB Channels".
+    public static func usbChannelSummary(_ count: Int) -> String {
+        count == 1 ? "1 USB Channel" : "\(count) USB Channels"
     }
 
     /// The running (or last) Take's number in the Show.

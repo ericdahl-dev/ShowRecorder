@@ -1424,10 +1424,7 @@ final class RecordScreenModel {
         pro.license().allowance(channelCount: recorder.usbChannelCount)
     }
 
-    var usbChannelSummary: String {
-        let count = recorder.usbChannelCount
-        return count == 1 ? "1 USB Channel" : "\(count) USB Channels"
-    }
+    var usbChannelSummary: String { RecordScreenState.usbChannelSummary(recorder.usbChannelCount) }
 
     /// Most input channels the Armed route offers, where the system reports it (iOS).
     private(set) var offeredChannelCount: Int?
