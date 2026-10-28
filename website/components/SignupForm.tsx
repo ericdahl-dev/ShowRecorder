@@ -39,7 +39,7 @@ export function SignupForm() {
         track("signup_submit", { interest: String(interest) });
       }}
     >
-      <label htmlFor="signup-email">Not ready to install? Get the launch email.</label>
+      <label htmlFor="signup-email">Not ready to install? Get release news by email.</label>
       <div className="signup-row">
         <input
           id="signup-email"

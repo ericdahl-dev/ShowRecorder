@@ -330,7 +330,7 @@
   font-weight: 700;
 }
 
-/* Join the beta: the TestFlight button and its notes on the left, the launch email on the right. */
+/* The App Store badge and its notes on the left, the release news email on the right. */
 
 @media (min-width: 1024px) {
   .home #email .hero-actions {

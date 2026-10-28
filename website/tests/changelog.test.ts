@@ -1,7 +1,9 @@
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { RELEASES } from "@/lib/changelog";
-import { ROUTES } from "@/lib/site";
+import { renderToStaticMarkup } from "react-dom/server";
+import ChangelogPage from "@/app/changelog/page";
+import { APP_STORE_URL, ROUTES } from "@/lib/site";
 
 const NOTES = path.resolve(__dirname, "..", "..", "docs", "release-notes");
 
@@ -22,6 +24,11 @@ describe("changelog", () => {
       .filter((v): v is string => Boolean(v));
     const listed = RELEASES.map((r) => r.version);
     for (const v of tagged) expect(listed, `docs/release-notes/v${v}.md has no changelog entry`).toContain(v);
+  });
+
+  it("leads with 1.0 on the App Store, and the page links to it (#382)", () => {
+    expect(RELEASES[0]).toMatchObject({ version: "1.0.3", channel: "App Store" });
+    expect(renderToStaticMarkup(ChangelogPage())).toContain(`<a href="${APP_STORE_URL}">`);
   });
 
   it("is a page in the sitemap", () => {
