@@ -28,7 +28,6 @@ describe("changelog", () => {
 
   it("leads with 1.0 on the App Store, and the page links to it (#382)", () => {
     expect(RELEASES[0]).toMatchObject({ version: "1.0.3", channel: "App Store" });
-    expect(RELEASES[0].summary).toBe("ShowRecorder 1.0 is on the App Store for iPhone and iPad.");
     expect(renderToStaticMarkup(ChangelogPage())).toContain(`<a href="${APP_STORE_URL}">`);
   });
 

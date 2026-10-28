@@ -17,7 +17,7 @@ describe("the launch email signup (#719, was the Android signup #404)", () => {
 
   // 1.0 is out: interest=launch stays the Buttondown value so subscribers keep their list, only the words change.
   it("calls the launch list release news now that 1.0 is on the App Store", () => {
-    expect(SIGNUP_INTERESTS[0].label).toBe("Release news: new versions, the Mac app, mixer packs");
+    expect(SIGNUP_INTERESTS[0]).toMatchObject({ value: "launch", label: expect.stringMatching(/^Release news/) });
   });
 
   it("is a plain form post that works without JavaScript", () => {

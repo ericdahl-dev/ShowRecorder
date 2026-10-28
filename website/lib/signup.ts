@@ -5,7 +5,7 @@
 export const BUTTONDOWN_ACTION = "https://buttondown.com/api/emails/embed-subscribe/ericdahl.dev";
 
 export const SIGNUP_INTERESTS = [
-  { value: "launch", label: "Release news: new versions, the Mac app, mixer packs" },
+  { value: "launch", label: "Release news: new versions and the Mac app" },
   { value: "x32", label: "The X32 and M32 coming to the App Store" },
   { value: "android", label: "An Android version, if it happens" },
 ] as const;

@@ -211,7 +211,7 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
     node: (
       <>
         Not yet. An Android version is being considered, not promised: it needs its own app and testing on Android
-        phones. <a href="#launch-email">Leave your email at the top of the page</a>, and pick Android, to hear if it happens.
+        phones. <a href="#launch-email">Leave your email</a>, and pick Android, to hear if it happens.
       </>
     ),
   },
