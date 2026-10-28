@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element -- a static SVG; next/image adds nothing for it in a static export */
 import { trackAttrs } from "@/lib/analytics";
 import { APP_STORE_URL, TESTFLIGHT_URL } from "@/lib/site";
 
@@ -19,6 +18,7 @@ export function AppStoreBadge({ id, beta = false }: { id: "app-store-link" | "ap
       <a id={id} className="store-badge" href={APP_STORE_URL} {...trackAttrs("app_store_clicked", "app_store")}>
         {/* Apple's official badge from developer.apple.com Marketing Resources, unmodified. The black
             badge has its own gray border, so it reads on the Dark and light themes alike. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/images/app-store-badge.svg" alt="Download on the App Store" width={156} height={52} />
       </a>
     );

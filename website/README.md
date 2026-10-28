@@ -79,9 +79,9 @@ Every page sets its metadata with `pageMetadata()` from `lib/metadata.ts`, so it
 URL and the shared Open Graph image. New routes go in `ROUTES` in `lib/site.ts` (docs pages in
 `DOCS` in `lib/docs.ts`) so the sitemap lists them.
 
-`APP_STORE_URL` in `lib/site.ts` is `null` until the app is live; the App Store slots then read
-"Coming soon to the App Store" and are not links. `components/AppStoreBadge.tsx` says how to swap in
-Apple's official badge.
+`APP_STORE_URL` in `lib/site.ts` is the App Store listing; the App Store slots show Apple's official
+badge (`public/images/app-store-badge.svg`), and pages passing `beta` (the X32 page) link to TestFlight
+instead. See `components/AppStoreBadge.tsx`.
 
 ### Themes
 

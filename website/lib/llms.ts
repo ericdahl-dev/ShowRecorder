@@ -20,7 +20,7 @@ const MIXER_PAGES = [
 ];
 
 const getIt = APP_STORE_URL
-  ? `App Store: ${APP_STORE_URL}`
+  ? `App Store: ${APP_STORE_URL}${TESTFLIGHT_URL ? `. The public beta (the X32 and M32, and the next version) is on TestFlight: ${TESTFLIGHT_URL}` : ""}`
   : `ShowRecorder 1.0 for iPhone and iPad is in App Review. The public beta is open on TestFlight${TESTFLIGHT_URL ? `: ${TESTFLIGHT_URL}` : ""}`;
 
 export function facts(): string[] {
