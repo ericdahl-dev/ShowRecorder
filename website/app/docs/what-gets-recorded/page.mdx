@@ -1,0 +1,38 @@
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata({
+  path: "/docs/what-gets-recorded",
+  title: "What the mixer sends over USB - ShowRecorder",
+  description: "Choose where your mixer takes each USB recording signal: input, pre EQ, post EQ, pre fader or post fader, and understand what each choice records.",
+});
+
+# What the mixer sends over USB
+
+ShowRecorder records the audio the mixer sends to each USB Channel. The mixer decides **where to copy that signal**. That place is called a *source* or *tap point*. Changing a tap point on the mixer changes the next recording; it does not change a Take already saved. ShowRecorder does not change the mixer's routing.
+
+For example, a channel can send its raw input to USB while its live mix has EQ and fader moves. It can also send the processed channel after the fader. In either case, ShowRecorder records the USB signal it receives as a Stem.
+
+## Choose a tap point
+
+The names and available choices depend on the mixer. A tap's position relative to the gate, compressor, low cut and mute can vary, so check the mixer's signal-flow diagram before relying on one of those controls being recorded. **Preamp gain affects every tap**: if the input clips at the preamp, choosing an earlier tap cannot repair it.
+
+| Choice | What usually reaches the Stem | For mixing later | For a quick listen-back |
+| --- | --- | --- | --- |
+| **Input / direct input** | The input after the preamp, before channel EQ, dynamics and fader; check whether low cut is included. | Most freedom to shape each track later. Live EQ and compression are not baked in. | Can sound unfinished compared with the live mix. |
+| **Pre EQ** | The signal before channel EQ and fader. Low cut, gate or other earlier processing depends on the mixer. | Keeps later EQ choices open while possibly retaining earlier processing. | May sound less polished than the live channel. |
+| **Post EQ** | Channel EQ is included; the fader is not. Whether dynamics is included depends on its position in the mixer. | Keeps level moves out of the recording, but EQ choices are baked in. | Closer to the live channel sound. |
+| **Pre fader** | Processing before the channel fader is included; fader moves are not. | A middle ground when you want the live channel sound without live level rides. | Usually sounds more finished, but separate Stems still need balancing. |
+| **Post fader** | The channel after its fader, including level rides and earlier processing. | Live fader moves are baked in; a fader left down can leave little or no usable audio. | Closest to the channel's live level, though separate Stems are not a finished stereo mix. |
+
+**Mute needs a separate check.** A tap before the mixer's mute point may continue recording when that channel is muted in the live mix; a tap after it records silence. Do a short test with the exact routing you plan to use. A muted channel is not automatically silent on every USB tap.
+
+For a multitrack you plan to mix in a DAW, start with **Input** or **Pre EQ**. Choose **Pre fader** when you want the mixer's processing but still want to set levels later. Choose **Post fader** when capturing the live level moves matters more than having untouched tracks.
+
+If you use **auto-gain** in a build where it is available, it adjusts the mixer's preamps before recording, so the change reaches even an Input or Pre EQ tap. Auto-gain is currently a Debug and TestFlight feature; it is not in the App Store release. Set and check preamp levels before a Take, especially when recording early taps.
+
+## Set up your mixer
+
+- [XR18 and MR18 USB routing](/mixers/xr18#choose-what-usb-records)
+- [X32 and M32 USB card routing (public beta)](/mixers/x32#choose-what-usb-records)
+
+After changing routing, record a short test. Move a fader, switch EQ and mute a channel in turn, then listen to the recorded Stem. That confirms the actual tap behavior on your mixer and firmware.
