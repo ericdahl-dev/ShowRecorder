@@ -531,6 +531,16 @@ html:not([data-js]) .theme-toggle {
   flex: none;
 }
 
+/* The radius rounds the shared focus ring to the badge's corners. */
+.store-badge {
+  display: inline-block;
+  border-radius: 8px;
+}
+
+.store-badge img {
+  display: block;
+}
+
 .store-slot.is-live {
   background: var(--button-bg);
   color: var(--button-ink);
@@ -1195,7 +1205,8 @@ html:not([data-js]) .theme-toggle {
   color: var(--muted);
 }
 
-.closing .store-slot {
+.closing .store-slot,
+.closing .store-badge {
   margin-top: 28px;
 }
 

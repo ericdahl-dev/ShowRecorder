@@ -23,12 +23,12 @@ export function GetBand({
           <h2 id="get-title">{title}</h2>
           <p>
             {children ??
-              "ShowRecorder is coming soon to the App Store for iPhone and iPad. Until then, the public beta is open on TestFlight."}
+              "ShowRecorder is on the App Store for iPhone and iPad."}
           </p>
           <AppStoreBadge id="app-store-link-footer" beta={beta} />
           <p className="price">{ctaNote(beta)}</p>
           <p className="ask">
-            Questions before then? Email <a href={`mailto:${CONTACT_EMAIL}`} {...trackAttrs("contact_email_clicked")}>{CONTACT_EMAIL}</a>.
+            Questions? Email <a href={`mailto:${CONTACT_EMAIL}`} {...trackAttrs("contact_email_clicked")}>{CONTACT_EMAIL}</a>.
           </p>
         </div>
       </div>

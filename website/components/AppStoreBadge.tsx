@@ -6,22 +6,20 @@ import { APP_STORE_URL, TESTFLIGHT_URL } from "@/lib/site";
 // While APP_STORE_URL is null it renders a status, not a link: "Coming soon to the App Store",
 // sized like the badge (52 px tall) so nothing moves when the real badge goes in.
 //
-// When the app is live:
-//   1. Set APP_STORE_URL in lib/site.ts to the App Store link.
-//   2. Replace the text inside the <a> below with Apple's official "Download on the App Store"
-//      badge SVG from Apple's Marketing Resources (https://developer.apple.com/app-store/marketing/guidelines/),
-//      unmodified, at least 40 px tall, with alt="Download on the App Store". Use the black badge on
-//      the Dark site and the white one in the light theme (two <img>s with the only-dark and
-//      only-light classes). Do not draw a lookalike badge.
-//   3. Add the apple-itunes-app meta tag in app/layout.tsx once the App Store ID is known.
+// With APP_STORE_URL set it links to the App Store with Apple's official black "Download on the
+// App Store" badge (public/images/app-store-badge.svg, from developer.apple.com, unmodified, 52 px
+// tall). layout.tsx adds the apple-itunes-app tag from APP_STORE_ID.
 //
 // `beta` keeps it on the public beta even once the App Store link is set: for a mixer only the beta records (the
 // X32 page, #482), the App Store build would be the wrong download.
 export function AppStoreBadge({ id, beta = false }: { id: "app-store-link" | "app-store-link-email" | "app-store-link-footer"; beta?: boolean }) {
   if (APP_STORE_URL && !(beta && TESTFLIGHT_URL)) {
     return (
-      <a id={id} className="store-slot is-live" href={APP_STORE_URL} {...trackAttrs("app_store_clicked", "app_store")}>
-        Download on the App Store
+      <a id={id} className="store-badge" href={APP_STORE_URL} {...trackAttrs("app_store_clicked", "app_store")}>
+        {/* Apple's official badge from developer.apple.com Marketing Resources, unmodified. The black
+            badge has its own gray border, so it reads on the Dark and light themes alike. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/images/app-store-badge.svg" alt="Download on the App Store" width={156} height={52} />
       </a>
     );
   }
