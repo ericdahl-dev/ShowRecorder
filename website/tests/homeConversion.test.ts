@@ -9,9 +9,13 @@ const read = (...p: string[]) => readFileSync(path.join(ROOT, ...p), "utf8");
 
 describe("the line under the call to action (#719)", () => {
   it("says what happens after the click while the button is TestFlight", () => {
-    expect(ctaNote(false)).toBe(
+    expect(ctaNote(true)).toBe(
       "The beta is free. Opens Apple's TestFlight app: install TestFlight, tap Accept, then Install.",
     );
+  });
+
+  it("gives the price once the button is the App Store (#382)", () => {
+    expect(ctaNote(false)).toBe("Free to download, 14-day Trial of everything.");
   });
 
   it("is on the home hero, every mixer hero and the closing band, and the App Store wording is gone", () => {

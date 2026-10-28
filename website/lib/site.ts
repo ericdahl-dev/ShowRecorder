@@ -12,9 +12,10 @@ export const CONTACT_EMAIL = "showrecorder@ericdahl.dev";
 export const REPO_URL = "https://github.com/ericdahl-dev/ShowRecorder";
 export const ISSUES_URL = `${REPO_URL}/issues`;
 
-// Fill in with the App Store link when the app is live. While it is null, the badge slots
+// The App Store listing (App Store Connect app 6820213310). While it is null, the badge slots
 // (AppStoreBadge) show a "Coming soon to the App Store" placeholder that is not a link.
-export const APP_STORE_URL = null as string | null;
+export const APP_STORE_ID = "6820213310";
+export const APP_STORE_URL = `https://apps.apple.com/app/id${APP_STORE_ID}` as string | null;
 
 // The public TestFlight beta, open while 1.0 is in App Review. With no APP_STORE_URL, the badge
 // slots link here instead of showing the placeholder. Set it to null to go back to "Coming soon".
