@@ -8,6 +8,7 @@ export type DocLink = { slug: string; title: string; description: string; nav?: 
 export const DOCS: readonly DocLink[] = [
   { slug: "getting-started", title: "Getting started", description: "What you need to record a show with ShowRecorder, how to plug in your mixer, and how to record, mark and stop your first Take." },
   { slug: "usb-cable-and-setup", title: "USB cable and setup", description: "The USB cable, a powered hub and the Audio interface setting for an XR18 or MR18 on iPhone or iPad, and how to check that all 18 USB Channels come in." },
+  { slug: "what-gets-recorded", title: "What the mixer sends over USB", nav: "What gets recorded", description: "Choose where your mixer takes each USB recording signal: input, pre EQ, post EQ, pre fader or post fader, and understand what each choice records." },
   { slug: "mixer-link", title: "Mixer Link and Find Mixers", description: "Link ShowRecorder to your mixer over Wi-Fi to name every Stem after its channel, with its color. No internet needed, and recording never depends on it." },
   { slug: "usb-drive", title: "Recording to a USB drive", description: "Write every Take to your iPhone or iPad and a USB drive at once. Choose the Drive folder, see what happens if the drive is unplugged, and how Repair works." },
   { slug: "markers-and-pre-roll", title: "Markers and Pre-roll", description: "Keep the count-in with Pre-roll, and tap the flag to mark songs and moments. Markers go into every Stem, the Show report and the Reaper project." },

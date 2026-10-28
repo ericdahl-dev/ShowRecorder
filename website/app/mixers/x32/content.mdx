@@ -29,6 +29,18 @@ Most X32 and M32 shows are recorded to a laptop running a DAW, or to SD cards. S
 
 The cable, a powered hub and what to check are in the [docs](/docs); [Mixer Link](/docs/mixer-link) covers Find Mixers.
 
+## Choose what USB records
+
+**X32 and M32 support is in the public beta.** On an X32, the USB card receives the sources assigned in **Routing > card out** in groups of eight. The [Behringer X32 Quick Start Guide, Getting Started](https://mediadl.musictribe.com/media/PLM/data/docs/P0ASF/QSG_BE_0603-ACE_X32_WW.pdf) shows the **card out** tab and the output assignment screen. Check your card's routing before assuming that USB 1 is channel 1.
+
+To record a processed channel direct out on an X32:
+
+1. On the desk, open **Routing** and select the **analog out** tab. In **Edit Output Assignment**, choose **Direct Out** as the category, then choose the channel and its **Signal Tap** for an output slot. The guide shows the exact tap labels **Pre EQ**, **Post EQ**, **Pre Fader** and **Post Fader**. ([X32 Quick Start Guide, Getting Started](https://mediadl.musictribe.com/media/PLM/data/docs/P0ASF/QSG_BE_0603-ACE_X32_WW.pdf))
+2. Open **Routing > card out** and assign the group of eight containing that output slot to the matching card-output group. The guide shows that output assignments can be mirrored to the USB card in blocks of eight. ([X32 Quick Start Guide, Getting Started](https://mediadl.musictribe.com/media/PLM/data/docs/P0ASF/QSG_BE_0603-ACE_X32_WW.pdf))
+3. Record a short test and listen to the file for the corresponding USB Channel. Check every group you changed before recording a show.
+
+The guide does not establish a universal factory default for card routing. A different card, firmware version or saved scene may change what you see. [What the mixer sends over USB](/docs/what-gets-recorded) explains what each tap is for.
+
 32 channels at 48 kHz take about 16.6 GB per hour, on the iPhone or iPad and again on the drive if you use one. The record screen shows the time left.
 
 ## Free, Trial and Pro
