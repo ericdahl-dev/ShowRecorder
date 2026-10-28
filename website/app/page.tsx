@@ -207,7 +207,7 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
   },
   {
     q: "Is there an Android version?",
-    a: "Not yet. An Android version is being considered, not promised: it needs its own app and testing on Android phones. Leave your email at the top of the page, and pick Android, to hear if it happens.",
+    a: "Not yet. An Android version is being considered, not promised: it needs its own app and testing on Android phones. Leave your email in the form below the pricing, and pick Android, to hear if it happens.",
     node: (
       <>
         Not yet. An Android version is being considered, not promised: it needs its own app and testing on Android
