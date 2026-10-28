@@ -141,7 +141,7 @@ const plans = [
 const faqs: { q: string; a: string; node?: ReactNode }[] = [
   {
     q: "Is the beta safe for a real gig?",
-    a: "The beta is the version in testing before the App Store release, and the recording works as described here: files are saved every 2 seconds, an app closed mid-Take finishes that Take the next time it opens, and a Take never stops because of a Trial or a limit. It is still new software, so record a test Take with your own mixer before the show, and keep a backup recording for a gig you can't repeat. A USB drive gives you a second Copy as you record.",
+    a: "The beta is the next version, in testing before it comes to the App Store, and the recording works as described here: files are saved every 2 seconds, an app closed mid-Take finishes that Take the next time it opens, and a Take never stops because of a Trial or a limit. It is still new software, so record a test Take with your own mixer before the show, and keep a backup recording for a gig you can't repeat. A USB drive gives you a second Copy as you record.",
   },
   {
     q: "What does the beta cost?",
@@ -394,7 +394,7 @@ export default function Home() {
         </div>
       </Section>
 
-      <Section id="email" title="Join the beta, or wait for the launch">
+      <Section id="email" title="Get ShowRecorder on the App Store">
         <div className="hero-actions">
           <AppStoreBadge id="app-store-link-email" />
           <p className="price">{ctaNote(false)}</p>

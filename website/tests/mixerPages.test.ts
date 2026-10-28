@@ -3,6 +3,7 @@ import path from "node:path";
 import { PAGES } from "@/lib/metadata";
 import { inBeta, worksNow } from "@/lib/mixers";
 import { X32_FAQS } from "@/lib/mixerFaqs";
+import { APP_STORE_URL } from "@/lib/site";
 
 // Mixer landing pages: one per mixer family that works, with what is true for that mixer only.
 // The X32 and M32 are in the public beta, so their page never suggests the App Store version records them.
@@ -155,16 +156,23 @@ describe("mixer pages in plain words", () => {
     });
   }
 
-  // When 1.0 is approved, update "Where to get it" on the XR18 page and this test together.
-  it("the XR18 page says once where it stands: 1.0 in App Review, the public beta open now", () => {
-    expect(xr18Page.match(/App Review/g)?.length).toBe(1);
+  it("the XR18 page says once where it stands: 1.0 on the App Store, the public beta open now", () => {
+    expect(xr18Page).not.toMatch(/App Review|comes to the App Store soon/);
+    expect(xr18Page).toContain(`[App Store](${APP_STORE_URL})`);
     expect(xr18Page.match(/public beta/g)?.length).toBe(1);
   });
 });
 
 // #482 C: beta testers start the Trial so every channel records, and know a TestFlight purchase isn't charged.
 describe("the beta Trial line", () => {
-  for (const slug of ["x32", "xr18"]) {
+  it("/mixers/xr18, on the App Store, tells everyone to start the 14-day Trial", () => {
+    const body = readFileSync(path.join(ROOT, "app", "mixers", "xr18", "content.mdx"), "utf8");
+    const pricing = body.slice(body.indexOf("## Free, Trial and Pro"), body.indexOf("## Where to get it"));
+    expect(pricing).toMatch(/Start the 14-day Trial in \*\*Settings › Pro\*\*/);
+    expect(pricing).not.toMatch(/beta/);
+  });
+
+  for (const slug of ["x32"]) {
     it(`/mixers/${slug} tells beta testers to start the 14-day Trial, and that TestFlight doesn't charge`, () => {
       const body = readFileSync(path.join(ROOT, "app", "mixers", slug, "content.mdx"), "utf8");
       const pricing = body.slice(body.indexOf("## Free, Trial and Pro"), body.indexOf("## Where to get it"));

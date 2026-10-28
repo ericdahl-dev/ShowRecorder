@@ -14,6 +14,16 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.0.3",
+    date: "2026-10-28",
+    channel: "App Store",
+    summary: "ShowRecorder 1.0 is on the App Store for iPhone and iPad.",
+    changes: [
+      "Free records every USB Channel, one 24-bit WAV file per channel.",
+      "Free to download with a 14-day Trial of everything; Pro is a one-time purchase.",
+    ],
+  },
+  {
     version: "1.1.17",
     date: "2026-10-26",
     channel: "TestFlight beta",

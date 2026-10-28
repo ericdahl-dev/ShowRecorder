@@ -15,6 +15,11 @@ describe("the launch email signup (#719, was the Android signup #404)", () => {
     expect(DEFAULT_INTEREST).toBe("launch");
   });
 
+  // 1.0 is out: interest=launch stays the Buttondown value so subscribers keep their list, only the words change.
+  it("calls the launch list release news now that 1.0 is on the App Store", () => {
+    expect(SIGNUP_INTERESTS[0].label).toBe("Release news: new versions, the Mac app, mixer packs");
+  });
+
   it("is a plain form post that works without JavaScript", () => {
     const form = read("components", "SignupForm.tsx");
     expect(form).toMatch(/action=\{BUTTONDOWN_ACTION\}/);
@@ -34,8 +39,8 @@ describe("the launch email signup (#719, was the Android signup #404)", () => {
 
   it("sits in its own section below the pricing (tests/signupPlacement.test.ts), with the question above it, and replaces the separate Android section", () => {
     const home = read("app", "page.tsx");
-    expect(home).toMatch(/<Section id="email" title="Join the beta, or wait for the launch">[\s\S]*?<SignupForm \/>/);
-    expect(read("components", "SignupForm.tsx")).toMatch(/Not ready to install\? Get the launch email\./);
+    expect(home).toMatch(/<Section id="email" title="Get ShowRecorder on the App Store">[\s\S]*?<SignupForm \/>/);
+    expect(read("components", "SignupForm.tsx")).toMatch(/Not ready to install\? Get release news by email\./);
     expect(home).not.toMatch(/id="android"/);
     expect(home).not.toMatch(/AndroidSignup/);
     expect(home).not.toMatch(/href="#android"/);
@@ -48,9 +53,9 @@ describe("the launch email signup (#719, was the Android signup #404)", () => {
 
   it("is disclosed on the privacy page, with no cookies", () => {
     const privacy = read("app", "privacy", "page.mdx");
-    expect(privacy).toMatch(/## Launch email list/);
+    expect(privacy).toMatch(/## Release news email list/);
     expect(privacy).toMatch(/Buttondown/);
-    expect(privacy).toMatch(/launch, the X32 and M32, or Android/);
+    expect(privacy).toMatch(/release news, the X32 and M32, or Android/);
     expect(privacy).toMatch(/no cookies/i);
     expect(privacy).not.toMatch(/## Android signup/);
   });
