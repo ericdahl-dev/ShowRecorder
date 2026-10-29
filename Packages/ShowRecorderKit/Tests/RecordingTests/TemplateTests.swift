@@ -35,7 +35,7 @@ struct TemplateTests {
         let root = FileManager.default.temporaryDirectory.appending(path: "TemplateTests-\(UUID().uuidString)")
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, savedNames: defaults)
         let audio = FakeAudioDevice(inputChannelCount: 4)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startNewShow(name: "Rehearsal", venue: "")
         recorder.setChannelName("Old", forChannel: 2)
 
@@ -74,7 +74,7 @@ struct TemplateTests {
         let root = FileManager.default.temporaryDirectory.appending(path: "TemplateTests-\(UUID().uuidString)")
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, savedNames: defaults)
         let audio = FakeAudioDevice(inputChannelCount: 4)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         #expect(recorder.prepareNextShow(from: sunday()))
         #expect(recorder.currentShow == nil, "no empty Show folder at launch")
@@ -110,7 +110,7 @@ struct TemplateTests {
     func fromPastShow() throws {
         let root = FileManager.default.temporaryDirectory.appending(path: "TemplateTests-\(UUID().uuidString)")
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, savedNames: defaults)
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 2))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 2))
         try recorder.startNewShow(name: "Youth Night", venue: "Gym")
         recorder.setChannelName("Leader", forChannel: 2)
         let folder = try #require(recorder.currentShow?.folder)
@@ -160,7 +160,7 @@ struct TemplateTests {
     func fromPastShowRecordTo() throws {
         let root = FileManager.default.temporaryDirectory.appending(path: "TemplateTests-\(UUID().uuidString)")
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, savedNames: defaults)
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 2))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 2))
         try recorder.startNewShow(name: "Youth Night", venue: "Gym")
         let folder = try #require(recorder.currentShow?.folder)
         try recorder.endShow()

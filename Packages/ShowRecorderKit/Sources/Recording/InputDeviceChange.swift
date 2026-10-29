@@ -1,6 +1,6 @@
 import Foundation
 
-/// What the record screen needs to know about one audio input device to decide what to Arm.
+/// What the record screen needs to know about one audio input device to decide what to Get ready.
 public struct InputDeviceInfo: Equatable, Sendable {
     /// Stable across unplug and replug (the Core Audio device UID on macOS).
     public let id: String
@@ -33,15 +33,15 @@ public struct InputDeviceInfo: Equatable, Sendable {
 }
 
 /// What to do when the list of audio input devices changes: which device to select, whether to
-/// Arm or disarm, whether the running Take must stop, and what to tell the operator.
+/// Get ready or stand down, whether the running Take must stop, and what to tell the operator.
 public struct InputDeviceChange: Equatable, Sendable {
     public enum Action: Equatable, Sendable {
         /// Leave the recorder as it is.
         case none
-        /// Arm the selected device (disarming whatever was Armed first).
-        case arm
-        /// Disarm: the Armed device is gone.
-        case disarm
+        /// Get the selected device ready (standing down whatever was Ready first).
+        case getReady
+        /// Stand down: the Ready device is gone.
+        case standDown
     }
 
     public var selectedID: String?
@@ -61,35 +61,35 @@ public struct InputDeviceChange: Equatable, Sendable {
     ///   - old: the device list before the change.
     ///   - new: the device list now, in the order it is shown (preferred device first).
     ///   - selectedID: the device chosen in the picker.
-    ///   - armed: the device as it was when it was Armed, or nil when nothing is Armed.
+    ///   - ready: the device as it was when it was Ready, or nil when nothing is Ready.
     ///   - isRecording: a Take is running.
     public static func decide(
         old: [InputDeviceInfo], new: [InputDeviceInfo],
-        selectedID: String?, armed: InputDeviceInfo?, isRecording: Bool
+        selectedID: String?, ready: InputDeviceInfo?, isRecording: Bool
     ) -> InputDeviceChange {
         let newIDs = Set(new.map(\.id))
         let oldIDs = Set(old.map(\.id))
         var change = InputDeviceChange(
             selectedID: selectedID.flatMap { newIDs.contains($0) ? $0 : nil },
             action: .none, stopsTake: false, message: nil)
-        var armed = armed
+        var ready = ready
         var isRecording = isRecording
 
-        // The Armed device is gone: disarm, stopping a running Take so its Stems are finalized.
-        if let lost = armed, !newIDs.contains(lost.id) {
-            change.action = .disarm
+        // The Ready device is gone: stand down, stopping a running Take so its Stems are finalized.
+        if let lost = ready, !newIDs.contains(lost.id) {
+            change.action = .standDown
             change.stopsTake = isRecording
             change.message = isRecording
                 ? "\(lost.name) was disconnected during the Take. Recording stopped and the Stems recorded so far were saved."
-                : "\(lost.name) was disconnected, so the recorder is no longer Armed. Reconnect it or choose another input."
-            armed = nil
+                : "\(lost.name) was disconnected, so the recorder is no longer Ready. Reconnect it or choose another input."
+            ready = nil
             isRecording = false
-        } else if let before = armed, let now = new.first(where: { $0.id == before.id }),
+        } else if let before = ready, let now = new.first(where: { $0.id == before.id }),
                   now.sampleRate != before.sampleRate || now.inputChannelCount != before.inputChannelCount {
-            // Same device, new format: the running audio unit no longer matches it, so re-arm. A
+            // Same device, new format: the running audio unit no longer matches it, so get ready again. A
             // Take can't change format part way, so it stops first.
             change.selectedID = now.id
-            change.action = .arm
+            change.action = .getReady
             if isRecording {
                 change.stopsTake = true
                 let what = now.sampleRate != before.sampleRate
@@ -97,19 +97,19 @@ public struct InputDeviceChange: Equatable, Sendable {
                     : "now sends \(now.inputChannelCount) USB Channels"
                 change.message = "\(now.name) \(what) during the Take. Recording stopped and the Stems recorded so far were saved. Press record to start a new Take."
             }
-            armed = now
+            ready = now
             isRecording = false
         }
 
         // A multichannel device that was just plugged in wins over nothing, or over a built-in or
         // stereo mic, but never moves a running Take or another multichannel device. Of several
         // arriving at once, the one with the most channels wins.
-        let armedIsMultichannel = armed?.isMultichannel ?? false
+        let readyIsMultichannel = ready?.isMultichannel ?? false
         let arrived = new.filter { !oldIDs.contains($0.id) && $0.isMultichannel }
-        if !armedIsMultichannel, !isRecording,
+        if !readyIsMultichannel, !isRecording,
            let preferred = InputDeviceInfo.preferredOrder(arrived, defaultID: nil).first {
             change.selectedID = preferred.id
-            change.action = .arm
+            change.action = .getReady
         }
         return change
     }

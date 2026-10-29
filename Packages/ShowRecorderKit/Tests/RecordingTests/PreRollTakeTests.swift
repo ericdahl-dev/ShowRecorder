@@ -45,8 +45,8 @@ struct PreRollTakeTests {
     func takeStartsWithPreRoll() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let recorder = recorder(seconds: 1)
-        try recorder.arm(audio)
-        try await deliver(144_000, from: 0, to: audio, recorder, sample: counting())  // 3 s while Armed
+        try recorder.getReady(audio)
+        try await deliver(144_000, from: 0, to: audio, recorder, sample: counting())  // 3 s while Ready
 
         try recorder.startTake()
         try await deliver(1_000, from: 144_000, to: audio, recorder, sample: counting())
@@ -58,11 +58,11 @@ struct PreRollTakeTests {
         }
     }
 
-    @Test("Armed for less than N seconds, the Take starts with what there is, with no silence added")
+    @Test("Ready for less than N seconds, the Take starts with what there is, with no silence added")
     func shortPreRoll() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(seconds: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try await deliver(24_000, from: 0, to: audio, recorder, sample: counting())
 
         try recorder.startTake()
@@ -77,7 +77,7 @@ struct PreRollTakeTests {
     func off() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(seconds: 0)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try await deliver(24_000, from: 0, to: audio, recorder, sample: counting())
         try recorder.startTake()
         try await deliver(1_000, from: 24_000, to: audio, recorder, sample: counting())
@@ -92,7 +92,7 @@ struct PreRollTakeTests {
     func timeReference() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let recorder = recorder(seconds: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try await deliver(96_000, from: 0, to: audio, recorder, sample: counting())
         try recorder.startTake()
         try await deliver(480, from: 96_000, to: audio, recorder, sample: counting())
@@ -112,7 +112,7 @@ struct PreRollTakeTests {
     func markerPosition() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(seconds: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try await deliver(48_000, from: 0, to: audio, recorder, sample: counting())
         try recorder.startTake()
         try await deliver(960, from: 48_000, to: audio, recorder, sample: counting())
@@ -123,11 +123,11 @@ struct PreRollTakeTests {
         #expect(recorder.takeMarkers.map(\.position) == [48_000 + 960])
     }
 
-    @Test("The length is read when record is pressed: a value changed after Arming applies to the next Take")
+    @Test("The length is read when record is pressed: a value changed after Getting ready applies to the next Take")
     func lengthReadAtPress() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(seconds: 2)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try await deliver(96_000, from: 0, to: audio, recorder, sample: counting())
 
         recorder.preRollSeconds = 0.5
@@ -139,11 +139,11 @@ struct PreRollTakeTests {
         #expect(try decodedTake(device).preRollFrames == 24_000)
     }
 
-    @Test("Asking for more than the Armed buffer holds gets what it holds")
+    @Test("Asking for more than the Ready buffer holds gets what it holds")
     func lengthClamped() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(seconds: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try await deliver(240_000, from: 0, to: audio, recorder, sample: counting())  // 5 s, buffer holds 2 s
 
         recorder.preRollSeconds = 15
@@ -154,11 +154,11 @@ struct PreRollTakeTests {
         #expect(try decodedTake(device).preRollFrames == 48_000)
     }
 
-    @Test("Turned off after Arming, the next Take starts at the press")
-    func offAfterArming() async throws {
+    @Test("Turned off after Getting ready, the next Take starts at the press")
+    func offAfterGettingReady() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(seconds: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try await deliver(48_000, from: 0, to: audio, recorder, sample: counting())
         recorder.preRollSeconds = 0
         try recorder.startTake()
@@ -173,7 +173,7 @@ struct PreRollTakeTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let available = Box(false)
         let recorder = recorder(seconds: 1, drive: available)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try await deliver(48_000, from: 0, to: audio, recorder, sample: counting())
         try recorder.startTake()
         try await deliver(2_400, from: 48_000, to: audio, recorder, sample: counting())
@@ -196,7 +196,7 @@ struct PreRollTakeTests {
     func stopBeforeAnyBlock() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(seconds: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try await deliver(48_000, from: 0, to: audio, recorder, sample: counting())
         try recorder.startTake()
         try await recorder.stopTake()
@@ -209,7 +209,7 @@ struct PreRollTakeTests {
     func blocksAfterStopBeforeAnyBlock() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(seconds: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try await deliver(48_000, from: 0, to: audio, recorder, sample: counting())
         try recorder.startTake()
         try await recorder.stopTake()

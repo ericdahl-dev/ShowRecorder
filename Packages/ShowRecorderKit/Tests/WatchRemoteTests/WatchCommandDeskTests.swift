@@ -7,7 +7,7 @@ import Testing
 @MainActor
 @Suite("Watch command desk")
 struct WatchCommandDeskTests {
-    /// A recorder in memory: Armed or recording, and what the watch asked of it.
+    /// A recorder in memory: Ready or recording, and what the watch asked of it.
     final class Recorder {
         var isRecording = false
         var refusal: String?

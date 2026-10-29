@@ -58,8 +58,8 @@ struct TakeStartTimelineTests {
         let gate = Gate()
         let recorder = recorder(gate, preRoll: 1)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
-        try await deliver(144_000, from: 0, to: audio, recorder, sample: counting())  // 3 s Armed; the press is at frame 144 000
+        try recorder.getReady(audio)
+        try await deliver(144_000, from: 0, to: audio, recorder, sample: counting())  // 3 s Ready; the press is at frame 144 000
 
         let starting = Task { @MainActor in try await recorder.startTakeOffMain() }
         await waitForTheDrive(gate)
@@ -82,7 +82,7 @@ struct TakeStartTimelineTests {
         let gate = Gate()
         let recorder = recorder(gate, preRoll: 0)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try await deliver(144_000, from: 0, to: audio, recorder, sample: counting())
 
         let starting = Task { @MainActor in try await recorder.startTakeOffMain() }

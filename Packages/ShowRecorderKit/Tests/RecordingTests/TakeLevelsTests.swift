@@ -40,7 +40,7 @@ struct TakeLevelsTests {
     func takeJSONHasLevels() async throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: folder, driveFolder: { nil }, now: { RecordingTakeTests.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
         device.deliver([Array(repeating: 0.9, count: 4_800), Array(repeating: 0, count: 4_800)])  // before the press
         try recorder.startTake()
         for _ in 0..<5 {

@@ -41,7 +41,7 @@ struct StopNeverBlocksTests {
             },
             destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300))
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
         try await Task.sleep(for: .milliseconds(100))
@@ -113,7 +113,7 @@ struct StopNeverBlocksTests {
             },
             destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300), writeAbandoned: writeAbandoned)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
         return recorder
@@ -213,7 +213,7 @@ struct StopNeverBlocksTests {
             // Inline: the 3 s against 6 s bound below is too tight to measure across a return to the main actor.
             asyncStopAvailable: { false })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
         try await Task.sleep(for: .milliseconds(100))
@@ -244,7 +244,7 @@ struct StopNeverBlocksTests {
             },
             destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300))
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
         try await Task.sleep(for: .milliseconds(100))
@@ -276,7 +276,7 @@ struct StopNeverBlocksTests {
             },
             destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300))
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
         try await Task.sleep(for: .milliseconds(100))
@@ -298,7 +298,7 @@ struct StopNeverBlocksTests {
             deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } },
             now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         // The Drive joins late, so the Take ends with a Gap that Repair fills.
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.2, count: 4_800)])
@@ -335,7 +335,7 @@ struct StopNeverBlocksTests {
             },
             destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300))
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
         try await Task.sleep(for: .milliseconds(100))
@@ -357,7 +357,7 @@ struct StopNeverBlocksTests {
         let device = root.appending(path: "Device")
         let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
         try await recorder.stopTake()
@@ -385,7 +385,7 @@ struct StopNeverBlocksTests {
         let device = root.appending(path: "Device")
         let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.2, count: 4_800)])
         try await recorder.stopTake()
@@ -415,7 +415,7 @@ struct StopNeverBlocksTests {
             deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } },
             now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         // Take 1: the Drive joins late, so the Take ends with a Gap that Repair will fill.
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.2, count: 4_800)])

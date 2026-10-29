@@ -15,7 +15,7 @@ public enum PackAvailability {
     public static var isAvailableInThisBuild: Bool { level.isOnInThisBuild }
 }
 
-/// What the paywall offers with mixer packs (#705): the Armed family's pack first with Pro beside it, Pro alone for
+/// What the paywall offers with mixer packs (#705): the Ready family's pack first with Pro beside it, Pro alone for
 /// a generic input, and only the upgrade for someone who already has a pack (a second pack is hidden, Eric 2026-10-16).
 public enum PackOffer {
     public enum Item: Equatable, Sendable {
@@ -27,20 +27,20 @@ public enum PackOffer {
     /// - Parameter boughtPacks: the owned packs this person bought themselves; a pack only shared with them through
     ///   Family Sharing doesn't earn the upgrade, so they're offered full Pro (Eric, #705).
     public static func items(
-        ownsPro: Bool, armedFamily: MixerFamily?, ownedPacks: Set<MixerFamily>, boughtPacks: Set<MixerFamily>, packsOffered: Bool
+        ownsPro: Bool, readyFamily: MixerFamily?, ownedPacks: Set<MixerFamily>, boughtPacks: Set<MixerFamily>, packsOffered: Bool
     ) -> [Item] {
         if ownsPro { return [] }
         if !packsOffered { return [.pro] }
         if !boughtPacks.isEmpty { return [.upgrade] }
         // A second pack is hidden (Eric): with only a shared pack, the offer is full Pro.
         if !ownedPacks.isEmpty { return [.pro] }
-        if let armedFamily, ProPurchases.packProductIDs[armedFamily] != nil { return [.pack(armedFamily), .pro] }
+        if let readyFamily, ProPurchases.packProductIDs[readyFamily] != nil { return [.pack(readyFamily), .pro] }
         return [.pro]
     }
 
     /// How Settings names the plan (#705): a pack owner's plan is their pack ("X Air pack"), unless Pro is owned or a
-    /// Trial is running, which say more. Pass the tier without the Armed family (`license(proOffered:now:)`), so the
-    /// line doesn't change with the input and a running Trial isn't hidden by a pack on the Armed family.
+    /// Trial is running, which say more. Pass the tier without the Ready family (`license(proOffered:now:)`), so the
+    /// line doesn't change with the input and a running Trial isn't hidden by a pack on the Ready family.
     public static func planTitle(tier: Tier?, ownsPro: Bool, ownedPacks: Set<MixerFamily>) -> String {
         guard let tier else { return "Checking with the App Store…" }
         if ownsPro { return Tier.pro.title }

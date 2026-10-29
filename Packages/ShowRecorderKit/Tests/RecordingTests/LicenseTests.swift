@@ -104,7 +104,7 @@ struct ProStatusTests {
         var status = ProStatus(lastKnown: ProPurchases(owned: [Self.trial]))
         #expect(status.license(proOffered: true, now: Self.now).tier == .trial(daysLeft: 14))
         let same = status.appStoreAnswered([Self.trial], now: Self.now)
-        #expect(!same, "same tier: nothing to re-Arm")
+        #expect(!same, "same tier: nothing to get ready again")
         let changed = status.appStoreAnswered([Self.trial, Self.pro], now: Self.now)
         #expect(changed)
         #expect(status.purchases.ownsPro)

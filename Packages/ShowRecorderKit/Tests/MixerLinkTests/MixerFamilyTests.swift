@@ -79,7 +79,7 @@ struct MixerFamilyTests {
         #expect(MixerFamily(audioInterfaceName: "Live Audio Interface") == nil, "a bare LIVE isn't a mixer")
     }
 
-    @Test("A Mixer's model and its own USB audio interface agree on the family, so its Link is the Armed one's (#589)",
+    @Test("A Mixer's model and its own USB audio interface agree on the family, so its Link is the Ready one's (#589)",
           arguments: [("XR18", "X18/XR18"), ("MR18", "MR18"), ("X32", "X-USB"), ("X32RACK", "X-LIVE"), ("X32C", "X-USB"),
                       ("M32", "DN32-USB"), ("M32R", "DN32-LIVE")])
     func modelAndInterfaceAgree(model: String, interface: String) {

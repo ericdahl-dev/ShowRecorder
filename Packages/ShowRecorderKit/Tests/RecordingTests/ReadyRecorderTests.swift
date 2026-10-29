@@ -3,34 +3,34 @@ import Recording
 import Testing
 
 @MainActor
-@Suite("Armed recorder")
-struct ArmedRecorderTests {
-    @Test("Arming reports the device's USB Channel count")
-    func armingReportsUSBChannelCount() throws {
+@Suite("Ready recorder")
+struct ReadyRecorderTests {
+    @Test("Getting ready reports the device's USB Channel count")
+    func gettingReadyReportsUSBChannelCount() throws {
         let device = FakeAudioDevice(inputChannelCount: 18)
         let recorder = Recorder()
 
-        try recorder.arm(device)
+        try recorder.getReady(device)
 
-        #expect(recorder.isArmed)
+        #expect(recorder.isReady)
         #expect(recorder.usbChannelCount == 18)
     }
 
-    @Test("Any channel count is Armed as-is", arguments: [2, 8, 16, 18, 32])
-    func anyChannelCountIsArmed(channels: Int) throws {
+    @Test("Any channel count is Ready as-is", arguments: [2, 8, 16, 18, 32])
+    func anyChannelCountIsReady(channels: Int) throws {
         let recorder = Recorder()
 
-        try recorder.arm(FakeAudioDevice(inputChannelCount: channels))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: channels))
 
-        #expect(recorder.isArmed)
+        #expect(recorder.isReady)
         #expect(recorder.usbChannelCount == channels)
     }
 
-    @Test("Meters show each USB Channel's peak level while Armed")
+    @Test("Meters show each USB Channel's peak level while Ready")
     func metersShowPeakPerChannel() throws {
         let device = FakeAudioDevice(inputChannelCount: 3)
         let recorder = Recorder()
-        try recorder.arm(device)
+        try recorder.getReady(device)
 
         device.deliver([
             [0.0, 0.25, -0.1, 0.0],
@@ -45,7 +45,7 @@ struct ArmedRecorderTests {
     func channelLevelsGiveAverages() throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder()
-        try recorder.arm(device)
+        try recorder.getReady(device)
 
         device.deliver([[0.5, -0.5, 0.25, -0.25], [0, 0, 0, 0]])
 
@@ -61,7 +61,7 @@ struct ArmedRecorderTests {
     func metersResetAfterReading() throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder()
-        try recorder.arm(device)
+        try recorder.getReady(device)
 
         device.deliver([[0.9], [0.4]])
         _ = recorder.takeMeterLevels()
@@ -70,29 +70,29 @@ struct ArmedRecorderTests {
         #expect(recorder.takeMeterLevels() == [0.1, 0.2])
     }
 
-    @Test("Disarming stops the device and clears the meters")
-    func disarmingStopsDeviceAndClearsMeters() throws {
+    @Test("Standing down stops the device and clears the meters")
+    func standingDownStopsDeviceAndClearsMeters() throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder()
-        try recorder.arm(device)
+        try recorder.getReady(device)
 
-        recorder.disarm()
+        recorder.standDown()
         device.deliver([[0.5], [0.5]])
 
-        #expect(!recorder.isArmed)
+        #expect(!recorder.isReady)
         #expect(!device.isRunning)
         #expect(recorder.takeMeterLevels().isEmpty)
         #expect(recorder.usbChannelCount == 0)
     }
 
-    @Test("Arming a different device stops the previous one")
-    func armingAnotherDeviceStopsThePreviousOne() throws {
+    @Test("Getting a different device stops the previous ready one")
+    func gettingReadyAnotherDeviceStopsThePreviousOne() throws {
         let first = FakeAudioDevice(inputChannelCount: 18)
         let second = FakeAudioDevice(inputChannelCount: 8)
         let recorder = Recorder()
 
-        try recorder.arm(first)
-        try recorder.arm(second)
+        try recorder.getReady(first)
+        try recorder.getReady(second)
 
         #expect(!first.isRunning)
         #expect(second.isRunning)

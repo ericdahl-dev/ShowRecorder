@@ -27,7 +27,7 @@ struct FailedPressTests {
             return try StemWriter.open(url: url, info: info, resumingAt: resume)
         })
         let audio = FakeAudioDevice(inputChannelCount: 2)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         #expect(throws: (any Error).self) { try recorder.startTake() }
         #expect(!recorder.isRecording)
@@ -50,7 +50,7 @@ struct FailedPressTests {
         try Data("x".utf8).write(to: notAFolder)
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: notAFolder) }, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 2)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         #expect(recorder.isRecording)
@@ -63,7 +63,7 @@ struct FailedPressTests {
     func keepsExistingFolder() throws {
         let device = root.appending(path: "Device")
         let recorder = Recorder(deviceFolder: device, now: { RecordingTakeTests.showDay })
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 2))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 2))
         try recorder.startNewShow(name: "", venue: "")
         // A "Take 01" already on disk (left by something else): the press can't use that number.
         let existing = device.appending(path: "\(show)/Take 01")

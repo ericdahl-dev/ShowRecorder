@@ -25,7 +25,7 @@ public struct ProPurchases: Equatable, Sendable {
     public static let proProductID = "dev.ericdahl.ShowRecorder.pro"
     /// The 14-day Trial: a $0 non-consumable (App Review Guideline 3.1.1). Its purchase date starts the Trial.
     public static let trialProductID = "dev.ericdahl.ShowRecorder.trial"
-    /// Mixer packs (#412): each unlocks Pro while its family's interface is the Armed input. Proposed IDs, not yet
+    /// Mixer packs (#412): each unlocks Pro while its family's interface is the Ready input. Proposed IDs, not yet
     /// created in App Store Connect (#705); the DJM pack waits for DJM support (#364).
     public static let packProductIDs: [MixerFamily: String] = [.xAir: "dev.ericdahl.ShowRecorder.pack.xair", .x32: "dev.ericdahl.ShowRecorder.pack.x32"]
     /// The upgrade to Pro for a pack owner (#705): offered only to them, repriced at each price stage like Pro. Counts
@@ -89,13 +89,13 @@ public struct ProPurchases: Equatable, Sendable {
 
     /// Free, Trial or Pro at `now`. Read when record is pressed, never awaited.
     public func tier(now: Date) -> Tier {
-        tier(now: now, armedFamily: nil)
+        tier(now: now, readyFamily: nil)
     }
 
-    /// Free, Trial or Pro at `now` with `armedFamily`'s interface as the Armed input (nil for any other input): a
+    /// Free, Trial or Pro at `now` with `readyFamily`'s interface as the Ready input (nil for any other input): a
     /// mixer pack is Pro only on its own family (ADR 0004, #412).
-    public func tier(now: Date, armedFamily: MixerFamily?) -> Tier {
-        if ownsPro || armedFamily.map(ownedPacks.contains) == true { return .pro }
+    public func tier(now: Date, readyFamily: MixerFamily?) -> Tier {
+        if ownsPro || readyFamily.map(ownedPacks.contains) == true { return .pro }
         return Entitlement.tier(ownsPro: false, trialStartedAt: trialStartedAt, now: now)
     }
 }

@@ -20,7 +20,7 @@ public struct ChannelLevel: Equatable, Sendable {
 /// Per-USB-Channel levels (peak, and the average rectified level for the VU meter), written on the
 /// real-time thread and read by the UI.
 ///
-/// Storage is allocated once, when the recorder is Armed. `record(_:)` is real-time safe:
+/// Storage is allocated once, when the recorder is Ready. `record(_:)` is real-time safe:
 /// no allocation, no locks, only relaxed atomics (ADR 0002).
 final class PeakMeters: @unchecked Sendable {
     let channelCount: Int

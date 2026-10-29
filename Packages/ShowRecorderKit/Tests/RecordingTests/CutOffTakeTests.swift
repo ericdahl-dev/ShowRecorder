@@ -45,12 +45,12 @@ struct CutOffTakeTests {
         try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
         let first = recorder()
         let audio = FakeAudioDevice(inputChannelCount: 2)
-        try first.arm(audio)
+        try first.getReady(audio)
         try first.startTake()
         audio.deliver([Array(repeating: 0.2, count: 480), Array(repeating: 0.2, count: 480)])
         try await first.stopTake()
         await first.waitForRepair()
-        first.disarm()
+        first.standDown()
         for stem in stems(device) { try append(100, stray: 2, to: stem) }
         for stem in stems(drive) { try append(40, stray: 0, to: stem) }
         for parent in [device, drive] {
@@ -100,13 +100,13 @@ struct CutOffTakeTests {
         for stem in stems(drive) { #expect(try StemFile.inspect(stem).frameCount == 580, "Repair filled the Drive Copy from the Device") }
     }
 
-    @Test("A launch over a cut-off Take only finishes it: nothing is Armed or recording, and no new Take is started")
+    @Test("A launch over a cut-off Take only finishes it: nothing is Ready or recording, and no new Take is started")
     func launchStartsNothing() async throws {
         try await cutOffTake()
         let next = recorder()
         await next.waitForRepair()
 
-        #expect(!next.isArmed)
+        #expect(!next.isReady)
         #expect(!next.isRecording)
         for parent in [device, drive] {
             #expect(!FileManager.default.fileExists(atPath: parent.appending(path: "\(show)/Take 02").path))

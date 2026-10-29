@@ -18,7 +18,7 @@ extension GapTests {
     func repairMakesCopiesIdenticalAfterDriveReturns() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(failing: [.drive])
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
@@ -50,7 +50,7 @@ extension GapTests {
     func repairFillsTrailingGap() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let recorder = recorder(failing: [.drive])
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting(channelStep: 100_000))
@@ -70,7 +70,7 @@ extension GapTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let available = DriveSwitch()
         let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
@@ -91,7 +91,7 @@ extension GapTests {
     func repairFailsWhereBothCopiesAreMissing() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(failing: [.device, .drive])
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(3, to: audio, recorder, sample: counting())
@@ -107,7 +107,7 @@ extension GapTests {
     func noGapsMeansComplete() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(failing: [])
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(3, to: audio, recorder, sample: counting())
@@ -129,7 +129,7 @@ extension GapTests {
             driveFolder: { DriveAccess(folder: drive) },
             now: { RecordingTakeTests.showDay },
             freeSpace: { free.bytes(at: $0) }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(4, to: audio, recorder, sample: counting())
@@ -149,7 +149,7 @@ extension GapTests {
     func laterTakeOutcomeWins() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(failing: [.drive])
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())

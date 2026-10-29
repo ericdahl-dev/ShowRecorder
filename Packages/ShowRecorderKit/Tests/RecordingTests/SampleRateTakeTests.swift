@@ -23,7 +23,7 @@ struct SampleRateTakeTests {
             deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } },
             now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 2, sampleRate: Double(rate))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         #expect(recorder.sampleRate == rate)
 
         try recorder.startTake()

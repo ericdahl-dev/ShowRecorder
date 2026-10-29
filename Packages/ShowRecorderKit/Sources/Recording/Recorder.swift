@@ -7,12 +7,12 @@ import Observation
 import ShowReport
 import Synchronization
 
-/// The recorder. While Armed it receives audio from a device and keeps meters for every USB Channel.
+/// The recorder. While Ready it receives audio from a device and keeps meters for every USB Channel.
 /// While recording it writes a Take: one Stem per USB Channel in the open Show.
 @MainActor
 @Observable
 public final class Recorder {
-    public private(set) var isArmed = false
+    public private(set) var isReady = false
     public private(set) var isRecording = false
     /// Stop is writing the last Take's Copies (#652): no Take starts until it is done. True from the start of `stopTake`
     /// to the end of its publishing.
@@ -111,12 +111,12 @@ public final class Recorder {
     @ObservationIgnored private let destinationCheckInterval: Duration?
     @ObservationIgnored private var destinationChecks: Task<Void, Never>?
     /// How much audio before the record press a Take starts with, in seconds; 0 starts at the press. Read
-    /// when record is pressed. The Armed buffer is sized from it when Arming, so a longer value than that
-    /// gets what the buffer holds until the recorder is Armed again.
+    /// when record is pressed. The Ready buffer is sized from it when Getting ready, so a longer value than that
+    /// gets what the buffer holds until the recorder is Ready again.
     @ObservationIgnored public var preRollSeconds: Double
     @ObservationIgnored private let makeStem: (URL, StemWriter.Info, _ resumingAt: UInt64?) throws -> any StemSink
     @ObservationIgnored private var device: (any AudioIODevice)?
-    /// The Armed input's sample rate, whole Hz; nil when nothing is Armed (#298).
+    /// The Ready input's sample rate, whole Hz; nil when nothing is Ready (#298).
     public private(set) var sampleRate: Int?
     @ObservationIgnored private var capture: Capture?
     /// The running Take's Copies.
@@ -343,10 +343,10 @@ public final class Recorder {
         }
     }
 
-    /// Starts receiving audio from `device`. Any previously Armed device is stopped first.
-    public func arm(_ device: any AudioIODevice) throws {
+    /// Starts receiving audio from `device`. Any previously Ready device is stopped first.
+    public func getReady(_ device: any AudioIODevice) throws {
         guard !isFinishing else { throw RecorderError.finishing }
-        disarm()
+        standDown()
         let capture = Capture(
             channelCount: device.inputChannelCount, sampleRate: device.sampleRate, preRollSeconds: preRollSeconds,
             // Room for a Take that starts while the Drive is prepared: the deadline, a second for the rest of the start (#915).
@@ -358,16 +358,16 @@ public final class Recorder {
         usbChannelCount = device.inputChannelCount
         loadNotArmedChannels(for: device)
         sampleRate = Int(device.sampleRate.rounded())
-        isArmed = true
+        isReady = true
     }
 
-    /// Restarts input on the Armed device after the system stopped it (an audio session
+    /// Restarts input on the Ready device after the system stopped it (an audio session
     /// interruption), without ending a running Take.
     ///
     /// Frames the device never delivered while it was stopped are not in the Take: the Stems carry
     /// on from the next frame that arrives.
     public func restartInput() throws {
-        guard let device, let capture else { throw RecorderError.notArmed }
+        guard let device, let capture else { throw RecorderError.notReady }
         try device.start(input: { block in capture.receive(block) })
     }
 
@@ -381,7 +381,7 @@ public final class Recorder {
     ///
     /// When `replacement` has the same USB Channel count and sample rate, the running Take carries
     /// on into the same Stems and this returns `true`. Otherwise the Take is stopped and finalized
-    /// (its end's reason is `.inputChanged`), the recorder Arms on `replacement`, and this returns `false`.
+    /// (its end's reason is `.inputChanged`), the recorder Gets ready on `replacement`, and this returns `false`.
     @discardableResult
     public func restartInput(on replacement: any AudioIODevice) async throws -> Bool {
         guard let device, let capture,
@@ -389,7 +389,7 @@ public final class Recorder {
               replacement.sampleRate == device.sampleRate
         else {
             if isRecording || isFinishing { try await stopTake(because: .inputChanged) }
-            try arm(replacement)
+            try getReady(replacement)
             return false
         }
         device.stop()
@@ -401,9 +401,9 @@ public final class Recorder {
 
     /// Stops any Take, stops the device and clears the meters.
     ///
-    /// Stays synchronous (#652, A3a): an `async` disarm would reach every Arm. A running Take is stopped with
+    /// Stays synchronous (#652, A3a): an `async` stand-down would reach every get-ready. A running Take is stopped with
     /// `stopTakeNow`, as before.
-    public func disarm() {
+    public func standDown() {
         if isRecording { stopTakeNow() }
         device?.stop()
         device = nil
@@ -412,12 +412,12 @@ public final class Recorder {
         notArmedChannels = []
         sampleRate = nil
         clippedChannels = []
-        isArmed = false
+        isReady = false
     }
 
-    /// The Pre-roll buffer of the Armed device: the last seconds of audio since Arming. Nil when not Armed, or when Pre-roll
+    /// The Pre-roll buffer of the Ready device: the last seconds of audio since Getting ready. Nil when not Ready, or when Pre-roll
     /// is off and the Capture keeps no room for a Take that starts late (#915).
-    var armedPreRoll: PreRollBuffer? { capture?.preRoll }
+    var readyPreRoll: PreRollBuffer? { capture?.preRoll }
 
     /// Frames lost in this Take because the writer couldn't keep up: each Copy's count starts again when its ring is emptied,
     /// at Take start, at a rejoin and when its writer fails. (Dropouts proper come in #15.)
@@ -430,12 +430,12 @@ public final class Recorder {
         capture?.maxBufferedFrames ?? 0
     }
 
-    /// Each USB Channel's linear peak level (0...1) since the last call. Empty when not Armed.
+    /// Each USB Channel's linear peak level (0...1) since the last call. Empty when not Ready.
     public func takeMeterLevels() -> [Float] {
         capture?.meters.take() ?? []
     }
 
-    /// Each USB Channel's peak, average level and frame count since the last call. Empty when not Armed.
+    /// Each USB Channel's peak, average level and frame count since the last call. Empty when not Ready.
     public func takeChannelLevels() -> [ChannelLevel] {
         let levels = capture?.meters.takeLevels() ?? []
         for (channel, level) in levels.enumerated() where level.peak >= Self.clipLevel {
@@ -511,7 +511,7 @@ public final class Recorder {
         naming.replace(with: [:])
     }
 
-    /// Names USB Channel `usbChannel` (from 1). Works Armed or during a Take; nothing on disk changes until the
+    /// Names USB Channel `usbChannel` (from 1). Works Ready or during a Take; nothing on disk changes until the
     /// Take ends (ADR 0002), and a name that is empty or only whitespace is refused (returns false).
     @discardableResult
     public func setChannelName(_ name: String, forChannel usbChannel: Int) -> Bool {
@@ -711,7 +711,7 @@ public final class Recorder {
     /// changes on the Mixer don't touch this Take's files. USB Channels without a Source get "USB NN".
     /// - Parameter allowance: what this Take may do, frozen at the press (ADR 0004). Nil records every USB Channel.
     func startTake(sources: [Source] = [], allowance: TakeAllowance? = nil) throws {
-        guard let device, let capture else { throw RecorderError.notArmed }
+        guard let device, let capture else { throw RecorderError.notReady }
         guard !isFinishing else { throw RecorderError.finishing }
         guard !isRecording, !isStarting else { return }
         guard !(allowance?.recordedChannels.isEmpty ?? false) else { throw RecorderError.noChannelsArmed }
@@ -815,7 +815,7 @@ public final class Recorder {
     /// Take on the Device alone, as one that was not there at the press, and joins when it is ready (`checkDestinations`).
     /// `isStarting` is true meanwhile: no second start, and nothing that changes the Show.
     func startTakeOffMain(sources: [Source] = [], allowance: TakeAllowance? = nil) async throws {
-        guard let device, let capture else { throw RecorderError.notArmed }
+        guard let device, let capture else { throw RecorderError.notReady }
         guard !isFinishing else { throw RecorderError.finishing }
         guard !isRecording, !isStarting else { return }
         guard !(allowance?.recordedChannels.isEmpty ?? false) else { throw RecorderError.noChannelsArmed }
@@ -860,13 +860,13 @@ public final class Recorder {
             }
         }
         plan.metadata.driveNote = driveNote
-        // The input may have been disarmed, or another one Armed, while the Drive was working: this Take is not for it.
+        // The input may have been stood down, or another one Ready, while the Drive was working: this Take is not for it.
         // Nor is one that Stop canceled.
         guard self.capture === capture, !startCanceled else {
             if let prepared { await runOffPool { TakeSession.discardDriveStart(prepared) } }
             plan.undo()
             giveBackTake(of: plan)
-            throw self.capture === capture ? RecorderError.startCanceled : RecorderError.notArmed
+            throw self.capture === capture ? RecorderError.startCanceled : RecorderError.notReady
         }
         // What the Show took meanwhile (gain changes, names) comes along; the Drive the job prepared joins it.
         if let current = currentShow, current.folder == plan.show.folder { plan.show = current }
@@ -1005,7 +1005,7 @@ public final class Recorder {
     ) throws -> TakePlan {
         guard let device else {
             drive?.end()
-            throw RecorderError.notArmed
+            throw RecorderError.notReady
         }
         var show: Show
         do {
@@ -1041,7 +1041,7 @@ public final class Recorder {
         }
 
         let sampleRate = Int(device.sampleRate.rounded())
-        // The Take starts with up to `preRollSeconds` of what the Armed recorder has heard, so its
+        // The Take starts with up to `preRollSeconds` of what the Ready recorder has heard, so its
         // timeline, and every Stem's time reference, begin that long before the press.
         let preRollFrames = max(0, min(
             Int((preRollSeconds * device.sampleRate).rounded()),
@@ -1308,7 +1308,7 @@ public final class Recorder {
     /// meanwhile; otherwise it is inline. `isFinishing` is true from the start of the first to the end of the last. The
     /// await is not a cancellation point, so canceling the caller skips neither the finish nor the publish.
     func stopTake(because reason: TakeEnd.Reason) async throws {
-        // Already stopping: this Stop returns once that one is published, so a quit or an Arm after it is safe.
+        // Already stopping: this Stop returns once that one is published, so a quit or a get-ready after it is safe.
         guard let stopping = beginStop(because: reason) else { return await waitWhileFinishing() }
         var input = stopping.input
         // Only the off-main finish waits on a slow Drive: the inline one holds the main thread, so it keeps the deadline.
@@ -1323,7 +1323,7 @@ public final class Recorder {
         publishStop(stopping, finished)
     }
 
-    /// The same three steps with no suspension point, for what can't be `async`: `disarm`, and so Arming over a running Take.
+    /// The same three steps with no suspension point, for what can't be `async`: `standDown`, and so Getting ready over a running Take.
     private func stopTakeNow(because reason: TakeEnd.Reason = .stopped) {
         guard let stopping = beginStop(because: reason) else { return }
         let finished = TakeSession.finish(stopping.input)
@@ -1837,7 +1837,7 @@ public final class Recorder {
 }
 
 public enum RecorderError: Error, Equatable, LocalizedError {
-    case notArmed
+    case notReady
     /// A Show can't be started or ended while a Take is running.
     case takeRunning
     /// The last Take's Copies are still being written (#652).

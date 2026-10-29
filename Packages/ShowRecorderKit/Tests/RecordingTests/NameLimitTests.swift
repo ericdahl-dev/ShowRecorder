@@ -35,7 +35,7 @@ struct NameLimitTests {
         let root = FileManager.default.temporaryDirectory.appending(path: "NameLimitTests-\(UUID().uuidString)")
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([[0.1]])
         recorder.addMarker(named: String(repeating: "x", count: 500))

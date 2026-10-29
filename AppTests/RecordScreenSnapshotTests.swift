@@ -19,16 +19,16 @@ struct RecordScreenSnapshotTests {
 
     @Test func freshModelReadsAsIdle() {
         let s = RecordScreenModel().snapshot
-        #expect(!s.isArmed && !s.isRecording && !s.takeBusy && !s.isRepairing)
-        #expect(s.armedDeviceName == nil)
-        #expect(s.armError == nil && s.recordError == nil)
+        #expect(!s.isReady && !s.isRecording && !s.takeBusy && !s.isRepairing)
+        #expect(s.readyDeviceName == nil)
+        #expect(s.getReadyError == nil && s.recordError == nil)
         #expect(s.sampleRate == 48_000)
     }
 
-    @Test func armErrorComesFromTheSequencer() {
+    @Test func getReadyErrorComesFromTheSequencer() {
         let model = RecordScreenModel()
-        model.sequencer.armError = "No input"
-        #expect(model.snapshot.armError == "No input")
+        model.sequencer.getReadyError = "No input"
+        #expect(model.snapshot.getReadyError == "No input")
     }
 
     @Test func hasInputsFollowsTheDevices() {
@@ -93,7 +93,7 @@ struct RecordScreenSnapshotTests {
         #expect(model.showingSoundcheck)
     }
 
-    @Test func watchStartBeforeArmingSaysOpenThePhone() {
+    @Test func watchStartBeforeGettingReadySaysOpenThePhone() {
         let model = RecordScreenModel()
         #expect(model.watchActions.start() == WatchRemoteModel.openPhoneText)
     }

@@ -49,7 +49,7 @@ struct TakeTimelineTests {
     @Test("A Take that started late still begins at press minus Pre-roll: the head reaches to the first live block")
     func lateStartKeepsTheStampTrue() async throws {
         let capture = Capture(channelCount: 1, sampleRate: Double(Self.rate), preRollSeconds: 1, startHeadroomSeconds: 2)
-        try await receive(capture, from: 0, count: 144_000)  // 3 s while Armed
+        try await receive(capture, from: 0, count: 144_000)  // 3 s while Ready
         let press = try #require(capture.preRoll).totalWrittenFrames
         try await receive(capture, from: 144_000, count: 12_000)  // the Drive is being prepared
         let session = try session(capture, preRollFrames: 48_000, pressPosition: press)

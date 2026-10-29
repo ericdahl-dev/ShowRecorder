@@ -22,7 +22,7 @@ struct BookmarkOffMainTests {
             driveFolder: { askedOnMain.withLock { $0.append(Thread.isMainThread) }; return DriveAccess(folder: drive) },
             now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.2, count: 4_800)])
         try await recorder.stopTake()
@@ -47,7 +47,7 @@ struct BookmarkOffMainTests {
             driveFolder: { started.withLock { $0 += 1 }; return DriveAccess(folder: drive, stop: { ended.withLock { $0 += 1 } }) },
             now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.2, count: 4_800)])
         try await recorder.stopTake()

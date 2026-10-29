@@ -14,10 +14,10 @@ struct RecordScreenOutputsTests {
     private let anHour: Int64 = 18 * 48_000 * 3 * 3_600
     private let missingDrive = DriveStatus.unavailable(.notConnected(name: "SSD"))
 
-    /// A Take that is running on the Armed 18-channel Mixer, with room on the Device, the Drive gone and the Mixer Link lost.
+    /// A Take that is running on the Ready 18-channel Mixer, with room on the Device, the Drive gone and the Mixer Link lost.
     private var takeWithNoDriveAndLostLink: RecordScreenSnapshot {
         var s = RecordScreenSnapshot()
-        s.isArmed = true
+        s.isReady = true
         s.isRecording = true
         s.takeBusy = true
         s.hasInputs = true
@@ -66,13 +66,13 @@ struct RecordScreenOutputsTests {
     @Test("The watch reports low space between Takes, and during a Take a stopped or full Copy (whose chip is already failed) and Dropouts")
     func watchProblems() {
         var s = RecordScreenSnapshot()
-        s.isArmed = true
+        s.isReady = true
         s.usbChannelCount = 18
         s.deviceAvailableBytes = 60_000
         s.driveStatus = .available(Drive(folder: URL(filePath: "/Volumes/SSD"), name: "SSD", availableBytes: 60_000))
         s.dropoutCount = 4
         let idle = RecordScreenState().watchStatus(s, now: t0)
-        #expect(idle.state == .armed)
+        #expect(idle.state == .ready)
         #expect(idle.problems == [.deviceLowSpace, .driveLowSpace])
 
         s.isRecording = true
@@ -82,9 +82,9 @@ struct RecordScreenOutputsTests {
         #expect(recording.problems == [.copyStopped, .copyFull, .gapOrDropout])
     }
 
-    @Test("Not armed and not recording, the watch says so")
-    func watchNotArmed() {
-        #expect(RecordScreenState().watchStatus(RecordScreenSnapshot(), now: t0).state == .notArmed)
+    @Test("Not ready and not recording, the watch says so")
+    func watchNotReady() {
+        #expect(RecordScreenState().watchStatus(RecordScreenSnapshot(), now: t0).state == .notReady)
     }
 
     @Test("Why Record is dimmed: the microphone, an input that didn't start, being idle, no interface, or none chosen")
@@ -94,26 +94,26 @@ struct RecordScreenOutputsTests {
         #expect(RecordScreenState().recordBlock(s)?.text == "Choose the audio interface in Settings.")
         s.hasInputs = false
         #expect(RecordScreenState().recordBlock(s)?.text == "No audio interface. Plug in the Mixer's USB cable.")
-        s.disarmedForIdle = true
-        #expect(RecordScreenState().recordBlock(s)?.action == .arm)
-        s.armError = "The input didn't start."
+        s.stoodDownForIdle = true
+        #expect(RecordScreenState().recordBlock(s)?.action == .getReady)
+        s.getReadyError = "The input didn't start."
         #expect(RecordScreenState().recordBlock(s)?.text == "The input didn't start.")
         s.micDenied = true
         #expect(RecordScreenState().recordBlock(s)?.action == .openSystemSettings)
-        s.isArmed = true
+        s.isReady = true
         #expect(RecordScreenState().recordBlock(s) == nil)
     }
 
-    @Test("The header names the Armed interface and its channels, or says what to do; the compact one is just the name")
+    @Test("The header names the Ready interface and its channels, or says what to do; the compact one is just the name")
     func inputSummary() {
         var s = RecordScreenSnapshot()
         #expect(RecordScreenState().inputSummary(s) == "No audio interface. Plug in the Mixer's USB cable.")
         #expect(RecordScreenState().compactInputSummary(s) == "No audio interface")
 
-        s.isArmed = true
+        s.isReady = true
         s.usbChannelCount = 18
         #expect(RecordScreenState().inputSummary(s) == "Audio interface · 18 USB Channels")
-        s.armedDeviceName = "XR18"
+        s.readyDeviceName = "XR18"
         #expect(RecordScreenState().inputSummary(s) == "XR18 · 18 USB Channels")
         #expect(RecordScreenState().compactInputSummary(s) == "XR18")
         s.usbChannelCount = 1
@@ -134,7 +134,7 @@ struct RecordScreenOutputsTests {
     func announcements() {
         var state = RecordScreenState()
         var s = RecordScreenSnapshot()
-        s.isArmed = true
+        s.isReady = true
         #expect(state.announcements(s).isEmpty)
 
         s.interruptionNotice = "A call interrupted the input."
@@ -153,7 +153,7 @@ struct RecordScreenOutputsTests {
     func announcementsSkipSwiped() throws {
         var state = RecordScreenState()
         var s = RecordScreenSnapshot()
-        s.isArmed = true
+        s.isReady = true
         _ = state.announcements(s)
         s.interruptionNotice = "A call interrupted the input."
         _ = state.announcements(s)

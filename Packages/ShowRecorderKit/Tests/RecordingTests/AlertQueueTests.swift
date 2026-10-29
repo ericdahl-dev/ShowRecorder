@@ -13,11 +13,11 @@ struct AlertQueueTests {
         let queue = AlertQueue([
             alert("copy result", .copyResult, tone: .ok),
             alert("no drive", .destination),
-            alert("armed failed", .cannotRecord, tone: .critical),
+            alert("ready failed", .cannotRecord, tone: .critical),
             alert("shortfall", .input),
         ])
 
-        #expect(queue.top?.id == "armed failed")
+        #expect(queue.top?.id == "ready failed")
         #expect(queue.others.map(\.id) == ["no drive", "shortfall", "copy result"])
         #expect(queue.moreCount == 3)
     }
@@ -95,7 +95,7 @@ struct SwipedAlertsTests {
 
     @Test("A note that isn't a warning or a summary (a hint) isn't swiped")
     func infoStays() {
-        let hint = ScreenAlert(id: "hint", priority: .hint, tone: .info, text: "Choose an input to Arm.")
+        let hint = ScreenAlert(id: "hint", priority: .hint, tone: .info, text: "Choose an input to Get ready.")
         var swiped = SwipedAlerts()
         swiped.swipe(hint)
 

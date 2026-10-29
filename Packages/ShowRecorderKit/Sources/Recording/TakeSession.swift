@@ -28,7 +28,7 @@ final class DiscardingSink: StemSink {
 
 /// The running Take's Copies. Owns one record per Copy (its folder, feed, writer and, for the Drive,
 /// the access held for the Take) and everything that changes while the Take runs: Markers, Gaps,
-/// a Drive joining or rejoining, a Copy retiring for lack of space. `Recorder` keeps Armed state and
+/// a Drive joining or rejoining, a Copy retiring for lack of space. `Recorder` keeps Ready state and
 /// decides when a Take starts and stops.
 @MainActor
 final class TakeSession {

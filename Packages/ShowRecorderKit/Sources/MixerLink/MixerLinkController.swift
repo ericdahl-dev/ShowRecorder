@@ -63,7 +63,7 @@ public final class MixerLinkController {
     /// Connects to the Mixer at `address` ("10.0.0.20" or "10.0.0.20:10024") and reads its Sources. With no port,
     /// the default driver tries the X-Air's and the X32's.
     ///
-    /// `usbChannelCount` is what the Armed device sends. With nothing Armed (0), as many Sources
+    /// `usbChannelCount` is what the Ready device sends. With nothing Ready (0), as many Sources
     /// are read as the identified Mixer sends over USB, if its driver knows.
     public func connect(to address: String, usbChannelCount: Int) async {
         liveTasks.forEach { $0.cancel() }
@@ -106,7 +106,7 @@ public final class MixerLinkController {
             let read = try await Self.sources(from: driver, capabilities: capabilities, usbChannelCount: count)
             guard connect == connects else { return }
             sources = read
-            // A device Armed while connecting asked for its own count; read that instead.
+            // A device Ready while connecting asked for its own count; read that instead.
             if let pending = pendingUSBChannelCount, pending != sources.count {
                 let read = try await Self.sources(from: driver, capabilities: capabilities, usbChannelCount: pending)
                 guard connect == connects else { return }
@@ -125,7 +125,7 @@ public final class MixerLinkController {
     }
 
     /// Re-reads the Sources for a new USB Channel count, such as after a different device is
-    /// Armed. While connecting, the count is remembered for when the Mixer answers; while the Link
+    /// Ready. While connecting, the count is remembered for when the Mixer answers; while the Link
     /// is down or idle this does nothing.
     public func refreshSources(usbChannelCount: Int) async {
         guard usbChannelCount > 0 else { return }

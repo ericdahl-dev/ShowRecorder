@@ -20,7 +20,7 @@ struct StopFileWorkOffMainTests {
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
                                 destinationCheckInterval: nil, asyncStopAvailable: { true })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.2, count: 4_800)])
         return (recorder, audio)

@@ -28,11 +28,11 @@ struct NewShowTests {
 
     func record(_ recorder: Recorder) async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.1, count: 480)])
         try await recorder.stopTake()
-        recorder.disarm()
+        recorder.standDown()
     }
 
     @Test("New Show makes \"YYYY-MM-DD Name\" with the venue in Show.json, ends the old Show, and the next Take lands in it")
@@ -72,7 +72,7 @@ struct NewShowTests {
     func refusedWhileRecording() async throws {
         let recorder = recorder()
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         #expect(throws: RecorderError.takeRunning) { try recorder.startNewShow(name: "Late", venue: "") }
         #expect(recorder.currentShow?.name == "2026-10-06 Show")

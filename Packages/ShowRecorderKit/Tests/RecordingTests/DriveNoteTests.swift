@@ -36,7 +36,7 @@ struct DriveNoteTests {
                 return try StemWriter.open(url: url, info: info, resumingAt: resuming)
             }, destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         let metadata = try TakeMetadata.read(fromTakeFolder: device.appending(path: take))
         return (recorder, metadata)
@@ -67,7 +67,7 @@ struct DriveNoteTests {
             deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
             destinationCheckInterval: nil)
         recorder.recordTo = .device
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
         try recorder.startTake()
 
         #expect(recorder.driveNotice == nil)
@@ -102,7 +102,7 @@ struct DriveNoteTests {
         let recorder = Recorder(
             deviceFolder: device, driveFolder: { available.on ? DriveAccess(folder: drive) : nil }, driveProblem: { "gone" },
             now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
         try recorder.startTake()
         #expect(recorder.driveNotice != nil)
         try await recorder.stopTake()
@@ -123,7 +123,7 @@ struct DriveNoteTests {
             deviceFolder: device, driveFolder: { available.on ? DriveAccess(folder: drive) : nil }, driveProblem: { "still mounting" },
             now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake(allowance: Entitlement.allowance(for: .pro, channelCount: 1))
         audio.deliver([Array(repeating: 0.25, count: 480)])
         #expect(recorder.driveNotice?.contains("still mounting") == true)
@@ -143,7 +143,7 @@ struct DriveNoteTests {
             deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
             destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake(allowance: Entitlement.allowance(for: .free, channelCount: 1))
         audio.deliver([Array(repeating: 0.25, count: 480)])
 
@@ -165,7 +165,7 @@ struct DriveNoteTests {
             destinationCheckInterval: nil)
         recorder.recordTo = .device
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake(allowance: Entitlement.allowance(for: .pro, channelCount: 1))
         audio.deliver([Array(repeating: 0.25, count: 480)])
 
@@ -200,7 +200,7 @@ struct DriveNoteTests {
         let recorder = Recorder(
             deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
             destinationCheckInterval: nil)
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
         try recorder.startTake(allowance: Entitlement.allowance(for: .free, channelCount: 1))
 
         #expect(!recorder.driveCopyAllowed)
@@ -213,7 +213,7 @@ struct DriveNoteTests {
         let recorder = Recorder(
             deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
             destinationCheckInterval: nil)
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
         try recorder.startTake(allowance: Entitlement.allowance(for: .pro, channelCount: 1))
 
         #expect(recorder.driveCopyAllowed)

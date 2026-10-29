@@ -50,10 +50,10 @@ final class CopyFeed: Sendable {
     }
 }
 
-/// Everything the real-time callback touches, allocated when the recorder is Armed.
+/// Everything the real-time callback touches, allocated when the recorder is Ready.
 final class Capture: Sendable {
     let meters: PeakMeters
-    /// The last seconds of every channel while Armed, for Pre-roll. Nil when Pre-roll is off.
+    /// The last seconds of every channel while Ready, for Pre-roll. Nil when Pre-roll is off.
     let preRoll: PreRollBuffer?
     /// One feed per Copy: the Device, then the Drive.
     let feeds: [CopyFeed]
@@ -114,7 +114,7 @@ final class Capture: Sendable {
     ///   more, so a read of that length isn't cut short by the writer overwriting its oldest frames.
     /// - Parameter startHeadroomSeconds: room in the buffer for a Take that starts late (#915): the time between the press
     ///   and the first live block, while the Drive's files are made. With it the buffer exists even when Pre-roll is off. It is
-    ///   allocated here, at Arm, never when a Take starts.
+    ///   allocated here, at get-ready, never when a Take starts.
     init(channelCount: Int, sampleRate: Double, preRollSeconds: Double = 0, startHeadroomSeconds: Double = 0,
          hostTicksPerSecond: Double = Capture.machTicksPerSecond, hostClock: @escaping @Sendable () -> UInt64 = { mach_absolute_time() },
          afterJoinRead: (@Sendable () -> Void)? = nil) {

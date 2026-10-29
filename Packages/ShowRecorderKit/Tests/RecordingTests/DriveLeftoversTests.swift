@@ -202,7 +202,7 @@ struct DriveLeftoversTests {
         let drive = root.appending(path: "Drive")
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         // Two Takes with no Drive at the press: the Drive's Take folders for them are never made.
         recorder.recordTo = .device
         for _ in 0..<2 {

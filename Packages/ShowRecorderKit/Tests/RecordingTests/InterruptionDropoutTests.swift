@@ -18,7 +18,7 @@ struct InterruptionDropoutTests {
         // One host-clock tick per frame at 48 kHz, so the test can say exactly how long input stopped.
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil, hostTicksPerSecond: 48_000)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_000)
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_480)
@@ -47,7 +47,7 @@ struct InterruptionDropoutTests {
             deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil, hostTicksPerSecond: 48_000,
             hostClock: { press })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_000)
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_480)
         try recorder.startTake()
@@ -68,13 +68,13 @@ struct InterruptionDropoutTests {
 
     @Test("With Pre-roll, a Take pressed while input is stopped has the Pre-roll, silence from the press, then the audio (#877)")
     func pressWhileStoppedWithPreRoll() async throws {
-        // 1 s Armed (host times 1_000 to 49_000), input stops, record 1 s later, input back 1 s after the press.
+        // 1 s Ready (host times 1_000 to 49_000), input stops, record 1 s later, input back 1 s after the press.
         let press: UInt64 = 49_000 + 48_000
         let recorder = Recorder(
             deviceFolder: root, now: { RecordingTakeTests.showDay }, preRollSeconds: 1, destinationCheckInterval: nil,
             hostTicksPerSecond: 48_000, hostClock: { press })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         for block in 0..<100 { audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_000 + UInt64(block * 480)) }
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: press + 48_000)
@@ -98,7 +98,7 @@ struct InterruptionDropoutTests {
     func jitterIsNotADropout() async throws {
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil, hostTicksPerSecond: 48_000)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_000)
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_000 + 480 + 30)  // 30 frames late

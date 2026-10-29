@@ -36,13 +36,13 @@ struct SoundcheckTests {
         #expect(unnamed.message == "FOH (XR18) is linked, but none of its channels has a name. Name them on the Mixer to have them on the Stems.")
     }
 
-    @Test("Mixer: a Link on another Mixer than the Armed one fails and says which, and where to connect (#647)")
+    @Test("Mixer: a Link on another Mixer than the Ready one fails and says which, and where to connect (#647)")
     func mixerOtherLinked() {
         let other = Soundcheck.judgeMixer(state: .otherMixer(Self.xr18), sources: [])
-        #expect(other == .init(kind: .mixer, passed: false, message: "The Mixer Link is on FOH (XR18), not the Armed Mixer. Connect to the Armed Mixer in Settings › Mixer Link."))
+        #expect(other == .init(kind: .mixer, passed: false, message: "The Mixer Link is on FOH (XR18), not the Mixer you're recording from. Connect to that Mixer in Settings › Mixer Link."))
         let unnamed = MixerIdentity(networkName: "", model: "XR18", firmware: "1.26")
         let step = Soundcheck.judgeMixer(state: .otherMixer(unnamed), sources: [])
-        #expect(step.message == "The Mixer Link is on XR18, not the Armed Mixer. Connect to the Armed Mixer in Settings › Mixer Link.")
+        #expect(step.message == "The Mixer Link is on XR18, not the Mixer you're recording from. Connect to that Mixer in Settings › Mixer Link.")
     }
 
     @Test("Channels: as many as the Mixer sends, with signal, passes and counts them")
@@ -62,9 +62,9 @@ struct SoundcheckTests {
         #expect(Soundcheck.isChecking(.channels, current: nil) == false)
     }
 
-    @Test("Channels: nothing Armed, fewer than the Mixer sends, or no signal each fails with what to do")
+    @Test("Channels: nothing Ready, fewer than the Mixer sends, or no signal each fails with what to do")
     func channelsProblems() {
-        #expect(Soundcheck.judgeChannels(usbChannelCount: 0, expected: 18, signal: nil).message == "No audio interface is Armed. Choose the Mixer's audio interface in Settings.")
+        #expect(Soundcheck.judgeChannels(usbChannelCount: 0, expected: 18, signal: nil).message == "No audio interface is Ready. Choose the Mixer's audio interface in Settings.")
         #expect(Soundcheck.judgeChannels(usbChannelCount: 2, expected: 18, signal: TakeSignal(recorded: 2, withSignal: 2)).message
             == "The input sends 2 USB Channels; the Mixer sends 18. On the Mixer, set the USB interface to 18/18 (X AIR Edit: Setup, Audio/Midi).")
         #expect(Soundcheck.judgeChannels(usbChannelCount: 18, expected: 18, signal: TakeSignal(recorded: 18, withSignal: 0)).message
@@ -112,7 +112,7 @@ struct SoundcheckTests {
         let root = FileManager.default.temporaryDirectory.appending(path: "SoundcheckRun-\(UUID().uuidString)")
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         // The fake device delivers only when told: feed it a tone on channel 1 and silence on 2 while the Take runs.
         let feeding = Task { @MainActor in
             while !Task.isCancelled {
@@ -153,7 +153,7 @@ struct SoundcheckTests {
         let root = FileManager.default.temporaryDirectory.appending(path: "SoundcheckFree-\(UUID().uuidString)")
         let audio = FakeAudioDevice(inputChannelCount: 4)
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         let feeding = Task { @MainActor in
             while !Task.isCancelled {
                 audio.deliver((0..<4).map { _ in [Float](repeating: 0.5, count: 480) })
@@ -195,7 +195,7 @@ struct SoundcheckTests {
         let root = FileManager.default.temporaryDirectory.appending(path: "SoundcheckBusy-\(UUID().uuidString)")
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         let steps = await Soundcheck.run(sequencer: TakeSequencer(recorder: recorder, devices: FakeInputDevices(), capsAt48k: { false }), mixer: .notLinked, sources: [], expectedUSBChannels: nil, driveChosen: false)
         #expect(steps == [.init(kind: .take, passed: false, message: "A Take is running. Stop it before the Soundcheck.")])

@@ -22,7 +22,7 @@ let package = Package(
         .target(name: "AudioIO"),
         // Broadcast WAV Stem files.
         .target(name: "BroadcastWave"),
-        // The recorder: Armed state, meters, Shows and Takes. No platform audio frameworks.
+        // The recorder: Ready state, meters, Shows and Takes. No platform audio frameworks.
         .target(name: "Recording", dependencies: ["AudioIO", "BroadcastWave", "MixerLink", "ShowReport", "ProjectExport", "Destinations", "TakeFile", "AutoGain", "WatchRemote"]),
         // A Take's Take.json: what was recorded, its Markers, Gaps, Dropouts and Repairs. Written by Recording,
         // read by Recording and the Show report.

@@ -87,7 +87,7 @@ public struct ProStatus: Equatable, Sendable {
     }
 
     /// Takes the App Store's answer. Returns whether the known tier or the owned mixer packs changed (#705), so the
-    /// recorder can re-Arm between Takes.
+    /// recorder can get ready again between Takes.
     @discardableResult
     public mutating func appStoreAnswered(_ owned: [OwnedPurchase], now: Date) -> Bool {
         let before = knownTier(now: now)
@@ -97,13 +97,13 @@ public struct ProStatus: Equatable, Sendable {
         return knownTier(now: now) != before || purchases.ownedPacks != packsBefore
     }
 
-    /// - Parameter armedFamily: the Armed input's mixer family, so a pack for it counts as Pro (#705); nil for any other
-    ///   input, or where nothing is Armed.
-    public func license(proOffered: Bool, armedFamily: MixerFamily? = nil, now: Date) -> License {
-        License(proOffered: proOffered, tier: knownTier(now: now, armedFamily: armedFamily), trialStarted: purchases.trialStartedAt != nil)
+    /// - Parameter readyFamily: the Ready input's mixer family, so a pack for it counts as Pro (#705); nil for any other
+    ///   input, or where nothing is Ready.
+    public func license(proOffered: Bool, readyFamily: MixerFamily? = nil, now: Date) -> License {
+        License(proOffered: proOffered, tier: knownTier(now: now, readyFamily: readyFamily), trialStarted: purchases.trialStartedAt != nil)
     }
 
-    private func knownTier(now: Date, armedFamily: MixerFamily? = nil) -> Tier? {
-        tierKnown ? purchases.tier(now: now, armedFamily: armedFamily) : nil
+    private func knownTier(now: Date, readyFamily: MixerFamily? = nil) -> Tier? {
+        tierKnown ? purchases.tier(now: now, readyFamily: readyFamily) : nil
     }
 }

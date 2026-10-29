@@ -41,7 +41,7 @@ struct SoundcheckView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(steps.isEmpty ? "Start" : "Run Again") { Task { await run() } }
-                        .disabled(running || model.takeBusy || !model.recorder.isArmed)
+                        .disabled(running || model.takeBusy || !model.recorder.isReady)
                 }
             }
         }

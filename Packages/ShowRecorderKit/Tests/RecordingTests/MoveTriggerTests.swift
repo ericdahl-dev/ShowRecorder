@@ -12,7 +12,7 @@ extension DriveOnlyTakeTests {
     /// A Drive only Take of 4 800 frames recorded with no Drive, by a recorder that then quits; the Drive is connected.
     func leaveDeviceOnlyTake(_ switched: DriveSwitch) async throws {
         let recorder = try await recordDeviceOnlyTake(switched)
-        recorder.disarm()
+        recorder.standDown()
     }
 
     @Test("Once moving is offered, a launch with the Drive moves the Drive only Takes left on the Device (#630)")
@@ -47,7 +47,7 @@ extension DriveOnlyTakeTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(drive: switched)
         recorder.movesDriveOnlyTakes = true
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         switched.connected = true
@@ -131,7 +131,7 @@ extension DriveOnlyTakeTests {
     func recordDeviceOnlyTakeWithMarker(_ switched: DriveSwitch) async throws -> Recorder {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(drive: switched)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         recorder.addMarker()
@@ -147,7 +147,7 @@ extension DriveOnlyTakeTests {
         let switched = DriveSwitch()
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = try await recordDeviceOnlyTake(switched)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         let gate = StopNeverBlocksTests.Gate()
         defer { gate.open() }
         let latch = recorder.moveStop.latch()

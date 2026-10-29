@@ -193,7 +193,7 @@ struct CopyJoinTests {
     func preRollJoinsBothTogether() {
         let capture = capture(preRollSeconds: 1)
         receive(capture)
-        receive(capture)                                     // Armed: the Pre-roll holds 960 frames
+        receive(capture)                                     // Ready: the Pre-roll holds 960 frames
         capture.startCapturing(copies: 2, preRollFrames: 960)
         #expect(capture.awaitingFirstBlock)
         #expect(capture.feeds.allSatisfy { $0.joinedAt == nil })

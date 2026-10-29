@@ -70,7 +70,7 @@ struct MixerGainCharacterizationTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
         try recorder.startTake(sources: [Source(name: "Kick", color: .off), Source(name: "Snare", color: .off)])
         let change = TakeMetadata.GainChange(usbChannel: 1, channel: 1, headamp: 1, fromGainDb: 30, toGainDb: 26,
                                              reason: .clipProtection, compensations: [])

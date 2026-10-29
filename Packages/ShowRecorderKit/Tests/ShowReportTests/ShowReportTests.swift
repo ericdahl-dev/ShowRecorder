@@ -29,7 +29,7 @@ struct ShowReportTests {
     func record(channels: Int, sources: [Source], takes frames: [Int]) async throws {
         let device = FakeAudioDevice(inputChannelCount: channels)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
         for count in frames {
             try recorder.startTake(sources: sources)
             var left = count
@@ -149,8 +149,8 @@ struct ShowReportTests {
     func preRollInReport() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay }, preRollSeconds: 1)
-        try recorder.arm(device)
-        device.deliver([Array(repeating: 0, count: 48_000)])  // 1 s while Armed
+        try recorder.getReady(device)
+        device.deliver([Array(repeating: 0, count: 48_000)])  // 1 s while Ready
         try recorder.startTake()
         device.deliver([Array(repeating: 0, count: 12_000)])
         recorder.addMarker(named: "Chorus")  // 0.25 s after the press, 1.25 s into the audio
@@ -184,7 +184,7 @@ struct ShowReportTests {
     func recordWithADropout() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
         try recorder.startTake()
         device.deliver([Array(repeating: 0, count: 24_000)])
         device.deliver([Array(repeating: 0, count: 300_000)])
@@ -215,7 +215,7 @@ struct ShowReportTests {
     func renamesInReport() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
         try recorder.startTake(sources: [Source(name: "Kick", color: .off)])
         device.deliver([Array(repeating: 0, count: 24_000)])  // 0.5 s
         recorder.offerSources([Source(name: "<b>Bass</b> Drum", color: .off)])
@@ -235,7 +235,7 @@ struct ShowReportTests {
     func gainChangesInReport() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
         try recorder.startTake(sources: [Source(name: "Kick", color: .off)])
         device.deliver([Array(repeating: 0, count: 24_000)])  // 0.5 s
         let change = TakeMetadata.GainChange(usbChannel: 1, channel: 1, headamp: 1, fromGainDb: 14.5, toGainDb: 11.5, reason: .clipProtection,
@@ -283,7 +283,7 @@ struct ShowReportTests {
     func routingChangesInReport() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
         var kick = Source(name: "Kick", color: .off); kick.routedFrom = "ch:1"
         var tom = Source(name: "Tom", color: .off); tom.routedFrom = "ch:4"
         try recorder.startTake(sources: [kick])
@@ -318,7 +318,7 @@ struct ShowReportTests {
     func recordWithLevels() async throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
         try recorder.startTake()
         device.deliver([Array(repeating: 0.1, count: 48_000), Array(repeating: 0, count: 48_000)])
         try await recorder.stopTake()

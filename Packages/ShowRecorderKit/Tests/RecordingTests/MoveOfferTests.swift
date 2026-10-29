@@ -154,7 +154,7 @@ extension DriveOnlyTakeTests {
         let switched = DriveSwitch()
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(drive: switched)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         // Take 01 with no Drive; Take 02 joined by the Drive mid-Take, so the Drive holds it whole after Repair.
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
@@ -182,7 +182,7 @@ extension DriveOnlyTakeTests {
         let switched = DriveSwitch()
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(drive: switched)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         // Two Drive only Takes, both recorded with no Drive, so both wait on the Device.
         for _ in 1...2 {
             try recorder.startTake()
@@ -210,7 +210,7 @@ extension DriveOnlyTakeTests {
         let launched = recorder(drive: switched)
         launched.recordTo = .device
         launched.movesDriveOnlyTakes = true
-        try launched.arm(audio)
+        try launched.getReady(audio)
         try launched.startTake()
         try await deliverBlocks(10, to: audio, launched, sample: counting())
 

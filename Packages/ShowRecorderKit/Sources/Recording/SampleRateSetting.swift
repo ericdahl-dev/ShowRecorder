@@ -19,7 +19,7 @@ public enum SampleRateSetting {
         defaults.set(rate ?? 0, forKey: key)
     }
 
-    /// The rate to switch the input to before Arming, or nil to leave it as it is.
+    /// The rate to switch the input to before Getting ready, or nil to leave it as it is.
     public static func rateToSet(chosen: Int?, available: [Int], current: Int, capAt48k: Bool) -> Int? {
         var wanted = chosen ?? current
         if capAt48k, wanted > 48_000 { wanted = 48_000 }

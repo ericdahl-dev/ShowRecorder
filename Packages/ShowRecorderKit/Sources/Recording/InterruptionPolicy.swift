@@ -40,7 +40,7 @@ public struct InterruptionPolicy: Sendable, Equatable {
         /// Input is running again on the same Take.
         case restarted
         /// Input was replaced after a reset, but the new device's format didn't match the Take, so
-        /// the Take was stopped and finalized and the recorder Armed on the new device.
+        /// the Take was stopped and finalized and the recorder Ready on the new device.
         case takeEndedByReset
         /// Moving the running Take to the new route (after an iOS route change) failed, so no audio reaches it.
         case moveFailed(String)
@@ -51,7 +51,7 @@ public struct InterruptionPolicy: Sendable, Equatable {
 
     public enum Action: Sendable, Equatable {
         case none
-        /// Restart input on the Armed device, keeping the Take.
+        /// Restart input on the Ready device, keeping the Take.
         case restartInput
         /// Build a fresh device and move input to it, keeping the Take if its format matches.
         case replaceDevice
@@ -169,15 +169,15 @@ public struct InterruptionPolicy: Sendable, Equatable {
     public enum RouteAction: Sendable, Equatable {
         /// Leave input alone; the interruption's restart picks up the new route.
         case none
-        /// Arm on the new route (nothing to keep).
-        case rearm
+        /// Get ready on the new route (nothing to keep).
+        case getReadyAgain
         /// Move input to the new route with `Recorder.restartInput(on:)`: the Take carries on if the
         /// format still matches, and is stopped and saved only if it doesn't.
         case moveInput
     }
 
     /// Decides what an iOS route change does. Calls and Siri can change the route as they begin and
-    /// end; re-arming then would end the Take.
+    /// end; getting ready again then would end the Take.
     public mutating func routeChanged(isRecording: Bool) -> RouteAction {
         if isInputStopped {
             // The old device describes the old route, so the restart must build a new one. After a failed
@@ -185,6 +185,6 @@ public struct InterruptionPolicy: Sendable, Equatable {
             needsNewDevice = true
             return moveFailed ? .moveInput : .none
         }
-        return isRecording ? .moveInput : .rearm
+        return isRecording ? .moveInput : .getReadyAgain
     }
 }

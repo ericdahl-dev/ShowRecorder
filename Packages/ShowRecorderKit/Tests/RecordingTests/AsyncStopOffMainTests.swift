@@ -58,7 +58,7 @@ struct AsyncStopOffMainTests {
         let inlineRoot = root.appending(path: "inline")
         let inline = makeRecorder(in: inlineRoot, asyncStop: false)
         let inlineAudio = FakeAudioDevice(inputChannelCount: 1)
-        try inline.arm(inlineAudio)
+        try inline.getReady(inlineAudio)
         try inline.startTake()
         inlineAudio.deliver([Array(repeating: 0.25, count: 4_800)])
         try await inline.stopTake()
@@ -69,7 +69,7 @@ struct AsyncStopOffMainTests {
         nonisolated(unsafe) var gated: GatedStem?
         let recorder = makeRecorder(in: asyncRoot, asyncStop: true, gate: gate, stem: { gated = $0 })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
 
@@ -126,7 +126,7 @@ struct AsyncStopOffMainTests {
             in: root, asyncStop: true, gate: gate, stem: { gated = $0 }, drive: drive,
             driveIsUp: { driveUp }, checkInterval: .milliseconds(10))
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
 
@@ -154,7 +154,7 @@ struct AsyncStopOffMainTests {
         nonisolated(unsafe) var gated: GatedStem?
         let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
 
@@ -172,23 +172,23 @@ struct AsyncStopOffMainTests {
         #expect(try StemFile.inspect(stem).frameCount == 4_800)
     }
 
-    @Test("While Finishing: arm throws .finishing, disarm still stops the device, and the error says why")
-    func armAndDisarmWhileFinishing() async throws {
+    @Test("While Finishing: getReady throws .finishing, standDown still stops the device, and the error says why")
+    func getReadyAndStandDownWhileFinishing() async throws {
         let gate = TestGate()
         nonisolated(unsafe) var gated: GatedStem?
         let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
 
         let stop = Task { @MainActor in try await recorder.stopTake() }
         try await waitUntil { gated?.entered == true }
-        #expect(throws: RecorderError.finishing) { try recorder.arm(FakeAudioDevice(inputChannelCount: 1)) }
-        #expect(recorder.isArmed, "a refused Arm leaves the Armed device alone")
+        #expect(throws: RecorderError.finishing) { try recorder.getReady(FakeAudioDevice(inputChannelCount: 1)) }
+        #expect(recorder.isReady, "a refused get-ready leaves the Ready device alone")
         #expect(RecorderError.finishing.errorDescription == "The last Take is still being saved.")
-        recorder.disarm()
-        #expect(!recorder.isArmed)
+        recorder.standDown()
+        #expect(!recorder.isReady)
         gate.open()
         try await stop.value
 
@@ -203,7 +203,7 @@ struct AsyncStopOffMainTests {
         nonisolated(unsafe) var gated: GatedStem?
         let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
 
@@ -244,7 +244,7 @@ struct AsyncStopOffMainTests {
         nonisolated(unsafe) var driveUp = false
         let recorder = makeRecorder(in: root, asyncStop: true, drive: drive, driveIsUp: { driveUp })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
         driveUp = true
@@ -261,7 +261,7 @@ struct AsyncStopOffMainTests {
         let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
         let source = FakeInputDevices([("xr18", 1)])
         let sequencer = TakeSequencer(recorder: recorder, devices: source, capsAt48k: { false })
-        sequencer.arm()
+        sequencer.getReady()
         let audio = try #require(source.opened.last)
         let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
         #expect(sequencer.quitRequested() == .askToStop)
@@ -288,7 +288,7 @@ struct AsyncStopOffMainTests {
         let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
         let source = FakeInputDevices([("xr18", 1)])
         let sequencer = TakeSequencer(recorder: recorder, devices: source, capsAt48k: { false })
-        sequencer.arm()
+        sequencer.getReady()
         let audio = try #require(source.opened.last)
         #expect(sequencer.record(sources: [], allowance: nil))
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
@@ -310,7 +310,7 @@ struct AsyncStopOffMainTests {
         nonisolated(unsafe) var gated: GatedStem?
         let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
         recorder.logGainChange(TakeMetadata.GainChange(usbChannel: 1, channel: 1, headamp: 1, fromGainDb: 14.5, toGainDb: 11.5, reason: .clipProtection, compensations: []))
         gate.open()
@@ -324,7 +324,7 @@ struct AsyncStopOffMainTests {
         nonisolated(unsafe) var gated: GatedStem?
         let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
         #expect(recorder.setChannelName("Late", forChannel: 1))
         gate.open()
@@ -343,7 +343,7 @@ struct AsyncStopOffMainTests {
         try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
         let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 }, drive: drive, driveIsUp: { true })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
         let deleted = [
             recorder.deleteShow(named: "Other", from: [.device]),
@@ -368,32 +368,32 @@ struct AsyncStopOffMainTests {
         #expect(renamedAfterPublish == true)
     }
 
-    @Test("A refused Arm while the Take is being saved leaves the sequencer's armed device alone; a route move waits for the save")
-    func sequencerArmWhileFinishing() async throws {
+    @Test("A refused get-ready while the Take is being saved leaves the sequencer's Ready device alone; a route move waits for the save")
+    func sequencerGetReadyWhileFinishing() async throws {
         let gate = TestGate()
         nonisolated(unsafe) var gated: GatedStem?
         let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
         let source = FakeInputDevices([("xr18", 1)])
         let sequencer = TakeSequencer(recorder: recorder, devices: source, capsAt48k: { false })
-        sequencer.arm()
-        let armed = sequencer.armedDevice
-        #expect(armed != nil)
+        sequencer.getReady()
+        let ready = sequencer.readyDevice
+        #expect(ready != nil)
         let audio = try #require(source.opened.last)
         let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
-        sequencer.arm()
-        #expect(recorder.isArmed)
-        #expect(sequencer.armedDevice?.id == armed?.id, "the sequencer forgot a device the recorder still has")
+        sequencer.getReady()
+        #expect(recorder.isReady)
+        #expect(sequencer.readyDevice?.id == ready?.id, "the sequencer forgot a device the recorder still has")
         gate.open()
         try await stop.value
     }
 
-    @Test("A mismatched replacement device waits for the save before it Arms")
+    @Test("A mismatched replacement device waits for the save before it gets ready")
     func restartInputWhileFinishing() async throws {
         let gate = TestGate()
         nonisolated(unsafe) var gated: GatedStem?
         let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
         nonisolated(unsafe) var continued: Bool?
         let move = Task { @MainActor in continued = try await recorder.restartInput(on: FakeAudioDevice(inputChannelCount: 2)) }
@@ -406,14 +406,14 @@ struct AsyncStopOffMainTests {
         #expect(recorder.usbChannelCount == 2)
     }
 
-    @Test("A device list change while the Take is being saved waits for the save, then Arms on the new format")
+    @Test("A device list change while the Take is being saved waits for the save, then gets ready on the new format")
     func deviceListChangedWhileFinishing() async throws {
         let gate = TestGate()
         nonisolated(unsafe) var gated: GatedStem?
         let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
         let source = FakeInputDevices([("xr18", 1)])
         let sequencer = TakeSequencer(recorder: recorder, devices: source, capsAt48k: { false })
-        sequencer.arm()
+        sequencer.getReady()
         let audio = try #require(source.opened.last)
         let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
         source.choices = [source.choice(id: "xr18", channels: 2)]
@@ -427,11 +427,11 @@ struct AsyncStopOffMainTests {
         gate.open()
         try await stop.value
         await change.value
-        #expect(recorder.isArmed)
+        #expect(recorder.isReady)
         #expect(recorder.usbChannelCount == 2, "the recorder kept the old format")
     }
 
-    @Test("A tier change while the Take is being saved shows no error, and the input re-Arms at the new rate once the save ends (#884)")
+    @Test("A tier change while the Take is being saved shows no error, and the input gets ready again at the new rate once the save ends (#884)")
     func tierChangedWhileFinishing() async throws {
         let gate = TestGate()
         nonisolated(unsafe) var gated: GatedStem?
@@ -440,45 +440,45 @@ struct AsyncStopOffMainTests {
         source.rates["xr18"] = 96_000
         nonisolated(unsafe) var capped = false
         let sequencer = TakeSequencer(recorder: recorder, devices: source, capsAt48k: { capped })
-        sequencer.arm()
+        sequencer.getReady()
         #expect(recorder.sampleRate == 96_000)
         let audio = try #require(source.opened.last)
         let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
 
         capped = true   // a refund, say, while the Take is on its way to disk
         sequencer.tierChanged()
-        #expect(sequencer.armError == nil, "no false \"Couldn't start\" after a clean Take: \(sequencer.armError ?? "")")
+        #expect(sequencer.getReadyError == nil, "no false \"Couldn't start\" after a clean Take: \(sequencer.getReadyError ?? "")")
         gate.open()
         try await stop.value
 
         try await waitUntil { recorder.sampleRate == 48_000 }
-        #expect(sequencer.armError == nil)
+        #expect(sequencer.getReadyError == nil)
     }
 
-    @Test("Pre-roll or sample rate changes while the Take is being saved show no error, and the input re-Arms once after the save (#932)")
+    @Test("Pre-roll or sample rate changes while the Take is being saved show no error, and the input gets ready again once after the save (#932)")
     func settingsChangedWhileFinishing() async throws {
         let gate = TestGate()
         nonisolated(unsafe) var gated: GatedStem?
         let recorder = makeRecorder(in: root, asyncStop: true, gate: gate, stem: { gated = $0 })
         let source = FakeInputDevices([("xr18", 1)])
         let sequencer = TakeSequencer(recorder: recorder, devices: source, capsAt48k: { false })
-        sequencer.arm()
+        sequencer.getReady()
         let audio = try #require(source.opened.last)
-        let armsBefore = source.opened.count
+        let getsReadyBefore = source.opened.count
         let stop = try await startBlockedStop(recorder, audio: audio, gated: { gated })
 
         sequencer.settingsChanged()
         sequencer.settingsChanged()
         sequencer.settingsChanged()
-        #expect(sequencer.armError == nil, "no false \"Couldn't start\" after a clean Take: \(sequencer.armError ?? "")")
+        #expect(sequencer.getReadyError == nil, "no false \"Couldn't start\" after a clean Take: \(sequencer.getReadyError ?? "")")
         gate.open()
         try await stop.value
 
-        try await waitUntil { source.opened.count > armsBefore }
+        try await waitUntil { source.opened.count > getsReadyBefore }
         try await Task.sleep(for: .milliseconds(200))
-        #expect(sequencer.armError == nil)
-        #expect(source.opened.count == armsBefore + 1, "three changes, one Arm")
-        #expect(recorder.isArmed)
+        #expect(sequencer.getReadyError == nil)
+        #expect(source.opened.count == getsReadyBefore + 1, "three changes, one get-ready")
+        #expect(recorder.isReady)
     }
 
     @Test("A gain change buffered during the save doesn't write the Show.json of a Drive Stop gave up on")
@@ -496,7 +496,7 @@ struct AsyncStopOffMainTests {
             },
             destinationCheckInterval: nil, writerStopTimeout: .milliseconds(500), asyncStopAvailable: { true })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
         try await Task.sleep(for: .milliseconds(100))
@@ -518,7 +518,7 @@ struct AsyncStopOffMainTests {
     func ruleOffIsInline() async throws {
         let recorder = makeRecorder(in: root, asyncStop: false)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
 

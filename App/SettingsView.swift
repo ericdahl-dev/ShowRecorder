@@ -238,7 +238,7 @@ struct SettingsView: View {
         model.recordTo.settingsShowsDrive(isOffered: RecordToAvailability.isAvailableInThisBuild, driveAllowed: model.pro.license().allowsDrive)
     }
 
-    /// Time left on each Destination for the Armed USB Channels.
+    /// Time left on each Destination for the Ready USB Channels.
     @ViewBuilder private var timeLeft: some View {
         let count = model.recorder.usbChannelCount
         if count > 0 {
