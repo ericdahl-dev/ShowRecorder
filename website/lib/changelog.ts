@@ -21,8 +21,8 @@ export const RELEASES: readonly Release[] = [
     changes: [
       "Auto-gain (Pro) sets each channel's preamp to -18 dBFS on an XR18 or MR18 over Mixer Link, moving the fader, sends and dynamics the other way so the mix stays the same. Undo puts it all back.",
       "An Apple Watch app shows whether the iPhone is Armed or recording, drops Markers, and starts and stops a Take from your wrist.",
-      "A Live Activity shows the running Take, its time and Markers on the Lock Screen and in the Dynamic Island.",
-      "On an XR18 or MR18, after a re-patch, each file is named after what the mixer really routes to its USB Channel.",
+      "A Live Activity shows the running Take, its time and Marker count on the Lock Screen and in the Dynamic Island.",
+      "On an XR18 or MR18, after a re-patch, each file (Pro) is named after what the mixer really routes to its USB Channel.",
       "If the mixer's USB routing changes during a Take, the record screen warns you and a Marker marks the moment.",
       "The Drive shows by its name, not a long code.",
       "On the X32 and M32, auto-gain stays in the public beta.",
