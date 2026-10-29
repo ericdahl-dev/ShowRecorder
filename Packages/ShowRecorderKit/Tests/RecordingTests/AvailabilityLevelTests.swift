@@ -42,7 +42,8 @@ struct AvailabilityLevelTests {
 
     /// Where every hidden feature stands today.
     static let features: [Feature] = [
-        .init(name: "Auto-gain", expected: .debugAndTestFlight, level: AutoGainAvailability.level, isAvailable: { AutoGainAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
+        .init(name: "Auto-gain", expected: .everyone, level: AutoGainAvailability.level, isAvailable: { AutoGainAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
+        .init(name: "X32 auto-gain", expected: .debugAndTestFlight, level: X32AutoGainAvailability.level, isAvailable: { X32AutoGainAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
         .init(name: "Clip protection", expected: .debugAndTestFlight, level: ClipProtectionSetting.level, isAvailable: { ClipProtectionSetting.isOffered(isDebugBuild: $0, environment: $1) }),
         .init(name: "Demo mixer family", expected: .debugAndTestFlight, level: DemoMixerFamilyAvailability.level, isAvailable: { DemoMixerFamilyAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
         .init(name: "Demo signal", expected: .debugAndTestFlight, level: DemoSignalAvailability.level, isAvailable: { DemoSignalAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
