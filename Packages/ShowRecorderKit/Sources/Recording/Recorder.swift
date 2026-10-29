@@ -70,11 +70,20 @@ public final class Recorder {
     /// (`License.recordedChannelCount`). None until chosen.
     public private(set) var notArmedChannels: Set<Int> = []
 
+    /// A choice made while no Audio interface was Ready (a Template applied at launch): used, and saved for it, when one is.
+    @ObservationIgnored private var pendingNotArmedChannels: Set<Int>?
+
     /// Sets which USB Channels are not armed, every other channel being armed, and keeps that for this Audio interface.
-    /// False, with nothing changed, where it isn't offered, with no input started, or during a Take: the choice is locked then.
+    /// With none Ready the choice waits for the next one that is. False, with nothing changed, where it isn't offered or
+    /// during a Take: the choice is locked then.
     @discardableResult
     public func setNotArmedChannels(_ channels: Set<Int>) -> Bool {
-        guard channelArmingRule(), let device, !isRecording, !isStarting, !isFinishing else { return false }
+        guard channelArmingRule() else { return false }
+        guard let device else {
+            pendingNotArmedChannels = channels
+            return true
+        }
+        guard !isRecording, !isStarting, !isFinishing else { return false }
         notArmedChannels = channels.filter { 1...usbChannelCount ~= $0 }
         ChannelArming.save(notArmedChannels, on: device.name, to: savedNames)
         return true
@@ -357,6 +366,10 @@ public final class Recorder {
         self.capture = capture
         usbChannelCount = device.inputChannelCount
         loadNotArmedChannels(for: device)
+        if let pending = pendingNotArmedChannels {
+            pendingNotArmedChannels = nil
+            setNotArmedChannels(pending)
+        }
         sampleRate = Int(device.sampleRate.rounded())
         isReady = true
     }
