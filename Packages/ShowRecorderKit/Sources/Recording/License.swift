@@ -24,10 +24,18 @@ public struct License: Equatable, Sendable {
     /// The one rule: Free limits, once Pro is offered and the tier is known.
     public var limits: Bool { proOffered && tier == .free }
 
-    /// What a Take gets when record is pressed; nil (nothing limited) while Pro isn't offered or the tier is unknown.
-    public func allowance(channelCount: Int) -> TakeAllowance? {
-        guard proOffered, let tier else { return nil }
-        return Entitlement.allowance(for: tier, channelCount: channelCount)
+    /// What a Take gets when record is pressed; nil (nothing limited) while Pro isn't offered or the tier is unknown. `notArmed` (#991) is
+    /// applied by Pro and the Trial, and when Pro isn't offered; never on Free, never while the tier is unknown.
+    public func allowance(channelCount: Int, notArmed: Set<Int> = []) -> TakeAllowance? {
+        // With no Pro offered nothing is limited, so channels that aren't armed stay unarmed: a Pro allowance says so.
+        guard proOffered else { return notArmed.isEmpty ? nil : Entitlement.allowance(for: .pro, channelCount: channelCount, notArmed: notArmed) }
+        guard let tier else { return nil }
+        return Entitlement.allowance(for: tier, channelCount: channelCount, notArmed: notArmed)
+    }
+
+    /// How many of `channelCount` USB Channels a Take pressed now records, with `notArmed` chosen: all of them on Free.
+    public func recordedChannelCount(channelCount: Int, notArmed: Set<Int>) -> Int {
+        allowance(channelCount: channelCount, notArmed: notArmed)?.recordedChannels.count ?? channelCount
     }
 
     /// Whether the input is opened at 48 kHz at most (#195).

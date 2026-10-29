@@ -17,6 +17,8 @@ public struct Template: Codable, Equatable, Identifiable, Sendable {
     public var preRollSeconds: Double
     /// The Record to choice (#840); nil in a Template saved before Templates carried it, which leaves the current one.
     public var recordTo: RecordTo?
+    /// The USB Channels (from 1) that are not armed (#991); nil in a Template saved before Templates carried it, which leaves the current choice. The app applies it (and saves it) with the Pre-roll and the Mixer.
+    public var notArmedChannels: Set<Int>?
 
     public init(
         name: String, venue: String?, channelNames: [Int: String],
