@@ -63,10 +63,10 @@ struct RemoteView: View {
     @ViewBuilder
     private func header(_ state: WatchStatus.State, isLive: Bool, asOf: Date) -> some View {
         switch state {
-        case .notArmed:
-            Text("Not Armed").font(.headline)
-        case .armed:
-            Text("Armed").font(.headline)
+        case .notReady:
+            Text("Not Ready").font(.headline)
+        case .ready:
+            Text("Ready").font(.headline)
         case .recording(let startedAt, let takeTitle, let markerCount):
             VStack(spacing: 0) {
                 Label("Recording", systemImage: "record.circle").font(.headline).foregroundStyle(.red)
@@ -102,13 +102,13 @@ struct RemoteView: View {
                 HoldToStopButton { model.send(.stop) }
                     .padding(.trailing, 6)   // clear of the screen's rounded edge
             }
-        case .armed:
+        case .ready:
             Button { model.send(.start) } label: {
                 Label("Record", systemImage: "record.circle.fill").frame(maxWidth: .infinity, minHeight: 50)
             }
             .buttonStyle(.borderedProminent)
             .tint(.red)
-        case .notArmed:
+        case .notReady:
             Text(WatchRemoteModel.openPhoneText).font(.footnote).multilineTextAlignment(.center)
         }
     }

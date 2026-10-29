@@ -65,7 +65,7 @@ struct DriveStartDeadlineTests {
     func healthyDriveStartsWithTheDrive() async throws {
         let creation = Creation()
         let recorder = recorder(creation, deadline: .seconds(60))
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
 
         try await recorder.startTakeOffMain()
 
@@ -85,7 +85,7 @@ struct DriveStartDeadlineTests {
         creation.holds = true
         defer { creation.gate.open() }
         let recorder = recorder(creation, deadline: .milliseconds(30))
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
 
         try await recorder.startTakeOffMain()
 
@@ -106,7 +106,7 @@ struct DriveStartDeadlineTests {
         creation.holdsAccess = true
         defer { creation.gate.open() }
         let recorder = recorder(creation, deadline: .milliseconds(30))
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
         try await recorder.startTakeOffMain()
         let takeOnDrive = drive.appending(path: "\(recorder.currentShow!.name)/Take 01")
         #expect(recorder.session?.copies.map(\.kind) == [.device])
@@ -131,7 +131,7 @@ struct DriveStartDeadlineTests {
         let creation = Creation()
         let recorder = recorder(creation, deadline: .seconds(60), driveOnly: true)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try await recorder.startTakeOffMain()
         try await deliverBlocks(5, to: audio, recorder, sample: { _, _ in 0.25 })
@@ -147,7 +147,7 @@ struct DriveStartDeadlineTests {
         let recorder = Recorder(
             deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil,
             driveStartDeadline: .seconds(60))
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
 
         try await recorder.startTakeOffMain()
 
@@ -158,13 +158,13 @@ struct DriveStartDeadlineTests {
         try await recorder.stopTake()
     }
 
-    @Test("Disarming while the Drive is being prepared ends the start: nothing of the Take is left on the Device or the Drive")
-    func disarmedWhileStarting() async throws {
+    @Test("Standing down while the Drive is being prepared ends the start: nothing of the Take is left on the Device or the Drive")
+    func stoodDownWhileStarting() async throws {
         let creation = Creation()
         creation.holds = true
         defer { creation.gate.open() }
         let recorder = recorder(creation, deadline: .seconds(60))
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
 
         let starting = Task { @MainActor in try await recorder.startTakeOffMain() }
         let deadline = ContinuousClock.now + .seconds(60)
@@ -174,7 +174,7 @@ struct DriveStartDeadlineTests {
         #expect(throws: RecorderError.self) { try recorder.startNewShow(name: "Other", venue: "") }
         try await recorder.startTakeOffMain()
         #expect(!recorder.isRecording, "a second press while one is starting does nothing")
-        recorder.disarm()
+        recorder.standDown()
         creation.gate.open()
 
         await #expect(throws: RecorderError.self) { try await starting.value }
@@ -199,7 +199,7 @@ struct DriveStartDeadlineTests {
         creation.holdsAccess = true
         defer { creation.gate.open() }
         let recorder = recorder(creation, deadline: .seconds(60))
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
 
         let starting = await startingWhileTheDriveAnswers(recorder, creation)
         recorder.recordTo = .device
@@ -216,7 +216,7 @@ struct DriveStartDeadlineTests {
         creation.holdsAccess = true
         defer { creation.gate.open() }
         let recorder = recorder(creation, deadline: .seconds(60))
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
 
         let starting = await startingWhileTheDriveAnswers(recorder, creation)
         recorder.logGainChange(TakeMetadata.GainChange(usbChannel: 1, channel: 1, headamp: 1, fromGainDb: 14.5, toGainDb: 11.5, reason: .clipProtection, compensations: []))
@@ -235,7 +235,7 @@ struct DriveStartDeadlineTests {
     func driveOnlyFlagOnTheDrive() async throws {
         let creation = Creation()
         let recorder = recorder(creation, deadline: .seconds(60), driveOnly: true)
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
 
         try await recorder.startTakeOffMain()
 
@@ -248,7 +248,7 @@ struct DriveStartDeadlineTests {
     func freeTakeNeverAsks() async throws {
         let creation = Creation()
         let recorder = recorder(creation, deadline: .seconds(60))
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
 
         try await recorder.startTakeOffMain(allowance: { var free = Entitlement.allowance(for: .free, channelCount: 1); free.driveCopy = false; return free }())
 

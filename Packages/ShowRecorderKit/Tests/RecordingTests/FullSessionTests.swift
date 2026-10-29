@@ -12,7 +12,7 @@ struct FullSessionTests {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let device = FakeAudioDevice(inputChannelCount: 18)
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
 
         // 6 seconds in 512-frame blocks: longer than the 4-second ring, so it wraps.
         let blockFrames = 512
@@ -50,7 +50,7 @@ struct FullSessionTests {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
         func value(_ channel: Int, _ frame: Int) -> Float { Float(channel * 400_000 + frame) / 8_388_608 }
 
         try recorder.startTake()

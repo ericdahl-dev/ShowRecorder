@@ -40,10 +40,10 @@ extension InputDeviceSource {
 
 /// What happened to the recorder, for whoever follows Takes.
 public enum TakeEvent: Equatable, Sendable {
-    case armed(InputDeviceInfo)
+    case ready(InputDeviceInfo)
     case takeStarted(take: Int)
     case takeEnded(TakeEnd)
-    case disarmed(reason: DisarmReason)
+    case stoodDown(reason: StandDownReason)
     /// The system stopped input (an interruption, a failed restart); the Take, if any, is still running.
     case inputStopped
     /// Input is back after being stopped.
@@ -53,58 +53,58 @@ public enum TakeEvent: Equatable, Sendable {
     /// The open Show was ended: its name and how many Takes it has (#551).
     case showEnded(name: String, takeCount: Int)
 
-    public enum DisarmReason: Equatable, Sendable {
+    public enum StandDownReason: Equatable, Sendable {
         /// The screen showing the recorder went away with no Take running.
         case screenGone
-        /// The app sat in the background for 30 minutes with no Take (`IdleDisarm`).
+        /// The app sat in the background for 30 minutes with no Take (`IdleStandDown`).
         case idle
-        /// The Armed Audio interface was disconnected.
+        /// The Ready Audio interface was disconnected.
         case deviceLost
     }
 }
 
-/// Takes, start to end, on the recorder: which Audio interface is Armed, record and stop.
+/// Takes, start to end, on the recorder: which Audio interface is Ready, record and stop.
 @MainActor
 @Observable
 public final class TakeSequencer {
     public let recorder: Recorder
     @ObservationIgnored private let capsAt48k: () -> Bool
     @ObservationIgnored private let now: () -> Date
-    /// Set once the first Arm has been tried, so a screen appearing before that doesn't Arm early.
+    /// Set once the first get-ready has been tried, so a screen appearing before that doesn't Get ready early.
     @ObservationIgnored private var didStart = false
-    @ObservationIgnored private var idle = IdleDisarm()
+    @ObservationIgnored private var idle = IdleStandDown()
 
     public var devices: [DeviceChoice]
     public var selectedDeviceID: String?
-    /// The device as it was when last Armed, to tell a format change from a new device.
-    public var armedDevice: InputDeviceInfo?
+    /// The device as it was when last Ready, to tell a format change from a new device.
+    public var readyDevice: InputDeviceInfo?
     /// The sample rate choice (#195): nil is the interface's own rate.
     public var sampleRateChoice: Int?
-    /// Why the last Arm failed; nil once one works.
-    public var armError: String?
+    /// Why the last get-ready failed; nil once one works.
+    public var getReadyError: String?
     /// Why the last record or stop went wrong, or why a Take ended on its own; nil after a Take starts.
     public var recordError: String?
     /// When the running Take started, for the elapsed time.
     public private(set) var takeStartedAt: Date?
-    /// Whether the recorder was disarmed for sitting idle, so coming back should Arm it again.
-    public private(set) var disarmedForIdle = false
-    /// A re-Arm for a changed setting is waiting for a Take to finish saving (#932).
-    private var settingsArmWaiting = false
+    /// Whether the recorder was stood down for sitting idle, so coming back should get it ready again.
+    public private(set) var stoodDownForIdle = false
+    /// Getting ready again for a changed setting is waiting for a Take to finish saving (#932).
+    private var settingsGetReadyWaiting = false
     /// What to do about audio interruptions, and the banner they leave.
     public private(set) var interruptions = InterruptionPolicy()
     @ObservationIgnored private var toldInputStopped = false
     /// Whether the running Take is the Soundcheck's, so its end says so (#551).
     @ObservationIgnored private var soundcheckTake = false
 
-    /// Called after each attempt to Arm an interface, or to move input to a new one: with the device when it worked,
+    /// Called after each attempt to Get an interface ready, or to move input to a new one: with the device when it worked,
     /// nil when it failed. The App resets its meters and reads what the system offered here.
-    @ObservationIgnored public var didArm: (_ device: (any AudioIODevice)?) -> Void = { _ in }
+    @ObservationIgnored public var didGetReady: (_ device: (any AudioIODevice)?) -> Void = { _ in }
     /// A line worth logging about input (an interruption, a restart, a route change).
     @ObservationIgnored public var log: (String) -> Void = { _ in }
     /// Everything that happens, in order. One listener. With no one listening only the newest
     /// `eventBufferSize` are kept, so a stream nobody reads never grows. It ends when the sequencer goes away.
-    /// Every Take start and end is told, every Arm, each input stop and restart, and a disarm when the screen goes,
-    /// the app sits idle or the Armed interface is lost. Arming with no interface selected disarms without telling.
+    /// Every Take start and end is told, every get-ready, each input stop and restart, and a stand-down when the screen goes,
+    /// the app sits idle or the Ready interface is lost. Getting ready with no interface selected stands down without telling.
     public let events: AsyncStream<TakeEvent>
     @ObservationIgnored private let source: any InputDeviceSource
     public static let eventBufferSize = 32
@@ -149,58 +149,58 @@ public final class TakeSequencer {
         recorder.isRecording || recorder.isFinishing ? .askToStop : .quit
     }
 
-    /// The first Arm, once the App may use the input. Never Arms over an Armed recorder, because Arming again stops
+    /// The first get-ready, once the App may use the input. Never gets a Ready recorder ready again, because getting ready again stops
     /// the Take.
     public func start() {
-        if !recorder.isArmed { arm() }
+        if !recorder.isReady { getReady() }
         didStart = true
     }
 
-    /// The screen appeared, or came back: Arm if nothing is, never over a running Take. A screen being torn down
+    /// The screen appeared, or came back: Get ready if nothing is, never over a running Take. A screen being torn down
     /// and built again (iOS discarding a scene, a window closing) never ends a Take.
     public func screenAppeared() {
-        guard didStart, !recorder.isArmed else { return }
-        arm()
+        guard didStart, !recorder.isReady else { return }
+        getReady()
     }
 
-    /// The screen went away: disarm an unused recorder, never a running Take.
+    /// The screen went away: stand down an unused recorder, never a running Take.
     public func screenDisappeared() {
         guard !recorder.isRecording else { return }
-        let wasArmed = recorder.isArmed
-        recorder.disarm()
-        if wasArmed { emit.yield(.disarmed(reason: .screenGone)) }
+        let wasReady = recorder.isReady
+        recorder.standDown()
+        if wasReady { emit.yield(.stoodDown(reason: .screenGone)) }
     }
 
-    /// The operator chose an interface. Skips the one already Armed (as after a device change the sequencer Armed itself).
+    /// The operator chose an interface. Skips the one already Ready (as after a device change the sequencer Ready itself).
     public func select(_ id: String?) {
         selectedDeviceID = id
-        if recorder.isArmed, armedDevice?.id == id { return }
-        arm()
+        if recorder.isReady, readyDevice?.id == id { return }
+        getReady()
     }
 
-    /// Arms the selected Audio interface.
-    public func arm() {
+    /// Gets the selected Audio interface ready.
+    public func getReady() {
         guard let choice = devices.first(where: { $0.id == selectedDeviceID }) else {
-            recorder.disarm()
-            armedDevice = nil
+            recorder.standDown()
+            readyDevice = nil
             return
         }
-        let previous = armedDevice
+        let previous = readyDevice
         do {
-            armedDevice = nil
+            readyDevice = nil
             let device = try choice.make(sampleRateChoice, capsAt48k())
-            try recorder.arm(device)
-            armedDevice = choice.info
-            armError = nil
-            emit.yield(.armed(choice.info))
-            didArm(device)
+            try recorder.getReady(device)
+            readyDevice = choice.info
+            getReadyError = nil
+            emit.yield(.ready(choice.info))
+            didGetReady(device)
         } catch RecorderError.finishing {
             // The recorder kept the device it had, so the sequencer does too.
-            armedDevice = previous
-            armError = "Couldn't start \(choice.name): \(RecorderError.finishing.localizedDescription)"
+            readyDevice = previous
+            getReadyError = "Couldn't start \(choice.name): \(RecorderError.finishing.localizedDescription)"
         } catch {
-            armError = "Couldn't start \(choice.name): \(error)"
-            didArm(nil)
+            getReadyError = "Couldn't start \(choice.name): \(error)"
+            didGetReady(nil)
         }
     }
 
@@ -311,11 +311,11 @@ public final class TakeSequencer {
         }
     }
 
-    /// About once a second: clears the start time once no Take runs, and disarms an idle recorder. Every Take starts
+    /// About once a second: clears the start time once no Take runs, and stands down an idle recorder. Every Take starts
     /// through `record`, which tells its start (#551).
     public func tick() {
         if !recorder.isRecording, !recorder.isFinishing { takeStartedAt = nil }
-        disarmIfIdle()
+        standDownIfIdle()
     }
 
     /// The screen locked or the app left the front: start counting idle time.
@@ -323,44 +323,44 @@ public final class TakeSequencer {
         idle.becameIdle(at: now())
     }
 
-    /// The operator asked to Arm again (the alert's button). Arms only: never starts a Take.
-    public func armAgain() {
-        disarmedForIdle = false
-        arm()
+    /// The operator asked to Get ready again (the alert's button). Gets ready only: never starts a Take.
+    public func getReadyAgain() {
+        stoodDownForIdle = false
+        getReady()
     }
 
-    /// The app is in front again: stop counting, and Arm again if it was disarmed for being idle.
+    /// The app is in front again: stop counting, and get ready again if it was stood down for being idle.
     public func appBecameActive() {
         idle.becameActive()
-        if disarmedForIdle {
-            disarmedForIdle = false
-            arm()
+        if stoodDownForIdle {
+            stoodDownForIdle = false
+            getReady()
         }
     }
 
-    /// The Pre-roll length or the sample rate choice changed: re-Arm so the input uses it. Only between Takes; a
+    /// The Pre-roll length or the sample rate choice changed: get ready again so the input uses it. Only between Takes; a
     /// running Take keeps what it started with (Show-Safe Promise).
     public func settingsChanged() {
-        // A Take being saved is still the Take: re-Arm once it is on disk, or the Arm would fail with a false "Couldn't
-        // start" after a clean Take (#932). Several changes during one save make one Arm, as each Arm restarts the input.
-        if settingsArmWaiting { return }
+        // A Take being saved is still the Take: get ready again once it is on disk, or the get-ready would fail with a false "Couldn't
+        // start" after a clean Take (#932). Several changes during one save make one get-ready, as each get-ready restarts the input.
+        if settingsGetReadyWaiting { return }
         if recorder.isFinishing {
-            settingsArmWaiting = true
+            settingsGetReadyWaiting = true
             Task { [self] in
                 await recorder.waitWhileFinishing()
-                settingsArmWaiting = false
+                settingsGetReadyWaiting = false
                 settingsChanged()
             }
             return
         }
-        if recorder.isArmed, !recorder.isRecording { arm() }
+        if recorder.isReady, !recorder.isRecording { getReady() }
     }
 
-    /// The tier changed (the App Store answered, a purchase, a refund): re-Arm between Takes when the 48 kHz cap now
-    /// differs from the rate the input runs at (#316). A running Take keeps its rate; the change applies at the next Arm.
+    /// The tier changed (the App Store answered, a purchase, a refund): get ready again between Takes when the 48 kHz cap now
+    /// differs from the rate the input runs at (#316). A running Take keeps its rate; the change applies at the next get-ready.
     public func tierChanged() {
-        // A Take being saved is still the Take: decide once it is on disk, as `deviceListChanged` does, or the Arm would fail
-        // with a false "Couldn't start" after a clean Take and the new rate would wait for the next Arm (#884).
+        // A Take being saved is still the Take: decide once it is on disk, as `deviceListChanged` does, or the get-ready would fail
+        // with a false "Couldn't start" after a clean Take and the new rate would wait for the next get-ready (#884).
         if recorder.isFinishing {
             Task { [self] in
                 await recorder.waitWhileFinishing()
@@ -368,21 +368,21 @@ public final class TakeSequencer {
             }
             return
         }
-        guard recorder.isArmed, !recorder.isRecording, let rate = recorder.sampleRate else { return }
+        guard recorder.isReady, !recorder.isRecording, let rate = recorder.sampleRate else { return }
         let capped = capsAt48k()
-        if (capped && rate > 48_000) || (!capped && (sampleRateChoice ?? rate) > rate) { arm() }
+        if (capped && rate > 48_000) || (!capped && (sampleRateChoice ?? rate) > rate) { getReady() }
     }
 
-    /// The list of Audio interfaces changed (the Mac): keeps, switches, re-Arms or disarms as `InputDeviceChange`
+    /// The list of Audio interfaces changed (the Mac): keeps, switches, gets ready again or stands down as `InputDeviceChange`
     /// decides. A Take on an interface that went away or changed format ends as an input change, with its message.
     public func deviceListChanged() async {
-        // A Take being saved is still the Take: decide once it is on disk, so the Arm below can succeed.
+        // A Take being saved is still the Take: decide once it is on disk, so the get-ready below can succeed.
         await recorder.waitWhileFinishing()
         let fresh = source.devices()
         let change = InputDeviceChange.decide(
             old: devices.map(\.info), new: fresh.map(\.info),
             selectedID: selectedDeviceID,
-            armed: recorder.isArmed ? armedDevice : nil,
+            ready: recorder.isReady ? readyDevice : nil,
             isRecording: recorder.isRecording)
         devices = fresh
         if change.stopsTake {
@@ -397,24 +397,24 @@ public final class TakeSequencer {
         switch change.action {
         case .none:
             break
-        case .arm:
-            arm()
-        case .disarm:
-            recorder.disarm()
-            armedDevice = nil
-            didArm(nil)
-            emit.yield(.disarmed(reason: .deviceLost))
-            if !change.stopsTake { armError = change.message }
+        case .getReady:
+            getReady()
+        case .standDown:
+            recorder.standDown()
+            readyDevice = nil
+            didGetReady(nil)
+            emit.yield(.stoodDown(reason: .deviceLost))
+            if !change.stopsTake { getReadyError = change.message }
         }
     }
 
     /// The iOS input route really changed (the App filters out its own changes and selects the route's input first):
-    /// re-Arm between Takes, move a running Take onto the new route, as `InterruptionPolicy.routeChanged` decides.
+    /// get ready again between Takes, move a running Take onto the new route, as `InterruptionPolicy.routeChanged` decides.
     public func routeChanged() async {
         await recorder.waitWhileFinishing()
         switch interruptions.routeChanged(isRecording: recorder.isRecording) {
         case .none: break
-        case .rearm: arm()
+        case .getReadyAgain: getReady()
         case .moveInput: await moveTakeToCurrentRoute()
         }
     }
@@ -426,9 +426,9 @@ public final class TakeSequencer {
         do {
             let device = try source.currentRouteDevice(sampleRate: recorder.sampleRate)
             let continued = try await recorder.restartInput(on: device)
-            armedDevice = devices.first { $0.id == selectedDeviceID }?.info
-            if !continued, let armedDevice { emit.yield(.armed(armedDevice)) }
-            didArm(device)
+            readyDevice = devices.first { $0.id == selectedDeviceID }?.info
+            if !continued, let readyDevice { emit.yield(.ready(readyDevice)) }
+            didGetReady(device)
             log("Input route changed during a Take; \(continued ? "the Take continues" : "the format changed, so the Take was stopped and saved")")
             if !continued { recordError = TakeEnd.Reason.inputChanged.message }
             // A retry that works ends the "input is stopped" state the failed move left behind.
@@ -481,11 +481,11 @@ public final class TakeSequencer {
                 let device = try choice.make(recorder.sampleRate ?? sampleRateChoice, false)
                 let continued = try await recorder.restartInput(on: device)
                 if !continued {
-                    // A new format re-Armed the recorder on the new device.
-                    armedDevice = choice.info
-                    emit.yield(.armed(choice.info))
+                    // A new format re-Ready the recorder on the new device.
+                    readyDevice = choice.info
+                    emit.yield(.ready(choice.info))
                 }
-                didArm(device)
+                didGetReady(device)
                 await handle(wasRecording && !continued ? .takeEndedByReset : .restarted)
             } catch {
                 await handle(.restartFailed(String(describing: error)))
@@ -493,13 +493,13 @@ public final class TakeSequencer {
         }
     }
 
-    /// Disarms an unused recorder that has been idle for 30 minutes. Never during a Take.
-    private func disarmIfIdle() {
-        guard recorder.isArmed, idle.shouldDisarm(at: now(), isRecording: recorder.isRecording) else { return }
-        recorder.disarm()
-        armedDevice = nil
-        disarmedForIdle = true
-        emit.yield(.disarmed(reason: .idle))
+    /// Stands down an unused recorder that has been idle for 30 minutes. Never during a Take.
+    private func standDownIfIdle() {
+        guard recorder.isReady, idle.shouldStandDown(at: now(), isRecording: recorder.isRecording) else { return }
+        recorder.standDown()
+        readyDevice = nil
+        stoodDownForIdle = true
+        emit.yield(.stoodDown(reason: .idle))
     }
 
     /// The recorder ended a Take, whoever ended it: told at once, not on the next tick.

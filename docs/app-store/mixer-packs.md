@@ -16,8 +16,8 @@ From Apple's "In-app purchase information" page: Reference Name up to 64 charact
 
 - **Type:** Non-Consumable, like Pro.
 - **Family Sharing: On**, the same setting as Pro (Eric, #705; ADR 0004). It can't be turned off later.
-- **A pack is Pro on its own Mixer family only:** the family of the Armed Audio interface, recognized from its name (`MixerFamily(audioInterfaceName:)`). Any other input, including the built-in microphone and the Demo signal, stays Free (or Trial).
-- **Who sees what** (`PackOffer.items`): no pack yet, with an X Air or X32 Armed: that family's pack first, Pro beside it. A generic input: Pro only. Someone who bought a pack: only the upgrade, never a second pack. Someone whose only pack is Family Shared: Pro only, no upgrade (`PackOffer.swift:38-40`).
+- **A pack is Pro on its own Mixer family only:** the family of the Ready Audio interface, recognized from its name (`MixerFamily(audioInterfaceName:)`). Any other input, including the built-in microphone and the Demo signal, stays Free (or Trial).
+- **Who sees what** (`PackOffer.items`): no pack yet, with an X Air or X32 Ready: that family's pack first, Pro beside it. A generic input: Pro only. Someone who bought a pack: only the upgrade, never a second pack. Someone whose only pack is Family Shared: Pro only, no upgrade (`PackOffer.swift:38-40`).
 - **The upgrade counts as Pro only while a pack is still owned** (`ProPurchases.init`): an upgrade this person bought needs a pack they bought, so refunding the pack takes Pro back; an upgrade shared with them rests on any pack shared with them.
 - **The stage** is set in code (`PriceStage.current`, now `.launch`); "Launch price" shows under the offers at the Launch stage only. Each step moves App Store Connect's prices and that line by hand, on your go.
 
@@ -39,10 +39,10 @@ The upgrade is the nearest App Store price point below Pro minus a pack: $4.99 �
 - [ ] **Family Sharing: On.**
 - [ ] **Availability:** every country Pro is in. Not before `PackAvailability` moves past Debug.
 - [ ] **Localization (English U.S.):** Display Name `Mixer pack: 18-channel` (22 of 30; Eric, 2026-10-18). Description `Everything in Pro, with an XR18 or MR18` (39): the model names live only here.
-- [ ] **Covers:** the X Air family, `MixerFamily.xAir`: an Audio interface named XR18, MR18 or X18 (the Mac shows "X18/XR18"). The XR12 and XR16 send no multichannel USB, so they never Arm as an X Air.
+- [ ] **Covers:** the X Air family, `MixerFamily.xAir`: an Audio interface named XR18, MR18 or X18 (the Mac shows "X18/XR18"). The XR12 and XR16 send no multichannel USB, so they never get ready as an X Air.
 - [ ] **Review notes** (paste):
-  > The X Air pack unlocks everything Pro does, but only while a Behringer XR18 or MR18 is the Audio interface the app is recording from (Settings > Recording > Audio interface). It is offered in Settings > Pro and in the Pro screen ("See what Pro adds") only while one of those mixers is connected over USB. Without one, Arm the Demo signal input (Settings > Recording > Audio interface): in this build it stands in for an XR18, so the pack is offered. The screenshot shows Settings > Pro on an iPhone with an XR18 connected. ShowRecorder Pro, the upgrade and this pack are non-consumables; Restore Purchases is in Settings > Pro.
-- [ ] **Review screenshot:** the Pro screen (paywall) on an iPhone with the XR18 Armed and nothing bought: the headline "Pro for your XR18", the button "Buy X Air pack, $2.99" above "Buy Pro, $4.99", and "Launch price" under them. Taken from Eric's iPhone and XR18 (a Debug build with the StoreKit configuration shows the same screen).
+  > The X Air pack unlocks everything Pro does, but only while a Behringer XR18 or MR18 is the Audio interface the app is recording from (Settings > Recording > Audio interface). It is offered in Settings > Pro and in the Pro screen ("See what Pro adds") only while one of those mixers is connected over USB. Without one, get the Demo signal input ready (Settings > Recording > Audio interface): in this build it stands in for an XR18, so the pack is offered. The screenshot shows Settings > Pro on an iPhone with an XR18 connected. ShowRecorder Pro, the upgrade and this pack are non-consumables; Restore Purchases is in Settings > Pro.
+- [ ] **Review screenshot:** the Pro screen (paywall) on an iPhone with the XR18 Ready and nothing bought: the headline "Pro for your XR18", the button "Buy X Air pack, $2.99" above "Buy Pro, $4.99", and "Launch price" under them. Taken from Eric's iPhone and XR18 (a Debug build with the StoreKit configuration shows the same screen).
 
 ## X32 pack: deferred
 
@@ -56,8 +56,8 @@ The upgrade is the nearest App Store price point below Pro minus a pack: $4.99 �
 - [ ] **Availability:** as the packs.
 - [ ] **Localization (English U.S.):** Display Name `Upgrade to Pro` (14 of 30). Description `Pro on every mixer, for a pack owner` (36 of 45). No brand name either way.
 - [ ] **Review notes** (paste):
-  > Upgrade to Pro is offered only to someone who bought the mixer pack themselves, not one shared through Family Sharing. It then replaces the Buy Pro button in Settings > Pro and on the Pro screen, at Pro's price minus the pack's. It unlocks Pro on every input, and counts only while that pack is still owned: if the pack is refunded, the upgrade stops unlocking Pro. Reaching it needs a bought pack: in this review build, Arm the Demo signal input, buy the mixer pack, then this upgrade is offered. The screenshot shows Settings > Pro after buying the X Air pack.
-- [ ] **Review screenshot:** Settings > Pro with the X Air pack bought and no Pro: Plan "X Air pack", "Upgrade to Pro, $1.99", "Launch price", Restore Purchases. Any input can be Armed for this one: the offer depends on what's owned, not on the input. A Debug build with the StoreKit configuration (buy the pack in Xcode) or a sandbox account gets there.
+  > Upgrade to Pro is offered only to someone who bought the mixer pack themselves, not one shared through Family Sharing. It then replaces the Buy Pro button in Settings > Pro and on the Pro screen, at Pro's price minus the pack's. It unlocks Pro on every input, and counts only while that pack is still owned: if the pack is refunded, the upgrade stops unlocking Pro. Reaching it needs a bought pack: in this review build, get the Demo signal input ready, buy the mixer pack, then this upgrade is offered. The screenshot shows Settings > Pro after buying the X Air pack.
+- [ ] **Review screenshot:** Settings > Pro with the X Air pack bought and no Pro: Plan "X Air pack", "Upgrade to Pro, $1.99", "Launch price", Restore Purchases. Any input can be Ready for this one: the offer depends on what's owned, not on the input. A Debug build with the StoreKit configuration (buy the pack in Xcode) or a sandbox account gets there.
 
 ## Brand names (Guideline 2.3.7): decided
 
@@ -78,14 +78,14 @@ Why that reaches App Review and never a customer: the Demo signal is offered onl
 
 Add to [`review-notes.md`](review-notes.md) under "In-app purchases" when packs ship:
 
-> - The mixer pack is a non-consumable (Family Sharing on) that unlocks everything Pro does while an XR18 or MR18 is the USB audio interface. Without one, Arm the Demo signal input (Settings > Recording > Audio interface): in this build it stands in for that mixer, so the pack is offered in Settings > Pro and on the Pro screen. "Upgrade to Pro" is offered after buying the pack.
+> - The mixer pack is a non-consumable (Family Sharing on) that unlocks everything Pro does while an XR18 or MR18 is the USB audio interface. Without one, get the Demo signal input ready (Settings > Recording > Audio interface): in this build it stands in for that mixer, so the pack is offered in Settings > Pro and on the Pro screen. "Upgrade to Pro" is offered after buying the pack.
 
 ## Copy check (app vs site and listing, 2026-10-18)
 
 The site and `listing.md` say nothing about packs, which is right while packs are Debug-only; each line below becomes a mismatch the day `PackAvailability` moves. Nothing in the app was changed here.
 
 1. `App/ShowRecorder.storekit` (Pro): description "Record every USB Channel, with your own channel names, the Show report, Reaper export, 96 kHz and venue Templates." Free records every USB Channel since #703; the site and listing say so. Fix: the final App Store text (45 at most), such as "Mixer names, Drive copy, report, 96 kHz" (39).
-2. `App/ShowRecorder.storekit` (packs, upgrade): "Everything Pro does, while an X Air mixer is the Armed input." (61, over 45; "Armed input" is our word, not a buyer's) and "Pro on every input, for an owner of a mixer pack." (49). Fix: the descriptions drafted above.
+2. `App/ShowRecorder.storekit` (packs, upgrade): "Everything Pro does, while an X Air mixer is the Ready input." (61, over 45; "Ready input" is our word, not a buyer's) and "Pro on every input, for an owner of a mixer pack." (49). Fix: the descriptions drafted above.
 3. `App/PaywallSheet.swift:40` and `App/ProSection.swift:36`: "Buy X Air pack" says nothing about the pack covering one family; the paywall's feature list beneath it is Pro's. Nothing on the site or listing explains packs yet. Fix: a footnote under a pack offer, such as "The X Air pack is Pro while an XR18 or MR18 is the Audio interface. Pro covers every one."
 4. `App/ProSection.swift:83` (footer, shown to a pack owner whose plan reads "X Air pack"): "Free records every USB Channel on the Device. Pro is a one-time purchase…". For a pack owner it reads as if they had nothing. Fix: a pack owner's footer, such as "Your X Air pack is Pro while an XR18 or MR18 is the Audio interface. Upgrade to Pro for every one."
 5. `App/PaywallSheet.swift:63` with `ProOffer.swift:131`: the upgrade-only paywall is headed "ShowRecorder Pro" and lists Pro's features, which a pack owner already has on their family. Fix: a headline for the upgrade, such as "Pro on every Audio interface".
@@ -103,19 +103,19 @@ The site and `listing.md` say nothing about packs, which is right while packs ar
 
 The StoreKit configuration has all five products with matching IDs, non-consumable, Family Sharing on for Pro, the packs and the upgrade (off for the Trial), at Launch prices: Pro $4.99, packs $2.99, upgrade $1.99. Reset purchases between parts (Debug > StoreKit > Manage Transactions, delete all). This checks StoreKit and the app's rules; it is not a real-device TestFlight Take.
 
-- [ ] **Launch price and plan line:** nothing bought, XR18 Armed: Settings > Pro shows Plan "Free", "Buy X Air pack $2.99", "Buy Pro $4.99", "Launch price". The paywall shows "Pro for your XR18" (the linked Mixer's model; "Pro for your X Air" with Mixer Link down).
-- [ ] **Buy the X Air pack with an X Air Armed:** the sheet closes only when the pack came through, not on Cancel. Plan reads "X Air pack". The offers are now "Upgrade to Pro $1.99" only, no X32 pack, no Buy Pro.
-- [ ] **Record press on the pack's family:** with the XR18 Armed, a Take gets Mixer names on its Stems, unlimited Markers, the Show report and Reaper project, 96 kHz if chosen, and Templates.
-- [ ] **Record press on another family or a generic input:** Arm the built-in microphone, the Demo signal (or an EVO 4 or an X32): the Take is Free (generic names, 3 Markers, Device only), with no limit applied mid-Take. Re-Arm the XR18: Pro again from the next press.
-- [ ] **Settings > Storage, Record to on a pack:** with the XR18 Armed, Drive and Both are offered plainly and a Take writes to the Drive. With another input Armed, they read "Drive (Pro)" and "Both (Pro)", choosing one opens the Pro screen, "On Free, Takes record to this iPhone only…" shows, and a Take goes to the Device only (`license().allowsDrive` on its family only).
-- [ ] **The Demo signal Armed, nothing bought:** the X Air pack is offered first, as with an XR18 (the review path; needs its PR merged). The headline names the X Air.
-- [ ] **The other family Armed, nothing bought:** with an X32 (or M32) Armed, the X32 pack is offered first. A generic input: Buy Pro only.
+- [ ] **Launch price and plan line:** nothing bought, XR18 Ready: Settings > Pro shows Plan "Free", "Buy X Air pack $2.99", "Buy Pro $4.99", "Launch price". The paywall shows "Pro for your XR18" (the linked Mixer's model; "Pro for your X Air" with Mixer Link down).
+- [ ] **Buy the X Air pack with an X Air Ready:** the sheet closes only when the pack came through, not on Cancel. Plan reads "X Air pack". The offers are now "Upgrade to Pro $1.99" only, no X32 pack, no Buy Pro.
+- [ ] **Record press on the pack's family:** with the XR18 Ready, a Take gets Mixer names on its Stems, unlimited Markers, the Show report and Reaper project, 96 kHz if chosen, and Templates.
+- [ ] **Record press on another family or a generic input:** Get the built-in microphone, the Demo signal (or an EVO 4 or an X32) ready: the Take is Free (generic names, 3 Markers, Device only), with no limit applied mid-Take. Get the XR18 ready again: Pro again from the next press.
+- [ ] **Settings > Storage, Record to on a pack:** with the XR18 Ready, Drive and Both are offered plainly and a Take writes to the Drive. With another input Ready, they read "Drive (Pro)" and "Both (Pro)", choosing one opens the Pro screen, "On Free, Takes record to this iPhone only…" shows, and a Take goes to the Device only (`license().allowsDrive` on its family only).
+- [ ] **The Demo signal Ready, nothing bought:** the X Air pack is offered first, as with an XR18 (the review path; needs its PR merged). The headline names the X Air.
+- [ ] **The other family Ready, nothing bought:** with an X32 (or M32) Ready, the X32 pack is offered first. A generic input: Buy Pro only.
 - [ ] **Buy the upgrade:** after the bought X Air pack, buy "Upgrade to Pro": Plan "Pro", no offers, Pro on every input.
 - [ ] **Refund the pack under the upgrade:** in Manage Transactions, refund the X Air pack: Pro goes (the upgrade needs a pack bought by this person), Plan back to "Free", offers back. Refund the upgrade alone with the pack kept: Plan "X Air pack", the upgrade offered again.
 - [ ] **Family Shared pack:** Pro only, no upgrade offer; the plan still reads "X Air pack". **Unconfirmed whether Xcode's transaction manager can mark a transaction Family Shared**; I found no such option in the configuration file. If it can't, this is covered by `ProPurchasesTests` and `PackOfferTests` and checked once on a sandbox family in TestFlight.
 - [ ] **Restore:** with only a pack bought, Restore Purchases says "Restored: X Air pack"; with Pro, nothing; with nothing, "No Pro purchase found for this Apple Account." (see copy item 6).
 - [ ] **Ask to Buy / pending:** with Ask to Buy on, buying a pack says "Waiting for approval…" and unlocks nothing until approved.
-- [ ] **Cold start with last-known packs:** buy a pack, quit, turn off the network (or break StoreKit with the configuration's fail options), relaunch with the XR18 Armed: the first record press is already Pro on the X Air, from `proPurchases.ownedPacks` / `proPurchases.boughtPacks` in UserDefaults, and the upgrade (not a pack) is offered.
+- [ ] **Cold start with last-known packs:** buy a pack, quit, turn off the network (or break StoreKit with the configuration's fail options), relaunch with the XR18 Ready: the first record press is already Pro on the X Air, from `proPurchases.ownedPacks` / `proPurchases.boughtPacks` in UserDefaults, and the upgrade (not a pack) is offered.
 - [ ] **Trial plus a pack:** start the Trial while owning a pack: Plan says the Trial, not the pack, and every input is Pro until it ends; then the pack rule again.
 - [ ] **Auto-gain on a pack** (where it's offered): it runs on the pack's family; it is judged when it runs, not at record.
 

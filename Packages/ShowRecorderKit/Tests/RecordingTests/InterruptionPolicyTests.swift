@@ -47,8 +47,8 @@ struct InterruptionPolicyTests {
         #expect(policy.handle(.interruptionEnded(shouldResume: false), isRecording: true).action == .restartInput)
     }
 
-    @Test("Armed without a Take, input waits for the app to come forward when the system says not to resume")
-    func endedWithoutResumeWhileArmed() {
+    @Test("Ready without a Take, input waits for the app to come forward when the system says not to resume")
+    func endedWithoutResumeWhileReady() {
         var policy = InterruptionPolicy()
         _ = policy.handle(.interruptionBegan(reason: .other), isRecording: false)
         #expect(policy.handle(.interruptionEnded(shouldResume: false), isRecording: false).action == .none)
@@ -86,8 +86,8 @@ struct InterruptionPolicyTests {
         #expect(policy.notice?.contains("missing") == true)
     }
 
-    @Test("After a restart while only Armed, the notice clears")
-    func restartedWhileArmedClearsNotice() {
+    @Test("After a restart while only Ready, the notice clears")
+    func restartedWhileReadyClearsNotice() {
         var policy = InterruptionPolicy()
         _ = policy.handle(.interruptionBegan(reason: .other), isRecording: false)
         _ = policy.handle(.interruptionEnded(shouldResume: true), isRecording: false)
@@ -136,13 +136,13 @@ struct InterruptionPolicyTests {
         #expect(policy.handle(.becameActive, isRecording: true).action == .replaceDevice)
     }
 
-    @Test("An iOS route change while only Armed re-arms on the new route")
-    func routeChangeWhileArmedRearms() {
+    @Test("An iOS route change while only Ready gets ready again on the new route")
+    func routeChangeWhileReadyGetsReadyAgain() {
         var policy = InterruptionPolicy()
-        #expect(policy.routeChanged(isRecording: false) == .rearm)
+        #expect(policy.routeChanged(isRecording: false) == .getReadyAgain)
     }
 
-    @Test("An iOS route change during a Take moves input to the new route instead of re-arming, so the Take isn't ended")
+    @Test("An iOS route change during a Take moves input to the new route instead of getting ready again, so the Take isn't ended")
     func routeChangeDuringTakeMovesInput() {
         var policy = InterruptionPolicy()
         #expect(policy.routeChanged(isRecording: true) == .moveInput)

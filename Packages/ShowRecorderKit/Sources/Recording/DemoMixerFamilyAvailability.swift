@@ -23,10 +23,10 @@ public enum DemoMixerFamilyAvailability {
 }
 
 extension MixerFamily {
-    /// The Armed input's family for packs and the license (#705): an X Air for the Demo signal where
+    /// The Ready input's family for packs and the license (#705): an X Air for the Demo signal where
     /// `DemoMixerFamilyAvailability` allows it (`demoCounts`), none for it otherwise; any other input's family from its
     /// interface name.
-    public static func armed(interfaceName: String, isDemo: Bool, demoCounts: Bool) -> MixerFamily? {
+    public static func ready(interfaceName: String, isDemo: Bool, demoCounts: Bool) -> MixerFamily? {
         if isDemo { return demoCounts ? .xAir : nil }
         return MixerFamily(audioInterfaceName: interfaceName)
     }

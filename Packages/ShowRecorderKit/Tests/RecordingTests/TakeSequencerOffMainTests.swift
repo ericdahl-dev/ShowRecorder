@@ -46,7 +46,7 @@ struct TakeSequencerOffMainTests {
     @Test("Recording off the main actor starts the Take, tells it, and stamps its start")
     func startsATake() async {
         let (sequencer, recorder) = makeSequencer(Asks())
-        sequencer.arm()
+        sequencer.getReady()
         var events = sequencer.events.makeAsyncIterator()
 
         let started = await sequencer.recordOffMain(sources: [], allowance: nil)
@@ -55,7 +55,7 @@ struct TakeSequencerOffMainTests {
         #expect(recorder.isRecording)
         #expect(sequencer.takeStartedAt != nil)
         #expect(sequencer.recordError == nil)
-        #expect(await events.next(isolation: #isolation) == .armed(sequencer.armedDevice!))
+        #expect(await events.next(isolation: #isolation) == .ready(sequencer.readyDevice!))
         #expect(await events.next(isolation: #isolation) == .takeStarted(take: 1))
         await sequencer.stop()
     }
@@ -66,7 +66,7 @@ struct TakeSequencerOffMainTests {
         asks.holds = true
         defer { asks.gate.open() }
         let (sequencer, recorder) = makeSequencer(asks)
-        sequencer.arm()
+        sequencer.getReady()
 
         let starting = Task { @MainActor in await sequencer.recordOffMain(sources: [], allowance: nil) }
         await waitForTheDrive(asks)
@@ -99,7 +99,7 @@ struct TakeSequencerOffMainTests {
         asks.holds = true
         defer { asks.gate.open() }
         let (sequencer, recorder) = makeSequencer(asks)
-        sequencer.arm()
+        sequencer.getReady()
 
         let starting = Task { @MainActor in await sequencer.recordOffMain(sources: [], allowance: nil) }
         await waitForTheDrive(asks)

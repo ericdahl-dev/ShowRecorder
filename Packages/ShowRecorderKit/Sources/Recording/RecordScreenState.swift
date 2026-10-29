@@ -9,14 +9,14 @@ import WatchRemote
 /// second of a show.
 public struct RecordScreenSnapshot: Equatable, Sendable {
     // The input
-    public var isArmed = false
+    public var isReady = false
     public var isRecording = false
     /// A Take is running or starting, or its Stems are still being written.
     public var takeBusy = false
     public var isRepairing = false
     public var micDenied = false
-    public var armError: String?
-    public var disarmedForIdle = false
+    public var getReadyError: String?
+    public var stoodDownForIdle = false
     public var hasInputs = false
     public var recordError: String?
     /// A real reason some USB Channels won't be recorded, as the alert says it.
@@ -54,7 +54,7 @@ public struct RecordScreenSnapshot: Equatable, Sendable {
     public var recordTo = RecordTo.both
     /// Whether a Take pressed now would also go to the Drive (the License, #705).
     public var driveAllowed = true
-    public var armedDeviceName: String?
+    public var readyDeviceName: String?
     public var showName: String?
     public var takeStartedAt: Date?
     public var markerCount = 0
@@ -151,19 +151,19 @@ public struct RecordScreenState: Equatable, Sendable {
         } : nil
         let driveAvailable = if case .available = s.driveStatus { true } else { false }
         return WatchStatusMaker.make(
-            isArmed: s.isArmed, take: take, chips: chips(s), driveAvailable: driveAvailable, copies: s.copies,
+            isReady: s.isReady, take: take, chips: chips(s), driveAvailable: driveAvailable, copies: s.copies,
             dropoutCount: s.isRecording ? s.dropoutCount : 0, mixerDown: s.mixerDown, now: now)
     }
 
-    /// Just the Armed device's name, for the one-line landscape header.
+    /// Just the Ready device's name, for the one-line landscape header.
     public func compactInputSummary(_ s: RecordScreenSnapshot) -> String {
-        s.isArmed ? (s.armedDeviceName ?? "Audio interface") : "No audio interface"
+        s.isReady ? (s.readyDeviceName ?? "Audio interface") : "No audio interface"
     }
 
-    /// The Armed device's name and channel count, for the header.
+    /// The Ready device's name and channel count, for the header.
     public func inputSummary(_ s: RecordScreenSnapshot) -> String {
-        guard s.isArmed else { return recordBlock(s)?.text ?? "Choose the Mixer's audio interface in Settings" }
-        let name = s.armedDeviceName ?? "Audio interface"
+        guard s.isReady else { return recordBlock(s)?.text ?? "Choose the Mixer's audio interface in Settings" }
+        let name = s.readyDeviceName ?? "Audio interface"
         return "\(name) · \(Self.usbChannelSummary(s.usbChannelCount))"
     }
 
@@ -186,8 +186,8 @@ public struct RecordScreenState: Equatable, Sendable {
     /// Why Record is dimmed, when it is, and what to offer.
     public func recordBlock(_ s: RecordScreenSnapshot) -> RecordAvailability.Block? {
         RecordAvailability.block(
-            isArmed: s.isArmed, isRecording: s.isRecording, micDenied: s.micDenied,
-            armFailed: s.armError != nil && !s.micDenied, disarmedForIdle: s.disarmedForIdle, hasInputs: s.hasInputs)
+            isReady: s.isReady, isRecording: s.isRecording, micDenied: s.micDenied,
+            getReadyFailed: s.getReadyError != nil && !s.micDenied, stoodDownForIdle: s.stoodDownForIdle, hasInputs: s.hasInputs)
     }
 
     /// How each Copy of the last Take stands, shown once recording has stopped.
@@ -201,9 +201,9 @@ public struct RecordScreenState: Equatable, Sendable {
     /// Every alert the screen could show, in the order the App raised them: the queue sorts by priority and keeps this order within one.
     private func raised(_ s: RecordScreenSnapshot) -> [ScreenAlert] {
         var list: [ScreenAlert] = []
-        if let error = s.armError {
-            list.append(ScreenAlert(id: "arm", priority: .cannotRecord, tone: .critical, text: error, action: s.micDenied ? .openSystemSettings : .arm))
-        } else if s.disarmedForIdle, let block = recordBlock(s) {
+        if let error = s.getReadyError {
+            list.append(ScreenAlert(id: "getReady", priority: .cannotRecord, tone: .critical, text: error, action: s.micDenied ? .openSystemSettings : .getReady))
+        } else if s.stoodDownForIdle, let block = recordBlock(s) {
             list.append(ScreenAlert(id: "idle", priority: .cannotRecord, tone: .warning, text: block.text, action: block.action))
         }
         if let error = s.recordError {

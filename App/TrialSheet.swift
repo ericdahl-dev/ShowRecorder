@@ -45,7 +45,7 @@ struct TrialSheet: View {
         #endif
     }
 
-    /// Whether the Trial has started, so the sheet can close: the plan as owned, so a pack on the Armed family doesn't hide the Trial (#889).
+    /// Whether the Trial has started, so the sheet can close: the plan as owned, so a pack on the Ready family doesn't hide the Trial (#889).
     static func trialStarted(_ store: ProStore) -> Bool {
         if case .trial = store.planLicense().tier { true } else { false }
     }
@@ -106,7 +106,7 @@ struct TrialStatusSheet: View {
         #endif
     }
 
-    /// The plan the sheet describes: the plan as owned, so a pack on the Armed family doesn't hide the Trial (#889).
+    /// The plan the sheet describes: the plan as owned, so a pack on the Ready family doesn't hide the Trial (#889).
     static func tier(_ store: ProStore) -> Tier? {
         store.planLicense().tier
     }

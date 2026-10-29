@@ -19,10 +19,10 @@ final class ProStore {
     /// Whether Pro is owned and when the Trial started.
     var purchases: ProPurchases { status.purchases }
     /// Called when the known tier or owned packs change (the App Store answered, a purchase, a refund; #705), so the
-    /// recorder can re-Arm between Takes at the rate it may now use.
+    /// recorder can get ready again between Takes at the rate it may now use.
     @ObservationIgnored var onTierChange: (() -> Void)?
-    /// The Armed input's Mixer family, set by the record screen model, so an owned pack counts on its own family (#705).
-    @ObservationIgnored var armedFamily: () -> MixerFamily? = { nil }
+    /// The Ready input's Mixer family, set by the record screen model, so an owned pack counts on its own family (#705).
+    @ObservationIgnored var readyFamily: () -> MixerFamily? = { nil }
     /// The Pro product, once loaded. Nil until then, or when the App Store doesn't offer it.
     private(set) var proProduct: Product?
     /// The $0 14-day Trial product, once loaded.
@@ -67,16 +67,16 @@ final class ProStore {
 
     /// What the operator may do right now. Every Pro, Free and Trial question goes through it (#439).
     func license(now: Date = Date()) -> License {
-        status.license(proOffered: Self.isOffered, armedFamily: armedFamily(), now: signedClock.now(clock: now))
+        status.license(proOffered: Self.isOffered, readyFamily: readyFamily(), now: signedClock.now(clock: now))
     }
 
-    /// The plan as owned, whatever is Armed (#705): for Settings' plan line and offers, so they don't change with the
-    /// input and a running Trial isn't hidden by a pack on the Armed family. Record press and limits use `license()`.
+    /// The plan as owned, whatever is Ready (#705): for Settings' plan line and offers, so they don't change with the
+    /// input and a running Trial isn't hidden by a pack on the Ready family. Record press and limits use `license()`.
     func planLicense(now: Date = Date()) -> License {
         status.license(proOffered: Self.isOffered, now: signedClock.now(clock: now))
     }
 
-    /// The days-left chip on the record screen during a Trial: the plan as owned, so a pack on the Armed family doesn't
+    /// The days-left chip on the record screen during a Trial: the plan as owned, so a pack on the Ready family doesn't
     /// hide it (#889).
     var trialChip: PowerStatus.Chip? { planLicense().chip }
 
@@ -108,7 +108,7 @@ final class ProStore {
     /// What the Trial sheets offer: the upgrade to someone who bought a pack, as the paywall and Settings do (#962); else Pro.
     var trialOffer: PackOffer.Item {
         let items = PackOffer.items(
-            ownsPro: purchases.ownsPro, armedFamily: nil, ownedPacks: purchases.ownedPacks,
+            ownsPro: purchases.ownsPro, readyFamily: nil, ownedPacks: purchases.ownedPacks,
             boughtPacks: purchases.boughtPacks, packsOffered: PackAvailability.isAvailableInThisBuild)
         return items.contains(.upgrade) ? .upgrade : .pro
     }

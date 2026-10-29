@@ -30,7 +30,7 @@ struct MarkerListTests {
     func listsMarkers() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         #expect(recorder.markerEntries.isEmpty)
         audio.deliver([Array(repeating: 0, count: 4_800)])
@@ -49,7 +49,7 @@ struct MarkerListTests {
     func dropoutInTheList() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0, count: 4_800)])
         audio.deliver([Array(repeating: 0, count: 300_000)])  // more than a ring holds: dropped
@@ -68,7 +68,7 @@ struct MarkerListTests {
     func dropoutAppearsWithoutAMarker() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0, count: 4_800)])
         audio.deliver([Array(repeating: 0, count: 300_000)])
@@ -83,7 +83,7 @@ struct MarkerListTests {
     func staysAfterTheTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0, count: 4_800)])
         recorder.addMarker()
@@ -109,7 +109,7 @@ struct MarkerListTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let released = ReleaseCounter()
         let recorder = recorder(released: released)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0, count: 4_800)])
         recorder.addMarker()
@@ -138,7 +138,7 @@ struct MarkerListTests {
         let recorder = Recorder(
             deviceFolder: device, driveFolder: { flag.available ? DriveAccess(folder: drive) : nil },
             now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0, count: 4_800)])
         recorder.addMarker()
@@ -159,7 +159,7 @@ struct MarkerListTests {
     func nothingToRename() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         #expect(await recorder.renameLastTakeMarker(at: 0, to: "Intro").result == .notRecording)
 
         try recorder.startTake()
@@ -177,8 +177,8 @@ struct MarkerListTests {
         let recorder = Recorder(
             deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
             preRollSeconds: 1, destinationCheckInterval: nil)
-        try recorder.arm(audio)
-        audio.deliver([Array(repeating: 0, count: 48_000)])  // 1 s Armed: the Pre-roll
+        try recorder.getReady(audio)
+        audio.deliver([Array(repeating: 0, count: 48_000)])  // 1 s Ready: the Pre-roll
         try recorder.startTake()
         audio.deliver([Array(repeating: 0, count: 4_800)])
         recorder.addMarker()
@@ -194,7 +194,7 @@ struct MarkerListTests {
     func noPreRollSameTimes() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0, count: 4_800)])
         recorder.addMarker()

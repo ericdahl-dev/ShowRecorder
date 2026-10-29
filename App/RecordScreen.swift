@@ -9,7 +9,7 @@ import TakeActivity
 import AVFAudio
 #endif
 
-/// The record screen. While it is showing, the recorder is Armed on the chosen device.
+/// The record screen. While it is showing, the recorder is Ready on the chosen device.
 ///
 /// It shows the Take, not its setup: meters, transport, Markers, one status strip and one alert.
 /// Input, Drive and Mixer Link are set in Settings.
@@ -73,7 +73,7 @@ struct RecordScreen: View {
 
     var body: some View {
         // One root for both layouts. The task, idle timer, sheet and dialog below hang on it, so rotating
-        // swaps the arrangement but never goes away (which would disarm the recorder).
+        // swaps the arrangement but never goes away (which would stand down the recorder).
         ZStack {
             if isLandscape { landscape } else { portrait }
         }
@@ -177,7 +177,7 @@ struct RecordScreen: View {
         // Keep the screen awake while the record screen is showing.
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
-        // A sheet, so opening Settings never takes the record screen (and the Armed recorder) away.
+        // A sheet, so opening Settings never takes the record screen (and the Ready recorder) away.
         .sheet(isPresented: $showingSettings) {
             NavigationStack {
                 SettingsView(model: model, scrollTo: settingsSection)
@@ -249,7 +249,7 @@ struct RecordScreen: View {
                 AlertSlot(queue: model.alerts, perform: model.perform, swipe: model.swipe)
             }
             MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.linkedSources, typedNames: model.recorder.channelNames, nameChannel: nameChannel)
-                .overlay { if let block = model.recordBlock { DisarmedNotice(block: block, perform: model.perform) } }
+                .overlay { if let block = model.recordBlock { StoodDownNotice(block: block, perform: model.perform) } }
             transport
         }
         .padding()
@@ -270,7 +270,7 @@ struct RecordScreen: View {
             HStack(alignment: .top, spacing: 12) {
                 if model.transportLeading { transportColumn }
                 MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.linkedSources, typedNames: model.recorder.channelNames, nameChannel: nameChannel, compact: true)
-                    .overlay { if let block = model.recordBlock { DisarmedNotice(block: block, perform: model.perform) } }
+                    .overlay { if let block = model.recordBlock { StoodDownNotice(block: block, perform: model.perform) } }
                 if !model.transportLeading { transportColumn }
             }
         }
@@ -315,7 +315,7 @@ struct RecordScreen: View {
                 RecordButtonLabel(isRecording: model.recorder.isRecording, size: size)
             }
             .buttonStyle(.plain)
-            .disabled(!model.recorder.isArmed || model.speedTest.isRunning)
+            .disabled(!model.recorder.isReady || model.speedTest.isRunning)
             .accessibilityLabel(model.recorder.isRecording ? "Stop \(model.takeTitle)" : "Record")
         }
     }
@@ -329,7 +329,7 @@ struct RecordScreen: View {
         }
         .buttonStyle(.plain)
         .disabled(!model.recorder.isRecording)
-        // Dimmed but readable while Armed: it is there, just not usable until a Take runs.
+        // Dimmed but readable while Ready: it is there, just not usable until a Take runs.
         .opacity(model.recorder.isRecording ? 1 : 0.55)
         .accessibilityLabel("Add Marker")
         .accessibilityValue(model.recorder.takeMarkers.count == 1 ? "1 Marker" : "\(model.recorder.takeMarkers.count) Markers")
@@ -407,11 +407,11 @@ struct RecordScreen: View {
     }
 
     #if DEBUG && os(iOS)
-    /// Opens the headphone monitor experiment's sheet (#233), only while the experiment is Armed. In the Show row,
+    /// Opens the headphone monitor experiment's sheet (#233), only while the experiment is Ready. In the Show row,
     /// so it takes no height from the meters. Debug builds only, never TestFlight (Eric, 2026-10-14): the `#if DEBUG`
     /// keeps it out of every Release build, unlike auto-gain's availability rule.
     @ViewBuilder private var monitorButton: some View {
-        if MonitorExperiment.shared.isArmed {
+        if MonitorExperiment.shared.isReady {
             Button { showingMonitor = true } label: { Text("Mon").tapTarget() }
                 .buttonStyle(.plain)
                 .foregroundStyle(.tint)
@@ -595,11 +595,11 @@ struct RecordScreen: View {
     private func headerSummary(compact: Bool) -> some View {
         HStack(alignment: .center, spacing: compact ? 8 : 12) {
             Circle()
-                .fill(model.recorder.isRecording ? Color.red : model.recorder.isArmed ? Color.green : Color.secondary)
+                .fill(model.recorder.isRecording ? Color.red : model.recorder.isReady ? Color.green : Color.secondary)
                 .frame(width: 12, height: 12)
             VStack(alignment: .leading, spacing: 2) {
                 // The word carries the state; the dot's color is only a second cue.
-                Text(model.recorder.isRecording ? "Recording" : model.recorder.isArmed ? "Armed" : "Not armed")
+                Text(model.recorder.isRecording ? "Recording" : model.recorder.isReady ? "Ready" : "Not ready")
                     .font(compact ? .subheadline.weight(.semibold) : .headline)
                 if compact {
                     // Landscape has no room beside the Take's time, so the Show's total joins the input line (#328).
@@ -640,7 +640,7 @@ struct AppInputDevices: InputDeviceSource {
     #if os(iOS)
     func currentRouteDevice(sampleRate: Int?) throws -> any AudioIODevice {
         #if DEBUG
-        // The monitor experiment (#233) opens it with the plan chosen at Arm, so no category change mid-Take.
+        // The monitor experiment (#233) opens it with the plan chosen at get-ready, so no category change mid-Take.
         try MonitorExperiment.shared.openForRouteMove(sampleRate: sampleRate)
         #else
         try SessionAudioDevice.current(sampleRate: sampleRate)
@@ -654,7 +654,7 @@ struct AppInputDevices: InputDeviceSource {
 final class RecordScreenModel {
     /// Each Take goes to the Device and, when the Drive folder is connected at record time, the Drive.
     let recorder: Recorder
-    /// Arms the chosen Audio interface and starts and stops Takes on the recorder.
+    /// Gets the chosen Audio interface ready and starts and stops Takes on the recorder.
     let sequencer: TakeSequencer
     /// The Drive folder and Device free space, kept current here so the status strip, Settings and the
     /// recorder share one state whether or not Settings is open.
@@ -719,29 +719,29 @@ final class RecordScreenModel {
     private var stopHintTask: Task<Void, Never>?
     /// The level meters, in their own model: they change 30 times a second, and only the meter grid reads them.
     let meterModel = MeterModel()
-    private(set) var armError: String? {
-        get { sequencer.armError }
-        set { sequencer.armError = newValue }
+    private(set) var getReadyError: String? {
+        get { sequencer.getReadyError }
+        set { sequencer.getReadyError = newValue }
     }
     var recordError: String? { sequencer.recordError }
-    /// The device as it was when last Armed, to tell a format change from a new device.
-    private var armedDevice: InputDeviceInfo? {
-        get { sequencer.armedDevice }
-        set { sequencer.armedDevice = newValue }
+    /// The device as it was when last Ready, to tell a format change from a new device.
+    private var readyDevice: InputDeviceInfo? {
+        get { sequencer.readyDevice }
+        set { sequencer.readyDevice = newValue }
     }
-    /// The Armed interface's mixer family: X Air or X32, or nil for anything else (#365).
-    var armedFamily: MixerFamily? { armedDevice.flatMap { MixerFamily(audioInterfaceName: $0.name) } }
-    /// The Armed family for packs and the license only (#705): `armedFamily`, except that the Demo signal counts as an
+    /// The Ready interface's mixer family: X Air or X32, or nil for anything else (#365).
+    var readyFamily: MixerFamily? { readyDevice.flatMap { MixerFamily(audioInterfaceName: $0.name) } }
+    /// The Ready family for packs and the license only (#705): `readyFamily`, except that the Demo signal counts as an
     /// X Air in review and TestFlight builds (`DemoMixerFamilyAvailability`), so App Review can reach the X Air pack.
     var licenseFamily: MixerFamily? {
-        armedDevice.flatMap {
-            MixerFamily.armed(interfaceName: $0.name, isDemo: $0.id == "demo", demoCounts: DemoMixerFamilyAvailability.isAvailableInThisBuild)
+        readyDevice.flatMap {
+            MixerFamily.ready(interfaceName: $0.name, isDemo: $0.id == "demo", demoCounts: DemoMixerFamilyAvailability.isAvailableInThisBuild)
         }
     }
 
-    /// Mixer Link is offered only while an X Air or X32 is the Armed input (#365). Any other input (a built-in mic,
+    /// Mixer Link is offered only while an X Air or X32 is the Ready input (#365). Any other input (a built-in mic,
     /// the Demo signal, an EVO 4, a DJM) has no Mixer Link: Settings hides it, the strip has no Mixer chip and the
-    /// Soundcheck skips it. A remembered Mixer stays saved and links again when an X Air or X32 is Armed.
+    /// Soundcheck skips it. A remembered Mixer stays saved and links again when an X Air or X32 is Ready.
     var offersMixerLink: Bool { mixer.isOffered }
 
     /// The Mixer's Sources while Mixer Link is offered; none otherwise, so another input's Stems never get the
@@ -779,13 +779,13 @@ final class RecordScreenModel {
             for await event in events {
                 self?.mixerGain.handle(event)
                 #if DEBUG && os(iOS)
-                if case .disarmed = event { MonitorExperiment.shared.disarmed() }
-                // An interruption's restart reuses the input without `didArm`; the output unit iOS stopped needs a restart.
+                if case .stoodDown = event { MonitorExperiment.shared.stoodDown() }
+                // An interruption's restart reuses the input without `didGetReady`; the output unit iOS stopped needs a restart.
                 if case .inputRestarted = event { MonitorExperiment.shared.inputRestarted() }
                 #endif
-                // A disarm hides the Mixer Link at once, whatever the screen does (#556); a re-Arm that got there first wins.
-                if case .disarmed = event {
-                    Task { guard let self, !self.recorder.isArmed else { return }; await self.mixer.armed(interfaceName: nil, usbChannelCount: 0) }
+                // Standing down hides the Mixer Link at once, whatever the screen does (#556); a second get-ready that got there first wins.
+                if case .stoodDown = event {
+                    Task { guard let self, !self.recorder.isReady else { return }; await self.mixer.ready(interfaceName: nil, usbChannelCount: 0) }
                 }
                 // Whoever started or ended the Take: Stop, the watch, or the recorder itself (#551).
                 guard let self else { return }
@@ -895,10 +895,10 @@ final class RecordScreenModel {
         #endif
     }
 
-    /// Just the Armed device's name, for the one-line landscape header.
+    /// Just the Ready device's name, for the one-line landscape header.
     var compactInputSummary: String { screen.compactInputSummary(snapshot) }
 
-    /// The Armed device's name and channel count, for the header.
+    /// The Ready device's name and channel count, for the header.
     var inputSummary: String { screen.inputSummary(snapshot) }
 
     /// Why Record is dimmed, when it is, and what to offer.
@@ -923,13 +923,13 @@ final class RecordScreenModel {
     /// The facts the alerts are worked out from, read off the Recorder, the sequencer, the Drive, the Mixer Link and power.
     var snapshot: RecordScreenSnapshot {
         var s = RecordScreenSnapshot()
-        s.isArmed = recorder.isArmed
+        s.isReady = recorder.isReady
         s.isRecording = recorder.isRecording
         s.takeBusy = takeBusy
         s.isRepairing = recorder.isRepairing
         s.micDenied = micDenied
-        s.armError = armError
-        s.disarmedForIdle = disarmedForIdle
+        s.getReadyError = getReadyError
+        s.stoodDownForIdle = stoodDownForIdle
         s.hasInputs = !devices.isEmpty
         s.recordError = recordError
         s.usbChannelShortfall = usbChannelShortfall?.message
@@ -960,7 +960,7 @@ final class RecordScreenModel {
         s.sampleRate = recorder.sampleRate ?? 48_000
         s.recordTo = recorder.recordTo
         s.driveAllowed = pro.license().allowsDrive
-        s.armedDeviceName = armedDevice?.name
+        s.readyDeviceName = readyDevice?.name
         s.showName = recorder.currentShow?.name
         s.takeStartedAt = takeStartedAt
         s.markerCount = recorder.takeMarkers.count
@@ -992,9 +992,9 @@ final class RecordScreenModel {
         case .dismissHint:
             setupHintDismissed = true
             UserDefaults.standard.set(true, forKey: Self.hintKey)
-        case .arm:
-            // Arm only: never starts a Take.
-            sequencer.armAgain()
+        case .getReady:
+            // Get ready only: never starts a Take.
+            sequencer.getReadyAgain()
         case .soundcheck:
             showingSoundcheck = true
         case .dismissRoutingChange:
@@ -1053,7 +1053,7 @@ final class RecordScreenModel {
         self.recorder = recorder
         let pro = ProStore()
         self.pro = pro
-        // The screenshot build Arms only demo inputs, never a microphone or USB interface (#374).
+        // The screenshot build Gets ready only demo inputs, never a microphone or USB interface (#374).
         let inputs: any InputDeviceSource = DemoOnlyInputSource.isScreenshotBuild() ? DemoOnlyInputSource(AppInputDevices()) : AppInputDevices()
         sequencer = TakeSequencer(recorder: recorder, devices: inputs, capsAt48k: { pro.license().capsAt48k })
         mixer = MixerSession()
@@ -1072,11 +1072,11 @@ final class RecordScreenModel {
         mixerGain.makeProtection = { [weak self] queue in self?.makeClipProtection(queue: queue) }
         mixerGain.takeAllowance = { [weak self] in self?.recorder.takeAllowance }
         mixerGain.allowsAutoGain = { [weak self] in self?.pro.license().allowsAutoGain ?? true }
-        pro.armedFamily = { [weak self] in self?.licenseFamily }
+        pro.readyFamily = { [weak self] in self?.licenseFamily }
         followTakes()
-        sequencer.didArm = { [unowned self] device in
+        sequencer.didGetReady = { [unowned self] device in
             #if DEBUG && os(iOS)
-            MonitorExperiment.shared.armed(device)
+            MonitorExperiment.shared.ready(device)
             #endif
             if let device {
                 noteOfferedChannels(of: device)
@@ -1087,11 +1087,11 @@ final class RecordScreenModel {
                 #endif
             }
             meterModel.reset(channelCount: recorder.usbChannelCount)
-            // The Mixer session hears of each Armed input from the model, at launch and after, even with the screen
+            // The Mixer session hears of each Ready input from the model, at launch and after, even with the screen
             // locked (#556): it re-reads the Sources for a new USB Channel count and links a remembered Mixer when an
-            // X Air or X32 is Armed (#365).
-            let name = device == nil ? nil : armedDevice?.name, count = device == nil ? 0 : recorder.usbChannelCount
-            Task { await mixer.armed(interfaceName: name, usbChannelCount: count) }
+            // X Air or X32 is Ready (#365).
+            let name = device == nil ? nil : readyDevice?.name, count = device == nil ? 0 : recorder.usbChannelCount
+            Task { await mixer.ready(interfaceName: name, usbChannelCount: count) }
         }
         #if os(iOS)
         watchLink = WatchLink(status: { [unowned self] in watchStatus }, actions: watchActions)
@@ -1188,13 +1188,13 @@ final class RecordScreenModel {
         if let moment { offerPro(moment) }
     }
 
-    /// The first Show's end (#62), from the plan as owned so a pack owner whose pack's mixer was Armed still gets it,
+    /// The first Show's end (#62), from the plan as owned so a pack owner whose pack's mixer was Ready still gets it,
     /// with the upgrade (Eric, #969).
     static func firstShowOffer(_ offers: inout ProOffers, show: String, takeCount: Int, pro: ProStore) -> ProOfferMoment? {
         offers.afterShowEnded(show: show, takeCount: takeCount, license: pro.planLicense())
     }
 
-    /// The Trial's last days between Takes (#62), from the plan as owned so a pack on the Armed family doesn't hide them
+    /// The Trial's last days between Takes (#62), from the plan as owned so a pack on the Ready family doesn't hide them
     /// (#961).
     static func trialNote(_ offers: inout ProOffers, show: String?, pro: ProStore, isRecording: Bool) -> ProOfferMoment? {
         offers.betweenTakes(show: show, license: pro.planLicense(), isRecording: isRecording)
@@ -1209,17 +1209,17 @@ final class RecordScreenModel {
         }
     }
 
-    // MARK: - Auto-disarm
+    // MARK: - Auto stand-down
 
-    /// Whether the recorder was disarmed for sitting idle, so coming back should Arm it again.
-    var disarmedForIdle: Bool { sequencer.disarmedForIdle }
+    /// Whether the recorder was stood down for sitting idle, so coming back should get it ready again.
+    var stoodDownForIdle: Bool { sequencer.stoodDownForIdle }
 
     /// The screen locked or the app left the front: start counting idle time.
     func screenBecameIdle() {
         sequencer.appMovedToBackground()
     }
 
-    /// The app is in front again: stop counting, and Arm again if it was disarmed for being idle.
+    /// The app is in front again: stop counting, and get ready again if it was stood down for being idle.
     func screenBecameActive() {
         sequencer.appBecameActive()
     }
@@ -1319,8 +1319,8 @@ final class RecordScreenModel {
         return nil
     }
 
-    /// The known tier changed (the App Store answered, a purchase, a refund): re-Arm between Takes if the rate the
-    /// input may run at changed (#316). A Take that's running keeps its rate; the change applies at the next Arm.
+    /// The known tier changed (the App Store answered, a purchase, a refund): get ready again between Takes if the rate the
+    /// input may run at changed (#316). A Take that's running keeps its rate; the change applies at the next get-ready.
     private func tierChanged() {
         sequencer.tierChanged()
     }
@@ -1389,7 +1389,7 @@ final class RecordScreenModel {
         }
     }
 
-    /// The Pre-roll length changed in Settings: keep it, give it to the recorder, and, if Armed, Arm again so
+    /// The Pre-roll length changed in Settings: keep it, give it to the recorder, and, if Ready, Get ready again so
     /// the buffer is sized for it. That only happens between Takes (Settings is locked during one).
     func preRollChanged() {
         PreRollSetting.save(preRollSeconds)
@@ -1405,19 +1405,19 @@ final class RecordScreenModel {
         recorder.driveMayHaveConnected()
     }
 
-    /// What the chosen Pre-roll length costs in memory for the Armed input (or an 18-channel one before
-    /// anything is Armed), in words for Settings.
+    /// What the chosen Pre-roll length costs in memory for the Ready input (or an 18-channel one before
+    /// anything is Ready), in words for Settings.
     var preRollNote: String {
         guard preRollSeconds > 0 else { return "Off. A Take starts when you press record." }
         let bytes = PreRollSetting.memoryBytes(
             seconds: preRollSeconds,
-            channelCount: recorder.isArmed ? recorder.usbChannelCount : 18,
-            sampleRate: armedDevice?.sampleRate ?? 48_000)
+            channelCount: recorder.isReady ? recorder.usbChannelCount : 18,
+            sampleRate: readyDevice?.sampleRate ?? 48_000)
         let size = ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .memory)
-        return "A Take starts with the last \(Int(preRollSeconds)) s before you press record. Uses about \(size) of memory while Armed."
+        return "A Take starts with the last \(Int(preRollSeconds)) s before you press record. Uses about \(size) of memory while Ready."
     }
 
-    /// What a Take pressed right now may do: the tier, the Free channel choice and the Armed USB Channels; nil
+    /// What a Take pressed right now may do: the tier, the Free channel choice and the Ready USB Channels; nil
     /// (nothing limited) while Pro isn't offered. Read from cached state only, never waiting on the App Store, so it
     /// can be frozen at the record press.
     func currentAllowance() -> TakeAllowance? {
@@ -1426,18 +1426,18 @@ final class RecordScreenModel {
 
     var usbChannelSummary: String { RecordScreenState.usbChannelSummary(recorder.usbChannelCount) }
 
-    /// Most input channels the Armed route offers, where the system reports it (iOS).
+    /// Most input channels the Ready route offers, where the system reports it (iOS).
     private(set) var offeredChannelCount: Int?
 
     /// A real reason some USB Channels won't be recorded, or nil to just show the count.
     var usbChannelShortfall: USBChannelShortfall? {
         USBChannelShortfall.check(
-            usbChannelCount: recorder.isArmed ? recorder.usbChannelCount : 0,
+            usbChannelCount: recorder.isReady ? recorder.usbChannelCount : 0,
             offeredChannelCount: offeredChannelCount,
             mixer: mixer.identity, capabilities: mixer.capabilities)
     }
 
-    /// Notes what the system offered for `device`, after it was Armed or took over input.
+    /// Notes what the system offered for `device`, after it was Ready or took over input.
     func noteOfferedChannels(of device: any AudioIODevice) {
         #if os(iOS)
         offeredChannelCount = (device as? SessionAudioDevice)?.maximumInputChannelCount
@@ -1454,7 +1454,7 @@ final class RecordScreenModel {
 
     @ObservationIgnored private var loop: Task<Void, Never>?
 
-    /// Starts the loop that protects and shows a Take: it Arms the input, polls the meters, looks for a Drive
+    /// Starts the loop that protects and shows a Take: it gets the input ready, polls the meters, looks for a Drive
     /// joining or space running low, keeps the Mixer Link and follows route changes. It belongs to the model,
     /// not the screen, so it keeps running (and keeps a Take safe) when the screen is torn down or rebuilt.
     /// Calling it again does nothing.
@@ -1494,14 +1494,14 @@ final class RecordScreenModel {
                 for (index, name) in names.enumerated() { recorder.setChannelName(name, forChannel: index + 1) }
             }
         }
-        // `-demoRecord` starts a Take once Armed, for screenshots (the iOS ones in the Simulator too). With `-demoSignal`
-        // or `-demoStems`, only once a demo input is Armed, never a microphone a slow launch may Arm first.
+        // `-demoRecord` starts a Take once Ready, for screenshots (the iOS ones in the Simulator too). With `-demoSignal`
+        // or `-demoStems`, only once a demo input is Ready, never a microphone a slow launch may Get ready first.
         if launchFlag("-demoRecord") {
             Task {
                 for _ in 0..<60 {
                     try? await Task.sleep(for: .milliseconds(500))
-                    guard recorder.isArmed, !recorder.isRecording else { continue }
-                    if launchFlag("-demoSignal") || launchFlag("-demoStems"), armedDevice?.id.hasPrefix("demo") != true { continue }
+                    guard recorder.isReady, !recorder.isRecording else { continue }
+                    if launchFlag("-demoSignal") || launchFlag("-demoStems"), readyDevice?.id.hasPrefix("demo") != true { continue }
                     record()
                     return
                 }
@@ -1514,26 +1514,26 @@ final class RecordScreenModel {
                                    "Key 1", "Key 2", "Vox", "BV 1", "BV 2", "BV 3", "PB", "Clk"]
 
     /// The Demo signal needs StoreKit's answer (TestFlight or not), which arrives later; the input list
-    /// starts without it and gets it here. Only adds an input: the selection and an armed device stay.
+    /// starts without it and gets it here. Only adds an input: the selection and a Ready device stay.
     private func offerDemoSignalIfAvailable() async {
         // A Debug build offers it without StoreKit's answer, which can come late on a busy Mac.
         if !DemoSignalAvailability.isAvailableInThisBuild { await DemoSignalAvailability.resolveEnvironment() }
         guard DemoSignalAvailability.isAvailableInThisBuild, !devices.contains(where: { $0.id == "demo" }) else { return }
         devices = Self.availableDevices()
-        // `-demoSignal` (Debug, screenshots): when StoreKit answered after the first Arm, switch to the Demo signal now,
-        // so a slow launch doesn't leave the built-in microphone Armed.
+        // `-demoSignal` (Debug, screenshots): when StoreKit answered after the first get-ready, switch to the Demo signal now,
+        // so a slow launch doesn't leave the built-in microphone Ready.
         if launchFlag("-demoSignal"), selectedDeviceID != "demo", !recorder.isRecording {
             selectedDeviceID = "demo"
             selectionDidChange()
         }
     }
 
-    /// The screen appeared again: Arm if nothing is, never over a running Take.
+    /// The screen appeared again: Get ready if nothing is, never over a running Take.
     func screenAppeared() {
         sequencer.screenAppeared()
     }
 
-    /// The screen went away: disarm an unused recorder, never a running Take.
+    /// The screen went away: stand down an unused recorder, never a running Take.
     func screenDisappeared() {
         sequencer.screenDisappeared()
     }
@@ -1553,7 +1553,7 @@ final class RecordScreenModel {
         defer { loop = nil }
         guard await hasMicrophonePermission() else {
             micDenied = true
-            armError = "ShowRecorder needs microphone access to record your mixer. Allow it in the system's Privacy settings, under Microphone."
+            getReadyError = "ShowRecorder needs microphone access to record your mixer. Allow it in the system's Privacy settings, under Microphone."
             return
         }
         drive.refresh()
@@ -1611,13 +1611,13 @@ final class RecordScreenModel {
         if noSignalSilent != noSignalDetector.isSilent { noSignalSilent = noSignalDetector.isSilent }
     }
 
-    /// The picker changed. Skips the device the model has just Armed itself after a device change.
+    /// The picker changed. Skips the device the model has just Ready itself after a device change.
     func selectionDidChange() {
         sequencer.select(selectedDeviceID)
     }
 
-    func armSelectedDevice() {
-        sequencer.arm()
+    func getReadySelectedDevice() {
+        sequencer.getReady()
     }
 
     private func hasMicrophonePermission() async -> Bool {
@@ -1630,17 +1630,17 @@ final class RecordScreenModel {
     }
 
     #if os(iOS)
-    /// Re-arms when the input route really changes (a mixer plugged in or out). Comparing the route
-    /// avoids re-arming on the notifications our own session changes cause.
+    /// Re-gets ready when the input route really changes (a mixer plugged in or out). Comparing the route
+    /// avoids getting ready again on the notifications our own session changes cause.
     private func watchRouteChanges() async {
-        var armedRoute = Self.currentRouteSignature()
+        var readyRoute = Self.currentRouteSignature()
         for await _ in NotificationCenter.default.notifications(named: AVAudioSession.routeChangeNotification).map({ _ in () }) {
             let route = Self.currentRouteSignature()
-            guard route != armedRoute else { continue }
-            armedRoute = route
+            guard route != readyRoute else { continue }
+            readyRoute = route
             devices = Self.availableDevices()
             guard Self.isRouteInput(selectedDeviceID) else { continue }
-            // Whatever iOS just routed to is now the selection; re-arming must not pull it back.
+            // Whatever iOS just routed to is now the selection; getting ready again must not pull it back.
             selectCurrentRouteInput()
             await sequencer.routeChanged()
         }
@@ -1651,7 +1651,7 @@ final class RecordScreenModel {
         guard let uid = AVAudioSession.sharedInstance().currentRoute.inputs.first?.uid,
               let choice = devices.first(where: { $0.id == Self.routeInputPrefix + uid }) else { return }
         selectedDeviceID = choice.id
-        if recorder.isArmed { armedDevice = choice.info }
+        if recorder.isReady { readyDevice = choice.info }
     }
 
     private static let routeInputPrefix = "ios-input-"
@@ -1677,7 +1677,7 @@ final class RecordScreenModel {
         }
     }
 
-    /// Re-reads the device list; the `TakeSequencer` keeps, switches, re-Arms or disarms as `InputDeviceChange` decides.
+    /// Re-reads the device list; the `TakeSequencer` keeps, switches, gets ready again or stands down as `InputDeviceChange` decides.
     private func applyDeviceListChange() async {
         await sequencer.deviceListChanged()
     }
@@ -1700,7 +1700,7 @@ final class RecordScreenModel {
         set { sequencer.sampleRateChoice = newValue }
     }
 
-    /// The rate choice changed in Settings: keep it and, if Armed, Arm again at it. Settings is locked during a Take.
+    /// The rate choice changed in Settings: keep it and, if Ready, Get ready again at it. Settings is locked during a Take.
     func sampleRateChanged() {
         SampleRateSetting.save(sampleRateChoice)
         sequencer.settingsChanged()
@@ -1761,7 +1761,7 @@ final class RecordScreenModel {
                 availableSampleRates: Self.sessionSampleRates,
                 make: { chosen, capAt48k in
                     #if DEBUG
-                    try MonitorExperiment.shared.openForArm(preferredInputUID: uid, sampleRate: Self.sessionRate(chosen, capAt48k: capAt48k))
+                    try MonitorExperiment.shared.openForGetReady(preferredInputUID: uid, sampleRate: Self.sessionRate(chosen, capAt48k: capAt48k))
                     #else
                     try SessionAudioDevice.current(preferredInputUID: uid, sampleRate: Self.sessionRate(chosen, capAt48k: capAt48k))
                     #endif
@@ -1775,7 +1775,7 @@ final class RecordScreenModel {
                 availableSampleRates: Self.sessionSampleRates,
                 make: { chosen, capAt48k in
                     #if DEBUG
-                    try MonitorExperiment.shared.openForArm(preferredInputUID: nil, sampleRate: Self.sessionRate(chosen, capAt48k: capAt48k))
+                    try MonitorExperiment.shared.openForGetReady(preferredInputUID: nil, sampleRate: Self.sessionRate(chosen, capAt48k: capAt48k))
                     #else
                     try SessionAudioDevice.current(sampleRate: Self.sessionRate(chosen, capAt48k: capAt48k))
                     #endif

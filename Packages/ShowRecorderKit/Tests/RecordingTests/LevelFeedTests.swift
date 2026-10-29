@@ -80,7 +80,7 @@ struct LevelFeedTests {
         #expect(abs(level - -23) < 0.1, "\(level)")
     }
 
-    @Test("No windows mid-measure (disarmed) ends it at once with no level")
+    @Test("No windows mid-measure (stood down) ends it at once with no level")
     func noWindows() async throws {
         let feed = LevelFeed()
         let task = await Self.start(feed)
@@ -91,7 +91,7 @@ struct LevelFeedTests {
         #expect(await Self.result(task) == .level(nil))
     }
 
-    @Test("A sample-rate change mid-measure, or no sample rate (disarmed), ends it at once with no level")
+    @Test("A sample-rate change mid-measure, or no sample rate (stood down), ends it at once with no level")
     func sampleRateChange() async throws {
         let feed = LevelFeed()
         let changed = await Self.start(feed)

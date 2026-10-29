@@ -21,7 +21,7 @@ struct WatchRemoteModelTests {
         }
     }
 
-    static let armed = WatchStatus(state: .armed)
+    static let ready = WatchStatus(state: .ready)
     static let recording = WatchStatus(state: .recording(startedAt: .now, takeTitle: "Take 01", markerCount: 0))
 
     static func model(_ link: Link, status: WatchStatus? = recording) -> WatchRemoteModel {
@@ -52,8 +52,8 @@ struct WatchRemoteModelTests {
         link.isReachable = true
         model.reachabilityChanged()
         #expect(link.statusAnswers.count == 1, "the watch asks; it doesn't wait for a push that may not come")
-        link.statusAnswers[0](Self.armed)
-        #expect(model.display == .status(Self.armed))
+        link.statusAnswers[0](Self.ready)
+        #expect(model.display == .status(Self.ready))
     }
 
     @Test("A wrist raise on a running model reaches the same live state as a cold launch: it asks, and the answer is live (#751)")
@@ -69,8 +69,8 @@ struct WatchRemoteModelTests {
 
         model.appBecameActive()
         #expect(link.statusAnswers.count == 2)
-        link.statusAnswers[1](Self.armed)
-        #expect(model.display == .status(Self.armed))
+        link.statusAnswers[1](Self.ready)
+        #expect(model.display == .status(Self.ready))
     }
 
     @Test("A wrist raise with no link doesn't ask")
@@ -89,14 +89,14 @@ struct WatchRemoteModelTests {
         let model = Self.model(link, status: nil)
         link.isReachable = true
         model.reachabilityChanged()
-        model.received(Self.armed)
+        model.received(Self.ready)
         link.statusAnswers[0](Self.recording)
-        #expect(model.display == .status(Self.armed), "the push came after the ask, so it's the newer one")
+        #expect(model.display == .status(Self.ready), "the push came after the ask, so it's the newer one")
 
         model.appBecameActive()
         model.appBecameActive()
         link.statusAnswers[2](Self.recording)
-        link.statusAnswers[1](Self.armed)
+        link.statusAnswers[1](Self.ready)
         #expect(model.display == .status(Self.recording), "the older ask's answer is dropped")
     }
 
@@ -129,7 +129,7 @@ struct WatchRemoteModelTests {
     @Test("A command the iPhone refuses says why; one whose answer the link loses is unconfirmed")
     func failures() {
         let link = Link()
-        let model = Self.model(link, status: Self.armed)
+        let model = Self.model(link, status: Self.ready)
         model.send(.start)
         link.replies[0](.refused("Choose where Takes go in Settings"))
         #expect(model.commands[.start] == .failed("Choose where Takes go in Settings"))
@@ -138,15 +138,15 @@ struct WatchRemoteModelTests {
         #expect(model.commands[.start] == .unconfirmed, "it may have started: no answer isn't a failure")
     }
 
-    @Test("Start is offered only when the iPhone is Armed; otherwise it says to open ShowRecorder, and sends nothing")
-    func startNeedsArmed() {
+    @Test("Start is offered only when the iPhone is Ready; otherwise it says to open ShowRecorder, and sends nothing")
+    func startNeedsReady() {
         let link = Link()
-        let model = Self.model(link, status: WatchStatus(state: .notArmed))
+        let model = Self.model(link, status: WatchStatus(state: .notReady))
         #expect(!model.canStart)
         model.send(.start)
         #expect(link.sent.isEmpty)
         #expect(model.commands[.start] == .failed(WatchRemoteModel.openPhoneText))
-        model.received(Self.armed)
+        model.received(Self.ready)
         #expect(model.canStart)
     }
 
@@ -244,7 +244,7 @@ struct WatchRemoteModelTests {
     @Test("While last known, Start is not offered and a command fails at once")
     func lastKnownBlocksCommands() {
         let link = Link()
-        let model = Self.model(link, status: Self.armed)
+        let model = Self.model(link, status: Self.ready)
         link.isReachable = false
         model.reachabilityChanged()
         #expect(!model.canStart)
@@ -296,7 +296,7 @@ struct WatchRemoteModelTests {
         let link = Link()
         let watchNow = Date(timeIntervalSince1970: 50_000)
         let model = WatchRemoteModel(link: link, now: { watchNow })
-        model.received(WatchStatus(state: .armed, sentAt: watchNow.addingTimeInterval(-3_600)))
+        model.received(WatchStatus(state: .ready, sentAt: watchNow.addingTimeInterval(-3_600)))
         model.send(.start)
         #expect(link.sent.first?.sentAt == watchNow)
     }

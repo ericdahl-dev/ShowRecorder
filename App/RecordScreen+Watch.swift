@@ -16,8 +16,8 @@ extension RecordScreenModel {
         WatchCommandDesk.Actions(
             start: { [weak self] in
                 guard let self else { return WatchRemoteModel.openPhoneText }
-                // The iPhone can't open the mic from the background: Start works only once it's Armed.
-                guard recorder.isArmed else { return WatchRemoteModel.openPhoneText }
+                // The iPhone can't open the mic from the background: Start works only once it's Ready.
+                guard recorder.isReady else { return WatchRemoteModel.openPhoneText }
                 guard !recorder.isRecording, !recorder.isStarting, !startRequested else { return nil }
                 // The last Take's Stop was accepted but its Stems are still being written (#652).
                 guard !recorder.isFinishing else { return RecorderError.finishing.errorDescription }

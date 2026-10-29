@@ -27,7 +27,7 @@ extension DriveOnlyTakeTests {
     func recordDeviceOnlyTake(_ switched: DriveSwitch) async throws -> Recorder {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(drive: switched)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await recorder.stopTake()
@@ -63,7 +63,7 @@ extension DriveOnlyTakeTests {
         let switched = DriveSwitch()
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(drive: switched)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         switched.connected = true
@@ -113,7 +113,7 @@ extension DriveOnlyTakeTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(drive: switched)
         recorder.recordTo = .both
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await recorder.stopTake()

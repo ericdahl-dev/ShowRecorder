@@ -152,7 +152,7 @@ In [`docs/images/app-store-mac/`](../images/app-store-mac/), 2560 × 1600 each: 
 Every channel has signal: the set's piano stem was left out, as it plays for only one second of the song and an idle pair reads as broken. A Mixer Link shot waits for an X Air or X32 on this Mac's USB.
 
 To take them again:
-- Build Debug under its own bundle ID, `xcodebuild … PRODUCT_BUNDLE_IDENTIFIER=dev.ericdahl.ShowRecorder.screens`. Its container is empty, the real app's Shows are untouched, and it Arms only demo inputs (`DemoOnlyInputSource`), never a microphone or USB interface.
+- Build Debug under its own bundle ID, `xcodebuild … PRODUCT_BUNDLE_IDENTIFIER=dev.ericdahl.ShowRecorder.screens`. Its container is empty, the real app's Shows are untouched, and it gets only demo inputs ready (`DemoOnlyInputSource`), never a microphone or USB interface.
 - Copy a folder of stems into its container (it is sandboxed), for example `~/Library/Containers/dev.ericdahl.ShowRecorder.screens/Data/tmp/demo-stems`. Leave out any stem that is silent in the loop. Never commit the audio.
 - Launch it with `-demoStems <that folder> -demoNames -demoDrive -demoRecord -screenshotWindow`, plus `-lightScheme` for the light set or `-showList` for the list. Sunlight is the appearance setting in that container's preferences.
 - `-demoStems` plays seconds 25 to 40 of each stem at 48 kHz, looped, about 6 dB down. `-screenshotWindow` makes a 1280 × 800 window on a Retina screen (2560 × 1600) and leaves out the empty alert slot. 2880 × 1800 would need its size changed in `ShowRecorderApp.swift` and a screen with at least 900 points of usable height.

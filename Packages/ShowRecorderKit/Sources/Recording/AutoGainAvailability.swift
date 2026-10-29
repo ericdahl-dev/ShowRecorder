@@ -29,7 +29,7 @@ extension AutoGainAvailability {
         case connecting
         /// No Mixer to move the preamps on.
         case noMixerLink
-        /// The Link is on another Mixer than the Armed one (#647): "FOH (XR18)".
+        /// The Link is on another Mixer than the Ready one (#647): "FOH (XR18)".
         case otherMixerLinked(String)
         /// The linked Mixer's preamps can't be set from ShowRecorder.
         case cantSetGain
@@ -45,7 +45,7 @@ extension AutoGainAvailability {
             case .noMixerLink:
                 "Auto-gain moves the preamps on the Mixer. Connect to it in Settings › Mixer Link first."
             case .otherMixerLinked(let which):
-                "The Mixer Link is on \(which), not the Armed Mixer. Connect to the Armed Mixer in Settings › Mixer Link first."
+                "The Mixer Link is on \(which), not the Mixer you're recording from. Connect to that Mixer in Settings › Mixer Link first."
             case .cantSetGain:
                 "ShowRecorder can't set this Mixer's preamp gain yet."
             case .needsPro:

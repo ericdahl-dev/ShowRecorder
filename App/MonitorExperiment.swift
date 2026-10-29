@@ -6,7 +6,7 @@ import Observation
 import OSLog
 import SwiftUI
 
-/// The headphone monitor experiment (#233, part 1), Debug builds only: with the setting on, Arming the iPhone's input
+/// The headphone monitor experiment (#233, part 1), Debug builds only: with the setting on, getting the iPhone's input ready
 /// also plays it to Bluetooth headphones through a second, output-only audio unit. The Take is recorded exactly as
 /// without it; the monitor only reads a copy of the first channel. Every route change is logged to the `monitor233`
 /// category so a device run can answer: does input stay the built-in mic, are Stems identical, does a headphone
@@ -18,16 +18,16 @@ final class MonitorExperiment {
     static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "ShowRecorder", category: "monitor233")
     private static let settingKey = "monitorExperiment233"
 
-    /// The Debug setting. Changed only between Takes (Settings locks during one); the next Arm uses it.
+    /// The Debug setting. Changed only between Takes (Settings locks during one); the next get-ready uses it.
     var isEnabled: Bool = UserDefaults.standard.bool(forKey: MonitorExperiment.settingKey) {
         didSet { UserDefaults.standard.set(isEnabled, forKey: Self.settingKey) }
     }
 
-    /// The plan the last Arm used. A mid-Take route move opens its input with the same one, so the session's
+    /// The plan the last get-ready used. A mid-Take route move opens its input with the same one, so the session's
     /// category never changes during a Take.
-    private(set) var armedPlan: AudioSessionPlan = .recording
-    /// Whether the Armed input feeds the monitor.
-    private(set) var isArmed = false
+    private(set) var readyPlan: AudioSessionPlan = .recording
+    /// Whether the Ready input feeds the monitor.
+    private(set) var isReady = false
     /// The last route, short, for the record screen.
     private(set) var routeLine = ""
     /// Why the monitor output didn't start, if it didn't.
@@ -46,32 +46,32 @@ final class MonitorExperiment {
     @ObservationIgnored let ring = MonitorRing(capacity: 32_768)
     @ObservationIgnored let switches = MonitorSwitches()
     @ObservationIgnored private var output: MonitorOutput?
-    /// The Armed input's rate, for restarting the output after an interruption.
-    @ObservationIgnored private var armedSampleRate = 48_000.0
+    /// The Ready input's rate, for restarting the output after an interruption.
+    @ObservationIgnored private var readySampleRate = 48_000.0
     /// The input inside the `MonitorTap`, for what the route offers.
     @ObservationIgnored private(set) var sessionDevice: SessionAudioDevice?
 
     private init() {}
 
-    // MARK: - Arming
+    // MARK: - Getting ready
 
-    /// Opens the route's input for an Arm, with the plan the setting asks for. With the experiment on, the input is
+    /// Opens the route's input for a get-ready, with the plan the setting asks for. With the experiment on, the input is
     /// wrapped in a `MonitorTap`; off, it's the same `SessionAudioDevice` as without this file.
-    func openForArm(preferredInputUID: String?, sampleRate: Int?) throws -> any AudioIODevice {
+    func openForGetReady(preferredInputUID: String?, sampleRate: Int?) throws -> any AudioIODevice {
         stopOutput()
-        armedPlan = isEnabled ? .monitorExperiment : .recording
+        readyPlan = isEnabled ? .monitorExperiment : .recording
         return try open(preferredInputUID: preferredInputUID, sampleRate: sampleRate)
     }
 
-    /// Opens the current route's input for a mid-Take move, with the plan chosen at Arm.
+    /// Opens the current route's input for a mid-Take move, with the plan chosen at get-ready.
     func openForRouteMove(sampleRate: Int?) throws -> any AudioIODevice {
         stopOutput()
         return try open(preferredInputUID: nil, sampleRate: sampleRate)
     }
 
     private func open(preferredInputUID: String?, sampleRate: Int?) throws -> any AudioIODevice {
-        let device = try SessionAudioDevice.current(preferredInputUID: preferredInputUID, sampleRate: sampleRate, plan: armedPlan)
-        guard armedPlan.playsOutput else {
+        let device = try SessionAudioDevice.current(preferredInputUID: preferredInputUID, sampleRate: sampleRate, plan: readyPlan)
+        guard readyPlan.playsOutput else {
             sessionDevice = nil
             return device
         }
@@ -79,25 +79,25 @@ final class MonitorExperiment {
         return MonitorTap(device, ring: ring)
     }
 
-    /// After each Arm or input move (`TakeSequencer.didArm`): starts the monitor output when the input is tapped,
+    /// After each get-ready or input move (`TakeSequencer.didGetReady`): starts the monitor output when the input is tapped,
     /// stops it otherwise. A failure is logged once and leaves the monitor silent; it never reaches the Take.
-    func armed(_ device: (any AudioIODevice)?) {
+    func ready(_ device: (any AudioIODevice)?) {
         stopOutput()
         guard let tap = device as? MonitorTap else {
-            isArmed = false
+            isReady = false
             return
         }
-        isArmed = true
-        armedSampleRate = tap.sampleRate
+        isReady = true
+        readySampleRate = tap.sampleRate
         // Nothing reads the ring while the output is stopped, so this side may drain it: no stale audio on start.
         ring.drain()
         routeChanged(reason: "Armed")
         startOutput()
     }
 
-    /// Input came back after an interruption on the same device (no `didArm`): restart the output iOS stopped.
+    /// Input came back after an interruption on the same device (no `didGetReady`): restart the output iOS stopped.
     func inputRestarted() {
-        guard isArmed else { return }
+        guard isReady else { return }
         stopOutput()
         ring.drain()
         routeChanged(reason: "inputRestarted")
@@ -107,19 +107,19 @@ final class MonitorExperiment {
     /// A failure is logged once and leaves the monitor silent; it never reaches the Take.
     private func startOutput() {
         do {
-            output = try MonitorOutput(ring: ring, switches: switches, sampleRate: armedSampleRate)
+            output = try MonitorOutput(ring: ring, switches: switches, sampleRate: readySampleRate)
             outputError = nil
-            Self.log.notice("monitor output started at \(self.armedSampleRate, privacy: .public) Hz")
+            Self.log.notice("monitor output started at \(self.readySampleRate, privacy: .public) Hz")
         } catch {
             outputError = String(describing: error)
             Self.log.error("monitor output failed to start: \(String(describing: error), privacy: .public)")
         }
     }
 
-    /// The recorder was disarmed (screen gone, idle, device lost).
-    func disarmed() {
+    /// The recorder was stood down (screen gone, idle, device lost).
+    func stoodDown() {
         stopOutput()
-        isArmed = false
+        isReady = false
     }
 
     private func stopOutput() {
@@ -218,7 +218,7 @@ struct MonitorExperimentSheet: View {
 }
 
 extension RecordScreenModel {
-    /// The Debug setting changed in Settings: Arm again so the session uses it. Only between Takes.
+    /// The Debug setting changed in Settings: Get ready again so the session uses it. Only between Takes.
     func monitorExperimentChanged() {
         sequencer.settingsChanged()
     }

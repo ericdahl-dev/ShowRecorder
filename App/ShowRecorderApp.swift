@@ -51,7 +51,7 @@ struct ShowRecorderApp: App {
         CommandMenu("Take") {
             Button("Record") { model.record() }
                 .keyboardShortcut("r", modifiers: .command)
-                .disabled(!model.recorder.isArmed || model.takeBusy)
+                .disabled(!model.recorder.isReady || model.takeBusy)
             Button("Stop Take…") { model.confirmingStop = true }
                 .keyboardShortcut(".", modifiers: .command)
                 .disabled(!model.recorder.isRecording)
@@ -63,7 +63,7 @@ struct ShowRecorderApp: App {
 
     private var windowScene: some Scene {
         #if os(macOS)
-        // One window: a second one would share this model, and closing it would disarm the recorder, so File >
+        // One window: a second one would share this model, and closing it would stand down the recorder, so File >
         // New Window is removed (see `takeCommands`).
         WindowGroup {
             RecordScreen(model: model)

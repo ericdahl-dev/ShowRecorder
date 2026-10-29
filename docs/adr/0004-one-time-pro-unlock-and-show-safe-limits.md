@@ -27,9 +27,9 @@ Considered: pricing like Mixing Station, a one-time unlock per mixer family (X A
 With X32 support coming (#199), the second family is here, so the single-family unlocks above get their prices:
 
 - **X Air pack $9.99, X32/M32 pack $9.99, Pioneer DJM pack $6.99.** Pro stays $19.99 for every mixer.
-- A pack unlocks **everything Pro does** while that family's USB interface is the Armed input. Any other input stays Free (2 USB Channels).
+- A pack unlocks **everything Pro does** while that family's USB interface is the Ready input. Any other input stays Free (2 USB Channels).
 - **DJM at $6.99** is under Pioneer's DJM-REC ($9.99 unlock after a 30-day trial), which answers #367's "better than DJM-REC, for less". The X Air and X32 packs are above Mixing Station's $5.99–6.99, because they record rather than only control.
-- **Show-Safe:** a pack is judged only when record is pressed, from the Armed input, like Pro.
+- **Show-Safe:** a pack is judged only when record is pressed, from the Ready input, like Pro.
 - **Generic interfaces need full Pro** (an EVO 4, or anything without a family): there is no pack for them, because their channel count can't be assumed.
 - **The Trial** stays everything, any input, for 14 days.
 - **Upgrading:** pack owners get a separate "Pro upgrade" purchase priced at Pro minus what they paid ($9.99 after an X Air or X32 pack, $12.99 after a DJM pack), offered only to them. Owners of two or more packs get the cheapest upgrade, $2.99. An upgrade counts as Pro only while a qualifying pack is still owned: a refunded or revoked pack takes it back too (Eric, 2026-10-13).

@@ -125,7 +125,7 @@ App/                         SwiftUI app (iOS, iPadOS, macOS), a thin layer
 Packages/ShowRecorderKit/
   AudioIO                    The audio I/O boundary and a fake device for tests
   CoreAudioIO                Mac input (AUHAL) and iOS input (AVAudioSession + RemoteIO)
-  Recording                  The Recorder: Armed state, meters, the real-time ring buffer,
+  Recording                  The Recorder: Ready state, meters, the real-time ring buffer,
                              writer thread, Shows, Takes, Take.json
   BroadcastWave              Stem writer (BWF, crash-safe headers, RF64)
   OSC                        Open Sound Control encoding and decoding
@@ -159,7 +159,7 @@ The audio callback never allocates, takes locks, logs or touches the file system
   - The Take finalizes with 60 s of space left on the last healthy Destination.
   - **Repair:** after the Take ends, each Copy's Gaps are filled from the other Copy, so both end identical. The record screen and report say whether each Copy is complete, has Gaps, Repaired or Repair failed.
 - **Any multichannel USB input:** every channel the device sends is recorded, with no fixed channel count.
-- **Pre-roll:** while Armed the recorder keeps the last seconds of audio, and a Take starts with them. Settings offers Off, 5, 10 or 20 s (10 s by default). The Show report and Reaper project line up with the Pre-roll.
+- **Pre-roll:** while Ready the recorder keeps the last seconds of audio, and a Take starts with them. Settings offers Off, 5, 10 or 20 s (10 s by default). The Show report and Reaper project line up with the Pre-roll.
 - **Markers:**
   - A Marker button drops a named Marker at the current point in the Take. Markers are written into every Stem as cue points.
   - The Marker list on the record screen shows each Marker's time since record was pressed and renames it during the Take.
@@ -177,7 +177,7 @@ The audio callback never allocates, takes locks, logs or touches the file system
   - A Take survives its screen being torn down or rebuilt. Only Stop and the app ending end a Take.
   - On the Mac, closing the window during a Take asks whether to stop first.
   - If the USB route changes mid-Take, the Take moves to the new route, and a failed move is retried.
-  - An Armed recorder nobody is using disarms 30 minutes after the screen locks or the app leaves the front.
+  - A Ready recorder nobody is using stands down 30 minutes after the screen locks or the app leaves the front.
 - **Layouts:** the record screen has portrait and landscape layouts. In portrait it shows the Take's elapsed time. On iPad the meters span the screen width.
 - **Mixer Link over Wi-Fi** (X-Air mixers today):
   - Enter the mixer's IP and each meter shows its Source's name and color.
@@ -187,13 +187,13 @@ The audio callback never allocates, takes locks, logs or touches the file system
   - Each USB Channel has a wide peak bar, a narrower average bar in front and a held-peak line across both.
   - The average is a VU reading. A faint Target band, -18 to -15 dBFS, is shaded on every lane: the average bar is blue-gray below it, green in it and orange above it, and never red.
   - The peak bar is green up to -18 dBFS, yellow up to -6 and red above. The held-peak line turns red and thicker above -3.
-  - A red Clip mark appears above a channel that reaches full scale. It stays until you tap that lane, start a new Take or disarm.
+  - A red Clip mark appears above a channel that reaches full scale. It stays until you tap that lane, start a new Take or the recorder stands down.
   - Each Take records every channel's peak and average in `Take.json`, and the report has a Levels table.
 - **After the show:**
   - Each Show gets an HTML report and a CSV channel list.
   - Each Show gets a Reaper project with one track per USB Channel, Takes laid end to end and a marker at each Take.
 - **Mac and iOS input:**
-  - On the Mac, any Core Audio device, with hot-plug: plug in a mixer and it's armed.
+  - On the Mac, any Core Audio device, with hot-plug: plug in a mixer and it's ready.
   - On iPhone and iPad, the current USB route.
   - Recording continues with the screen locked, in the background and through interruptions.
 

@@ -38,7 +38,7 @@ The rigs checked so far are on the [tested hardware](docs/tested-hardware.md) pa
 
 ## How a show goes
 
-1. **Plug in** the mixer. ShowRecorder arms it and the meters come alive.
+1. **Plug in** the mixer. ShowRecorder gets it ready and the meters come alive.
 2. **Link the mixer** (Settings > Mixer Link > Find Mixers) to get your channel names, or start from a Template.
 3. **Press record.** The Take starts with the Pre-roll before your press. Drop markers as you go.
 4. **Press stop.** Your files, the report and the Reaper project are in the Show folder, in the Files app or on your drive.

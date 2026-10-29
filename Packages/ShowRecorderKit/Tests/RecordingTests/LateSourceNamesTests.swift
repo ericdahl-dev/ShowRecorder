@@ -26,7 +26,7 @@ struct LateSourceNamesTests {
     func record(startSources: [Source] = [], typed: [Int: String] = [:], during: (Recorder) -> Void) async throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
         for (number, name) in typed { _ = recorder.setChannelName(name, forChannel: number) }
         try recorder.startTake(sources: startSources)
         device.deliver(Array(repeating: [0], count: 2))

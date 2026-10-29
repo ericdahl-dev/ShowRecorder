@@ -13,12 +13,12 @@ struct WatchStatusMakerTests {
         StatusChip(kind: kind, text: "", state: state)
     }
 
-    @Test("Not Armed, Armed, and Recording with when it started, its title and its Marker count")
+    @Test("Not Ready, Ready, and Recording with when it started, its title and its Marker count")
     func state() {
-        #expect(WatchStatusMaker.make(isArmed: false, take: nil).state == .notArmed)
-        #expect(WatchStatusMaker.make(isArmed: true, take: nil).state == .armed)
+        #expect(WatchStatusMaker.make(isReady: false, take: nil).state == .notReady)
+        #expect(WatchStatusMaker.make(isReady: true, take: nil).state == .ready)
         let take = WatchStatusMaker.Take(startedAt: Self.started, title: "Take 02", markerCount: 3)
-        #expect(WatchStatusMaker.make(isArmed: true, take: take).state
+        #expect(WatchStatusMaker.make(isReady: true, take: take).state
                 == .recording(startedAt: Self.started, takeTitle: "Take 02", markerCount: 3))
     }
 
@@ -26,7 +26,7 @@ struct WatchStatusMakerTests {
     func problems() {
         let take = WatchStatusMaker.Take(startedAt: Self.started, title: "Take 02", markerCount: 0)
         let status = WatchStatusMaker.make(
-            isArmed: true, take: take,
+            isReady: true, take: take,
             chips: [Self.chip(.device, .attention), Self.chip(.drive, .attention), Self.chip(.mixer, .attention)],
             driveAvailable: true, copies: takeCopies(device: .recording, drive: .interrupted), dropoutCount: 2, mixerDown: true)
         #expect(status.problems == [.deviceLowSpace, .driveLowSpace, .copyStopped, .gapOrDropout, .mixerLinkLost])
@@ -35,7 +35,7 @@ struct WatchStatusMakerTests {
     @Test("All quiet says nothing; a missing Drive isn't 'low on space'; a Copy that never started isn't 'stopped'")
     func quiet() {
         let status = WatchStatusMaker.make(
-            isArmed: true, take: nil, chips: [Self.chip(.device, .ok), Self.chip(.drive, .attention)],
+            isReady: true, take: nil, chips: [Self.chip(.device, .ok), Self.chip(.drive, .attention)],
             driveAvailable: false, copies: takeCopies(device: .recording, drive: .missing), dropoutCount: 0, mixerDown: false)
         #expect(status.problems.isEmpty)
     }
@@ -43,7 +43,7 @@ struct WatchStatusMakerTests {
     func stoppedIsNotLowSpace() {
         let take = WatchStatusMaker.Take(startedAt: Self.started, title: "Take 02", markerCount: 0)
         let status = WatchStatusMaker.make(
-            isArmed: true, take: take, chips: [Self.chip(.device, .failed), Self.chip(.drive, .failed)],
+            isReady: true, take: take, chips: [Self.chip(.device, .failed), Self.chip(.drive, .failed)],
             driveAvailable: true, copies: takeCopies(device: .interrupted, drive: .interrupted))
         #expect(status.problems == [.copyStopped])
     }
@@ -52,17 +52,17 @@ struct WatchStatusMakerTests {
     func fullIsItsOwnProblem() {
         let take = WatchStatusMaker.Take(startedAt: Self.started, title: "Take 02", markerCount: 0)
         let full = WatchStatusMaker.make(
-            isArmed: true, take: take, chips: [Self.chip(.drive, .failed)], driveAvailable: true,
+            isReady: true, take: take, chips: [Self.chip(.drive, .failed)], driveAvailable: true,
             copies: takeCopies(device: .recording, drive: .full))
         #expect(full.problems == [.copyFull])
-        let both = WatchStatusMaker.make(isArmed: true, take: take, copies: takeCopies(device: .interrupted, drive: .full))
+        let both = WatchStatusMaker.make(isReady: true, take: take, copies: takeCopies(device: .interrupted, drive: .full))
         #expect(both.problems == [.copyStopped, .copyFull])
         #expect(WatchStatus.Problem.copyFull.text == "A Copy is full")
     }
 
     @Test("After a Take, a Copy that stopped during it is no longer a problem on the wrist")
     func stoppedOnlyWhileRunning() {
-        let status = WatchStatusMaker.make(isArmed: true, take: nil, copies: takeCopies(running: false, device: .interrupted, drive: .interrupted))
+        let status = WatchStatusMaker.make(isReady: true, take: nil, copies: takeCopies(running: false, device: .interrupted, drive: .interrupted))
         #expect(status.problems.isEmpty)
     }
 }

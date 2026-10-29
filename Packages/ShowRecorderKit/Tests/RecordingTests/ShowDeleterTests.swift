@@ -30,11 +30,11 @@ struct ShowDeleterTests {
     func twoShows(_ recorder: Recorder) async throws {
         func record() async throws {
             let audio = FakeAudioDevice(inputChannelCount: 1)
-            try recorder.arm(audio)
+            try recorder.getReady(audio)
             try recorder.startTake()
             audio.deliver([[0.1]])
             try await recorder.stopTake()
-            recorder.disarm()
+            recorder.standDown()
         }
         try await record()
         try recorder.endShow()
@@ -133,7 +133,7 @@ struct ShowDeleterTests {
         let recorder = recorder()
         try await twoShows(recorder)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         #expect(recorder.deleteShow(named: "2026-10-06 Show", from: [.device, .drive]).deleted.isEmpty, "during a Take")
         try await recorder.stopTake()

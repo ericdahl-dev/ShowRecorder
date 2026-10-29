@@ -189,7 +189,7 @@ export const inBetaFeatures: { title: string; body: string; tier?: 'pro' }[] = [
   // source: Watch/ (the watch app, in TestFlight since 1.1.3)
   {
     title: 'Apple Watch remote',
-    body: 'See whether the iPhone is Armed or recording and for how long, drop Markers, start a Take and stop it with a press and hold, from your wrist.',
+    body: 'See whether the iPhone is Ready or recording and for how long, drop Markers, start a Take and stop it with a press and hold, from your wrist.',
   },
   // source: LiveActivity/TakeLiveActivityWidget.swift
   {

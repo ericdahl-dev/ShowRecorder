@@ -19,7 +19,7 @@ struct USBChannelShortfallTests {
         let shortfall = try #require(USBChannelShortfall.check(
             usbChannelCount: count, offeredChannelCount: nil, mixer: xr18, capabilities: xr18Capabilities))
 
-        #expect(shortfall.message == "Only \(count) of the XR18's 18 USB Channels are coming in. Arm the XR18 to record all 18.")
+        #expect(shortfall.message == "Only \(count) of the XR18's 18 USB Channels are coming in. Get the XR18 ready to record all 18.")
         #expect(shortfall.message.count <= 90)
     }
 
@@ -52,8 +52,8 @@ struct USBChannelShortfallTests {
         #expect(USBChannelShortfall.check(usbChannelCount: count, offeredChannelCount: count, mixer: nil, capabilities: nil) == nil)
     }
 
-    @Test("Nothing Armed means nothing to warn about")
-    func nothingArmed() {
+    @Test("Nothing Ready means nothing to warn about")
+    func nothingReady() {
         #expect(USBChannelShortfall.check(usbChannelCount: 0, offeredChannelCount: nil, mixer: xr18, capabilities: xr18Capabilities) == nil)
     }
 }

@@ -23,7 +23,7 @@ struct AsyncStopTests {
         var ended: [TakeEnd] = []
         recorder.onTakeEnded = { ended.append($0) }
         let audio = FakeAudioDevice(inputChannelCount: 2)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.2, count: 4_800), Array(repeating: 0.1, count: 4_800)])
 
@@ -48,7 +48,7 @@ struct AsyncStopTests {
             duringPublish.append(recorder.isFinishing)
             do { try recorder.startTake() } catch let error as RecorderError { refused = error } catch {}
         }
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
         try recorder.startTake()
         #expect(!recorder.isFinishing)
 

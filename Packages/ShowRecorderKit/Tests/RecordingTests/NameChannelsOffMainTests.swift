@@ -21,7 +21,7 @@ struct NameChannelsOffMainTests {
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
                                 destinationCheckInterval: nil, asyncStopAvailable: { true })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         let threads = Mutex<[Bool]>([])
         let real = recorder.renameChannels
         recorder.renameChannels = { names, late, copies, extras in
@@ -49,7 +49,7 @@ struct NameChannelsOffMainTests {
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
                                 destinationCheckInterval: nil, asyncStopAvailable: { true })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         let gate = DispatchSemaphore(value: 0)
         let entered = Mutex(false)
         recorder.renameChannels = { _, _, _, _ in

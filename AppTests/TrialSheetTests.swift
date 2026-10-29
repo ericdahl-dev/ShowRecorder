@@ -3,18 +3,18 @@ import Recording
 import Testing
 @testable import ShowRecorder
 
-/// The Trial sheets for someone who owns a mixer pack (#889): with that family's Mixer Armed the pack counts as Pro at
+/// The Trial sheets for someone who owns a mixer pack (#889): with that family's Mixer Ready the pack counts as Pro at
 /// record, but the sheets describe the plan as owned.
 @MainActor
 struct TrialSheetTests {
-    /// Owns the X Air pack and has just started the Trial, with an XR18 Armed.
+    /// Owns the X Air pack and has just started the Trial, with an XR18 Ready.
     func packOwnerInTrial() -> ProStore {
         let now = Date()
         let store = ProStore(status: ProStatus(lastKnown: ProPurchases(owned: [
             OwnedPurchase(productID: ProPurchases.packProductIDs[.xAir]!, purchaseDate: now.addingTimeInterval(-86_400)),
             OwnedPurchase(productID: ProPurchases.trialProductID, purchaseDate: now),
         ])))
-        store.armedFamily = { .xAir }
+        store.readyFamily = { .xAir }
         return store
     }
 
@@ -38,7 +38,7 @@ struct TrialSheetTests {
         let store = ProStore(status: ProStatus(lastKnown: ProPurchases(owned: [
             OwnedPurchase(productID: ProPurchases.packProductIDs[.xAir]!, purchaseDate: Date()),
         ])))
-        store.armedFamily = { .xAir }
+        store.readyFamily = { .xAir }
         #expect(TrialStatusSheet.tier(store) == .free)
     }
 

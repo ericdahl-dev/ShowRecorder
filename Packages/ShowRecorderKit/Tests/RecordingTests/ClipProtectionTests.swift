@@ -643,7 +643,7 @@ struct ClipProtectionTests {
         #expect(logged.isEmpty)
     }
 
-    @Test("A meter read while a slow Mixer is still answering, a disarm leaving no channels, doesn't crash or move twice")
+    @Test("A meter read while a slow Mixer is still answering, a stand-down leaving no channels, doesn't crash or move twice")
     func readDuringMove() async throws {
         let (entered, enter) = AsyncStream<Void>.makeStream()
         let (released, release) = AsyncStream<Void>.makeStream()

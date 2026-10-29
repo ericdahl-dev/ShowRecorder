@@ -18,7 +18,7 @@ struct TakeEndHookTests {
             heard.append(end)
             lastTakeEndWhenTold.append(recorder?.lastTakeEnd)
         }
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
 
         try recorder.startTake()
         try await recorder.stopTake()

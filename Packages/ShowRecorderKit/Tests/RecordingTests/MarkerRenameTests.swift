@@ -32,7 +32,7 @@ struct MarkerRenameTests {
     func renameReachesEverything() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let recorder = recorder()
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         deliver(4_800, to: audio)
         recorder.addMarker()
@@ -62,7 +62,7 @@ struct MarkerRenameTests {
     func refusals() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let recorder = recorder()
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         #expect(recorder.renameMarker(at: 0, to: "Chorus") == .notRecording)
 
         try recorder.startTake()

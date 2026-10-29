@@ -16,9 +16,9 @@ struct ProSection: View {
         let license = store.planLicense()
         let tier = license.tier
         let purchases = store.purchases
-        // What to offer (#705): the Armed family's pack and Pro, Pro alone, or only the upgrade for a pack owner.
+        // What to offer (#705): the Ready family's pack and Pro, Pro alone, or only the upgrade for a pack owner.
         let items = tier == nil ? [] : PackOffer.items(
-            ownsPro: purchases.ownsPro, armedFamily: model.licenseFamily, ownedPacks: purchases.ownedPacks,
+            ownsPro: purchases.ownsPro, readyFamily: model.licenseFamily, ownedPacks: purchases.ownedPacks,
             boughtPacks: purchases.boughtPacks, packsOffered: PackAvailability.isAvailableInThisBuild)
         Section {
             LabeledContent("Plan", value: PackOffer.planTitle(tier: tier, ownsPro: purchases.ownsPro, ownedPacks: purchases.ownedPacks))

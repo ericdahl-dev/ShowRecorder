@@ -29,11 +29,21 @@ struct WatchStatusTests {
         #expect(!problem.symbol.isEmpty)
         #expect(!problem.text.isEmpty && problem.text.count <= 20, "fits the wrist: \(problem.text)")
     }
+    @Test("The state keys on the wire stay \"armed\" and \"notArmed\": a paired watch a version behind still reads them")
+    func stateKeysOnTheWire() throws {
+        for (state, key) in [(WatchStatus.State.ready, "armed"), (.notReady, "notArmed")] {
+            let json = try String(decoding: JSONEncoder().encode(WatchStatus(state: state, sentAt: Date(timeIntervalSince1970: 0))), as: UTF8.self)
+            #expect(json.contains("\"\(key)\":{}"), "\(json)")
+            let old = Data(#"{"version":1,"sentAt":0,"state":{"\#(key)":{}},"problems":[]}"#.utf8)
+            #expect(try WatchStatus(message: [WatchStatus.key: old]).state == state)
+        }
+    }
+
     @Test("A newer iPhone's problem or reply the watch doesn't know yet doesn't stop the rest reading")
     func newerVersion() throws {
         let status = Data(#"{"version":2,"sentAt":0,"state":{"armed":{}},"problems":["driveLowSpace","somethingNew"]}"#.utf8)
         let read = try WatchStatus(message: [WatchStatus.key: status])
-        #expect(read.state == .armed)
+        #expect(read.state == .ready)
         #expect(read.problems == [.driveLowSpace])
         let reply = Data(#"{"somethingNew":{}}"#.utf8)
         #expect(try WatchReply(message: [WatchReply.key: reply]) == .refused(WatchReply.updateText))

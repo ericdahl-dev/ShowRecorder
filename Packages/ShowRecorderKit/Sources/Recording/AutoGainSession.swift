@@ -68,7 +68,7 @@ public final class AutoGainSession {
 
     private struct LevelDidNotFollow: Error {}
     private struct StoppedForTake: Error {}
-    /// The audio stopped while measuring (disarmed, a sample-rate change): nothing to measure (#554).
+    /// The audio stopped while measuring (stood down, a sample-rate change): nothing to measure (#554).
     private struct AudioStopped: Error {}
     /// Set by `stop()`: no more gain moves in this run.
     private var stopRequested = false
@@ -96,7 +96,7 @@ public final class AutoGainSession {
         self.init(currentControl: { control }, rule: rule, measure: measure, settle: settle, queue: queue, log: log)
     }
 
-    /// - Parameter currentControl: the linked Mixer's gain control now, or nil while the Mixer Link is down or the Armed
+    /// - Parameter currentControl: the linked Mixer's gain control now, or nil while the Mixer Link is down or the Ready
     ///   input isn't the linked Mixer. Runs and Undo use whatever it gives at each step, so a reconnect's new driver is
     ///   used, and Undo steps (the Mixer's own values) still put the gain back through it.
     ///   - mixer: which Mixer is linked now, its network name and model; the session keeps to the one linked when it

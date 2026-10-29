@@ -14,7 +14,7 @@ You can review the whole app without a mixer or any other hardware. The build un
 2. Close Settings. The record screen shows 18 level meters. Press the red button to record, the flag to add a Marker, and the square to stop.
 3. Tap "Shows" to see the recording: one WAV file per channel, a Show report and a Reaper project. On iPhone and iPad they are also in the Files app (On My iPhone > ShowRecorder).
 4. The in-app purchases are in Settings > Pro: the free 14-day Trial, ShowRecorder Pro, and Restore Purchases.
-5. With a paired Apple Watch, open ShowRecorder on the watch while the iPhone is Armed on the Demo signal: Record, Marker and Stop (a one-second press and hold) control the iPhone.
+5. With a paired Apple Watch, open ShowRecorder on the watch while the iPhone is Ready on the Demo signal: Record, Marker and Stop (a one-second press and hold) control the iPhone.
 
 If the Demo signal isn't listed, choose the built-in microphone in the same place: it uses the same screens with one channel.
 

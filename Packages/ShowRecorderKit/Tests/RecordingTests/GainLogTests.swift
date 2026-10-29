@@ -35,7 +35,7 @@ struct GainLogTests {
     func duringATake() async throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
         try recorder.startTake(sources: [Source(name: "Kick", color: .off), Source(name: "Snare", color: .off)])
         for _ in 0..<3 { device.deliver(Array(repeating: [0, 0, 0, 0], count: 2)) }
 
@@ -61,7 +61,7 @@ struct GainLogTests {
     func betweenTakes() async throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
         try recorder.startTake()
         device.deliver(Array(repeating: [0], count: 2))
         try await recorder.stopTake()

@@ -20,11 +20,11 @@ struct InputRestartTests {
     /// The first Take of whichever Show the recorder opened.
     func take01(_ recorder: Recorder) -> URL { recorder.currentShow!.folder.appending(path: "Take 01") }
 
-    @Test("Restarting input on the Armed device keeps the same Take going")
+    @Test("Restarting input on the Ready device keeps the same Take going")
     func restartKeepsTake() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root)
-        try recorder.arm(device)
+        try recorder.getReady(device)
         try recorder.startTake()
         device.deliver([[Self.sample(1), Self.sample(2)]])
 
@@ -40,32 +40,32 @@ struct InputRestartTests {
         #expect(stem.samples == [1, 2, 3])
     }
 
-    @Test("Restarting input while Armed and not recording keeps the meters running")
-    func restartWhileArmed() throws {
+    @Test("Restarting input while Ready and not recording keeps the meters running")
+    func restartWhileReady() throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root)
-        try recorder.arm(device)
+        try recorder.getReady(device)
         device.stop()
 
         try recorder.restartInput()
 
         #expect(device.isRunning)
-        #expect(recorder.isArmed)
+        #expect(recorder.isReady)
         device.deliver([[0.5], [0.25]])
         #expect(recorder.takeMeterLevels() == [0.5, 0.25])
     }
 
-    @Test("Restarting input when not Armed is an error")
-    func restartWhenNotArmed() {
+    @Test("Restarting input when not Ready is an error")
+    func restartWhenNotReady() {
         let recorder = Recorder(deviceFolder: root)
-        #expect(throws: RecorderError.notArmed) { try recorder.restartInput() }
+        #expect(throws: RecorderError.notReady) { try recorder.restartInput() }
     }
 
     @Test("A replacement device with the same channels and rate continues the Take")
     func replacementWithSameFormatContinues() async throws {
         let old = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root)
-        try recorder.arm(old)
+        try recorder.getReady(old)
         try recorder.startTake()
         old.deliver([[Self.sample(1)]])
 
@@ -81,11 +81,11 @@ struct InputRestartTests {
         #expect(stem.samples == [1, 2])
     }
 
-    @Test("A replacement device with a different format ends the Take cleanly and Arms on it")
+    @Test("A replacement device with a different format ends the Take cleanly and gets ready on it")
     func replacementWithDifferentFormatEndsTake() async throws {
         let old = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root)
-        try recorder.arm(old)
+        try recorder.getReady(old)
         try recorder.startTake()
         old.deliver([[Self.sample(1)], [Self.sample(2)]])
 
@@ -96,7 +96,7 @@ struct InputRestartTests {
         #expect(!recorder.isRecording)
         #expect(recorder.lastTakeEnd == TakeEnd(take: 1, reason: .inputChanged), "the Take ended because the input changed, not by the operator (#301)")
         #expect(TakeEnd.Reason.inputChanged.message != nil)
-        #expect(recorder.isArmed)
+        #expect(recorder.isReady)
         #expect(recorder.usbChannelCount == 1)
         #expect(replacement.isRunning)
         let stem = try ParsedStem(contentsOf: take01(recorder).appending(path: "01 USB 01.wav"))

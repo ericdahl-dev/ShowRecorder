@@ -89,7 +89,7 @@ extension GapTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let lossy = Lossy()
         let recorder = lossyDriveRecorder(lossy, healthyFrames: 120_000)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliver(144_000, to: audio, recorder, block: 4800, sample: counting())
@@ -119,7 +119,7 @@ extension GapTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let lossy = Lossy()
         let recorder = lossyDriveRecorder(lossy, healthyFrames: 120_000)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliver(144_000, to: audio, recorder, block: 4800, sample: counting())
@@ -142,7 +142,7 @@ extension GapTests {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let lossy = Lossy()
         let recorder = lossyDriveRecorder(lossy, failingCommit: { $0 == "02 USB 02.wav" ? 2 : nil })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliver(144_000, to: audio, recorder, block: 4800, sample: counting(channelStep: 100_000))
@@ -182,7 +182,7 @@ extension GapTests {
                 keeping.stem = stem
                 return stem
             }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliver(144_000, to: audio, recorder, block: 4800, sample: counting())
