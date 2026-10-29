@@ -66,6 +66,20 @@ public final class Recorder {
     /// Names typed before on this device, newest first, offered as chips (`SavedChannelNames`).
     public var savedChannelNames: [String] { naming.saved }
     @ObservationIgnored private let savedNames: UserDefaults
+    /// The USB Channels (from 1) that are not armed on this Audio interface (#991): no Stem, once Pro applies the choice
+    /// (`License.recordedChannelCount`). None until chosen.
+    public private(set) var notArmedChannels: Set<Int> = []
+
+    /// Sets which USB Channels are not armed, every other channel being armed, and keeps that for this Audio interface.
+    /// False, with nothing changed, where it isn't offered, with no input started, or during a Take: the choice is locked then.
+    @discardableResult
+    public func setNotArmedChannels(_ channels: Set<Int>) -> Bool {
+        guard channelArmingRule(), let device, !isRecording, !isStarting, !isFinishing else { return false }
+        notArmedChannels = channels.filter { 1...usbChannelCount ~= $0 }
+        ChannelArming.save(notArmedChannels, on: device.name, to: savedNames)
+        return true
+    }
+    @ObservationIgnored private let channelArmingRule: () -> Bool
     /// What the current or last Take was allowed, frozen at its record press. Nil: everything (no allowance given).
     @ObservationIgnored private var lastAllowance: TakeAllowance?
     @ObservationIgnored private var namingTask: Task<Void, Never>?
@@ -197,9 +211,11 @@ public final class Recorder {
         driveStallLimit: Duration = .seconds(2),
         driveStartDeadline: Duration = Recorder.defaultDriveStartDeadline,
         writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) },
-        asyncStopAvailable: @escaping () -> Bool = { AsyncStopAvailability.isAvailableInThisBuild }
+        asyncStopAvailable: @escaping () -> Bool = { AsyncStopAvailability.isAvailableInThisBuild },
+        channelArmingAvailable: @escaping () -> Bool = { ChannelArmingAvailability.isAvailableInThisBuild }
     ) {
         asyncStopRule = asyncStopAvailable
+        channelArmingRule = channelArmingAvailable
         self.destinationCheckInterval = destinationCheckInterval
         self.driveStallLimit = driveStallLimit
         self.driveStartDeadline = driveStartDeadline
@@ -340,6 +356,7 @@ public final class Recorder {
         self.device = device
         self.capture = capture
         usbChannelCount = device.inputChannelCount
+        loadNotArmedChannels(for: device)
         sampleRate = Int(device.sampleRate.rounded())
         isArmed = true
     }
@@ -352,6 +369,11 @@ public final class Recorder {
     public func restartInput() throws {
         guard let device, let capture else { throw RecorderError.notArmed }
         try device.start(input: { block in capture.receive(block) })
+    }
+
+    private func loadNotArmedChannels(for device: any AudioIODevice) {
+        notArmedChannels = channelArmingRule()
+            ? ChannelArming.notArmed(on: device.name, from: savedNames).filter { 1...device.inputChannelCount ~= $0 } : []
     }
 
     /// Moves input to `replacement` (for example a freshly configured device after the system
@@ -372,6 +394,7 @@ public final class Recorder {
         }
         device.stop()
         self.device = replacement
+        if replacement.name != device.name { loadNotArmedChannels(for: replacement) }
         try replacement.start(input: { block in capture.receive(block) })
         return true
     }
@@ -386,6 +409,7 @@ public final class Recorder {
         device = nil
         capture = nil
         usbChannelCount = 0
+        notArmedChannels = []
         sampleRate = nil
         clippedChannels = []
         isArmed = false
@@ -690,6 +714,7 @@ public final class Recorder {
         guard let device, let capture else { throw RecorderError.notArmed }
         guard !isFinishing else { throw RecorderError.finishing }
         guard !isRecording, !isStarting else { return }
+        guard !(allowance?.recordedChannels.isEmpty ?? false) else { throw RecorderError.noChannelsArmed }
         let date = now()
         // The press, in the Pre-roll buffer's own count: read with the press time, before any file work (#915).
         let pressPosition = capture.preRoll?.totalWrittenFrames
@@ -793,6 +818,7 @@ public final class Recorder {
         guard let device, let capture else { throw RecorderError.notArmed }
         guard !isFinishing else { throw RecorderError.finishing }
         guard !isRecording, !isStarting else { return }
+        guard !(allowance?.recordedChannels.isEmpty ?? false) else { throw RecorderError.noChannelsArmed }
         isStarting = true
         startCanceled = false
         defer {
@@ -1818,6 +1844,8 @@ public enum RecorderError: Error, Equatable, LocalizedError {
     case finishing
     /// Stop came while the Take was starting (#914).
     case startCanceled
+    /// Every USB Channel is not armed, so there would be nothing to record (#991).
+    case noChannelsArmed
 
     public var errorDescription: String? {
         switch self {

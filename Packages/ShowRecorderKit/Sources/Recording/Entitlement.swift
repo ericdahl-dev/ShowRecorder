@@ -70,12 +70,12 @@ extension Entitlement {
     public static let freeMarkerLimit = 3
 
     /// What a Take pressed under `tier` may do. Free records every USB Channel (Eric, 2026-10-15, #705); Pro and the
-    /// Trial add the rest.
-    public static func allowance(for tier: Tier, channelCount: Int) -> TakeAllowance {
+    /// Trial add the rest, and give no Stem to the channels in `notArmed` (#991). Free keeps that choice but ignores it.
+    public static func allowance(for tier: Tier, channelCount: Int, notArmed: Set<Int> = []) -> TakeAllowance {
         let all = channelCount > 0 ? Set(1...channelCount) : []
         switch tier {
         case .pro, .trial:
-            return TakeAllowance(recordedChannels: all, showReport: true, reaperExport: true, namingByHand: true)
+            return TakeAllowance(recordedChannels: all.subtracting(notArmed), showReport: true, reaperExport: true, namingByHand: true)
         case .free:
             return TakeAllowance(
                 recordedChannels: all, showReport: false, reaperExport: false,
