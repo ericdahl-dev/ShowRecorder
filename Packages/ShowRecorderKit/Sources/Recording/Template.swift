@@ -22,7 +22,8 @@ public struct Template: Codable, Equatable, Identifiable, Sendable {
 
     public init(
         name: String, venue: String?, channelNames: [Int: String],
-        mixerNetworkName: String?, mixerAddress: String, preRollSeconds: Double, recordTo: RecordTo? = nil
+        mixerNetworkName: String?, mixerAddress: String, preRollSeconds: Double, recordTo: RecordTo? = nil,
+        notArmedChannels: Set<Int>? = nil
     ) {
         self.name = name
         self.venue = venue
@@ -31,6 +32,7 @@ public struct Template: Codable, Equatable, Identifiable, Sendable {
         self.mixerAddress = mixerAddress
         self.preRollSeconds = preRollSeconds
         self.recordTo = recordTo
+        self.notArmedChannels = notArmedChannels
     }
 
     /// Where to connect: a Mixer found with this Template's network name, wherever it is now, or else the saved

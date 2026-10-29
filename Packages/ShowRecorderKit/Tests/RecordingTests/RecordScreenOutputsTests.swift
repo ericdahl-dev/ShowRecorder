@@ -120,6 +120,46 @@ struct RecordScreenOutputsTests {
         #expect(RecordScreenState().inputSummary(s) == "XR18 · 1 USB Channel")
     }
 
+    @Test("The status strip counts time left from the channels a Take records, not all of them (#991)")
+    func chipsScaleWithTheRecordedChannels() {
+        var s = RecordScreenSnapshot()
+        s.isReady = true
+        s.usbChannelCount = 18
+        s.sampleRate = 48_000
+        s.deviceAvailableBytes = 18 * 48_000 * 3 * 3600
+        let all = RecordScreenState().chips(s).map(\.text)
+        s.recordedChannelCount = 9
+        let half = RecordScreenState().chips(s).map(\.text)
+        #expect(all != half)
+        #expect(half.contains { $0.contains("2 h") })
+    }
+
+    @Test("When some USB Channels are not armed the header says how many are: armed of total; all armed keeps the count (#991)")
+    func headerCountsTheArmedChannels() {
+        var s = RecordScreenSnapshot()
+        s.isReady = true
+        s.usbChannelCount = 18
+        s.readyDeviceName = "XR18"
+        s.recordedChannelCount = 13
+        #expect(RecordScreenState().inputSummary(s) == "XR18 · 13 of 18 armed")
+        s.recordedChannelCount = 18
+        #expect(RecordScreenState().inputSummary(s) == "XR18 · 18 USB Channels")
+        s.recordedChannelCount = nil
+        #expect(RecordScreenState().inputSummary(s) == "XR18 · 18 USB Channels")
+        s.recordedChannelCount = 1
+        #expect(RecordScreenState().inputSummary(s) == "XR18 · 1 of 18 armed")
+    }
+
+    @Test("With no USB Channel armed, the header says so and what to do: record is off (#991)")
+    func headerWhenNoChannelIsArmed() {
+        var s = RecordScreenSnapshot()
+        s.isReady = true
+        s.usbChannelCount = 18
+        s.readyDeviceName = "XR18"
+        s.recordedChannelCount = 0
+        #expect(RecordScreenState().inputSummary(s) == "XR18 · No USB Channel is armed. Arm one to record.")
+    }
+
     @Test("The Take's title and the Show summary: a hint before the first Show, then the Show and its Take")
     func showSummary() {
         var s = RecordScreenSnapshot()

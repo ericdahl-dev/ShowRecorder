@@ -238,9 +238,9 @@ struct SettingsView: View {
         model.recordTo.settingsShowsDrive(isOffered: RecordToAvailability.isAvailableInThisBuild, driveAllowed: model.pro.license().allowsDrive)
     }
 
-    /// Time left on each Destination for the Ready USB Channels.
+    /// Time left on each Destination for the USB Channels a Take would record.
     @ViewBuilder private var timeLeft: some View {
-        let count = model.recorder.usbChannelCount
+        let count = model.recordedChannelCount
         if count > 0 {
             let rate = model.recorder.sampleRate ?? 48_000
             let device = TimeLeft(availableBytes: model.drive.deviceAvailableBytes, usbChannelCount: count, sampleRate: rate)
