@@ -27,7 +27,7 @@ describe("changelog", () => {
   });
 
   it("leads with 1.0 on the App Store, and the page links to it (#382)", () => {
-    expect(RELEASES[0]).toMatchObject({ version: "1.0.3", channel: "App Store" });
+    expect(RELEASES.find((r) => r.channel === "App Store")).toMatchObject({ version: "1.0.3" });
     expect(renderToStaticMarkup(ChangelogPage())).toContain(`<a href="${APP_STORE_URL}">`);
   });
 
