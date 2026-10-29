@@ -14,6 +14,17 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.18",
+    date: "2026-10-29",
+    channel: "TestFlight beta",
+    summary: "The 1.1 build going to the App Store.",
+    changes: [
+      "Auto-gain is in the App Store build too, with Pro, on an XR18 or MR18. On the X32 and M32 it stays in the beta.",
+      "The Reaper project has a marker where a channel was renamed on the mixer during a Take.",
+      "Once the iPhone has been online, the Trial ends by the date the App Store has signed, not only by this iPhone's clock.",
+    ],
+  },
+  {
     version: "1.0.3",
     date: "2026-10-28",
     channel: "App Store",
