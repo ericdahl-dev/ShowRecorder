@@ -16,7 +16,6 @@ export const RELEASES: readonly Release[] = [
   {
     version: "1.1.18",
     date: "2026-10-29",
-<<<<<<< HEAD
     channel: "App Store",
     summary: "ShowRecorder 1.1: auto-gain with Pro, an Apple Watch app and a Live Activity.",
     changes: [
@@ -26,15 +25,8 @@ export const RELEASES: readonly Release[] = [
       "On an XR18 or MR18, after a re-patch, each file (Pro) is named after what the mixer really routes to its USB Channel.",
       "If the mixer's USB routing changes during a Take, the record screen warns you and a Marker marks the moment.",
       "The Drive shows by its name, not a long code.",
+      "The Reaper project (Pro) has a marker where a channel was renamed on the mixer during a Take.",
       "On the X32 and M32, auto-gain stays in the public beta.",
-=======
-    channel: "TestFlight beta",
-    summary: "The 1.1 build going to the App Store.",
-    changes: [
-      "Auto-gain is in the App Store build too, with Pro, on an XR18 or MR18. On the X32 and M32 it stays in the beta.",
-      "The Reaper project has a marker where a channel was renamed on the mixer during a Take.",
-      "Once the iPhone has been online, the Trial ends by the date the App Store has signed, not only by this iPhone's clock.",
->>>>>>> origin/main
     ],
   },
   {
