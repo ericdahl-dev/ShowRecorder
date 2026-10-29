@@ -1295,6 +1295,12 @@ final class RecordScreenModel {
     /// The channel choice a Template saves: none where arming isn't offered, so applying it leaves the operator's choice alone (#991).
     private var templateNotArmed: Set<Int>? { ChannelArmingAvailability.isAvailableInThisBuild ? recorder.notArmedChannels : nil }
 
+    /// A Template's choice of which USB Channels are not armed (#991): applied now, or kept until an Audio interface is Ready. A
+    /// Template without one leaves the saved choice alone and drops one an earlier Template left waiting.
+    func applyArming(from template: Template) {
+        if let notArmed = template.notArmedChannels { recorder.setNotArmedChannels(notArmed) } else { recorder.clearPendingNotArmedChannels() }
+    }
+
     /// Starts a Show from `template`: its name, venue and channel names, its Pre-roll and Record to (#840), and its Mixer. The Show starts
     /// at once; the Mixer is connected after, and looked for by its network name when the saved address doesn't
     /// answer or another mixer is there. Returns what to tell the operator, or nil when the Show started.
@@ -1317,7 +1323,7 @@ final class RecordScreenModel {
             recordTo = choice
             recordToChanged()
         }
-        if let notArmed = template.notArmedChannels { recorder.setNotArmedChannels(notArmed) }
+        applyArming(from: template)
         if !template.mixerAddress.isEmpty || template.mixerNetworkName != nil {
             Task { await connectMixer(for: template) }
         }
@@ -1343,7 +1349,7 @@ final class RecordScreenModel {
             recordTo = choice
             recordToChanged()
         }
-        if let notArmed = template.notArmedChannels { recorder.setNotArmedChannels(notArmed) }
+        applyArming(from: template)
         if !template.mixerAddress.isEmpty || template.mixerNetworkName != nil {
             Task { await connectMixer(for: template) }
         }

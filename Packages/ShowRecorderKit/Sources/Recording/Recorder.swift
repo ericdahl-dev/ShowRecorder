@@ -73,6 +73,10 @@ public final class Recorder {
     /// A choice made while no Audio interface was Ready (a Template applied at launch): used, and saved for it, when one is.
     @ObservationIgnored private var pendingNotArmedChannels: Set<Int>?
 
+    /// Drops a choice that is waiting for an Audio interface: a later Template without one replaces it, so channels the
+    /// operator expects to record are never left unarmed by an earlier Template.
+    public func clearPendingNotArmedChannels() { pendingNotArmedChannels = nil }
+
     /// Sets which USB Channels are not armed, every other channel being armed, and keeps that for this Audio interface.
     /// With none Ready the choice waits for the next one that is. False, with nothing changed, where it isn't offered or
     /// during a Take: the choice is locked then.
@@ -84,6 +88,7 @@ public final class Recorder {
             return true
         }
         guard !isRecording, !isStarting, !isFinishing else { return false }
+        pendingNotArmedChannels = nil
         notArmedChannels = channels.filter { 1...usbChannelCount ~= $0 }
         ChannelArming.save(notArmedChannels, on: device.name, to: savedNames)
         return true

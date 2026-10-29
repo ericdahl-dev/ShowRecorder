@@ -266,6 +266,21 @@ struct RecorderChannelArmingTests {
         #expect(recorder.notArmedChannels.isEmpty)
     }
 
+    @Test("A later Template with no choice drops the waiting one: Template A, then B, then Ready records every channel")
+    func laterTemplateReplacesTheWaitingChoice() throws {
+        let recorder = recorder(defaults())
+        #expect(recorder.setNotArmedChannels([2, 3]))
+        // Template B has no arming choice: the app clears what A left waiting.
+        recorder.clearPendingNotArmedChannels()
+        try recorder.getReady(FakeAudioDevice(name: "Main", inputChannelCount: 4))
+        #expect(recorder.notArmedChannels.isEmpty)
+        // A later Template's own choice replaces an earlier one.
+        recorder.standDown()
+        #expect(recorder.setNotArmedChannels([1]) && recorder.setNotArmedChannels([4]))
+        try recorder.getReady(FakeAudioDevice(name: "Main", inputChannelCount: 4))
+        #expect(recorder.notArmedChannels == [4])
+    }
+
     @Test("Where the choice isn't offered, nothing waits")
     func hiddenKeepsNothing() throws {
         let recorder = recorder(defaults(), available: false)
