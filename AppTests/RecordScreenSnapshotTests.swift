@@ -160,4 +160,19 @@ struct RecordScreenSnapshotTests {
             #expect(model.currentAllowance()?.recordedChannels == Set(1...4))
         }
     }
+
+    @Test func aLaterTemplateWithoutAChoiceDropsTheWaitingOne() {
+        restoring("notArmedChannels") {
+            let model = RecordScreenModel(pro: store(owningPro: true))
+            func template(_ notArmed: Set<Int>?) -> Template {
+                Template(name: "T", venue: nil, channelNames: [:], mixerNetworkName: nil, mixerAddress: "", preRollSeconds: 0, notArmedChannels: notArmed)
+            }
+            // No Audio interface is Ready yet: Template A's choice waits, and Template B (none) takes it back.
+            model.applyArming(from: template([2, 3]))
+            model.applyArming(from: template(nil))
+            try? model.recorder.getReady(FakeAudioDevice(name: "TemplatePendingTest", inputChannelCount: 4))
+            defer { model.recorder.standDown() }
+            #expect(model.recorder.notArmedChannels.isEmpty && model.recordedChannelCount == 4)
+        }
+    }
 }
