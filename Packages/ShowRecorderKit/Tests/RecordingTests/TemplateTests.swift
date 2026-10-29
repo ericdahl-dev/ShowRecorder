@@ -143,6 +143,19 @@ struct TemplateTests {
         #expect(template.name == "Old" && template.recordTo == nil)
     }
 
+    @Test("A Template keeps which USB Channels are not armed, and one saved before that leaves the current choice (#991)")
+    func notArmedKept() throws {
+        var store = TemplateStore(defaults: defaults)
+        var template = sunday()
+        template.notArmedChannels = [3, 5]
+        store.save(template)
+        #expect(TemplateStore(defaults: defaults).templates.first?.notArmedChannels == [3, 5])
+
+        let old = #"[{"id":"\#(UUID().uuidString)","name":"Old","channelNames":{},"mixerAddress":"","preRollSeconds":0}]"#
+        defaults.set(Data(old.utf8), forKey: TemplateStore.key)
+        #expect(try #require(TemplateStore(defaults: defaults).templates.first).notArmedChannels == nil)
+    }
+
     @Test("A Template from a past Show takes today's Record to choice (#840)")
     func fromPastShowRecordTo() throws {
         let root = FileManager.default.temporaryDirectory.appending(path: "TemplateTests-\(UUID().uuidString)")
