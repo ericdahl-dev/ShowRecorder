@@ -92,6 +92,12 @@ export const featureGroups: {
         body: 'Type a name for any USB Channel on the Channel names page, with shortcut chips and names you used before. The files take the names when the Take ends.',
         tier: 'pro',
       },
+      // source: Packages/ShowRecorderKit/Sources/Recording/AutoGainAvailability.swift (everyone; X32AutoGainAvailability: Debug and TestFlight, #997)
+      {
+        title: 'Auto-gain',
+        body: 'On an XR18 or MR18, over Mixer Link, sets each channel\'s preamp to -18 dBFS and moves the fader, sends and dynamics the other way, so the mix stays the same. Undo puts it all back.',
+        tier: 'pro',
+      },
     ],
   },
   {
@@ -196,11 +202,11 @@ export const inBetaFeatures: { title: string; body: string; tier?: 'pro' }[] = [
     title: 'Live Activity',
     body: 'The running Take, its time and Marker count on the Lock Screen and in the Dynamic Island, with an alert if a problem starts.',
   },
-  // source: Packages/ShowRecorderKit/Sources/Recording/AutoGainAvailability.swift (Debug and TestFlight, #691)
+  // source: Packages/ShowRecorderKit/Sources/Recording/AutoGainAvailability.swift (X32AutoGainAvailability: Debug and TestFlight, #997)
   {
-    title: 'Auto-gain',
+    title: 'Auto-gain on the X32 and M32',
     tier: 'pro',
-    body: 'Over Mixer Link, sets each channel\'s preamp to -18 dBFS and moves the fader, sends and dynamics the other way, so the mix stays the same. Undo puts it all back.',
+    body: 'Auto-gain on an X32 or M32 with a USB card, in the beta until it has been tested live on one.',
   },
   // source: Packages/ShowRecorderKit/Sources/Recording/ClipProtection.swift (ClipProtectionSetting.isOffered: Debug and TestFlight, #699)
   {

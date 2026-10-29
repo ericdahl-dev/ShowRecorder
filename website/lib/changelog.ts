@@ -14,6 +14,16 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.18",
+    date: "2026-10-29",
+    channel: "App Store",
+    summary: "Auto-gain is in the App Store, with Pro.",
+    changes: [
+      "Auto-gain sets each channel's preamp to -18 dBFS on an XR18 or MR18 over Mixer Link, moving the fader, sends and dynamics the other way so the mix stays the same. Undo puts it all back.",
+      "On the X32 and M32, auto-gain stays in the public beta.",
+    ],
+  },
+  {
     version: "1.0.3",
     date: "2026-10-28",
     channel: "App Store",
