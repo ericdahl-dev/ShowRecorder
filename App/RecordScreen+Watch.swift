@@ -26,7 +26,7 @@ extension RecordScreenModel {
                 record()
                 // The Take is starting off the main thread (#914): the watch hears of it when it runs; a start that then fails shows on the
                 // phone (`recordError`).
-                return recorder.isRecording || recorder.isStarting || startRequested ? nil : (recordError ?? recordBlock?.text ?? "Couldn't start recording")
+                return recorder.isRecording || recorder.isStarting || startRequested ? nil : (recordError ?? recordBlock?.text ?? (noChannelArmed ? RecordScreenState.noChannelArmedText : "Couldn't start recording"))
             },
             stop: { [weak self] in
                 guard let self, recorder.isRecording || recorder.isStarting || startRequested else { return false }

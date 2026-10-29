@@ -47,6 +47,42 @@ struct ChannelArmingTests {
     }
 }
 
+@Suite("Channel arming, on the lanes")
+struct ChannelArmingLaneTests {
+    func lanes(_ license: License, recording: TakeAllowance? = nil, count: Int = 6) -> Set<Int> {
+        ChannelArming.notArmedLanes(chosen: [3, 5], license: license, channelCount: count, takeAllowance: recording, isRecording: recording != nil)
+    }
+
+    @Test("Between Takes a lane reads as a Take pressed now would record it: Pro and the Trial dim the choice, Free and an unknown tier don't")
+    func betweenTakes() {
+        #expect(lanes(License(proOffered: true, tier: .pro, trialStarted: false)) == [3, 5])
+        #expect(lanes(License(proOffered: true, tier: .trial(daysLeft: 2), trialStarted: true)) == [3, 5])
+        #expect(lanes(License(proOffered: true, tier: .free, trialStarted: false)).isEmpty)
+        #expect(lanes(License(proOffered: true, tier: nil, trialStarted: false)).isEmpty)
+        #expect(lanes(License(proOffered: false, tier: nil, trialStarted: false)) == [3, 5])
+        #expect(lanes(License(proOffered: true, tier: .pro, trialStarted: false), count: 0).isEmpty)
+    }
+
+    @Test("Record is off only when nothing is armed and no Take is running or starting, so Stop is never disabled")
+    func nothingToRecordNeverOnAStop() {
+        func off(recorded: Int, count: Int = 6, recording: Bool = false, starting: Bool = false) -> Bool {
+            ChannelArming.nothingToRecord(recordedChannelCount: recorded, usbChannelCount: count, isRecording: recording, isStarting: starting)
+        }
+        #expect(off(recorded: 0))
+        #expect(!off(recorded: 4))
+        #expect(!off(recorded: 0, count: 0))
+        #expect(!off(recorded: 0, recording: true))
+        #expect(!off(recorded: 0, starting: true))
+    }
+
+    @Test("During a Take a lane follows what the Take was started with, whatever the license says now")
+    func duringATake() {
+        let started = Entitlement.allowance(for: .pro, channelCount: 6, notArmed: [2])
+        // The Trial ended mid-Take: Free now, but the Take keeps its Stems.
+        #expect(lanes(License(proOffered: true, tier: .free, trialStarted: true), recording: started) == [2])
+    }
+}
+
 @Suite("Channel arming, remembered")
 struct ChannelArmingStoreTests {
     func defaults() -> UserDefaults {

@@ -44,6 +44,10 @@ public struct RecordScreenSnapshot: Equatable, Sendable {
 
     // The status strip, the header and the watch
     public var usbChannelCount = 0
+    /// How many USB Channels a Take pressed now records (#991): time left is counted from it. Nil: all of `usbChannelCount`.
+    public var recordedChannelCount: Int?
+    /// Every USB Channel is not armed and the license applies that, so a press would record nothing.
+    var noChannelArmed: Bool { recordedChannelCount == 0 && usbChannelCount > 0 }
     /// Free space on the Device (the part the Take writes to).
     public var deviceAvailableBytes: Int64 = 1 << 40
     public var driveStatus = DriveStatus.notChosen
@@ -140,7 +144,7 @@ public struct RecordScreenState: Equatable, Sendable {
     /// The status strip: Device and Drive time left, and the Mixer Link.
     public func chips(_ s: RecordScreenSnapshot) -> [StatusChip] {
         StatusChip.make(
-            usbChannelCount: s.usbChannelCount, deviceAvailableBytes: s.deviceAvailableBytes, drive: s.driveStatus,
+            usbChannelCount: s.recordedChannelCount ?? s.usbChannelCount, deviceAvailableBytes: s.deviceAvailableBytes, drive: s.driveStatus,
             mixer: s.mixerState, copies: s.copies, sampleRate: s.sampleRate, recordTo: s.recordTo, driveAllowed: s.driveAllowed)
     }
 
@@ -164,8 +168,13 @@ public struct RecordScreenState: Equatable, Sendable {
     public func inputSummary(_ s: RecordScreenSnapshot) -> String {
         guard s.isReady else { return recordBlock(s)?.text ?? "Choose the Mixer's audio interface in Settings" }
         let name = s.readyDeviceName ?? "Audio interface"
+        if s.noChannelArmed { return "\(name) · \(Self.noChannelArmedText)" }
+        if let armed = s.recordedChannelCount, armed < s.usbChannelCount { return "\(name) · \(armed) of \(s.usbChannelCount) armed" }
         return "\(name) · \(Self.usbChannelSummary(s.usbChannelCount))"
     }
+
+    /// What the header and the watch say when a press would record nothing (#991).
+    public static let noChannelArmedText = "No USB Channel is armed. Arm one to record."
 
     /// "1 USB Channel" or "18 USB Channels".
     public static func usbChannelSummary(_ count: Int) -> String {

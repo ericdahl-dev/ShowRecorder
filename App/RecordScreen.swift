@@ -248,7 +248,7 @@ struct RecordScreen: View {
             if !(launchFlag("-screenshotWindow") && model.alerts.top == nil) {
                 AlertSlot(queue: model.alerts, perform: model.perform, swipe: model.swipe)
             }
-            MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.linkedSources, typedNames: model.recorder.channelNames, nameChannel: nameChannel)
+            MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, notArmed: model.notArmedLanes, armChannel: model.offersChannelArming ? { model.setChannelArmed($0, $1) } : nil, sources: model.linkedSources, typedNames: model.recorder.channelNames, nameChannel: nameChannel)
                 .overlay { if let block = model.recordBlock { StoodDownNotice(block: block, perform: model.perform) } }
             transport
         }
@@ -269,7 +269,7 @@ struct RecordScreen: View {
             }
             HStack(alignment: .top, spacing: 12) {
                 if model.transportLeading { transportColumn }
-                MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, sources: model.linkedSources, typedNames: model.recorder.channelNames, nameChannel: nameChannel, compact: true)
+                MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, notArmed: model.notArmedLanes, armChannel: model.offersChannelArming ? { model.setChannelArmed($0, $1) } : nil, sources: model.linkedSources, typedNames: model.recorder.channelNames, nameChannel: nameChannel, compact: true)
                     .overlay { if let block = model.recordBlock { StoodDownNotice(block: block, perform: model.perform) } }
                 if !model.transportLeading { transportColumn }
             }
@@ -315,7 +315,7 @@ struct RecordScreen: View {
                 RecordButtonLabel(isRecording: model.recorder.isRecording, size: size)
             }
             .buttonStyle(.plain)
-            .disabled(!model.recorder.isReady || model.speedTest.isRunning)
+            .disabled(!model.recorder.isReady || model.speedTest.isRunning || model.noChannelArmed)
             .accessibilityLabel(model.recorder.isRecording ? "Stop \(model.takeTitle)" : "Record")
         }
     }
@@ -953,6 +953,7 @@ final class RecordScreenModel {
         s.offersMixerLink = offersMixerLink
         s.soundcheckOffered = soundcheckOffered
         s.usbChannelCount = recorder.usbChannelCount
+        s.recordedChannelCount = recordedChannelCount
         s.deviceAvailableBytes = drive.deviceAvailableBytes
         s.driveStatus = drive.status
         s.mixerState = mixer.state
@@ -1041,7 +1042,8 @@ final class RecordScreenModel {
     /// What to do about audio interruptions, and the banner they leave. The `TakeSequencer` keeps it.
     var interruptions: InterruptionPolicy { sequencer.interruptions }
 
-    init() {
+    /// - Parameter pro: what is owned; a test passes a store that knows its purchases and never asks the App Store.
+    init(pro: ProStore = ProStore()) {
         let drive = DriveFolderModel()
         let store = drive.store
         self.drive = drive
@@ -1051,7 +1053,6 @@ final class RecordScreenModel {
             store.problemDescription()
         }, preRollSeconds: PreRollSetting.load())
         self.recorder = recorder
-        let pro = ProStore()
         self.pro = pro
         // The screenshot build Gets ready only demo inputs, never a microphone or USB interface (#374).
         let inputs: any InputDeviceSource = DemoOnlyInputSource.isScreenshotBuild() ? DemoOnlyInputSource(AppInputDevices()) : AppInputDevices()
@@ -1119,7 +1120,7 @@ final class RecordScreenModel {
     var takeTitle: String { screen.takeTitle(snapshot) }
 
     func record() {
-        guard !speedTest.isRunning, !recorder.isStarting, !recorder.isRecording, !startRequested else { return }
+        guard !speedTest.isRunning, !recorder.isStarting, !recorder.isRecording, !startRequested, !noChannelArmed else { return }
         // Freeze whatever the Mixer Link knows right now, and what the tier allows, into the Take (Show-Safe
         // Promise: judged only here, never during the Take).
         let sources = linkedSources, allowance = currentAllowance()
@@ -1288,8 +1289,11 @@ final class RecordScreenModel {
         templates.save(Template(
             name: name, venue: recorder.currentShow?.venue, channelNames: recorder.channelNames,
             mixerNetworkName: mixer.networkNameForTemplates, mixerAddress: mixerAddress,
-            preRollSeconds: preRollSeconds, recordTo: templateRecordTo))
+            preRollSeconds: preRollSeconds, recordTo: templateRecordTo, notArmedChannels: templateNotArmed))
     }
+
+    /// The channel choice a Template saves: none where arming isn't offered, so applying it leaves the operator's choice alone (#991).
+    private var templateNotArmed: Set<Int>? { ChannelArmingAvailability.isAvailableInThisBuild ? recorder.notArmedChannels : nil }
 
     /// Starts a Show from `template`: its name, venue and channel names, its Pre-roll and Record to (#840), and its Mixer. The Show starts
     /// at once; the Mixer is connected after, and looked for by its network name when the saved address doesn't
@@ -1313,6 +1317,7 @@ final class RecordScreenModel {
             recordTo = choice
             recordToChanged()
         }
+        if let notArmed = template.notArmedChannels { recorder.setNotArmedChannels(notArmed) }
         if !template.mixerAddress.isEmpty || template.mixerNetworkName != nil {
             Task { await connectMixer(for: template) }
         }
@@ -1338,6 +1343,7 @@ final class RecordScreenModel {
             recordTo = choice
             recordToChanged()
         }
+        if let notArmed = template.notArmedChannels { recorder.setNotArmedChannels(notArmed) }
         if !template.mixerAddress.isEmpty || template.mixerNetworkName != nil {
             Task { await connectMixer(for: template) }
         }
@@ -1421,7 +1427,39 @@ final class RecordScreenModel {
     /// (nothing limited) while Pro isn't offered. Read from cached state only, never waiting on the App Store, so it
     /// can be frozen at the record press.
     func currentAllowance() -> TakeAllowance? {
-        pro.license().allowance(channelCount: recorder.usbChannelCount)
+        pro.license().allowance(channelCount: recorder.usbChannelCount, notArmed: recorder.notArmedChannels)
+    }
+
+    /// How many USB Channels a Take pressed now records: time left is counted from it. Free records every channel, whatever is chosen (#991).
+    var recordedChannelCount: Int {
+        pro.license().recordedChannelCount(channelCount: recorder.usbChannelCount, notArmed: recorder.notArmedChannels)
+    }
+
+    /// Every USB Channel is not armed and would stay so: record is off until one is armed.
+    var noChannelArmed: Bool {
+        ChannelArming.nothingToRecord(
+            recordedChannelCount: recordedChannelCount, usbChannelCount: recorder.usbChannelCount,
+            isRecording: recorder.isRecording, isStarting: recorder.isStarting)
+    }
+
+    /// The lanes (USB Channel numbers from 1) drawn as not armed: what a Take pressed now would leave out, or what the running Take did.
+    var notArmedLanes: Set<Int> {
+        ChannelArming.notArmedLanes(
+            chosen: recorder.notArmedChannels, license: pro.license(), channelCount: recorder.usbChannelCount,
+            takeAllowance: recorder.takeAllowance, isRecording: recorder.isRecording)
+    }
+
+    /// Whether a lane's menu offers arming and not arming it: where it's offered (Debug only), to Pro and the Trial, between Takes (#991).
+    var offersChannelArming: Bool {
+        ChannelArmingAvailability.isAvailableInThisBuild && !pro.license().limits && recorder.isReady
+            && !recorder.isRecording && !recorder.isStarting && !recorder.isFinishing
+    }
+
+    /// Arms or stops arming one USB Channel (from 1); a Take that is running keeps its own (the Recorder refuses).
+    func setChannelArmed(_ channel: Int, _ armed: Bool) {
+        var notArmed = recorder.notArmedChannels
+        if armed { notArmed.remove(channel) } else { notArmed.insert(channel) }
+        recorder.setNotArmedChannels(notArmed)
     }
 
     var usbChannelSummary: String { RecordScreenState.usbChannelSummary(recorder.usbChannelCount) }
