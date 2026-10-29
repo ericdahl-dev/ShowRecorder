@@ -81,7 +81,7 @@ export default function FeaturesPage() {
         <div className="section-head">
           <h2 id="beta-title">In the beta</h2>
           <p>
-            Coming in 1.1, and in the public TestFlight beta now.
+            Everything above is in ShowRecorder 1.1 on the App Store. These are in the public TestFlight beta only.
             {TESTFLIGHT_URL ? (
               <>
                 {" "}

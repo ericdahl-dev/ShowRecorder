@@ -142,6 +142,18 @@ export const featureGroups: {
         body: 'Sunlight gives a white background, black text and strong colors for a bright stage. Dark is for a dark room.',
         tier: 'free',
       },
+      // source: Watch/ (the watch app, no availability rule; Free, #705)
+      {
+        title: 'Apple Watch remote',
+        body: 'See whether the iPhone is Armed or recording and for how long, drop Markers, start a Take and stop it with a press and hold, from your wrist.',
+        tier: 'free',
+      },
+      // source: LiveActivity/TakeLiveActivityWidget.swift (no availability rule)
+      {
+        title: 'Live Activity',
+        body: 'The running Take, its time and Marker count on the Lock Screen and in the Dynamic Island, with an alert if a problem starts.',
+        tier: 'free',
+      },
       // source: App/MeterGrid.swift (accessibilityValue), App/RecordScreen.swift (accessibility labels)
       {
         title: 'VoiceOver',
@@ -189,19 +201,9 @@ export const featureGroups: {
   },
 ];
 
-// In the public TestFlight beta, not yet in the App Store release (1.1). Each was checked against its availability
-// rule: shown to TestFlight builds, never only Debug. Move an entry into featureGroups when 1.1 ships.
+// In the public TestFlight beta, not in the App Store version (1.1). Each was checked against its availability
+// rule: shown to TestFlight builds, never only Debug. Move an entry into featureGroups when its rule reaches everyone.
 export const inBetaFeatures: { title: string; body: string; tier?: 'pro' }[] = [
-  // source: Watch/ (the watch app, in TestFlight since 1.1.3)
-  {
-    title: 'Apple Watch remote',
-    body: 'See whether the iPhone is Armed or recording and for how long, drop Markers, start a Take and stop it with a press and hold, from your wrist.',
-  },
-  // source: LiveActivity/TakeLiveActivityWidget.swift
-  {
-    title: 'Live Activity',
-    body: 'The running Take, its time and Marker count on the Lock Screen and in the Dynamic Island, with an alert if a problem starts.',
-  },
   // source: Packages/ShowRecorderKit/Sources/Recording/AutoGainAvailability.swift (X32AutoGainAvailability: Debug and TestFlight, #997)
   {
     title: 'Auto-gain on the X32 and M32',
