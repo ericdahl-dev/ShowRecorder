@@ -1,0 +1,34 @@
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata({
+  path: "/docs/arming-channels",
+  title: "Choosing which channels record - ShowRecorder",
+  description: "Arm only the USB Channels you need: a channel that is not armed gets no file, the others keep their numbers, and you save space. A Pro feature.",
+});
+
+# Choosing which channels record
+
+Every USB Channel is armed, and records, until you turn some off. With [Pro](/docs/pricing) or the 14-day Trial, you can leave out the channels you don't need: a USB Channel that is not armed gets no Stem, on the Device or the Drive. The others keep their numbers, so "07 Keys.wav" stays 07 when channel 5 is not armed.
+
+## Arm or disarm a channel
+
+1. Make sure the recorder is Ready, with no Take running.
+2. Touch and hold a lane on the record screen.
+3. Tap **Don't arm channel 5** to leave it out, or **Arm channel 5** to bring it back.
+
+A lane that is not armed is dimmed, and its meter still moves, so you can see whether anything is coming in on it. The header shows how many are armed, for example **XR18 · 13 of 18 armed**. With every USB Channel turned off, Record is off and the header says to arm one.
+
+The choice is locked during a Take. It is read when you press Record, so a change takes effect on the next Take.
+
+## Where the choice is saved
+
+- **For each Audio interface**, by its name: an XR18 remembers its own choice, and another interface starts with every channel armed.
+- **In Templates.** A [Template](/docs/templates) saved with some channels not armed brings that choice back when you start a Show from it with the Audio interface Ready.
+
+## Free and an ended Trial
+
+Free and an ended Trial record every USB Channel. A choice you made with Pro or the Trial is kept, and it applies again when you buy Pro.
+
+## What you save
+
+Each USB Channel at 48 kHz, 24-bit is about 0.5 GB per hour. An XR18 uses about 9.3 GB per hour with all 18 armed, and about 6.7 GB per hour with 13 of 18 armed. The Drive also has less to keep up with.

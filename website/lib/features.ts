@@ -19,6 +19,12 @@ export const featureGroups: {
         body: 'Free records every USB Channel the mixer sends, on the Device: 18 Stems from an XR18 or MR18, in step with each other.',
         tier: 'free',
       },
+      // source: Packages/ShowRecorderKit/Sources/Recording/ChannelArming.swift (ChannelArmingAvailability: Debug only until it ships, #991)
+      {
+        title: 'Choose which channels record',
+        body: 'Touch and hold a lane to leave a USB Channel out. It gets no file, and the others keep their numbers. Free records every channel.',
+        tier: 'pro',
+      },
       // source: docs/adr/0001-mono-bwf-per-stem.md, Packages/ShowRecorderKit/Sources/BroadcastWave/StemWriter.swift (bytesPerSample = 3, bext chunk)
       {
         title: '24-bit Broadcast WAV',
