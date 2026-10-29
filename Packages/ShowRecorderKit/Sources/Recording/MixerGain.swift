@@ -63,10 +63,10 @@ public final class MixerGain {
     @ObservationIgnored public var isClipProtectionOn: () -> Bool = { ClipProtectionSetting.isOn() }
     /// The Mixer session the Gain button follows; nil until whoever owns this sets it.
     @ObservationIgnored public var mixer: MixerSession?
-    /// Whether this is a Debug build: auto-gain and clip protection are offered there and in TestFlight.
+    /// Whether this is a Debug build: clip protection and X32 auto-gain are offered there and in TestFlight.
     @ObservationIgnored public var isDebugBuild = LaunchFlags.isDebugBuild
-    /// Which App Store environment this build came through, nil until StoreKit has answered: TestFlight offers auto-gain
-    /// and clip protection.
+    /// Which App Store environment this build came through, nil until StoreKit has answered: TestFlight offers clip
+    /// protection and X32 auto-gain.
     @ObservationIgnored public var environment: () -> DistributionEnvironment? = { DemoSignalAvailability.environment }
     /// Clip protection on the linked Mixer moving gain through the given queue, or nil when it can't set gain.
     @ObservationIgnored public var makeProtection: (MixerQueue) -> ClipProtection? = { _ in nil }
@@ -81,8 +81,8 @@ public final class MixerGain {
         self.makeSession = makeSession
     }
 
-    /// Whether the record screen shows the Gain button (#155): while an X Air or X32 is Armed, in Debug and TestFlight
-    /// builds (`AutoGainAvailability`). When auto-gain can't run (a Take, no Mixer Link, a Mixer whose gain can't be set), the
+    /// Whether the record screen shows the Gain button (#155): while an X Air or X32 is Armed (`AutoGainAvailability`).
+    /// When auto-gain can't run (a Take, no Mixer Link, a Mixer whose gain can't be set), the
     /// button stays and its sheet says why (`autoGainUnavailable`) instead of the button disappearing.
     public var offersAutoGain: Bool {
         AutoGainAvailability.isOffered(available: AutoGainAvailability.isAvailable(isDebugBuild: isDebugBuild, environment: environment()),
@@ -90,11 +90,18 @@ public final class MixerGain {
     }
 
     /// Why auto-gain can't run right now, said on its sheet while the Gain button stays; nil when it can.
+    /// An X32's gain is set only where `X32AutoGainAvailability` allows it.
     public var autoGainUnavailable: AutoGainAvailability.Unavailable? {
         let isConnecting = if case .connecting = mixer?.status { true } else { false }
+        let canSetGain = mixer?.gainControl != nil && setsThisFamilysGain
         return AutoGainAvailability.whyNot(hasMixerLink: mixer?.identity != nil, isConnecting: isConnecting,
-                                           canSetGain: mixer?.gainControl != nil, isRecording: isRecording(),
+                                           canSetGain: canSetGain, isRecording: isRecording(),
                                            otherMixer: mixer?.otherMixerLinked?.nameAndModel, allowed: allowsAutoGain())
+    }
+
+    /// False on an X32 where `X32AutoGainAvailability` doesn't allow it; true for any other family.
+    private var setsThisFamilysGain: Bool {
+        mixer?.family != .x32 || X32AutoGainAvailability.isAvailable(isDebugBuild: isDebugBuild, environment: environment())
     }
 
     /// Whether Settings offers clip protection's switch (`ClipProtectionSetting.isOffered`).
@@ -116,7 +123,7 @@ public final class MixerGain {
     public func run(_ usbChannels: [Int]) async {
         dropUndoForAnotherMixer()
         // Auto-gain is Pro (#705); Undo of an earlier run stays open to everyone.
-        guard !isLocked, allowsAutoGain(), let session = session ?? makeSession(queue) else { return }
+        guard !isLocked, allowsAutoGain(), setsThisFamilysGain, let session = session ?? makeSession(queue) else { return }
         if self.session == nil { sessionMixer = mixerName() }
         self.session = session
         running.formUnion(usbChannels)

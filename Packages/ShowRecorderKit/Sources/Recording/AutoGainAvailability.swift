@@ -1,7 +1,17 @@
-/// Where auto-gain (#155) is offered: Debug and TestFlight builds, after Eric's live XR18 test (2026-10-14); never the
-/// App Store. The distribution comes from StoreKit, as for the Demo signal (`DemoSignalAvailability`): before it has
-/// answered (nil), a Release build doesn't offer it. Opening it to the App Store is this one rule.
+/// Where auto-gain (#155) is offered: every build, the App Store included (Eric, 2026-10-29), after his live XR18 test
+/// (2026-10-14). It is still Pro (`needsPro`).
 public enum AutoGainAvailability {
+    /// Where it is offered; moving it is this one line.
+    public static let level: AvailabilityLevel = .everyone
+
+    public static func isAvailable(isDebugBuild: Bool, environment: DistributionEnvironment?) -> Bool {
+        level.isOn(isDebugBuild: isDebugBuild, environment: environment)
+    }
+}
+
+/// Where auto-gain may move an X32 or M32's preamps: Debug and TestFlight builds, as auto-gain has been tested live only
+/// on an XR18 (#494). Elsewhere an X32's sheet says `.cantSetGain`. Its own rule, so it can move on its own.
+public enum X32AutoGainAvailability {
     /// Where it is offered; moving it up a level is this one line.
     public static let level: AvailabilityLevel = .debugAndTestFlight
 
