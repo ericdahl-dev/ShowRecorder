@@ -263,6 +263,36 @@ describe("the mixer pages' questions (#704)", () => {
   });
 });
 
+// #993: each mixer-specific step cites the maker's own document. A citation must open, so it points where the
+// maker's product page links today: mediadl.musictribe.com stopped resolving (checked 2026-11-01).
+describe("manual citations on the mixer pages (#993)", () => {
+  const X32_QSG = "https://cdn-media.empowertribe.com/71e3777bf74348558318601a54e8d7a3/QSG_BE_0603-ACE_X32_WW.pdf";
+  const X_AIR_MANUAL = "https://cdn-media.empowertribe.com/ffe0de45e14541f797928d639a8933b2/M_BE_0605-AAA_X-AIR_EN.pdf";
+  // Where Behringer's and Midas's product pages host their manuals, and the product pages themselves.
+  const OFFICIAL_HOSTS = ["cdn-media.empowertribe.com", "www.behringer.com", "www.midasconsoles.com"];
+  // Count in the steps only: the maker's manuals section (#990) links the same documents again.
+  const steps = (page: string) => page.split("## The maker's manuals")[0];
+  const count = (page: string, s: string) => steps(page).split(s).length - 1;
+
+  it("every X32 step cites the Quick Start Guide that Behringer's X32 page links", () => {
+    expect(count(x32Page, `(${X32_QSG})`)).toBe(3);
+  });
+
+  it("every XR18 step cites the X AIR manual that Behringer's XR18 page links", () => {
+    expect(count(xr18Page, `(${X_AIR_MANUAL}#page=23)`)).toBe(3);
+  });
+
+  for (const [name, page] of [["x32", x32Page], ["xr18", xr18Page]] as const) {
+    it(`/mixers/${name} links the makers' documents only on their current hosts`, () => {
+      const hosts = [...page.matchAll(/\]\((https?:\/\/[^)\s]+)\)/g)]
+        .map((m) => new URL(m[1]).host)
+        .filter((h) => /musictribe|empowertribe|behringer|midas/i.test(h));
+      expect(hosts.length).toBeGreaterThan(0);
+      for (const host of hosts) expect(OFFICIAL_HOSTS).toContain(host);
+    });
+  }
+});
+
 // #990: the app links only to /docs; help for one mixer, with the maker's manuals, lives on that mixer's page.
 // Each link is the one the maker's own product page gives (checked 2026-11-01: each returned 200).
 describe("the maker's manuals on the mixer pages (#990)", () => {

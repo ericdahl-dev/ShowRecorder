@@ -119,6 +119,9 @@ final class TakeSession {
         let sinks: [StandInSink]
         /// Where the stand-in starts, once the Drive is lost.
         var start: Int?
+        /// One length for the coverage and the stand-in's `end`: a standby Stop gave up on may still be writing, so it is what
+        /// its headers committed (#664).
+        var written: Int { writer.wasAbandoned ? writer.framesKept : writer.framesWritten }
     }
 
     private let capture: Capture
@@ -354,8 +357,7 @@ final class TakeSession {
         // Drive only: the standby holds the audio from where its stand-in starts, and nothing before.
         if let standby {
             let start = standby.start ?? Int.max
-            // One number for the standby's length here and in the stand-in's `end`: what it committed when Stop gave up on it (#664).
-            let written = standby.writer.wasAbandoned ? standby.writer.framesKept : standby.writer.framesWritten
+            let written = standby.written
             all.insert(CopyCoverage.Copy(
                 // A standby records nothing before it stands in, so it has lost no audio there: an input interruption it shared
                 // with the Drive before that is the Drive's Dropout alone (#903).
@@ -510,9 +512,7 @@ final class TakeSession {
         var standbyFolder = standby?.folder
         if let standby {
             if let start = standby.start {
-                // A standby Stop gave up on may still be writing: its end is what its headers committed (#664).
-                let written = standby.writer.wasAbandoned ? standby.writer.framesKept : standby.writer.framesWritten
-                metadata.standIns = [.init(start: start, end: max(start, written))]
+                metadata.standIns = [.init(start: start, end: max(start, standby.written))]
             } else if (try? FileManager.default.contentsOfDirectory(atPath: standby.folder.path).isEmpty) == true {
                 // The Drive took the whole Take: the Device's Take folder this press made stays empty, so it goes.
                 try? FileManager.default.removeItem(at: standby.folder)
