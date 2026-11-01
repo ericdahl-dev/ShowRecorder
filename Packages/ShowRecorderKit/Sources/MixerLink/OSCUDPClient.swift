@@ -62,19 +62,25 @@ actor OSCUDPClient {
         if let problem { throw problem }
         let id = UUID()
         do {
-            return try await withCheckedThrowingContinuation { continuation in
-                pending.append(Pending(id: id, address: replyAddress ?? message.address, continuation: continuation))
-                let connection = connection
-                connection.send(content: Data(message.encoded()), completion: .contentProcessed { [weak self] error in
-                    guard let error, let self else { return }
-                    // With the path, a send refused for Local Network access says so, not "join the Wi-Fi".
-                    let problem = MixerLinkProblem(error, path: connection.currentPath, host: self.endpoint.host, port: self.endpoint.port)
-                    Task { await self.fail(id, with: problem) }
-                })
-                Task { [weak self] in
-                    try? await Task.sleep(for: timeout)
-                    await self?.fail(id, with: .noReply(host: self?.endpoint.host ?? ""))
+            return try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { continuation in
+                    pending.append(Pending(id: id, address: replyAddress ?? message.address, continuation: continuation))
+                    let connection = connection
+                    connection.send(content: Data(message.encoded()), completion: .contentProcessed { [weak self] error in
+                        guard let error, let self else { return }
+                        // With the path, a send refused for Local Network access says so, not "join the Wi-Fi".
+                        let problem = MixerLinkProblem(error, path: connection.currentPath, host: self.endpoint.host, port: self.endpoint.port)
+                        Task { await self.fail(id, with: problem) }
+                    })
+                    Task { [weak self] in
+                        try? await Task.sleep(for: timeout)
+                        await self?.fail(id, with: .noReply(host: self?.endpoint.host ?? ""))
+                    }
                 }
+            } onCancel: {
+                // A probe that lost the detection race is canceled: it stops waiting now, not at its timeout (#890).
+                // The hop runs on the actor after the request is pending, since nothing suspends before that.
+                Task { await self.fail(id, with: .noReply(host: self.endpoint.host)) }
             }
         } catch let problem as MixerLinkProblem {
             throw problem
