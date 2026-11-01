@@ -1,0 +1,70 @@
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata({
+  path: "/docs/apple-watch",
+  title: "The Apple Watch remote - ShowRecorder",
+  description: "Use your Apple Watch as a remote for ShowRecorder on iPhone: start a Take, add Markers and stop with a press and hold. And what No link means.",
+});
+
+# The Apple Watch remote
+
+Your Apple Watch is a remote for ShowRecorder on your iPhone. From your wrist you can start a Take, add Markers and stop. You see whether the iPhone is Ready or recording, and for how long.
+
+The watch records nothing itself. The audio stays on the iPhone.
+
+The watch remote is part of Free. See [Pricing](/docs/pricing).
+
+## What you need
+
+- **An iPhone** running ShowRecorder. The watch remote works with the iPhone, not the iPad.
+- **An Apple Watch** paired with that iPhone, on watchOS 26 or later.
+- **ShowRecorder on the watch.** It comes with the iPhone app. If it isn't on your watch, install it from the Watch app on your iPhone.
+
+## What the watch shows
+
+- **Ready**: the iPhone is Ready to record.
+- **Not Ready**: the iPhone isn't Ready, so the watch can't start a Take.
+- **Recording**: the time since the Take started, the Take's name and how many Markers it has.
+
+If something needs attention on the iPhone, the watch shows it in orange and taps your wrist. For example: **iPhone low on space**, **A Copy stopped** or **Mixer Link lost**.
+
+## Start a Take
+
+When the watch shows **Ready**, tap **Record** once.
+
+It starts the Take the same way the Record button on the iPhone does, with the same Pro and Trial rules.
+
+If the watch shows **Not Ready** and **Open ShowRecorder on your iPhone**, open the app on the iPhone and make sure it's Ready. The iPhone can't start recording from the background, so it has to be Ready first.
+
+## Add a Marker
+
+While a Take runs, tap the big yellow **Marker** button.
+
+On a watch with double tap, you can also double tap your index finger and thumb to add a Marker.
+
+Your wrist gets a light tap when the Marker is in. On Free, a Take holds up to 3 Markers. After that, the watch says **3 per Take on Free**. See [Markers and Pre-roll](/docs/markers-and-pre-roll).
+
+## Stop a Take
+
+Press and hold the red stop button for about 1 second, until the ring around it fills. Then the Take stops.
+
+A tap does nothing, on purpose. A stray tap in the middle of a song should never end a Take. If you let go before the ring fills, the Take keeps going.
+
+The iPhone doesn't ask again. The hold is your confirmation.
+
+With VoiceOver, select **Stop** and double-tap to stop the Take.
+
+## When a command doesn't go through
+
+- **Sending…**: the watch is waiting for the iPhone to answer.
+- **Not confirmed: check the iPhone**: no answer came back. The command may or may not have worked, so look at the iPhone.
+- **Too late: the link dropped**: the command reached the iPhone too late, so the iPhone didn't run it. A tap from before a dropout never lands minutes later.
+- Anything else is the iPhone's reason it didn't run the command, such as **Not recording**.
+
+## No link
+
+If the watch has nothing from the iPhone yet, it shows **Connecting…** for a few seconds while it reaches the iPhone.
+
+**No link to iPhone** means the watch can't reach the iPhone right now. It also says **The recording on the iPhone carries on.** A lost link never stops a Take.
+
+If the watch heard from the iPhone before the link dropped, it shows that last status instead, dimmed. A **No link** line under it says how old that status is. The buttons are off until the link is back, so you never act on a status that may have changed.
