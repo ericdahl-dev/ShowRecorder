@@ -43,6 +43,23 @@ describe("structured data", () => {
     if (APP_STORE_URL) expect(data.installUrl).toBe(APP_STORE_URL);
     else expect(data).not.toHaveProperty("installUrl");
   });
+
+  // #704: 1.0 is on the App Store, so the listing is where to download it and one of the app's own profiles.
+  it("gives the App Store listing as the download and as one of the app's profiles", () => {
+    expect(APP_STORE_URL).toBe("https://apps.apple.com/app/id6820213310");
+    for (const d of [data, mixerApplicationJsonLd(PAGES.mixersXR18)]) {
+      expect(d.downloadUrl).toBe(APP_STORE_URL);
+      expect(d.sameAs).toContain(APP_STORE_URL);
+    }
+  });
+
+  it("the getting-started guide says where to get the app", () => {
+    const mdx = readFileSync(path.resolve(__dirname, "..", "app", "docs", "getting-started", "page.mdx"), "utf8");
+    expect(mdx).toContain("## What you need");
+    expect(mdx).toContain("## Plug in");
+    const needs = mdx.slice(mdx.indexOf("## What you need"), mdx.indexOf("## Plug in"));
+    expect(needs).toContain(`(${APP_STORE_URL})`);
+  });
 });
 
 describe("llms.txt", () => {

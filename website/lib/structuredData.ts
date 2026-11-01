@@ -34,8 +34,9 @@ function applicationJsonLd(url: string, description: string) {
     image: `${SITE_URL}/og-image.png`,
     offers: OFFERS,
     publisher: { "@type": "Person", name: "Eric Dahl", url: "https://ericdahl.dev" },
-    sameAs: [REPO_URL],
-    ...(APP_STORE_URL ? { installUrl: APP_STORE_URL } : {}),
+    // With 1.0 on the App Store, its listing is where to download the app and one of its own profiles (#704).
+    sameAs: APP_STORE_URL ? [APP_STORE_URL, REPO_URL] : [REPO_URL],
+    ...(APP_STORE_URL ? { installUrl: APP_STORE_URL, downloadUrl: APP_STORE_URL } : {}),
   };
 }
 
