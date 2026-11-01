@@ -36,6 +36,20 @@ struct DetectingMixerDriverTests {
         #expect(driver.capabilities(for: identity).usbChannelCount == 18)
     }
 
+    @Test("Once one port answers, the Link doesn't wait out the silent port's timeout (#890)")
+    func doesNotWaitForSilentPort() async throws {
+        let xr18 = try await FakeXAirMixer()
+        var silent = FakeXAirMixer.State.x32()
+        silent.answers = false
+        let x32Port = try await FakeXAirMixer(silent)
+        let driver = DetectingMixerDriver(host: "127.0.0.1", ports: [xr18.port, x32Port.port], timeout: .seconds(30))
+
+        let started = ContinuousClock.now
+        _ = try await driver.identify()
+
+        #expect(ContinuousClock.now - started < Loopback.replyTimeout, "the silent port's request ends when the XR18 answers")
+    }
+
     @Test("Every model in the X32 and M32 families gets the X32 driver", arguments: ["X32", "X32RACK", "X32C", "X32P", "M32", "M32R", "M32C"])
     func x32Family(model: String) async throws {
         let mixer = try await FakeXAirMixer(.x32(model: model))
