@@ -210,6 +210,11 @@ export const inBetaFeatures: { title: string; body: string; tier?: 'pro' }[] = [
     tier: 'pro',
     body: 'Auto-gain on an X32 or M32 with a USB card, in the beta until it has been tested live on one.',
   },
+  // source: Packages/ShowRecorderKit/Sources/Recording/HoldToStopAvailability.swift (Debug and TestFlight, #753)
+  {
+    title: 'Hold to stop on iPhone and iPad',
+    body: 'Stop a Take by pressing and holding the square for about a second, like on the watch, instead of a tap and a question. A stray tap can\'t end the show.',
+  },
   // source: Packages/ShowRecorderKit/Sources/Recording/ClipProtection.swift (ClipProtectionSetting.isOffered: Debug and TestFlight, #699)
   {
     title: 'Clip protection',
