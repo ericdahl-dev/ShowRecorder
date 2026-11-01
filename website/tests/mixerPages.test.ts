@@ -270,7 +270,9 @@ describe("manual citations on the mixer pages (#993)", () => {
   const X_AIR_MANUAL = "https://cdn-media.empowertribe.com/ffe0de45e14541f797928d639a8933b2/M_BE_0605-AAA_X-AIR_EN.pdf";
   // Where Behringer's and Midas's product pages host their manuals, and the product pages themselves.
   const OFFICIAL_HOSTS = ["cdn-media.empowertribe.com", "www.behringer.com", "www.midasconsoles.com"];
-  const count = (page: string, s: string) => page.split(s).length - 1;
+  // Count in the steps only: the maker's manuals section (#990) links the same documents again.
+  const steps = (page: string) => page.split("## The maker's manuals")[0];
+  const count = (page: string, s: string) => steps(page).split(s).length - 1;
 
   it("every X32 step cites the Quick Start Guide that Behringer's X32 page links", () => {
     expect(count(x32Page, `(${X32_QSG})`)).toBe(3);
@@ -289,4 +291,34 @@ describe("manual citations on the mixer pages (#993)", () => {
       for (const host of hosts) expect(OFFICIAL_HOSTS).toContain(host);
     });
   }
+});
+
+// #990: the app links only to /docs; help for one mixer, with the maker's manuals, lives on that mixer's page.
+// Each link is the one the maker's own product page gives (checked 2026-11-01: each returned 200).
+describe("the maker's manuals on the mixer pages (#990)", () => {
+  const manuals = (page: string) => {
+    expect(page).toContain("## The maker's manuals");
+    expect(page).toContain("## Tell us how it goes");
+    return page.slice(page.indexOf("## The maker's manuals"), page.indexOf("## Tell us how it goes"));
+  };
+
+  it("the XR18 page links Behringer's X AIR manual and Midas's MR18 manual, with each product page", () => {
+    const s = manuals(xr18Page);
+    expect(s).toContain("(https://cdn-media.empowertribe.com/ffe0de45e14541f797928d639a8933b2/M_BE_0605-AAA_X-AIR_EN.pdf)");
+    expect(s).toContain("(https://www.behringer.com/en/products/0605-AAD)");
+    expect(s).toContain("(https://cdn-media.empowertribe.com/f4e89140f9994eed93e4f2a4e086c578/M_MI_0605-AAF_MR18-MR12_EN.pdf)");
+    expect(s).toContain("(https://www.midasconsoles.com/en/products/0605-AAF)");
+  });
+
+  it("the X32 page links Behringer's X32 guide and Midas's M32 and M32R manuals, with each product page", () => {
+    const s = manuals(x32Page);
+    // Behringer's X32 page offers a Quick Start Guide, not a full manual; the label must not claim more.
+    expect(s).toMatch(/\[Behringer X32 Quick Start Guide\]/);
+    expect(s).toContain("(https://cdn-media.empowertribe.com/71e3777bf74348558318601a54e8d7a3/QSG_BE_0603-ACE_X32_WW.pdf)");
+    expect(s).toContain("(https://www.behringer.com/en/products/0603-ACE)");
+    expect(s).toContain("(https://cdn-media.empowertribe.com/5a30d52258104865a4392b99550ee1f9/M32_M_EN.pdf)");
+    expect(s).toContain("(https://www.midasconsoles.com/en/products/0603-ADX)");
+    expect(s).toContain("(https://cdn-media.empowertribe.com/ad242ce7708f42028722ed6823d14fda/M32R_M_EN.pdf)");
+    expect(s).toContain("(https://www.midasconsoles.com/en/products/0603-AEF)");
+  });
 });
