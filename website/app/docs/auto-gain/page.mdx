@@ -8,7 +8,7 @@ export const metadata = pageMetadata({
 
 # Set preamp levels with auto-gain
 
-Auto-gain sets the preamp gain on your mixer for you. It listens to each USB Channel for a few seconds, then moves that channel's preamp so the level lands near **-18 dBFS**.
+Auto-gain sets the preamp gain on your mixer for you. It listens to each USB Channel for a few seconds, then moves that channel's preamp so the level lands within 3 dB of **-18 dBFS**.
 
 The mix stays the same. When a preamp moves, the fader, the pre-fader sends and the gate and compressor thresholds move the other way to match.
 
@@ -44,7 +44,7 @@ A channel with no signal is left alone. So is a channel that is already near the
 - Tap **Undo** on a channel's row to put its gain back.
 - Tap **Undo all** to put every channel back.
 
-Undo stays there if you close the sheet and open it again. It also stays after a Trial ends.
+Undo stays there if you close the sheet and open it again. It is grayed out while auto-gain can't run, such as on Free after a Trial ends or while the Mixer Link is down.
 
 Undo belongs to the mixer you ran auto-gain on. If the Mixer Link moves to another mixer, Undo for the first one goes away, so nothing is written to the wrong mixer.
 
@@ -62,7 +62,7 @@ The sheet says why at the top. Each message, and what to do:
 - **Auto-gain is part of Pro. Get it in Settings > Pro.** Buy Pro or start the 14-day Trial. See [Pricing](/docs/pricing).
 - **Connecting to the Mixer. Auto-gain is ready once Mixer Link is up.** Wait a moment for the Mixer Link to connect.
 - **Auto-gain moves the preamps on the Mixer. Connect to it in Settings > Mixer Link first.** Open **Settings > Mixer Link** and connect to your mixer.
-- **The Mixer Link is on FOH (XR18), not the Mixer you're recording from. Connect to that Mixer in Settings > Mixer Link first.** The message names the mixer the Mixer Link is on. Connect it to the mixer on the USB cable instead.
+- **The Mixer Link is on FOH (XR18), not the Mixer you're recording from. Connect to that Mixer in Settings > Mixer Link first.** The message names the mixer the Mixer Link is on. You see it when that is a different kind of mixer from the one on the USB cable, such as an XR18 while an X32 is Ready. Connect the Mixer Link to the mixer on the USB cable.
 - **ShowRecorder can't set this Mixer's preamp gain yet.** You see this on an X32 or M32 outside the public beta.
 
 ## When a channel doesn't reach the target
