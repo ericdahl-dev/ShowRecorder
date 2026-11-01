@@ -1,0 +1,74 @@
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata({
+  path: "/docs/auto-gain",
+  title: "Set preamp levels with auto-gain - ShowRecorder",
+  description: "Let ShowRecorder set each channel's preamp on an XR18 or MR18 so the level lands near -18 dBFS, with the mix kept the same. What you need, and Undo.",
+});
+
+# Set preamp levels with auto-gain
+
+Auto-gain sets the preamp gain on your mixer for you. It listens to each USB Channel for a few seconds, then moves that channel's preamp so the level lands near **-18 dBFS**.
+
+The mix stays the same. When a preamp moves, the fader, the pre-fader sends and the gate and compressor thresholds move the other way to match.
+
+## What you need
+
+- **Pro or the 14-day Trial.** Auto-gain is a Pro feature. See [Pricing](/docs/pricing).
+- **An XR18 or MR18** plugged in over USB, with ShowRecorder Ready on it.
+- **The Mixer Link** connected to that same mixer. Auto-gain moves the preamps over the network, so USB alone isn't enough. See [Mixer Link and Find Mixers](/docs/mixer-link).
+
+On the X32 and M32, auto-gain is only in the public beta for now. See [In the beta](/features#beta).
+
+## Find the Gain button
+
+**Gain** is on the record screen, on the Show line above the Record button, next to **Shows** and **Names**.
+
+It shows only while an XR18, MR18, X32 or M32 is Ready. With any other audio interface, there is no Gain button.
+
+If auto-gain can't run right now, the button still shows. Tap it, and the sheet says why at the top.
+
+## Set the gain
+
+1. Stop any Take that is running.
+2. Have someone play or speak into every channel you want to set, and keep it going while auto-gain runs.
+3. Tap **Gain**.
+4. Tap **Auto-gain all channels**. To set one channel, tap **Auto-gain** on its row instead.
+5. Watch each row. It shows what auto-gain did, such as the gain it moved from and to, and the level now.
+6. Tap **Done**.
+
+A channel with no signal is left alone. So is a channel that is already near the target.
+
+## Undo
+
+- Tap **Undo** on a channel's row to put its gain back.
+- Tap **Undo all** to put every channel back.
+
+Undo stays there if you close the sheet and open it again. It also stays after a Trial ends.
+
+Undo belongs to the mixer you ran auto-gain on. If the Mixer Link moves to another mixer, Undo for the first one goes away, so nothing is written to the wrong mixer.
+
+## Not during a Take
+
+Auto-gain never runs during a Take. Moving a preamp mid-Take would make the recorded level jump.
+
+If you start a Take while auto-gain is running, it stops at once. The gain stays where it got to, and **Undo** puts it back after the Take.
+
+## Why auto-gain can't run
+
+The sheet says why at the top. Each message, and what to do:
+
+- **Not during a Take: moving a preamp would make the recorded level jump. Stop the Take first.** Stop the Take, then tap **Gain** again.
+- **Auto-gain is part of Pro. Get it in Settings > Pro.** Buy Pro or start the 14-day Trial. See [Pricing](/docs/pricing).
+- **Connecting to the Mixer. Auto-gain is ready once Mixer Link is up.** Wait a moment for the Mixer Link to connect.
+- **Auto-gain moves the preamps on the Mixer. Connect to it in Settings > Mixer Link first.** Open **Settings > Mixer Link** and connect to your mixer.
+- **The Mixer Link is on FOH (XR18), not the Mixer you're recording from. Connect to that Mixer in Settings > Mixer Link first.** The message names the mixer the Mixer Link is on. Connect it to the mixer on the USB cable instead.
+- **ShowRecorder can't set this Mixer's preamp gain yet.** You see this on an X32 or M32 outside the public beta.
+
+## When a channel doesn't reach the target
+
+A row in orange needs a look. Some of the messages you may see:
+
+- **Still too loud at the lowest gain**: turn the source down.
+- **Still too quiet at the highest gain**: turn the source up.
+- **Stopped: the level didn't follow the gain. Check the Mixer's USB routing. The gain was put back.** The USB Channel doesn't carry the channel whose preamp moved. Check [What the mixer sends over USB](/docs/what-gets-recorded).
