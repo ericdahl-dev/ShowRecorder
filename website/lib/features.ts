@@ -145,7 +145,7 @@ export const featureGroups: {
       // source: Watch/ (the watch app, no availability rule; Free, #705)
       {
         title: 'Apple Watch remote',
-        body: 'See whether the iPhone is Armed or recording and for how long, drop Markers, start a Take and stop it with a press and hold, from your wrist.',
+        body: 'See whether the iPhone is Ready or recording and for how long, drop Markers, start a Take and stop it with a press and hold, from your wrist.',
         tier: 'free',
       },
       // source: LiveActivity/TakeLiveActivityWidget.swift (no availability rule)

@@ -84,7 +84,7 @@ const needs = [
 const steps = [
   {
     title: "Plug in",
-    body: "Connect your mixer's USB. ShowRecorder arms it and the meters come alive.",
+    body: "Connect your mixer's USB. ShowRecorder gets it ready and the meters come alive.",
   },
   {
     title: "Link the mixer",

@@ -35,7 +35,7 @@ public enum Soundcheck {
     public static func judgeMixer(state: MixerLinkState, sources: [Source]) -> Step {
         switch state {
         case .otherMixer(let otherMixer):
-            return Step(kind: .mixer, passed: false, message: "The Mixer Link is on \(otherMixer.nameAndModel), not the Armed Mixer. Connect to the Armed Mixer in Settings › Mixer Link.")
+            return Step(kind: .mixer, passed: false, message: "The Mixer Link is on \(otherMixer.nameAndModel), not the Mixer you're recording from. Connect to that Mixer in Settings › Mixer Link.")
         case .notLinked:
             return Step(kind: .mixer, passed: false, message: "No Mixer linked. Add its address in Settings › Mixer Link.")
         case .connecting(let host):
@@ -63,7 +63,7 @@ public enum Soundcheck {
     ///   - signal: what the test Take carried; nil before it ran.
     public static func judgeChannels(usbChannelCount: Int, expected: Int?, signal: TakeSignal?) -> Step {
         guard usbChannelCount > 0 else {
-            return Step(kind: .channels, passed: false, message: "No audio interface is Armed. Choose the Mixer's audio interface in Settings.")
+            return Step(kind: .channels, passed: false, message: "No audio interface is Ready. Choose the Mixer's audio interface in Settings.")
         }
         if let expected, usbChannelCount < expected {
             return Step(kind: .channels, passed: false, message: "The input sends \(usbChannelCount) USB Channels; the Mixer sends \(expected). On the Mixer, set the USB interface to \(expected)/\(expected) (X AIR Edit: Setup, Audio/Midi).")
@@ -149,7 +149,7 @@ public enum Soundcheck {
             result(mixerStep)
             mixerSteps = [mixerStep]
         }
-        guard recorder.isArmed else {
+        guard recorder.isReady else {
             let channels = judgeChannels(usbChannelCount: 0, expected: expectedUSBChannels, signal: nil)
             result(channels)
             return mixerSteps + [channels]

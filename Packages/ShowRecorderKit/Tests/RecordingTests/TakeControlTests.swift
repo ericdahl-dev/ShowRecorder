@@ -41,9 +41,9 @@ struct TakeControlTests {
     @Test("A Soundcheck run tells the events stream its Take started and ended, Take 01 of the Soundcheck Show")
     func soundcheckTold() async throws {
         let (sequencer, _, source) = makeSequencer()
-        sequencer.arm()
+        sequencer.getReady()
         var events = sequencer.events.makeAsyncIterator()
-        _ = await events.next()  // .armed
+        _ = await events.next()  // .ready
         let audio = try #require(source.opened.last)
         let feeding = Task { @MainActor in
             while !Task.isCancelled {
@@ -65,9 +65,9 @@ struct TakeControlTests {
     func outOfSpaceTold() async throws {
         let free = FreeSpace()
         let (sequencer, recorder, source) = makeSequencer(free: free)
-        sequencer.arm()
+        sequencer.getReady()
         var events = sequencer.events.makeAsyncIterator()
-        _ = await events.next()  // .armed
+        _ = await events.next()  // .ready
         sequencer.record(sources: [], allowance: nil)
         let audio = try #require(source.opened.last)
         try await deliverBlocks(2, to: audio, recorder)
@@ -86,9 +86,9 @@ struct TakeControlTests {
     @Test("Add Marker through the sequencer places a Marker and tells the events stream the count")
     func addMarker() async throws {
         let (sequencer, recorder, source) = makeSequencer()
-        sequencer.arm()
+        sequencer.getReady()
         var events = sequencer.events.makeAsyncIterator()
-        _ = await events.next()  // .armed
+        _ = await events.next()  // .ready
         sequencer.record(sources: [], allowance: nil)
         try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
 
@@ -103,9 +103,9 @@ struct TakeControlTests {
     @Test("A Marker past the Take's limit (Free) is not placed and not told, so the Live Activity and watch don't count it (#705)")
     func addMarkerPastLimit() async throws {
         let (sequencer, recorder, source) = makeSequencer()
-        sequencer.arm()
+        sequencer.getReady()
         var events = sequencer.events.makeAsyncIterator()
-        _ = await events.next()  // .armed
+        _ = await events.next()  // .ready
         var allowance = TakeAllowance(recordedChannels: [1], showReport: false, reaperExport: false, namingByHand: false)
         allowance.markerLimit = 1
         sequencer.record(sources: [], allowance: allowance)
@@ -123,9 +123,9 @@ struct TakeControlTests {
     @Test("Add Marker with no Take running does nothing and tells nothing")
     func addMarkerWithoutTake() async throws {
         let (sequencer, recorder, _) = makeSequencer()
-        sequencer.arm()
+        sequencer.getReady()
         var events = sequencer.events.makeAsyncIterator()
-        _ = await events.next()  // .armed
+        _ = await events.next()  // .ready
 
         sequencer.addMarker()
         sequencer.record(sources: [], allowance: nil)
@@ -138,7 +138,7 @@ struct TakeControlTests {
     func selfEndedTakeSaysWhy() async throws {
         let free = FreeSpace()
         let (sequencer, recorder, source) = makeSequencer(free: free)
-        sequencer.arm()
+        sequencer.getReady()
         sequencer.record(sources: [], allowance: nil)
         try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
 
@@ -152,7 +152,7 @@ struct TakeControlTests {
     @Test("A stopped Take leaves recordError as it was")
     func stoppedTakeSaysNothing() async throws {
         let (sequencer, recorder, source) = makeSequencer()
-        sequencer.arm()
+        sequencer.getReady()
         sequencer.record(sources: [], allowance: nil)
         try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
 
@@ -164,9 +164,9 @@ struct TakeControlTests {
     @Test("Ending a Show through the sequencer tells the events stream its name and Take count")
     func endShow() async throws {
         let (sequencer, recorder, source) = makeSequencer()
-        sequencer.arm()
+        sequencer.getReady()
         var events = sequencer.events.makeAsyncIterator()
-        _ = await events.next()  // .armed
+        _ = await events.next()  // .ready
         try sequencer.startNewShow(name: "Friday", venue: "The Hall")
         for _ in 0..<2 {
             sequencer.record(sources: [], allowance: nil)
@@ -184,9 +184,9 @@ struct TakeControlTests {
     @Test("A Show can't be started or ended through the sequencer during a Take, and nothing is told")
     func noShowChangeDuringTake() async throws {
         let (sequencer, recorder, source) = makeSequencer()
-        sequencer.arm()
+        sequencer.getReady()
         var events = sequencer.events.makeAsyncIterator()
-        _ = await events.next()  // .armed
+        _ = await events.next()  // .ready
         sequencer.record(sources: [], allowance: nil)
         try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
         let show = recorder.currentShow?.name
@@ -205,9 +205,9 @@ struct TakeControlTests {
     @Test("Starting a new Show over the open one tells the open one ended")
     func newShowEndsOpenOne() async throws {
         let (sequencer, recorder, source) = makeSequencer()
-        sequencer.arm()
+        sequencer.getReady()
         var events = sequencer.events.makeAsyncIterator()
-        _ = await events.next()  // .armed
+        _ = await events.next()  // .ready
         try sequencer.startNewShow(name: "Friday", venue: "")
         sequencer.record(sources: [], allowance: nil)
         try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
@@ -227,9 +227,9 @@ struct TakeControlTests {
     func preparingEndsIdleShow() async throws {
         let clock = Clock(RecordingTakeTests.showDay)
         let (sequencer, recorder, source) = makeSequencer(clock: clock)
-        sequencer.arm()
+        sequencer.getReady()
         var events = sequencer.events.makeAsyncIterator()
-        _ = await events.next()  // .armed
+        _ = await events.next()  // .ready
         try sequencer.startNewShow(name: "Friday", venue: "")
         sequencer.record(sources: [], allowance: nil)
         try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
@@ -250,7 +250,7 @@ struct TakeControlTests {
     @Test("The Soundcheck Take runs through the sequencer and has a start time while it records, like any Take")
     func soundcheckTakeHasStartTime() async throws {
         let (sequencer, recorder, source) = makeSequencer()
-        sequencer.arm()
+        sequencer.getReady()
         let audio = try #require(source.opened.last)
         var startedWhileRecording = false
         let feeding = Task { @MainActor in
@@ -274,7 +274,7 @@ struct TakeControlTests {
     func soundcheckOutOfSpace() async throws {
         let free = FreeSpace()
         let (sequencer, recorder, source) = makeSequencer(free: free)
-        sequencer.arm()
+        sequencer.getReady()
         let audio = try #require(source.opened.last)
         let feeding = Task { @MainActor in
             while !Task.isCancelled {
@@ -302,9 +302,9 @@ struct TakeControlTests {
     @Test("No synthetic Take start: a Take started on the recorder itself is never told as started, by a tick or at its end")
     func noSyntheticStart() async throws {
         let (sequencer, recorder, source) = makeSequencer()
-        sequencer.arm()
+        sequencer.getReady()
         var events = sequencer.events.makeAsyncIterator()
-        _ = await events.next()  // .armed
+        _ = await events.next()  // .ready
 
         try recorder.startTake()
         try await deliverBlocks(2, to: try #require(source.opened.last), recorder)
@@ -318,9 +318,9 @@ struct TakeControlTests {
     @Test("The Soundcheck Take's end is told as the Soundcheck's, so nothing after it offers Pro; any other Take's isn't")
     func soundcheckEndIsMarked() async throws {
         let (sequencer, recorder, source) = makeSequencer()
-        sequencer.arm()
+        sequencer.getReady()
         var events = sequencer.events.makeAsyncIterator()
-        _ = await events.next()  // .armed
+        _ = await events.next()  // .ready
         let audio = try #require(source.opened.last)
         let feeding = Task { @MainActor in
             while !Task.isCancelled {

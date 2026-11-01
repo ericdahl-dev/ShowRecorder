@@ -145,7 +145,7 @@ struct AutoGainSessionTests {
         }
     }
 
-    @Test("Audio that stops after a gain step (disarmed) ends the channel as no signal: no undo, the step kept for Undo (#554)")
+    @Test("Audio that stops after a gain step (stood down) ends the channel as no signal: no undo, the step kept for Undo (#554)")
     func audioStopped() async throws {
         let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
         var measured = 0
@@ -256,7 +256,7 @@ struct AutoGainSessionTests {
         #expect(session.steps[1]?.count == 1, "the step left stays, for the first Mixer")
     }
 
-    @Test("An Undo with no gain control (Link down, or the Armed input isn't the linked Mixer) says so honestly (#589)")
+    @Test("An Undo with no gain control (Link down, or the Ready input isn't the linked Mixer) says so honestly (#589)")
     func undoWithNoGainControlSaysWhy() async throws {
         let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
         var current: FakeGainControl? = control
@@ -266,7 +266,7 @@ struct AutoGainSessionTests {
         current = nil
 
         await #expect(throws: MixerLinkProblem.other(
-            "The Mixer Link isn't connected to the Armed input's Mixer, so nothing more was written.")) {
+            "The Mixer Link isn't connected to the Mixer you're recording from, so nothing more was written.")) {
             try await session.undo(usbChannel: 1)
         }
     }

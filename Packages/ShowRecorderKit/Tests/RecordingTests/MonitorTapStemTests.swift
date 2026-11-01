@@ -14,7 +14,7 @@ struct MonitorTapStemTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
-        try recorder.arm(wrap(device))
+        try recorder.getReady(wrap(device))
         try recorder.startTake()
         try await deliver(9_600, to: device, recorder) { frame, channel in Float(frame % 97) / 97 - Float(channel) * 0.5 }
         try await recorder.stopTake()

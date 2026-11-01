@@ -1,3 +1,4 @@
+import AudioIO
 import Foundation
 import Recording
 import Testing
@@ -19,16 +20,16 @@ struct RecordScreenSnapshotTests {
 
     @Test func freshModelReadsAsIdle() {
         let s = RecordScreenModel().snapshot
-        #expect(!s.isArmed && !s.isRecording && !s.takeBusy && !s.isRepairing)
-        #expect(s.armedDeviceName == nil)
-        #expect(s.armError == nil && s.recordError == nil)
+        #expect(!s.isReady && !s.isRecording && !s.takeBusy && !s.isRepairing)
+        #expect(s.readyDeviceName == nil)
+        #expect(s.getReadyError == nil && s.recordError == nil)
         #expect(s.sampleRate == 48_000)
     }
 
-    @Test func armErrorComesFromTheSequencer() {
+    @Test func getReadyErrorComesFromTheSequencer() {
         let model = RecordScreenModel()
-        model.sequencer.armError = "No input"
-        #expect(model.snapshot.armError == "No input")
+        model.sequencer.getReadyError = "No input"
+        #expect(model.snapshot.getReadyError == "No input")
     }
 
     @Test func hasInputsFollowsTheDevices() {
@@ -93,7 +94,7 @@ struct RecordScreenSnapshotTests {
         #expect(model.showingSoundcheck)
     }
 
-    @Test func watchStartBeforeArmingSaysOpenThePhone() {
+    @Test func watchStartBeforeGettingReadySaysOpenThePhone() {
         let model = RecordScreenModel()
         #expect(model.watchActions.start() == WatchRemoteModel.openPhoneText)
     }
@@ -102,5 +103,76 @@ struct RecordScreenSnapshotTests {
         let model = RecordScreenModel()
         #expect(model.watchActions.stop() == false)
         #expect(model.watchActions.marker() == WatchCommandDesk.notRecording)
+    }
+
+    // MARK: - Which USB Channels are armed (#991)
+
+    /// A store that owns Pro, or owns nothing (Free once the App Store has answered), and never asks the App Store.
+    func store(owningPro: Bool) -> ProStore {
+        ProStore(status: ProStatus(lastKnown: ProPurchases(owned: owningPro ? [OwnedPurchase(productID: ProPurchases.proProductID, purchaseDate: Date())] : [])))
+    }
+
+    @Test func notArmedChannelsReachTheLanesCountAndTemplates() {
+        restoring("notArmedChannels") { restoring("templates") {
+            let model = RecordScreenModel(pro: store(owningPro: true))
+            try? model.recorder.getReady(FakeAudioDevice(name: "ChannelArmingTest", inputChannelCount: 18))
+            defer { model.recorder.standDown() }
+            #expect(model.notArmedLanes.isEmpty && model.recordedChannelCount == 18 && !model.noChannelArmed)
+            #expect(model.offersChannelArming)
+
+            model.setChannelArmed(3, false)
+            model.setChannelArmed(5, false)
+            #expect(model.notArmedLanes == [3, 5] && model.recordedChannelCount == 16)
+            #expect(model.currentAllowance()?.recordedChannels == Set(1...18).subtracting([3, 5]))
+            model.setChannelArmed(5, true)
+            #expect(model.notArmedLanes == [3] && model.recordedChannelCount == 17)
+
+            model.saveTemplate(named: "Armed test")
+            #expect(model.templates.templates.first { $0.name == "Armed test" }?.notArmedChannels == [3])
+        } }
+    }
+
+    @Test func noChannelArmedBlocksRecordAndSaysSo() {
+        restoring("notArmedChannels") {
+            let model = RecordScreenModel(pro: store(owningPro: true))
+            try? model.recorder.getReady(FakeAudioDevice(name: "ChannelArmingTest", inputChannelCount: 2))
+            defer { model.recorder.standDown() }
+            model.setChannelArmed(1, false)
+            #expect(!model.noChannelArmed)
+            model.setChannelArmed(2, false)
+            #expect(model.noChannelArmed && model.snapshot.recordedChannelCount == 0)
+            #expect(model.screen.inputSummary(model.snapshot).hasSuffix("No USB Channel is armed. Arm one to record."))
+            model.record()
+            #expect(!model.startRequested && !model.recorder.isRecording)
+        }
+    }
+
+    @Test func freeKeepsTheChoiceButRecordsEveryChannel() {
+        restoring("notArmedChannels") {
+            let model = RecordScreenModel(pro: store(owningPro: false))
+            try? model.recorder.getReady(FakeAudioDevice(name: "ChannelArmingTest", inputChannelCount: 4))
+            defer { model.recorder.standDown() }
+            // Free is offered no menu; a choice saved before (as Pro, or a Trial) is kept but not applied.
+            #expect(!model.offersChannelArming)
+            model.recorder.setNotArmedChannels([2])
+            #expect(model.recorder.notArmedChannels == [2])
+            #expect(model.notArmedLanes.isEmpty && model.recordedChannelCount == 4 && !model.noChannelArmed)
+            #expect(model.currentAllowance()?.recordedChannels == Set(1...4))
+        }
+    }
+
+    @Test func aLaterTemplateWithoutAChoiceDropsTheWaitingOne() {
+        restoring("notArmedChannels") {
+            let model = RecordScreenModel(pro: store(owningPro: true))
+            func template(_ notArmed: Set<Int>?) -> Template {
+                Template(name: "T", venue: nil, channelNames: [:], mixerNetworkName: nil, mixerAddress: "", preRollSeconds: 0, notArmedChannels: notArmed)
+            }
+            // No Audio interface is Ready yet: Template A's choice waits, and Template B (none) takes it back.
+            model.applyArming(from: template([2, 3]))
+            model.applyArming(from: template(nil))
+            try? model.recorder.getReady(FakeAudioDevice(name: "TemplatePendingTest", inputChannelCount: 4))
+            defer { model.recorder.standDown() }
+            #expect(model.recorder.notArmedChannels.isEmpty && model.recordedChannelCount == 4)
+        }
     }
 }

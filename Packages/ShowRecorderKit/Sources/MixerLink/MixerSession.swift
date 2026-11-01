@@ -10,13 +10,13 @@ public enum MixerLinkState: Equatable, Sendable {
     case connecting(host: String)
     /// Down, with the problem the operator reads (the Soundcheck shows its message).
     case down(MixerLinkProblem)
-    /// Up, on the Armed Mixer's family.
+    /// Up, on the Ready Mixer's family.
     case linked(MixerIdentity, path: MixerLinkPath)
-    /// Up, on another Mixer family than the Armed one (#647).
+    /// Up, on another Mixer family than the Ready one (#647).
     case otherMixer(MixerIdentity)
 }
 
-/// The Mixer Link as the app uses it (#556): whether it is offered for the Armed input, and when it connects, decided
+/// The Mixer Link as the app uses it (#556): whether it is offered for the Ready input, and when it connects, decided
 /// here instead of across the app. The Link itself is `MixerLinkController`.
 @MainActor
 @Observable
@@ -42,40 +42,40 @@ public final class MixerSession {
         address = store.string(forKey: Self.addressKey) ?? ""
     }
 
-    /// The Mixer family of the Armed input; nil when it isn't a Mixer ShowRecorder links to, or nothing is Armed.
+    /// The Mixer family of the Ready input; nil when it isn't a Mixer ShowRecorder links to, or nothing is Ready.
     public private(set) var family: MixerFamily?
 
-    /// Whether Mixer Link is offered: only while an X Air or X32 is the Armed input. Everything below is nil or empty
+    /// Whether Mixer Link is offered: only while an X Air or X32 is the Ready input. Everything below is nil or empty
     /// while it isn't, though the Link itself may still be up.
     public var isOffered: Bool { family != nil }
 
     /// The Link's status, while Mixer Link is offered, whichever Mixer it's to: Settings shows where the Link is and
-    /// lets the operator connect to the Armed Mixer instead (#589).
+    /// lets the operator connect to the Ready Mixer instead (#589).
     public var status: MixerLinkStatus? { isOffered ? link.status : nil }
 
-    /// Whether Mixer Link is offered and the linked Mixer is the Armed input's family (#589): an XR18's Link says
-    /// nothing about an Armed X32.
-    private var linkedMixerIsArmed: Bool {
+    /// Whether Mixer Link is offered and the linked Mixer is the Ready input's family (#589): an XR18's Link says
+    /// nothing about a Ready X32.
+    private var linkedMixerIsReady: Bool {
         isOffered && link.identity.map { MixerFamily.reading(model: $0.model) } == family
     }
 
-    /// One Source per USB Channel while the Link is up, offered and to the Armed Mixer's family (#589).
-    public var sources: [Source] { linkedMixerIsArmed ? link.sources : [] }
+    /// One Source per USB Channel while the Link is up, offered and to the Ready Mixer's family (#589).
+    public var sources: [Source] { linkedMixerIsReady ? link.sources : [] }
 
-    /// The linked Mixer's gain control, while Mixer Link is offered and the linked Mixer is the Armed family, read
-    /// fresh each time (#508). Never a stale Link's: with another input Armed, or another Mixer family (#589), nothing
+    /// The linked Mixer's gain control, while Mixer Link is offered and the linked Mixer is the Ready family, read
+    /// fresh each time (#508). Never a stale Link's: with another input Ready, or another Mixer family (#589), nothing
     /// moves a Mixer's gain.
-    public var gainControl: (any GainControl)? { linkedMixerIsArmed ? link.gainControl : nil }
+    public var gainControl: (any GainControl)? { linkedMixerIsReady ? link.gainControl : nil }
 
-    /// The linked Mixer's identity, while Mixer Link is offered and the linked Mixer is the Armed family (#556, #589).
-    public var identity: MixerIdentity? { linkedMixerIsArmed ? link.identity : nil }
+    /// The linked Mixer's identity, while Mixer Link is offered and the linked Mixer is the Ready family (#556, #589).
+    public var identity: MixerIdentity? { linkedMixerIsReady ? link.identity : nil }
 
-    /// The linked Mixer's identity when Mixer Link is offered but the Link is to another Mixer family than the Armed
+    /// The linked Mixer's identity when Mixer Link is offered but the Link is to another Mixer family than the Ready
     /// input's (#647), so the Soundcheck, auto-gain and the status chip say the Link is on another Mixer; nil otherwise.
-    public var otherMixerLinked: MixerIdentity? { isOffered && !linkedMixerIsArmed ? link.identity : nil }
+    public var otherMixerLinked: MixerIdentity? { isOffered && !linkedMixerIsReady ? link.identity : nil }
 
     /// The Mixer Link as the record screen's chip and the Soundcheck read it, while Mixer Link is offered (#556): the
-    /// Link's status, or the other Mixer it's on when that isn't the Armed Mixer's family (#647). Nil while not offered.
+    /// Link's status, or the other Mixer it's on when that isn't the Ready Mixer's family (#647). Nil while not offered.
     public var state: MixerLinkState? {
         guard isOffered else { return nil }
         if let otherMixerLinked { return .otherMixer(otherMixerLinked) }
@@ -87,18 +87,18 @@ public final class MixerSession {
         }
     }
 
-    /// The linked Mixer's network name, kept for saving a Template even while Mixer Link isn't offered (nothing Armed,
+    /// The linked Mixer's network name, kept for saving a Template even while Mixer Link isn't offered (nothing Ready,
     /// another input), so a Template keeps finding its Mixer by name (#33, #556). Read only: nothing is sent to the Mixer.
     public var networkNameForTemplates: String? { link.identity?.networkName }
 
-    /// What the linked Mixer sends over USB, while Mixer Link is offered and the linked Mixer is the Armed family
+    /// What the linked Mixer sends over USB, while Mixer Link is offered and the linked Mixer is the Ready family
     /// (#556, #589).
-    public var capabilities: MixerCapabilities? { linkedMixerIsArmed ? link.capabilities : nil }
+    public var capabilities: MixerCapabilities? { linkedMixerIsReady ? link.capabilities : nil }
 
-    /// The Armed input changed: its name as the system gives it, and how many USB Channels it sends. Callers pass nil
-    /// when nothing is Armed, or the Armed input has no Mixer family (the App's rule: `recorder.isArmed &&
-    /// armedFamily != nil`, #556).
-    public func armed(interfaceName: String?, usbChannelCount: Int) async {
+    /// The Ready input changed: its name as the system gives it, and how many USB Channels it sends. Callers pass nil
+    /// when nothing is Ready, or the Ready input has no Mixer family (the App's rule: `recorder.isReady &&
+    /// readyFamily != nil`, #556).
+    public func ready(interfaceName: String?, usbChannelCount: Int) async {
         family = interfaceName.flatMap { MixerFamily(audioInterfaceName: $0) }
         let countChanged = usbChannelCount != self.usbChannelCount
         self.usbChannelCount = usbChannelCount
@@ -107,7 +107,7 @@ public final class MixerSession {
         if countChanged {
             await link.refreshSources(usbChannelCount: usbChannelCount)
         }
-        // A remembered Mixer links when an X Air or X32 is Armed (#365), at launch or later; never over a Link that's
+        // A remembered Mixer links when an X Air or X32 is Ready (#365), at launch or later; never over a Link that's
         // already up, connecting or down.
         if isOffered, !address.isEmpty, link.status == .idle {
             await link.connect(to: address, usbChannelCount: usbChannelCount)
@@ -142,7 +142,7 @@ public final class MixerSession {
         await link.connect(to: address, usbChannelCount: usbChannelCount)
     }
 
-    /// What the Armed input sends, from the last `armed`.
+    /// What the Ready input sends, from the last `ready`.
     @ObservationIgnored private var usbChannelCount = 0
 
     /// The Mixer's address, remembered between launches; observed, so Settings shows it (#556).

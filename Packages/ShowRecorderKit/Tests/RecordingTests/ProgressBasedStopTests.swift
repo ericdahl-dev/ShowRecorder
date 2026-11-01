@@ -65,7 +65,7 @@ struct ProgressBasedStopTests {
             },
             destinationCheckInterval: nil, writerStopTimeout: .seconds(5), asyncStopAvailable: { asyncStop })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         for _ in 0..<20 { audio.deliver([Array(repeating: 0.25, count: 4_800)]) }
         // The gate opens from another thread: a busy main actor (other suites) must not hold it past the Stop timeout.
@@ -94,7 +94,7 @@ struct ProgressBasedStopTests {
             },
             destinationCheckInterval: nil, writerStopTimeout: .seconds(120), asyncStopAvailable: { true })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         // 2 s of audio, behind a Drive write that is held: nearly all of it is still waiting at Stop.
         for _ in 0..<20 { audio.deliver([Array(repeating: 0.25, count: 4_800)]) }
@@ -129,7 +129,7 @@ struct ProgressBasedStopTests {
             },
             destinationCheckInterval: nil, writerStopTimeout: .seconds(60), asyncStopAvailable: { on })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
         try await Task.sleep(for: .milliseconds(50))
@@ -170,7 +170,7 @@ struct ProgressBasedStopTests {
             },
             destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300), asyncStopAvailable: { true })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
         try await Task.sleep(for: .milliseconds(100))

@@ -12,7 +12,7 @@ struct ProOfferTests {
         let root = FileManager.default.temporaryDirectory.appending(path: "ProOfferTests-\(UUID().uuidString)")
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 4)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake(allowance: TakeAllowance(recordedChannels: [1, 2], showReport: false, reaperExport: false, namingByHand: false))
         // Channels 1, 2 and 4 carry signal; 3 is silent (below -50 dBFS).
         audio.deliver([Array(repeating: 0.3, count: 480), Array(repeating: 0.2, count: 480), Array(repeating: 0.0001, count: 480), Array(repeating: 0.25, count: 480)])
@@ -27,7 +27,7 @@ struct ProOfferTests {
         let root = FileManager.default.temporaryDirectory.appending(path: "ProOfferTests-\(UUID().uuidString)")
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 3)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         // -60, -54 and silent: none carries signal, but USB 2 was the loudest.
         audio.deliver([Array(repeating: 0.001, count: 480), Array(repeating: 0.002, count: 480), Array(repeating: 0, count: 480)])

@@ -25,7 +25,7 @@ struct ChannelRenamerTests {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver((0..<2).map { channel in (0..<4_800).map { Float($0 % 1000 + channel * 1000) / 8_388_608 } })
         recorder.addMarker()
@@ -152,7 +152,7 @@ struct ChannelRenamerTests {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([[0.1], [0.1]])
 
@@ -184,7 +184,7 @@ struct ChannelRenamerTests {
     func namesSurviveRelaunch() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let first = recorder()
-        try first.arm(audio)
+        try first.getReady(audio)
         try first.startTake()
         audio.deliver([[0.1], [0.1]])
         first.setChannelName("Lead Vocal", forChannel: 2)
@@ -194,7 +194,7 @@ struct ChannelRenamerTests {
         let relaunched = recorder()
         #expect(relaunched.channelNames == [2: "Lead Vocal"])
         let audio2 = FakeAudioDevice(inputChannelCount: 2)
-        try relaunched.arm(audio2)
+        try relaunched.getReady(audio2)
         try relaunched.startTake()
         audio2.deliver([[0.1], [0.1]])
         #expect(FileManager.default.fileExists(atPath: device.appending(path: "2026-10-06 Show/Take 02/02 Lead Vocal.wav").path))
@@ -206,7 +206,7 @@ struct ChannelRenamerTests {
     func newShowStartsClean() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let recorder = recorder()
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([[0.1], [0.1]])
         recorder.setChannelName("Lead Vocal", forChannel: 2)
@@ -233,7 +233,7 @@ struct ChannelRenamerTests {
         let clock = Clock(RecordingTakeTests.showDay)
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: device, now: { clock.now })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([[0.1], [0.1]])
         recorder.setChannelName("Lead Vocal", forChannel: 2)

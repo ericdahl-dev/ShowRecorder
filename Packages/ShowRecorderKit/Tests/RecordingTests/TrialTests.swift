@@ -22,7 +22,7 @@ struct TrialTests {
         var clock = day(13.99)
         let recorder = Recorder(deviceFolder: root, now: { clock })
         let audio = FakeAudioDevice(inputChannelCount: 4)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         // Record is pressed a few minutes before the Trial runs out.
         let allowance = Entitlement.allowance(for: purchases.tier(now: clock), channelCount: 4)

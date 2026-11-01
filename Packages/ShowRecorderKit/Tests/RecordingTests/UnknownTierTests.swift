@@ -27,7 +27,7 @@ struct UnknownTierTests {
         let packs = ProPurchases(owned: [OwnedPurchase(productID: ProPurchases.packProductIDs[.xAir]!, purchaseDate: bought)])
         packs.saveAsLastKnown(to: defaults)
         #expect(ProPurchases.lastKnown(from: defaults) == packs)
-        #expect(ProPurchases.lastKnown(from: defaults)?.tier(now: bought, armedFamily: .xAir) == .pro)
+        #expect(ProPurchases.lastKnown(from: defaults)?.tier(now: bought, readyFamily: .xAir) == .pro)
     }
 
     @Test("The App Store's answer counts as a change when a pack is bought or refunded, though Pro and the Trial didn't move (#705)")

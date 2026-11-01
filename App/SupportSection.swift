@@ -50,7 +50,7 @@ struct SupportSection: View {
     }
 
     private var details: SupportDiagnostics {
-        let family: String? = switch model.armedFamily {
+        let family: String? = switch model.readyFamily {
         case .xAir: "X Air"
         case .x32: "X32"
         case nil: nil
@@ -65,19 +65,19 @@ struct SupportSection: View {
         #else
         let isDebug = false
         #endif
-        let armed = model.recorder.isArmed
+        let ready = model.recorder.isReady
         let driveSet: Bool
         if case .notChosen = model.drive.status { driveSet = false } else { driveSet = true }
         return SupportDiagnostics(
             version: info?["CFBundleShortVersionString"] as? String, build: info?["CFBundleVersion"] as? String,
             distribution: .init(isDebugBuild: isDebug, environment: DemoSignalAvailability.environment),
             device: Self.hardwareModel, system: Self.systemVersion,
-            inputRoute: armed ? Self.inputRoute(name: model.compactInputSummary) : nil,
-            channelCount: armed ? model.recorder.usbChannelCount : nil, sampleRate: armed ? model.recorder.sampleRate : nil,
+            inputRoute: ready ? Self.inputRoute(name: model.compactInputSummary) : nil,
+            channelCount: ready ? model.recorder.usbChannelCount : nil, sampleRate: ready ? model.recorder.sampleRate : nil,
             driveFolderSet: driveSet, lastInterruption: model.interruptions.lastReason, mixerLink: mixerLink)
     }
 
-    /// The Armed input as `USB Audio "X32"`. iOS says the port type; the Mac has none, so it is the name alone.
+    /// The Ready input as `USB Audio "X32"`. iOS says the port type; the Mac has none, so it is the name alone.
     private static func inputRoute(name: String) -> String {
         #if os(iOS)
         let port = AVAudioSession.sharedInstance().currentRoute.inputs.first

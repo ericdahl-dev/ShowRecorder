@@ -17,7 +17,7 @@ func deliver(
 }
 
 /// The same in blocks of `block` frames, and while `recorder` is recording, waits after each block until it has
-/// taken it. While it is only Armed nothing is waited for: the Pre-roll keeps what it holds.
+/// taken it. While it is only Ready nothing is waited for: the Pre-roll keeps what it holds.
 @MainActor
 func deliver(
     _ frames: Int, from start: Int = 0, to audio: FakeAudioDevice, _ recorder: Recorder, block: Int = 480,

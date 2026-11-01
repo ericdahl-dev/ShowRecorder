@@ -121,7 +121,7 @@ public final class ClipProtection {
     }
 
     /// - Parameters:
-    ///   - currentControl: the linked Mixer's gain control now, or nil while the Mixer Link is down or the Armed input
+    ///   - currentControl: the linked Mixer's gain control now, or nil while the Mixer Link is down or the Ready input
     ///     isn't the linked Mixer.
     ///   - mixer: which Mixer is linked now ("FOH · XR18"), or nil while the Link is down. The one linked now is the
     ///     one this protects; on any other, it writes nothing.
@@ -171,7 +171,7 @@ public final class ClipProtection {
         if triggers.count != levels.count { triggers = Array(repeating: ClipTrigger(sampleRate: sampleRate), count: levels.count) }
         clock += Double(levels.map(\.frames).max() ?? 0) / sampleRate
         // Every trigger takes its window before any move waits on the Mixer: the next read can arrive during that
-        // wait (and a disarm can leave no channels), so nothing below touches `triggers`.
+        // wait (and a stand-down can leave no channels), so nothing below touches `triggers`.
         let fired = levels.indices.compactMap { index in triggers[index].observe(levels[index]).map { (usbChannel: index + 1, peak: $0) } }
         // Every preamp behind a channel that fired is read at once, then which ones move is settled in USB Channel
         // order (so of two channels on one preamp the lower moves it, as before), then they all move at once (#554):

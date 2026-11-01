@@ -1,13 +1,13 @@
 import Foundation
 
-/// When an Armed recorder that nobody is using should stop listening: 30 minutes after the screen
+/// When a Ready recorder that nobody is using should stop listening: 30 minutes after the screen
 /// locked (or the app left the front) with no Take running. The app tells it when the screen goes idle
-/// and comes back, and asks it regularly whether to disarm. It never says to disarm during a Take; a Take
+/// and comes back, and asks it regularly whether to stand down. It never says to stand down during a Take; a Take
 /// counts as use, so the 30 minutes start again when it ends.
 ///
 /// The clock is passed in, so tests don't wait.
-public struct IdleDisarm: Sendable, Equatable {
-    /// How long a locked, unused recorder stays Armed.
+public struct IdleStandDown: Sendable, Equatable {
+    /// How long a locked, unused recorder stays Ready.
     public static let limit: TimeInterval = 30 * 60
 
     private var idleSince: Date?
@@ -24,8 +24,8 @@ public struct IdleDisarm: Sendable, Equatable {
         idleSince = nil
     }
 
-    /// Whether to disarm now.
-    public mutating func shouldDisarm(at date: Date, isRecording: Bool) -> Bool {
+    /// Whether to stand down now.
+    public mutating func shouldStandDown(at date: Date, isRecording: Bool) -> Bool {
         guard let since = idleSince else { return false }
         if isRecording {
             idleSince = date

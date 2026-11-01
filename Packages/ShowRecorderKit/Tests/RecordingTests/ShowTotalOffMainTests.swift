@@ -17,7 +17,7 @@ struct ShowTotalOffMainTests {
         try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
         let recorder = Recorder(deviceFolder: root.appending(path: "Device"), driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.2, count: 4_800)])
         try await recorder.stopTake()

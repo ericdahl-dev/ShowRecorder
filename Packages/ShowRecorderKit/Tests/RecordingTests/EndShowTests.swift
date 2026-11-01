@@ -26,11 +26,11 @@ struct EndShowTests {
 
     func record(_ recorder: Recorder) async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.1, count: 480)])
         try await recorder.stopTake()
-        recorder.disarm()
+        recorder.standDown()
     }
 
     @Test("End Show marks the Show ended in its files, and the next record starts a new Show")
@@ -50,7 +50,7 @@ struct EndShowTests {
     func refusedWhileRecording() async throws {
         let recorder = recorder()
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         #expect(throws: RecorderError.takeRunning) { try recorder.endShow() }
         #expect(recorder.currentShow?.name == "2026-10-06 Show")

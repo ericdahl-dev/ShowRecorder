@@ -40,7 +40,7 @@ struct OneCopyDropoutTests {
             },
             destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         // About 5 s at 48 kHz in 0.5 s blocks: more than the Drive's 4 s ring holds while it's stalled; the Device keeps up.
         for _ in 0..<10 {

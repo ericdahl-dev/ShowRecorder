@@ -91,7 +91,7 @@ ASC_KEY_ID=… ASC_ISSUER_ID=… ASC_KEY_PATH=path/to/AuthKey.p8 python3 scripts
 
 It takes the newest iPhone and Mac builds of that version (the run Eric checked, not an older one), adds them to the external group(s) and submits them for Beta App Review, and says what it did on each platform. It skips a platform whose newest build is missing, still processing, failed or expired, and says when Beta App Review rejected a build. Running it again changes nothing. It uses the release's App Store Connect key and prints no secret. `scripts/test_testflight.py` tests both scripts against a fake API.
 
-**Release branches.** While a version is in App Review, its fixes are kept apart from new work. `release/1.0` was cut from `v1.0.1`. A fix for 1.0 is merged to `main` first, then cherry-picked onto `release/1.0` (in a pull request to that branch, so CI runs) and tagged there, for example `v1.0.2`. New features merge only to `main` and ship in 1.1.x tags (`v1.1.1`, `v1.1.2`, …), which TestFlight lists apart from 1.0.x. When 1.1 goes to App Review, cut `release/1.1` from its tag the same way and move `main` to 1.2. Never merge `main` into a release branch. A tag runs the `release.yml` of the commit it points to, so a fix to that workflow must be cherry-picked to the release branch too.
+**Release branches.** While a version is in App Review, its fixes are kept apart from new work. `release/1.0` was cut from `v1.0.1`. A fix for 1.0 is merged to `main` first, then cherry-picked onto `release/1.0` (in a pull request to that branch, so CI runs) and tagged there, for example `v1.0.2`. New features merge only to `main` and ship in 1.1.x tags (`v1.1.1`, `v1.1.2`, …), which TestFlight lists apart from 1.0.x. `release/1.1` was cut from `v1.1.18` the same way when 1.1 went to App Review (2026-10-31), and `main` moved to 1.2: its tags are now 1.2.x (`v1.2.0`, `v1.2.1`, …), and a 1.1 fix is tagged `v1.1.19` and on, on `release/1.1`. When 1.2 goes to App Review, cut `release/1.2` and move `main` to 1.3. Never merge `main` into a release branch. A tag runs the `release.yml` of the commit it points to, so a fix to that workflow must be cherry-picked to the release branch too.
 
 The **Release** workflow runs two jobs side by side, one for iOS and one for macOS. Each archives the app, signs it with one fixed Apple Distribution certificate (see below), runs `scripts/preflight.sh` on the archive and uploads it to TestFlight. A failure in one never stops the other. Both builds share the tag's version and build number; App Store Connect keeps them apart by platform. The tag sets the marketing version (`v0.1.0` becomes `0.1.0`); the build number is the run number plus the attempt (for example `57.1`), so re-running a tag uploads a new, higher build instead of failing as a duplicate. It only runs for tags pushed to this repository, never for pull requests or forks, and refuses a tag that isn't on `main` or a `release/` branch. The build appears in App Store Connect under TestFlight after Apple finishes processing it, usually 5 to 15 minutes.
 
@@ -125,7 +125,7 @@ App/                         SwiftUI app (iOS, iPadOS, macOS), a thin layer
 Packages/ShowRecorderKit/
   AudioIO                    The audio I/O boundary and a fake device for tests
   CoreAudioIO                Mac input (AUHAL) and iOS input (AVAudioSession + RemoteIO)
-  Recording                  The Recorder: Armed state, meters, the real-time ring buffer,
+  Recording                  The Recorder: Ready state, meters, the real-time ring buffer,
                              writer thread, Shows, Takes, Take.json
   BroadcastWave              Stem writer (BWF, crash-safe headers, RF64)
   OSC                        Open Sound Control encoding and decoding
@@ -159,7 +159,7 @@ The audio callback never allocates, takes locks, logs or touches the file system
   - The Take finalizes with 60 s of space left on the last healthy Destination.
   - **Repair:** after the Take ends, each Copy's Gaps are filled from the other Copy, so both end identical. The record screen and report say whether each Copy is complete, has Gaps, Repaired or Repair failed.
 - **Any multichannel USB input:** every channel the device sends is recorded, with no fixed channel count.
-- **Pre-roll:** while Armed the recorder keeps the last seconds of audio, and a Take starts with them. Settings offers Off, 5, 10 or 20 s (10 s by default). The Show report and Reaper project line up with the Pre-roll.
+- **Pre-roll:** while Ready the recorder keeps the last seconds of audio, and a Take starts with them. Settings offers Off, 5, 10 or 20 s (10 s by default). The Show report and Reaper project line up with the Pre-roll.
 - **Markers:**
   - A Marker button drops a named Marker at the current point in the Take. Markers are written into every Stem as cue points.
   - The Marker list on the record screen shows each Marker's time since record was pressed and renames it during the Take.
@@ -177,7 +177,7 @@ The audio callback never allocates, takes locks, logs or touches the file system
   - A Take survives its screen being torn down or rebuilt. Only Stop and the app ending end a Take.
   - On the Mac, closing the window during a Take asks whether to stop first.
   - If the USB route changes mid-Take, the Take moves to the new route, and a failed move is retried.
-  - An Armed recorder nobody is using disarms 30 minutes after the screen locks or the app leaves the front.
+  - A Ready recorder nobody is using stands down 30 minutes after the screen locks or the app leaves the front.
 - **Layouts:** the record screen has portrait and landscape layouts. In portrait it shows the Take's elapsed time. On iPad the meters span the screen width.
 - **Mixer Link over Wi-Fi** (X-Air mixers today):
   - Enter the mixer's IP and each meter shows its Source's name and color.
@@ -187,13 +187,13 @@ The audio callback never allocates, takes locks, logs or touches the file system
   - Each USB Channel has a wide peak bar, a narrower average bar in front and a held-peak line across both.
   - The average is a VU reading. A faint Target band, -18 to -15 dBFS, is shaded on every lane: the average bar is blue-gray below it, green in it and orange above it, and never red.
   - The peak bar is green up to -18 dBFS, yellow up to -6 and red above. The held-peak line turns red and thicker above -3.
-  - A red Clip mark appears above a channel that reaches full scale. It stays until you tap that lane, start a new Take or disarm.
+  - A red Clip mark appears above a channel that reaches full scale. It stays until you tap that lane, start a new Take or the recorder stands down.
   - Each Take records every channel's peak and average in `Take.json`, and the report has a Levels table.
 - **After the show:**
   - Each Show gets an HTML report and a CSV channel list.
   - Each Show gets a Reaper project with one track per USB Channel, Takes laid end to end and a marker at each Take.
 - **Mac and iOS input:**
-  - On the Mac, any Core Audio device, with hot-plug: plug in a mixer and it's armed.
+  - On the Mac, any Core Audio device, with hot-plug: plug in a mixer and it's ready.
   - On iPhone and iPad, the current USB route.
   - Recording continues with the screen locked, in the background and through interruptions.
 

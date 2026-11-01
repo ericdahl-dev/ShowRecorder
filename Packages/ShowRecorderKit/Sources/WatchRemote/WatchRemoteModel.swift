@@ -115,9 +115,9 @@ public final class WatchRemoteModel {
         }
     }
 
-    /// Start needs the iPhone Armed: it can't open the mic from the background.
+    /// Start needs the iPhone Ready: it can't open the mic from the background.
     public var canStart: Bool {
-        guard case .status(let status) = display, case .armed = status.state else { return false }
+        guard case .status(let status) = display, case .ready = status.state else { return false }
         return true
     }
 

@@ -23,7 +23,7 @@ struct ShowDetailTests {
     /// Records a Take with `markers` operator Markers, 0.1 s apart from 0.1 s in.
     func record(_ recorder: Recorder, markers: Int) async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         for _ in 0..<markers {
             audio.deliver([Array(repeating: 0.1, count: 4_800)])
@@ -31,7 +31,7 @@ struct ShowDetailTests {
         }
         audio.deliver([Array(repeating: 0.1, count: 480)])
         try await recorder.stopTake()
-        recorder.disarm()
+        recorder.standDown()
     }
 
     func recorder() -> Recorder {

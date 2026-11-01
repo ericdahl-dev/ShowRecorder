@@ -25,7 +25,7 @@ struct ProExtrasTests {
     func reportAndProject() async throws {
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 2)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try await take(recorder, audio, free)
         #expect(!exists("\(show)/Report.html") && !exists("\(show)/\(show).RPP"))
@@ -39,7 +39,7 @@ struct ProExtrasTests {
     func typedNamesArePro() async throws {
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 2)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         recorder.setChannelName("Kick", forChannel: 1)
 
         try await take(recorder, audio, free)

@@ -1,13 +1,18 @@
 import Foundation
 
-/// What the watch shows of the recorder (#100): Armed, Recording with its start time, and anything that needs
+/// What the watch shows of the recorder (#100): Ready, Recording with its start time, and anything that needs
 /// attention. The iPhone sends it whenever it changes; the watch holds nothing else.
 public struct WatchStatus: Codable, Equatable, Sendable {
     public enum State: Codable, Equatable, Sendable {
-        /// No Audio interface is Armed: the watch can't Start (the iPhone can't open the mic from the background).
-        case notArmed
-        case armed
+        /// No Audio interface is Ready: the watch can't Start (the iPhone can't open the mic from the background).
+        case notReady
+        case ready
         case recording(startedAt: Date, takeTitle: String, markerCount: Int)
+
+        /// The wire keeps the old names, "armed" and "notArmed", so a paired watch a version behind still reads them.
+        private enum CodingKeys: String, CodingKey {
+            case notReady = "notArmed", ready = "armed", recording
+        }
     }
 
     /// Something that needs attention, shown as a symbol and a few words so it reads without color. Not the whole

@@ -3,7 +3,7 @@ import Foundation
 import Recording
 import Testing
 
-/// The screenshot build (bundle ID ending ".screens") may Arm only demo inputs: never a microphone or a USB
+/// The screenshot build (bundle ID ending ".screens") may Get ready only demo inputs: never a microphone or a USB
 /// interface, so a screenshot run can't record a room (#374, after four runs recorded this Mac's microphone).
 @MainActor
 @Suite("Demo-only inputs")
@@ -26,20 +26,20 @@ struct DemoOnlyInputSourceTests {
         #expect(real.routeOpened.isEmpty)
     }
 
-    @Test("A sequencer on it can't Arm the microphone even when it is the one selected, and Arms the Demo signal")
-    func sequencerArmsOnlyDemo() {
+    @Test("A sequencer on it can't get the microphone ready even when it is the one selected, and gets the Demo signal ready")
+    func sequencerGetsReadyOnlyDemo() {
         let real = FakeInputDevices([("coreaudio-BuiltInMicrophoneDevice", 1), ("demo", 18)])
         let recorder = Recorder(deviceFolder: root, destinationCheckInterval: nil)
         let sequencer = TakeSequencer(recorder: recorder, devices: DemoOnlyInputSource(real), capsAt48k: { false })
 
         sequencer.select("coreaudio-BuiltInMicrophoneDevice")
-        sequencer.arm()
-        #expect(!recorder.isArmed)
+        sequencer.getReady()
+        #expect(!recorder.isReady)
         #expect(real.opened.isEmpty, "the microphone was never opened")
 
         sequencer.select("demo")
-        sequencer.arm()
-        #expect(recorder.isArmed)
-        #expect(sequencer.armedDevice?.id == "demo")
+        sequencer.getReady()
+        #expect(recorder.isReady)
+        #expect(sequencer.readyDevice?.id == "demo")
     }
 }

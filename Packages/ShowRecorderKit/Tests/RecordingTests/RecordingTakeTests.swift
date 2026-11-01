@@ -27,7 +27,7 @@ struct RecordingTakeTests {
     func recordCreatesShowTakeAndStems() async throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
 
         try recorder.startTake()
         device.deliver([
@@ -50,7 +50,7 @@ struct RecordingTakeTests {
     func bextDescribesStemAndSharesTimeReference() async throws {
         let device = FakeAudioDevice(inputChannelCount: 3)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
 
         try recorder.startTake()
         device.deliver([[0], [0], [0]])
@@ -70,7 +70,7 @@ struct RecordingTakeTests {
     func secondRecordStartsTake02InSameShow() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
 
         try recorder.startTake()
         device.deliver([[Self.sample(1)]])
@@ -91,7 +91,7 @@ struct RecordingTakeTests {
     func audioOutsideTakeIsNotWritten() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
 
         device.deliver([[Self.sample(9)]])
         try recorder.startTake()
@@ -103,11 +103,11 @@ struct RecordingTakeTests {
         #expect(stem.samples == [1])
     }
 
-    @Test("Recording needs the recorder to be Armed")
-    func recordingNeedsArmed() {
+    @Test("Recording needs the recorder to be Ready")
+    func recordingNeedsReady() {
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
 
-        #expect(throws: RecorderError.notArmed) { try recorder.startTake() }
+        #expect(throws: RecorderError.notReady) { try recorder.startTake() }
         #expect(recorder.currentShow == nil)
     }
 
@@ -115,7 +115,7 @@ struct RecordingTakeTests {
     func existingShowFolderIsNotReused() async throws {
         try FileManager.default.createDirectory(at: root.appending(path: "2026-10-06 Show"), withIntermediateDirectories: false)
         let recorder = Recorder(deviceFolder: root, now: { Self.showDay })
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
 
         try recorder.startTake()
         try await recorder.stopTake()

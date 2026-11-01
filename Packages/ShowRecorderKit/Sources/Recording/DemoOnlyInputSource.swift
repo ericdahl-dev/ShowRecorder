@@ -1,9 +1,9 @@
 import AudioIO
 import Foundation
 
-/// The inputs a screenshot build may Arm: only demo inputs (ids starting "demo"), never a microphone, a USB interface
+/// The inputs a screenshot build may Get ready: only demo inputs (ids starting "demo"), never a microphone, a USB interface
 /// or an iPhone's route, so a screenshot run can't record a room (#374). The app uses it when its bundle ID ends in
-/// ".screens" (`isScreenshotBuild`); the sequencer Arms only what its source offers.
+/// ".screens" (`isScreenshotBuild`); the sequencer Gets ready only what its source offers.
 @MainActor
 public struct DemoOnlyInputSource: InputDeviceSource {
     private let source: any InputDeviceSource

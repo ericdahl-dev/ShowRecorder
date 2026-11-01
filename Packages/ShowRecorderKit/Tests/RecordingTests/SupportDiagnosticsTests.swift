@@ -41,7 +41,7 @@ struct SupportDiagnosticsTests {
             """)
     }
 
-    @Test("With nothing Armed, no Drive folder, no interruption and no Mixer Link, each line says so")
+    @Test("With nothing Ready, no Drive folder, no interruption and no Mixer Link, each line says so")
     func bodyWithNothing() {
         var details = full
         details.inputRoute = nil
@@ -52,7 +52,7 @@ struct SupportDiagnosticsTests {
         details.mixerLink = nil
         let body = details.body
         #expect(body.contains("\nAudio input: None\n"))
-        #expect(body.contains("\nChannels: Not armed\n"))
+        #expect(body.contains("\nChannels: Not ready\n"))
         #expect(body.contains("\nDrive folder set: no\n"))
         #expect(body.contains("\nLast interruption: None\n"))
         #expect(body.hasSuffix("\nMixer Link: Not linked"))
@@ -104,7 +104,7 @@ struct SupportDiagnosticsTests {
         #expect(SupportDiagnostics.routeLabel(portType: "BluetoothHFP", name: "Eric's AirPods") == "Bluetooth")
     }
 
-    @Test("Armed with an unknown rate or a zero channel count, the Channels line does not say Not armed")
+    @Test("Ready with an unknown rate or a zero channel count, the Channels line does not say Not ready")
     func partialChannels() {
         var details = full
         details.sampleRate = nil

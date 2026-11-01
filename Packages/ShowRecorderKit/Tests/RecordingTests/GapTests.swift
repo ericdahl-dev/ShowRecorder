@@ -81,7 +81,7 @@ struct GapTests {
     func deviceFailsMidTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(failing: [.device])
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
@@ -99,7 +99,7 @@ struct GapTests {
     func takeEndsWhenEveryCopyFailed() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(failing: [.device, .drive])
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(3, to: audio, recorder, sample: counting())
@@ -123,7 +123,7 @@ struct GapTests {
                 return url.path.hasPrefix(drive.resolvingSymlinksInPath().path) || url.path.hasPrefix(drive.path)
                     ? FailingStem(real, healthyFrames: 480) : real
             }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
@@ -148,7 +148,7 @@ struct GapTests {
     func noDriveAtStartIsMissing() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
 
@@ -164,7 +164,7 @@ struct GapTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let available = DriveSwitch()
         let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
@@ -199,7 +199,7 @@ struct GapTests {
     func driveComesBackAfterFailing() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(failing: [.drive])
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
@@ -235,7 +235,7 @@ struct GapTests {
     func markersAfterDeviceFails() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(failing: [.device])
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
@@ -267,7 +267,7 @@ struct GapTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let available = DriveSwitch()
         let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
@@ -288,7 +288,7 @@ struct GapTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let available = DriveSwitch()
         let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
@@ -322,7 +322,7 @@ struct GapTests {
                 let real = try StemWriter.open(url: url, info: info, resumingAt: resuming)
                 return resuming == nil && url.path.contains("/Drive/") ? FailingStem(real, healthyFrames: 480) : real
             }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
@@ -348,7 +348,7 @@ struct GapTests {
             driveFolder: { DriveAccess(folder: drive) },
             now: { RecordingTakeTests.showDay },
             freeSpace: { free.bytes(at: $0) }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(4, to: audio, recorder, sample: counting())

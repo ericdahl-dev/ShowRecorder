@@ -212,7 +212,7 @@ struct ChannelNamingTests {
         let root = FileManager.default.temporaryDirectory.appending(path: "ChannelNameListTests-\(UUID().uuidString)")
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 2)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([[0.1], [0.1]])
         try await recorder.stopTake()

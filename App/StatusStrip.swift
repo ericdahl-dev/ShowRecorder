@@ -359,13 +359,13 @@ private struct StripLabelStyle: LabelStyle {
 }
 
 extension ScreenAlert.Action {
-    /// The button's words, the same in the alert banner and the disarmed record screen.
+    /// The button's words, the same in the alert banner and the stood-down record screen.
     var title: String {
         switch self {
         case .openSystemSettings: "Open Settings"
         case .dismissHint: "Got it"
         case .checkDrive: "Check Drive"
-        case .arm: "Arm"
+        case .getReady: "Get ready"
         case .soundcheck: "Soundcheck"
         case .dismissRoutingChange: "Got it"
         case .showMoves: "Details"
@@ -373,8 +373,8 @@ extension ScreenAlert.Action {
     }
 }
 
-/// Fills the empty meter region while nothing is Armed: why, and the one thing to do about it (#253).
-struct DisarmedNotice: View {
+/// Fills the empty meter region while nothing is Ready: why, and the one thing to do about it (#253).
+struct StoodDownNotice: View {
     let block: RecordAvailability.Block
     let perform: (ScreenAlert.Action) -> Void
 

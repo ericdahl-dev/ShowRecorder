@@ -28,8 +28,8 @@ public struct ScreenAlert: Equatable, Identifiable, Sendable {
         case dismissHint
         /// Look for the Drive again, during a Take.
         case checkDrive
-        /// Arm the chosen input again. Arms only; never starts a Take.
-        case arm
+        /// Get the chosen input ready again. Gets ready only; never starts a Take.
+        case getReady
         /// Open the Soundcheck (#63).
         case soundcheck
         /// Hide the routing change warning (#21) until the Mixer is re-patched again.

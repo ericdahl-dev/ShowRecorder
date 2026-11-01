@@ -26,7 +26,7 @@ struct MarkerRenamerTests {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake(allowance: allowance)
         let sample = { (frame: Int, channel: Int) in RecordingTakeTests.sample(Int32(frame % 1000 + channel * 1000)) }
         deliver(4_800, to: audio, sample: sample)
@@ -165,7 +165,7 @@ struct MarkerRenamerTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0, count: 4_800)])
         recorder.addMarker()

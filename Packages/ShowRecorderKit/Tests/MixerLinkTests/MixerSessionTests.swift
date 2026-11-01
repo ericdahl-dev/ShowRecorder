@@ -3,7 +3,7 @@ import Foundation
 import MixerLink
 import Testing
 
-/// The Mixer session (#556): whether Mixer Link is offered for the Armed input, and when it connects, decided in one
+/// The Mixer session (#556): whether Mixer Link is offered for the Ready input, and when it connects, decided in one
 /// place instead of across the app.
 @MainActor
 @Suite("Mixer session")
@@ -18,14 +18,14 @@ struct MixerSessionTests {
         return (MixerSession(link: link, store: store), link)
     }
 
-    @Test("With another input Armed, there's no status, no Sources and no gain control, though the Link is still up")
+    @Test("With another input Ready, there's no status, no Sources and no gain control, though the Link is still up")
     func otherInputHidesTheLink() async {
         let (session, link) = session()
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
         await link.connect(to: "10.0.0.20", usbChannelCount: 18)
         #expect(session.gainControl != nil)
 
-        await session.armed(interfaceName: "EVO 4", usbChannelCount: 2)
+        await session.ready(interfaceName: "EVO 4", usbChannelCount: 2)
 
         #expect(session.gainControl == nil, "a stale Link must not move a Mixer's gain")
         #expect(session.status == nil)
@@ -33,14 +33,14 @@ struct MixerSessionTests {
         #expect(link.identity != nil, "the Link stays up, hidden")
     }
 
-    @Test("With an X32 Armed while the Link is still on an XR18, nothing of the XR18 is used: no gain control, Sources, identity or capabilities (#589)")
+    @Test("With an X32 Ready while the Link is still on an XR18, nothing of the XR18 is used: no gain control, Sources, identity or capabilities (#589)")
     func otherMixerFamilyHidesTheLinkedMixer() async {
         let (session, link) = session()
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
         await link.connect(to: "10.0.0.20", usbChannelCount: 18)
         #expect(session.gainControl != nil)
 
-        await session.armed(interfaceName: "X-USB", usbChannelCount: 32)
+        await session.ready(interfaceName: "X-USB", usbChannelCount: 32)
 
         #expect(session.isOffered, "Settings still offers connecting to the X32")
         #expect(session.status != nil, "Settings shows where the Link is")
@@ -50,15 +50,15 @@ struct MixerSessionTests {
         #expect(session.capabilities == nil)
     }
 
-    @Test("With an X32 Armed while the Link is still on an XR18, the session names the XR18 as the other Mixer linked (#647)")
+    @Test("With an X32 Ready while the Link is still on an XR18, the session names the XR18 as the other Mixer linked (#647)")
     func otherMixerLinkedNamesTheLinkedMixer() async {
         let driver = FakeMixerDriver(gainControl: StubGainControl())
         let (session, link) = session(driver)
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
         await link.connect(to: "10.0.0.20", usbChannelCount: 18)
-        #expect(session.otherMixerLinked == nil, "the linked Mixer is the Armed family")
+        #expect(session.otherMixerLinked == nil, "the linked Mixer is the Ready family")
 
-        await session.armed(interfaceName: "X-USB", usbChannelCount: 32)
+        await session.ready(interfaceName: "X-USB", usbChannelCount: 32)
         #expect(session.otherMixerLinked?.networkName == "FOH")
         #expect(session.otherMixerLinked?.model == "XR18")
 
@@ -69,78 +69,78 @@ struct MixerSessionTests {
         driver.state.withLock { $0.problem = nil }
         await link.connect(to: "10.0.0.20", usbChannelCount: 32)
 
-        await session.armed(interfaceName: "EVO 4", usbChannelCount: 2)
+        await session.ready(interfaceName: "EVO 4", usbChannelCount: 2)
         #expect(session.otherMixerLinked == nil, "Mixer Link isn't offered")
     }
 
-    @Test("The session's Mixer state: nil while not offered, not linked when idle, linked on the Armed family, the other Mixer on another family, down with its problem (#556)")
+    @Test("The session's Mixer state: nil while not offered, not linked when idle, linked on the Ready family, the other Mixer on another family, down with its problem (#556)")
     func mixerState() async {
         let driver = FakeMixerDriver(gainControl: StubGainControl())
         let (session, link) = session(driver)
         #expect(session.state == nil, "Mixer Link isn't offered")
 
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
         #expect(session.state == .notLinked)
 
         await link.connect(to: "10.0.0.20", usbChannelCount: 18)
         let identity = driver.state.withLock { $0.identity }
         #expect(session.state == .linked(identity, path: .wifi))
 
-        await session.armed(interfaceName: "X-USB", usbChannelCount: 32)
+        await session.ready(interfaceName: "X-USB", usbChannelCount: 32)
         #expect(session.state == .otherMixer(identity))
 
         driver.state.withLock { $0.problem = .noReply(host: "10.0.0.20") }
         await link.connect(to: "10.0.0.20", usbChannelCount: 32)
         #expect(session.state == .down(.noReply(host: "10.0.0.20")))
 
-        await session.armed(interfaceName: "EVO 4", usbChannelCount: 2)
+        await session.ready(interfaceName: "EVO 4", usbChannelCount: 2)
         #expect(session.state == nil, "Mixer Link isn't offered")
     }
 
-    @Test("The Mixer's identity and what it sends over USB show while Mixer Link is offered, and hide with another input Armed")
+    @Test("The Mixer's identity and what it sends over USB show while Mixer Link is offered, and hide with another input Ready")
     func identityAndCapabilitiesGated() async {
         let (session, link) = session()
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
         await link.connect(to: "10.0.0.20", usbChannelCount: 18)
         #expect(session.identity?.networkName == "FOH")
         #expect(session.capabilities?.usbChannelCount == 18)
 
-        await session.armed(interfaceName: "EVO 4", usbChannelCount: 2)
+        await session.ready(interfaceName: "EVO 4", usbChannelCount: 2)
 
         #expect(session.identity == nil)
         #expect(session.capabilities == nil)
 
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
 
-        #expect(session.gainControl != nil, "the XR18 Armed again is the linked Mixer again")
+        #expect(session.gainControl != nil, "the XR18 Ready again is the linked Mixer again")
         #expect(session.identity?.model == "XR18")
     }
 
-    @Test("The linked Mixer's network name is still there for a Template while nothing is Armed")
+    @Test("The linked Mixer's network name is still there for a Template while nothing is Ready")
     func networkNameForTemplates() async {
         let (session, link) = session()
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
         await link.connect(to: "10.0.0.20", usbChannelCount: 18)
 
-        await session.armed(interfaceName: nil, usbChannelCount: 0)
+        await session.ready(interfaceName: nil, usbChannelCount: 0)
 
         #expect(session.identity == nil)
         #expect(session.networkNameForTemplates == "FOH")
     }
 
-    @Test("A remembered Mixer connects when an X Air is Armed and the Link is idle")
-    func rememberedMixerConnectsOnArm() async {
+    @Test("A remembered Mixer connects when an X Air is Ready and the Link is idle")
+    func rememberedMixerConnectsOnGetReady() async {
         let driver = FakeMixerDriver()
         let (session, link) = session(driver, remembering: "10.0.0.20")
 
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
 
         #expect(link.status == .up(driver.state.withLock { $0.identity }, path: .wifi))
         #expect(session.sources.count == 18)
     }
 
-    @Test("Arming again doesn't reconnect a Link that is down")
-    func armAgainLeavesLink() async {
+    @Test("Getting ready again doesn't reconnect a Link that is down")
+    func getReadyAgainLeavesLink() async {
         let made = Counter()
         var state = FakeMixerDriver.State()
         state.problem = .noReply(host: "10.0.0.20")
@@ -150,9 +150,9 @@ struct MixerSessionTests {
         store.set("10.0.0.20", forKey: "mixerAddress")
         let session = MixerSession(link: link, store: store)
 
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
         guard case .down = link.status else { Issue.record("the Link should be down: \(link.status)"); return }
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
 
         #expect(made.value == 1, "connected once, not again over a Link that's down")
     }
@@ -166,14 +166,14 @@ struct MixerSessionTests {
         store.set("10.0.0.20", forKey: "mixerAddress")
         let session = MixerSession(link: link, store: store)
         driver.state.withLock { $0.problem = .noReply(host: "10.0.0.20") }
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
         driver.state.withLock { $0.problem = nil }
 
         await session.retry()
         #expect(link.identity != nil, "a Link that was down is connected again")
         await session.retry()
 
-        #expect(made.value == 2, "once at Arm, once to retry the Link that was down, and not over the one that's up")
+        #expect(made.value == 2, "once when getting ready, once to retry the Link that was down, and not over the one that's up")
     }
 
     @Test("Connect from Settings connects at the address typed, even when the Link is up")
@@ -184,7 +184,7 @@ struct MixerSessionTests {
         let store = UserDefaults(suiteName: "MixerSessionTests-\(UUID().uuidString)")!
         store.set("10.0.0.20", forKey: "mixerAddress")
         let session = MixerSession(link: link, store: store)
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
         #expect(link.identity != nil)
 
         session.address = "10.0.0.30"
@@ -208,7 +208,7 @@ struct MixerSessionTests {
         let link = MixerLinkController(makeDriver: { endpoint, _ in endpoints.add(endpoint); return driver })
         let store = UserDefaults(suiteName: "MixerSessionTests-\(UUID().uuidString)")!
         let session = MixerSession(link: link, store: store)
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
 
         await session.follow(mixerAt: "10.0.0.40", named: nil)
 
@@ -232,7 +232,7 @@ struct MixerSessionTests {
         let session = MixerSession(
             link: link, store: store, network: { ScanRange(address: "10.0.0.2", netmask: "255.255.255.0") },
             scan: { _ in [FoundMixer(host: "10.0.0.42", identity: bandName), FoundMixer(host: "10.0.0.41", identity: foh)] })
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
 
         await session.follow(mixerAt: "10.0.0.40", named: "FOH")
 
@@ -247,7 +247,7 @@ struct MixerSessionTests {
         let link = MixerLinkController(makeDriver: { endpoint, _ in endpoints.add(endpoint); return FakeMixerDriver() })
         let store = UserDefaults(suiteName: "MixerSessionTests-\(UUID().uuidString)")!
         let session = MixerSession(link: link, store: store)
-        await session.armed(interfaceName: "EVO 4", usbChannelCount: 2)
+        await session.ready(interfaceName: "EVO 4", usbChannelCount: 2)
 
         await session.follow(mixerAt: "10.0.0.40", named: "FOH")
 
@@ -267,7 +267,7 @@ struct MixerSessionTests {
             Issue.record("nothing to scan")
             return []
         })
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
 
         await session.follow(mixerAt: "10.0.0.40", named: "FOH")
 
@@ -283,9 +283,9 @@ struct MixerSessionTests {
         let store = UserDefaults(suiteName: "MixerSessionTests-\(UUID().uuidString)")!
         store.set("10.0.0.20", forKey: "mixerAddress")
         let session = MixerSession(link: link, store: store)
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
 
-        await session.armed(interfaceName: "XR18", usbChannelCount: 12)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 12)
 
         #expect(session.sources.count == 12)
         #expect(made.value == 1)
@@ -301,12 +301,12 @@ struct MixerSessionTests {
         store.set("10.0.0.20", forKey: "mixerAddress")
         let session = MixerSession(link: link, store: store)
 
-        let arming = Task { await session.armed(interfaceName: "XR18", usbChannelCount: 18) }
+        let gettingReady = Task { await session.ready(interfaceName: "XR18", usbChannelCount: 18) }
         while link.status == .idle { await Task.yield() }
         #expect(session.state == .connecting(host: "10.0.0.20"))
-        await session.armed(interfaceName: "XR18", usbChannelCount: 12)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 12)
         driver.releaseIdentify()
-        await arming.value
+        await gettingReady.value
 
         #expect(session.sources.count == 12)
     }
@@ -314,7 +314,7 @@ struct MixerSessionTests {
     @Test("Connect with no address tries anyway and says the address is invalid, as Settings always has")
     func connectWithNoAddress() async {
         let (session, link) = session()
-        await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
 
         await session.connect()
 
@@ -324,15 +324,15 @@ struct MixerSessionTests {
         }
     }
 
-    @Test("At launch with nothing Armed, a remembered Mixer isn't connected")
-    func launchWithNothingArmed() async {
+    @Test("At launch with nothing Ready, a remembered Mixer isn't connected")
+    func launchWithNothingReady() async {
         let made = Counter()
         let link = MixerLinkController(makeDriver: { _, _ in made.increment(); return FakeMixerDriver() })
         let store = UserDefaults(suiteName: "MixerSessionTests-\(UUID().uuidString)")!
         store.set("10.0.0.20", forKey: "mixerAddress")
         let session = MixerSession(link: link, store: store)
 
-        await session.armed(interfaceName: nil, usbChannelCount: 0)
+        await session.ready(interfaceName: nil, usbChannelCount: 0)
 
         #expect(made.value == 0)
         #expect(!session.isOffered)

@@ -25,13 +25,13 @@ struct TakeMoverTests {
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         for _ in 1...2 {
             try recorder.startTake()
             audio.deliver([(0..<4_800).map { Float($0 % 1000) / 8_388_608 }])
             try await recorder.stopTake()
         }
-        recorder.disarm()
+        recorder.standDown()
         try recorder.endShow()
     }
 

@@ -24,7 +24,7 @@ struct StatusChipsTests {
         .available(Drive(folder: URL(filePath: "/Volumes/SSD"), name: "SSD", availableBytes: bytes))
     }
 
-    @Test("Time left follows the Armed input's sample rate: the same space lasts longer at 44.1 kHz, half as long at 96 kHz (#298)")
+    @Test("Time left follows the Ready input's sample rate: the same space lasts longer at 44.1 kHz, half as long at 96 kHz (#298)")
     func timeLeftAtInputRate() {
         func texts(_ rate: Int) -> [String] {
             StatusChip.make(
@@ -230,7 +230,7 @@ struct StatusChipsTests {
         #expect(bothTake.map(\.text) == ["Device 1 h 00 min", "Drive stopped"])
     }
 
-    @Test("A Link up on another Mixer than the Armed one asks for attention and names that Mixer (#647)")
+    @Test("A Link up on another Mixer than the Ready one asks for attention and names that Mixer (#647)")
     func otherMixerLinked() {
         func mixerChip(_ identity: MixerIdentity) -> StatusChip? {
             StatusChip.make(usbChannelCount: 32, deviceAvailableBytes: Self.anHour, drive: .notChosen,

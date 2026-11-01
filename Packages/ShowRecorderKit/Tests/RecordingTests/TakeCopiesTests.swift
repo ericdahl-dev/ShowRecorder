@@ -10,7 +10,7 @@ extension GapTests {
     func copiesWhileRecording() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(failing: [])
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(3, to: audio, recorder, sample: counting())
@@ -25,7 +25,7 @@ extension GapTests {
     func copiesNoDrive() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
 
@@ -42,7 +42,7 @@ extension GapTests {
         let recorder = Recorder(
             deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
             freeSpace: { free.bytes(at: $0) }, destinationCheckInterval: .milliseconds(10))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder)
         free.drive = 5_000_000
@@ -57,7 +57,7 @@ extension GapTests {
     func copiesAfterTheTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(failing: [.drive])
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
@@ -75,7 +75,7 @@ extension GapTests {
     func copiesAfterNoDrive() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(3, to: audio, recorder, sample: counting())
         try await recorder.stopTake()
@@ -89,7 +89,7 @@ extension GapTests {
     func copiesDuringTheNextTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(failing: [])
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(3, to: audio, recorder, sample: counting())
         try await recorder.stopTake()
@@ -102,10 +102,10 @@ extension GapTests {
         try await recorder.stopTake()
     }
 
-    @Test("Armed, before any Take, the Recorder has no Take running and every Copy missing")
-    func copiesArmedBeforeAnyTake() throws {
+    @Test("Ready, before any Take, the Recorder has no Take running and every Copy missing")
+    func copiesReadyBeforeAnyTake() throws {
         let recorder = recorder(failing: [])
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
 
         #expect(!recorder.copies.isRunning)
         #expect(recorder.copies[.device] == .missing)
@@ -116,7 +116,7 @@ extension GapTests {
     func copiesAfterTheDeviceFails() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(failing: [.device])
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
@@ -134,7 +134,7 @@ extension GapTests {
         let available = DriveSwitch()
         let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } },
                                 now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())

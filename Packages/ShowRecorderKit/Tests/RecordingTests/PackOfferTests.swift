@@ -3,37 +3,37 @@ import MixerLink
 @testable import Recording
 import Testing
 
-/// What the paywall offers with mixer packs (#705, ADR 0004): the Armed family's pack first with Pro beside it, Pro
+/// What the paywall offers with mixer packs (#705, ADR 0004): the Ready family's pack first with Pro beside it, Pro
 /// alone for a generic input, and only the upgrade for someone who already has a pack (a second pack is hidden, Eric).
 @Suite("Pack offer")
 struct PackOfferTests {
-    @Test("An X Air or X32 as the Armed input: its pack first, then Pro (#705)")
+    @Test("An X Air or X32 as the Ready input: its pack first, then Pro (#705)")
     func packFirst() {
-        #expect(PackOffer.items(ownsPro: false, armedFamily: .xAir, ownedPacks: [], boughtPacks: [], packsOffered: true) == [.pack(.xAir), .pro])
-        #expect(PackOffer.items(ownsPro: false, armedFamily: .x32, ownedPacks: [], boughtPacks: [], packsOffered: true) == [.pack(.x32), .pro])
+        #expect(PackOffer.items(ownsPro: false, readyFamily: .xAir, ownedPacks: [], boughtPacks: [], packsOffered: true) == [.pack(.xAir), .pro])
+        #expect(PackOffer.items(ownsPro: false, readyFamily: .x32, ownedPacks: [], boughtPacks: [], packsOffered: true) == [.pack(.x32), .pro])
     }
 
     @Test("The Demo signal, where it counts as an X Air, is offered the X Air pack first (#705)")
     func demoGetsXAirPack() {
-        let family = MixerFamily.armed(interfaceName: "Demo signal", isDemo: true, demoCounts: true)
-        #expect(PackOffer.items(ownsPro: false, armedFamily: family, ownedPacks: [], boughtPacks: [], packsOffered: true) == [.pack(.xAir), .pro])
+        let family = MixerFamily.ready(interfaceName: "Demo signal", isDemo: true, demoCounts: true)
+        #expect(PackOffer.items(ownsPro: false, readyFamily: family, ownedPacks: [], boughtPacks: [], packsOffered: true) == [.pack(.xAir), .pro])
     }
 
     @Test("A generic input (no mixer family) is offered Pro only: there is no pack for it (#705)")
     func genericGetsPro() {
-        #expect(PackOffer.items(ownsPro: false, armedFamily: nil, ownedPacks: [], boughtPacks: [], packsOffered: true) == [.pro])
+        #expect(PackOffer.items(ownsPro: false, readyFamily: nil, ownedPacks: [], boughtPacks: [], packsOffered: true) == [.pro])
     }
 
-    @Test("Someone with a pack is offered only the upgrade to Pro, whatever is Armed: a second pack is hidden (Eric, #705)")
+    @Test("Someone with a pack is offered only the upgrade to Pro, whatever is Ready: a second pack is hidden (Eric, #705)")
     func packOwnerGetsUpgrade() {
-        #expect(PackOffer.items(ownsPro: false, armedFamily: .xAir, ownedPacks: [.x32], boughtPacks: [.x32], packsOffered: true) == [.upgrade])
-        #expect(PackOffer.items(ownsPro: false, armedFamily: .x32, ownedPacks: [.x32], boughtPacks: [.x32], packsOffered: true) == [.upgrade])
-        #expect(PackOffer.items(ownsPro: false, armedFamily: nil, ownedPacks: [.xAir], boughtPacks: [.xAir], packsOffered: true) == [.upgrade])
+        #expect(PackOffer.items(ownsPro: false, readyFamily: .xAir, ownedPacks: [.x32], boughtPacks: [.x32], packsOffered: true) == [.upgrade])
+        #expect(PackOffer.items(ownsPro: false, readyFamily: .x32, ownedPacks: [.x32], boughtPacks: [.x32], packsOffered: true) == [.upgrade])
+        #expect(PackOffer.items(ownsPro: false, readyFamily: nil, ownedPacks: [.xAir], boughtPacks: [.xAir], packsOffered: true) == [.upgrade])
     }
 
     @Test("A pack shared through Family Sharing doesn't earn the upgrade: that person is offered full Pro (Eric, #705)")
     func sharedPackGetsPro() {
-        #expect(PackOffer.items(ownsPro: false, armedFamily: .x32, ownedPacks: [.xAir], boughtPacks: [], packsOffered: true) == [.pro])
+        #expect(PackOffer.items(ownsPro: false, readyFamily: .x32, ownedPacks: [.xAir], boughtPacks: [], packsOffered: true) == [.pro])
     }
 
     @Test("\"Launch price\" shows only while Pro's live price is its launch price in that currency (Eric, #908)")
@@ -77,12 +77,12 @@ struct PackOfferTests {
 
     @Test("Pro owned: nothing to offer (#705)")
     func proOwned() {
-        #expect(PackOffer.items(ownsPro: true, armedFamily: .xAir, ownedPacks: [.xAir], boughtPacks: [.xAir], packsOffered: true).isEmpty)
+        #expect(PackOffer.items(ownsPro: true, readyFamily: .xAir, ownedPacks: [.xAir], boughtPacks: [.xAir], packsOffered: true).isEmpty)
     }
 
     @Test("Where packs aren't offered yet, the paywall is Pro only, as before (#705)")
     func packsNotOffered() {
-        #expect(PackOffer.items(ownsPro: false, armedFamily: .xAir, ownedPacks: [], boughtPacks: [], packsOffered: false) == [.pro])
+        #expect(PackOffer.items(ownsPro: false, readyFamily: .xAir, ownedPacks: [], boughtPacks: [], packsOffered: false) == [.pro])
     }
 
     @Test("The pack headline names the Mixer: its model when linked, else the family (#705)")
@@ -99,14 +99,14 @@ struct PackOfferTests {
         #expect(!PackAvailability.isAvailable(isDebugBuild: false))
     }
 
-    @Test("The license honors a pack on the Armed family: Pro on an X Air with the X Air pack, Free on an X32 (#705)")
+    @Test("The license honors a pack on the Ready family: Pro on an X Air with the X Air pack, Free on an X32 (#705)")
     func licenseWithFamily() {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let pack = OwnedPurchase(productID: ProPurchases.packProductIDs[.xAir]!, purchaseDate: now)
         var status = ProStatus(lastKnown: nil)
         _ = status.appStoreAnswered([pack], now: now)
-        #expect(status.license(proOffered: true, armedFamily: .xAir, now: now).tier == .pro)
-        #expect(status.license(proOffered: true, armedFamily: .x32, now: now).tier == .free)
+        #expect(status.license(proOffered: true, readyFamily: .xAir, now: now).tier == .pro)
+        #expect(status.license(proOffered: true, readyFamily: .x32, now: now).tier == .free)
         #expect(status.license(proOffered: true, now: now).tier == .free, "no family: as before")
     }
 

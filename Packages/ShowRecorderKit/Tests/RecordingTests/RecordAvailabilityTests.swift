@@ -4,14 +4,14 @@ import Testing
 /// Why the Record button is dimmed, and what to offer.
 @Suite("Record availability")
 struct RecordAvailabilityTests {
-    func block(armed: Bool = false, recording: Bool = false, micDenied: Bool = false, armFailed: Bool = false, idle: Bool = false, devices: Bool = true) -> RecordAvailability.Block? {
-        RecordAvailability.block(isArmed: armed, isRecording: recording, micDenied: micDenied, armFailed: armFailed, disarmedForIdle: idle, hasInputs: devices)
+    func block(ready: Bool = false, recording: Bool = false, micDenied: Bool = false, getReadyFailed: Bool = false, idle: Bool = false, devices: Bool = true) -> RecordAvailability.Block? {
+        RecordAvailability.block(isReady: ready, isRecording: recording, micDenied: micDenied, getReadyFailed: getReadyFailed, stoodDownForIdle: idle, hasInputs: devices)
     }
 
-    @Test("Armed or recording: nothing blocks Record")
-    func nothingWhenArmed() {
-        #expect(block(armed: true) == nil)
-        #expect(block(armed: true, recording: true) == nil)
+    @Test("Ready or recording: nothing blocks Record")
+    func nothingWhenReady() {
+        #expect(block(ready: true) == nil)
+        #expect(block(ready: true, recording: true) == nil)
     }
 
     @Test("Microphone access off: say so and offer the system Settings")
@@ -21,18 +21,18 @@ struct RecordAvailabilityTests {
         #expect(reason.action == .openSystemSettings)
     }
 
-    @Test("An input that failed to start offers Arm again")
-    func armFailed() throws {
-        let reason = try #require(block(armFailed: true))
+    @Test("An input that failed to start offers Get ready again")
+    func getReadyFailed() throws {
+        let reason = try #require(block(getReadyFailed: true))
         #expect(reason.text == "The input didn't start.")
-        #expect(reason.action == .arm)
+        #expect(reason.action == .getReady)
     }
 
-    @Test("Disarmed for sitting idle: say how long and offer Arm")
+    @Test("Stood down for sitting idle: say how long and offer Get ready")
     func idle() throws {
         let reason = try #require(block(idle: true))
-        #expect(reason.text == "Disarmed after 30 minutes idle.")
-        #expect(reason.action == .arm)
+        #expect(reason.text == "Stood down after 30 minutes idle.")
+        #expect(reason.action == .getReady)
     }
 
     @Test("No input to choose, or none chosen yet: say which, with no button")
@@ -43,9 +43,9 @@ struct RecordAvailabilityTests {
         #expect(try #require(block()).action == nil)
     }
 
-    @Test("The most useful reason wins: microphone denied before a failed arm before idle")
+    @Test("The most useful reason wins: microphone denied before a failed get-ready before idle")
     func order() throws {
-        #expect(try #require(block(micDenied: true, armFailed: true, idle: true)).action == .openSystemSettings)
-        #expect(try #require(block(armFailed: true, idle: true)).text == "The input didn't start.")
+        #expect(try #require(block(micDenied: true, getReadyFailed: true, idle: true)).action == .openSystemSettings)
+        #expect(try #require(block(getReadyFailed: true, idle: true)).text == "The input didn't start.")
     }
 }

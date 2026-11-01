@@ -81,7 +81,7 @@ public final class MixerGain {
         self.makeSession = makeSession
     }
 
-    /// Whether the record screen shows the Gain button (#155): while an X Air or X32 is Armed (`AutoGainAvailability`).
+    /// Whether the record screen shows the Gain button (#155): while an X Air or X32 is Ready (`AutoGainAvailability`).
     /// When auto-gain can't run (a Take, no Mixer Link, a Mixer whose gain can't be set), the
     /// button stays and its sheet says why (`autoGainUnavailable`) instead of the button disappearing.
     public var offersAutoGain: Bool {

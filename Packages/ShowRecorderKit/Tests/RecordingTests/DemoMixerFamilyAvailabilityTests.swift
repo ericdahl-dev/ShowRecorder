@@ -27,19 +27,19 @@ struct DemoMixerFamilyAvailabilityTests {
 
     @Test("The Demo signal is an X Air where the rule allows, no family otherwise, never an X32 (#705)")
     func demoFamily() {
-        #expect(MixerFamily.armed(interfaceName: "Demo signal", isDemo: true, demoCounts: true) == .xAir)
-        #expect(MixerFamily.armed(interfaceName: "Demo signal", isDemo: true, demoCounts: false) == nil)
+        #expect(MixerFamily.ready(interfaceName: "Demo signal", isDemo: true, demoCounts: true) == .xAir)
+        #expect(MixerFamily.ready(interfaceName: "Demo signal", isDemo: true, demoCounts: false) == nil)
         for demoCounts in [true, false] {
-            #expect(MixerFamily.armed(interfaceName: "Demo signal", isDemo: true, demoCounts: demoCounts) != .x32)
+            #expect(MixerFamily.ready(interfaceName: "Demo signal", isDemo: true, demoCounts: demoCounts) != .x32)
         }
     }
 
     @Test("A real interface keeps its own family whatever the rule says (#705)")
     func realInterface() {
         for demoCounts in [true, false] {
-            #expect(MixerFamily.armed(interfaceName: "X18/XR18", isDemo: false, demoCounts: demoCounts) == .xAir)
-            #expect(MixerFamily.armed(interfaceName: "EVO 4", isDemo: false, demoCounts: demoCounts) == nil)
-            #expect(MixerFamily.armed(interfaceName: "Demo signal", isDemo: false, demoCounts: demoCounts) == nil)
+            #expect(MixerFamily.ready(interfaceName: "X18/XR18", isDemo: false, demoCounts: demoCounts) == .xAir)
+            #expect(MixerFamily.ready(interfaceName: "EVO 4", isDemo: false, demoCounts: demoCounts) == nil)
+            #expect(MixerFamily.ready(interfaceName: "Demo signal", isDemo: false, demoCounts: demoCounts) == nil)
         }
     }
 }

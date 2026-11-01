@@ -24,15 +24,15 @@ public enum WatchStatusMaker {
     ///   - driveAvailable: whether the Drive is there at all (a missing Drive isn't "low on space").
     ///   - copies: the Take's Copies (#550); one that stopped mid-Take is a Copy stopped, one stopped for low space a Copy full (#560). Nil: no Take.
     public static func make(
-        isArmed: Bool, take: Take?, chips: [StatusChip] = [], driveAvailable: Bool = false,
+        isReady: Bool, take: Take?, chips: [StatusChip] = [], driveAvailable: Bool = false,
         copies: TakeCopies? = nil, dropoutCount: Int = 0, mixerDown: Bool = false, now: Date = .now
     ) -> WatchStatus {
         let state: WatchStatus.State = if let take {
             .recording(startedAt: take.startedAt, takeTitle: take.title, markerCount: take.markerCount)
-        } else if isArmed {
-            .armed
+        } else if isReady {
+            .ready
         } else {
-            .notArmed
+            .notReady
         }
         func needsAttention(_ kind: StatusChip.Kind) -> Bool {
             chips.contains { $0.kind == kind && $0.state == .attention }

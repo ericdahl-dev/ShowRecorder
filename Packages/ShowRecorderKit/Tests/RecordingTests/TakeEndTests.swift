@@ -30,7 +30,7 @@ struct TakeEndTests {
             now: { RecordingTakeTests.showDay },
             freeSpace: { free.bytes(at: $0) },
             destinationCheckInterval: .milliseconds(10))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder)
@@ -51,7 +51,7 @@ struct TakeEndTests {
             now: { RecordingTakeTests.showDay },
             makeStem: { url, info, resuming in FailingStem(try StemWriter.open(url: url, info: info, resumingAt: resuming), healthyFrames: 480) },
             destinationCheckInterval: .milliseconds(10))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(3, to: audio, recorder)
@@ -70,7 +70,7 @@ struct TakeEndTests {
             driveFolder: { available.isOn ? DriveAccess(folder: drive) : nil },
             now: { RecordingTakeTests.showDay },
             destinationCheckInterval: .milliseconds(10))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder)
@@ -92,7 +92,7 @@ struct TakeEndTests {
     func stoppedTakesInTurn() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, now: { RecordingTakeTests.showDay }, destinationCheckInterval: .milliseconds(10))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await deliverBlocks(1, to: audio, recorder)

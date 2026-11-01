@@ -28,7 +28,7 @@ public final class LevelFeed {
 
     /// A meter tick's windows, one per USB Channel, and the input's sample rate.
     public func meters(_ levels: [ChannelLevel], sampleRate: Int?) {
-        // The audio stopped (disarmed): every measurement ends at once, with no level.
+        // The audio stopped (stood down): every measurement ends at once, with no level.
         guard let sampleRate else {
             for id in measurements.keys { finish(id, level: nil) }
             return
@@ -39,7 +39,7 @@ public final class LevelFeed {
         }
         for (id, var measurement) in measurements {
             let index = measurement.usbChannel - 1
-            // The audio stopped (disarmed, or the sample rate or the number of USB Channels changed): it ends at
+            // The audio stopped (stood down, or the sample rate or the number of USB Channels changed): it ends at
             // once, with no level.
             guard levels.indices.contains(index), measurement.sampleRate ?? sampleRate == sampleRate,
                   measurement.channels ?? levels.count == levels.count else {

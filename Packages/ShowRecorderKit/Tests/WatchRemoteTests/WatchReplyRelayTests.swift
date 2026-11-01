@@ -49,7 +49,7 @@ struct WatchStatusRelayTests {
 
     @Test("A status answer that arrives on another thread is delivered on the main actor")
     func answerFromBackground() async {
-        let status = WatchStatus(state: .armed)
+        let status = WatchStatus(state: .ready)
         let answer = await Self.deliver { $0.replied(status.message) }
         #expect(answer.0 == status)
         #expect(answer.1)

@@ -32,15 +32,15 @@ struct MixerGainAvailabilityTests {
 
     /// The Mixer session and recorder states the record screen meets.
     enum Scenario: String, CaseIterable {
-        case nothingArmed, evo4Armed, xr18ArmedNoLink, xr18Connecting, xr18Linked, xr18LinkedRecording, xr18LinkedNoGain,
-             x32ArmedXR18Linked, x32Linked
+        case nothingReady, evo4Ready, xr18ReadyNoLink, xr18Connecting, xr18Linked, xr18LinkedRecording, xr18LinkedNoGain,
+             x32ReadyXR18Linked, x32Linked
 
         var isRecording: Bool { self == .xr18LinkedRecording }
 
-        /// Whether the Gain button shows in a Debug build: while an X Air or X32 is Armed.
+        /// Whether the Gain button shows in a Debug build: while an X Air or X32 is Ready.
         var offeredInDebug: Bool {
             switch self {
-            case .nothingArmed, .evo4Armed: false
+            case .nothingReady, .evo4Ready: false
             default: true
             }
         }
@@ -48,12 +48,12 @@ struct MixerGainAvailabilityTests {
         /// Why auto-gain can't run in this build; nil when it can.
         func whyNot(in build: Build) -> AutoGainAvailability.Unavailable? {
             switch self {
-            case .nothingArmed, .evo4Armed, .xr18ArmedNoLink: .noMixerLink
+            case .nothingReady, .evo4Ready, .xr18ReadyNoLink: .noMixerLink
             case .xr18Connecting: .connecting
             case .xr18Linked: nil
             case .xr18LinkedRecording: .takeRunning
             case .xr18LinkedNoGain: .cantSetGain
-            case .x32ArmedXR18Linked: .otherMixerLinked("FOH (XR18)")
+            case .x32ReadyXR18Linked: .otherMixerLinked("FOH (XR18)")
             case .x32Linked: build.setsX32Gain ? nil : .cantSetGain
             }
         }
@@ -67,14 +67,14 @@ struct MixerGainAvailabilityTests {
             let store = UserDefaults(suiteName: "MixerGainAvailabilityTests-\(UUID().uuidString)")!
             let session = MixerSession(link: link, store: store)
             switch self {
-            case .nothingArmed:
+            case .nothingReady:
                 break
-            case .evo4Armed:
-                await session.armed(interfaceName: "EVO 4", usbChannelCount: 2)
-            case .xr18ArmedNoLink:
-                await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+            case .evo4Ready:
+                await session.ready(interfaceName: "EVO 4", usbChannelCount: 2)
+            case .xr18ReadyNoLink:
+                await session.ready(interfaceName: "XR18", usbChannelCount: 18)
             case .xr18Connecting:
-                await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+                await session.ready(interfaceName: "XR18", usbChannelCount: 18)
                 Task { await link.connect(to: "10.0.0.20", usbChannelCount: 18) }
                 do {
                     try await waitUntil { if case .connecting = link.status { true } else { false } }
@@ -83,14 +83,14 @@ struct MixerGainAvailabilityTests {
                     throw error
                 }
             case .xr18Linked, .xr18LinkedRecording, .xr18LinkedNoGain:
-                await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+                await session.ready(interfaceName: "XR18", usbChannelCount: 18)
                 await link.connect(to: "10.0.0.20", usbChannelCount: 18)
-            case .x32ArmedXR18Linked:
-                await session.armed(interfaceName: "XR18", usbChannelCount: 18)
+            case .x32ReadyXR18Linked:
+                await session.ready(interfaceName: "XR18", usbChannelCount: 18)
                 await link.connect(to: "10.0.0.20", usbChannelCount: 18)
-                await session.armed(interfaceName: "X-USB", usbChannelCount: 32)
+                await session.ready(interfaceName: "X-USB", usbChannelCount: 32)
             case .x32Linked:
-                await session.armed(interfaceName: "X-USB", usbChannelCount: 32)
+                await session.ready(interfaceName: "X-USB", usbChannelCount: 32)
                 await link.connect(to: "10.0.0.30", usbChannelCount: 32)
             }
             return (session, driver.release)
@@ -115,7 +115,7 @@ struct MixerGainAvailabilityTests {
 
     // MARK: Mixer gain answers the same table from its inputs.
 
-    @Test("Mixer gain: the Gain button shows in every build while an X Air or X32 is Armed, and says why it can't run",
+    @Test("Mixer gain: the Gain button shows in every build while an X Air or X32 is Ready, and says why it can't run",
           arguments: table)
     func mixerGainAutoGain(build: Build, scenario: Scenario) async throws {
         let (mixer, release) = try await scenario.session()

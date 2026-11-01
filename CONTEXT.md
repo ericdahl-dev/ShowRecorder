@@ -14,9 +14,9 @@ _Avoid_: Session, project, event
 One continuous recording from start to stop within a Show. It has a single sample timeline shared by all its Stems.
 _Avoid_: Recording, session, clip
 
-**Armed**:
-The state in which the recorder is receiving audio and filling the Pre-roll but not yet writing a Take.
-_Avoid_: Standby, ready, monitoring
+**Ready**:
+The state in which the recorder is receiving audio and filling the Pre-roll but not yet writing a Take. The recorder gets ready on an Audio interface, and stands down when the screen goes away, the app sits idle or the interface is lost.
+_Avoid_: Standby, monitoring, armed (that now means a USB Channel; see #991)
 
 **Pre-roll**:
 The audio from just before record is pressed that becomes the start of the Take.
@@ -96,7 +96,7 @@ The range of Average level to aim for: -18 to -15 dBFS, fixed for now. A faint s
 _Avoid_: Sweet spot, safe zone, green zone
 
 **Clip mark**:
-A red triangle with an exclamation mark above a USB Channel's lane, shown when its Peak reaches 0.999 linear (within about 0.01 dB of full scale) in any meter window. A Peak of -0.5 dBFS is not a clip. It stays until the operator taps that lane, a new Take starts or the recorder is disarmed, and it stays after a Take ends.
+A red triangle with an exclamation mark above a USB Channel's lane, shown when its Peak reaches 0.999 linear (within about 0.01 dB of full scale) in any meter window. A Peak of -0.5 dBFS is not a clip. It stays until the operator taps that lane, a new Take starts or the recorder stands down, and it stays after a Take ends.
 _Avoid_: Clip (alone), overload, red light
 
 ### Mixer
@@ -110,7 +110,7 @@ The connection over which the recorder reads Source names and colors, Snapshots 
 _Avoid_: OSC connection, control link
 
 **Audio interface**:
-The USB audio device the recorder is Armed on, usually the Mixer itself (such as "X18/XR18"). Chosen in Settings.
+The USB audio device the recorder is Ready on, usually the Mixer itself (such as "X18/XR18"). Chosen in Settings.
 _Avoid_: Input, audio input, sound card
 
 **USB Channel**:
@@ -195,4 +195,4 @@ Mixers one driver reads, such as the X Air (XR18, MR18) or the X32 (X32, M32). T
 The one object that moves preamp gain on the linked Mixer: auto-gain between Takes and clip protection during them. Both go through one queue: auto-gain's moves and Undo one at a time on the whole Mixer, clip protection's turn-downs one at a time per preamp lane, so the two never overlap on the Mixer.
 
 **Take sequencer**:
-The one place that Arms, re-Arms, moves and restarts input, and starts and stops Takes, from operator and system events. The Record screen forwards events to it and shows its state.
+The one place that gets the recorder ready, gets it ready again, moves and restarts input, and starts and stops Takes, from operator and system events. The Record screen forwards events to it and shows its state.

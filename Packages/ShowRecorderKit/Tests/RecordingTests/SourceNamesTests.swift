@@ -19,7 +19,7 @@ struct SourceNamesTests {
     func record(channels: Int, sources: [Source]) async throws {
         let device = FakeAudioDevice(inputChannelCount: channels)
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
         try recorder.startTake(sources: sources)
         device.deliver(Array(repeating: [0], count: channels))
         try await recorder.stopTake()

@@ -56,14 +56,14 @@ struct ProPurchasesTests {
         OwnedPurchase(productID: ProPurchases.packProductIDs[family]!, purchaseDate: bought, revocationDate: revoked ? bought : nil)
     }
 
-    @Test("A mixer pack is Pro while its family's interface is the Armed input; any other input, or none, stays Free (#412)")
+    @Test("A mixer pack is Pro while its family's interface is the Ready input; any other input, or none, stays Free (#412)")
     func packIsProForItsFamily() {
         let owned = ProPurchases(owned: [pack(.xAir)])
         #expect(owned.ownedPacks == [.xAir])
         #expect(!owned.ownsPro)
-        #expect(owned.tier(now: bought, armedFamily: .xAir) == .pro)
-        #expect(owned.tier(now: bought, armedFamily: .x32) == .free)
-        #expect(owned.tier(now: bought, armedFamily: nil) == .free, "a generic interface needs full Pro")
+        #expect(owned.tier(now: bought, readyFamily: .xAir) == .pro)
+        #expect(owned.tier(now: bought, readyFamily: .x32) == .free)
+        #expect(owned.tier(now: bought, readyFamily: nil) == .free, "a generic interface needs full Pro")
         #expect(owned.tier(now: bought) == .free)
     }
 
@@ -76,11 +76,11 @@ struct ProPurchasesTests {
     func packWithTrialAndPro() {
         let trial = OwnedPurchase(productID: ProPurchases.trialProductID, purchaseDate: bought)
         let both = ProPurchases(owned: [pack(.xAir), trial])
-        #expect(both.tier(now: bought, armedFamily: .xAir) == .pro)
-        #expect(both.tier(now: bought, armedFamily: .x32) == .trial(daysLeft: 14))
-        #expect(both.tier(now: bought.addingTimeInterval(30 * 86_400), armedFamily: .xAir) == .pro, "a pack doesn't depend on the Trial")
+        #expect(both.tier(now: bought, readyFamily: .xAir) == .pro)
+        #expect(both.tier(now: bought, readyFamily: .x32) == .trial(daysLeft: 14))
+        #expect(both.tier(now: bought.addingTimeInterval(30 * 86_400), readyFamily: .xAir) == .pro, "a pack doesn't depend on the Trial")
         let pro = ProPurchases(owned: [OwnedPurchase(productID: ProPurchases.proProductID, purchaseDate: bought)])
-        #expect(pro.tier(now: bought, armedFamily: nil) == .pro)
+        #expect(pro.tier(now: bought, readyFamily: nil) == .pro)
     }
 
     // MARK: - The upgrade to Pro for a pack owner (#705)
@@ -91,8 +91,8 @@ struct ProPurchasesTests {
     func upgradeIsPro() {
         let owned = ProPurchases(owned: [pack(.xAir), upgrade()])
         #expect(owned.ownsPro)
-        #expect(owned.tier(now: bought, armedFamily: .x32) == .pro)
-        #expect(owned.tier(now: bought, armedFamily: nil) == .pro)
+        #expect(owned.tier(now: bought, readyFamily: .x32) == .pro)
+        #expect(owned.tier(now: bought, readyFamily: nil) == .pro)
     }
 
     @Test("The upgrade alone, or with its pack refunded, isn't Pro: refunding the pack takes the upgrade back (#705, ADR 0004)")
@@ -100,7 +100,7 @@ struct ProPurchasesTests {
         #expect(!ProPurchases(owned: [upgrade()]).ownsPro)
         let refunded = ProPurchases(owned: [pack(.x32, revoked: true), upgrade()])
         #expect(!refunded.ownsPro)
-        #expect(refunded.tier(now: bought, armedFamily: .x32) == .free)
+        #expect(refunded.tier(now: bought, readyFamily: .x32) == .free)
     }
 
     @Test("A pack bought by this person is in boughtPacks; one shared through Family Sharing is owned but not bought (#705)")

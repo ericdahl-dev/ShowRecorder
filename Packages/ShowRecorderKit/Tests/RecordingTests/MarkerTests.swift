@@ -21,7 +21,7 @@ struct MarkerTests {
         let audio = FakeAudioDevice(inputChannelCount: 3)
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         deliver(4_800, to: audio)
@@ -52,7 +52,7 @@ struct MarkerTests {
     func markerLimit() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, now: { RecordingTakeTests.showDay })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         var allowance = TakeAllowance(recordedChannels: [1], showReport: false, reaperExport: false, namingByHand: false)
         allowance.markerLimit = 3
 
@@ -76,7 +76,7 @@ struct MarkerTests {
     func noMarkerLimit() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, now: { RecordingTakeTests.showDay })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake(allowance: TakeAllowance(recordedChannels: [1], showReport: true, reaperExport: true, namingByHand: true))
         for _ in 1...5 { deliver(100, to: audio); #expect(recorder.addMarker()) }
         #expect(!recorder.markerLimitReached)
@@ -87,7 +87,7 @@ struct MarkerTests {
     @Test("Adding a Marker when not recording does nothing")
     func markerOutsideTakeIgnored() throws {
         let recorder = Recorder(deviceFolder: device, now: { RecordingTakeTests.showDay })
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
 
         recorder.addMarker()
 
@@ -98,7 +98,7 @@ struct MarkerTests {
     func markersResetPerTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, now: { RecordingTakeTests.showDay })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         recorder.addMarker()
         try await recorder.stopTake()
@@ -117,7 +117,7 @@ extension MarkerTests {
     func recordTwoTakesWithMarker(named name: String) async throws -> URL {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, now: { RecordingTakeTests.showDay })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         deliver(48_000, to: audio)
         try await recorder.stopTake()

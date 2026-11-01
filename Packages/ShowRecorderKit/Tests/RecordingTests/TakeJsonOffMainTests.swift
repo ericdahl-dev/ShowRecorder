@@ -27,7 +27,7 @@ struct TakeJsonOffMainTests {
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
                                 writerStopTimeout: .seconds(2))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         return recorder
     }
 
@@ -62,7 +62,7 @@ struct TakeJsonOffMainTests {
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
                                 destinationCheckInterval: nil)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         let staged = Mutex<[(onMain: Bool, dropouts: Int)]>([])
         recorder.stageTakeJson = { data, url in
             staged.withLock { $0.append((Thread.isMainThread, (try? TakeMetadataProbe.dropoutCount(data)) ?? 0)) }

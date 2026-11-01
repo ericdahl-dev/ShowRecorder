@@ -47,6 +47,42 @@ struct ChannelArmingTests {
     }
 }
 
+@Suite("Channel arming, on the lanes")
+struct ChannelArmingLaneTests {
+    func lanes(_ license: License, recording: TakeAllowance? = nil, count: Int = 6) -> Set<Int> {
+        ChannelArming.notArmedLanes(chosen: [3, 5], license: license, channelCount: count, takeAllowance: recording, isRecording: recording != nil)
+    }
+
+    @Test("Between Takes a lane reads as a Take pressed now would record it: Pro and the Trial dim the choice, Free and an unknown tier don't")
+    func betweenTakes() {
+        #expect(lanes(License(proOffered: true, tier: .pro, trialStarted: false)) == [3, 5])
+        #expect(lanes(License(proOffered: true, tier: .trial(daysLeft: 2), trialStarted: true)) == [3, 5])
+        #expect(lanes(License(proOffered: true, tier: .free, trialStarted: false)).isEmpty)
+        #expect(lanes(License(proOffered: true, tier: nil, trialStarted: false)).isEmpty)
+        #expect(lanes(License(proOffered: false, tier: nil, trialStarted: false)) == [3, 5])
+        #expect(lanes(License(proOffered: true, tier: .pro, trialStarted: false), count: 0).isEmpty)
+    }
+
+    @Test("Record is off only when nothing is armed and no Take is running or starting, so Stop is never disabled")
+    func nothingToRecordNeverOnAStop() {
+        func off(recorded: Int, count: Int = 6, recording: Bool = false, starting: Bool = false) -> Bool {
+            ChannelArming.nothingToRecord(recordedChannelCount: recorded, usbChannelCount: count, isRecording: recording, isStarting: starting)
+        }
+        #expect(off(recorded: 0))
+        #expect(!off(recorded: 4))
+        #expect(!off(recorded: 0, count: 0))
+        #expect(!off(recorded: 0, recording: true))
+        #expect(!off(recorded: 0, starting: true))
+    }
+
+    @Test("During a Take a lane follows what the Take was started with, whatever the license says now")
+    func duringATake() {
+        let started = Entitlement.allowance(for: .pro, channelCount: 6, notArmed: [2])
+        // The Trial ended mid-Take: Free now, but the Take keeps its Stems.
+        #expect(lanes(License(proOffered: true, tier: .free, trialStarted: true), recording: started) == [2])
+    }
+}
+
 @Suite("Channel arming, remembered")
 struct ChannelArmingStoreTests {
     func defaults() -> UserDefaults {
@@ -78,7 +114,7 @@ struct ChannelArmingStoreTests {
     }
 }
 
-/// The Recorder keeps the choice for the Armed Audio interface and locks it during a Take (#991).
+/// The Recorder keeps the choice for the Ready Audio interface and locks it during a Take (#991).
 @MainActor
 @Suite("Channel arming, on the Recorder")
 struct RecorderChannelArmingTests {
@@ -101,26 +137,25 @@ struct RecorderChannelArmingTests {
     func chosenAndRemembered() throws {
         let store = defaults()
         let first = recorder(store)
-        try first.arm(FakeAudioDevice(name: "X18/XR18", inputChannelCount: 18))
+        try first.getReady(FakeAudioDevice(name: "X18/XR18", inputChannelCount: 18))
         #expect(first.notArmedChannels.isEmpty)
         #expect(first.setNotArmedChannels([3, 5, 99]))
         #expect(first.notArmedChannels == [3, 5])
 
         let relaunched = recorder(store)
-        try relaunched.arm(FakeAudioDevice(name: "DJM-V10", inputChannelCount: 8))
+        try relaunched.getReady(FakeAudioDevice(name: "DJM-V10", inputChannelCount: 8))
         #expect(relaunched.notArmedChannels.isEmpty)
-        try relaunched.arm(FakeAudioDevice(name: "X18/XR18", inputChannelCount: 18))
+        try relaunched.getReady(FakeAudioDevice(name: "X18/XR18", inputChannelCount: 18))
         #expect(relaunched.notArmedChannels == [3, 5])
-        relaunched.disarm()
+        relaunched.standDown()
         #expect(relaunched.notArmedChannels.isEmpty)
     }
 
-    @Test("It can't be changed during a Take, or with nothing Armed")
+    @Test("It can't be changed during a Take")
     func lockedDuringATake() async throws {
         let recorder = recorder(defaults())
-        #expect(!recorder.setNotArmedChannels([2]))
         let audio = FakeAudioDevice(inputChannelCount: 4)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         #expect(!recorder.setNotArmedChannels([2]) && recorder.notArmedChannels.isEmpty)
         audio.deliver((0..<4).map { _ in Array(repeating: 0.2, count: 480) })
@@ -132,14 +167,14 @@ struct RecorderChannelArmingTests {
     func hidden() throws {
         let store = defaults()
         let hidden = recorder(store, available: false)
-        try hidden.arm(FakeAudioDevice(inputChannelCount: 4))
+        try hidden.getReady(FakeAudioDevice(inputChannelCount: 4))
         #expect(!hidden.setNotArmedChannels([2]) && hidden.notArmedChannels.isEmpty)
         // A choice saved where it was offered is kept but not applied.
         ChannelArming.save([2], on: "Fake Device", to: store)
-        try hidden.arm(FakeAudioDevice(inputChannelCount: 4))
+        try hidden.getReady(FakeAudioDevice(inputChannelCount: 4))
         #expect(hidden.notArmedChannels.isEmpty)
         let offered = recorder(store)
-        try offered.arm(FakeAudioDevice(inputChannelCount: 4))
+        try offered.getReady(FakeAudioDevice(inputChannelCount: 4))
         #expect(offered.notArmedChannels == [2])
     }
 
@@ -153,7 +188,7 @@ struct RecorderChannelArmingTests {
             deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } }, now: { RecordingTakeTests.showDay },
             savedNames: defaults(), destinationCheckInterval: nil, channelArmingAvailable: { true })
         let audio = FakeAudioDevice(inputChannelCount: 8)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         recorder.setChannelName("Keys", forChannel: 7)
         #expect(recorder.setNotArmedChannels([3, 5]))
         let pro = License(proOffered: true, tier: .pro, trialStarted: false)
@@ -194,7 +229,7 @@ struct RecorderChannelArmingTests {
     func noneArmed() async throws {
         let recorder = recorder(defaults())
         let audio = FakeAudioDevice(inputChannelCount: 3)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         #expect(recorder.setNotArmedChannels([1, 2, 3]))
         let allowance = License(proOffered: true, tier: .pro, trialStarted: false).allowance(channelCount: 3, notArmed: recorder.notArmedChannels)
         #expect(throws: RecorderError.noChannelsArmed) { try recorder.startTake(allowance: allowance) }
@@ -207,11 +242,50 @@ struct RecorderChannelArmingTests {
         let store = defaults()
         ChannelArming.save([2], on: "Backup", to: store)
         let recorder = recorder(store)
-        try recorder.arm(FakeAudioDevice(name: "Main", inputChannelCount: 4))
+        try recorder.getReady(FakeAudioDevice(name: "Main", inputChannelCount: 4))
         #expect(recorder.setNotArmedChannels([1, 3]))
         #expect(try await recorder.restartInput(on: FakeAudioDevice(name: "Main", inputChannelCount: 4)))
         #expect(recorder.notArmedChannels == [1, 3])
         #expect(try await recorder.restartInput(on: FakeAudioDevice(name: "Backup", inputChannelCount: 4)))
         #expect(recorder.notArmedChannels == [2])
+    }
+
+    @Test("A choice made with no Audio interface Ready (a Template applied at launch) waits and is applied, and saved, when one is Ready")
+    func choiceWaitsForAnInterface() throws {
+        let store = defaults()
+        let recorder = recorder(store)
+        #expect(recorder.setNotArmedChannels([2, 99]))
+        #expect(recorder.notArmedChannels.isEmpty)
+        try recorder.getReady(FakeAudioDevice(name: "Main", inputChannelCount: 4))
+        #expect(recorder.notArmedChannels == [2])
+        #expect(ChannelArming.notArmed(on: "Main", from: store) == [2])
+
+        // Once: the next interface has its own saved choice.
+        recorder.standDown()
+        try recorder.getReady(FakeAudioDevice(name: "Other", inputChannelCount: 4))
+        #expect(recorder.notArmedChannels.isEmpty)
+    }
+
+    @Test("A later Template with no choice drops the waiting one: Template A, then B, then Ready records every channel")
+    func laterTemplateReplacesTheWaitingChoice() throws {
+        let recorder = recorder(defaults())
+        #expect(recorder.setNotArmedChannels([2, 3]))
+        // Template B has no arming choice: the app clears what A left waiting.
+        recorder.clearPendingNotArmedChannels()
+        try recorder.getReady(FakeAudioDevice(name: "Main", inputChannelCount: 4))
+        #expect(recorder.notArmedChannels.isEmpty)
+        // A later Template's own choice replaces an earlier one.
+        recorder.standDown()
+        #expect(recorder.setNotArmedChannels([1]) && recorder.setNotArmedChannels([4]))
+        try recorder.getReady(FakeAudioDevice(name: "Main", inputChannelCount: 4))
+        #expect(recorder.notArmedChannels == [4])
+    }
+
+    @Test("Where the choice isn't offered, nothing waits")
+    func hiddenKeepsNothing() throws {
+        let recorder = recorder(defaults(), available: false)
+        #expect(!recorder.setNotArmedChannels([2]))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 4))
+        #expect(recorder.notArmedChannels.isEmpty)
     }
 }

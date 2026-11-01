@@ -238,7 +238,7 @@ struct DriveAttachOffMainTests {
                 return try StemWriter.open(url: url, info: info, resumingAt: resuming)
             }, destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 480)])
         available.folder = drive
@@ -275,7 +275,7 @@ struct DriveAttachOffMainTests {
             },
             destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()  // the Drive isn't there at the press
         audio.deliver([Array(repeating: 0.25, count: 480)])
         available.folder = drive
@@ -295,7 +295,7 @@ struct DriveAttachOffMainTests {
         #expect(released.count == 1, "the access was let go")
     }
 
-    @Test("A Take already Armed on a Drive has nothing to attach")
+    @Test("A Take already Ready on a Drive has nothing to attach")
     func nothingToAttach() async throws {
         let creation = Creation()
         let session = try session(creation)

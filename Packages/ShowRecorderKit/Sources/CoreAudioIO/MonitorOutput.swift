@@ -6,7 +6,7 @@ import Synchronization
 
 /// The headphone monitor's three switches (#233), set on the main thread and read by the output callback before each
 /// render. Relaxed atomics: a switch taking effect one render late doesn't matter. Owned by the App, so they outlive
-/// each `MonitorOutput` (a re-Arm makes a new one).
+/// each `MonitorOutput` (getting ready again makes a new one).
 public final class MonitorSwitches: Sendable {
     private let monitorOn = Atomic<Bool>(false)
     private let toneOn = Atomic<Bool>(false)

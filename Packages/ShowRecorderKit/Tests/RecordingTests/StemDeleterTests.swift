@@ -24,11 +24,11 @@ struct StemDeleterTests {
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 3)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([[0.1], [0.1], [0.1]])
         try await recorder.stopTake()
-        recorder.disarm()
+        recorder.standDown()
         try recorder.endShow()
         return recorder
     }
@@ -124,7 +124,7 @@ struct StemDeleterTests {
     func recorderDelete() async throws {
         let recorder = try await record()
         let audio = FakeAudioDevice(inputChannelCount: 3)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         #expect(recorder.deleteChannel(2, inTake: 1, ofShow: show, from: [.device]).deleted.isEmpty, "during a Take")
         try await recorder.stopTake()

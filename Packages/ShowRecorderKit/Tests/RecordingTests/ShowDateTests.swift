@@ -26,11 +26,11 @@ struct ShowDateTests {
 
     func record(_ recorder: Recorder) async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.1, count: 480)])
         try await recorder.stopTake()
-        recorder.disarm()
+        recorder.standDown()
     }
 
     /// 21:30 plus 2 h 50 min is 00:20 the next day.

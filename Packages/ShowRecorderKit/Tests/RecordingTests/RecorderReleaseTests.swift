@@ -111,7 +111,7 @@ struct RecorderReleaseTests {
         try makeKeptTake()
         let recorder = recorder()
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
 
         guard case .kept(let reasons) = await recorder.releaseFromDevice(show: "2026-10-06 Show", take: 1) else { Issue.record("not kept"); return }

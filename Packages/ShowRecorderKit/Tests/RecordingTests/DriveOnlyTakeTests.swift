@@ -47,7 +47,7 @@ struct DriveOnlyTakeTests {
     func healthyDrive() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await recorder.stopTake()
@@ -61,7 +61,7 @@ struct DriveOnlyTakeTests {
     func summaryDriveComplete() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await recorder.stopTake()
@@ -74,7 +74,7 @@ struct DriveOnlyTakeTests {
     func deviceMissingAfterDriveTookWhole() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await recorder.stopTake()
@@ -88,7 +88,7 @@ struct DriveOnlyTakeTests {
     func renameMarkerAfterDriveTookWhole() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         recorder.addMarker()
@@ -115,7 +115,7 @@ struct DriveOnlyTakeTests {
             deviceFolder: device, driveFolder: { flag.available ? DriveAccess(folder: drive) : nil },
             now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         recorder.recordTo = .drive
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         recorder.addMarker()
@@ -135,7 +135,7 @@ struct DriveOnlyTakeTests {
     func copiesStandingBy() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
 
@@ -151,7 +151,7 @@ struct DriveOnlyTakeTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         recorder.recordTo = .drive
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
 
@@ -167,7 +167,7 @@ struct DriveOnlyTakeTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         recorder.recordTo = .drive
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
         try await recorder.stopTake()
@@ -180,7 +180,7 @@ struct DriveOnlyTakeTests {
     func copiesStandingIn() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder { FailingStem($0, healthyFrames: 480) }
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await waitUntil { recorder.copies[.drive] == .interrupted }
@@ -198,7 +198,7 @@ struct DriveOnlyTakeTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         // The Drive's Stem takes 150,000 frames and then fails: past its first header commit (2 s, about 96,000), before its next.
         let recorder = recorder { FailingStem($0, healthyFrames: 150_000) }
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(400, to: audio, recorder, sample: counting())
         try await waitUntil { recorder.copies[.drive] == .interrupted }
@@ -246,7 +246,7 @@ struct DriveOnlyTakeTests {
         defer { gate.open() }
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(driveStem: { CommitBlockingStem($0, gate: gate) }, stallLimit: .milliseconds(100))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         // Blocks of 4,096 frames, as a backed-up ring drains them: the first commit comes at 98,304 (24 blocks), the next
         // after another 98,304 frames, at 196,608, and hangs.
@@ -275,7 +275,7 @@ struct DriveOnlyTakeTests {
     func driveFails() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder { FailingStem($0, healthyFrames: 480) }
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await waitUntil { recorder.copies[.drive] == .interrupted }
@@ -293,7 +293,7 @@ struct DriveOnlyTakeTests {
     func renameMarkerAfterMove() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder { FailingStem($0, healthyFrames: 480) }
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         recorder.addMarker()
@@ -317,7 +317,7 @@ struct DriveOnlyTakeTests {
     func summaryMoved() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder { FailingStem($0, healthyFrames: 480) }
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await waitUntil { recorder.copies[.drive] == .interrupted }
@@ -357,7 +357,7 @@ struct DriveOnlyTakeTests {
         defer { gate.open() }
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(driveStem: { BlockingStem($0, gate: gate, healthyFrames: 4_800) }, stallLimit: .milliseconds(100))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         // The Drive hangs on the next write; audio keeps coming.
@@ -410,7 +410,7 @@ struct DriveOnlyTakeTests {
             }, destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300), driveStallLimit: .milliseconds(100),
             writeAbandoned: { written.add($0, $1) })
         recorder.recordTo = .drive
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
@@ -437,7 +437,7 @@ struct DriveOnlyTakeTests {
         defer { gate.open() }
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(driveStem: { BlockingStem($0, gate: gate, healthyFrames: 4_800) }, stallLimit: .milliseconds(100))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         recorder.addMarker()
@@ -469,7 +469,7 @@ struct DriveOnlyTakeTests {
         defer { gate.open() }
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(driveStem: { BlockingStem($0, gate: gate, healthyFrames: 4_800) }, stallLimit: .milliseconds(100))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         #expect(recorder.setChannelName("Lead Vocal", forChannel: 1))
@@ -497,7 +497,7 @@ struct DriveOnlyTakeTests {
     func recordStandInKeptTake(gate: StopNeverBlocksTests.Gate) async throws -> Recorder {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(driveStem: { BlockingStem($0, gate: gate, healthyFrames: 4_800) }, stallLimit: .milliseconds(100))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
@@ -548,7 +548,7 @@ struct DriveOnlyTakeTests {
         defer { gate.open() }
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(driveStem: { BlockingStem($0, gate: gate, healthyFrames: 4_800) }, stallLimit: .milliseconds(100))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
@@ -568,15 +568,15 @@ struct DriveOnlyTakeTests {
     func takeNumberSurvivesRelaunch() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let first = recorder()
-        try first.arm(audio)
+        try first.getReady(audio)
         try first.startTake()
         try await deliverBlocks(2, to: audio, first)
         try await first.stopTake()
         await first.waitForRepair()
-        first.disarm()
+        first.standDown()
 
         let relaunched = recorder()
-        try relaunched.arm(audio)
+        try relaunched.getReady(audio)
         try relaunched.startTake()
         try await deliverBlocks(2, to: audio, relaunched)
         try await relaunched.stopTake()
@@ -625,7 +625,7 @@ struct DriveOnlyTakeTests {
                                 // A Drive that is slow but moving must not be given up at Stop: the window outlasts the slow close (CI's
                                 // starved runner took 34 s for this test, #950). It only bounds a hang; a finished writer returns at once.
                                 stopTimeout: .seconds(30))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         // 5 s of audio arrive while the Drive is paused: more than its ring holds. A second at a time, as fast as the
@@ -648,7 +648,7 @@ struct DriveOnlyTakeTests {
         #expect(!FileManager.default.fileExists(atPath: device.appending(path: take).path), "nothing of the Take is left on the Device")
     }
 
-    @Test("A Drive that overflowed in one Take doesn't make the Device stand in for the next, healthy one in the same Arm (#875)")
+    @Test("A Drive that overflowed in one Take doesn't make the Device stand in for the next, healthy one in the same get-ready (#875)")
     func overflowDoesNotCarryToTheNextTake() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let gate = StopNeverBlocksTests.Gate()
@@ -658,7 +658,7 @@ struct DriveOnlyTakeTests {
         let recorder = recorder(driveStem: { stem in
             made.withLock { $0 += 1; return $0 } == 1 ? SlowStem(stem, healthyFrames: 4_800, gate: gate) as any StemSink : stem
         }, stallLimit: .seconds(60))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         for second in 0..<5 {
@@ -687,7 +687,7 @@ struct DriveOnlyTakeTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         // One host-clock tick per frame at 48 kHz, so the test can say exactly how long input stopped.
         let recorder = recorder(hostTicksPerSecond: 48_000)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_000)
         audio.deliver([Array(repeating: 0.5, count: 480)], hostTime: 1_480)
@@ -714,7 +714,7 @@ struct DriveOnlyTakeTests {
         let gate = StopNeverBlocksTests.Gate()
         defer { gate.open() }
         let recorder = recorder(driveStem: { SlowStem($0, healthyFrames: 4_800, gate: gate) }, stallLimit: .milliseconds(100))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         // The Drive pauses (a healthy one waking up, say) while audio keeps coming, for longer than the stall limit.
@@ -740,7 +740,7 @@ struct DriveOnlyTakeTests {
         let gate = StopNeverBlocksTests.Gate()
         defer { gate.open() }
         let recorder = recorder(driveStem: { SlowStem($0, healthyFrames: 4_800, gate: gate) }, stallLimit: .milliseconds(100))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
@@ -763,7 +763,7 @@ struct DriveOnlyTakeTests {
         let gate = StopNeverBlocksTests.Gate()
         defer { gate.open() }
         let recorder = recorder(driveStem: { SlowStem($0, healthyFrames: 4_800, gate: gate) }, stallLimit: .milliseconds(100))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         recorder.addMarker()
@@ -805,7 +805,7 @@ struct DriveOnlyTakeTests {
     func recordWholeThenKeptStandIn(gate: StopNeverBlocksTests.Gate) async throws -> Recorder {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder(driveStem: { BlockingStem($0, gate: gate, healthyFrames: 4_800) }, stallLimit: .milliseconds(100))
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(10, to: audio, recorder, sample: counting())
         try await recorder.stopTake()
@@ -854,12 +854,12 @@ struct DriveOnlyTakeTests {
     func showTotalAfterRelaunch() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let first = recorder()
-        try first.arm(audio)
+        try first.getReady(audio)
         try first.startTake()
         try await deliverBlocks(10, to: audio, first)
         try await first.stopTake()
         await first.waitForRepair()
-        first.disarm()
+        first.standDown()
 
         let relaunched = recorder()
         #expect(relaunched.currentShow?.driveFolder == nil, "a relaunch doesn't know the Drive until the next record press")
@@ -891,7 +891,7 @@ struct DriveOnlyTakeTests {
     func crashAfterStandIn() async throws -> Recorder {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let crashed = recorder { FailingStem($0, healthyFrames: 480) }
-        try crashed.arm(audio)
+        try crashed.getReady(audio)
         try crashed.startTake()
         try await deliverBlocks(10, to: audio, crashed, sample: counting())
         try await waitUntil { crashed.copies[.drive] == .interrupted }
@@ -906,7 +906,7 @@ struct DriveOnlyTakeTests {
     func cutOffWithoutStandIn() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let crashed = recorder()
-        try crashed.arm(audio)
+        try crashed.getReady(audio)
         try crashed.startTake()
         try await deliverBlocks(10, to: audio, crashed, sample: counting())
         try await waitUntil { crashed.bufferedFrameCount == 0 }
@@ -949,7 +949,7 @@ struct DriveOnlyTakeTests {
         let gate = StopNeverBlocksTests.Gate()
         defer { gate.open() }
         let crashed = recorder(driveStem: { SlowStem($0, healthyFrames: 4_800, gate: gate) }, stallLimit: .milliseconds(100))
-        try crashed.arm(audio)
+        try crashed.getReady(audio)
         try crashed.startTake()
         try await deliverBlocks(10, to: audio, crashed, sample: counting())
         for block in 10..<20 { deliver(480, from: block * 480, to: audio, sample: counting()) }
@@ -1049,7 +1049,7 @@ struct DriveOnlyTakeTests {
     func takeFileSaysDriveOnly() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
 
@@ -1063,7 +1063,7 @@ struct DriveOnlyTakeTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         recorder.recordTo = .drive
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
 
@@ -1078,7 +1078,7 @@ struct DriveOnlyTakeTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
         recorder.recordTo = .both
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
         try await recorder.stopTake()
@@ -1093,7 +1093,7 @@ struct DriveOnlyTakeTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
         recorder.recordTo = .device
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
         try await recorder.stopTake()
@@ -1109,7 +1109,7 @@ struct DriveOnlyTakeTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
         recorder.recordTo = .device
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         try await deliverBlocks(2, to: audio, recorder, sample: counting())
         try await recorder.stopTake()
@@ -1138,7 +1138,7 @@ struct DriveOnlyTakeTests {
             deviceFolder: device, driveFolder: { withDrive ? DriveAccess(folder: drive) : nil }, now: { RecordingTakeTests.showDay },
             destinationCheckInterval: nil)
         crashed.recordTo = driveOnly ? .drive : .both
-        try crashed.arm(audio)
+        try crashed.getReady(audio)
         try crashed.startTake()
         try await deliverBlocks(10, to: audio, crashed, sample: counting())
         try await waitUntil { crashed.bufferedFrameCount == 0 }

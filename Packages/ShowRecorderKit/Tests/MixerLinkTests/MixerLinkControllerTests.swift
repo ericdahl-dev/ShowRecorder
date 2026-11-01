@@ -38,8 +38,8 @@ struct MixerLinkControllerTests {
         #expect(endpoints.withLock { $0 } == [MixerEndpoint(host: "10.0.0.20", port: 10023)])
     }
 
-    @Test("Reads one Source per USB Channel the Armed device sends; those the driver can't name are USB NN", arguments: [8, 16, 18, 32])
-    func readsSourcesForArmedCount(count: Int) async {
+    @Test("Reads one Source per USB Channel the Ready device sends; those the driver can't name are USB NN", arguments: [8, 16, 18, 32])
+    func readsSourcesForReadyCount(count: Int) async {
         var state = FakeMixerDriver.State()
         state.capabilities = MixerCapabilities(usbChannelCount: 18, nameableUSBChannelCount: 16)
         state.names[1] = "Kick"
@@ -56,8 +56,8 @@ struct MixerLinkControllerTests {
         #expect(link.identity == state.identity)
     }
 
-    @Test("With nothing Armed yet, reads as many Sources as the identified Mixer sends")
-    func nothingArmedReadsMixerCount() async {
+    @Test("With nothing Ready yet, reads as many Sources as the identified Mixer sends")
+    func nothingReadyReadsMixerCount() async {
         var state = FakeMixerDriver.State()
         state.capabilities = MixerCapabilities(usbChannelCount: 18, nameableUSBChannelCount: 18)
         let driver = FakeMixerDriver(state)
@@ -69,7 +69,7 @@ struct MixerLinkControllerTests {
         #expect(driver.state.withLock { $0.sourceReads } == [18])
     }
 
-    @Test("When the Armed device changes, Sources are re-read for its USB Channel count")
+    @Test("When the Ready device changes, Sources are re-read for its USB Channel count")
     func refreshForNewCount() async {
         var state = FakeMixerDriver.State()
         state.names[1] = "Kick"
@@ -84,7 +84,7 @@ struct MixerLinkControllerTests {
         #expect(driver.state.withLock { $0.sourceReads } == [16, 8])
     }
 
-    @Test("A device Armed while the Link is still connecting gets Sources for its own count")
+    @Test("A device Ready while the Link is still connecting gets Sources for its own count")
     func refreshDuringConnect() async {
         var state = FakeMixerDriver.State()
         state.capabilities = MixerCapabilities(usbChannelCount: 18, nameableUSBChannelCount: 18)

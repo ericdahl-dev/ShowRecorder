@@ -38,7 +38,7 @@ struct FreeSpaceOffMainTests {
             deviceFolder: root, now: { RecordingTakeTests.showDay }, freeSpace: { _ in probe.read(); return .max },
             destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 480)])
         let before = probe.counts
@@ -61,7 +61,7 @@ struct FreeSpaceOffMainTests {
             deviceFolder: root, now: { RecordingTakeTests.showDay }, freeSpace: { _ in entered.set(); gate.wait(); return .max },
             destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 480)])
 
@@ -88,7 +88,7 @@ struct FreeSpaceOffMainTests {
             deviceFolder: root, now: { RecordingTakeTests.showDay }, freeSpace: { _ in entered.set(); gate.wait(); return 0 },
             destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 480)])
 

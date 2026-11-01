@@ -18,7 +18,7 @@ struct ClipIndicatorTests {
     func marksAndKeeps() throws {
         let device = FakeAudioDevice(inputChannelCount: 3)
         let recorder = Recorder()
-        try recorder.arm(device)
+        try recorder.getReady(device)
 
         device.deliver([[0.1, 1.0, 0.2], [0.944, -0.5, 0.1], [-1.0, 0, 0]])  // channel 2 clips on a negative peak
         _ = recorder.takeChannelLevels()
@@ -33,7 +33,7 @@ struct ClipIndicatorTests {
     func clearsOne() throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder()
-        try recorder.arm(device)
+        try recorder.getReady(device)
         device.deliver([[1.0], [1.0]])
         _ = recorder.takeChannelLevels()
         #expect(recorder.clippedChannels == [0, 1])
@@ -50,7 +50,7 @@ struct ClipIndicatorTests {
     func nextTakeClears() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
-        try recorder.arm(device)
+        try recorder.getReady(device)
         device.deliver([[1.0]])
         _ = recorder.takeChannelLevels()
         #expect(recorder.clippedChannels == [0])
@@ -67,14 +67,14 @@ struct ClipIndicatorTests {
         try await recorder.stopTake()
     }
 
-    @Test("Disarming clears the marks: the next input's channels aren't these ones")
-    func disarmClears() throws {
+    @Test("Standing down clears the marks: the next input's channels aren't these ones")
+    func standDownClears() throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = recorder()
-        try recorder.arm(device)
+        try recorder.getReady(device)
         device.deliver([[1.0]])
         _ = recorder.takeChannelLevels()
-        recorder.disarm()
+        recorder.standDown()
         #expect(recorder.clippedChannels.isEmpty)
     }
 }

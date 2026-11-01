@@ -26,7 +26,7 @@ struct FinishingGuardTests {
                 refused = error
             } catch {}
         }
-        try recorder.arm(FakeAudioDevice(inputChannelCount: 1))
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 1))
 
         try recorder.startTake()
         #expect(!recorder.isFinishing)

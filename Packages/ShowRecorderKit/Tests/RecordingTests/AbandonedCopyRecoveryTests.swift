@@ -30,12 +30,12 @@ struct AbandonedCopyRecoveryTests {
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: channels)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver(Array(repeating: Array(repeating: Float(0.2), count: 480), count: channels))
         try await recorder.stopTake()
         await recorder.waitForRepair()
-        recorder.disarm()
+        recorder.standDown()
         var metadata = try TakeMetadata.read(fromTakeFolder: deviceTake)
         let info = StemWriter.Info(
             sampleRate: 48_000, description: "", originator: "ShowRecorder", timeReference: metadata.timeReference,
@@ -190,14 +190,14 @@ struct AbandonedCopyRecoveryTests {
         let drive = drive
         let first = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try first.arm(audio)
+        try first.getReady(audio)
         for _ in 1...2 {
             try first.startTake()
             audio.deliver([Array(repeating: 0.2, count: 480)])
             try await first.stopTake()
             await first.waitForRepair()
         }
-        first.disarm()
+        first.standDown()
         for take in marked {
             let name = TakeMetadata.name(take: take)
             let deviceFolder = device.appending(path: "\(show)/\(name)"), driveFolder = drive.appending(path: "\(show)/\(name)")

@@ -31,11 +31,11 @@ struct ShowListTests {
 
     func record(_ recorder: Recorder) async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.1, count: 480)])
         try await recorder.stopTake()
-        recorder.disarm()
+        recorder.standDown()
     }
 
     @Test("A Shows folder that can't be read is a failure, not an empty list")

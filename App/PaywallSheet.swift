@@ -15,7 +15,7 @@ struct PaywallSheet: View {
     private var items: [PackOffer.Item] {
         let purchases = store.purchases
         return PackOffer.items(
-            ownsPro: purchases.ownsPro, armedFamily: store.armedFamily(), ownedPacks: purchases.ownedPacks,
+            ownsPro: purchases.ownsPro, readyFamily: store.readyFamily(), ownedPacks: purchases.ownedPacks,
             boughtPacks: purchases.boughtPacks, packsOffered: PackAvailability.isAvailableInThisBuild)
     }
     private var headline: String {
@@ -51,7 +51,7 @@ struct PaywallSheet: View {
                         Button(paywall.buyTitle) {
                             Task {
                                 await store.buyPro()
-                                // On Pro owned, not the tier: with a pack on the Armed family the tier is already Pro, and a
+                                // On Pro owned, not the tier: with a pack on the Ready family the tier is already Pro, and a
                                 // cancel mustn't close the sheet (#705).
                                 if store.purchases.ownsPro { dismiss() }
                             }

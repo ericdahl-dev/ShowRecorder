@@ -33,7 +33,7 @@ struct BothDestinationsTests {
         let audio = FakeAudioDevice(inputChannelCount: 4)
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         for take in 0..<2 {
             try recorder.startTake(sources: [Source(name: "Kick", color: .off)])
@@ -58,7 +58,7 @@ struct BothDestinationsTests {
     func noDriveWritesDeviceOnly() async throws {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: device, driveFolder: { nil }, now: { RecordingTakeTests.showDay })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         audio.deliver([[0]])
@@ -73,7 +73,7 @@ struct BothDestinationsTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let available = DriveSwitch()
         let recorder = Recorder(deviceFolder: device, driveFolder: { available.folder.map { DriveAccess(folder: $0) } }, now: { RecordingTakeTests.showDay })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         audio.deliver([[0]])
@@ -94,7 +94,7 @@ struct BothDestinationsTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         try await recorder.stopTake()
@@ -110,7 +110,7 @@ struct BothDestinationsTests {
         let released = ReleaseCounter()
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive, stop: { released.increment() }) }, now: { RecordingTakeTests.showDay })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
 
         try recorder.startTake()
         #expect(released.count == 0)

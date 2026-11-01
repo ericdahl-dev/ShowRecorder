@@ -29,7 +29,7 @@ struct FailedCopyMarkerTests {
             },
             destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([Array(repeating: 0.25, count: 4_800)])
         try await Task.sleep(for: .milliseconds(100))

@@ -18,7 +18,7 @@ struct RecordScreenStateTests {
 
     private var recording: RecordScreenSnapshot {
         var s = RecordScreenSnapshot()
-        s.isArmed = true
+        s.isReady = true
         s.isRecording = true
         s.takeBusy = true
         s.hasInputs = true
@@ -28,7 +28,7 @@ struct RecordScreenStateTests {
 
     private var idle: RecordScreenSnapshot {
         var s = RecordScreenSnapshot()
-        s.isArmed = true
+        s.isReady = true
         s.hasInputs = true
         s.driveChosen = true
         s.soundcheckOffered = true
@@ -44,7 +44,7 @@ struct RecordScreenStateTests {
     @Test("During a Take every alert comes in its priority, and within one priority in the order the App raised them")
     func orderDuringATake() {
         var s = recording
-        s.armError = "The input stopped."
+        s.getReadyError = "The input stopped."
         s.recordError = "The Take stopped."
         s.copies = takeCopies(device: .recording, drive: .interrupted)
         s.usbChannelShortfall = "Only 8 of 18 channels."
@@ -57,13 +57,13 @@ struct RecordScreenStateTests {
         let power = s.power.alerts.map(\.id)
 
         #expect(ids(RecordScreenState(), s) ==
-            ["arm", "record", "drive-stopped"] + power + ["shortfall", "interruption", "noSignal", "routing"])
+            ["getReady", "record", "drive-stopped"] + power + ["shortfall", "interruption", "noSignal", "routing"])
     }
 
     @Test("Between Takes the Copy summary and the move report follow the input alerts, then the hints")
     func orderBetweenTakes() {
         var s = idle
-        s.armError = "The input didn't start."
+        s.getReadyError = "The input didn't start."
         s.usbChannelShortfall = "Only 8 of 18 channels."
         s.interruptionNotice = "A call interrupted the input."
         s.recorderCopies = takeCopies(running: false, device: .complete, drive: .complete)
@@ -72,7 +72,7 @@ struct RecordScreenStateTests {
         s.power = PowerStatus(batteryLevel: 0.05, charging: .unplugged, thermal: .nominal)
         let power = s.power.alerts.map(\.id)
 
-        #expect(ids(RecordScreenState(), s) == ["arm"] + power + ["shortfall", "interruption", "copies", "moves"])
+        #expect(ids(RecordScreenState(), s) == ["getReady"] + power + ["shortfall", "interruption", "copies", "moves"])
     }
 
     @Test("The setup hint comes before the Soundcheck offer, and the offer waits while the hint shows")
@@ -103,36 +103,36 @@ struct RecordScreenStateTests {
         #expect(withMixer.text == "Choose the audio interface, Drive and Mixer in Settings (the gear).")
     }
 
-    @Test("An arm failure with the microphone denied is critical and opens the system settings")
+    @Test("A get-ready failure with the microphone denied is critical and opens the system settings")
     func micDenied() throws {
         var s = idle
-        s.isArmed = false
+        s.isReady = false
         s.micDenied = true
-        s.armError = "Microphone access is off."
+        s.getReadyError = "Microphone access is off."
         let alert = try #require(RecordScreenState().alerts(s).top)
-        #expect(alert.id == "arm")
+        #expect(alert.id == "getReady")
         #expect(alert.priority == .cannotRecord)
         #expect(alert.tone == .critical)
         #expect(alert.text == "Microphone access is off.")
         #expect(alert.action == .openSystemSettings)
 
         s.micDenied = false
-        #expect(try #require(RecordScreenState().alerts(s).top).action == .arm)
+        #expect(try #require(RecordScreenState().alerts(s).top).action == .getReady)
     }
 
-    @Test("Disarmed for being idle is a warning with the block's text and its Arm button, unless an arm error speaks")
-    func disarmedForIdle() throws {
+    @Test("Stood down for being idle is a warning with the block's text and its Get ready button, unless a get-ready error speaks")
+    func stoodDownForIdle() throws {
         var s = idle
-        s.isArmed = false
-        s.disarmedForIdle = true
+        s.isReady = false
+        s.stoodDownForIdle = true
         let alert = try #require(RecordScreenState().alerts(s).top)
         #expect(alert.id == "idle")
         #expect(alert.tone == .warning)
-        #expect(alert.text == "Disarmed after 30 minutes idle.")
-        #expect(alert.action == .arm)
+        #expect(alert.text == "Stood down after 30 minutes idle.")
+        #expect(alert.action == .getReady)
 
-        s.armError = "The input didn't start."
-        #expect(ids(RecordScreenState(), s) == ["arm"])
+        s.getReadyError = "The input didn't start."
+        #expect(ids(RecordScreenState(), s) == ["getReady"])
     }
 
     @Test("No signal is not raised while an interruption has stopped the input, whose notice says why")

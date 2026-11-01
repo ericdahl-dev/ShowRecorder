@@ -29,7 +29,7 @@ struct RoutingChangeTests {
     func repatchIsLogged() async throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
         try recorder.startTake(sources: Self.start)
         for _ in 0..<3 { device.deliver(Array(repeating: [0, 0, 0, 0], count: 2)) }
 
@@ -52,7 +52,7 @@ struct RoutingChangeTests {
     func listedAsItsOwnKind() async throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
         try recorder.startTake(sources: Self.start)
         for _ in 0..<3 { device.deliver(Array(repeating: [0, 0, 0, 0], count: 2)) }
         recorder.addMarker()
@@ -69,7 +69,7 @@ struct RoutingChangeTests {
     func renameIsNotARepatch() async throws {
         let device = FakeAudioDevice(inputChannelCount: 2)
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
         try recorder.startTake(sources: Self.start)
         for _ in 0..<3 { device.deliver(Array(repeating: [0, 0, 0, 0], count: 2)) }
 
@@ -97,7 +97,7 @@ struct RoutingChangeEdgeTests {
 
     func start(_ sources: [Source] = RoutingChangeTests.start) throws -> Recorder {
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay })
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake(sources: sources)
         return recorder
     }

@@ -24,7 +24,7 @@ struct FreeTakeTests {
     func onlyChosenStems() async throws {
         let recorder = Recorder(deviceFolder: root, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 4)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake(allowance: allowance([2, 4]))
         audio.deliver((0..<4).map { c in Array(repeating: Float(c + 1) / 10, count: 480) })
         try await recorder.stopTake()
@@ -49,7 +49,7 @@ struct FreeTakeTests {
         let device = root.appending(path: "Device")
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 3)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         // Two recorded channels with the report and project on (the report itself is a Pro extra, see ProExtrasTests).
         try recorder.startTake(allowance: TakeAllowance(recordedChannels: [1, 3], showReport: true, reaperExport: true, namingByHand: false))
         audio.deliver((0..<3).map { _ in Array(repeating: 0.2, count: 480) })
@@ -75,7 +75,7 @@ struct FreeTakeTests {
         let plug = Plug()
         let recorder = Recorder(deviceFolder: device, driveFolder: { plug.connected ? DriveAccess(folder: drive) : nil }, now: { RecordingTakeTests.showDay }, destinationCheckInterval: nil)
         let audio = FakeAudioDevice(inputChannelCount: 3)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake(allowance: allowance([2, 3]))
         audio.deliver((0..<3).map { _ in Array(repeating: 0.2, count: 480) })
         plug.connected = true
@@ -112,7 +112,7 @@ struct FreeTakeTests {
         let device = root.appending(path: "Device"), drive = root.appending(path: "Drive")
         let recorder = try freeDriveRecorder(device: device, drive: drive)
         let audio = FakeAudioDevice(inputChannelCount: 2)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake(allowance: noDrive([1, 2]))
         #expect(recorder.takeAllowance == noDrive([1, 2]), "the running Take's allowance, for clip protection")
         audio.deliver((0..<2).map { _ in Array(repeating: 0.2, count: 480) })
@@ -129,7 +129,7 @@ struct FreeTakeTests {
         let recorder = try freeDriveRecorder(device: device, drive: drive)
         recorder.recordTo = .device
         let audio = FakeAudioDevice(inputChannelCount: 2)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake(allowance: noDrive([1, 2]))
         audio.deliver((0..<2).map { _ in Array(repeating: 0.2, count: 480) })
         try await recorder.stopTake()
@@ -144,7 +144,7 @@ struct FreeTakeTests {
         let recorder = try freeDriveRecorder(device: device, drive: drive)
         recorder.recordTo = .drive
         let audio = FakeAudioDevice(inputChannelCount: 2)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake(allowance: noDrive([1, 2]))
         audio.deliver((0..<2).map { _ in Array(repeating: 0.2, count: 480) })
         try await recorder.stopTake()

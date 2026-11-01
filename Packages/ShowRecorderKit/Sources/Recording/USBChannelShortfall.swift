@@ -11,7 +11,7 @@ public struct USBChannelShortfall: Equatable, Sendable {
         case mixerSendsMore(mixer: MixerIdentity, mixerSends: Int)
     }
 
-    /// USB Channels the Armed device actually sends.
+    /// USB Channels the Ready device actually sends.
     public var usbChannelCount: Int
     public var reason: Reason
 
@@ -21,7 +21,7 @@ public struct USBChannelShortfall: Equatable, Sendable {
     }
 
     /// - Parameters:
-    ///   - usbChannelCount: USB Channels the Armed device sends; 0 when nothing is Armed.
+    ///   - usbChannelCount: USB Channels the Ready device sends; 0 when nothing is Ready.
     ///   - offeredChannelCount: the most input channels the route offers, where the system reports
     ///     it (iOS); nil elsewhere.
     ///   - mixer: the Mixer the Mixer Link identified, if it is up.
@@ -54,7 +54,7 @@ public struct USBChannelShortfall: Equatable, Sendable {
             return "This input offers \(offered) channels, but the system is sending the recorder \(sent), so some channels won't be recorded."
         case .mixerSendsMore(let mixer, let mixerSends):
             // Short enough for the banner's 2 lines on an iPhone (#292); the Mixer chip already names the Mixer.
-            return "Only \(usbChannelCount) of the \(mixer.model)'s \(mixerSends) USB Channels are coming in. Arm the \(mixer.model) to record all \(mixerSends)."
+            return "Only \(usbChannelCount) of the \(mixer.model)'s \(mixerSends) USB Channels are coming in. Get the \(mixer.model) ready to record all \(mixerSends)."
         }
     }
 }

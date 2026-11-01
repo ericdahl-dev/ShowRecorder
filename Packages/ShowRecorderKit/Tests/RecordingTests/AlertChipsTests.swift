@@ -38,9 +38,9 @@ struct AlertChipsTests {
 
     @Test("An alert about something else is about no chip")
     func otherAlert() {
-        let arm = alert("arm")
+        let getReady = alert("getReady")
 
-        #expect(StatusChip.Kind.allCases.allSatisfy { !arm.isAbout($0) })
-        #expect(!arm.isAbout(PowerStatus.Chip(text: "1 Dropout", symbol: "waveform.badge.exclamationmark", state: .attention)))
+        #expect(StatusChip.Kind.allCases.allSatisfy { !getReady.isAbout($0) })
+        #expect(!getReady.isAbout(PowerStatus.Chip(text: "1 Dropout", symbol: "waveform.badge.exclamationmark", state: .attention)))
     }
 }

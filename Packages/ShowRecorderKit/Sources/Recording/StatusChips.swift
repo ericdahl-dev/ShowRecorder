@@ -40,7 +40,7 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
     ///
     /// - Parameters:
     ///   - copies: the Take's Copies (#550): one that stopped mid-Take says so while the Take runs.
-    ///   - sampleRate: the Armed input's rate, for the time left (#298); 48 kHz when nothing is Armed.
+    ///   - sampleRate: the Ready input's rate, for the time left (#298); 48 kHz when nothing is Ready.
     ///   - mixer: nil when the input isn't an X Air or X32: Mixer Link isn't offered, so there's no Mixer chip (#365).
     ///   - recordTo: the Record to setting (#805), so it applies between Takes too. Drive only (#196), or a Drive-only Take,
     ///     shows one of the Device and Drive chips (#550); the Device, on Pro, shows the Device chip alone, so a missing or
@@ -103,7 +103,7 @@ public struct StatusChip: Equatable, Identifiable, Sendable {
         let mixerChip: StatusChip
         switch mixer {
         case .otherMixer(let otherMixer):
-            // The Link is on another Mixer than the Armed one (#647): not a healthy chip.
+            // The Link is on another Mixer than the Ready one (#647): not a healthy chip.
             let name = otherMixer.networkName.trimmingCharacters(in: .whitespaces)
             let detail = name.isEmpty ? otherMixer.model : "\(name) · \(otherMixer.model)"
             mixerChip = StatusChip(kind: .mixer, text: "Other Mixer linked", state: .attention, detail: detail)

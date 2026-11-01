@@ -24,7 +24,7 @@ struct DropoutCountTests {
     func countsADropout() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root, destinationCheckInterval: nil)
-        try recorder.arm(device)
+        try recorder.getReady(device)
         #expect(recorder.dropoutCount == 0)
 
         try await recordWithADropout(recorder, on: device)
@@ -39,7 +39,7 @@ struct DropoutCountTests {
     func markerCountIsTheOperators() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root, destinationCheckInterval: nil)
-        try recorder.arm(device)
+        try recorder.getReady(device)
         try await recordWithADropout(recorder, on: device)
         try await waitUntilAsync { await recorder.checkDestinations(); return recorder.dropoutCount == 1 }
 
@@ -53,7 +53,7 @@ struct DropoutCountTests {
     func staysThenResets() async throws {
         let device = FakeAudioDevice(inputChannelCount: 1)
         let recorder = Recorder(deviceFolder: root, destinationCheckInterval: nil)
-        try recorder.arm(device)
+        try recorder.getReady(device)
         try await recordWithADropout(recorder, on: device)
         try await recorder.stopTake()
         #expect(recorder.dropoutCount == 1)

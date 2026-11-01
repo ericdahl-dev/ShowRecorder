@@ -27,7 +27,7 @@ public struct SupportDiagnostics: Equatable, Sendable {
     public var device: String
     /// The OS and its version, such as "iOS 26.0.1".
     public var system: String
-    /// The current audio input route, from `routeLabel`; nil when no input is Armed.
+    /// The current audio input route, from `routeLabel`; nil when no input is Ready.
     public var inputRoute: String?
     public var channelCount: Int?
     public var sampleRate: Int?
@@ -66,7 +66,7 @@ public struct SupportDiagnostics: Equatable, Sendable {
         let rule = String(repeating: "-", count: 40)
         let channels: String
         if channelCount == nil && sampleRate == nil {
-            channels = "Not armed"
+            channels = "Not ready"
         } else {
             let count = channelCount.flatMap { $0 > 0 ? "\($0)" : nil } ?? "unknown"
             channels = "\(count) at \(sampleRate.map { "\($0) Hz" } ?? "unknown rate")"

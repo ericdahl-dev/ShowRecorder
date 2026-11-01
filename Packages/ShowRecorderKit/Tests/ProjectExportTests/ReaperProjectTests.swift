@@ -24,7 +24,7 @@ struct ReaperProjectTests {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         device = FakeAudioDevice(inputChannelCount: 3)
         recorder = Recorder(deviceFolder: root, now: { Self.showDay })
-        try recorder.arm(device)
+        try recorder.getReady(device)
     }
 
     var showFolder: URL { root.appending(path: "2026-10-06 Show") }
@@ -137,11 +137,11 @@ struct ReaperProjectTests {
 
     @Test("A Take with Pre-roll is placed from the start of its Pre-roll, and its Markers are on the same timeline as its Stems")
     func preRollTake() async throws {
-        let armed = FakeAudioDevice(inputChannelCount: 3)
+        let ready = FakeAudioDevice(inputChannelCount: 3)
         let withPreRoll = Recorder(deviceFolder: root, now: { Self.showDay }, preRollSeconds: 1)
-        try withPreRoll.arm(armed)
-        func deliver(_ frames: Int) { armed.deliver(Array(repeating: Array(repeating: 0, count: frames), count: 3)) }
-        deliver(48_000)  // 1 s while Armed
+        try withPreRoll.getReady(ready)
+        func deliver(_ frames: Int) { ready.deliver(Array(repeating: Array(repeating: 0, count: frames), count: 3)) }
+        deliver(48_000)  // 1 s while Ready
         try withPreRoll.startTake()
         deliver(12_000)
         withPreRoll.addMarker(named: "Chorus")  // 0.25 s after the press
@@ -174,12 +174,12 @@ struct ReaperProjectTests {
 
     @Test("A channel renamed on the Mixer during a Take is a point marker named \"USB n: from → to\" at that moment, after the Pre-roll (#577)")
     func renameMarkers() async throws {
-        let armed = FakeAudioDevice(inputChannelCount: 3)
+        let ready = FakeAudioDevice(inputChannelCount: 3)
         let withPreRoll = Recorder(deviceFolder: root, now: { Self.showDay }, preRollSeconds: 1)
-        try withPreRoll.arm(armed)
-        func deliver(_ frames: Int) { armed.deliver(Array(repeating: Array(repeating: 0, count: frames), count: 3)) }
+        try withPreRoll.getReady(ready)
+        func deliver(_ frames: Int) { ready.deliver(Array(repeating: Array(repeating: 0, count: frames), count: 3)) }
         func source(_ name: String) -> Source { Source(name: name, color: .off) }
-        deliver(48_000)  // 1 s while Armed
+        deliver(48_000)  // 1 s while Ready
         try withPreRoll.startTake(sources: [source("Kick"), source("Snare"), source("Vox")])
         deliver(12_000)
         withPreRoll.offerSources([source("Kick"), source("Snare"), source("Lead Vox")])  // 0.25 s after the press

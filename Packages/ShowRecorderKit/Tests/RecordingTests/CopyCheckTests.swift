@@ -25,13 +25,13 @@ struct CopyCheckTests {
         let drive = drive
         let recorder = Recorder(deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay })
         let audio = FakeAudioDevice(inputChannelCount: 2)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         for _ in 1...2 {
             try recorder.startTake()
             audio.deliver((0..<2).map { c in (0..<4_800).map { Float(($0 + c * 7) % 1000) / 8_388_608 } })
             try await recorder.stopTake()
         }
-        recorder.disarm()
+        recorder.standDown()
         try recorder.endShow()
     }
 
@@ -151,7 +151,7 @@ struct CopyCheckTests {
     func openShowRefused() async throws {
         let recorder = recorderWithDrive()
         let audio = FakeAudioDevice(inputChannelCount: 1)
-        try recorder.arm(audio)
+        try recorder.getReady(audio)
         try recorder.startTake()
         audio.deliver([[0.1]])
         try await recorder.stopTake()
