@@ -32,7 +32,7 @@ describe("the Apple Watch docs page", () => {
 
   it("says Marker is also the double tap, as the code makes it", () => {
     expect(source("Watch/RemoteView.swift")).toMatch(/\.handGestureShortcut\(\.primaryAction\)/);
-    expect(page()).toMatch(/double tap/i);
+    expect(page()).toMatch(/double tap[^.\n]*Marker/i);
   });
 
   it("quotes the watch's own messages word for word", () => {
@@ -42,6 +42,12 @@ describe("the Apple Watch docs page", () => {
       expect(page(), name).toContain(`**${text}**`);
     }
     expect(page()).toContain("**The recording on the iPhone carries on.**");
+    for (const text of ["Connecting…", "Sending…"]) expect(source("Watch/RemoteView.swift")).toContain(`"${text}"`);
+    const problems = source("Packages/ShowRecorderKit/Sources/WatchRemote/WatchStatus.swift");
+    for (const text of [...page().matchAll(/\*\*(iPhone low on space|A Copy stopped|Mixer Link lost)\*\*/g)].map((m) => m[1]))
+      expect(problems).toContain(`"${text}"`);
+    const limit = source("Packages/ShowRecorderKit/Sources/Recording/Entitlement.swift").match(/freeMarkerLimit = (\d+)/)![1];
+    expect(page()).toContain(`**${limit} per Take on Free**`);
   });
 
   it("names the watchOS the watch app needs", () => {
@@ -52,6 +58,6 @@ describe("the Apple Watch docs page", () => {
   it("calls the watch remote Free, as the features list does", () => {
     const watch = featureGroups.flatMap((g) => g.features).find((f) => f.title === "Apple Watch remote");
     expect(watch?.tier).toBe("free");
-    expect(page()).toMatch(/\bFree\b/);
+    expect(page()).toMatch(/watch remote is part of Free/);
   });
 });
