@@ -158,6 +158,20 @@ struct ShowListTests {
         #expect(shows[2].duration == 0)
     }
 
+    @Test("A folder that isn't a Show (no Show.json, no Take folder) isn't listed, on either Copy (#1021)")
+    func foldersThatArentShows() async throws {
+        let both = recorder(withDrive: true)
+        try await record(both)
+        try both.endShow()
+        // A tester saw two Shows "dated Dec" he never made: folders like these listed with no date, which is
+        // `.distantPast`, Dec 31 of year 0 in an American time zone.
+        for folder in [device.appending(path: "Stuff"), device.appending(path: "Untitled folder/Notes"), drive.appending(path: "Backups")] {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        }
+
+        #expect(ShowList.read(device: device, drive: drive).map(\.name) == ["2026-10-06 Show"])
+    }
+
     @Test("A Show can be shared from the Device Copy when it has one, and not when only the Drive does")
     func shareFolder() async throws {
         let both = recorder(withDrive: true)
