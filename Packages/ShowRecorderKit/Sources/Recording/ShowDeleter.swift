@@ -64,8 +64,9 @@ public enum ShowDeleter {
         return values.isDirectory == true && values.isSymbolicLink != true
     }
 
-    /// A real folder (not a link) that is a Show: it has a `Show.json` or at least one "Take NN" folder.
-    private static func isShowFolder(_ folder: URL) -> Bool {
+    /// A real folder (not a link) that is a Show: it has a `Show.json` or at least one "Take NN" folder. The Show list
+    /// uses the same rule, so it lists only what can be deleted (#1021).
+    static func isShowFolder(_ folder: URL) -> Bool {
         let fm = FileManager.default
         guard let values = try? folder.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]),
               values.isDirectory == true, values.isSymbolicLink != true else { return false }
