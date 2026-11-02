@@ -62,10 +62,12 @@ describe("compare data", () => {
     for (const text of everyText) expect(text).not.toMatch(/DJM|Pioneer/);
   });
 
-  it("says the X32, M32 and Mac are in the beta wherever ShowRecorder's side names them", () => {
+  // The X32 and M32 are in the App Store app since 1.1.18; the Mac is still in the beta.
+  it("says the Mac is in the beta wherever ShowRecorder's side names it, and doesn't call the X32 beta", () => {
     const ours = [...ROWS.map((r) => r.cells.showrecorder), PRODUCTS[0].pickIt];
     for (const s of ours.flatMap(sentences)) {
-      if (/X32|M32|\bMac\b/.test(s)) expect(s, s).toMatch(/beta/i);
+      if (/\bMac\b/.test(s)) expect(s, s).toMatch(/beta/i);
+      if (/X32|M32/.test(s)) expect(s, s).not.toMatch(/beta/i);
     }
   });
 

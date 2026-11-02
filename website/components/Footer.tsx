@@ -63,7 +63,7 @@ export function Footer() {
             </li>
             <li>
               <a href="/mixers/x32" data-current-match="" suppressHydrationWarning>
-                X32 and M32 (beta)
+                X32 and M32
               </a>
             </li>
           </ul>

@@ -22,10 +22,10 @@ describe("/support", () => {
     expect(support.match(/<ChatButton \/>/g)).toHaveLength(1);
   });
 
-  it("says the channel names answer covers the X32 and M32 (in the beta) as well as the XR18 and MR18", () => {
+  it("says the channel names answer covers the X32 and M32 as well as the XR18 and MR18", () => {
     const answer = support.slice(support.indexOf('### The channels are called'), support.indexOf("### The Drive was unplugged"));
     expect(answer).toMatch(/XR18 and MR18/);
-    expect(answer).toMatch(/X32 and M32 in the beta/);
+    expect(answer).toMatch(/X32 and Midas M32/);
   });
 });
 

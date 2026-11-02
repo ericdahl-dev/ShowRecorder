@@ -7,8 +7,8 @@ import { APP_STORE_URL, REPO_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL, TESTFLI
 
 // The text of /llms.txt (a short map) and /llms-full.txt (everything on one page), for AI assistants and AI search
 // (#704). Both read the site's own lists, so a new docs page, feature or release shows up without editing this file.
-// Keep the facts true to what ships: Free records every USB Channel with generic names, the X32 and M32 and the Mac are in
-// the public beta, and the items in inBetaFeatures are TestFlight only. Pioneer DJM mixers are planned, not available.
+// Keep the facts true to what ships: Free records every USB Channel with generic names, the X32 and M32 are in the App Store
+// app (only their auto-gain is beta), the Mac is in the public beta, and the items in inBetaFeatures are TestFlight only. Pioneer DJM mixers are planned, not available.
 
 export const abs = (path: string) => (path === "/" ? SITE_URL : SITE_URL + path);
 const link = (title: string, path: string, note?: string) => `- [${title}](${abs(path)})${note ? `: ${note}` : ""}`;
@@ -16,11 +16,11 @@ const link = (title: string, path: string, note?: string) => `- [${title}](${abs
 // The mixer pages, with their one-line descriptions.
 const MIXER_PAGES = [
   { title: "XR18 and MR18", page: PAGES.mixersXR18 },
-  { title: "X32 and M32 (public beta)", page: PAGES.mixersX32 },
+  { title: "X32 and M32", page: PAGES.mixersX32 },
 ];
 
 const getIt = APP_STORE_URL
-  ? `App Store: ${APP_STORE_URL}${TESTFLIGHT_URL ? `. The public beta (the X32 and M32, and the next version) is on TestFlight: ${TESTFLIGHT_URL}` : ""}`
+  ? `App Store: ${APP_STORE_URL}${TESTFLIGHT_URL ? `. The public beta (the next version) is on TestFlight: ${TESTFLIGHT_URL}` : ""}`
   : `ShowRecorder 1.0 for iPhone and iPad is in App Review. The public beta is open on TestFlight${TESTFLIGHT_URL ? `: ${TESTFLIGHT_URL}` : ""}`;
 
 export function facts(): string[] {
@@ -32,8 +32,9 @@ export function facts(): string[] {
     "- Price: free to download. Free records every USB Channel on the iPhone or iPad, with generic names on the files and up to 3 Markers per Take. Pro is a one-time purchase, at a launch price of $4.99, shared with Family Sharing, with a 14-day Trial. Pro adds names and colors from the mixer on the files, typed names, a second Copy on a USB drive, unlimited Markers, the Show report, the Reaper project, 96 kHz, Templates and auto-gain on an XR18 or MR18. No subscription.",
     "- Needs: a USB-C iPhone (iPhone 15 or later) on iOS 26, or a USB-C iPad on iPadOS 26, a USB cable to the mixer, and a class-compliant USB mixer or audio interface. Wi-Fi is optional, for channel names and colors. No account.",
     "- Files: one mono 24-bit Broadcast WAV file (a Stem) per USB Channel, at the mixer's sample rate, 48 kHz for the XR18 and MR18. Pro adds a second copy on a USB drive, a Show report and a Reaper project.",
-    `- Works now: ${worksNow.map((m) => m.name).join("; ")}.`,
-    `- In the public beta (TestFlight, not the App Store version): ${inBeta.map((m) => m.name).join("; ")}, tested only against an emulator so far. The Mac version, in testing on macOS 26, is also in the beta.`,
+    `- Works now: ${worksNow.map((m) => m.name).join("; ")}. The X32 and M32 have been tested only against an emulator so far.`,
+    ...(inBeta.length ? [`- Also in the public beta (TestFlight, not the App Store version): ${inBeta.map((m) => m.name).join("; ")}.`] : []),
+    "- In the public beta (TestFlight, not the App Store version): the Mac version, in testing on macOS 26.",
     `- Planned, not available: ${planned.filter((m) => /DJM/.test(m.name)).map((m) => m.name).join("; ")}.`,
     `- Also TestFlight only: ${inBetaFeatures.map((f) => f.title).join(", ")}.`,
     "- Privacy: no data is collected. Recordings stay on your device and your drive.",

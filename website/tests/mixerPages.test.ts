@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { PAGES } from "@/lib/metadata";
-import { inBeta, worksNow } from "@/lib/mixers";
+import { worksNow } from "@/lib/mixers";
 import { X32_FAQS } from "@/lib/mixerFaqs";
 import { APP_STORE_URL } from "@/lib/site";
 
 // Mixer landing pages: one per mixer family that works, with what is true for that mixer only.
-// The X32 and M32 are in the public beta, so their page never suggests the App Store version records them.
+// The X32 and M32 are in the App Store app since 1.1.18 (tests/x32AppStore.test.ts).
 
 const ROOT = path.resolve(__dirname, "..");
 const x32Page = readFileSync(path.join(ROOT, "app", "mixers", "x32", "content.mdx"), "utf8");
@@ -19,10 +19,9 @@ describe("the X32 and M32 page", () => {
     expect(PAGES.mixersX32.title).toMatch(/M32/);
   });
 
-  it("says the X32 and M32 are in the public beta and come to the App Store later", () => {
-    expect(PAGES.mixersX32.description).toMatch(/public beta/);
-    expect(x32Page).toMatch(/public beta/);
-    expect(x32Page).toMatch(/later update/);
+  it("says the X32 and M32 are on the App Store", () => {
+    expect(PAGES.mixersX32.description).toMatch(/App Store/);
+    expect(x32Page).toMatch(/App Store/);
   });
 
   it("covers what is only true of the X32: 32 USB Channels, the USB card and a network for Mixer Link", () => {
@@ -56,7 +55,7 @@ describe("the X32 and M32 page", () => {
   });
 
   it("is linked from the X32 entry in Supported mixers", () => {
-    expect(inBeta.find((m) => /X32/.test(m.name))?.href).toBe("/mixers/x32");
+    expect(worksNow.find((m) => /X32/.test(m.name))?.href).toBe("/mixers/x32");
   });
 });
 
@@ -124,17 +123,6 @@ describe("mixer page structure", () => {
   });
 });
 
-describe("the X32 page's call to action", () => {
-  const read = (...p: string[]) => readFileSync(path.join(ROOT, ...p), "utf8");
-
-  it("always points at the public beta, even once 1.0 is in the App Store (1.0 can't record an X32)", () => {
-    const page = read("app", "mixers", "x32", "page.tsx");
-    expect(page).toMatch(/<MixerHero[^>]*\sbeta[\s>]/);
-    expect(page).toMatch(/<GetBand[^>]*\sbeta[\s>]/);
-    expect(read("components", "AppStoreBadge.tsx")).toMatch(/beta/);
-  });
-});
-
 describe("mixer page screenshots", () => {
   it("the XR18 page shows the recording screen and the Mixer Link settings, each with a caption", () => {
     expect(xr18Page).toMatch(/<Screenshot shot=\{SHOTS\.heroPhone\}/);
@@ -163,8 +151,8 @@ describe("mixer pages in plain words", () => {
   });
 });
 
-// #482 C: beta testers start the Trial so every channel records, and know a TestFlight purchase isn't charged.
-describe("the beta Trial line", () => {
+// #482 C: the Trial line on each mixer page.
+describe("the Trial line", () => {
   it("/mixers/xr18, on the App Store, tells everyone to start the 14-day Trial", () => {
     const body = readFileSync(path.join(ROOT, "app", "mixers", "xr18", "content.mdx"), "utf8");
     const pricing = body.slice(body.indexOf("## Free, Trial and Pro"), body.indexOf("## Where to get it"));
@@ -172,14 +160,13 @@ describe("the beta Trial line", () => {
     expect(pricing).not.toMatch(/beta/);
   });
 
-  for (const slug of ["x32"]) {
-    it(`/mixers/${slug} tells beta testers to start the 14-day Trial, and that TestFlight doesn't charge`, () => {
-      const body = readFileSync(path.join(ROOT, "app", "mixers", slug, "content.mdx"), "utf8");
-      const pricing = body.slice(body.indexOf("## Free, Trial and Pro"), body.indexOf("## Where to get it"));
-      expect(pricing).toMatch(/In the beta, start the 14-day Trial in \*\*Settings › Pro\*\*/);
-      expect(pricing).toMatch(/Buying Pro in the beta isn't charged, and doesn't carry over to the App Store version/);
-    });
-  }
+  it("/mixers/x32, on the App Store, tells everyone to start the 14-day Trial; only auto-gain is beta", () => {
+    const body = readFileSync(path.join(ROOT, "app", "mixers", "x32", "content.mdx"), "utf8");
+    const pricing = body.slice(body.indexOf("## Free, Trial and Pro"), body.indexOf("## Where to get it"));
+    expect(pricing).toMatch(/Start the 14-day Trial in \*\*Settings › Pro\*\*/);
+    expect(pricing).not.toMatch(/beta isn't charged/);
+    expect(pricing).toMatch(/Auto-gain\]\(\/docs\/auto-gain\) on the X32 and M32 is in the public beta only/);
+  });
 });
 
 // #482 D: the facts a buyer checks before trying it.
@@ -255,9 +242,9 @@ describe("the mixer pages' questions (#704)", () => {
     expect(page).toMatch(new RegExp(`faqPageJsonLd\\(${list}\\)`));
   });
 
-  it("the beta page's answers say beta and keep Free at all 32 USB Channels", () => {
+  it("the X32 page's answers say App Store and keep Free at all 32 USB Channels", () => {
     const text = X32_FAQS.map((f) => f.a).join(" ");
-    expect(text).toMatch(/public beta/);
+    expect(text).toMatch(/App Store/);
     expect(text).toMatch(/Free records all 32 USB Channels/);
     expect(text).not.toMatch(/DJM/);
   });

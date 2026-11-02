@@ -106,7 +106,7 @@ export default function FeaturesPage() {
       <section id="mixers" aria-labelledby="mixers-title" className="feature-group">
         <div className="section-head">
           <h2 id="mixers-title">Supported mixers</h2>
-          <p>What works in the first App Store release, what is in the public beta, what is planned next, and what is being looked at. Planned support has no dates yet.</p>
+          <p>What works in the App Store version, what is planned next, and what is being looked at. Planned support has no dates yet.</p>
         </div>
         <h3 className="mixers-sub">Works now</h3>
         <ul className="cards cards--3">
@@ -117,15 +117,19 @@ export default function FeaturesPage() {
             </li>
           ))}
         </ul>
-        <h3 className="mixers-sub">In the public beta</h3>
-        <ul className="cards cards--3">
-          {inBeta.map((m) => (
-            <li key={m.name} className="card">
-              <h3>{m.href ? <a href={m.href}>{m.name}</a> : m.name}</h3>
-              <p>{m.body}</p>
-            </li>
-          ))}
-        </ul>
+        {inBeta.length > 0 && (
+          <>
+            <h3 className="mixers-sub">In the public beta</h3>
+            <ul className="cards cards--3">
+              {inBeta.map((m) => (
+                <li key={m.name} className="card">
+                  <h3>{m.href ? <a href={m.href}>{m.name}</a> : m.name}</h3>
+                  <p>{m.body}</p>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         <h3 className="mixers-sub">Planned</h3>
         <ol className="cards cards--3">
           {planned.map((m) => (

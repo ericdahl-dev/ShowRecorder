@@ -33,7 +33,7 @@ export const PAGES = {
     path: "/features",
     title: `Features and supported mixers - ${SITE_NAME}`,
     description:
-      "Every feature, marked Free or Pro, and which mixers work: XR18 and MR18 now, any class-compliant USB interface, X32 and M32 in the public beta.",
+      "Every feature, marked Free or Pro, and which mixers work: XR18, MR18, X32 and M32, and any class-compliant USB interface.",
   },
   changelog: {
     path: "/changelog",
@@ -55,14 +55,14 @@ export const PAGES = {
   },
   mixersX32: {
     path: "/mixers/x32",
-    title: "X32 and M32 multitrack recording on iPad (beta) - ShowRecorder",
+    title: "X32 and M32 multitrack recording on iPad - ShowRecorder",
     description:
-      "Multitrack all 32 USB Channels of an X32 or M32 to iPhone or iPad, each file named from the mixer with Pro. In the public beta now; the App Store later.",
+      "Multitrack all 32 USB Channels of an X32 or M32 to iPhone or iPad, each file named from the mixer with Pro. On the App Store now.",
     image: {
       url: "/og-mixers-x32.png",
       width: 1200,
       height: 630,
-      alt: "ShowRecorder for the X32 and M32: all 32 USB Channels on iPhone and iPad, in the public beta.",
+      alt: "ShowRecorder for the X32 and M32: all 32 USB Channels on iPhone and iPad.",
     },
   },
   privacy: {

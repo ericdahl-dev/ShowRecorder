@@ -6,7 +6,7 @@ export const SITE_NAME = "ShowRecorder";
 export const SITE_URL = "https://showrecorder.app";
 // The one description of the product. PAGES.home.description, llms.txt and the structured data all use it.
 export const SITE_DESCRIPTION =
-  "Multitrack recorder for iPhone and iPad: every channel of any class-compliant USB mixer to its own WAV file. Names from XR18, MR18, X32, M32 (beta).";
+  "Multitrack recorder for iPhone and iPad: every channel of any class-compliant USB mixer to its own WAV file. Names from XR18, MR18, X32, M32.";
 export const CONTACT_EMAIL = "showrecorder@ericdahl.dev";
 // The app's source code (FSL-1.1-MIT: public to read, MIT two years after each release).
 export const REPO_URL = "https://github.com/ericdahl-dev/ShowRecorder";
@@ -17,7 +17,7 @@ export const ISSUES_URL = `${REPO_URL}/issues`;
 export const APP_STORE_ID = "6820213310";
 export const APP_STORE_URL = `https://apps.apple.com/app/id${APP_STORE_ID}` as string | null;
 
-// The public TestFlight beta: the X32 page and the next version. With no APP_STORE_URL, the badge
+// The public TestFlight beta: the next version. With no APP_STORE_URL, the badge
 // slots link here instead of showing the placeholder. Set it to null to go back to "Coming soon".
 export const TESTFLIGHT_URL = "https://testflight.apple.com/join/sSessST8" as string | null;
 
