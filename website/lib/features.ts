@@ -16,7 +16,7 @@ export const featureGroups: {
       // source: docs/adr/0004-one-time-pro-unlock-and-show-safe-limits.md (Free records every USB Channel, 2026-10-15, #705)
       {
         title: 'Every USB Channel',
-        body: 'Free records every USB Channel the mixer sends, on the Device: 18 Stems from an XR18 or MR18, in step with each other.',
+        body: 'Free records every USB Channel the mixer sends, on the Device: 18 Stems from an XR18 or MR18, or 32 from an X32 or M32, in step with each other.',
         tier: 'free',
       },
       // source: docs/adr/0001-mono-bwf-per-stem.md, Packages/ShowRecorderKit/Sources/BroadcastWave/StemWriter.swift (bytesPerSample = 3, bext chunk)
@@ -68,10 +68,10 @@ export const featureGroups: {
     title: 'Names and mixer',
     intro: 'Stems arrive named after what is on them.',
     features: [
-      // source: App/SettingsView.swift (Mixer Link section), Packages/ShowRecorderKit/Sources/MixerLink/MixerLink.swift
+      // source: App/SettingsView.swift (Mixer Link section), Packages/ShowRecorderKit/Sources/MixerLink/MixerLink.swift, MixerFamily.swift (X Air and X32, no availability rule in release/1.1)
       {
         title: 'Mixer Link',
-        body: 'Over the mixer\'s Wi-Fi, ShowRecorder reads your channel names and colors. Recording never depends on it, and no internet is needed.',
+        body: 'Over the mixer\'s network, ShowRecorder reads your channel names and colors from an XR18, MR18, X32 or M32. Recording never depends on it, and no internet is needed.',
         tier: 'free',
       },
       // source: App/FindMixersRow.swift ("Find Mixers")
@@ -201,14 +201,15 @@ export const featureGroups: {
   },
 ];
 
-// In the public TestFlight beta, not in the App Store version (1.1). Each was checked against its availability
+// In the public TestFlight beta, not in the App Store version (1.1). X32 and M32 recording and Mixer Link are in 1.1.18 for
+// everyone (no rule on MixerFamily or X32Driver in release/1.1); only their auto-gain is here. Each was checked against its availability
 // rule: shown to TestFlight builds, never only Debug. Move an entry into featureGroups when its rule reaches everyone.
 export const inBetaFeatures: { title: string; body: string; tier?: 'pro' }[] = [
   // source: Packages/ShowRecorderKit/Sources/Recording/AutoGainAvailability.swift (X32AutoGainAvailability: Debug and TestFlight, #997)
   {
     title: 'Auto-gain on the X32 and M32',
     tier: 'pro',
-    body: 'Auto-gain on an X32 or M32 with a USB card, in the beta until it has been tested live on one.',
+    body: 'Auto-gain on an X32 or M32 with a USB card. The App Store version records the X32 and M32; auto-gain on them stays in the beta until it has been tested live on one.',
   },
   // source: Packages/ShowRecorderKit/Sources/Recording/HoldToStopAvailability.swift (Debug and TestFlight, #753)
   {

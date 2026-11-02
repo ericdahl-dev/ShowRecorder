@@ -33,11 +33,11 @@ export const XR18_FAQS: readonly Faq[] = [
 export const X32_FAQS: readonly Faq[] = [
   {
     q: "Can I record an X32 or M32 to an iPad without a laptop?",
-    a: "Yes, in the public beta. ShowRecorder records all 32 USB Channels from the mixer's USB card on a USB-C iPhone (iPhone 15 or later) or a USB-C iPad, one WAV file per channel. It has run against an X32 emulator, not yet against a real mixer, so try it at a rehearsal first.",
+    a: "Yes. ShowRecorder records all 32 USB Channels from the mixer's USB card on a USB-C iPhone (iPhone 15 or later) or a USB-C iPad, one WAV file per channel. It has run against an X32 emulator, not yet against a real mixer, so try it at a rehearsal first.",
   },
   {
     q: "Is it in the App Store?",
-    a: "Not for the X32 or M32 yet. The App Store version records the XR18 and MR18. X32 and M32 recording is in the public beta now and comes to the App Store in a later update.",
+    a: "Yes. ShowRecorder on the App Store records the X32 and M32 from version 1.1.18, with names and colors from the mixer. Auto-gain on the X32 and M32 is still only in the public beta.",
   },
   {
     q: "What do I need?",

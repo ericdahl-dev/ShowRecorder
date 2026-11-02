@@ -4,7 +4,7 @@
 // - Claim only what the product's own listing or page says. "Not mentioned" means we could not find it on the page
 //   we read, not that the product lacks it. Sources, read in October 2026: Manytrack Recorder and Auria on the US
 //   App Store; X-Live on a retailer's product page (Turra Music); the laptop column is general knowledge of a DAW.
-// - Free records every USB Channel, with generic names (#705). The X32, M32 and Mac are in the beta. No DJM claims.
+// - Free records every USB Channel, with generic names (#705). The Mac is in the beta; the X32 and M32 are in the App Store app (1.1.18). No DJM claims.
 
 export const AS_OF = "October 2026";
 
@@ -70,7 +70,7 @@ export const ROWS: readonly { label: string; cells: Record<ProductId, string> }[
     label: "Channel names from the mixer",
     cells: {
       showrecorder:
-        "Yes, from an XR18 or MR18 over the mixer's Wi-Fi. The X32 and M32 work in the public beta. From other interfaces the files are named by channel number, or you type names with Pro.",
+        "Yes, from an XR18 or MR18 over the mixer's Wi-Fi, and from an X32 or M32 over its network. From other interfaces the files are named by channel number, or you type names with Pro.",
       manytrack: "Its listing does not mention channel names.",
       laptop: "Not on its own. You name each track yourself.",
       xlive: "The product page we read does not mention channel names.",

@@ -52,7 +52,7 @@ describe("the home hero (#719)", () => {
     expect(hero).toMatch(/className="compat"/);
     const compat = hero.slice(hero.indexOf('className="compat"'));
     expect(compat).toMatch(/XR18 and MR18/);
-    expect(compat).toMatch(/X32 and M32 \(beta\)/);
+    expect(compat).toMatch(/X32 and M32<\/a>/);
     expect(compat).toMatch(/iPhone 15 or later/);
     expect(compat).toMatch(/iPad/);
     expect(compat).toMatch(/iOS 26/);
@@ -111,7 +111,7 @@ describe("any class-compliant USB mixer records; only Mixer Link is for named mi
     expect(compat).toMatch(/Records any class-compliant USB mixer or audio interface\./);
     expect(compat).toMatch(/Mixer Link adds channel names and colors from the/);
     expect(compat).toMatch(/XR18 and MR18/);
-    expect(compat).toMatch(/X32 and M32 \(beta\)/);
+    expect(compat).toMatch(/X32 and M32<\/a>/);
     expect(compat).toMatch(/iPhone 15 or later/);
   });
 

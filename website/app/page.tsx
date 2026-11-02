@@ -157,13 +157,13 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
   },
   {
     q: "Which mixers work?",
-    a: "Any class-compliant USB mixer or audio interface records every channel it sends. Mixer Link adds channel names and colors for the Behringer X Air XR18 and MR18, which record 18 USB Channels; on other mixers you can type names with Pro. The Behringer X32 and Midas M32 work in the public beta now: all 32 USB Channels, with names and colors from the mixer. They come to the App Store in a later update. Planned next: Pioneer DJM mixers. Others, such as the Behringer Wing and Allen & Heath Qu and SQ, are being looked at. The list is under Supported mixers on the Features page.",
+    a: "Any class-compliant USB mixer or audio interface records every channel it sends. Mixer Link adds channel names and colors for the Behringer X Air XR18 and MR18, which record 18 USB Channels; on other mixers you can type names with Pro. The Behringer X32 and Midas M32 work too: all 32 USB Channels, with names and colors from the mixer, tested so far only against an emulator. Planned next: Pioneer DJM mixers. Others, such as the Behringer Wing and Allen & Heath Qu and SQ, are being looked at. The list is under Supported mixers on the Features page.",
     node: (
       <>
         Any class-compliant USB mixer or audio interface records every channel it sends. Mixer Link adds channel names
         and colors for the Behringer X Air <a href="/mixers/xr18">XR18 and MR18</a>, which record 18 USB Channels; on
-        other mixers you can type names with Pro. The Behringer <a href="/mixers/x32">X32 and Midas M32</a> work in the public beta
-        now: all 32 USB Channels, with names and colors from the mixer. They come to the App Store in a later update.
+        other mixers you can type names with Pro. The Behringer <a href="/mixers/x32">X32 and Midas M32</a> work too: all 32 USB
+        Channels, with names and colors from the mixer, tested so far only against an emulator.
         Planned next: Pioneer DJM mixers. Others, such as the Behringer Wing and Allen &amp; Heath Qu and SQ, are
         being looked at. The list is under Supported mixers on the Features page.
       </>
@@ -267,7 +267,7 @@ export default function Home() {
             </p>
             <p className="compat">
               Records any class-compliant USB mixer or audio interface. Mixer Link adds channel names and colors from the{" "}
-              <a href="/mixers/xr18">XR18 and MR18</a> and the <a href="/mixers/x32">X32 and M32 (beta)</a>. Needs a
+              <a href="/mixers/xr18">XR18 and MR18</a> and the <a href="/mixers/x32">X32 and M32</a>. Needs a
               USB-C iPhone 15 or later, or an iPad, on iOS 26.
             </p>
             <div className="hero-actions">

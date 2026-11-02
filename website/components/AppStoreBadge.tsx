@@ -10,8 +10,8 @@ import { APP_STORE_URL, TESTFLIGHT_URL } from "@/lib/site";
 // App Store" badge (public/images/app-store-badge.svg, from developer.apple.com, unmodified, 52 px
 // tall). layout.tsx adds the apple-itunes-app tag from APP_STORE_ID.
 //
-// `beta` keeps it on the public beta even once the App Store link is set: for a mixer only the beta records (the
-// X32 page, #482), the App Store build would be the wrong download.
+// `beta` keeps it on the public beta even once the App Store link is set, for a page about something only the beta
+// has (the X32 page used it until 1.1.18 brought the X32 to the App Store, #482).
 export function AppStoreBadge({ id, beta = false }: { id: "app-store-link" | "app-store-link-email" | "app-store-link-footer"; beta?: boolean }) {
   if (APP_STORE_URL && !(beta && TESTFLIGHT_URL)) {
     return (

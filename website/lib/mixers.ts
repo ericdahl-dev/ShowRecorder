@@ -13,20 +13,20 @@ export const worksNow: MixerEntry[] = [
     body: "18 USB Channels over USB, with channel names and colors read from the mixer over Wi-Fi (Mixer Link).",
   },
   {
+    name: "Behringer X32 and Midas M32",
+    href: "/mixers/x32",
+    body: "All 32 USB Channels from the X-USB or DN32-USB card, names and colors from the mixer over Mixer Link, and each file named after what is patched to that USB Channel. Tested only against an emulator so far: try it at a rehearsal first.",
+  },
+  {
     name: "Other class-compliant USB audio interfaces",
     body: "Every channel the interface sends is recorded. Names don't come from the mixer; with Pro you can type them.",
   },
 ];
 
-// In the public beta (TestFlight) now, coming to the App Store in a later update. The App Store 1.0 is the
-// XR18 and MR18 only, so nothing here may suggest the App Store version records these.
-export const inBeta: MixerEntry[] = [
-  {
-    name: "Behringer X32 and Midas M32",
-    href: "/mixers/x32",
-    body: "In the public beta: all 32 USB Channels from the X-USB card, names and colors from the mixer over Mixer Link, and each file named after what is patched to that USB Channel. Coming to the App Store in a later update.",
-  },
-];
+// The mixers in the public beta (TestFlight) only, not in the App Store version. Empty since the X32 and M32 reached
+// the App Store in 1.1.18 (no availability rule on MixerFamily or X32Driver in release/1.1); the features page
+// hides the heading while it is empty.
+export const inBeta: MixerEntry[] = [];
 
 // In the order they are being worked on.
 export const planned: MixerEntry[] = [
