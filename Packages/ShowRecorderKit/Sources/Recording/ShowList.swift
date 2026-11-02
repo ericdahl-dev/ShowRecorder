@@ -73,7 +73,8 @@ public enum ShowList {
         let fm = FileManager.default
         func names(in parent: URL?) -> [String] {
             guard let parent, let all = try? fm.contentsOfDirectory(atPath: parent.path) else { return [] }
-            return all.filter { !$0.hasPrefix(".") && (try? parent.appending(path: $0).resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+            // Only Show folders: a stray folder would list with no date, as Dec 31 of year 0 (#1021).
+            return all.filter { !$0.hasPrefix(".") && ShowDeleter.isShowFolder(parent.appending(path: $0, directoryHint: .isDirectory)) }
         }
         return Set(names(in: device) + names(in: drive)).map { name in
             let folder = device.appending(path: name, directoryHint: .isDirectory)
