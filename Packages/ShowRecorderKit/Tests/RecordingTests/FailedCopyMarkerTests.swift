@@ -4,6 +4,7 @@ import Destinations
 import Foundation
 @testable import Recording
 import TakeFile
+import Telemetry
 import Testing
 
 /// A Drive Copy whose write failed is marked in Take.json like one Stop gave up on, so the next time the Drive is seen,
@@ -35,6 +36,30 @@ struct FailedCopyMarkerTests {
         try await Task.sleep(for: .milliseconds(100))
         try await recorder.stopTake()
         await recorder.waitForRepair()
+    }
+
+    @Test("A Drive Copy whose write failed is reported as a drive_write failure, for crash reports (#1026)")
+    func failedDriveWriteIsReported() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
+        let drive = drive
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            makeStem: { url, info, resume in
+                let writer = try StemWriter.open(url: url, info: info, resumingAt: resume)
+                return url.path.hasPrefix(drive.path) ? FailingStem(writer, healthyFrames: 480) : writer
+            },
+            destinationCheckInterval: nil)
+        var reported: [TelemetryFailure] = []
+        recorder.reportFailure = { reported.append($0) }
+        let audio = FakeAudioDevice(inputChannelCount: 1)
+        try recorder.getReady(audio)
+        try recorder.startTake()
+        audio.deliver([Array(repeating: 0.25, count: 4_800)])
+        try await Task.sleep(for: .milliseconds(100))
+        try await recorder.stopTake()
+
+        #expect(reported.map(\.area) == [.driveWrite])
     }
 
     @Test("A Drive Copy whose write failed is marked in the Device's Take.json")
