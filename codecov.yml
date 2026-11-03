@@ -23,6 +23,10 @@ flags:
     carryforward: true
   app:
     carryforward: true
+# The direct calls into the Sentry and PostHog SDKs (#1026): no logic, and a test could only check them by sending a
+# real event. The sinks' logic around them is tested with fakes (TelemetrySinksTests); this one file is left out.
+ignore:
+  - "**/Sources/TelemetrySinks/SDKAdapters.swift"
 comment:
   layout: "diff, flags, files"
   require_changes: true
