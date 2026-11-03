@@ -115,6 +115,20 @@ struct TakeRepairTests {
         #expect(changes >= 3)
     }
 
+    @Test("A queued Repair that can't fill a Stem reports it on the main actor, for crash reports (#1026)")
+    func queuedRepairReportsFailure() async throws {
+        var reported: [TelemetryFailure] = []
+        let queue = TakeRepair(freeSpace: { _ in .max }, report: { reported.append($0) })
+        let folders = try folders("a", deviceFrames: 4800, driveFrames: 480)
+        try Data(repeating: 0xAB, count: 37).write(to: folders[.drive]!.appending(path: "01 USB 01.wav"))
+
+        queue.enqueue(metadata(take: 1, gaps: [driveGap]), folders: folders, holding: nil)
+        await queue.wait()
+        try await waitUntil { !reported.isEmpty }
+
+        #expect(reported.map(\.area) == [.repair])
+    }
+
     @Test("Only the latest Take's Repair sets the outcome, even when an earlier Take's finishes after the later one is queued")
     func latestTakeWins() async throws {
         let runner = Runner()
