@@ -5,13 +5,20 @@ export const metadata = pageMetadata(PAGES.privacy);
 
 # Privacy policy
 
-<p className="updated">Last updated: <time dateTime="2026-10-28">October 28, 2026</time></p>
+<p className="updated">Last updated: <time dateTime="2026-11-03">November 3, 2026</time></p>
 
-ShowRecorder is an app by Eric Dahl for recording your mixer's channels on iPhone and iPad. This page explains what it does with your information. In short: nothing leaves your device.
+ShowRecorder is an app by Eric Dahl for recording your mixer's channels on iPhone and iPad. This page explains what it does with your information. In short: your recordings never leave your devices unless you share them, and the App Store version sends nothing to the developer.
 
 ## What ShowRecorder collects
 
-Nothing. ShowRecorder has no accounts, no analytics, no advertising and no tracking, and it sends no data to the developer or to anyone else.
+The App Store version of ShowRecorder collects nothing. ShowRecorder has no accounts, no advertising and no tracking.
+
+Test versions (TestFlight) send crash reports and usage to the developer, so crashes can be found and fixed and the developer can see how the app is used at shows:
+
+- **Crash reports and errors** go to GlitchTip, run on the developer's own server: what went wrong, where in the app's code, the app version, and your device model and system version.
+- **Usage** goes to PostHog: the app was opened; a Take started or stopped, with its length, its number of channels, where it was recorded, the mixer's model family and any dropouts; a Show was created or deleted; a Drive was connected or lost; the Mixer Link connected; a Trial started; Pro was bought.
+
+Both are sent with a random ID made by the app when it is installed. It isn't linked to your name, your email or your Apple Account, and reinstalling the app makes a new one. ShowRecorder never sends your recordings, Show names, notes, channel names or file names. To stop it, turn off Settings › Share crash reports and usage: the app stops sending and deletes its ID. To have what was sent removed, email the developer.
 
 ## Your recordings
 
@@ -27,7 +34,7 @@ ShowRecorder can connect to your mixer on the local network to read its channel 
 
 ## This website
 
-The ShowRecorder app collects nothing. This website, showrecorder.app, counts visits with PostHog so the developer can see which pages are read and where visitors come from. The site sets no cookies and stores nothing in your browser or on your device, unless you open the chat (see below). To tell visits apart, PostHog turns your IP address and browser details into an anonymous hash that changes every day, and does not keep the address or the details. The IP address is dropped by our analytics provider, so it is not stored with any visit. The same person on two different days therefore looks like two visitors, and visits are not linked to an account or to the app. It records the page you open, the page or site that linked you here, and your browser and device type. It also counts clicks on a few links (Join the beta, the App Store, the comparison page and the email address) and on the chat buttons, and notes which page they were on. It does not record your screen, what you type or any other clicks. To have your visits removed, email the developer.
+This website, showrecorder.app, counts visits with PostHog so the developer can see which pages are read and where visitors come from. The site sets no cookies and stores nothing in your browser or on your device, unless you open the chat (see below). To tell visits apart, PostHog turns your IP address and browser details into an anonymous hash that changes every day, and does not keep the address or the details. The IP address is dropped by our analytics provider, so it is not stored with any visit. The same person on two different days therefore looks like two visitors, and visits are not linked to an account or to the app. It records the page you open, the page or site that linked you here, and your browser and device type. It also counts clicks on a few links (Join the beta, the App Store, the comparison page and the email address) and on the chat buttons, and notes which page they were on. It does not record your screen, what you type or any other clicks. If a page hits an error in your browser, the site sends the error, the page's address and your browser type to GlitchTip, run on the developer's own server, so it can be fixed. To have your visits removed, email the developer.
 
 ## Support chat
 

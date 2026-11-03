@@ -1,0 +1,21 @@
+# Crash reports and usage from the app
+
+Until now the app collected nothing: no analytics, no crash reporting, nothing sent to the developer. That kept the privacy story simple, but it left us blind. A tester's crash when deleting a Show (#1021) reached us only because they wrote in, and we couldn't reproduce it. Apple's own crash reports cover only people who opted in to share with developers, and they arrive a day or more late. Trial-to-Pro and how Takes actually go in the field (#540) can't be measured at all. This records what the app now sends, where, and the limits on it.
+
+**Crashes and errors go to GlitchTip** (`errors.ericdahl.dev`, project `showrecorder`), through the Sentry Cocoa SDK. A crash arrives with its stack trace. Failures the app catches on purpose are reported with an explicit capture at each branch: a Drive write failure, Repair, the move to the Drive, deleting a Show. An SDK only reports what escapes, and in this app every failure that matters is caught (the Show-Safe Promise). Screenshots, the view hierarchy, session replay, profiling, tracing and app-hang tracking stay off.
+
+**Usage goes to PostHog** (project Owned Sites, beside showrecorder.app's visits), tagged as the app. Events are keyed by an install ID: a random UUID the app makes on first launch and keeps in its settings, so a reinstall gets a new one. It is never tied to a name, an email, an Apple Account or a purchase. The events are a fixed list: app opened; Take started and stopped (length, channel count, Destinations, Mixer family, Dropouts, how it stopped); Show created and deleted; Drive connected and lost; Mixer Link connected; Trial started; Pro bought. Never sent: Show names, venues and notes, Channel names, Template names, audio, or file paths.
+
+**On by default, one switch to turn it off.** Settings › "Share crash reports and usage" stops both SDKs and deletes the install ID; turning it back on makes a new one. Nothing is used for tracking in Apple's sense (no linking with other companies' data, no ads), so there is no App Tracking Transparency prompt.
+
+**Never from the real-time audio path** (ADR 0002). The render callback and the Stem writers never call either SDK. Events come from the Take session and the UI, after the fact, off the audio thread.
+
+## Consequences
+
+- The privacy promise changes from "collects nothing" to a short, exact list. The privacy page, `App/PrivacyInfo.xcprivacy` (Crash Data, Performance Data, Other Diagnostic Data, Product Interaction, Device ID; none for tracking) and the App Store privacy label must all say the same thing. Eric enters the label in App Store Connect before the first App Store build that sends anything.
+- Two third-party SDKs join the app (sentry-cocoa and posthog-ios, both MIT). Their own network calls happen on their queues; neither may start work on the audio thread.
+- A Take recorded with the switch off sends nothing, including its crash. We accept the blind spot rather than collect without a way out.
+- The install ID lets us count returning installs and Trial-to-Pro per install. It can't follow a person across reinstalls or devices.
+- Website JavaScript errors go to GlitchTip as well (project `showrecorder-web`); the site's traffic counting is unchanged.
+- Offered in Debug and TestFlight builds first (`TelemetryAvailability`). Eric checks on a device that a test crash and the events arrive and that the switch stops them; moving it to everyone is its own PR, with the final privacy page and the label. It ships with 1.2, never on `release/1.1`.
+- Decided with Eric, 2026-11-03 (#1026).
