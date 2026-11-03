@@ -17,6 +17,12 @@ let package = Package(
         .library(name: "AutoGain", targets: ["AutoGain"]),
         .library(name: "WatchRemote", targets: ["WatchRemote"]),
         .library(name: "Telemetry", targets: ["Telemetry"]),
+        .library(name: "TelemetrySinks", targets: ["TelemetrySinks"]),
+    ],
+    // Only TelemetrySinks uses these (ADR 0007). Pinned exactly: a new SDK version is its own reviewed change.
+    dependencies: [
+        .package(url: "https://github.com/getsentry/sentry-cocoa", exact: "9.32.0"),
+        .package(url: "https://github.com/PostHog/posthog-ios", exact: "3.93.3"),
     ],
     targets: [
         // The audio I/O boundary and a fake device. No platform audio frameworks.
@@ -53,11 +59,18 @@ let package = Package(
         // handled failures, handed to sinks. No SDKs here; the app adds GlitchTip and PostHog as sinks. Never called
         // from the real-time audio path (ADR 0002).
         .target(name: "Telemetry"),
+        // The app's Telemetry sinks: crashes and handled failures to GlitchTip (Sentry SDK), usage to PostHog.
+        .target(name: "TelemetrySinks", dependencies: [
+            "Telemetry",
+            .product(name: "Sentry", package: "sentry-cocoa"),
+            .product(name: "PostHog", package: "posthog-ios"),
+        ]),
         .testTarget(name: "DestinationsTests", dependencies: ["Destinations"]),
         .testTarget(name: "TakeActivityTests", dependencies: ["TakeActivity"]),
         .testTarget(name: "AutoGainTests", dependencies: ["AutoGain"]),
         .testTarget(name: "WatchRemoteTests", dependencies: ["WatchRemote"]),
         .testTarget(name: "TelemetryTests", dependencies: ["Telemetry"]),
+        .testTarget(name: "TelemetrySinksTests", dependencies: ["TelemetrySinks", "Telemetry"]),
         .testTarget(name: "OSCTests", dependencies: ["OSC"]),
         .testTarget(name: "MixerLinkTests", dependencies: ["MixerLink", "OSC", "AutoGain"]),
         .testTarget(name: "AudioIOTests", dependencies: ["AudioIO"]),
