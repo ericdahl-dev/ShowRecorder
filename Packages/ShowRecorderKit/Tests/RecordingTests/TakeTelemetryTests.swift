@@ -15,4 +15,16 @@ struct TakeTelemetryTests {
         telemetry.handle(.takeStarted(take: 1), context: TakeContext(channelCount: 18, destinations: .both, mixerFamily: "xair"))
         #expect(sent == [.takeStarted(channelCount: 18, destinations: .both, mixerFamily: "xair")])
     }
+
+    @Test("A Take ending sends take_stopped with its length, its Dropouts and why it ended")
+    func takeStopped() {
+        var sent: [TelemetryEvent] = []
+        var now = Date(timeIntervalSince1970: 1_000)
+        let telemetry = TakeTelemetry(send: { sent.append($0) }, now: { now })
+        let context = TakeContext(channelCount: 18, destinations: .both, mixerFamily: "xair", dropouts: 2)
+        telemetry.handle(.takeStarted(take: 1), context: context)
+        now += 95
+        telemetry.handle(.takeEnded(TakeEnd(take: 1, reason: .outOfSpace)), context: context)
+        #expect(sent.last == .takeStopped(seconds: 95, channelCount: 18, dropouts: 2, cause: .outOfSpace))
+    }
 }
