@@ -24,3 +24,9 @@
 - Before a PR, `VERIFY_QUICK=1 ./scripts/verify.sh` must pass (spelling, vocabulary, package tests, the site); CI runs the macOS and iOS app builds. Run the full `./scripts/verify.sh` instead when the change touches `App/`, `project.yml` or `ShowRecorder.xcodeproj/` (quick mode compiles none of the app), or when CI fails (Eric, 2026-10-13: lean on CI).
 - Two heavy builds at a time on this Mac (one since 2026-10-13, two since 2026-10-15): `verify.sh`, `swift build`/`swift test` and `xcodebuild` share two build slots (the `scripts/bin` shims; see docs/DEVELOPING.md). `SHOWRECORDER_BUILD_SLOTS=1` goes back to one at a time, e.g. if timing tests flake under load (#646, #652). Run them as background tasks: a build waiting its turn can pass the 10-minute command timeout.
 - Simulators (since 2026-10-13): boot one only to run or screenshot the app, at most one device (or one iPhone and watch pair) at a time across all sessions. Shut it down, and delete any you created, as soon as you're done. Builds and tests never need one booted. Each booted Simulator adds hundreds of processes.
+
+## Links we post (Eric, 2026-11-03)
+
+- Every showrecorder.app link written for a post, reply, email or message is tagged, so PostHog (Owned Sites, filter `$host`) shows which one sent the visit: `https://showrecorder.app/mixers/x32?utm_source=facebook&utm_campaign=<group-or-post>`. Use `utm_source` for the place (facebook, reddit, email, forum) and `utm_campaign` for the post, short and lowercase.
+- End the link with a space or a line break, never a word or punctuation stuck to it. On 2026-10-28 a Facebook post ran the link into "Tell", and visitors got `/mixers/x32Tell`, a 404. nginx now redirects such mixer addresses (#1025), but no other page is covered.
+- An App Store link in a post gets App Store Connect campaign tags (`ct=`, `pt=`) instead, so its downloads are counted (#540).
