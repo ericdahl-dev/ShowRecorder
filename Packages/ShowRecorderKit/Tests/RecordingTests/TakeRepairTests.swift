@@ -3,6 +3,7 @@ import Destinations
 import Foundation
 import MixerLink
 @testable import Recording
+import Telemetry
 import Testing
 
 /// Repair on its own: no recorder, no recorded Takes.
@@ -452,5 +453,27 @@ struct TakeRepairTests {
         let filled = try StemWriter.readSamples(url: drive.appending(path: stems[1]), frames: 1_000..<2_000)
         #expect(filled == (1_000..<2_000).map { counting()($0, 0) }, "the second Stem is filled")
         #expect(repairs == [.init(copy: .drive, start: 1_000, end: 2_000, outcome: .failed)], "the torn Stem still fails the Gap")
+    }
+
+    @Test("A Stem Repair can't fill is reported as a repair failure, for crash reports (#1026)")
+    func unfillableStemIsReported() throws {
+        let stem = "01 USB 01.wav"
+        let info = StemWriter.Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: RecordingTakeTests.showDay)
+        let device = root.appending(path: "Device/Take 01")
+        let drive = root.appending(path: "Drive/Take 01")
+        for folder in [device, drive] { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
+        let writer = try StemWriter.open(url: device.appending(path: stem), info: info, resumingAt: nil)
+        try (0..<4_800).map { counting()($0, 0) }.withUnsafeBufferPointer { try writer.append($0) }
+        try writer.finalize()
+        try Data(repeating: 0xAB, count: 37).write(to: drive.appending(path: stem))
+        var reported: [TelemetryFailure] = []
+
+        _ = TakeRepair.fill(
+            copies: [.init(kind: .device, folder: device), .init(kind: .drive, folder: drive)],
+            metadata: metadata(take: 1, gaps: [.init(copy: .drive, start: 1_000, end: 2_000)]),
+            report: { reported.append($0) }
+        )
+
+        #expect(reported.map(\.area) == [.repair])
     }
 }
