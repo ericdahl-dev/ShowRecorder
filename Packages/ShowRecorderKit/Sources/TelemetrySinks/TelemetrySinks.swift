@@ -1,0 +1,153 @@
+import Foundation
+import PostHog
+import Sentry
+import Telemetry
+
+/// What `SentrySink` asks of the Sentry SDK. The real calls are `SentrySDKClient` in SDKAdapters.swift; tests use a
+/// fake, so they send nothing.
+@MainActor
+protocol ErrorReportingClient: AnyObject {
+    func start(environment: String)
+    func setUser(id: String)
+    func close()
+    func addBreadcrumb(category: String, message: String)
+    func captureMessage(_ message: String, tags: [String: String])
+}
+
+/// What `PostHogSink` asks of the PostHog SDK. The real calls are `PostHogSDKClient` in SDKAdapters.swift.
+@MainActor
+protocol AnalyticsClient: AnyObject {
+    func setup()
+    func optIn()
+    func optOut()
+    func capture(_ event: String, distinctId: String, properties: [String: Any])
+}
+
+/// Crashes and handled failures to GlitchTip (errors.ericdahl.dev, project showrecorder), through the Sentry SDK
+/// (ADR 0007). Only crashes and errors: no PII, no tracing, no app-hang tracking, no automatic breadcrumbs, no network
+/// tracking. The install ID is the user ID, so one install's crashes group together.
+@MainActor
+public final class SentrySink: TelemetrySink {
+    /// GlitchTip's public key for project showrecorder (12): it can only send events.
+    nonisolated static let dsn = "https://046141a3ff134035b0781c4ed1ca75b1@errors.ericdahl.dev/12"
+
+    private let environment: String
+    private let client: any ErrorReportingClient
+
+    /// `environment` is `TelemetryEnvironment.name(...)`: debug, testflight or appstore.
+    public convenience init(environment: String) {
+        self.init(environment: environment, client: SentrySDKClient())
+    }
+
+    init(environment: String, client: any ErrorReportingClient) {
+        self.environment = environment
+        self.client = client
+    }
+
+    nonisolated static func configure(_ options: Options, environment: String) {
+        options.dsn = dsn
+        options.environment = environment
+        options.sendDefaultPii = false
+        options.tracesSampleRate = 0
+        options.enableAppHangTracking = false
+        options.enableAutoBreadcrumbTracking = false
+        options.enableNetworkTracking = false
+        options.enableCaptureFailedRequests = false
+    }
+
+    public func start(installID: UUID) {
+        client.start(environment: environment)
+        client.setUser(id: installID.uuidString)
+    }
+
+    public func stop() {
+        client.close()
+    }
+
+    /// Usage events become breadcrumbs, so a crash shows what the app was doing just before.
+    public func capture(_ event: TelemetryEvent) {
+        client.addBreadcrumb(category: "usage", message: event.name)
+    }
+
+    public func capture(_ failure: TelemetryFailure) {
+        client.captureMessage(failure.summary, tags: [
+            "area": failure.area.rawValue,
+            "error_type": failure.errorType,
+            "error_domain": failure.domain,
+            "error_code": String(failure.code),
+        ])
+    }
+}
+
+/// Usage to PostHog, project Owned Sites (beside showrecorder.app's visits), tagged `app: showrecorder` (ADR 0007).
+/// Each event is sent with the install ID as its distinct ID; no person profiles, no automatic events, no feature
+/// flags, no session replay.
+@MainActor
+public final class PostHogSink: TelemetrySink {
+    /// Owned Sites' public project key, the same one showrecorder.app uses: it can only send events.
+    nonisolated static let projectToken = "phc_uzsUUTbN2k3EJVDvtTGBtrRgPmdWrRxzxbLZcsw7Vvm4"
+    nonisolated static let host = "https://us.i.posthog.com"
+
+    private let client: any AnalyticsClient
+    private var installID: String?
+    private var isSetUp = false
+
+    public convenience init() {
+        self.init(client: PostHogSDKClient())
+    }
+
+    init(client: any AnalyticsClient) {
+        self.client = client
+    }
+
+    nonisolated static func configure(_ config: PostHogConfig) {
+        config.personProfiles = .never
+        config.captureApplicationLifecycleEvents = false
+        config.captureScreenViews = false
+        config.preloadFeatureFlags = false
+        config.sendFeatureFlagEvent = false
+    }
+
+    nonisolated static func properties(for event: TelemetryEvent) -> [String: Any] {
+        var properties: [String: Any] = ["app": "showrecorder"]
+        for (key, value) in event.properties {
+            switch value {
+            case let .int(number): properties[key] = number
+            case let .string(text): properties[key] = text
+            case let .bool(flag): properties[key] = flag
+            }
+        }
+        return properties
+    }
+
+    public func start(installID: UUID) {
+        self.installID = installID.uuidString
+        if isSetUp {
+            client.optIn()
+        } else {
+            client.setup()
+            isSetUp = true
+        }
+    }
+
+    public func stop() {
+        client.optOut()
+        installID = nil
+    }
+
+    public func capture(_ event: TelemetryEvent) {
+        guard let installID else { return }
+        client.capture(event.name, distinctId: installID, properties: Self.properties(for: event))
+    }
+
+    /// Handled failures go to GlitchTip only.
+    public func capture(_ failure: TelemetryFailure) {}
+}
+
+/// The environment name both sinks tag their events with.
+public enum TelemetryEnvironment {
+    public static func name(isDebugBuild: Bool, isTestFlight: Bool) -> String {
+        if isDebugBuild { return "debug" }
+        return isTestFlight ? "testflight" : "appstore"
+    }
+}

@@ -48,6 +48,11 @@ targets:
         product: TakeActivity
       - package: ShowRecorderKit
         product: WatchRemote
+      # Crash reports and usage (ADR 0007, #1026).
+      - package: ShowRecorderKit
+        product: Telemetry
+      - package: ShowRecorderKit
+        product: TelemetrySinks
       # The Live Activity (#136): iPhone only, so the Mac app embeds no extension and needs no profile for it.
       - target: ShowRecorderLiveActivity
         destinationFilters: [iOS]
