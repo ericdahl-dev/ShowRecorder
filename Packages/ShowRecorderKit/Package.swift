@@ -16,6 +16,7 @@ let package = Package(
         .library(name: "TakeActivity", targets: ["TakeActivity"]),
         .library(name: "AutoGain", targets: ["AutoGain"]),
         .library(name: "WatchRemote", targets: ["WatchRemote"]),
+        .library(name: "Telemetry", targets: ["Telemetry"]),
     ],
     targets: [
         // The audio I/O boundary and a fake device. No platform audio frameworks.
@@ -48,10 +49,15 @@ let package = Package(
         // The Apple Watch remote (#100): what the watch shows and the three commands it sends, and how each side
         // handles them. Pure logic, no WatchConnectivity, so the iPhone app and the watch app share it.
         .target(name: "WatchRemote"),
+        // Crash reports and usage (ADR 0007, #1026): the sharing switch, the install ID, the fixed list of events and
+        // handled failures, handed to sinks. No SDKs here; the app adds GlitchTip and PostHog as sinks. Never called
+        // from the real-time audio path (ADR 0002).
+        .target(name: "Telemetry"),
         .testTarget(name: "DestinationsTests", dependencies: ["Destinations"]),
         .testTarget(name: "TakeActivityTests", dependencies: ["TakeActivity"]),
         .testTarget(name: "AutoGainTests", dependencies: ["AutoGain"]),
         .testTarget(name: "WatchRemoteTests", dependencies: ["WatchRemote"]),
+        .testTarget(name: "TelemetryTests", dependencies: ["Telemetry"]),
         .testTarget(name: "OSCTests", dependencies: ["OSC"]),
         .testTarget(name: "MixerLinkTests", dependencies: ["MixerLink", "OSC", "AutoGain"]),
         .testTarget(name: "AudioIOTests", dependencies: ["AudioIO"]),
