@@ -68,6 +68,8 @@ struct ShowRecorderApp: App {
         WindowGroup {
             RecordScreen(model: model)
                 .modifier(AppearanceRoot(mode: model.appearance))
+                // Crash reports and usage (ADR 0007): once per run.
+                .task { await AppTelemetry.launch() }
                 .onAppear {
                     QuitGuard.model = model
                     // `-screenshotWindow` (Debug only): a 1280 x 800 window, title bar included, which captures at
@@ -89,6 +91,8 @@ struct ShowRecorderApp: App {
         WindowGroup {
             RecordScreen(model: model)
                 .modifier(AppearanceRoot(mode: model.appearance))
+                // Crash reports and usage (ADR 0007): once per run.
+                .task { await AppTelemetry.launch() }
         }
         #endif
     }

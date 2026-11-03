@@ -46,6 +46,8 @@
 		7F1555A334A37A41677E5B47 /* TakeActivity in Frameworks */ = {isa = PBXBuildFile; productRef = 4DDAD2337FDDC304B0F1E946 /* TakeActivity */; };
 		86D02F5B48C3A86B008A219F /* TrialNoteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9258491DEF2285144B77ED93 /* TrialNoteTests.swift */; };
 		876AC19AE21C45AFA7E6C512 /* SupportSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74ACE7E232B13FE02C923373 /* SupportSection.swift */; };
+		BA8BFF0914F9A9605251266C /* TelemetrySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9CF7B82A3E93D337B3AC74B /* TelemetrySection.swift */; };
+		135A7907C63B8886260FE840 /* AppTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF191012370D6D9CC7A0FF22 /* AppTelemetry.swift */; };
 		992430B53737588E241A07B2 /* RecordScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84AAAF44EF0038E4AFC2D899 /* RecordScreen.swift */; };
 		9FD36E125AA2BC7EE8AAEAD5 /* MonitorExperiment.swift in Sources */ = {isa = PBXBuildFile; fileRef = D942D124B2BCC55DD0044462 /* MonitorExperiment.swift */; };
 		A159D220EC3F72CD05142F7A /* LaunchFlag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 625D1286301830679767FD67 /* LaunchFlag.swift */; };
@@ -69,6 +71,8 @@
 		D21BC5FCF582EFFE9FB1139F /* ShowRecorderWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4BD6DB3A3F8D99EBA48DB48 /* ShowRecorderWatchApp.swift */; };
 		DA46657B1E3BAA150CD1F749 /* SupportMailTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3D98E5C83E528C4AEB5B355 /* SupportMailTests.swift */; };
 		DE5FD4B161A06DAE42652163 /* WatchRemote in Frameworks */ = {isa = PBXBuildFile; productRef = BBE7703958E4B165D4C0B1E7 /* WatchRemote */; };
+		E8B185D8D368C25946EB9781 /* TelemetrySinks in Frameworks */ = {isa = PBXBuildFile; productRef = A338FE70FFA909F80737DA91 /* TelemetrySinks */; };
+		C0F85FB1CB17F667F63642CE /* Telemetry in Frameworks */ = {isa = PBXBuildFile; productRef = C43B1E7B06EBACC3DB050530 /* Telemetry */; };
 		E1A7E2310CDCF098C85053B3 /* TakeActivity in Frameworks */ = {isa = PBXBuildFile; productRef = 47B54BB211AC8DBB5B2896CB /* TakeActivity */; };
 		E81A70130E30A8E156EDA841 /* AudioIO in Frameworks */ = {isa = PBXBuildFile; productRef = 06DFC4C4263644F94AB1BE1B /* AudioIO */; };
 		E8ED4177702282C467A8AC09 /* SoundcheckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D7ADCDE507077F908B89E77 /* SoundcheckView.swift */; };
@@ -158,6 +162,8 @@
 		73AD2B8943A74372332C3D8E /* DriveSpeedTestModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveSpeedTestModel.swift; sourceTree = "<group>"; };
 		7433F0C38BA17BE5139E5326 /* ShowRecorderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowRecorderApp.swift; sourceTree = "<group>"; };
 		74ACE7E232B13FE02C923373 /* SupportSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportSection.swift; sourceTree = "<group>"; };
+		A9CF7B82A3E93D337B3AC74B /* TelemetrySection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetrySection.swift; sourceTree = "<group>"; };
+		DF191012370D6D9CC7A0FF22 /* AppTelemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTelemetry.swift; sourceTree = "<group>"; };
 		7D19A6F0E786B644500ED381 /* ThisHardware.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThisHardware.swift; sourceTree = "<group>"; };
 		803373069C5B52C0B8A79AD8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		848566071F05B3D655086E7A /* ShowRecorder.storekit */ = {isa = PBXFileReference; path = ShowRecorder.storekit; sourceTree = "<group>"; };
@@ -229,6 +235,8 @@
 				CFC9F8D3194115954ABE8B0D /* Destinations in Frameworks */,
 				E1A7E2310CDCF098C85053B3 /* TakeActivity in Frameworks */,
 				DE5FD4B161A06DAE42652163 /* WatchRemote in Frameworks */,
+				E8B185D8D368C25946EB9781 /* TelemetrySinks in Frameworks */,
+				C0F85FB1CB17F667F63642CE /* Telemetry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -314,6 +322,8 @@
 				3F25297D625A2C059541D858 /* StatusStrip.swift */,
 				E951F97A3A234FFB9E4215B5 /* SupportMail.swift */,
 				74ACE7E232B13FE02C923373 /* SupportSection.swift */,
+				A9CF7B82A3E93D337B3AC74B /* TelemetrySection.swift */,
+				DF191012370D6D9CC7A0FF22 /* AppTelemetry.swift */,
 				95E36C84780061B781FBBE4D /* TakeLiveActivity.swift */,
 				7D19A6F0E786B644500ED381 /* ThisHardware.swift */,
 				DDDF413BFBEF5212621189D4 /* TrialSheet.swift */,
@@ -413,6 +423,8 @@
 				2A213300C93BF0054D83D85D /* Destinations */,
 				47B54BB211AC8DBB5B2896CB /* TakeActivity */,
 				BBE7703958E4B165D4C0B1E7 /* WatchRemote */,
+				A338FE70FFA909F80737DA91 /* TelemetrySinks */,
+				C43B1E7B06EBACC3DB050530 /* Telemetry */,
 			);
 			productName = ShowRecorder;
 			productReference = DBBDC7B3AA4C8B14B57747DD /* ShowRecorder.app */;
@@ -597,6 +609,8 @@
 				75CA30F76EAD77FB29C41E7C /* StatusStrip.swift in Sources */,
 				5D5D12F59403A4A68536795A /* SupportMail.swift in Sources */,
 				876AC19AE21C45AFA7E6C512 /* SupportSection.swift in Sources */,
+				BA8BFF0914F9A9605251266C /* TelemetrySection.swift in Sources */,
+				135A7907C63B8886260FE840 /* AppTelemetry.swift in Sources */,
 				1339BC14126FF5CDF750BC20 /* TakeLiveActivity.swift in Sources */,
 				3930FE44AD5ADF645A034892 /* ThisHardware.swift in Sources */,
 				07FB0DD2A97E806B1CB409A1 /* TrialSheet.swift in Sources */,
@@ -1013,6 +1027,14 @@
 		BBE7703958E4B165D4C0B1E7 /* WatchRemote */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WatchRemote;
+		};
+		A338FE70FFA909F80737DA91 /* TelemetrySinks */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TelemetrySinks;
+		};
+		C43B1E7B06EBACC3DB050530 /* Telemetry */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Telemetry;
 		};
 		E4B425D454C0ADEC5187ABCF /* Recording */ = {
 			isa = XCSwiftPackageProductDependency;
