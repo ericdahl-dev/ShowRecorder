@@ -1,5 +1,6 @@
 import Destinations
 import Foundation
+import Telemetry
 
 /// Deletes a whole Show's folder from the Copies the operator chose. Permanent: there is no Trash.
 ///
@@ -9,6 +10,9 @@ public enum ShowDeleter {
     public struct Failure: Equatable, Sendable {
         public var copy: DestinationKind
         public var reason: String
+        /// For crash reports (ADR 0007): set when the file system refused the delete, nil for a refusal of ours
+        /// (an open Show, a name that isn't a Show). Never holds the Show's name or path (#1021).
+        public var telemetry: TelemetryFailure? = nil
     }
 
     public struct Outcome: Equatable, Sendable {
@@ -42,7 +46,7 @@ public enum ShowDeleter {
                 try FileManager.default.removeItem(at: folder)
                 deleted.append(kind)
             } catch {
-                failed.append(Failure(copy: kind, reason: error.localizedDescription))
+                failed.append(Failure(copy: kind, reason: error.localizedDescription, telemetry: TelemetryFailure(area: .deleteShow, error: error)))
             }
         }
         return Outcome(deleted: deleted, failed: failed)
