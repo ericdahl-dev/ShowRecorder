@@ -14,6 +14,16 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.2.1",
+    date: "2026-11-03",
+    channel: "TestFlight beta",
+    summary: "TestFlight builds also report each Take and the problems the app catches without crashing.",
+    changes: [
+      "Usage now includes when a Take starts and ends: its number of channels, where it records, the mixer family, its length, any Dropouts and why it ended.",
+      "A Drive that stops writing during a Take, a Stem Repair can't fill and a Show the iPhone refuses to delete are reported, without Show names or file names.",
+    ],
+  },
+  {
     version: "1.2.0",
     date: "2026-11-03",
     channel: "TestFlight beta",
