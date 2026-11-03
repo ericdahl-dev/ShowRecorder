@@ -1,6 +1,7 @@
 import BroadcastWave
 import Destinations
 import Foundation
+import Telemetry
 
 /// Repair (#14): after a Take ends, fills each Copy's Gaps from the other Copy. Takes are repaired one at a
 /// time in the order they ended, and the latest Take's Copy outcomes are published. `Recorder` publishes
@@ -278,8 +279,10 @@ final class TakeRepair {
     /// and get no entry: they stay as they were, with their Gaps.
     /// - Parameter shouldStop: asked between pieces of each Stem; a stopped Stem's Gaps are reported failed, so a caller
     ///   that stopped it leaves them unrecorded for a later Repair (#630).
+    /// - Parameter report: told of each Stem that couldn't be filled, for crash reports (ADR 0007, #1026).
     nonisolated static func fill(
-        copies: [Copy], metadata: TakeMetadata, skip: Set<DestinationKind> = [], shouldStop: () -> Bool = { false }
+        copies: [Copy], metadata: TakeMetadata, skip: Set<DestinationKind> = [], shouldStop: () -> Bool = { false },
+        report: (TelemetryFailure) -> Void = { _ in }
     ) -> [TakeMetadata.Repair] {
         let stems = metadata.usbChannels.map(\.stemFile)
         let length = length(copies: copies, metadata: metadata)
@@ -320,6 +323,7 @@ final class TakeRepair {
                         break
                     } catch {
                         copied = false
+                        report(TelemetryFailure(area: .repair, error: error))
                     }
                 }
             }
