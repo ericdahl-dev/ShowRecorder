@@ -47,7 +47,8 @@ struct FailedCopyMarkerTests {
             deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
             makeStem: { url, info, resume in
                 let writer = try StemWriter.open(url: url, info: info, resumingAt: resume)
-                return url.path.hasPrefix(drive.path) ? FailingStem(writer, healthyFrames: 480) : writer
+                return url.path.hasPrefix(drive.resolvingSymlinksInPath().path) || url.path.hasPrefix(drive.path)
+                    ? FailingStem(writer, healthyFrames: 480) : writer
             },
             destinationCheckInterval: nil)
         var reported: [TelemetryFailure] = []
@@ -55,8 +56,10 @@ struct FailedCopyMarkerTests {
         let audio = FakeAudioDevice(inputChannelCount: 1)
         try recorder.getReady(audio)
         try recorder.startTake()
-        audio.deliver([Array(repeating: 0.25, count: 4_800)])
-        try await Task.sleep(for: .milliseconds(100))
+        // A write failure mid-Take, as in GapTests: blocks, then the Drive's writer gives up.
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
+        try await waitUntil { !reported.isEmpty }
         try await recorder.stopTake()
 
         #expect(reported.map(\.area) == [.driveWrite])
