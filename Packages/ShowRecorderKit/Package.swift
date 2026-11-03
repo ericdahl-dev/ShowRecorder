@@ -30,7 +30,7 @@ let package = Package(
         // Broadcast WAV Stem files.
         .target(name: "BroadcastWave"),
         // The recorder: Ready state, meters, Shows and Takes. No platform audio frameworks.
-        .target(name: "Recording", dependencies: ["AudioIO", "BroadcastWave", "MixerLink", "ShowReport", "ProjectExport", "Destinations", "TakeFile", "AutoGain", "WatchRemote"]),
+        .target(name: "Recording", dependencies: ["AudioIO", "BroadcastWave", "MixerLink", "ShowReport", "ProjectExport", "Destinations", "TakeFile", "AutoGain", "WatchRemote", "Telemetry"]),
         // A Take's Take.json: what was recorded, its Markers, Gaps, Dropouts and Repairs. Written by Recording,
         // read by Recording and the Show report.
         .target(name: "TakeFile", dependencies: ["Destinations"]),
@@ -74,7 +74,7 @@ let package = Package(
         .testTarget(name: "OSCTests", dependencies: ["OSC"]),
         .testTarget(name: "MixerLinkTests", dependencies: ["MixerLink", "OSC", "AutoGain"]),
         .testTarget(name: "AudioIOTests", dependencies: ["AudioIO"]),
-        .testTarget(name: "RecordingTests", dependencies: ["Recording", "AudioIO", "MixerLink", "Destinations", "AutoGain", "WatchRemote"]),
+        .testTarget(name: "RecordingTests", dependencies: ["Recording", "AudioIO", "MixerLink", "Destinations", "AutoGain", "WatchRemote", "Telemetry"]),
         .testTarget(name: "BroadcastWaveTests", dependencies: ["BroadcastWave"]),
         .testTarget(name: "ShowReportTests", dependencies: ["ShowReport", "Recording", "AudioIO", "MixerLink", "BroadcastWave", "ProjectExport"]),
         .testTarget(name: "ProjectExportTests", dependencies: ["ProjectExport", "Recording", "AudioIO", "MixerLink"]),

@@ -122,7 +122,7 @@ struct TelemetryEventTests {
         let events: [(TelemetryEvent, String)] = [
             (.appOpened, "app_opened"),
             (.takeStarted(channelCount: 18, destinations: .both, mixerFamily: "xair"), "take_started"),
-            (.takeStopped(seconds: 60, channelCount: 18, dropouts: 0, cause: .operatorStop), "take_stopped"),
+            (.takeStopped(seconds: 60, channelCount: 18, dropouts: 0, cause: .stopped), "take_stopped"),
             (.showCreated, "show_created"),
             (.showDeleted, "show_deleted"),
             (.driveConnected, "drive_connected"),
@@ -143,9 +143,9 @@ struct TelemetryEventTests {
         let noMixer = TelemetryEvent.takeStarted(channelCount: 2, destinations: .device, mixerFamily: nil)
         #expect(noMixer.properties["mixer_family"] == nil)
 
-        let stopped = TelemetryEvent.takeStopped(seconds: 3600, channelCount: 18, dropouts: 2, cause: .watch)
+        let stopped = TelemetryEvent.takeStopped(seconds: 3600, channelCount: 18, dropouts: 2, cause: .outOfSpace)
         #expect(stopped.properties == [
-            "seconds": .int(3600), "channel_count": .int(18), "dropouts": .int(2), "cause": .string("watch"),
+            "seconds": .int(3600), "channel_count": .int(18), "dropouts": .int(2), "cause": .string("out_of_space"),
         ])
     }
 

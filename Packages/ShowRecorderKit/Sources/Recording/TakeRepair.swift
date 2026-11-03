@@ -1,6 +1,7 @@
 import BroadcastWave
 import Destinations
 import Foundation
+import Telemetry
 
 /// Repair (#14): after a Take ends, fills each Copy's Gaps from the other Copy. Takes are repaired one at a
 /// time in the order they ended, and the latest Take's Copy outcomes are published. `Recorder` publishes
@@ -35,12 +36,18 @@ final class TakeRepair {
     ///   - freeSpace: free bytes on a Destination, read when a Take is enqueued.
     ///   - run: does the Repair; replaced in tests.
     ///   - writeAbandoned: writes `Take.json` to a Copy Stop gave up on, off the main thread; replaced in tests.
+    ///   - report: told, on the main actor, of each Stem the default Repair couldn't fill (ADR 0007, #1026).
     init(
-        freeSpace: @escaping (URL) -> Int64, run: @escaping Run = { TakeRepair.fill(copies: $0, metadata: $1, skip: $2) },
-        writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) }
+        freeSpace: @escaping (URL) -> Int64, run: Run? = nil,
+        writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) },
+        report: @escaping @MainActor (TelemetryFailure) -> Void = { _ in }
     ) {
         self.freeSpace = freeSpace
-        self.run = run
+        self.run = run ?? { copies, metadata, skip in
+            TakeRepair.fill(copies: copies, metadata: metadata, skip: skip, report: { failure in
+                Task { @MainActor in report(failure) }
+            })
+        }
         self.writeAbandoned = writeAbandoned
     }
 
@@ -278,8 +285,10 @@ final class TakeRepair {
     /// and get no entry: they stay as they were, with their Gaps.
     /// - Parameter shouldStop: asked between pieces of each Stem; a stopped Stem's Gaps are reported failed, so a caller
     ///   that stopped it leaves them unrecorded for a later Repair (#630).
+    /// - Parameter report: told of each Stem that couldn't be filled, for crash reports (ADR 0007, #1026).
     nonisolated static func fill(
-        copies: [Copy], metadata: TakeMetadata, skip: Set<DestinationKind> = [], shouldStop: () -> Bool = { false }
+        copies: [Copy], metadata: TakeMetadata, skip: Set<DestinationKind> = [], shouldStop: () -> Bool = { false },
+        report: (TelemetryFailure) -> Void = { _ in }
     ) -> [TakeMetadata.Repair] {
         let stems = metadata.usbChannels.map(\.stemFile)
         let length = length(copies: copies, metadata: metadata)
@@ -320,6 +329,7 @@ final class TakeRepair {
                         break
                     } catch {
                         copied = false
+                        report(TelemetryFailure(area: .repair, error: error))
                     }
                 }
             }

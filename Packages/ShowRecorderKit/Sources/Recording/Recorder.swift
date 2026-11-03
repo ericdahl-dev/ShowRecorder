@@ -6,6 +6,7 @@ import MixerLink
 import Observation
 import ShowReport
 import Synchronization
+import Telemetry
 
 /// The recorder. While Ready it receives audio from a device and keeps meters for every USB Channel.
 /// While recording it writes a Take: one Stem per USB Channel in the open Show.
@@ -50,6 +51,13 @@ public final class Recorder {
     /// change), once `lastTakeEnd` says so. One listener, the `TakeSequencer`, so it stays inside the module;
     /// others follow Take ends through the sequencer's events.
     @ObservationIgnored var onTakeEnded: (TakeEnd) -> Void = { _ in }
+    /// Told of a failure the recorder caught on purpose, for crash reports (ADR 0007, #1026). Main actor only.
+    public var reportFailure: (TelemetryFailure) -> Void {
+        get { failureReporter.handler }
+        set { failureReporter.handler = newValue }
+    }
+    /// Holds `reportFailure`, so Repair, made in `init`, can call it without capturing `self` there.
+    @ObservationIgnored private let failureReporter: FailureReporter
     /// How each Copy of the last Take ended up: complete, has Gaps, Repaired or Repair failed.
     private(set) var lastTakeOutcomes: [DestinationKind: CopyOutcome] = [:]
     /// How many USB Channels the last Take recorded and how many carried signal (#62: Free's limit, felt).
@@ -240,7 +248,9 @@ public final class Recorder {
         naming = ChannelNaming(saved: SavedChannelNames.load(from: savedNames))
         self.freeSpace = freeSpace
         self.preRollSeconds = preRollSeconds
-        repair = TakeRepair(freeSpace: freeSpace, writeAbandoned: writeAbandoned)
+        let reporter = FailureReporter()
+        failureReporter = reporter
+        repair = TakeRepair(freeSpace: freeSpace, writeAbandoned: writeAbandoned, report: { reporter.handler($0) })
         self.makeStem = makeStem
         self.deviceFolder = deviceFolder
         self.driveFolder = driveFolder
@@ -791,7 +801,7 @@ public final class Recorder {
     ) {
         driveNotice = onScreen
         let (show, session, takeFolders) = opened
-        session.onCopyFailed = { [weak self, weak session] in Task { @MainActor in await self?.copyFailed(in: session) } }
+        session.onCopyFailed = { [weak self, weak session] kind, error in Task { @MainActor in await self?.copyFailed(in: session, kind: kind, error: error) } }
         session.stopTimeout = writerStopTimeout
         session.stageTakeJson = stageTakeJson
         session.driveStallLimit = driveStallLimit
@@ -1309,9 +1319,11 @@ public final class Recorder {
         refreshMarkers(from: session.metadata)
     }
 
-    /// A Copy's writer failed. Once every Copy has, there's nowhere left to record: end the Take.
-    private func copyFailed(in failed: TakeSession?) async {
-        guard isRecording, let session, session === failed, session.allFailed else { return }
+    /// A Copy's writer failed: a Drive's is reported (#1026). Once every Copy has, there's nowhere left to record: end the Take.
+    private func copyFailed(in failed: TakeSession?, kind: DestinationKind, error: any Error) async {
+        guard let session, session === failed else { return }
+        if kind == .drive { reportFailure(TelemetryFailure(area: .driveWrite, error: error)) }
+        guard isRecording, session.allFailed else { return }
         try? await stopTake(because: .noDestination)
     }
 
@@ -1891,4 +1903,10 @@ public struct MarkerEntry: Equatable, Identifiable, Sendable {
 
     /// A Dropout Marker: audio was lost here.
     public var isDropout: Bool { kind == .dropout }
+}
+
+/// Where `Recorder.reportFailure` lives (#1026).
+@MainActor
+final class FailureReporter {
+    var handler: (TelemetryFailure) -> Void = { _ in }
 }
