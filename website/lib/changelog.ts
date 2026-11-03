@@ -14,6 +14,17 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.2.0",
+    date: "2026-11-03",
+    channel: "TestFlight beta",
+    summary: "The first 1.2 test build: crash reports and usage from TestFlight builds, with a switch to turn them off.",
+    changes: [
+      "TestFlight builds send crash reports and a short list of usage events to the developer, with a random ID for each install. Never your recordings, Show names, notes, channel names or file names. Settings › Share crash reports and usage turns it off. The App Store version sends nothing.",
+      "Folders in the Shows folder that aren't Shows are no longer listed as a Show.",
+      "Finding the mixer is quicker: once one of its ports answers, the app stops waiting for the other one.",
+    ],
+  },
+  {
     version: "1.1.18",
     date: "2026-10-31",
     channel: "App Store",
