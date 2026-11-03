@@ -65,6 +65,17 @@ export function clickTrackingScript(): string {
 }, true);`;
 }
 
+// The 404 page (app/not-found.tsx) carries this attribute. On it, the init script sends page_not_found with the
+// missing address and the page or site that linked to it ("$direct" if none), so broken links are easy to filter
+// and alert on. The pageview records the same two things; the privacy page covers them.
+export const NOT_FOUND_ATTR = "data-not-found";
+
+export function notFoundScript(): string {
+  return `if (window.posthog && document.querySelector("[${NOT_FOUND_ATTR}]")) {
+  try { window.posthog.capture("page_not_found", { path: window.location.pathname, referrer: document.referrer || "$direct" }); } catch (err) {}
+}`;
+}
+
 // PostHog's standard loader snippet, then init. Rendered by app/layout.tsx with next/script.
 const LOADER = '!function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]);t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com"),p.src+="/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString()+" (stub)"},n="capture identify alias on off once set_config people.set people.set_once unset increment append union track_links track_forms track_pageview register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags addEarlyAccessFeatureCallback updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys getNextSurveyStep".split(" "),o=0;o<n.length;o++)g(u,n[o]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);';
 
@@ -87,5 +98,5 @@ export function internalGuard(load: string): string {
 }
 
 export function posthogInitScript(): string {
-  return internalGuard(`${LOADER}\nposthog.init(${JSON.stringify(POSTHOG_KEY)}, ${JSON.stringify(POSTHOG_OPTIONS)});\n${clickTrackingScript()}`);
+  return internalGuard(`${LOADER}\nposthog.init(${JSON.stringify(POSTHOG_KEY)}, ${JSON.stringify(POSTHOG_OPTIONS)});\n${notFoundScript()}\n${clickTrackingScript()}`);
 }
