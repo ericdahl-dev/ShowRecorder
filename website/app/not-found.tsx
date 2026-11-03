@@ -30,7 +30,8 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <section className="wrap not-found">
+    // data-not-found: the analytics init script sends page_not_found here (lib/analytics.ts).
+    <section className="wrap not-found" data-not-found="">
       <h1>Page not found</h1>
       <p>There is no page at this address.</p>
       <p>

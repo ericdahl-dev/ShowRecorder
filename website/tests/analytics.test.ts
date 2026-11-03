@@ -5,9 +5,11 @@ import {
   POSTHOG_ASSETS_HOST,
   POSTHOG_HOST,
   POSTHOG_OPTIONS,
+  NOT_FOUND_ATTR,
   TRACK_EVENTS,
   clickTrackingScript,
   internalGuard,
+  notFoundScript,
   posthogInitScript,
   trackAttrs,
 } from "@/lib/analytics";
@@ -161,5 +163,46 @@ describe("named click events", () => {
       const mailto = read(...file).split("\n").filter((l) => l.includes("mailto:"));
       for (const line of mailto) expect(line).toMatch(/contact_email_clicked/);
     }
+  });
+});
+
+describe("page_not_found", () => {
+  // Runs the 404 check in a fake page and returns what posthog.capture received.
+  function visit(opts: { notFound: boolean; pathname: string; referrer: string; withPosthog?: boolean }) {
+    const captured: [string, Record<string, string>][] = [];
+    const window = {
+      location: { pathname: opts.pathname },
+      posthog: opts.withPosthog === false ? undefined : { capture: (n: string, p: Record<string, string>) => void captured.push([n, p]) },
+    };
+    const document = {
+      referrer: opts.referrer,
+      querySelector: (sel: string) => (opts.notFound && sel === `[${NOT_FOUND_ATTR}]` ? {} : null),
+    };
+    new Function("window", "document", notFoundScript())(window, document);
+    return captured;
+  }
+
+  it("sends the missing address and the page or site that linked to it", () => {
+    expect(visit({ notFound: true, pathname: "/mixers/x32Tell", referrer: "https://www.facebook.com/" })).toEqual([
+      ["page_not_found", { path: "/mixers/x32Tell", referrer: "https://www.facebook.com/" }],
+    ]);
+  });
+
+  it("says $direct when nothing linked to it", () => {
+    expect(visit({ notFound: true, pathname: "/nope", referrer: "" })).toEqual([["page_not_found", { path: "/nope", referrer: "$direct" }]]);
+  });
+
+  it("sends nothing on a real page or without PostHog", () => {
+    expect(visit({ notFound: false, pathname: "/docs", referrer: "" })).toEqual([]);
+    expect(visit({ notFound: true, pathname: "/nope", referrer: "", withPosthog: false })).toEqual([]);
+  });
+
+  it("runs after PostHog starts, behind the owner's guard", () => {
+    const script = posthogInitScript();
+    expect(script.indexOf(notFoundScript())).toBeGreaterThan(script.indexOf("posthog.init("));
+  });
+
+  it("is marked on the 404 page", () => {
+    expect(readFileSync(path.join(ROOT, "app", "not-found.tsx"), "utf8")).toContain(`${NOT_FOUND_ATTR}=""`);
   });
 });
