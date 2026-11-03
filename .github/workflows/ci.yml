@@ -239,6 +239,10 @@ jobs:
       - name: Docker image
         run: docker build -t showrecorder-site:ci .
 
+      # Runs nginx.conf in that nginx image: the redirects (mixer typos, trailing slashes) and that none leaves the site.
+      - name: nginx redirects
+        run: bash tests/nginx-redirects.sh
+
   # The required check. It passes when every job that ran passed; skipped jobs are fine.
   # `!cancelled()`, not `always()` (#983): a run that concurrency cancels ends this job as `cancelled` at once. With
   # `always()` it still ran, saw its canceled needs and failed a few seconds later, and that failure could land after

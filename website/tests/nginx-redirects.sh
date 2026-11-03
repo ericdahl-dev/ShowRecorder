@@ -8,6 +8,13 @@ root="$(mktemp -d)"
 echo privacy >"$root/privacy.html"
 echo missing >"$root/404.html"
 echo home >"$root/index.html"
+mkdir "$root/mixers"
+echo x32 >"$root/mixers/x32.html"
+echo xr18 >"$root/mixers/xr18.html"
+echo later >"$root/mixers/x32-later.html"
+# mktemp -d is 0700: on Linux (CI) nginx's worker user can't read it and every page 404s. Docker Desktop on a
+# Mac hid this.
+chmod -R a+rX "$root"
 name="showrecorder-nginx-test-$$"
 trap 'docker rm -f "$name" >/dev/null 2>&1 || true; rm -r "$root"' EXIT
 docker run -d --name "$name" -p 127.0.0.1::80 \
@@ -36,4 +43,14 @@ check '/%5Cexample.com/' 404 ''
 check '/%5C%5Cexample.com/' 404 ''
 check '//example.com/' 301 '/example.com'
 check '/%09/example.com/' 404 ''
+# A mixer page address with something stuck on the end goes to that mixer's page; real pages win.
+check '/mixers/x32' 200 ''
+check '/mixers/x32Tell' 301 '/mixers/x32'
+check '/mixers/X32' 301 '/mixers/x32'
+check '/mixers/x32).' 301 '/mixers/x32'
+check '/mixers/xr18Tell?ref=fb' 301 '/mixers/xr18?ref=fb'
+check '/mixers/x32-later' 200 ''
+check '/mixers/x32/' 301 '/mixers/x32'
+check '/mixers/wing' 404 ''
+check '/mixers/x32Tell/more' 301 '/mixers/x32'
 exit "$fail"
