@@ -12,6 +12,9 @@ mkdir "$root/mixers"
 echo x32 >"$root/mixers/x32.html"
 echo xr18 >"$root/mixers/xr18.html"
 echo later >"$root/mixers/x32-later.html"
+# mktemp -d is 0700: on Linux (CI) nginx's worker user can't read it and every page 404s. Docker Desktop on a
+# Mac hid this.
+chmod -R a+rX "$root"
 name="showrecorder-nginx-test-$$"
 trap 'docker rm -f "$name" >/dev/null 2>&1 || true; rm -r "$root"' EXIT
 docker run -d --name "$name" -p 127.0.0.1::80 \

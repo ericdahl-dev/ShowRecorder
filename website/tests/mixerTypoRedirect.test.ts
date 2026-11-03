@@ -40,4 +40,11 @@ describe("mistyped mixer page addresses", () => {
     expect(named).toMatch(/return 301 \$mixer_typo_target\$is_args\$args;/);
     expect(named).toMatch(/return 404;/);
   });
+
+  it("never redirects a mixer page to itself, even if its file can't be read", () => {
+    const named = conf.match(/location @mixer_typo \{([\s\S]*?)\n {4}\}/)?.[1] ?? "";
+    const guard = named.search(/if \(\$uri = \$mixer_typo_target\) \{\s*return 404;\s*\}/);
+    expect(guard).toBeGreaterThanOrEqual(0);
+    expect(guard).toBeLessThan(named.indexOf("return 301"));
+  });
 });
