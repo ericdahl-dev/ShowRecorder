@@ -97,7 +97,8 @@ final class TakeSession {
     private var levels: TakeLevels
     private(set) var copies: [CopyRecord] = []
     /// Called when any Copy's writer fails (on the main actor), so the owner can end the Take once none is left.
-    var onCopyFailed: () -> Void = {}
+    /// A Copy's writer failed: which Copy, and the error (for crash reports, #1026). Called on the main actor.
+    var onCopyFailed: (DestinationKind, any Error) -> Void = { _, _ in }
 
     /// Drive only (#196, ADR 0006): the Device's standby, which holds the last seconds of the Take in memory and stands
     /// in for the Drive once it is lost. Nil for a Take with two Copies.
@@ -192,9 +193,9 @@ final class TakeSession {
             // An unrecorded USB Channel is never stood in for, so it holds nothing.
             let sinks = stems.map { StandInSink(heldFrames: $0.isRecorded ? held : 1) }
             let feed = feeds[.device]!
-            let writer = TakeWriter(feed: feed, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] in
+            let writer = TakeWriter(feed: feed, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] error in
                 capture.stopFeeding(feed)
-                Task { @MainActor in self?.onCopyFailed() }
+                Task { @MainActor in self?.onCopyFailed(.device, error) }
             }, head: head)
             standby = Standby(folder: folders[.device]!, feed: feed, writer: writer, sinks: sinks)
         }
@@ -213,7 +214,7 @@ final class TakeSession {
             }
             records.append(CopyRecord(
                 kind: kind, folder: folder, feed: feed,
-                writer: makeWriter(feed: feed, stems: sinks, head: head),
+                writer: makeWriter(kind: kind, feed: feed, stems: sinks, head: head),
                 access: kind == .drive ? drive : nil))
         }
         for record in records {
@@ -781,7 +782,7 @@ final class TakeSession {
         }
         let earlierGaps = beforeResume(old?.gaps ?? [])
         let earlierDropped = beforeResume(old.map { $0.earlierDropped + $0.writer.dropouts } ?? [])
-        let writer = makeWriter(feed: feed, stems: sinks, markers: stemMarkers + CopyRecord.dropCues(earlierDropped))
+        let writer = makeWriter(kind: .drive, feed: feed, stems: sinks, markers: stemMarkers + CopyRecord.dropCues(earlierDropped))
         capture.attachMidTake(feed)
         writer.start()
         let record = CopyRecord(
@@ -795,11 +796,11 @@ final class TakeSession {
     // MARK: - Helpers
 
     private func makeWriter(
-        feed: CopyFeed, stems sinks: [any StemSink], head: (() -> [[Float]]?)? = nil, markers: [StemMarker] = []
+        kind: DestinationKind, feed: CopyFeed, stems sinks: [any StemSink], head: (() -> [[Float]]?)? = nil, markers: [StemMarker] = []
     ) -> TakeWriter {
-        TakeWriter(feed: feed, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] in
+        TakeWriter(feed: feed, stems: sinks, commitInterval: info.sampleRate * 2, onFailure: { [weak self, capture] error in
             capture.stopFeeding(feed)
-            Task { @MainActor in self?.onCopyFailed() }
+            Task { @MainActor in self?.onCopyFailed(kind, error) }
         }, head: head, markers: markers)
     }
 

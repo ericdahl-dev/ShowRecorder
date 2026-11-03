@@ -20,7 +20,8 @@ final class TakeWriter: @unchecked Sendable {
     /// Whether the real-time side ever told this Copy which Take frame it starts at.
     private let joined = Atomic<Bool>(false)
     /// Called on the writer thread when this Copy fails, so capture can stop feeding it.
-    private let onFailure: @Sendable () -> Void
+    /// Told the error that stopped this Copy, from the writer thread (#1026: reported from the main actor).
+    private let onFailure: @Sendable (any Error) -> Void
     private var thread: Thread?
     /// Frames between header commits, so a crash loses at most this much (#6).
     private let commitInterval: Int
@@ -43,7 +44,7 @@ final class TakeWriter: @unchecked Sendable {
     private let joinPause: () -> Void
 
     init(
-        feed: CopyFeed, stems: [any StemSink], commitInterval: Int, onFailure: @escaping @Sendable () -> Void = {},
+        feed: CopyFeed, stems: [any StemSink], commitInterval: Int, onFailure: @escaping @Sendable (any Error) -> Void = { _ in },
         head: (() -> [[Float]]?)? = nil, markers: [StemMarker] = [],
         joinPause: @escaping () -> Void = { Thread.sleep(forTimeInterval: 0.002) }
     ) {
@@ -242,7 +243,7 @@ final class TakeWriter: @unchecked Sendable {
             for stem in stems { try stem.finalize(); noteProgress() }
         } catch where !abandoned.load(ordering: .acquiring) {
             failed.store(true, ordering: .releasing)
-            onFailure()
+            onFailure(error)
             ring.discardAll()
             // Close what can be closed, so the Stems that did get written open.
             for stem in stems { try? stem.finalize() }
