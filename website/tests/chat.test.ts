@@ -206,7 +206,8 @@ describe("support chat (Chatwoot, click to load)", () => {
     expect(directive("script-src")).toBe("script-src 'self' 'unsafe-inline' https://us-assets.i.posthog.com https://chatwoot.ericdahl.dev");
     expect(directive("frame-src")).toBe("frame-src https://chatwoot.ericdahl.dev");
     expect(directive("connect-src")).toBe(
-      "connect-src 'self' https://us.i.posthog.com https://us-assets.i.posthog.com https://chatwoot.ericdahl.dev wss://chatwoot.ericdahl.dev",
+      // errors.ericdahl.dev: browser errors to GlitchTip (lib/errors.ts, #1026).
+      "connect-src 'self' https://errors.ericdahl.dev https://us.i.posthog.com https://us-assets.i.posthog.com https://chatwoot.ericdahl.dev wss://chatwoot.ericdahl.dev",
     );
     expect(directive("img-src")).toBe("img-src 'self' data: https://chatwoot.ericdahl.dev");
     expect(directive("default-src")).toBe("default-src 'self'");
@@ -223,6 +224,6 @@ describe("support chat (Chatwoot, click to load)", () => {
     expect(privacy).toMatch(/stores nothing in your browser or on your device, unless you open the chat \(see below\)/);
     expect(privacy).toMatch(/and on the chat buttons, and notes which page they were on/);
     expect(privacy).not.toMatch(/The support page has an optional chat/);
-    expect(privacy).toMatch(/The ShowRecorder app collects nothing\./);
+    expect(privacy).toMatch(/The App Store version of ShowRecorder collects nothing\./);
   });
 });

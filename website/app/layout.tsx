@@ -7,6 +7,7 @@ import { OG_IMAGE, PAGES } from "@/lib/metadata";
 import { APP_STORE_ID, SITE_NAME, SITE_URL } from "@/lib/site";
 import { THEME_SCRIPT } from "@/lib/theme";
 import { posthogInitScript } from "@/lib/analytics";
+import { errorReportingScript } from "@/lib/errors";
 import "./globals.css";
 
 // Defaults for every page. Each page also sets its own title, description, canonical, Open Graph
@@ -65,6 +66,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Cookieless visit counts; see lib/analytics.ts and the privacy page. */}
         <Script id="posthog-init" strategy="afterInteractive">
           {posthogInitScript()}
+        </Script>
+        {/* Errors in this browser go to GlitchTip; see lib/errors.ts and the privacy page. */}
+        <Script id="error-reports" strategy="afterInteractive">
+          {errorReportingScript()}
         </Script>
       </body>
     </html>

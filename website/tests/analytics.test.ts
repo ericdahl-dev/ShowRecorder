@@ -56,7 +56,7 @@ describe("website analytics", () => {
     expect(privacy).toMatch(/does not keep the address/);
     expect(privacy).toMatch(/counts clicks on a few links/);
     expect(privacy).not.toMatch(/stores your IP address/);
-    expect(privacy).toMatch(/The ShowRecorder app collects nothing/);
+    expect(privacy).toMatch(/The App Store version of ShowRecorder collects nothing/);
   });
 });
 
