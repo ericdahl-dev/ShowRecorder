@@ -39,13 +39,13 @@ struct TelemetrySinksTests {
     @Test("PostHog gets the event's properties, tagged as the app")
     func postHogProperties() {
         let properties = PostHogSink.properties(
-            for: .takeStopped(seconds: 90, channelCount: 18, dropouts: 1, cause: .operatorStop)
+            for: .takeStopped(seconds: 90, channelCount: 18, dropouts: 1, cause: .stopped)
         )
         #expect(properties["app"] as? String == "showrecorder")
         #expect(properties["seconds"] as? Int == 90)
         #expect(properties["channel_count"] as? Int == 18)
         #expect(properties["dropouts"] as? Int == 1)
-        #expect(properties["cause"] as? String == "operator")
+        #expect(properties["cause"] as? String == "stopped")
         #expect(properties.count == 5)
     }
 

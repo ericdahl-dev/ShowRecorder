@@ -65,14 +65,16 @@ public enum TelemetryDestinations: String, Sendable {
     case both
 }
 
-/// What ended a Take.
+/// What ended a Take, in `TakeEnd.Reason`'s terms.
 public enum TakeStopCause: String, Sendable {
-    /// Stop on the iPhone, iPad or Mac.
-    case operatorStop = "operator"
-    /// Stop from the Apple Watch.
-    case watch
-    /// Anything else, such as the app being closed.
-    case other
+    /// Record was stopped: by the operator, a Mixer Trigger or the app.
+    case stopped
+    /// The last healthy Destination was about to fill.
+    case outOfSpace = "out_of_space"
+    /// No Destination could be written any more.
+    case noDestination = "no_destination"
+    /// The input moved to a device with a different USB Channel count or sample rate.
+    case inputChanged = "input_changed"
 }
 
 /// A failure the app caught on purpose (the Show-Safe Promise), reported with an explicit call at each branch. Keeps
