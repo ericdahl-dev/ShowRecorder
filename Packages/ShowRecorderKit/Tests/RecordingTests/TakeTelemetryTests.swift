@@ -1,3 +1,5 @@
+import AudioIO
+import Destinations
 import Foundation
 @testable import Recording
 import Telemetry
@@ -26,5 +28,21 @@ struct TakeTelemetryTests {
         now += 95
         telemetry.handle(.takeEnded(TakeEnd(take: 1, reason: .outOfSpace)), context: context)
         #expect(sent.last == .takeStopped(seconds: 95, channelCount: 18, dropouts: 2, cause: .outOfSpace))
+    }
+
+    @Test("A Take's context comes from the Ready recorder: its USB Channels, Record to and Dropouts")
+    func contextFromRecorder() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "TakeTelemetryTests-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let drive = root.appending(path: "Drive")
+        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
+        let recorder = Recorder(
+            deviceFolder: root.appending(path: "Device"), driveFolder: { DriveAccess(folder: drive) },
+            now: { RecordingTakeTests.showDay })
+        try recorder.getReady(FakeAudioDevice(inputChannelCount: 2))
+        recorder.recordTo = .drive
+
+        #expect(TakeContext(recorder: recorder, mixerFamily: "x32")
+            == TakeContext(channelCount: 2, destinations: .driveOnly, mixerFamily: "x32", dropouts: 0))
     }
 }
