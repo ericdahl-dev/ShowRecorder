@@ -5,6 +5,7 @@ import Destinations
 import MixerLink
 import SwiftUI
 import TakeActivity
+import Telemetry
 #if os(iOS)
 import AVFAudio
 #endif
@@ -664,6 +665,8 @@ final class RecordScreenModel {
     @ObservationIgnored private let saveTask = SaveBackgroundTask()
     /// The Mixer Link as the app uses it (#556).
     let mixer: MixerSession
+    /// Usage events from Takes (ADR 0007, #1026), sent through `AppTelemetry`.
+    @ObservationIgnored private let takeTelemetry = TakeTelemetry(send: { AppTelemetry.shared.send($0) })
     /// The Mixer's address, remembered between launches by the Mixer session (#556).
     var mixerAddress: String {
         get { mixer.address }
@@ -789,6 +792,9 @@ final class RecordScreenModel {
                 }
                 // Whoever started or ended the Take: Stop, the watch, or the recorder itself (#551).
                 guard let self else { return }
+                // Crash reports and usage (ADR 0007): take_started and take_stopped, off the audio path.
+                self.takeTelemetry.handle(event, context: TakeContext(
+                    recorder: self.recorder, mixerFamily: self.mixer.family.map { String(describing: $0) }))
                 let followUp = TakeFollowUp(event)
                 if followUp.contains(.liveActivity) { followLiveActivity() }
                 if followUp.contains(.proOffer) { offerProAfterTake() }
@@ -1058,6 +1064,8 @@ final class RecordScreenModel {
         let inputs: any InputDeviceSource = DemoOnlyInputSource.isScreenshotBuild() ? DemoOnlyInputSource(AppInputDevices()) : AppInputDevices()
         sequencer = TakeSequencer(recorder: recorder, devices: inputs, capsAt48k: { pro.license().capsAt48k })
         mixer = MixerSession()
+        // Failures the recorder catches on purpose (a Drive write, Repair) go to crash reports (ADR 0007, #1026).
+        recorder.reportFailure = { AppTelemetry.shared.report($0) }
         sequencer.sampleRateChoice = {
             #if os(macOS)
             SampleRateSetting.load(platformDefault: nil)

@@ -1,6 +1,7 @@
 import Destinations
 import Recording
 import SwiftUI
+import Telemetry
 
 /// Deletes a Show, or one Take of it, for good from the Copies you choose. You type the Show's name to confirm.
 struct DeleteShowSheet: View {
@@ -154,6 +155,8 @@ struct DeleteShowSheet: View {
     }
 
     private func finish(_ outcome: ShowDeleter.Outcome) {
+        // A delete the file system refused goes to crash reports, without the Show's name (ADR 0007, #1021).
+        for failure in outcome.failed.compactMap(\.telemetry) { AppTelemetry.shared.report(failure) }
         if outcome.failed.isEmpty {
             deleted()
             dismiss()
