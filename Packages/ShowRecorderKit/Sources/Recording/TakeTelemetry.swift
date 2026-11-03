@@ -59,3 +59,18 @@ public final class TakeTelemetry {
         }
     }
 }
+
+extension TakeContext {
+    /// The context of the Take on the Ready `recorder`: its USB Channels, its Record to and its Dropouts so far.
+    @MainActor
+    public init(recorder: Recorder, mixerFamily: String?) {
+        let destinations: TelemetryDestinations = switch recorder.recordTo {
+        case .device: .device
+        case .drive: .driveOnly
+        case .both: .both
+        }
+        self.init(
+            channelCount: recorder.usbChannelCount, destinations: destinations, mixerFamily: mixerFamily,
+            dropouts: recorder.dropoutCount)
+    }
+}
