@@ -52,7 +52,12 @@ public final class Recorder {
     /// others follow Take ends through the sequencer's events.
     @ObservationIgnored var onTakeEnded: (TakeEnd) -> Void = { _ in }
     /// Told of a failure the recorder caught on purpose, for crash reports (ADR 0007, #1026). Main actor only.
-    @ObservationIgnored public var reportFailure: (TelemetryFailure) -> Void = { _ in }
+    public var reportFailure: (TelemetryFailure) -> Void {
+        get { failureReporter.handler }
+        set { failureReporter.handler = newValue }
+    }
+    /// Holds `reportFailure`, so Repair, made in `init`, can call it without capturing `self` there.
+    @ObservationIgnored private let failureReporter: FailureReporter
     /// How each Copy of the last Take ended up: complete, has Gaps, Repaired or Repair failed.
     private(set) var lastTakeOutcomes: [DestinationKind: CopyOutcome] = [:]
     /// How many USB Channels the last Take recorded and how many carried signal (#62: Free's limit, felt).
@@ -243,7 +248,9 @@ public final class Recorder {
         naming = ChannelNaming(saved: SavedChannelNames.load(from: savedNames))
         self.freeSpace = freeSpace
         self.preRollSeconds = preRollSeconds
-        repair = TakeRepair(freeSpace: freeSpace, writeAbandoned: writeAbandoned)
+        let reporter = FailureReporter()
+        failureReporter = reporter
+        repair = TakeRepair(freeSpace: freeSpace, writeAbandoned: writeAbandoned, report: { reporter.handler($0) })
         self.makeStem = makeStem
         self.deviceFolder = deviceFolder
         self.driveFolder = driveFolder
@@ -1896,4 +1903,10 @@ public struct MarkerEntry: Equatable, Identifiable, Sendable {
 
     /// A Dropout Marker: audio was lost here.
     public var isDropout: Bool { kind == .dropout }
+}
+
+/// Where `Recorder.reportFailure` lives (#1026).
+@MainActor
+final class FailureReporter {
+    var handler: (TelemetryFailure) -> Void = { _ in }
 }

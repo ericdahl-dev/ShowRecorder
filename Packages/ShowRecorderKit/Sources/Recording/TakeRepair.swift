@@ -36,12 +36,18 @@ final class TakeRepair {
     ///   - freeSpace: free bytes on a Destination, read when a Take is enqueued.
     ///   - run: does the Repair; replaced in tests.
     ///   - writeAbandoned: writes `Take.json` to a Copy Stop gave up on, off the main thread; replaced in tests.
+    ///   - report: told, on the main actor, of each Stem the default Repair couldn't fill (ADR 0007, #1026).
     init(
-        freeSpace: @escaping (URL) -> Int64, run: @escaping Run = { TakeRepair.fill(copies: $0, metadata: $1, skip: $2) },
-        writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) }
+        freeSpace: @escaping (URL) -> Int64, run: Run? = nil,
+        writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) },
+        report: @escaping @MainActor (TelemetryFailure) -> Void = { _ in }
     ) {
         self.freeSpace = freeSpace
-        self.run = run
+        self.run = run ?? { copies, metadata, skip in
+            TakeRepair.fill(copies: copies, metadata: metadata, skip: skip, report: { failure in
+                Task { @MainActor in report(failure) }
+            })
+        }
         self.writeAbandoned = writeAbandoned
     }
 
