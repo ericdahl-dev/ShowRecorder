@@ -15,4 +15,12 @@ struct TransportColumnLayoutTests {
             #expect(layout.parts.contains(.take), "\(layout)")
         }
     }
+
+    @Test("The compact column gives the Show name to the top row's header; the full one keeps it in the column")
+    func compactMovesTheShowNameToTheHeader() {
+        #expect(TransportColumnLayout.full.parts.first == .showName)
+        #expect(TransportColumnLayout.full.showNameInHeader == false)
+        #expect(TransportColumnLayout.compact.parts.contains(.showName) == false)
+        #expect(TransportColumnLayout.compact.showNameInHeader)
+    }
 }
