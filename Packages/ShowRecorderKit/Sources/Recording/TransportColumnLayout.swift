@@ -19,6 +19,13 @@ public enum TransportColumnLayout: CaseIterable, Sendable {
     }
 
     public var parts: [Part] {
-        [.showName, .links, .take, .marker, .hint, .record]
+        switch self {
+        case .full: [.showName, .links, .take, .marker, .hint, .record]
+        case .compact: [.links, .take, .marker, .hint, .record]
+        }
     }
+
+    /// The compact column has no Show name row: the top row's header shows "<Show> ▾ · <elapsed>" instead, and a tap
+    /// on it opens the Show sheet the way the row does.
+    public var showNameInHeader: Bool { !parts.contains(.showName) }
 }
