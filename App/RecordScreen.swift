@@ -27,6 +27,10 @@ struct RecordScreen: View {
     /// How wide the transport is, so the gap between Stop and Marker can shrink on a very narrow screen.
     @State private var transportWidth: CGFloat = 402
     @State private var showingNewShow = false
+    /// The landscape column on screen (#1035): the compact one puts the Show name in the header instead.
+    @State private var columnLayout: TransportColumnLayout = .full
+    /// The links' words grow with the text size; a row may shrink them together to 80%.
+    @ScaledMetric(relativeTo: .caption2) private var linkWordSize: CGFloat = 11
     @State private var namingChannel: Int?
     @State private var channelName = ""
     @State private var showingChannelNames = false
@@ -259,24 +263,45 @@ struct RecordScreen: View {
     /// Header and status strip share one 44 pt row, the meters take the full height below it, and the
     /// transport is a column at the trailing edge (or the leading edge, for left-handed use). An urgent alert takes
     /// the status strip's place in the top row, never the meters' (#644).
+    ///
+    /// The top row is pinned (#1035): it takes its height first and the meters and column get what is left, so large
+    /// text or Display Zoom can never push it, and the gear with it, off the screen.
     private var landscape: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: Column.rowSpacing) {
             HStack(spacing: 10) {
-                headerSummary(compact: true)
+                landscapeHeader
                     .frame(maxWidth: 190, alignment: .leading)
                 LandscapeAlertRow(alerts: model.alerts, chips: model.chips, extras: model.extraChips, perform: model.perform, swipe: model.swipe, tap: chipTapped, tapTrial: trialChipTapped)
                 markersButton
                 gearButton
             }
+            .frame(minHeight: Column.topRowHeight)
+            .fixedSize(horizontal: false, vertical: true)
+            .layoutPriority(1)
             HStack(alignment: .top, spacing: 12) {
                 if model.transportLeading { transportColumn }
                 MeterGrid(model: model.meterModel, clipped: model.recorder.clippedChannels, clearClip: { model.recorder.clearClip(channel: $0) }, notArmed: model.notArmedLanes, armChannel: model.offersChannelArming ? { model.setChannelArmed($0, $1) } : nil, sources: model.linkedSources, typedNames: model.recorder.channelNames, nameChannel: nameChannel, compact: true)
                     .overlay { if let block = model.recordBlock { StoodDownNotice(block: block, perform: model.perform) } }
                 if !model.transportLeading { transportColumn }
             }
+            // Bounded: it takes the height left and never more, so nothing centers a stack taller than the screen.
+            .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
         }
         .padding(.horizontal)
-        .padding(.vertical, 8)
+        .padding(.vertical, Column.screenPadding)
+    }
+
+    private typealias Column = TransportColumnLayout
+
+    /// The landscape header: the compact column's Show name moves here, and a tap on it opens the Show sheet.
+    @ViewBuilder private var landscapeHeader: some View {
+        if columnLayout.showNameInHeader, !model.takeBusy {
+            Button { showingNewShow = true } label: { headerSummary(compact: true, showNameInHeader: true) }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens the Show sheet")
+        } else {
+            headerSummary(compact: true, showNameInHeader: columnLayout.showNameInHeader)
+        }
     }
 
     /// Hold to stop is for all of iOS (#753): only the Mac keeps click and confirm.
@@ -322,11 +347,11 @@ struct RecordScreen: View {
     }
 
     /// Always in place, dimmed when no Take is running, so Record never shifts under the thumb.
-    private func markerButton(size: CGFloat) -> some View {
+    private func markerButton(size: CGFloat, badge: Bool = false) -> some View {
         Button {
             model.sequencer.addMarker()
         } label: {
-            MarkerButtonLabel(count: model.recorder.takeMarkers.count, size: size)
+            MarkerButtonLabel(count: model.recorder.takeMarkers.count, size: size, badge: badge)
         }
         .buttonStyle(.plain)
         .disabled(!model.recorder.isRecording)
@@ -367,21 +392,9 @@ struct RecordScreen: View {
                 .disabled(model.takeBusy)
                 .accessibilityHint("Opens the Show sheet")
                 Spacer(minLength: 4)
-                // 44 pt wide each, plus a clear gap, so "Shows" and "Names" read as two buttons.
-                Button { showingShowList = true } label: { Text("Shows").tapTarget() }
-                    .padding(.trailing, 12)
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.tint)
-                    .disabled(model.takeBusy)
-                Button { open(.channelNames) } label: { Text("Names").tapTarget() }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.tint)
-                if model.mixerGain.offersAutoGain {
-                    Button { showingAutoGain = true } label: { Text("Gain").tapTarget() }
-                        .padding(.leading, 12)
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.tint)
-                }
+                // Symbol over word, each its own tinted button, so "Shows" and "Names" read as two (#1035).
+                linkRow(fillsWidth: false)
+                    .fixedSize()
                 #if DEBUG && os(iOS)
                 monitorButton.padding(.leading, 12)
                 #endif
@@ -432,42 +445,41 @@ struct RecordScreen: View {
 
     /// Landscape transport: the Show and Take (with how long the Take has run) over Marker, then Record.
     /// Marker and Stop are kept well apart, since Marker is pressed often and Stop ends the Take.
+    ///
+    /// Two layouts (#1035): the full one when it fits the height under the top row, else the compact one, which gives
+    /// the Show name to the header and shows the Marker count as a badge. Record is 64 pt at the bottom in both.
     private var transportColumn: some View {
-        VStack(spacing: 8) {
-            VStack(spacing: 2) {
-                Button { showingNewShow = true } label: {
-                    HStack(spacing: 3) {
-                        Text(model.recorder.currentShow?.name ?? "No Show yet")
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                        Image(systemName: "chevron.down").imageScale(.small)
+        ViewThatFits(in: .vertical) {
+            // Written out, in `TransportColumnLayout.allCases` order: ViewThatFits takes the first that fits.
+            columnStack(.full)
+            columnStack(.compact)
+        }
+        .frame(width: Column.width(offersGain: model.mixerGain.offersAutoGain))
+    }
+
+    private func columnStack(_ layout: TransportColumnLayout) -> some View {
+        VStack(spacing: Column.spacing) {
+            VStack(spacing: 0) {
+                if layout.parts.contains(.showName) {
+                    Button { showingNewShow = true } label: {
+                        HStack(spacing: 3) {
+                            Text(model.recorder.currentShow?.name ?? "No Show yet")
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                            Image(systemName: "chevron.down").imageScale(.small)
+                        }
+                        .font(.caption)
+                        .secondaryText()
+                        .frame(maxWidth: .infinity, minHeight: Column.rowHeight)
+                        .contentShape(Rectangle())
                     }
-                    .font(.caption)
-                    .secondaryText()
-                    .tapTarget()
+                    .buttonStyle(.plain)
+                    .disabled(model.takeBusy)
+                    .accessibilityHint("Opens the Show sheet")
                 }
-                .buttonStyle(.plain)
-                .disabled(model.takeBusy)
-                .accessibilityHint("Opens the Show sheet")
-                HStack(spacing: 4) {
-                    Button { showingShowList = true } label: { Text("Shows").tapTarget() }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.tint)
-                        .disabled(model.takeBusy)
-                    Button { open(.channelNames) } label: { Text("Names").tapTarget() }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.tint)
-                    if model.mixerGain.offersAutoGain {
-                        Button { showingAutoGain = true } label: { Text("Gain").tapTarget() }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(.tint)
-                    }
-                    #if DEBUG && os(iOS)
-                    monitorButton
-                    #endif
-                }
-                .font(.caption)
-                // One line for the Take and how long it has run, so the 44 pt rows above still fit a short screen.
+                linkRow(fillsWidth: true)
+                    .padding(.bottom, Column.linksGap)
+                // One line for the Take and how long it has run.
                 HStack(spacing: 6) {
                     Text(model.takeTitle)
                         .font(.title3.weight(.bold))
@@ -476,49 +488,110 @@ struct RecordScreen: View {
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-                if let note = nonUrgentAlert {
-                    Button {
-                        if let action = note.action { model.perform(action) }
-                    } label: {
-                        Text(note.action == .dismissHint ? note.text + " Tap to dismiss." : note.text)
-                            .font(.caption2)
-                            .secondaryText()
-                            .multilineTextAlignment(.center)
-                            .lineLimit(3)
-                    }
-                    .buttonStyle(.plain)
-                    // On a short screen the note truncates, so the column never outgrows it (#645).
-                    .layoutPriority(-1)
-                    // The green Copy summary swipes away here too (#698), and fades after 10 s (#758); it comes back when its text changes.
-                    // High priority, so a sideways drag wins over the Button's tap.
-                    .highPriorityGesture(DragGesture(minimumDistance: 20).onEnded { drag in
-                        if abs(drag.translation.width) > 60, SwipedAlerts.isSwipeable(note) { model.swipe(note) }
-                    })
-                    .accessibilityActions { if SwipedAlerts.isSwipeable(note) { Button("Dismiss") { model.swipe(note) } } }
-                }
             }
-            // This spacer takes the slack and the note truncates first, so Marker and Record stay put when the note comes and goes.
-            Spacer(minLength: 8)
-            markerButton(size: 64)
-            // The same 24 pt gap: the hint takes its place, so nothing moves and the meters keep their height.
+            // The spacer takes the slack, and the note only what the spacer has: it is not measured when ViewThatFits
+            // picks the layout, so a note coming or going never switches the column during a Take.
+            Spacer(minLength: Column.spacerMinimum)
+                .frame(maxWidth: .infinity)
+                .overlay(alignment: .top) { columnNote(lines: layout == .full ? 3 : 1) }
+            markerButton(size: layout.markerSize, badge: layout == .compact)
+            // The hint takes the gap between Marker and Record, so nothing moves and the meters keep their height.
             SavingToDriveLine(progress: model.recorder.finishProgress, fallback: model.stopHint.isShown ? "Hold to stop" : " ", compact: true)
-                .font(.caption).lineLimit(1).minimumScaleFactor(0.5).secondaryText().frame(height: 24)
+                .font(.caption).lineLimit(1).minimumScaleFactor(0.5).secondaryText().frame(height: Column.hintHeight)
                 .accessibilityHidden(!model.stopHint.isShown && model.recorder.finishProgress?.isSavingToDrive != true)
-            recordButton(size: 64)
+            recordButton(size: Column.recordSize)
         }
-        .frame(width: 128)
+        // Only the layout on screen appears, so the header knows whether it carries the Show name.
+        .onAppear { columnLayout = layout }
+    }
+
+    /// The column's note (a Copy result, the first-run hint): up to `lines` lines if the spacer has room, then one,
+    /// then nothing. It truncates before anything else in the column gives way (#645).
+    @ViewBuilder private func columnNote(lines: Int) -> some View {
+        if let note = nonUrgentAlert {
+            ViewThatFits(in: .vertical) {
+                if lines > 1 { noteButton(note, lines: lines) }
+                noteButton(note, lines: 1)
+                Color.clear.frame(height: 0)
+            }
+        }
+    }
+
+    private func noteButton(_ note: ScreenAlert, lines: Int) -> some View {
+        Button {
+            if let action = note.action { model.perform(action) }
+        } label: {
+            Text(note.action == .dismissHint ? note.text + " Tap to dismiss." : note.text)
+                .font(.caption2)
+                .secondaryText()
+                .multilineTextAlignment(.center)
+                .lineLimit(lines)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .buttonStyle(.plain)
+        // The green Copy summary swipes away here too (#698), and fades after 10 s (#758); it comes back when its text changes.
+        // High priority, so a sideways drag wins over the Button's tap.
+        .highPriorityGesture(DragGesture(minimumDistance: 20).onEnded { drag in
+            if abs(drag.translation.width) > 60, SwipedAlerts.isSwipeable(note) { model.swipe(note) }
+        })
+        .accessibilityActions { if SwipedAlerts.isSwipeable(note) { Button("Dismiss") { model.swipe(note) } } }
+    }
+
+    /// Shows, Names and (when offered) Gain (#1035): each a symbol over its word in a tinted rounded button, at least
+    /// 44 pt square, 8 pt apart. In the landscape column they share its width. When the words don't fit they shrink
+    /// together, to 80% at most, so the row's words stay one size.
+    private func linkRow(fillsWidth: Bool) -> some View {
+        ViewThatFits(in: .horizontal) {
+            linkRow(fillsWidth: fillsWidth, wordScale: 1)
+            linkRow(fillsWidth: fillsWidth, wordScale: 0.9)
+            linkRow(fillsWidth: fillsWidth, wordScale: 0.8)
+        }
+    }
+
+    private func linkRow(fillsWidth: Bool, wordScale: CGFloat) -> some View {
+        HStack(spacing: TransportLink.spacing) {
+            ForEach(TransportLink.row(offersGain: model.mixerGain.offersAutoGain), id: \.self) { link in
+                Button { linkTapped(link) } label: {
+                    VStack(spacing: 2) {
+                        Image(systemName: link.symbol)
+                            .font(.callout)
+                        Text(link.word)
+                            .font(.system(size: linkWordSize * wordScale, weight: .medium))
+                            .lineLimit(1)
+                            .fixedSize(horizontal: !fillsWidth || wordScale > 0.8, vertical: false)
+                    }
+                    .padding(.horizontal, 4)
+                    .frame(minWidth: TransportLink.minimumSize, maxWidth: fillsWidth ? .infinity : nil, minHeight: TransportLink.minimumSize)
+                    .foregroundStyle(.tint)
+                    .background(Color.accentColor.opacity(0.15), in: RoundedRectangle(cornerRadius: 14))
+                    .contentShape(RoundedRectangle(cornerRadius: 14))
+                }
+                .buttonStyle(.plain)
+                .disabled(link == .shows && model.takeBusy)
+                .accessibilityLabel(link.word)
+                .accessibilityShowsLargeContentViewer()
+            }
+        }
+    }
+
+    private func linkTapped(_ link: TransportLink) {
+        switch link {
+        case .shows: showingShowList = true
+        case .names: open(.channelNames)
+        case .gain: showingAutoGain = true
+        }
     }
 
     /// How long the running Take has gone, counting up each second. Blank (but the same height) when no
     /// Take is running, so nothing moves when it appears.
     /// "Show 1:02:33": everything recorded in the open Show, counting the running Take each second. Nothing before
     /// the Show has any audio.
-    @ViewBuilder private func showTotal(font: Font) -> some View {
+    @ViewBuilder private func showTotal(font: Font, prefixed: Bool = true) -> some View {
         if let recorded = model.showRecordedSeconds {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 let running = model.recorder.isRecording ? model.takeStartedAt.map { context.date.timeIntervalSince($0) } : nil
                 let text = ElapsedTime.format(seconds: Int(recorded + (running ?? 0)))
-                Text("Show \(text)")
+                Text(prefixed ? "Show \(text)" : text)
                     .font(font.monospacedDigit())
                     .secondaryText()
                     .accessibilityLabel("Show total")
@@ -593,7 +666,9 @@ struct RecordScreen: View {
         }
     }
 
-    private func headerSummary(compact: Bool) -> some View {
+    /// `showNameInHeader`: the compact landscape column's Show name, "<Show> ▾ · <Show total>", in place of the
+    /// audio interface line (#1035).
+    private func headerSummary(compact: Bool, showNameInHeader: Bool = false) -> some View {
         HStack(alignment: .center, spacing: compact ? 8 : 12) {
             Circle()
                 .fill(model.recorder.isRecording ? Color.red : model.recorder.isReady ? Color.green : Color.secondary)
@@ -602,7 +677,20 @@ struct RecordScreen: View {
                 // The word carries the state; the dot's color is only a second cue.
                 Text(model.recorder.isRecording ? "Recording" : model.recorder.isReady ? "Ready" : "Not ready")
                     .font(compact ? .subheadline.weight(.semibold) : .headline)
-                if compact {
+                if compact, showNameInHeader {
+                    HStack(spacing: 4) {
+                        HStack(spacing: 3) {
+                            Text(model.recorder.currentShow?.name ?? "No Show yet")
+                                .truncationMode(.middle)
+                            Image(systemName: "chevron.down").imageScale(.small)
+                        }
+                        if model.showRecordedSeconds != nil { Text("·"); showTotal(font: .caption, prefixed: false) }
+                    }
+                    .font(.caption)
+                    .secondaryText()
+                    .monospacedDigit()
+                    .lineLimit(1)
+                } else if compact {
                     // Landscape has no room beside the Take's time, so the Show's total joins the input line (#328).
                     HStack(spacing: 4) {
                         Text(model.compactInputSummary)
@@ -1858,6 +1946,8 @@ final class RecordScreenModel {
 struct MarkerButtonLabel: View {
     let count: Int
     var size: CGFloat = 88
+    /// The compact landscape column (#1035): the count in a badge on the circle's top-trailing edge, no label below.
+    var badge = false
     @Environment(\.appearanceMode) private var mode
 
     /// Yellow, or a darker amber in Sunlight where yellow on a light screen can't be seen.
@@ -1873,10 +1963,23 @@ struct MarkerButtonLabel: View {
                     .font(.system(size: size * 0.32, weight: .semibold))
                     .foregroundStyle(flagColor)
             }
-            Text(count == 1 ? "1 Marker" : "\(count) Markers")
-                .font(.caption)
-                .monospacedDigit()
-                .secondaryText()
+            .overlay(alignment: .topTrailing) {
+                if badge {
+                    Text("\(count)")
+                        .font(.caption.weight(.semibold))
+                        .monospacedDigit()
+                        .padding(.horizontal, 6)
+                        .frame(minWidth: 22, minHeight: 22)
+                        .background(Capsule().fill(Color.gray.opacity(0.35)))
+                        .offset(x: 6, y: -3)
+                }
+            }
+            if !badge {
+                Text(count == 1 ? "1 Marker" : "\(count) Markers")
+                    .font(.caption)
+                    .monospacedDigit()
+                    .secondaryText()
+            }
         }
         .contentShape(Rectangle())
     }
