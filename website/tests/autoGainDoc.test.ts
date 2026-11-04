@@ -51,7 +51,8 @@ describe("the auto-gain docs page", () => {
   });
 
   it("names the Gain button and Undo", () => {
-    expect(swift("App/RecordScreen.swift")).toContain('Text("Gain")');
+    // The Gain button's word lives in the kit since #1036 (TransportLink).
+    expect(swift("Packages/ShowRecorderKit/Sources/Recording/TransportColumnLayout.swift")).toContain('case .gain: "Gain"');
     expect(page()).toMatch(/\*\*Gain\*\*/);
     expect(page()).toMatch(/\*\*Undo\*\*/);
     expect(page()).toMatch(/\*\*Undo all\*\*/);
