@@ -28,4 +28,67 @@ public enum TransportColumnLayout: CaseIterable, Sendable {
     /// The compact column has no Show name row: the top row's header shows "<Show> ▾ · <elapsed>" instead, and a tap
     /// on it opens the Show sheet the way the row does.
     public var showNameInHeader: Bool { !parts.contains(.showName) }
+
+    // MARK: The height budget, in points at default text. The app lays the column out with these numbers.
+
+    /// The top row (header, status strip, Markers, gear): one 44 pt row, pinned, so it never leaves the screen.
+    public static let topRowHeight = 44.0
+    /// Above the top row and below the column.
+    public static let screenPadding = 3.0
+    /// Between the top row and the meters and column.
+    public static let rowSpacing = 8.0
+    /// Between the column's blocks: the Show and Take block, the spacer, Marker, the hint line and Record.
+    public static let spacing = 8.0
+    /// The Show name row and the links row: each a 44 pt tap target.
+    public static let rowHeight = 44.0
+    /// Below the links row, so the Take's title doesn't sit on the buttons.
+    public static let linksGap = 6.0
+    /// The least the spacer above Marker keeps; the note uses what the spacer has beyond it.
+    public static let spacerMinimum = 4.0
+    /// The hint line between Marker and Record.
+    public static let hintHeight = 20.0
+    /// Record never shrinks, in either layout.
+    public static let recordSize = 64.0
+    /// A line of caption text, and the Take's title3 line, at default text.
+    static let captionLine = 16.0
+    static let titleLine = 25.0
+    /// Between Marker's circle and its "N Markers" label (`MarkerButtonLabel`).
+    static let markerLabelGap = 4.0
+
+    /// Marker's circle: a little smaller in the compact column, never smaller than 44 pt.
+    public var markerSize: Double {
+        switch self {
+        case .full: 64
+        case .compact: 56
+        }
+    }
+
+    /// The height the column under the top row has: the screen less the home indicator, the padding, the top row
+    /// and the gap below it.
+    public static func availableHeight(screenHeight: Double, bottomInset: Double) -> Double {
+        screenHeight - bottomInset - 2 * screenPadding - topRowHeight - rowSpacing
+    }
+
+    /// How tall this layout's column is at `textScale` (1 at default text), without the note: the note only takes
+    /// what the spacer has to spare, so a note coming or going never switches the layout during a Take.
+    public func height(textScale: Double) -> Double {
+        let blocks = parts.reduce(0.0) { total, part in
+            switch part {
+            case .showName: total + Self.rowHeight
+            case .links: total + Self.rowHeight + Self.linksGap
+            case .take: total + Self.titleLine * textScale
+            case .marker: total + markerSize + (self == .full ? Self.markerLabelGap + Self.captionLine * textScale : 0)
+            case .hint: total + Self.hintHeight
+            case .record: total + Self.recordSize
+            }
+        }
+        // The Show and Take block, the spacer, Marker, the hint line and Record, with a gap between each.
+        return blocks + Self.spacerMinimum + 4 * Self.spacing
+    }
+
+    /// The first layout, in `allCases` order, whose column fits `availableHeight`; the compact one when none does.
+    /// The app's ViewThatFits makes the same choice from the views' measured heights.
+    public static func choose(availableHeight: Double, textScale: Double) -> TransportColumnLayout {
+        allCases.first { $0.height(textScale: textScale) <= availableHeight } ?? .compact
+    }
 }
