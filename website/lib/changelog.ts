@@ -14,6 +14,16 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.2.2",
+    date: "2026-11-04",
+    channel: "TestFlight beta",
+    summary: "The landscape record screen fits with Display Zoom and larger text.",
+    changes: [
+      "In landscape, when the record screen's column doesn't fit, a compact one takes its place: the Show name moves to the header and Record stays the same size.",
+      "Shows, Names and Gain are buttons with a symbol over the word, each big enough to tap.",
+    ],
+  },
+  {
     version: "1.2.1",
     date: "2026-11-03",
     channel: "TestFlight beta",
