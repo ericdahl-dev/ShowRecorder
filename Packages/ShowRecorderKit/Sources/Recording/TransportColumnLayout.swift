@@ -63,6 +63,11 @@ public enum TransportColumnLayout: CaseIterable, Sendable {
         }
     }
 
+    /// The column's width: room for each link at 44 pt, 8 pt apart. Gain, when offered, is a third link.
+    public static func width(offersGain: Bool) -> Double {
+        offersGain ? 148 : 128
+    }
+
     /// The height the column under the top row has: the screen less the home indicator, the padding, the top row
     /// and the gap below it.
     public static func availableHeight(screenHeight: Double, bottomInset: Double) -> Double {
@@ -90,5 +95,38 @@ public enum TransportColumnLayout: CaseIterable, Sendable {
     /// The app's ViewThatFits makes the same choice from the views' measured heights.
     public static func choose(availableHeight: Double, textScale: Double) -> TransportColumnLayout {
         allCases.first { $0.height(textScale: textScale) <= availableHeight } ?? .compact
+    }
+}
+
+/// The links under the Show name on the record screen, in both orientations (#1035): each a symbol over its word in a
+/// tinted, bordered button, so "Shows" and "Names" read as two buttons.
+public enum TransportLink: CaseIterable, Sendable {
+    case shows, names, gain
+
+    /// Each at least 44 by 44 pt to hit.
+    public static let minimumSize = 44.0
+    public static let spacing = 8.0
+
+    /// Shows, Names, then Gain when the Mixer offers auto-gain.
+    public static func row(offersGain: Bool) -> [TransportLink] {
+        offersGain ? [.shows, .names, .gain] : [.shows, .names]
+    }
+
+    /// The word under the symbol, and the VoiceOver label.
+    public var word: String {
+        switch self {
+        case .shows: "Shows"
+        case .names: "Names"
+        case .gain: "Gain"
+        }
+    }
+
+    /// The SF Symbol over the word.
+    public var symbol: String {
+        switch self {
+        case .shows: "folder"
+        case .names: "tag"
+        case .gain: "slider.vertical.3"
+        }
     }
 }
