@@ -58,4 +58,23 @@ struct TransportColumnLayoutTests {
             }
         }
     }
+
+    @Test("The links row is Shows, Names, then Gain only when it is offered, each a symbol over its word")
+    func linksRow() {
+        #expect(TransportLink.row(offersGain: false) == [.shows, .names])
+        #expect(TransportLink.row(offersGain: true) == [.shows, .names, .gain])
+        #expect(TransportLink.row(offersGain: true).map(\.word) == ["Shows", "Names", "Gain"])
+        #expect(TransportLink.row(offersGain: true).map(\.symbol) == ["folder", "tag", "slider.vertical.3"])
+    }
+
+    @Test("The column is wide enough for each link at 44 pt, 8 pt apart: 128 pt, or 148 pt with Gain")
+    func columnWidthHoldsTheLinks() {
+        for offersGain in [false, true] {
+            let count = Double(TransportLink.row(offersGain: offersGain).count)
+            let width = TransportColumnLayout.width(offersGain: offersGain)
+            #expect(width >= count * TransportLink.minimumSize + (count - 1) * TransportLink.spacing, "\(offersGain)")
+        }
+        #expect(TransportColumnLayout.width(offersGain: false) == 128)
+        #expect(TransportColumnLayout.width(offersGain: true) == 148)
+    }
 }
