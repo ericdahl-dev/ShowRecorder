@@ -1,10 +1,12 @@
 import Recording
+import StoreKit
 import SwiftUI
 
 /// The past Shows, newest first, read from the files (Device and Drive). Reached from the record screen.
 struct ShowListView: View {
     let model: RecordScreenModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.requestReview) private var requestReview
     @State private var shows: [ShowSummary]?
     @State private var unreadable = false
     @State private var deleting: ShowSummary?
@@ -52,6 +54,8 @@ struct ShowListView: View {
         }
         .task {
             await reload()
+            // The App Store rating prompt, when one is due after a clean Take: here, with no Take running.
+            model.askForRatingIfDue { requestReview() }
             // `-deleteShowSheet` opens the delete sheet on the second Show, for screenshots.
             if launchFlag("-deleteShowSheet"), let shows, shows.count > 1 { deleting = shows[1] }
         }

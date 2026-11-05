@@ -789,6 +789,8 @@ final class RecordScreenModel {
     let pro: ProStore
     /// When the app offers Pro (#62); what was offered is kept on the device.
     @ObservationIgnored private var proOffers = ProOffers()
+    /// When to ask for an App Store rating (after clean Takes, never during one), kept on the device.
+    @ObservationIgnored private var ratingPrompt = RatingPromptPolicy.load()
     /// The paywall to show, when one is due. Never during a Take.
     var paywall: PaywallRequest?
     /// The Templates on this device (#33).
@@ -883,6 +885,8 @@ final class RecordScreenModel {
                 // Crash reports and usage (ADR 0007): take_started and take_stopped, off the audio path.
                 self.takeTelemetry.handle(event, context: TakeContext(
                     recorder: self.recorder, mixerFamily: self.mixer.family.map { String(describing: $0) }))
+                // The App Store rating prompt counts clean Takes here; it asks later, when the screen is idle.
+                if case let .takeEnded(end) = event { self.countForRating(end) }
                 let followUp = TakeFollowUp(event)
                 if followUp.contains(.liveActivity) { followLiveActivity() }
                 if followUp.contains(.proOffer) { offerProAfterTake() }
@@ -1259,6 +1263,23 @@ final class RecordScreenModel {
             try? await Task.sleep(for: .seconds(StopHint.seconds))
             if !Task.isCancelled { self?.stopHint.expire(token) }
         }
+    }
+
+    /// Tells the rating prompt how the Take that just ended went: its Dropouts and Copies, as the recorder has them now.
+    private func countForRating(_ end: TakeEnd) {
+        ratingPrompt.takeEnded(end, dropouts: recorder.dropoutCount, copies: recorder.copies)
+        ratingPrompt.save()
+    }
+
+    /// Asks for an App Store rating through `requestReview` when one is due (`RatingPromptPolicy`), in Debug and TestFlight
+    /// builds (`RatingPromptAvailability`). Called when the Show list appears, never during a Take.
+    func askForRatingIfDue(_ requestReview: () -> Void) {
+        guard RatingPromptAvailability.isAvailableInThisBuild else { return }
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        guard ratingPrompt.shouldAsk(appVersion: version, isRecording: takeBusy) else { return }
+        ratingPrompt.asked(appVersion: version)
+        ratingPrompt.save()
+        requestReview()
     }
 
     /// After a Take: a Free Take that went to the Device only with a Drive connected, a Free Take whose Stems got
