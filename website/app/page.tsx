@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AppStoreBadge } from "@/components/AppStoreBadge";
+import { BetaLink } from "@/components/BetaLink";
 import { GetBand } from "@/components/GetBand";
 import { Screenshot } from "@/components/Screenshot";
 import { SignupForm } from "@/components/SignupForm";
@@ -273,6 +274,7 @@ export default function Home() {
             </p>
             <div className="hero-actions">
               <AppStoreBadge id="app-store-link" campaign="site-home" />
+              <BetaLink />
             </div>
           </div>
           <div className="devices">

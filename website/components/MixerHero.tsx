@@ -1,4 +1,5 @@
 import { AppStoreBadge } from "@/components/AppStoreBadge";
+import { BetaLink } from "@/components/BetaLink";
 import { Mark } from "@/components/Mark";
 import { ctaNote, type AppStoreCampaign } from "@/lib/site";
 
@@ -31,6 +32,7 @@ export function MixerHero({
           <p className="lede">{lede}</p>
           <div className="hero-actions">
             <AppStoreBadge id="app-store-link" campaign={campaign} beta={beta} />
+            {beta ? null : <BetaLink />}
             <p className="price">{ctaNote(beta)}</p>
           </div>
         </div>
