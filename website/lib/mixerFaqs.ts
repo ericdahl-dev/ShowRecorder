@@ -1,3 +1,5 @@
+import { PRO_PRICE_TEXT } from "@/lib/site";
+
 // The questions an engineer asks before trying ShowRecorder with a mixer, one list per mixer page (#704).
 // The page shows these exact strings (components/MixerFaq.tsx) and the FAQPage JSON-LD repeats them, so the
 // structured data never says anything the page doesn't. Answers are plain text; keep them true to the page body.
@@ -26,7 +28,7 @@ export const XR18_FAQS: readonly Faq[] = [
   },
   {
     q: "What does it cost?",
-    a: "ShowRecorder is free to download, and Free records all 18 USB Channels. Pro is a one-time purchase, at a launch price of $4.99, with a 14-day Trial and no subscription.",
+    a: `ShowRecorder is free to download, and Free records all 18 USB Channels. Pro is a one-time purchase, at a launch price of ${PRO_PRICE_TEXT}, with a 14-day Trial and no subscription.`,
   },
 ];
 
@@ -53,6 +55,6 @@ export const X32_FAQS: readonly Faq[] = [
   },
   {
     q: "What does it cost?",
-    a: "ShowRecorder is free to download, and Free records all 32 USB Channels, with generic names on the files. Pro adds the names and colors from the mixer, and is a one-time purchase, at a launch price of $4.99, with a 14-day Trial and no subscription.",
+    a: `ShowRecorder is free to download, and Free records all 32 USB Channels, with generic names on the files. Pro adds the names and colors from the mixer, and is a one-time purchase, at a launch price of ${PRO_PRICE_TEXT}, with a 14-day Trial and no subscription.`,
   },
 ];

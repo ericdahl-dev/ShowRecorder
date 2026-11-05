@@ -5,7 +5,7 @@ import { Screenshot } from "@/components/Screenshot";
 import { SignupForm } from "@/components/SignupForm";
 import { PAGES, pageMetadata } from "@/lib/metadata";
 import { SHOTS } from "@/lib/screenshots";
-import { ctaNote } from "@/lib/site";
+import { PRO_PRICE_TEXT, ctaNote } from "@/lib/site";
 import "./home.css";
 import { faqPageJsonLd, jsonLdScript, softwareApplicationJsonLd } from "@/lib/structuredData";
 
@@ -123,7 +123,7 @@ const plans = [
   },
   {
     title: "Pro",
-    price: "$4.99, once",
+    price: `${PRO_PRICE_TEXT}, once`,
     items: [
       "Names and colors from the mixer, on the files",
       "Channel names you type, on the files",
@@ -145,7 +145,7 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
   },
   {
     q: "What does ShowRecorder cost?",
-    a: "Nothing to download: Free records every USB Channel. Pro is a one-time purchase at a launch price of $4.99, and the 14-day Trial in Settings › Pro lets you try it first. The public beta on TestFlight is free to join too, and buying Pro in the beta isn't charged; TestFlight builds expire after 90 days, so install the newest build to carry on.",
+    a: `Nothing to download: Free records every USB Channel. Pro is a one-time purchase at a launch price of ${PRO_PRICE_TEXT}, and the 14-day Trial in Settings › Pro lets you try it first. The public beta on TestFlight is free to join too, and buying Pro in the beta isn't charged; TestFlight builds expire after 90 days, so install the newest build to carry on.`,
   },
   {
     q: "How much space does a Show take?",

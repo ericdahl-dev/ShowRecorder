@@ -35,6 +35,7 @@ An agent can create these two through the API once step 1 is Active: say "create
 - [x] **Price:** $4.99, the launch price (ADR 0004; set 2026-10-16). The app says "Launch price" under Buy Pro. Then two steps, each only after Eric says go (Claude watches sales through the App Store Connect API and asks):
   - [ ] At about 25 buyers: **$9.99**.
   - [ ] At about 50 buyers: **$19.99**, full price. The "Launch price" line goes by itself: it shows only while Pro's live price is the launch price (#908).
+  - With each price change, update `PRO_PRICE` in `website/lib/price.ts` (read through `website/lib/site.ts`) in the same change: the site's pages, its structured data and llms.txt all read it, and `website/tests/proPrice.test.ts` fails if the price is typed anywhere else.
 - [ ] **Family Sharing: On.** This can't be turned off later (ADR 0004 wants it on).
 - [ ] **Localization (English U.S.):** Display Name `ShowRecorder Pro` (30 characters max). Description: App Store Connect has `Every USB Channel, report, Reaper, 96 kHz, Templates` (52, read 2026-10-18), out of date since Free records every USB Channel (#703). Change it to `Mixer names, Drive copy, report, 96 kHz, more` (45), or another text ([`mixer-packs.md`](mixer-packs.md), "Decisions").
 - [ ] **Review screenshot:** the paywall (taken for #324).

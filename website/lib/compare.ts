@@ -1,3 +1,5 @@
+import { PRO_PRICE_TEXT } from "@/lib/site";
+
 // Copy for /compare (#704): ShowRecorder next to the other ways to record a mixer.
 //
 // Rules for this file:
@@ -48,7 +50,7 @@ export const ROWS: readonly { label: string; cells: Record<ProductId, string> }[
     label: "Price",
     cells: {
       showrecorder:
-        "Free to download, and records every USB Channel, with generic names. Pro is a one-time $4.99 at its launch price, with a 14-day Trial. No subscription.",
+        `Free to download, and records every USB Channel, with generic names. Pro is a one-time ${PRO_PRICE_TEXT} at its launch price, with a 14-day Trial. No subscription.`,
       manytrack: "Free. Its listing shows no in-app purchases.",
       laptop: "The laptop, plus a paid license for the software.",
       xlive: "A card you buy for the X32, plus SD cards.",
@@ -139,7 +141,7 @@ export const ROWS: readonly { label: string; cells: Record<ProductId, string> }[
 export const COMPARE_FAQS: readonly { q: string; a: string }[] = [
   {
     q: "Is there a free multitrack recorder for iPhone and iPad?",
-    a: "Yes, two. Manytrack Recorder is free, with no in-app purchases listed. ShowRecorder is free to download and records every USB Channel, with generic names; Pro is a one-time $4.99 at its launch price and comes with a 14-day Trial. There is no subscription.",
+    a: `Yes, two. Manytrack Recorder is free, with no in-app purchases listed. ShowRecorder is free to download and records every USB Channel, with generic names; Pro is a one-time ${PRO_PRICE_TEXT} at its launch price and comes with a 14-day Trial. There is no subscription.`,
   },
   {
     q: "Does ShowRecorder save a separate file for each channel?",
