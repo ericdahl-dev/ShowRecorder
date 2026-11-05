@@ -99,13 +99,14 @@ export const ROUTES: readonly string[] = [
   "/privacy",
 ];
 
-// Header navigation. Anchors carry the leading slash so they work from every page.
-export const NAV: readonly { label: string; href: string; wide?: boolean }[] = [
+// Header navigation. `href` is a real page, so every page links to Setup, Pricing and FAQ content of its own; `home` is
+// the home page's section for the same thing, which the inline script in lib/theme.ts swaps in on the home page.
+export const NAV: readonly { label: string; href: string; home?: string; wide?: boolean }[] = [
   { label: "Features", href: "/features" },
-  { label: "Setup", href: "/#need" },
-  { label: "Pricing", href: "/#pricing" },
+  { label: "Setup", href: "/docs/getting-started", home: "/#need" },
+  { label: "Pricing", href: "/docs/pricing", home: "/#pricing" },
   { label: "Docs", href: "/docs" },
-  { label: "FAQ", href: "/#faq" },
+  { label: "FAQ", href: "/support", home: "/#faq" },
   { label: "Compare", href: "/compare", wide: true },
   { label: "Support", href: "/support", wide: true },
 ];

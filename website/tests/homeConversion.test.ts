@@ -40,7 +40,7 @@ describe("the home hero (#719)", () => {
 
   it("leads with the result and who it is for", () => {
     expect(hero).toMatch(
-      /<h1 id="hero-title">Record every channel of your mixer on your iPhone\. No laptop at the gig\.<\/h1>/,
+      /<h1 id="hero-title">Multitrack every channel of your mixer on your iPhone\. No laptop at the gig\.<\/h1>/,
     );
   });
 

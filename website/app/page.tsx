@@ -260,7 +260,7 @@ export default function Home() {
       <section id="top" aria-labelledby="hero-title" className="hero">
         <div className="wrap hero-grid">
           <div>
-            <h1 id="hero-title">Record every channel of your mixer on your iPhone. No laptop at the gig.</h1>
+            <h1 id="hero-title">Multitrack every channel of your mixer on your iPhone. No laptop at the gig.</h1>
             <p className="lede">
               Plug your mixer into your iPhone over USB, press record, and get one 24-bit WAV file per channel,
               named from the mixer and ready for your DAW.
