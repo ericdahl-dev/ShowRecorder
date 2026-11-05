@@ -16,7 +16,7 @@ export const DOCS: readonly DocLink[] = [
   { slug: "templates", title: "Templates", description: "Save a venue's setup as a Template (channel names, mixer, Show name and Pre-roll) and start a Show from it in one tap. A Pro feature." },
   { slug: "apple-watch", title: "The Apple Watch remote", nav: "Apple Watch remote", description: "Use your Apple Watch as a remote for ShowRecorder on iPhone: start a Take, add Markers and stop with a press and hold. And what No link means." },
   { slug: "daw", title: "Opening a Show in Reaper or your DAW", nav: "Reaper and your DAW", description: "How a ShowRecorder Show folder is laid out, how Stems are named, what the Reaper project holds, and how to get the files onto your computer." },
-  { slug: "pricing", title: "Pricing", description: "ShowRecorder is free to download and records every USB Channel. Pro is a one-time $4.99 purchase with Family Sharing and a 14-day Trial. No subscription." },
+  { slug: "pricing", title: "Pricing", description: "Free to download, and Free records every USB Channel. Pro is one purchase, no subscription, at a launch price, with Family Sharing and a 14-day Trial." },
   { slug: "troubleshooting", title: "Troubleshooting", description: "Step-by-step fixes: a mixer the iPhone can't see, missing channels, Mixer Link, a Drive that fails or is slow, TestFlight and finding your files." },
 ];
 

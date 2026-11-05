@@ -12,6 +12,9 @@ export const CONTACT_EMAIL = "showrecorder@ericdahl.dev";
 export const REPO_URL = "https://github.com/ericdahl-dev/ShowRecorder";
 export const ISSUES_URL = `${REPO_URL}/issues`;
 
+// Pro's price. It is set in lib/price.ts (lib/docs.ts needs it, and this file imports lib/docs.ts) and read from here.
+export { PRO_PRICE, PRO_PRICE_TEXT } from "@/lib/price";
+
 // The App Store listing (App Store Connect app 6820213310). While it is null, the badge slots
 // (AppStoreBadge) show a "Coming soon to the App Store" placeholder that is not a link.
 export const APP_STORE_ID = "6820213310";
