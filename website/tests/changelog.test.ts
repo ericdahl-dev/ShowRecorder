@@ -28,7 +28,7 @@ describe("changelog", () => {
 
   it("leads with 1.1 on the App Store, and the page links to it (#382)", () => {
     expect(RELEASES.find((r) => r.channel === "App Store")).toMatchObject({ version: "1.1.18" });
-    expect(renderToStaticMarkup(ChangelogPage())).toContain(`<a href="${APP_STORE_URL}">`);
+    expect(renderToStaticMarkup(ChangelogPage())).toContain(`<a href="${APP_STORE_URL}?pt=117729664&amp;ct=site-changelog&amp;mt=8">`);
   });
 
   it("is a page in the sitemap", () => {

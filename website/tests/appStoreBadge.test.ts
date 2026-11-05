@@ -8,7 +8,7 @@ describe("App Store badge (#382)", () => {
   it("is Apple's badge, linking to the App Store listing", () => {
     const html = renderToStaticMarkup(createElement(AppStoreBadge, { id: "app-store-link", campaign: "site-home" }));
     expect(APP_STORE_URL).toBe("https://apps.apple.com/app/id6820213310");
-    expect(html).toContain(`href="${APP_STORE_URL}"`);
+    expect(html).toContain(`href="${APP_STORE_URL}?pt=117729664&amp;ct=site-home&amp;mt=8"`);
     expect(html).toContain('src="/images/app-store-badge.svg" alt="Download on the App Store"');
   });
 

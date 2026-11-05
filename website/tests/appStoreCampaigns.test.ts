@@ -68,3 +68,11 @@ describe("tagged App Store links", () => {
     expect(hits).toEqual([]);
   });
 });
+
+describe("the provider token is set (117729664, from App Store Connect)", () => {
+  it("tags every site link with pt, the placement's ct and mt=8", () => {
+    expect(APP_STORE_PROVIDER_TOKEN).toBe("117729664");
+    expect(appStoreLink("site-home")).toBe("https://apps.apple.com/app/id6820213310?pt=117729664&ct=site-home&mt=8");
+    expect(appStoreLink("llms")).toBe("https://apps.apple.com/app/id6820213310?pt=117729664&ct=llms&mt=8");
+  });
+});
