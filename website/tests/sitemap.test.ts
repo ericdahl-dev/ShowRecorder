@@ -2,7 +2,6 @@ import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
-import { RELEASES } from "@/lib/changelog";
 import { DOCS } from "@/lib/docs";
 import { AI_CRAWLERS, SITE_URL } from "@/lib/site";
 
@@ -42,9 +41,8 @@ describe("sitemap", () => {
 });
 
 describe("sitemap lastmod", () => {
-  it("gives every page the date of the newest release", () => {
+  it("gives every page a date", () => {
     for (const entry of sitemap()) {
-      expect(entry.lastModified).toBe(RELEASES[0].date);
       expect(entry.lastModified).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     }
   });

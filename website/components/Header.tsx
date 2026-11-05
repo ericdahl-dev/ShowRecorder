@@ -16,7 +16,12 @@ export function Header() {
           <ul>
             {NAV.map((item) => (
               <li key={item.href} className={item.wide ? "nav-wide" : undefined}>
-                <a href={item.href} data-current-match={item.href === "/docs" ? "prefix" : ""} suppressHydrationWarning>
+                <a
+                  href={item.href}
+                  data-home-href={item.home}
+                  data-current-match={item.href === "/docs" ? "prefix" : ""}
+                  suppressHydrationWarning
+                >
                   {item.label}
                 </a>
               </li>
