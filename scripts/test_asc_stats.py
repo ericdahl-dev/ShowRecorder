@@ -45,6 +45,17 @@ class SummarizeTests(unittest.TestCase):
         self.assertEqual(summary.units["pro"], 4)
         self.assertEqual(summary.proceeds, {"USD": 10.5, "GBP": 2.35})
 
+    def test_counts_the_free_trial_apart_from_pro(self):
+        trial = {"Product Type Identifier": "IA1", "SKU": "dev.ericdahl.ShowRecorder.trial", "Apple Identifier": "trialid",
+                 "Parent Identifier": "showrecorder", "Developer Proceeds": "0"}
+        pro = {"Product Type Identifier": "IA1", "SKU": "dev.ericdahl.ShowRecorder.pro", "Apple Identifier": "proid",
+               "Parent Identifier": "showrecorder", "Developer Proceeds": "4.24"}
+        reports = {"2026-11-03": report(trial, trial, {**trial, "Currency of Proceeds": "GBP"}, pro)}
+        summary = asc_stats.summarize(reports, app_id="app", sku="showrecorder")
+        self.assertEqual(summary.units["trials"], 3)
+        self.assertEqual(summary.units["pro"], 1)
+        self.assertEqual(summary.proceeds, {"USD": 4.24})
+
     def test_sorts_iphone_and_mac_rows_into_downloads_updates_and_redownloads(self):
         reports = {"2026-11-01": report(
             *({"Product Type Identifier": kind} for kind in ("1F", "F1", "7F", "7", "F7", "3F", "F3")),
