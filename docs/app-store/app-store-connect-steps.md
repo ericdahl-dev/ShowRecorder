@@ -85,9 +85,9 @@ Your steps:
 
 ## 7. Tagged links
 
-**Website App Store links.** Every App Store link on showrecorder.app is built by `appStoreLink()` in `website/lib/site.ts`, with a campaign (`ct`) per placement, so App Analytics (Acquisition > Campaigns) shows downloads by where the click came from. They stay plain links until the provider token is set, because Apple ignores `ct` without `pt`:
+**Website App Store links.** Every App Store link on showrecorder.app is built by `appStoreLink()` in `website/lib/site.ts`, with a campaign (`ct`) per placement, so App Analytics (Acquisition > Campaigns) shows downloads by where the click came from. With no provider token they would be plain links, because Apple ignores `ct` without `pt`:
 
-- [ ] Copy the provider token: App Store Connect > Apps > ShowRecorder > Analytics > Acquisition > Campaigns > Generate Campaign Link. The link holds `pt=<number>`; it is not a secret. Set `APP_STORE_PROVIDER_TOKEN` in `website/lib/site.ts` to it (a one-line PR). Each link then becomes `https://apps.apple.com/app/id6820213310?pt=<token>&ct=<campaign>&mt=8`.
+- [x] (2026-11-05: `117729664`.) Copy the provider token: App Store Connect > Apps > ShowRecorder > Analytics > Acquisition > Campaigns > Generate Campaign Link. The link holds `pt=<number>`; it is not a secret. Set `APP_STORE_PROVIDER_TOKEN` in `website/lib/site.ts` to it (a one-line PR). Each link then becomes `https://apps.apple.com/app/id6820213310?pt=<token>&ct=<campaign>&mt=8`.
 
 The campaigns (40 characters or fewer; the list is `APP_STORE_CAMPAIGNS`):
 

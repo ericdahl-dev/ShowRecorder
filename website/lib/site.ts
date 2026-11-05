@@ -23,7 +23,7 @@ export const APP_STORE_URL = `https://apps.apple.com/app/id${APP_STORE_ID}` as s
 // App Store Connect's provider token, the `pt` in a campaign link (App Store Connect > Apps > ShowRecorder > Analytics >
 // Acquisition > Campaigns > Generate Campaign Link: the link holds pt=<number>). Not a secret. While it is null, App
 // Store links are the plain listing, since Apple ignores ct without pt; setting it tags every link at once.
-export const APP_STORE_PROVIDER_TOKEN = null as string | null;
+export const APP_STORE_PROVIDER_TOKEN = "117729664" as string | null;
 
 // The campaign (ct) for each place the site links to the App Store, 40 characters or fewer. App Analytics shows
 // downloads by these names. docs/app-store/app-store-connect-steps.md ("Tagged links") lists them.
