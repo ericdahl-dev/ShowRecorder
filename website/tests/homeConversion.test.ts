@@ -78,14 +78,14 @@ describe("the home page order and FAQs (#719)", () => {
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
-  it("answers whether the beta is safe for a real gig, from what the app does", () => {
-    expect(home).toMatch(/q: "Is the beta safe for a real gig\?"/);
+  it("answers whether ShowRecorder is safe for a real gig, from what the app does", () => {
+    expect(home).toMatch(/q: "Is ShowRecorder safe for a real gig\?"/);
     expect(home).toMatch(/Files are saved every 2 seconds/);
     expect(home).toMatch(/test Take/);
   });
 
-  it("answers what the beta costs: nothing, 90 days per build, Free is every USB Channel", () => {
-    expect(home).toMatch(/q: "What does the beta cost\?"/);
+  it("answers what it costs: Free is every USB Channel, and TestFlight builds last 90 days", () => {
+    expect(home).toMatch(/q: "What does ShowRecorder cost\?"/);
     expect(home).toMatch(/expire after 90 days/);
     expect(home).toMatch(/Free records every USB Channel/);
     expect(home).not.toMatch(/so every USB Channel records/);

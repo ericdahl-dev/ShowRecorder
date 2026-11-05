@@ -37,7 +37,7 @@ export function facts(): string[] {
     "- In the public beta (TestFlight, not the App Store version): the Mac version, in testing on macOS 26.",
     `- Planned, not available: ${planned.filter((m) => /DJM/.test(m.name)).map((m) => m.name).join("; ")}.`,
     `- Also TestFlight only: ${inBetaFeatures.map((f) => f.title).join(", ")}.`,
-    "- Privacy: no data is collected. Recordings stay on your device and your drive.",
+    "- Privacy: the App Store version collects no data. The TestFlight beta builds send crash reports and usage (never recordings, Show names or file names), and Settings › Share crash reports and usage turns that off. Recordings stay on your device and your drive.",
     "",
   ];
 }
