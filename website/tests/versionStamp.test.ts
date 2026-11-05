@@ -34,6 +34,13 @@ describe("the X32 page description", () => {
   });
 });
 
+describe("the X32 page title", () => {
+  it("names iPhone as well as iPad, and no beta", () => {
+    expect(PAGES.mixersX32.title).toMatch(/iPhone/);
+    expect(PAGES.mixersX32.title).not.toMatch(/beta/i);
+  });
+});
+
 describe("compare: a separate file for each channel", () => {
   it("says names from the mixer on the files are Pro, on the XR18, MR18, X32 and M32", () => {
     const a = COMPARE_FAQS.find((f) => f.q === "Does ShowRecorder save a separate file for each channel?")!.a;
