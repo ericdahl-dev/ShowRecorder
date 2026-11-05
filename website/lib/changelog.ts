@@ -296,3 +296,8 @@ export const RELEASES: readonly Release[] = [
 // Before 1.0: the public beta's builds, summed up in one line on the page.
 export const BETA_SUMMARY =
   "ShowRecorder went through 24 TestFlight builds (0.1.0 to 0.1.23), with testers recording real shows.";
+
+// The newest release on a channel (RELEASES is newest first): llms.txt and the structured data name these versions.
+export function newestRelease(channel: Channel): Release | undefined {
+  return RELEASES.find((r) => r.channel === channel);
+}

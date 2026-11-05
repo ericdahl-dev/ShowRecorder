@@ -1,3 +1,4 @@
+import { newestRelease } from "@/lib/changelog";
 import { PAGES, type PageInfo } from "@/lib/metadata";
 import { APP_STORE_URL, PRO_PRICE, REPO_URL, SITE_NAME, SITE_URL } from "@/lib/site";
 
@@ -22,6 +23,8 @@ const OFFERS = [
   },
 ];
 
+const appStoreVersion = newestRelease("App Store")?.version;
+
 function applicationJsonLd(url: string, description: string) {
   return {
     "@context": "https://schema.org",
@@ -31,6 +34,8 @@ function applicationJsonLd(url: string, description: string) {
     description,
     applicationCategory: "MultimediaApplication",
     operatingSystem: "iOS 26, iPadOS 26, macOS 26 (beta)",
+    // The version the App Store installs, from the changelog.
+    ...(appStoreVersion ? { softwareVersion: appStoreVersion } : {}),
     image: `${SITE_URL}/og-image.png`,
     offers: OFFERS,
     publisher: { "@type": "Person", name: "Eric Dahl", url: "https://ericdahl.dev" },
