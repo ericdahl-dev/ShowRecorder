@@ -94,6 +94,7 @@ export const ROUTES: readonly string[] = [
   "/mixers/xr18",
   "/mixers/x32",
   "/compare",
+  "/guides/record-gig-without-laptop",
   "/changelog",
   "/support",
   "/privacy",

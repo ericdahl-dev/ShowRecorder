@@ -171,11 +171,12 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
   },
   {
     q: "Can I record an XR18 without a computer?",
-    a: "Yes. The XR18 and MR18 send all 18 channels over USB to whatever is plugged in, and ShowRecorder makes that your iPhone or iPad. You only need a computer later, to mix the Stems.",
+    a: "Yes. The XR18 and MR18 send all 18 channels over USB to whatever is plugged in, and ShowRecorder makes that your iPhone or iPad. You only need a computer later, to mix the Stems. The guide to recording a gig without a laptop has the steps.",
     node: (
       <>
         Yes. The <a href="/mixers/xr18">XR18 and MR18</a> send all 18 channels over USB to whatever is plugged in, and
-        ShowRecorder makes that your iPhone or iPad. You only need a computer later, to mix the Stems.
+        ShowRecorder makes that your iPhone or iPad. You only need a computer later, to mix the Stems. The{" "}
+        <a href="/guides/record-gig-without-laptop">guide to recording a gig without a laptop</a> has the steps.
       </>
     ),
   },

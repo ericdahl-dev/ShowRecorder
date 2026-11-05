@@ -1,0 +1,59 @@
+import { GUIDE_STEPS } from "@/lib/guide";
+import { PAGES, pageMetadata } from "@/lib/metadata";
+import { howToJsonLd, jsonLdScript } from "@/lib/structuredData";
+
+export const metadata = pageMetadata(PAGES.guideNoLaptop);
+
+<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(howToJsonLd(PAGES.guideNoLaptop, GUIDE_STEPS)) }} />
+
+# Record an XR18 or X32 gig without a laptop
+
+Ask how to multitrack an XR18 on a forum and the answer is nearly always the same: bring a laptop, install a DAW, and keep it running at front of house all night. That was true once. It isn't any more.
+
+The XR18 and MR18 send all 18 channels over USB, and the X32 and M32 send 32 through their USB card, to whatever is plugged in. A USB-C iPhone or iPad can take them, and ShowRecorder records each one to its own file. The phone in your pocket replaces the laptop.
+
+## What you need
+
+- **A USB-C iPhone or iPad.** An iPhone 15 or later on iOS 26, or a USB-C iPad on iPadOS 26.
+- **A class-compliant USB mixer.** The Behringer XR18 and Midas MR18, or a Behringer X32 or Midas M32 with its USB card. Any other class-compliant mixer or audio interface records too, with generic channel names.
+- **A USB cable** from the mixer's USB port to the phone or tablet. The [USB cable and setup](/docs/usb-cable-and-setup) page lists which one.
+- **A powered USB-C hub** (recommended). A long show drains a phone; a hub with power pass-through charges it while the mixer, and a drive if you use one, stay plugged in.
+- **ShowRecorder**, free on the App Store. Free records every USB Channel. Pro adds the names from the mixer on the files, a second copy on a drive and more ([pricing](/docs/pricing)).
+
+You don't need an internet connection. The audio comes over the cable; channel names come over the mixer's own network.
+
+## The steps
+
+<ol>
+  {GUIDE_STEPS.map((s) => (
+    <li key={s.name}>
+      <strong>{s.name}.</strong> {s.text}
+    </li>
+  ))}
+</ol>
+
+The details of each step are already in the docs, so they aren't repeated here: [USB cable and setup](/docs/usb-cable-and-setup) for the cable, the hub and the Audio interface setting, [What the mixer sends over USB](/docs/what-gets-recorded) for routing, [Mixer Link](/docs/mixer-link) for names and colors, and [Getting started](/docs/getting-started) for your first Take.
+
+## What you get
+
+When you stop, each Take is a folder with one mono 24-bit WAV file per channel, at the mixer's sample rate: 18 files from an XR18, 32 from an X32. Every file starts at the same moment, so they line up on the timeline when you drop them into a DAW.
+
+With Pro, each file is named after the channel on the mixer ("Kick", "Vox Lead") instead of "USB 01", and comes with a Show report and a Reaper project with your Markers in place. Free names them generically and keeps up to 3 Markers per Take.
+
+Files are saved every 2 seconds as you record, so a phone call, a crash or a flat battery costs seconds, not the show. With Pro, a USB drive on the hub gets a [second copy as you record](/docs/usb-drive).
+
+To get the files off, use AirDrop, the Files app or the drive, then open them as described in [Opening a Show in Reaper or your DAW](/docs/daw).
+
+## The limits, honestly
+
+- **The X32 and M32 have been tested only against an emulator so far.** Try it at a rehearsal or next to your usual recorder before you count on it for a show, and tell us how it goes.
+- **Lightning iPhones aren't supported.** An iPhone 14 or earlier can't take the mixer's channels; you need USB-C, so an iPhone 15 or later or a USB-C iPad.
+- **Plan for power.** The phone powers nothing on the mixer, but recording for three hours with the screen on will drain it. Use a powered hub, or start the show fully charged.
+- **Storage adds up.** 18 channels at 48 kHz take about 9.3 GB per hour; the record screen shows the time left.
+- **Mixing is still a computer job.** ShowRecorder records; you mix the files later in your DAW.
+
+If a laptop is still the better pick for you (for example, you mix live from the DAW), the [comparison page](/compare) says so plainly.
+
+## Next
+
+Start with your own mixer page, the [XR18 and MR18](/mixers/xr18) or the [X32 and M32](/mixers/x32), or go straight to [Getting started](/docs/getting-started). Questions are welcome at the [support page](/support).

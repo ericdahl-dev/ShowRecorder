@@ -91,6 +91,18 @@ export function faqPageJsonLd(faqs: readonly { q: string; a: string }[]) {
   };
 }
 
+// A guide's steps as schema.org HowTo (the no-laptop guide, lib/guide.ts).
+export function howToJsonLd(page: PageInfo, steps: readonly { name: string; text: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: page.title.replace(/ - ShowRecorder$/, ""),
+    description: page.description,
+    url: SITE_URL + page.path,
+    step: steps.map((s, i) => ({ "@type": "HowToStep", position: i + 1, name: s.name, text: s.text })),
+  };
+}
+
 // JSON-LD for a <script type="application/ld+json">, with "<" escaped so it can never close the
 // script tag early.
 export function jsonLdScript(data: object): string {

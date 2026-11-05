@@ -65,6 +65,12 @@ export const PAGES = {
       alt: "ShowRecorder for the X32 and M32: all 32 USB Channels on iPhone and iPad.",
     },
   },
+  guideNoLaptop: {
+    path: "/guides/record-gig-without-laptop",
+    title: "Record an XR18 or X32 gig without a laptop - ShowRecorder",
+    description:
+      "Multitrack an XR18, MR18, X32 or M32 to an iPhone or iPad with no laptop: what you need, the steps, the files you get and the limits.",
+  },
   privacy: {
     path: "/privacy",
     title: `Privacy policy - ${SITE_NAME}`,
