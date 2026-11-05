@@ -31,13 +31,13 @@ export const PAGES = {
   },
   features: {
     path: "/features",
-    title: `Features and supported mixers - ${SITE_NAME}`,
+    title: `Multitrack recording features and supported mixers - ${SITE_NAME}`,
     description:
       "Every feature, marked Free or Pro, and which mixers work: XR18, MR18, X32 and M32, and any class-compliant USB interface.",
   },
   changelog: {
     path: "/changelog",
-    title: `What's new - ${SITE_NAME}`,
+    title: `What's new in the multitrack recorder for iPhone and iPad - ${SITE_NAME}`,
     description:
       "Every ShowRecorder version for iPhone and iPad, newest first: what changed, when, and whether it's in the App Store or the TestFlight beta.",
   },
@@ -64,6 +64,12 @@ export const PAGES = {
       height: 630,
       alt: "ShowRecorder for the X32 and M32: all 32 USB Channels on iPhone and iPad.",
     },
+  },
+  guideNoLaptop: {
+    path: "/guides/record-gig-without-laptop",
+    title: "Record an XR18 or X32 gig without a laptop - ShowRecorder",
+    description:
+      "Multitrack an XR18, MR18, X32 or M32 to an iPhone or iPad with no laptop: what you need, the steps, the files you get and the limits.",
   },
   privacy: {
     path: "/privacy",

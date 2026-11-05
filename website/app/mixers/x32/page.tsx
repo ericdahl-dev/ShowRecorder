@@ -22,13 +22,14 @@ export default function X32Page() {
       />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(faqPageJsonLd(X32_FAQS)) }} />
       <MixerHero
+        campaign="site-x32"
         eyebrow="Behringer X32 and Midas M32"
         title="X32 and M32 multitrack recording on iPhone and iPad"
         lede="Every USB Channel of the mixer straight to your iPhone or iPad: one WAV file per channel, named after the channel on the mixer. No laptop at front of house."
       />
       <Content />
       <MixerFaq faqs={X32_FAQS} />
-      <GetBand title="Record your X32 or M32">
+      <GetBand title="Record your X32 or M32" campaign="site-x32-footer">
         X32 and M32 recording is in ShowRecorder on the App Store. Try it at a rehearsal first, and tell us how it goes.
       </GetBand>
     </>

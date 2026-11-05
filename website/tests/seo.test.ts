@@ -40,7 +40,7 @@ describe("structured data", () => {
   });
 
   it("links the App Store only once there is an App Store link", () => {
-    if (APP_STORE_URL) expect(data.installUrl).toBe(APP_STORE_URL);
+    if (APP_STORE_URL) expect(data.installUrl).toBe(`${APP_STORE_URL}?pt=117729664&ct=site-schema&mt=8`);
     else expect(data).not.toHaveProperty("installUrl");
   });
 
@@ -48,7 +48,7 @@ describe("structured data", () => {
   it("gives the App Store listing as the download and as one of the app's profiles", () => {
     expect(APP_STORE_URL).toBe("https://apps.apple.com/app/id6820213310");
     for (const d of [data, mixerApplicationJsonLd(PAGES.mixersXR18)]) {
-      expect(d.downloadUrl).toBe(APP_STORE_URL);
+      expect(d.downloadUrl).toBe(`${APP_STORE_URL}?pt=117729664&ct=site-schema&mt=8`);
       expect(d.sameAs).toContain(APP_STORE_URL);
     }
   });
@@ -58,7 +58,7 @@ describe("structured data", () => {
     expect(mdx).toContain("## What you need");
     expect(mdx).toContain("## Plug in");
     const needs = mdx.slice(mdx.indexOf("## What you need"), mdx.indexOf("## Plug in"));
-    expect(needs).toContain(`(${APP_STORE_URL})`);
+    expect(needs).toContain(`<a href={appStoreLink("site-docs")}>App Store</a>`);
   });
 });
 

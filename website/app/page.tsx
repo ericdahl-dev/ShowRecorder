@@ -171,11 +171,12 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
   },
   {
     q: "Can I record an XR18 without a computer?",
-    a: "Yes. The XR18 and MR18 send all 18 channels over USB to whatever is plugged in, and ShowRecorder makes that your iPhone or iPad. You only need a computer later, to mix the Stems.",
+    a: "Yes. The XR18 and MR18 send all 18 channels over USB to whatever is plugged in, and ShowRecorder makes that your iPhone or iPad. You only need a computer later, to mix the Stems. The guide to recording a gig without a laptop has the steps.",
     node: (
       <>
         Yes. The <a href="/mixers/xr18">XR18 and MR18</a> send all 18 channels over USB to whatever is plugged in, and
-        ShowRecorder makes that your iPhone or iPad. You only need a computer later, to mix the Stems.
+        ShowRecorder makes that your iPhone or iPad. You only need a computer later, to mix the Stems. The{" "}
+        <a href="/guides/record-gig-without-laptop">guide to recording a gig without a laptop</a> has the steps.
       </>
     ),
   },
@@ -260,7 +261,7 @@ export default function Home() {
       <section id="top" aria-labelledby="hero-title" className="hero">
         <div className="wrap hero-grid">
           <div>
-            <h1 id="hero-title">Record every channel of your mixer on your iPhone. No laptop at the gig.</h1>
+            <h1 id="hero-title">Multitrack every channel of your mixer on your iPhone. No laptop at the gig.</h1>
             <p className="lede">
               Plug your mixer into your iPhone over USB, press record, and get one 24-bit WAV file per channel,
               named from the mixer and ready for your DAW.
@@ -271,7 +272,7 @@ export default function Home() {
               USB-C iPhone 15 or later, or an iPad, on iOS 26.
             </p>
             <div className="hero-actions">
-              <AppStoreBadge id="app-store-link" />
+              <AppStoreBadge id="app-store-link" campaign="site-home" />
             </div>
           </div>
           <div className="devices">
@@ -396,7 +397,7 @@ export default function Home() {
 
       <Section id="email" title="Get ShowRecorder on the App Store">
         <div className="hero-actions">
-          <AppStoreBadge id="app-store-link-email" />
+          <AppStoreBadge id="app-store-link-email" campaign="site-home-email" />
           <p className="price">{ctaNote(false)}</p>
           <p className="safe">A Take never stops because of a Trial, a limit or a license.</p>
           <SignupForm />
@@ -428,7 +429,7 @@ export default function Home() {
         </p>
       </Section>
 
-      <GetBand />
+      <GetBand campaign="site-home-footer" />
     </div>
   );
 }

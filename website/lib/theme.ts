@@ -13,6 +13,8 @@
 //   and docs list are shared static layouts, so they cannot know the path at build time. Every
 //   internal link is a plain <a> (no client-side navigation), so each page is a full load and
 //   this runs on every page.
+// - Header links with data-home-href (Setup, Pricing, FAQ) point at real pages; on the home page they are switched to
+//   the home page's own sections, before the current-page marking.
 
 export const THEME_STORAGE_KEY = "showrecorder-theme";
 
@@ -23,6 +25,7 @@ d.setAttribute("data-js","");
 function sync(){var b=document.getElementById("theme-toggle");if(b)b.setAttribute("aria-pressed",d.getAttribute("data-theme")==="light"?"true":"false")}
 document.addEventListener("DOMContentLoaded",function(){sync();
 var p=location.pathname.replace(/\.html$/,"").replace(/(.)\/$/,"$1")||"/";
+if(p==="/")document.querySelectorAll("[data-home-href]").forEach(function(a){a.setAttribute("href",a.getAttribute("data-home-href"))});
 document.querySelectorAll("[data-current-match]").forEach(function(a){var h=a.getAttribute("href");if(h===p||(a.getAttribute("data-current-match")==="prefix"&&p.indexOf(h+"/")===0))a.setAttribute("aria-current","page")})});
 document.addEventListener("click",function(e){
 var t=e.target;if(!t||!t.closest||!t.closest("#theme-toggle"))return;

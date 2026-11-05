@@ -1,5 +1,5 @@
 import { trackAttrs } from "@/lib/analytics";
-import { APP_STORE_URL, TESTFLIGHT_URL } from "@/lib/site";
+import { APP_STORE_URL, TESTFLIGHT_URL, appStoreLink, type AppStoreCampaign } from "@/lib/site";
 
 // The App Store slot used in the hero and the closing call. Driven by APP_STORE_URL in lib/site.ts.
 //
@@ -12,10 +12,19 @@ import { APP_STORE_URL, TESTFLIGHT_URL } from "@/lib/site";
 //
 // `beta` keeps it on the public beta even once the App Store link is set, for a page about something only the beta
 // has (the X32 page used it until 1.1.18 brought the X32 to the App Store, #482).
-export function AppStoreBadge({ id, beta = false }: { id: "app-store-link" | "app-store-link-email" | "app-store-link-footer"; beta?: boolean }) {
+// `campaign` is the ct of the link (lib/site.ts APP_STORE_CAMPAIGNS), so App Analytics counts downloads by placement.
+export function AppStoreBadge({
+  id,
+  campaign,
+  beta = false,
+}: {
+  id: "app-store-link" | "app-store-link-email" | "app-store-link-footer";
+  campaign: AppStoreCampaign;
+  beta?: boolean;
+}) {
   if (APP_STORE_URL && !(beta && TESTFLIGHT_URL)) {
     return (
-      <a id={id} className="store-badge" href={APP_STORE_URL} {...trackAttrs("app_store_clicked", "app_store")}>
+      <a id={id} className="store-badge" href={appStoreLink(campaign) ?? APP_STORE_URL} {...trackAttrs("app_store_clicked", "app_store")}>
         {/* Apple's official badge from developer.apple.com Marketing Resources, unmodified. The black
             badge has its own gray border, so it reads on the Dark and light themes alike. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}

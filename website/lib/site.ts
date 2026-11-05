@@ -20,6 +20,41 @@ export { PRO_PRICE, PRO_PRICE_TEXT } from "@/lib/price";
 export const APP_STORE_ID = "6820213310";
 export const APP_STORE_URL = `https://apps.apple.com/app/id${APP_STORE_ID}` as string | null;
 
+// App Store Connect's provider token, the `pt` in a campaign link (App Store Connect > Apps > ShowRecorder > Analytics >
+// Acquisition > Campaigns > Generate Campaign Link: the link holds pt=<number>). Not a secret. While it is null, App
+// Store links are the plain listing, since Apple ignores ct without pt; setting it tags every link at once.
+export const APP_STORE_PROVIDER_TOKEN = "117729664" as string | null;
+
+// The campaign (ct) for each place the site links to the App Store, 40 characters or fewer. App Analytics shows
+// downloads by these names. docs/app-store/app-store-connect-steps.md ("Tagged links") lists them.
+export const APP_STORE_CAMPAIGNS = [
+  "site-home",
+  "site-home-email",
+  "site-home-footer",
+  "site-xr18",
+  "site-xr18-footer",
+  "site-x32",
+  "site-x32-footer",
+  "site-compare-footer",
+  "site-docs",
+  "site-changelog",
+  "site-schema",
+  "llms",
+] as const;
+export type AppStoreCampaign = (typeof APP_STORE_CAMPAIGNS)[number];
+
+// A campaign link: the listing plus pt, ct and mt=8 (8 is apps), or the plain listing with no token.
+export function campaignLink(listing: string, campaign: AppStoreCampaign, providerToken: string | null): string {
+  if (!providerToken) return listing;
+  const query = new URLSearchParams({ pt: providerToken, ct: campaign, mt: "8" });
+  return `${listing}?${query}`;
+}
+
+// The App Store link for a placement on the site, or null while there is no listing.
+export function appStoreLink(campaign: AppStoreCampaign): string | null {
+  return APP_STORE_URL ? campaignLink(APP_STORE_URL, campaign, APP_STORE_PROVIDER_TOKEN) : null;
+}
+
 // The public TestFlight beta: the next version. With no APP_STORE_URL, the badge
 // slots link here instead of showing the placeholder. Set it to null to go back to "Coming soon".
 export const TESTFLIGHT_URL = "https://testflight.apple.com/join/sSessST8" as string | null;
@@ -59,18 +94,20 @@ export const ROUTES: readonly string[] = [
   "/mixers/xr18",
   "/mixers/x32",
   "/compare",
+  "/guides/record-gig-without-laptop",
   "/changelog",
   "/support",
   "/privacy",
 ];
 
-// Header navigation. Anchors carry the leading slash so they work from every page.
-export const NAV: readonly { label: string; href: string; wide?: boolean }[] = [
+// Header navigation. `href` is a real page, so every page links to Setup, Pricing and FAQ content of its own; `home` is
+// the home page's section for the same thing, which the inline script in lib/theme.ts swaps in on the home page.
+export const NAV: readonly { label: string; href: string; home?: string; wide?: boolean }[] = [
   { label: "Features", href: "/features" },
-  { label: "Setup", href: "/#need" },
-  { label: "Pricing", href: "/#pricing" },
+  { label: "Setup", href: "/docs/getting-started", home: "/#need" },
+  { label: "Pricing", href: "/docs/pricing", home: "/#pricing" },
   { label: "Docs", href: "/docs" },
-  { label: "FAQ", href: "/#faq" },
+  { label: "FAQ", href: "/support", home: "/#faq" },
   { label: "Compare", href: "/compare", wide: true },
   { label: "Support", href: "/support", wide: true },
 ];

@@ -37,7 +37,13 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         <p className="docs-nav-title">Docs</p>
         <DocLinks />
       </nav>
-      <div className="docs-main">{children}</div>
+      <div className="docs-main">
+        {children}
+        <p className="docs-mixers">
+          Setting up a particular mixer? See the <a href="/mixers/xr18">XR18 and MR18 page</a> or the{" "}
+          <a href="/mixers/x32">X32 and M32 page</a>.
+        </p>
+      </div>
     </div>
   );
 }
