@@ -1,8 +1,8 @@
 @testable import Recording
 import Testing
 
-/// The App Store rating prompt is asked in Debug and TestFlight builds first, so Eric can see on a device when it comes.
-/// Opening it up to the App Store build is this one rule.
+/// The App Store rating prompt is asked in every build (Eric, 2026-11-05). Apple shows nothing in TestFlight and limits
+/// it to 3 times a year in the App Store build; `RatingPromptPolicy` decides when to ask.
 @Suite("Rating prompt availability")
 struct RatingPromptAvailabilityTests {
     @Test("Debug builds ask whatever the environment, even before it is known")
@@ -17,14 +17,14 @@ struct RatingPromptAvailabilityTests {
         #expect(RatingPromptAvailability.isAvailable(isDebugBuild: false, environment: .sandbox))
     }
 
-    @Test("The App Store (production) build does not, until Eric has tried it")
+    @Test("The App Store (production) build asks")
     func appStoreBuild() {
-        #expect(!RatingPromptAvailability.isAvailable(isDebugBuild: false, environment: .production))
+        #expect(RatingPromptAvailability.isAvailable(isDebugBuild: false, environment: .production))
     }
 
-    @Test("A Release build whose environment is unknown or not yet answered does not")
+    @Test("A Release build asks before StoreKit has said where it came from")
     func unknownEnvironment() {
-        #expect(!RatingPromptAvailability.isAvailable(isDebugBuild: false, environment: nil))
-        #expect(!RatingPromptAvailability.isAvailable(isDebugBuild: false, environment: .unknown))
+        #expect(RatingPromptAvailability.isAvailable(isDebugBuild: false, environment: nil))
+        #expect(RatingPromptAvailability.isAvailable(isDebugBuild: false, environment: .unknown))
     }
 }
