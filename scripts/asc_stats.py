@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""App Store numbers for ShowRecorder: downloads, updates, re-downloads and Pro purchases from the daily
+"""App Store numbers for ShowRecorder: downloads, updates, re-downloads, free trials and Pro purchases from the daily
 sales reports.
 
 Run it with the key from Infisical (project showrecorder, prod), which never shows the secrets:
@@ -19,6 +19,7 @@ KINDS = {
     **dict.fromkeys(("3", "3F", "3T", "F3"), "redownloads"),
 }
 PURCHASES = ("IA", "FI")  # in-app purchases (Pro) on iPhone, on Mac
+TRIAL_SUFFIX = ".trial"  # the free Trial in-app purchase (dev.ericdahl.ShowRecorder.trial), $0, not a sale
 
 
 @dataclasses.dataclass
@@ -36,6 +37,9 @@ def summarize(reports, app_id, sku):
         summary.downloads_by_day[day] = 0
         for row in csv.DictReader(io.StringIO(text), delimiter="\t"):
             kind, units = row["Product Type Identifier"], int(float(row["Units"]))
+            if row["Parent Identifier"].strip() == sku and row["SKU"].endswith(TRIAL_SUFFIX):
+                summary.units["trials"] += units
+                continue
             if row["Parent Identifier"].strip() == sku and kind.startswith(PURCHASES):
                 summary.units["pro"] += units
                 currency = row["Currency of Proceeds"]
@@ -110,7 +114,7 @@ def report_app(days):
         return
     first, last = min(reports), max(reports)
     print(f"\nSales {first} to {last} ({len(reports)} days with a report):")
-    for kind in ("downloads", "redownloads", "updates", "pro"):
+    for kind in ("downloads", "redownloads", "updates", "trials", "pro"):
         print(f"  {kind}: {summary.units[kind]}")
     print("  Pro proceeds: " + (", ".join(f"{c} {v:.2f}" for c, v in sorted(summary.proceeds.items())) or "none"))
     print("  downloads by country: " + ", ".join(f"{c} {n}" for c, n in summary.downloads_by_country.most_common(8)))
