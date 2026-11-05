@@ -717,6 +717,30 @@ html:not([data-js]) .theme-toggle {
   }
 }
 
+/* The public-beta link under the App Store badge (components/BetaLink.tsx): small and secondary, so the badge stays
+   the main button, with the site's focus ring and a 44 px tap height. */
+.beta-link {
+  margin: 0;
+  font-size: 14px;
+}
+
+.beta-link a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--muted);
+}
+
+.beta-link a:hover {
+  color: var(--ink);
+}
+
+.beta-link a:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 .hero-actions .price {
   color: var(--ink);
 }
