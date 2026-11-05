@@ -1,6 +1,6 @@
 import { BETA_SUMMARY, RELEASES } from "@/lib/changelog";
 import { PAGES, pageMetadata } from "@/lib/metadata";
-import { APP_STORE_URL, REPO_URL } from "@/lib/site";
+import { APP_STORE_URL, REPO_URL, appStoreLink } from "@/lib/site";
 
 export const metadata = pageMetadata(PAGES.changelog);
 
@@ -30,7 +30,7 @@ export default function ChangelogPage() {
             {r.summary ? <p>{r.summary}</p> : null}
             {r.channel === "App Store" && APP_STORE_URL ? (
               <p>
-                <a href={APP_STORE_URL}>ShowRecorder on the App Store</a>
+                <a href={appStoreLink("site-changelog") ?? APP_STORE_URL}>ShowRecorder on the App Store</a>
               </p>
             ) : null}
             <ul>

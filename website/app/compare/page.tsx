@@ -91,7 +91,7 @@ export default function ComparePage() {
         </div>
       </section>
 
-      <GetBand title="Try ShowRecorder" />
+      <GetBand title="Try ShowRecorder" campaign="site-compare-footer" />
     </div>
   );
 }

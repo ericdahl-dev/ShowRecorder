@@ -3,7 +3,7 @@ import { DOCS, docHref } from "@/lib/docs";
 import { featureGroups, inBetaFeatures } from "@/lib/features";
 import { PAGES } from "@/lib/metadata";
 import { inBeta, planned, worksNow } from "@/lib/mixers";
-import { APP_STORE_URL, PRO_PRICE_TEXT, REPO_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL, TESTFLIGHT_URL, TRADEMARK_LINE } from "@/lib/site";
+import { APP_STORE_URL, PRO_PRICE_TEXT, appStoreLink, REPO_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL, TESTFLIGHT_URL, TRADEMARK_LINE } from "@/lib/site";
 
 // The text of /llms.txt (a short map) and /llms-full.txt (everything on one page), for AI assistants and AI search
 // (#704). Both read the site's own lists, so a new docs page, feature or release shows up without editing this file.
@@ -20,7 +20,7 @@ const MIXER_PAGES = [
 ];
 
 const getIt = APP_STORE_URL
-  ? `App Store: ${APP_STORE_URL}${TESTFLIGHT_URL ? `. The public beta (the next version) is on TestFlight: ${TESTFLIGHT_URL}` : ""}`
+  ? `App Store: ${appStoreLink("llms")}${TESTFLIGHT_URL ? `. The public beta (the next version) is on TestFlight: ${TESTFLIGHT_URL}` : ""}`
   : `ShowRecorder 1.0 for iPhone and iPad is in App Review. The public beta is open on TestFlight${TESTFLIGHT_URL ? `: ${TESTFLIGHT_URL}` : ""}`;
 
 export function facts(): string[] {
