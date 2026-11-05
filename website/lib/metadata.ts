@@ -69,7 +69,7 @@ export const PAGES = {
     path: "/privacy",
     title: `Privacy policy - ${SITE_NAME}`,
     description:
-      "ShowRecorder collects no data. Recordings stay on your device and your Drive, and the app talks only to your mixer on your local network.",
+      "The App Store version of ShowRecorder collects no data. TestFlight builds send crash reports and usage, which you can turn off. Recordings stay with you.",
   },
   support: {
     path: "/support",

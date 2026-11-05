@@ -140,12 +140,12 @@ const plans = [
 // `a` is the plain answer (also used for the FAQ structured data); `node`, when set, is how it renders.
 const faqs: { q: string; a: string; node?: ReactNode }[] = [
   {
-    q: "Is the beta safe for a real gig?",
-    a: "The beta is the next version, in testing before it comes to the App Store, and the recording works as described here: files are saved every 2 seconds, an app closed mid-Take finishes that Take the next time it opens, and a Take never stops because of a Trial or a limit. It is still new software, so record a test Take with your own mixer before the show, and keep a backup recording for a gig you can't repeat. A USB drive gives you a second Copy as you record.",
+    q: "Is ShowRecorder safe for a real gig?",
+    a: "The recording works as described here: files are saved every 2 seconds, an app closed mid-Take finishes that Take the next time it opens, and a Take never stops because of a Trial or a limit. Record a test Take with your own mixer before the show, and keep a backup recording for a gig you can't repeat. A USB drive gives you a second Copy as you record.",
   },
   {
-    q: "What does the beta cost?",
-    a: "Nothing to join. Free records every USB Channel; to try the Pro features in the beta, start the 14-day Trial in Settings › Pro. Buying Pro in the beta isn't charged. TestFlight builds expire after 90 days, so install the newest build from TestFlight to carry on.",
+    q: "What does ShowRecorder cost?",
+    a: "Nothing to download: Free records every USB Channel. Pro is a one-time purchase at a launch price of $4.99, and the 14-day Trial in Settings › Pro lets you try it first. The public beta on TestFlight is free to join too, and buying Pro in the beta isn't charged; TestFlight builds expire after 90 days, so install the newest build to carry on.",
   },
   {
     q: "How much space does a Show take?",
@@ -153,7 +153,7 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
   },
   {
     q: "Do I need an internet connection?",
-    a: "No. Recording needs only the USB cable. Joining the mixer's Wi-Fi adds channel names and colors, and that is a local network, not the internet. Nothing is sent anywhere.",
+    a: "No. Recording needs only the USB cable. Joining the mixer's Wi-Fi adds channel names and colors, and that is a local network, not the internet. The App Store version sends nothing; the TestFlight beta sends crash reports and usage, which Settings › Share crash reports and usage turns off.",
   },
   {
     q: "Which mixers work?",
@@ -217,7 +217,7 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
   },
   {
     q: "Is there a Mac version?",
-    a: "Yes, in the public TestFlight beta now. The App Store release of 1.0 is for iPhone and iPad; the Mac follows on the Mac App Store.",
+    a: "Yes, in the public TestFlight beta now. The App Store version (1.1.18) is for iPhone and iPad; the Mac is in the TestFlight beta until it comes to the Mac App Store.",
   },
   {
     q: "What if the Drive is unplugged during a Take?",
