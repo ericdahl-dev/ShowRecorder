@@ -145,7 +145,7 @@ export const COMPARE_FAQS: readonly { q: string; a: string }[] = [
   },
   {
     q: "Does ShowRecorder save a separate file for each channel?",
-    a: "Yes. Each USB Channel becomes its own mono 24-bit WAV file, called a Stem, named after the channel on an XR18 or MR18. Manytrack's listing does not say how it saves channels, and its one review reports a single stereo file.",
+    a: "Yes. Each USB Channel becomes its own mono 24-bit WAV file, called a Stem. With Pro, the files carry the channel names from the mixer on an XR18, MR18, X32 or M32; Free names them generically. Manytrack's listing does not say how it saves channels, and its one review reports a single stereo file.",
   },
   {
     q: "Can I use X-Live with an XR18?",

@@ -57,7 +57,7 @@ export const PAGES = {
     path: "/mixers/x32",
     title: "X32 and M32 multitrack recording on iPad - ShowRecorder",
     description:
-      "Multitrack all 32 USB Channels of an X32 or M32 to iPhone or iPad, each file named from the mixer with Pro. On the App Store now.",
+      "Multitrack all 32 USB Channels of an X32 or M32 to iPhone or iPad, named from the mixer with Pro. On the App Store, tested against an emulator so far.",
     image: {
       url: "/og-mixers-x32.png",
       width: 1200,

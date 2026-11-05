@@ -1,4 +1,4 @@
-import { RELEASES } from "@/lib/changelog";
+import { RELEASES, newestRelease } from "@/lib/changelog";
 import { DOCS, docHref } from "@/lib/docs";
 import { featureGroups, inBetaFeatures } from "@/lib/features";
 import { PAGES } from "@/lib/metadata";
@@ -24,9 +24,14 @@ const getIt = APP_STORE_URL
   : `ShowRecorder 1.0 for iPhone and iPad is in App Review. The public beta is open on TestFlight${TESTFLIGHT_URL ? `: ${TESTFLIGHT_URL}` : ""}`;
 
 export function facts(): string[] {
+  const appStore = newestRelease("App Store");
+  const beta = newestRelease("TestFlight beta");
   return [
     "## Facts",
     "",
+    `- Last updated: ${RELEASES[0].date}.`,
+    ...(appStore ? [`- App Store version: ${appStore.version}, for iPhone and iPad (${appStore.date}).`] : []),
+    ...(beta ? [`- TestFlight beta: ${beta.version}, the next version, and the Mac version (${beta.date}).`] : []),
     "- What it is: a multitrack recorder. It records every USB Channel a mixer sends to its own file, on an iPhone or iPad, with no laptop.",
     `- Get it: ${getIt}.`,
     `- Price: free to download. Free records every USB Channel on the iPhone or iPad, with generic names on the files and up to 3 Markers per Take. Pro is a one-time purchase, at a launch price of ${PRO_PRICE_TEXT}, shared with Family Sharing, with a 14-day Trial. Pro adds names and colors from the mixer on the files, typed names, a second Copy on a USB drive, unlimited Markers, the Show report, the Reaper project, 96 kHz, Templates and auto-gain on an XR18 or MR18. No subscription.`,
