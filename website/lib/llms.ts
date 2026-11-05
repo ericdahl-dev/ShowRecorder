@@ -60,6 +60,7 @@ export function llmsTxt(): string {
     link("Features", PAGES.features.path, PAGES.features.description),
     ...MIXER_PAGES.map((m) => link(m.title, m.page.path, m.page.description)),
     link("What's new", PAGES.changelog.path, PAGES.changelog.description),
+    link("Guide: record a gig without a laptop", PAGES.guideNoLaptop.path, PAGES.guideNoLaptop.description),
     link("Support", PAGES.support.path, PAGES.support.description),
     link("Privacy policy", PAGES.privacy.path, PAGES.privacy.description),
     "",
