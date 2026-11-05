@@ -22,13 +22,14 @@ export default function XR18Page() {
       />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(faqPageJsonLd(XR18_FAQS)) }} />
       <MixerHero
+        campaign="site-xr18"
         eyebrow="Behringer XR18 and Midas MR18"
         title="XR18 and MR18 multitrack recording on iPhone and iPad"
         lede="All 18 USB Channels straight to your iPhone or iPad: one WAV file per channel, named after the channel on the mixer. No laptop at the show."
       />
       <Content />
       <MixerFaq faqs={XR18_FAQS} />
-      <GetBand title="Record your XR18 or MR18" />
+      <GetBand title="Record your XR18 or MR18" campaign="site-xr18-footer" />
     </>
   );
 }

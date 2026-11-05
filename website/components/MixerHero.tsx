@@ -1,6 +1,6 @@
 import { AppStoreBadge } from "@/components/AppStoreBadge";
 import { Mark } from "@/components/Mark";
-import { ctaNote } from "@/lib/site";
+import { ctaNote, type AppStoreCampaign } from "@/lib/site";
 
 // The top of a mixer page (#482): which mixers, what it does in one sentence, and the call to action with its
 // note on what happens after the click, all above the fold on a phone. Styled like the home hero (.hero), without the screenshots column,
@@ -10,11 +10,13 @@ export function MixerHero({
   eyebrow,
   title,
   lede,
+  campaign,
   beta = false,
 }: {
   eyebrow: string;
   title: string;
   lede: string;
+  campaign: AppStoreCampaign;
   beta?: boolean;
 }) {
   return (
@@ -28,7 +30,7 @@ export function MixerHero({
           <h1 id="hero-title">{title}</h1>
           <p className="lede">{lede}</p>
           <div className="hero-actions">
-            <AppStoreBadge id="app-store-link" beta={beta} />
+            <AppStoreBadge id="app-store-link" campaign={campaign} beta={beta} />
             <p className="price">{ctaNote(beta)}</p>
           </div>
         </div>

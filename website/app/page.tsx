@@ -271,7 +271,7 @@ export default function Home() {
               USB-C iPhone 15 or later, or an iPad, on iOS 26.
             </p>
             <div className="hero-actions">
-              <AppStoreBadge id="app-store-link" />
+              <AppStoreBadge id="app-store-link" campaign="site-home" />
             </div>
           </div>
           <div className="devices">
@@ -396,7 +396,7 @@ export default function Home() {
 
       <Section id="email" title="Get ShowRecorder on the App Store">
         <div className="hero-actions">
-          <AppStoreBadge id="app-store-link-email" />
+          <AppStoreBadge id="app-store-link-email" campaign="site-home-email" />
           <p className="price">{ctaNote(false)}</p>
           <p className="safe">A Take never stops because of a Trial, a limit or a license.</p>
           <SignupForm />
@@ -428,7 +428,7 @@ export default function Home() {
         </p>
       </Section>
 
-      <GetBand />
+      <GetBand campaign="site-home-footer" />
     </div>
   );
 }

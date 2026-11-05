@@ -58,7 +58,7 @@ describe("structured data", () => {
     expect(mdx).toContain("## What you need");
     expect(mdx).toContain("## Plug in");
     const needs = mdx.slice(mdx.indexOf("## What you need"), mdx.indexOf("## Plug in"));
-    expect(needs).toContain(`(${APP_STORE_URL})`);
+    expect(needs).toContain(`<a href={appStoreLink("site-docs")}>App Store</a>`);
   });
 });
 

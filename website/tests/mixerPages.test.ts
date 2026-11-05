@@ -3,7 +3,7 @@ import path from "node:path";
 import { PAGES } from "@/lib/metadata";
 import { worksNow } from "@/lib/mixers";
 import { X32_FAQS } from "@/lib/mixerFaqs";
-import { APP_STORE_URL } from "@/lib/site";
+
 
 // Mixer landing pages: one per mixer family that works, with what is true for that mixer only.
 // The X32 and M32 are in the App Store app since 1.1.18 (tests/x32AppStore.test.ts).
@@ -146,7 +146,7 @@ describe("mixer pages in plain words", () => {
 
   it("the XR18 page says once where it stands: 1.0 on the App Store, the public beta open now", () => {
     expect(xr18Page).not.toMatch(/App Review|comes to the App Store soon/);
-    expect(xr18Page).toContain(`[App Store](${APP_STORE_URL})`);
+    expect(xr18Page).toContain(`<a href={appStoreLink("site-xr18")}>App Store</a>`);
     expect(xr18Page.match(/public beta/g)?.length).toBe(1);
   });
 });

@@ -1,6 +1,6 @@
 import { newestRelease } from "@/lib/changelog";
 import { PAGES, type PageInfo } from "@/lib/metadata";
-import { APP_STORE_URL, PRO_PRICE, REPO_URL, SITE_NAME, SITE_URL } from "@/lib/site";
+import { APP_STORE_URL, PRO_PRICE, REPO_URL, SITE_NAME, SITE_URL, appStoreLink } from "@/lib/site";
 
 // schema.org data, as JSON-LD. Search engines read it to show ShowRecorder as an app (name, platform,
 // price) rather than a plain web page. Two offers: the download is free, and Pro is a one-time in-app
@@ -41,7 +41,7 @@ function applicationJsonLd(url: string, description: string) {
     publisher: { "@type": "Person", name: "Eric Dahl", url: "https://ericdahl.dev" },
     // With 1.0 on the App Store, its listing is where to download the app and one of its own profiles (#704).
     sameAs: APP_STORE_URL ? [APP_STORE_URL, REPO_URL] : [REPO_URL],
-    ...(APP_STORE_URL ? { installUrl: APP_STORE_URL, downloadUrl: APP_STORE_URL } : {}),
+    ...(APP_STORE_URL ? { installUrl: appStoreLink("site-schema"), downloadUrl: appStoreLink("site-schema") } : {}),
   };
 }
 

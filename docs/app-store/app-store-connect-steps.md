@@ -83,3 +83,28 @@ Your steps:
 - [ ] **Build:** the Mac build of the 1.1 tag. One App Review submission can carry the iOS and macOS 1.1 versions together, or each can go on its own.
 - [ ] **In-app purchases:** nothing new. Pro and the Trial already cover the Mac.
 
+## 7. Tagged links
+
+**Website App Store links.** Every App Store link on showrecorder.app is built by `appStoreLink()` in `website/lib/site.ts`, with a campaign (`ct`) per placement, so App Analytics (Acquisition > Campaigns) shows downloads by where the click came from. They stay plain links until the provider token is set, because Apple ignores `ct` without `pt`:
+
+- [ ] Copy the provider token: App Store Connect > Apps > ShowRecorder > Analytics > Acquisition > Campaigns > Generate Campaign Link. The link holds `pt=<number>`; it is not a secret. Set `APP_STORE_PROVIDER_TOKEN` in `website/lib/site.ts` to it (a one-line PR). Each link then becomes `https://apps.apple.com/app/id6820213310?pt=<token>&ct=<campaign>&mt=8`.
+
+The campaigns (40 characters or fewer; the list is `APP_STORE_CAMPAIGNS`):
+
+| ct | Where |
+| --- | --- |
+| `site-home` | Home page hero badge |
+| `site-home-email` | Home page, next to the email signup |
+| `site-home-footer` | Home page closing band |
+| `site-xr18` / `site-xr18-footer` | XR18 page: hero badge and text link / closing band |
+| `site-x32` / `site-x32-footer` | X32 page: hero badge and text links / closing band |
+| `site-compare-footer` | Comparison page closing band |
+| `site-docs` | Getting started doc |
+| `site-changelog` | What's new page |
+| `site-schema` | `installUrl` and `downloadUrl` in the structured data |
+| `llms` | llms.txt and llms-full.txt |
+
+An App Store link in a post uses the same format with its own `ct`, short and lowercase (for example `fb-xr18-group`).
+
+**Website links in posts.** A showrecorder.app link in a post, reply or email gets UTM tags, so PostHog shows which one sent the visit: `utm_source=facebook&utm_medium=social&utm_campaign=<group-or-post>`. `utm_source` is the place (facebook, reddit, email, forum), `utm_medium` the kind (social, email, forum) and `utm_campaign` the group or post, short and lowercase.
+
