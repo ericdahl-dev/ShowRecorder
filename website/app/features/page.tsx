@@ -1,7 +1,7 @@
 import { trackAttrs } from "@/lib/analytics";
 import { featureGroups, inBetaFeatures } from "@/lib/features";
 import { considering, inBeta, planned, worksNow } from "@/lib/mixers";
-import { CONTACT_EMAIL, TESTFLIGHT_URL } from "@/lib/site";
+import { CONTACT_EMAIL, PRO_PRICE_TEXT, TESTFLIGHT_URL } from "@/lib/site";
 import { PAGES, pageMetadata } from "@/lib/metadata";
 
 export const metadata = pageMetadata(PAGES.features);
@@ -33,7 +33,7 @@ export default function FeaturesPage() {
             <dt>
               <Tier tier="pro" />
             </dt>
-            <dd>With Pro, a one-time $4.99 at its launch price, and during the 14-day Trial.</dd>
+            <dd>With Pro, a one-time {PRO_PRICE_TEXT} at its launch price, and during the 14-day Trial.</dd>
           </div>
         </dl>
         <p className="features-links">

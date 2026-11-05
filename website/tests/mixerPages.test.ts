@@ -192,7 +192,7 @@ describe("mixer page facts", () => {
 
     it(`/mixers/${slug} gives Pro's price, one time, without making the Trial sound paid`, () => {
       const pricing = section(body, "## Free, Trial and Pro", "## Where to get it");
-      expect(pricing).toMatch(/Pro is a one-time \$4\.99 purchase/);
+      expect(pricing).toMatch(/Pro is a one-time \{PRO_PRICE_TEXT\} purchase/);
       expect(pricing).toMatch(/launch price/);
       expect(pricing).not.toMatch(/so every USB Channel records/);
       expect(pricing).not.toMatch(/Trial and Pro\]\(\/docs\/pricing\), a one-time/);
