@@ -1,6 +1,7 @@
 import Foundation
 import PostHog
 import Sentry
+import Synchronization
 import Telemetry
 
 /// What `SentrySink` asks of the Sentry SDK. The real calls are `SentrySDKClient` in SDKAdapters.swift; tests use a
@@ -17,7 +18,8 @@ protocol ErrorReportingClient: AnyObject {
 /// What `PostHogSink` asks of the PostHog SDK. The real calls are `PostHogSDKClient` in SDKAdapters.swift.
 @MainActor
 protocol AnalyticsClient: AnyObject {
-    func setup()
+    /// Sets the SDK up, with `filter` as its `beforeSend`: every event, ours and the SDK's own, passes through it.
+    func setup(filter: PostHogEventFilter)
     func optIn()
     func optOut()
     func capture(_ event: String, distinctId: String, properties: [String: Any])
@@ -80,8 +82,8 @@ public final class SentrySink: TelemetrySink {
 }
 
 /// Usage to PostHog, project Owned Sites (beside showrecorder.app's visits), tagged `app: showrecorder` (ADR 0007).
-/// Each event is sent with the install ID as its distinct ID; no person profiles, no automatic events, no feature
-/// flags, no session replay.
+/// Each event is sent with the install ID as its distinct ID; no person profiles, no feature flags, no session replay.
+/// The one automatic event is the SDK's rage-click (`$rageclick`), which `PostHogEventFilter` keys by the install ID.
 @MainActor
 public final class PostHogSink: TelemetrySink {
     /// Owned Sites' public project key, the same one showrecorder.app uses: it can only send events.
@@ -89,6 +91,7 @@ public final class PostHogSink: TelemetrySink {
     nonisolated static let host = "https://us.i.posthog.com"
 
     private let client: any AnalyticsClient
+    private let filter = PostHogEventFilter()
     private var installID: String?
     private var isSetUp = false
 
@@ -106,6 +109,9 @@ public final class PostHogSink: TelemetrySink {
         config.captureScreenViews = false
         config.preloadFeatureFlags = false
         config.sendFeatureFlagEvent = false
+        // Rage-clicks are in ADR 0007's fixed list. Set here rather than left to the SDK's default, so a new SDK
+        // version can't drop them or change what turns them on unseen.
+        config.rageClickConfig.enabled = true
     }
 
     nonisolated static func properties(for event: TelemetryEvent) -> [String: Any] {
@@ -122,10 +128,11 @@ public final class PostHogSink: TelemetrySink {
 
     public func start(installID: UUID) {
         self.installID = installID.uuidString
+        filter.setInstallID(installID.uuidString)
         if isSetUp {
             client.optIn()
         } else {
-            client.setup()
+            client.setup(filter: filter)
             isSetUp = true
         }
     }
@@ -133,6 +140,7 @@ public final class PostHogSink: TelemetrySink {
     public func stop() {
         client.optOut()
         installID = nil
+        filter.setInstallID(nil)
     }
 
     public func capture(_ event: TelemetryEvent) {
@@ -142,6 +150,36 @@ public final class PostHogSink: TelemetrySink {
 
     /// Handled failures go to GlitchTip only.
     public func capture(_ failure: TelemetryFailure) {}
+}
+
+/// An event on its way out of the PostHog SDK: what `beforeSend` may change.
+struct PostHogOutgoingEvent {
+    var name: String
+    var distinctId: String
+    var properties: [String: Any]
+}
+
+/// The PostHog SDK's `beforeSend` (ADR 0007). Our own events already carry the install ID and pass as they are. The
+/// SDK's rage-click is keyed by its own anonymous ID, so it gets the install ID instead, and it is dropped while
+/// there is none (the switch is off). Person profiles stay off: this changes only the event's distinct ID.
+/// The SDK calls it from whatever thread captured the event, so the install ID sits behind a lock.
+final class PostHogEventFilter: Sendable {
+    static let rageClick = "$rageclick"
+
+    private let installID = Mutex<String?>(nil)
+
+    func setInstallID(_ id: String?) {
+        installID.withLock { $0 = id }
+    }
+
+    /// The event to send, or nil to drop it.
+    func filter(_ event: PostHogOutgoingEvent) -> PostHogOutgoingEvent? {
+        guard event.name == Self.rageClick else { return event }
+        guard let id = installID.withLock({ $0 }) else { return nil }
+        var event = event
+        event.distinctId = id
+        return event
+    }
 }
 
 /// The environment name both sinks tag their events with.
