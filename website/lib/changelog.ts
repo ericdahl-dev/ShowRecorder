@@ -14,6 +14,16 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.2.3",
+    date: "2026-11-06",
+    channel: "TestFlight beta",
+    summary: "Choose which channels record, and a rating request after a couple of good Takes.",
+    changes: [
+      "Choose which USB Channels record (Pro or the Trial): long-press a channel's meter and leave it out, and it gets no file. A Template keeps the choice.",
+      "After your second clean Take, the app may ask for an App Store rating when the Show list appears.",
+    ],
+  },
+  {
     version: "1.2.2",
     date: "2026-11-04",
     channel: "TestFlight beta",
