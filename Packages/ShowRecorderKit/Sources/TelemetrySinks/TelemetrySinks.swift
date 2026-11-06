@@ -188,7 +188,8 @@ final class PostHogEventFilter: Sendable {
     }
 
     private let state = Mutex(State())
-    private let defaults: UserDefaults
+    /// UserDefaults is thread-safe (Apple's documentation), though Foundation doesn't mark it `Sendable`.
+    nonisolated(unsafe) private let defaults: UserDefaults
 
     init(defaults: UserDefaults) {
         self.defaults = defaults
