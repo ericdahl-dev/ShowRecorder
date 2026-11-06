@@ -36,6 +36,16 @@ struct TelemetrySinksTests {
         #expect(config.sendFeatureFlagEvent == false)
     }
 
+    #if os(iOS) || targetEnvironment(macCatalyst)
+    @Test("PostHog's rage-click detection is on by our setting, not the SDK's default (ADR 0007)")
+    func postHogRageClicksOn() {
+        let config = PostHogConfig(projectToken: PostHogSink.projectToken, host: PostHogSink.host)
+        config.rageClickConfig.enabled = false
+        PostHogSink.configure(config)
+        #expect(config.rageClickConfig.enabled == true)
+    }
+    #endif
+
     @Test("PostHog gets the event's properties, tagged as the app")
     func postHogProperties() {
         let properties = PostHogSink.properties(
@@ -143,6 +153,37 @@ struct PostHogSinkTests {
         #expect(client.calls.isEmpty)
     }
 
+    @Test("A rage-click the SDK makes by itself goes out with the install ID as its distinct ID")
+    func rageClickInstallID() {
+        let client = FakeAnalytics()
+        let sink = PostHogSink(client: client)
+        let id = UUID()
+        sink.start(installID: id)
+        let sent = client.beforeSend(PostHogOutgoingEvent(name: "$rageclick", distinctId: "sdk-anonymous-id", properties: [:]))
+        #expect(sent?.distinctId == id.uuidString)
+    }
+
+    @Test("With the switch off, a rage-click is dropped")
+    func rageClickAfterStop() {
+        let client = FakeAnalytics()
+        let sink = PostHogSink(client: client)
+        sink.start(installID: UUID())
+        sink.stop()
+        #expect(client.beforeSend(PostHogOutgoingEvent(name: "$rageclick", distinctId: "sdk-anonymous-id", properties: [:])) == nil)
+    }
+
+    @Test("Our own events pass the filter as they are")
+    func ownEventsUnchanged() {
+        let client = FakeAnalytics()
+        let sink = PostHogSink(client: client)
+        let id = UUID()
+        sink.start(installID: id)
+        let sent = client.beforeSend(PostHogOutgoingEvent(name: "app_opened", distinctId: id.uuidString, properties: ["app": "showrecorder"]))
+        #expect(sent?.name == "app_opened")
+        #expect(sent?.distinctId == id.uuidString)
+        #expect(sent?.properties.count == 1)
+    }
+
     @Test("Handled failures go to GlitchTip only, never PostHog")
     func failuresIgnored() {
         let client = FakeAnalytics()
@@ -172,8 +213,18 @@ final class FakeErrorReporting: ErrorReportingClient {
 final class FakeAnalytics: AnalyticsClient {
     var calls: [String] = []
     var lastProperties: [String: Any]?
+    var filter: PostHogEventFilter?
 
-    func setup() { calls.append("setup") }
+    func setup(filter: PostHogEventFilter) {
+        calls.append("setup")
+        self.filter = filter
+    }
+
+    /// What the SDK's `beforeSend` hands on for this event: nil when it is dropped.
+    func beforeSend(_ event: PostHogOutgoingEvent) -> PostHogOutgoingEvent? {
+        filter?.filter(event)
+    }
+
     func optIn() { calls.append("optIn") }
     func optOut() { calls.append("optOut") }
     func capture(_ event: String, distinctId: String, properties: [String: Any]) {
