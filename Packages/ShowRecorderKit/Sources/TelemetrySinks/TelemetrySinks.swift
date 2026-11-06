@@ -110,8 +110,10 @@ public final class PostHogSink: TelemetrySink {
         config.preloadFeatureFlags = false
         config.sendFeatureFlagEvent = false
         // Rage-clicks are in ADR 0007's fixed list. Set here rather than left to the SDK's default, so a new SDK
-        // version can't drop them or change what turns them on unseen.
+        // version can't drop them or change what turns them on unseen. The SDK detects them on iOS only.
+        #if os(iOS) || targetEnvironment(macCatalyst)
         config.rageClickConfig.enabled = true
+        #endif
     }
 
     nonisolated static func properties(for event: TelemetryEvent) -> [String: Any] {
