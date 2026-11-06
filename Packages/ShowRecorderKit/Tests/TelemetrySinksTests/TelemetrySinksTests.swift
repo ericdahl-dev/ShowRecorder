@@ -172,6 +172,45 @@ struct PostHogSinkTests {
         #expect(client.beforeSend(PostHogOutgoingEvent(name: "$rageclick", distinctId: "sdk-anonymous-id", properties: [:])) == nil)
     }
 
+    @Test("A rage-click says which side the landscape transport column is on")
+    func rageClickTransportSide() throws {
+        let defaults = try #require(UserDefaults(suiteName: "rageClickTransportSide"))
+        defaults.removePersistentDomain(forName: "rageClickTransportSide")
+        let client = FakeAnalytics()
+        let sink = PostHogSink(client: client, defaults: defaults)
+        sink.start(installID: UUID())
+        #expect(client.beforeSend(rageClick())?.properties["transport_leading"] as? Bool == false)
+        defaults.set(true, forKey: "transportLeading")
+        #expect(client.beforeSend(rageClick())?.properties["transport_leading"] as? Bool == true)
+    }
+
+    @Test("A rage-click says whether a Take is running")
+    func rageClickTakeRunning() {
+        let client = FakeAnalytics()
+        let sink = PostHogSink(client: client)
+        sink.start(installID: UUID())
+        #expect(client.beforeSend(rageClick())?.properties["take_running"] as? Bool == false)
+        sink.capture(.takeStarted(channelCount: 18, destinations: .both, mixerFamily: nil))
+        #expect(client.beforeSend(rageClick())?.properties["take_running"] as? Bool == true)
+        sink.capture(.takeStopped(seconds: 90, channelCount: 18, dropouts: 0, cause: .stopped))
+        #expect(client.beforeSend(rageClick())?.properties["take_running"] as? Bool == false)
+    }
+
+    @Test("A rage-click drops what ADR 0007 doesn't name: the tapped elements, which can hold text, and the screen name")
+    func rageClickDropsUnnamed() {
+        let client = FakeAnalytics()
+        let sink = PostHogSink(client: client)
+        sink.start(installID: UUID())
+        let sent = client.beforeSend(rageClick())?.properties ?? [:]
+        #expect(sent["$elements_chain"] == nil)
+        #expect(sent["$event_type"] == nil)
+        #expect(sent["$screen_name"] == nil)
+        #expect(sent["$touch_x"] as? Double == 120)
+        #expect(sent["$touch_y"] as? Double == 300)
+        #expect(sent["$screen_width"] as? Double == 402)
+        #expect(sent["$device_model"] as? String == "iPhone17,1")
+    }
+
     @Test("Our own events pass the filter as they are")
     func ownEventsUnchanged() {
         let client = FakeAnalytics()
@@ -192,6 +231,16 @@ struct PostHogSinkTests {
         sink.capture(TelemetryFailure(area: .driveWrite, error: CocoaError(.fileWriteOutOfSpace)))
         #expect(client.calls == ["setup"])
     }
+}
+
+/// A `$rageclick` as the PostHog SDK builds it: its own properties plus the context every event carries.
+private func rageClick() -> PostHogOutgoingEvent {
+    PostHogOutgoingEvent(name: "$rageclick", distinctId: "sdk-anonymous-id", properties: [
+        "$touch_x": 120.0, "$touch_y": 300.0,
+        "$screen_name": "UIHostingController<ModifiedContent<AnyView, RootModifier>>",
+        "$event_type": "touch", "$elements_chain": "SwiftUI.Text:text=\"Friday at the Ryman\"",
+        "$screen_width": 402.0, "$screen_height": 874.0, "$device_model": "iPhone17,1", "$os_name": "iOS",
+    ])
 }
 
 @MainActor

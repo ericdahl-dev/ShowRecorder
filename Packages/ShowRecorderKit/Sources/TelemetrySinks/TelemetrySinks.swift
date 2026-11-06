@@ -91,7 +91,7 @@ public final class PostHogSink: TelemetrySink {
     nonisolated static let host = "https://us.i.posthog.com"
 
     private let client: any AnalyticsClient
-    private let filter = PostHogEventFilter()
+    private let filter: PostHogEventFilter
     private var installID: String?
     private var isSetUp = false
 
@@ -99,8 +99,10 @@ public final class PostHogSink: TelemetrySink {
         self.init(client: PostHogSDKClient())
     }
 
-    init(client: any AnalyticsClient) {
+    /// `defaults` holds the app's settings, where the rage-click filter reads the transport side.
+    init(client: any AnalyticsClient, defaults: UserDefaults = .standard) {
         self.client = client
+        filter = PostHogEventFilter(defaults: defaults)
     }
 
     nonisolated static func configure(_ config: PostHogConfig) {
@@ -146,6 +148,11 @@ public final class PostHogSink: TelemetrySink {
     }
 
     public func capture(_ event: TelemetryEvent) {
+        switch event {
+        case .takeStarted: filter.setTakeRunning(true)
+        case .takeStopped: filter.setTakeRunning(false)
+        default: break
+        }
         guard let installID else { return }
         client.capture(event.name, distinctId: installID, properties: Self.properties(for: event))
     }
@@ -164,22 +171,48 @@ struct PostHogOutgoingEvent {
 /// The PostHog SDK's `beforeSend` (ADR 0007). Our own events already carry the install ID and pass as they are. The
 /// SDK's rage-click is keyed by its own anonymous ID, so it gets the install ID instead, and it is dropped while
 /// there is none (the switch is off). Person profiles stay off: this changes only the event's distinct ID.
-/// The SDK calls it from whatever thread captured the event, so the install ID sits behind a lock.
+/// A rage-click also says which side the landscape transport column is on and whether a Take is running, and loses
+/// what the ADR doesn't name: the tapped elements (which can hold text) and the screen name. The tap position and
+/// the context every event carries (screen size, device, system, app version) stay.
+/// The SDK calls it from whatever thread captured the event, so the state sits behind a lock.
 final class PostHogEventFilter: Sendable {
     static let rageClick = "$rageclick"
+    /// `RecordScreenModel.transportLeadingKey` in the app: true when the record button is on the left in landscape.
+    static let transportLeadingKey = "transportLeading"
+    /// What the SDK adds to a rage-click that ADR 0007 doesn't name.
+    static let droppedRageClickProperties = ["$elements_chain", "$event_type", "$screen_name"]
 
-    private let installID = Mutex<String?>(nil)
+    private struct State {
+        var installID: String?
+        var takeRunning = false
+    }
+
+    private let state = Mutex(State())
+    /// UserDefaults is thread-safe (Apple's documentation), though Foundation doesn't mark it `Sendable`.
+    nonisolated(unsafe) private let defaults: UserDefaults
+
+    init(defaults: UserDefaults) {
+        self.defaults = defaults
+    }
 
     func setInstallID(_ id: String?) {
-        installID.withLock { $0 = id }
+        state.withLock { $0.installID = id }
+    }
+
+    func setTakeRunning(_ running: Bool) {
+        state.withLock { $0.takeRunning = running }
     }
 
     /// The event to send, or nil to drop it.
     func filter(_ event: PostHogOutgoingEvent) -> PostHogOutgoingEvent? {
         guard event.name == Self.rageClick else { return event }
-        guard let id = installID.withLock({ $0 }) else { return nil }
+        let (installID, takeRunning) = state.withLock { ($0.installID, $0.takeRunning) }
+        guard let installID else { return nil }
         var event = event
-        event.distinctId = id
+        event.distinctId = installID
+        for key in Self.droppedRageClickProperties { event.properties.removeValue(forKey: key) }
+        event.properties["transport_leading"] = defaults.bool(forKey: Self.transportLeadingKey)
+        event.properties["take_running"] = takeRunning
         return event
     }
 }
