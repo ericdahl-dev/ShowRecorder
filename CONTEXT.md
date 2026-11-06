@@ -114,7 +114,7 @@ The USB audio device the recorder is Ready on, usually the Mixer itself (such as
 _Avoid_: Input, audio input, sound card
 
 **USB Channel**:
-One of the numbered audio channels the mixer sends to the recorder over USB. A USB Channel is armed (recorded) or not armed. All are armed unless the operator turns some off before a Take, per Audio interface (Pro, Debug only for now, #991). A channel that is not armed gets no Stem, on the Device or the Drive, and Free and an ended Trial record every channel; the others keep their numbers, so "07 Keys.wav" stays 07 when 05 is not armed. Its meter still moves. The choice is locked during a Take, read only when record is pressed, and carried by Templates. With every channel off, record is disabled.
+One of the numbered audio channels the mixer sends to the recorder over USB. A USB Channel is armed (recorded) or not armed. All are armed unless the operator turns some off before a Take, per Audio interface (Pro, Debug and TestFlight builds for now, #991, #1057). A channel that is not armed gets no Stem, on the Device or the Drive, and Free and an ended Trial record every channel; the others keep their numbers, so "07 Keys.wav" stays 07 when 05 is not armed. Its meter still moves. The choice is locked during a Take, read only when record is pressed, and carried by Templates. With every channel off, record is disabled.
 _Avoid_: Input, track. For a channel that gets no Stem: left out, skipped, muted
 
 **Channel name**:

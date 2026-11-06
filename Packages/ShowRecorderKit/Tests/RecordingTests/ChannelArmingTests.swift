@@ -92,11 +92,12 @@ struct ChannelArmingStoreTests {
         return defaults
     }
 
-    @Test("It is offered in Debug builds only, until moved up")
-    func debugOnly() {
-        #expect(ChannelArmingAvailability.level == .debugOnly)
+    @Test("It is offered in Debug and TestFlight builds, not the App Store build (#1057)")
+    func debugAndTestFlight() {
+        #expect(ChannelArmingAvailability.level == .debugAndTestFlight)
         #expect(ChannelArmingAvailability.isAvailable(isDebugBuild: true, environment: nil))
-        #expect(!ChannelArmingAvailability.isAvailable(isDebugBuild: false, environment: .sandbox))
+        #expect(ChannelArmingAvailability.isAvailable(isDebugBuild: false, environment: .sandbox))
+        #expect(!ChannelArmingAvailability.isAvailable(isDebugBuild: false, environment: .production))
         #expect(!ChannelArmingAvailability.isAvailable(isDebugBuild: false, environment: nil))
     }
 
