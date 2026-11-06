@@ -34,10 +34,22 @@ final class SentrySDKClient: ErrorReportingClient {
 
 @MainActor
 final class PostHogSDKClient: AnalyticsClient {
-    func setup() {
+    func setup(filter: PostHogEventFilter) {
         let config = PostHogConfig(projectToken: PostHogSink.projectToken, host: PostHogSink.host)
         PostHogSink.configure(config)
+        config.setBeforeSend([Self.beforeSend(filter)])
         PostHogSDK.shared.setup(config)
+    }
+
+    /// Made outside the main actor: the SDK calls it from whatever thread captured the event.
+    private nonisolated static func beforeSend(_ filter: PostHogEventFilter) -> BeforeSendBlock {
+        { event in
+            let outgoing = PostHogOutgoingEvent(name: event.event, distinctId: event.distinctId, properties: event.properties)
+            guard let kept = filter.filter(outgoing) else { return nil }
+            event.distinctId = kept.distinctId
+            event.properties = kept.properties
+            return event
+        }
     }
 
     func optIn() {
