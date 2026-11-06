@@ -1572,7 +1572,7 @@ final class RecordScreenModel {
             takeAllowance: recorder.takeAllowance, isRecording: recorder.isRecording)
     }
 
-    /// Whether a lane's menu offers arming and not arming it: where it's offered (Debug only), to Pro and the Trial, between Takes (#991).
+    /// Whether a lane's menu offers arming and not arming it: where it's offered (Debug and TestFlight builds), to Pro and the Trial, between Takes (#991).
     var offersChannelArming: Bool {
         ChannelArmingAvailability.isAvailableInThisBuild && !pro.license().limits && recorder.isReady
             && !recorder.isRecording && !recorder.isStarting && !recorder.isFinishing

@@ -1,10 +1,11 @@
 import Foundation
 
-/// Where choosing which USB Channels are armed (recorded) is offered: Debug builds only, until Eric has tried it on a
-/// device (#991, CLAUDE.md). Opening it up is this one rule.
+/// Where choosing which USB Channels are armed (recorded) is offered: Debug and TestFlight builds, not the App Store
+/// build (#991, CLAUDE.md). Moved up from Debug only on 2026-11-06 (#1057), after Eric tried it on a device in a Debug
+/// build on 2026-10-29: 13 of 18 channels armed, and the Take's files were right. Opening it to everyone is this one rule.
 public enum ChannelArmingAvailability {
     /// Where it is offered; moving it up a level is this one line.
-    public static let level: AvailabilityLevel = .debugOnly
+    public static let level: AvailabilityLevel = .debugAndTestFlight
 
     /// `environment` is nil until StoreKit has answered.
     public static func isAvailable(isDebugBuild: Bool, environment: DistributionEnvironment?) -> Bool {
