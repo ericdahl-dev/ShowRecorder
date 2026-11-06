@@ -36,6 +36,7 @@ struct TelemetrySinksTests {
         #expect(config.sendFeatureFlagEvent == false)
     }
 
+    #if os(iOS) || targetEnvironment(macCatalyst)
     @Test("PostHog's rage-click detection is on by our setting, not the SDK's default (ADR 0007)")
     func postHogRageClicksOn() {
         let config = PostHogConfig(projectToken: PostHogSink.projectToken, host: PostHogSink.host)
@@ -43,6 +44,7 @@ struct TelemetrySinksTests {
         PostHogSink.configure(config)
         #expect(config.rageClickConfig.enabled == true)
     }
+    #endif
 
     @Test("PostHog gets the event's properties, tagged as the app")
     func postHogProperties() {
