@@ -1,13 +1,18 @@
 import Destinations
 import Recording
 import SwiftUI
+import Telemetry
 
 /// The Drive folder and the Device's free space, kept current by the record screen's model so the
 /// status strip, Settings and the recorder all read the same state, whether or not Settings is open.
 @MainActor
 @Observable
 final class DriveFolderModel {
-    private(set) var status: DriveStatus = .notChosen
+    private(set) var status: DriveStatus = .notChosen {
+        didSet { driveTelemetry.observe(status) }
+    }
+    /// Drive connected and lost (ADR 0007, #1026): it decides from each status read whether the Drive came or went.
+    @ObservationIgnored private let driveTelemetry = DriveTelemetry(send: { AppTelemetry.shared.send($0) })
     private(set) var deviceAvailableBytes: Int64 = 0
     /// Shared with the recorder, which opens the folder at record time.
     let store: DriveFolderStore
