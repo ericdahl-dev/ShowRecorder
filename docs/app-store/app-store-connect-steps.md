@@ -110,6 +110,7 @@ The campaigns (40 characters or fewer; the list is `APP_STORE_CAMPAIGNS`):
 | `site-guide-ah-cq` | Allen & Heath CQ recording guide, "Where ShowRecorder fits" |
 | `site-guide-presonus-studiolive-iii` | PreSonus StudioLive Series III recording guide, "Where ShowRecorder fits" |
 | `site-guide-ah-sq` | Allen & Heath SQ recording guide, "Where ShowRecorder fits" |
+| `site-guide-ah-avantis` | Allen & Heath Avantis recording guide, "Where ShowRecorder fits" |
 | `site-guide-taps` | Pre or post fader guide, "With ShowRecorder" |
 | `site-guide-best-app` | Best app for iPhone and iPad guide, after "Which app for which job" |
 
