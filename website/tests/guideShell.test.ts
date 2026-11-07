@@ -7,7 +7,7 @@ import GuidesHubPage from "@/app/guides/record/page";
 import { DEVICE_REQUIREMENT, GUIDE_STEPS } from "@/lib/guide";
 import { llmsFullTxt, llmsTxt } from "@/lib/llms";
 import { PAGES } from "@/lib/metadata";
-import { GUIDES_HUB, HUB_FAQS, MIXER_GUIDES, MIXER_ROWS, RESEARCH_URL, guideTitle, guideTrail } from "@/lib/mixerGuides";
+import { GUIDES_HUB, HUB_FAQS, MIXER_GUIDES, MIXER_ROWS, RESEARCH_URL, guideTitle, guideTrail, titleOf } from "@/lib/mixerGuides";
 import { PAGE_DATES } from "@/lib/pageDates";
 import { APP_STORE_CAMPAIGNS, REPO_URL, ROUTES, appStoreLink } from "@/lib/site";
 import { breadcrumbListJsonLd, techArticleJsonLd } from "@/lib/structuredData";
@@ -31,7 +31,7 @@ describe("lists built from MIXER_GUIDES", () => {
       expect(ROUTES).toContain(g.path);
       const page = (PAGES as Record<string, { path: string; title: string }>)[g.pageKey];
       expect(page.path).toBe(g.path);
-      expect(page.title).toBe(guideTitle(g.short));
+      expect(page.title).toBe(titleOf(g));
       expect(llmsTxt()).toContain(`(https://showrecorder.app${g.path})`);
     }
     for (const src of [read("lib", "site.ts"), read("lib", "metadata.ts"), read("lib", "llms.ts")]) expect(src).toMatch(/MIXER_GUIDES/);

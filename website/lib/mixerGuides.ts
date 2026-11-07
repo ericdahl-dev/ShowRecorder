@@ -82,7 +82,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
   {
     name: "Behringer XR12 and XR16, Midas MR12",
     usb: "No USB audio interface, so no multitrack over USB.",
-    onboard: "Stereo WAV, 2 tracks, to a USB stick.",
+    onboard: "Stereo recording, 2 tracks, to a USB stick.",
     mac: "No multitrack: no USB audio interface.",
     ipad: "No multitrack: no USB audio interface.",
     iphone: "No multitrack: no USB audio interface.",
@@ -234,7 +234,7 @@ export const HUB_FAQS: readonly Faq[] = [
   },
   {
     q: "Can I multitrack record a mixer on an iPad or iPhone?",
-    a: "Often, if the mixer sends its channels over USB as a class-compliant interface. Some makers say their mixers work with an iPad or iPhone; the table shows which, and says not tested yet where nobody has checked. The XR12, XR16 and Avantis have no USB audio interface, so they can't.",
+    a: "Often, if the mixer sends its channels over USB as a class-compliant interface. Some makers say their mixers work with an iPad or iPhone; the table shows which, and says not tested yet where nobody has checked. The XR12, XR16, MR12 and Avantis have no USB audio interface, so they can't.",
   },
   {
     q: "Do I need a driver to record a mixer on a Mac?",
@@ -321,18 +321,26 @@ export type MixerGuide = {
   campaign: AppStoreCampaign;
   // The setting the tap-point guide's short answer names for this mixer.
   tapPick: string;
+  // True for a mixer with no USB audio, which can't multitrack (the XR12, XR16 and MR12): its title and H1 say
+  // "How to record", and it has no "every USB Channel" or Mixer Link line.
+  noMultitrack?: true;
 };
 
-// "<mixer> USB multitrack recording: settings and routing - ShowRecorder", the <title> of every mixer guide.
-export function guideTitle(short: string): string {
-  return `${short} USB multitrack recording: settings and routing - ShowRecorder`;
+// "<mixer> USB multitrack recording: settings and routing - ShowRecorder", the <title> of every mixer guide. A guide
+// for a mixer that can't multitrack passes its own headline instead (see noMultitrack).
+export function guideTitle(short: string, headline?: string): string {
+  return headline ? `${headline} - ShowRecorder` : `${short} USB multitrack recording: settings and routing - ShowRecorder`;
 }
 
 // "How to multitrack record a Behringer X32", "... an Allen & Heath Qu": the H1, the article headline and the
-// llms.txt line of every mixer guide.
-export function guideHeadline(mixer: string): string {
-  return `How to multitrack record ${/^[AEIOU]/.test(mixer) ? "an" : "a"} ${mixer}`;
+// llms.txt line of every mixer guide. "How to record a ..." for a mixer that can't multitrack (the XR12).
+export function guideHeadline(mixer: string, noMultitrack = false): string {
+  return `How to ${noMultitrack ? "record" : "multitrack record"} ${/^[AEIOU]/.test(mixer) ? "an" : "a"} ${mixer}`;
 }
+
+// A guide's own headline and <title>, with its noMultitrack override applied.
+export const headlineOf = (g: MixerGuide) => guideHeadline(g.mixer, g.noMultitrack);
+export const titleOf = (g: MixerGuide) => guideTitle(g.short, g.noMultitrack ? headlineOf(g) : undefined);
 
 // Home > Recording guides > the page.
 export function guideTrail(name: string, path: string): Crumb[] {
@@ -726,7 +734,7 @@ export const XR12_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Can I record an XR12, XR16 or MR12 on an iPhone or iPad?",
-    a: "Not the channels: there is no USB audio to send. The iPhone, iPad and Android apps only control the mixer over Wi-Fi. To keep a recording, plug a USB flash drive into the mixer and record the stereo mix.",
+    a: "Not the channels: there is no USB audio to send. The X AIR and M AIR apps (tablet, phone and computer) only control the mixer, over Wi-Fi or a network cable. To keep a recording, plug a USB flash drive into the mixer and record the stereo mix.",
   },
   {
     q: "What file does the XR12, XR16 or MR12 record to the USB stick?",
@@ -734,7 +742,7 @@ export const XR12_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "How do I change the sample rate on an XR12, XR16 or MR12?",
-    a: "In the app, open the Setup page and the Audio/MIDI tab. The mixer runs at 48 kHz unless you change it to 44.1 kHz. Mute the main LR fader first, because the change can make a pop.",
+    a: "In the app, open the Setup page and the Audio/MIDI tab. The mixer runs at 48 kHz unless you change it to 44.1 kHz. Pull down or mute the main fader (Main LR) first, or the speakers may pop.",
   },
   {
     q: "Can I do a virtual soundcheck with an XR12, XR16 or MR12?",
@@ -1099,5 +1107,6 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     ],
     campaign: "site-guide-xr12-xr16-mr12",
     tapPick: "none for multitrack: these mixers record only a stereo mix to a USB stick, and neither maker says where that mix is taken",
+    noMultitrack: true,
   },
 ];
