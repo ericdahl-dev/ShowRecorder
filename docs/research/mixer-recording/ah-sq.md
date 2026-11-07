@@ -40,7 +40,7 @@ Source keys: [KB-USB] = https://support.allen-heath.com/hc/en-gb/articles/459470
 - Direct Out Source (global, all channels): Routing screen > "Dir Out" button. Options, in order: Post Preamp, Post HPF, Post Gate, Post Insert Return, Post PEQ, Post Comp, Post Delay. Per-channel direct out level -inf to +10 dB. Global switches choose whether direct outs follow faders and mutes (and DCAs/mute groups). [KB-ROUTE], [KB-UNDERSTAND]
 - Tie Lines: "unprocessed (post socket analogue preamp) audio" not affected by faders or mutes, no input channel used. [KB-PATCH], [KB-UNDERSTAND]
 - HPF: after the preamp; "Post Preamp" direct-out tap is pre-HPF, "Post HPF" includes it. [KB-ROUTE]
-- Gain vs trim: Gain 0 to +60 dB is the analog preamp, controlled digitally and belonging to the socket ("not a part of the channel processing"); Trim -24 to +24 dB is digital and part of channel processing. [KB-PROC]. The Post Preamp direct out is "affected only by the preamp gain" [KB-ROUTE], so it excludes Trim. Tie Lines skip channel processing, so they exclude Trim too. Whether Trim is in Post HPF and later points is not stated; we infer yes, since Trim is channel processing (inference).
+- Gain vs trim: Gain 0 to +60 dB is the analog preamp, controlled digitally and belonging to the socket ("not a part of the channel processing"); Trim -24 to +24 dB is digital and part of channel processing. [KB-PROC]. The Post Preamp direct out is "affected only by the preamp gain" [KB-ROUTE], which doesn't mention Trim. But A&H's signal path diagram [KB-DIAGRAM] labels the first input block "Preamp/Trim/Width", and the first direct-out tap comes right after it, so Post Preamp most likely includes Trim (inference; fact check on #1117). Tie Lines skip channel processing, so they exclude Trim. [KB-DIAGRAM] = https://support.allen-heath.com/hc/en-gb/articles/4402940459537-SQ-Basic-Signal-Path-Diagrams-Input-Group-LR-Aux-Matrix
 - Shared stage box: no SQ gain-tracking feature was found in SQ docs. Because Tie Lines and direct outs are post analog preamp, any preamp gain change on a shared AR/DX/Dante box by another operator changes the record level. (Inference from the above; "unknown" whether SQ offers compensation.)
 
 ## 7. Gotchas
@@ -59,7 +59,7 @@ Source keys: [KB-USB] = https://support.allen-heath.com/hc/en-gb/articles/459470
 | Windows needs ASIO/WDM driver | confirmed by maker |
 | Class compliant, no drivers "on any device/OS that supports class compliant" devices | confirmed by maker (general statement) |
 | iPhone/iPad tested or named | unknown |
-| Post Preamp direct out excludes Trim | confirmed by maker ("affected only by the preamp gain") |
+| Post Preamp direct out includes Trim | unknown; A&H diagram groups Preamp/Trim/Width |
 | Default "1-to-1" offset (USB 3 = Ch 1 or Ch 3) | unknown |
 | USB stream bit depth | unknown |
 | SQ-Drive 16 ch @96k / 32 ch @48k, 24-bit mono WAV | confirmed by maker |
@@ -76,6 +76,7 @@ Source keys: [KB-USB] = https://support.allen-heath.com/hc/en-gb/articles/459470
 - https://support.allen-heath.com/hc/en-gb/articles/45947065818769-SQ-Setup
 - https://support.allen-heath.com/hc/en-gb/articles/45946563062929-SQ-Processing
 - https://support.allen-heath.com/hc/en-gb/articles/45947235418385-SQ-Mix-System-Reset
+- https://support.allen-heath.com/hc/en-gb/articles/4402940459537-SQ-Basic-Signal-Path-Diagrams-Input-Group-LR-Aux-Matrix
 - https://support.allen-heath.com/hc/en-gb/articles/4402940155793-SQ-Understanding-SQ-USB-recording-and-playback
 - https://support.allen-heath.com/hc/en-gb/articles/4402941921553-SQ-Virtual-Soundcheck-using-the-USB-B-connection
 - https://support.allen-heath.com/hc/en-gb/articles/4402939458193-SQ-Troubleshooting-issues-with-the-SQ-USB-B-interface

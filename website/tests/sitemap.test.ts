@@ -32,6 +32,8 @@ describe("sitemap", () => {
       "https://showrecorder.app/guides/record/mackie-dl32s",
       "https://showrecorder.app/guides/record/ui24r",
       "https://showrecorder.app/guides/record/ah-cq",
+      "https://showrecorder.app/guides/record/presonus-studiolive-iii",
+      "https://showrecorder.app/guides/record/ah-sq",
       "https://showrecorder.app/guides/record/signature-mtk",
       "https://showrecorder.app/changelog",
       "https://showrecorder.app/support",

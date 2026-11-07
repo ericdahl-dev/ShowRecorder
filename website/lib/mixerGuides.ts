@@ -95,6 +95,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     mac: "Class compliant (maker).",
     ipad: "Not named. Allen & Heath says no driver is needed on any system that supports class-compliant audio. Not tested yet.",
     iphone: "Not named. Allen & Heath says no driver is needed on any system that supports class-compliant audio. Not tested yet.",
+    guide: "/guides/record/ah-sq",
   },
   {
     name: "Allen & Heath Qu-5, Qu-6 and Qu-7",
@@ -183,8 +184,9 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     usb: "64 in and 64 out (Native) or 34 x 34 (Compatibility), 44.1 or 48 kHz. 16R: 18 or more, depending on firmware.",
     onboard: "Consoles: 34 tracks to an SD or SDHC card (up to 32 GB; SDXC not supported). Racks: stereo only.",
     mac: "Works.",
-    ipad: "Class compliant (PreSonus support); the 64 x 64 mode crashes some iPad apps.",
+    ipad: "Class compliant (PreSonus support). In 2021 the 64 x 64 mode crashed two iPad apps; PreSonus says both have since been fixed.",
     iphone: "PreSonus lists the iPhone in a general statement; not tested by us.",
+    guide: "/guides/record/presonus-studiolive-iii",
   },
   {
     name: "Mackie DL32S, DL16S, DL32SE and DL16SE",
@@ -656,6 +658,66 @@ export const AH_CQ_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the PreSonus StudioLive Series III guide (#1077). Facts: docs/research/mixer-recording/presonus-studiolive-iii.md.
+export const STUDIOLIVE_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I record a StudioLive Series III to an iPhone or iPad?",
+    a: "PreSonus says its USB mixers work with iPads and iPhones for recording, with no driver, and lists the StudioLive Series III. That is a general statement, not a test of each device, and we haven't tested a StudioLive yet. In 2021 some iPad apps crashed on launch with all 64 channels; PreSonus says the two it named have since been fixed. If yours crashes, try Compatibility Mode (our advice).",
+  },
+  {
+    q: "Can a StudioLive Series III record without a computer?",
+    a: "The consoles can: 34 tracks (channels 1-32 and a stereo mix) to an SD or SDHC card of up to 32 GB, formatted FAT32. PreSonus asks for Class 10 U3 cards and says SDXC cards are not supported. The rack mixers record only stereo to SD.",
+  },
+  {
+    q: "Which USB channel is each input on a StudioLive?",
+    a: "By default, USB 1-32 carry channels 1-32, and on the 32-channel models USB 39-40 carry the main mix. In Compatibility Mode the main mix moves to USB 33-34. You can change any USB channel in Home > Audio Routing > Digital Patching > USB Sends.",
+  },
+  {
+    q: "Why does my StudioLive show 64 USB channels but only mix 32?",
+    a: "The 64 x 64 is a pool of USB slots to choose from, not 64 mixing channels. The 32-channel models mix 32 inputs; only the 64S mixes 64. Compatibility Mode cuts USB to 34 x 34 for computers that struggle with 64.",
+  },
+  {
+    q: "Are StudioLive recordings pre or post fader?",
+    a: "PreSonus doesn't say where the default USB and SD input tracks are taken. Record a short test, move a fader and the EQ, and listen (our advice). For a known point, send a FlexMix set to Pre 1, Pre 2 or Post to a spare USB channel.",
+  },
+  {
+    q: "What sample rate does a StudioLive Series III record at?",
+    a: "48 kHz (the default) or 44.1 kHz, set in Home > System > Sample Rate. The converters are 24-bit; PreSonus doesn't state the USB bit depth.",
+  },
+  {
+    q: "How do I play a StudioLive recording back for a virtual soundcheck?",
+    a: "Over USB, press and hold a channel's USB Input Source button and press the Select button of each channel to play back. From the SD card, press Soundcheck, pick the session and press Recall. Press Soundcheck again, or switch the channels back to Analog, for the show.",
+  },
+];
+
+// The questions on the Allen & Heath SQ guide (#1068). Facts: docs/research/mixer-recording/ah-sq.md.
+export const AH_SQ_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I record an Allen & Heath SQ to an iPhone or iPad?",
+    a: "Not tested yet. Allen & Heath says the SQ's USB-B interface needs no driver on any device that supports class-compliant audio, but it doesn't name the iPhone or iPad. A Mac works with no driver.",
+  },
+  {
+    q: "Can an SQ multitrack record without a computer?",
+    a: "Yes, with SQ-Drive: up to 16 tracks at 96 kHz or 32 at 48 kHz, one 24-bit WAV per track, to a drive in the SQ's USB-A socket. Use a fast external hard drive or SSD; Allen & Heath says most USB sticks are too slow. Only the USB channels you patched are recorded.",
+  },
+  {
+    q: "How many channels does the SQ send over USB?",
+    a: "32 to the computer and 32 back, at 48 or 96 kHz. Set the rate in Setup > Audio > Digital I/O > USB Sample Rate. A Mac needs no driver; Windows needs Allen & Heath's ASIO driver for all 32.",
+  },
+  {
+    q: "Which USB channel is each input on the SQ?",
+    a: "You choose, in the I/O screen. After a Standard reset (in Setup, on the Role tab), USB 1-2 carry the main mix and the channels follow. Other setups may differ, and Allen & Heath doesn't say which channel lands on USB 3, so check I/O before the show.",
+  },
+  {
+    q: "Are SQ recordings pre or post fader?",
+    a: "You choose. The channel direct outs have one Direct Out Source for every channel, from Post Preamp (only the preamp gain) to Post Delay (all processing), and switches for following the faders and mutes. For tracks you can mix later, pick Post Preamp and leave the fader and mute following off (our advice).",
+  },
+  {
+    q: "How do I play an SQ recording back for a virtual soundcheck?",
+    a: "Send each track out on its own USB output in your recording app. On the SQ, press I/O > Inputs > Input Channel and patch the USB sockets to the channels. Save that patch in an input patch library (press Library) so you can switch between the stage and USB in one step.",
+  },
+];
+
 // The questions on the Soundcraft Signature MTK guide (#1073). Facts: docs/research/mixer-recording/soundcraft-signature-mtk.md.
 export const SIGNATURE_MTK_GUIDE_FAQS: readonly Faq[] = [
   {
@@ -964,6 +1026,66 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pick: "16 channels over USB (24 on the CQ-18T and CQ-20B) to a computer. Records as many by itself to an SD card. iPad: yes, says Allen & Heath staff. iPhone: not tested yet.",
     campaign: "site-guide-ah-cq",
     tapPick: "the Source Point in CONFIG > Digital Audio > USB/SD, one setting for every channel (pick how much processing you want; users report no post-fader option)",
+  },
+  {
+    slug: "presonus-studiolive-iii",
+    path: "/guides/record/presonus-studiolive-iii",
+    pageKey: "guideStudioLive",
+    short: "StudioLive",
+    mixer: "PreSonus StudioLive Series III",
+    pick: "Up to 64 channels over USB (16R: 18 or more). The consoles record 34 tracks by themselves to an SD card; the racks record stereo only. iPhone: named by PreSonus in a general statement, not tested by us.",
+    description:
+      "Multitrack record a PreSonus StudioLive Series III over USB or to an SD card: 64 or 34 channels, routing, playback, tap points. iPhone not tested yet.",
+    published: "2026-11-07",
+    faqs: STUDIOLIVE_GUIDE_FAQS,
+    faqsName: "STUDIOLIVE_GUIDE_FAQS",
+    sources: [
+      "https://www.fmicassets.com/Damroot/Original/10153/OM_StudioLive-Series-III-Console-Mixers_EN.pdf",
+      "https://www.fmicassets.com/Damroot/Original/10154/TS_studiolive32s_EN.pdf",
+      "https://www.fmicassets.com/Damroot/Original/10154/SUP_StudioLive-Series-III-Comaparison-Chart.pdf",
+      "https://pae-web.presonusmusic.com/downloads/products/pdf/StudioLive_Series_III_Rack_Mixers_OwnersManual_EN_13102022.pdf",
+      "https://support.presonus.com/hc/en-us/articles/360059975732-PreSonus-Hardware-iOS-iPadOS-Compatibility",
+      "https://support.presonus.com/hc/en-us/articles/360062440371-StudioLive-Series-III-Can-my-StudioLive-utilize-all-64-USB-AVB-channels",
+      "https://support.presonus.com/hc/en-us/articles/11189120184845-Compatibility-Mode-in-Universal-Control-v4",
+      "https://support.presonus.com/hc/en-us/articles/360052084812-Series-III-Interface-Mode-WDM-Primer",
+      "https://support.presonus.com/hc/en-us/articles/4404701016973-StudioLive-Series-III-Console-SD-Card-Recording-and-Playback",
+      "https://support.presonus.com/hc/en-us/articles/115000219906",
+      "https://support.presonus.com/hc/en-us/articles/360056572451",
+      "https://support.presonus.com/hc/en-us/articles/360050481392-StudioLive-Series-III-Rack-Mount-Mixers-SD-Card-Stereo-Recording-and-Playback",
+      "https://support.presonus.com/hc/en-us/articles/7059582068493-Capture-USB-Recording-Playback-Setup-Series-III",
+      "https://support.presonus.com/hc/en-us/articles/7428384416269",
+    ],
+    campaign: "site-guide-presonus-studiolive-iii",
+    tapPick: "the default Inputs on USB 1-32 (PreSonus doesn't say where on the channel they are taken), or a FlexMix at Pre 1, Pre 2 or Post for a known point",
+  },
+  {
+    slug: "ah-sq",
+    path: "/guides/record/ah-sq",
+    pageKey: "guideAhSq",
+    short: "SQ",
+    mixer: "Allen & Heath SQ",
+    description:
+      "Multitrack record an Allen & Heath SQ-5, SQ-6 or SQ-7 over USB or to SQ-Drive: settings, patching, playback, taps. iPhone and iPad not tested yet.",
+    published: "2026-11-07",
+    faqs: AH_SQ_GUIDE_FAQS,
+    faqsName: "AH_SQ_GUIDE_FAQS",
+    sources: [
+      "https://support.allen-heath.com/hc/en-gb/articles/45947079593105-SQ-SQ-Drive-and-USB-B",
+      "https://support.allen-heath.com/hc/en-gb/articles/45261631285009-SQ-Connections-and-Patching",
+      "https://support.allen-heath.com/hc/en-gb/articles/45946654916753-SQ-Routing",
+      "https://support.allen-heath.com/hc/en-gb/articles/4402940459537-SQ-Basic-Signal-Path-Diagrams-Input-Group-LR-Aux-Matrix",
+      "https://support.allen-heath.com/hc/en-gb/articles/45947065818769-SQ-Setup",
+      "https://support.allen-heath.com/hc/en-gb/articles/45946563062929-SQ-Processing",
+      "https://support.allen-heath.com/hc/en-gb/articles/45947235418385-SQ-Mix-System-Reset",
+      "https://support.allen-heath.com/hc/en-gb/articles/4402940155793-SQ-Understanding-SQ-USB-recording-and-playback",
+      "https://support.allen-heath.com/hc/en-gb/articles/4402941921553-SQ-Virtual-Soundcheck-using-the-USB-B-connection",
+      "https://support.allen-heath.com/hc/en-gb/articles/4402939458193-SQ-Troubleshooting-issues-with-the-SQ-USB-B-interface",
+      "https://support.allen-heath.com/hc/en-gb/articles/43757630905361-SQ-Firmware-Release-Notes",
+      "https://support.allen-heath.com/hc/en-gb/articles/41332471203985-SQ-5-SQ-6-SQ-7-Getting-Started-Guide",
+    ],
+    pick: "32 channels over USB to a computer, at 48 or 96 kHz. Records by itself to a fast USB drive: 16 channels at 96 kHz or 32 at 48 kHz. iPhone and iPad: not tested yet.",
+    campaign: "site-guide-ah-sq",
+    tapPick: "Direct Out Source set to Post Preamp (only the preamp gain, before the filter, EQ and fader), in Routing > Dir Out",
   },
   {
     slug: "signature-mtk",

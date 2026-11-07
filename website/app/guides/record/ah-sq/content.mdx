@@ -1,0 +1,185 @@
+import { AskUs, Breadcrumbs, GetTheApp, LastChecked } from "@/components/GuideParts";
+import { guideTrail } from "@/lib/mixerGuides";
+
+<Breadcrumbs trail={guideTrail("SQ", "/guides/record/ah-sq")} />
+
+# How to multitrack record an Allen & Heath SQ
+
+<LastChecked path="/guides/record/ah-sq" />
+
+**Short answer.** Plug the SQ's USB-B socket into a computer with a USB cable. The SQ sends up to 32 channels, at 48 or 96 kHz. A Mac needs no driver. Windows needs Allen & Heath's driver. You choose what goes on each USB channel in the **I/O** screen. With no computer, the SQ can record up to 32 tracks to a fast USB hard drive or SSD (SQ-Drive). Allen & Heath doesn't list the iPhone or iPad, and we haven't tested them yet.
+
+**Quick start**
+
+1. **Connect the USB-B socket** to the computer with a USB-A to USB-B cable. A Mac needs no driver. On Windows, install Allen & Heath's driver first. ([Ways to record](#ways-to-record-an-sq))
+2. **Pick the sample rate:** press **Setup** > **Audio** > **Digital I/O** and set **USB Sample Rate** to 48 kHz or 96 kHz. Then set your recording app to the same rate. ([Recording settings](#sq-recording-settings))
+3. **Check what goes to each USB channel:** press **I/O**. After a **Standard** reset (**Setup** > **Mixer Config** > **Role**), USB 1-2 carry the main mix and the channels follow. Other setups may differ, so check **I/O**. ([USB routing](#sq-usb-routing))
+4. **Set the tap point** (where in the channel the recording is taken): press a channel's **Sel** key, then **Routing** > **Dir Out**, and set **Direct Out Source** to **Post Preamp**. ([Tap points](#sq-tap-points))
+5. **Record a 30 s test and play it back** before the show.
+6. **Only 2 channels, or silent tracks?** See [the fix](#only-2-channels-or-silent-tracks-check-the-driver-and-the-patch).
+
+Every other mixer is in the [mixer recording guides](/guides/record), and the words used here are in its [glossary](/guides/record#glossary). This guide covers the SQ-5, SQ-6 and SQ-7. The facts come from Allen & Heath's help center (the SQ Firmware Reference Guide) unless a line says otherwise. The [sources](#sources) are at the end.
+
+## Ways to record an SQ
+
+### To a computer over USB
+
+Plug the SQ's **USB-B** socket into the computer. Then record in any recording app (a DAW).
+
+- **Channels:** up to 32 to the computer and 32 back. Allen & Heath: "The USB-B connection allows 32 inputs and 32 outputs simultaneously at either 96kHz or 48kHz."
+- **Sample rate:** 48 kHz or 96 kHz. You pick it on the SQ.
+- **Bit depth over USB:** Allen & Heath doesn't say.
+- **Mac:** no driver. Allen & Heath: "The SQ is Core Audio compliant so drivers are not required."
+- **Windows:** install Allen & Heath's Windows driver. In your recording app, pick **ASIO** to get all 32 channels (the other mode, WDM, gives only 2).
+- **Cable and port:** a USB-A to USB-B cable. The SQ is a USB 2.0 device. Allen & Heath suggests a USB 2.0 port on the computer when there is one, because some USB 3.0 ports don't stream audio well.
+
+### With no computer: SQ-Drive
+
+The SQ records by itself to a USB drive in the **USB-A** socket on top of the mixer. Allen & Heath calls this SQ-Drive.
+
+- **Tracks:** up to 16 tracks at 96 kHz, or 32 at 48 kHz.
+- **Files:** one 24-bit WAV file per track, in a new folder for each recording.
+- **What it records:** only the USB channels you patched something to. Allen & Heath: "Only USB channels that have been patched to will be recorded."
+- **Where:** press **Utility** > **SQ-Drive** > **Multitrack**. Press record to arm, then play to start, and stop when done.
+- **The drive:** use a fast external hard drive or SSD, not a USB stick. Allen & Heath says most USB sticks are not fast enough for multitrack.
+- **Size:** at least 2 GB and at most 2 TB.
+- **File size:** the SQ formats the drive in an older format (FAT32) that caps each file at 4 GB. That is about 8 hours per track at 48 kHz, or 4 hours at 96 kHz.
+- **Format it on the SQ** before you use it, and keep that drive for the SQ only (Allen & Heath's advice).
+- **Stereo:** the **Stereo** tab next to it records a 2-track WAV of USB channels 1 and 2 (the main mix by default).
+
+### To an iPhone, iPad or Mac with an app
+
+A Mac works like any computer above, with no driver. Allen & Heath says the SQ is class compliant (works with no driver) on any device that supports that. But it doesn't name the iPhone or iPad, and neither is tested yet. See [Mac, iPad and iPhone](#sq-on-mac-ipad-and-iphone) below.
+
+## SQ recording settings
+
+- **Sample rate:** press **Setup** > **Audio** > **Digital I/O**, then touch **USB Sample Rate** and pick 96 kHz or 48 kHz. It sets both the USB-B socket and SQ-Drive.
+- **Which rate?** 48 kHz gives 32 tracks on SQ-Drive and smaller files. 96 kHz gives 16 tracks on SQ-Drive (our advice: pick 48 kHz unless you need 96).
+- **Set it first:** set the rate before you open your recording app. If you change it while the computer is connected, restart the app.
+- **Your app:** set the recording app to the same rate as the SQ.
+- **USB channel count:** 32 in and 32 out over USB-B. We found no setting for fewer (our reading).
+- **File format on SQ-Drive:** 24-bit WAV. We found no other format (our reading).
+- **Clock:** leave **Audio Clock Source** on **Internal** (our advice).
+- **Recording to SQ-Drive and a computer at once:** the SQ sends the same USB channels to both. Playback comes from only one of them at a time.
+
+{/* Screenshot: Setup > Audio > Digital I/O with USB Sample Rate at 48kHz. <Screenshot src="/images/guides/ah-sq-digital-io.png" alt="Allen & Heath SQ Setup, Audio, Digital I/O screen with the USB Sample Rate set to 48kHz" /> */}
+
+### Only 2 channels, or silent tracks? Check the driver and the patch
+
+Your app sees only 2 channels, or most tracks are silent. Try these in order:
+
+- **On Windows,** pick **ASIO** in your recording app. With the WDM driver (for Windows system sound), only USB 1 and 2 are used.
+- **Patch the channels you need:** press **I/O** and check that each USB channel has a source. A USB channel with nothing patched to it records silence. See [USB routing](#sq-usb-routing).
+- **Check the recording app:** some apps record only 2 channels. Pick one that records many channels, and arm each track.
+- **Update to firmware V1.6.0 or later.** Older SQ firmware had a **USB Source** switch that had to be set to **USB B** for a computer. V1.6.0 lets SQ-Drive and USB-B work together.
+- **Plug the SQ straight into the computer,** not through a hub, and unplug USB gear you're not using (Allen & Heath's troubleshooting advice for computers).
+
+## SQ USB routing
+
+To choose what each USB channel records, press **I/O** and patch it. The patch screen is a grid: what the SQ sends is on the left, and the sockets it goes to (including USB) are along the top. Each square joins one source to one USB channel.
+
+**To patch:**
+
+1. Press **I/O**.
+2. Touch a tab on the far left: **Outputs** > **Direct Outs** for channels, or **Outputs** > **Mix Outs** for the main mix and other mixes.
+3. Pick the USB sockets along the top.
+4. Touch **Patch** at the top left to allow changes.
+5. Touch a square to join a source to a USB channel. To patch many in a row, touch and hold the first square, then turn the screen's rotary knob.
+
+**What the SQ sends at first:** After a **Standard** reset (**Setup** > **Mixer Config** > **Role**), USB 1-2 carry the main mix and the channels follow. Other setups may differ, so check **I/O**. Allen & Heath's reset table says "Main LR to 1-2, then 1-to-1 direct outs", but it doesn't say which channel lands on USB 3.
+
+**What you can send to each USB channel:**
+
+- **A channel (Direct Outs):** each input channel, with as much or as little processing as the [tap point](#sq-tap-points) you pick.
+- **A mix (Mix Outs):** the main LR mix, an aux, a group or a matrix (a matrix is a spare mix you can build just for the recording).
+- **A raw input (Tie Lines):** a socket straight to USB, with no channel processing, fader or mute. Use it for an extra room mic that isn't on a channel.
+- **Mix and match:** each USB channel is patched on its own. For example: raw channels on USB 3-32 and the main mix on USB 1-2.
+- **A recording mix with its own level:** Allen & Heath suggests a matrix for recording "a single mix or combination of mixes".
+
+{/* Screenshot: I/O > Outputs > Direct Outs with channels patched to USB. <Screenshot src="/images/guides/ah-sq-io-direct-outs.png" alt="Allen & Heath SQ I/O screen, Outputs, Direct Outs tab, with input channels patched to the USB sockets" /> */}
+
+**On SQ-Drive,** leave the USB channels you don't need unpatched. Only patched channels are recorded, so this saves drive space.
+
+## SQ playback for virtual soundcheck
+
+A virtual soundcheck plays a recorded show back through the mixer's channels, so you can set the mix with no band on stage. Each track comes back on a USB return: a USB channel from the computer into the SQ.
+
+**From a computer over USB:**
+
+1. In your recording app, send each track out on its own USB output. Most apps send everything to outputs 1-2 until you change it.
+2. On the SQ, press **I/O** > **Inputs** > **Input Channel**.
+3. Patch each USB socket to its channel. Or, in each channel's **Preamp** source, pick **USB Port**.
+4. Play the recording.
+
+**Switch back and forth in one step:** save the input patching as a preset: one for the band, one for playback. Recall either one in a single step. On the **Input Channel** tab, press **Library** to save and recall them.
+
+**From SQ-Drive:**
+
+- Load the recording in **Utility** > **SQ-Drive** > **Multitrack** and press play.
+- Tracks come back on the same USB socket numbers they were recorded from. So patch those USB sockets to your channels, as above.
+- While SQ-Drive plays, all USB returns come from the drive. When you press stop, they switch back to USB-B.
+
+**Before the show:** recall the band's input patch, so the channels take the stage inputs again (our advice).
+
+## SQ tap points
+
+Set **Direct Out Source** to **Post Preamp** for clean tracks. A tap point is where in the channel the recording is taken: straight after the preamp, or after some or all of the processing. Which to pick, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader).
+
+**How:** press a channel's **Sel** key, then **Routing** > **Dir Out**, and set **Direct Out Source** to **Post Preamp**. Then turn off the direct outs following the fader and the mute. This one setting covers every channel.
+
+**The choices for Direct Out Source,** in order. Each one adds the step before it:
+
+- **Post Preamp:** Allen & Heath: "signal is affected only by the preamp gain". The rawest choice.
+- **Post HPF:** adds the high-pass filter (the low cut).
+- **Post Gate:** adds the gate.
+- **Post Insert Return:** adds any outside effect plugged into the channel (most people have none).
+- **Post PEQ:** adds the EQ.
+- **Post Comp:** adds the compressor.
+- **Post Delay:** adds all channel processing, including channel delay.
+
+**Pros and cons:**
+
+- **Post Preamp:** clean, raw tracks you can mix later. A good choice for most people (our advice). It doesn't have your EQ or compression.
+- **Post HPF:** the same, without low rumble. Good when your filter is set with care.
+- **Post PEQ, Post Comp or Post Delay:** sounds like what you hear in the room. But you can't undo the processing later.
+- **Following the fader:** the global buttons on the same screen choose whether direct outs follow the faders and mutes. If they do, every fader move and mute is in your recording. Leave them off for a recording you can mix later (our advice).
+- **Per-channel level:** each direct out has its own level, from -inf to +10 dB. Leave it at 0 dB (our advice).
+
+**Tie Lines:** a Tie Line sends a socket to USB with no channel processing, fader or mute. Allen & Heath calls it "unprocessed (post socket analogue preamp) audio". It is as raw as Post Preamp, and doesn't use up an input channel.
+
+**Gain and Trim are in the recording:**
+
+- **Gain** (0 to +60 dB) is the analog preamp. It changes the level of every tap point and every Tie Line. Set it before the show, and don't change it while recording.
+- **Trim** (-24 to +24 dB) is a digital level control. Allen & Heath's signal diagram puts it in the same block as the preamp, so Post Preamp probably includes it (our reading). Leave Trim at 0 dB unless you need it (our advice).
+- **Sharing a stage box:** if another mixer shares your stage box and changes its gain, your recording level changes too.
+
+## SQ on Mac, iPad and iPhone
+
+- **Mac:** no driver. Allen & Heath: "The SQ is Core Audio compliant so drivers are not required." Its release notes name macOS 10.12 (Sierra) or later.
+- **iPhone and iPad:** not tested yet. Allen & Heath says the SQ's USB-B interface is class compliant (it works with no driver) "on any device/OS that supports class compliant audio/MIDI devices". But it doesn't name the iPhone or iPad. Its release notes say USB streaming works with Mac and Windows computers.
+- **Cable:** the SQ's socket is USB-B. From a USB-C iPhone or iPad, we'd try a USB-C to USB-B cable (our advice).
+- **Power:** Allen & Heath doesn't say whether the SQ charges a phone or tablet. Its advice to skip hubs is for computers. For a phone on a long show, a USB-C adapter that passes power through is our advice, not tested yet.
+- **Windows:** install Allen & Heath's Windows driver, and pick **ASIO** for all 32 channels.
+
+ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer, so it should record an SQ over USB, but nobody has tested it on an SQ yet. There is no Mixer Link for the SQ: Mixer Link, which reads channel names and colors, works only on the XR18/MR18 and X32/M32. With no Mixer Link, tracks are named by USB channel number. If you record an SQ with it, we'd like to hear how it goes.
+
+<GetTheApp campaign="site-guide-ah-sq" />
+
+<AskUs />
+
+## Sources
+
+Allen & Heath help center (the SQ Firmware Reference Guide):
+
+- [SQ-Drive and USB-B](https://support.allen-heath.com/hc/en-gb/articles/45947079593105-SQ-SQ-Drive-and-USB-B): 32 x 32 at 48 or 96 kHz, the sample rate menu, SQ-Drive tracks and files, the Mac and Windows drivers, the USB 2.0 port.
+- [Connections and Patching](https://support.allen-heath.com/hc/en-gb/articles/45261631285009-SQ-Connections-and-Patching): the I/O screen, Direct Outs, Mix Outs, Tie Lines, input patch libraries.
+- [Routing](https://support.allen-heath.com/hc/en-gb/articles/45946654916753-SQ-Routing): Direct Out Source and what each point adds, following faders and mutes, matrices for recording.
+- [Basic Signal Path Diagrams](https://support.allen-heath.com/hc/en-gb/articles/4402940459537-SQ-Basic-Signal-Path-Diagrams-Input-Group-LR-Aux-Matrix): the Preamp/Trim/Width block before the first direct out tap.
+- [Setup](https://support.allen-heath.com/hc/en-gb/articles/45947065818769-SQ-Setup): USB Sample Rate, Audio Clock Source.
+- [Processing](https://support.allen-heath.com/hc/en-gb/articles/45946563062929-SQ-Processing): Gain and Trim, the USB Port source.
+- [Mix/System Reset](https://support.allen-heath.com/hc/en-gb/articles/45947235418385-SQ-Mix-System-Reset): the default USB patch for the Standard and Monitor resets.
+- [Understanding SQ USB recording and playback](https://support.allen-heath.com/hc/en-gb/articles/4402940155793-SQ-Understanding-SQ-USB-recording-and-playback): drive sizes, FAT32, USB sticks, SSDs and hard drives, formatting, Tie Lines.
+- [Virtual Soundcheck using the USB B connection](https://support.allen-heath.com/hc/en-gb/articles/4402941921553-SQ-Virtual-Soundcheck-using-the-USB-B-connection).
+- [Troubleshooting issues with the SQ USB B interface](https://support.allen-heath.com/hc/en-gb/articles/4402939458193-SQ-Troubleshooting-issues-with-the-SQ-USB-B-interface): the old USB Source switch, no hub.
+- [SQ Firmware Release Notes](https://support.allen-heath.com/hc/en-gb/articles/43757630905361-SQ-Firmware-Release-Notes): V1.5.0 and V1.6.0 USB changes, macOS 10.12 or later.
+- [SQ-5 / SQ-6 / SQ-7 Getting Started Guide](https://support.allen-heath.com/hc/en-gb/articles/41332471203985-SQ-5-SQ-6-SQ-7-Getting-Started-Guide): class compliant with no drivers, 32 x 32 at 48 or 96 kHz, playback from one source at a time.
