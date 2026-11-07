@@ -20,7 +20,7 @@ const body = (slug: string) => read("app", "guides", "record", slug, "content.md
 const shell = (slug: string) => read("app", "guides", "record", slug, "page.tsx");
 
 // "an X32", "an XR18", but "a Qu": the article before a guide's short name, by how the name is said.
-const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a", WING: "a", DL32S: "a", Ui24R: "a", CQ: "a", StudioLive: "a", TF: "a" };
+const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a", WING: "a", DL32S: "a", Ui24R: "a", CQ: "a", StudioLive: "a", TF: "a", DM3: "a" };
 const waysHeading = (short: string) => `Ways to record ${A_SHORT[short] ?? "an"} ${short}`;
 
 // The sections every mixer guide has, in this order. They name the mixer (review batch 1), so a heading quoted out of
@@ -129,9 +129,9 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive, the SQ, the XR12/XR16/MR12 and the Yamaha TF have none; a Mixer Link guide that lost its product page must fail here, not skip.
+    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive, the SQ, the XR12/XR16/MR12, the Yamaha TF and the Yamaha DM3 have none; a Mixer Link guide that lost its product page must fail here, not skip.
     expect(guide.productPage === undefined).toBe(
-      ["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii", "ah-sq", "xr12-xr16-mr12", "yamaha-tf"].includes(guide.slug),
+      ["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii", "ah-sq", "xr12-xr16-mr12", "yamaha-tf", "yamaha-dm3"].includes(guide.slug),
     );
     if (guide.productPage === undefined) return;
     expect(mdx).toContain(`](${guide.productPage})`);
@@ -1511,5 +1511,99 @@ describe("the Yamaha TF guide's facts", () => {
     expect(tf).toMatch(/AUX mixes \(the monitor mixes\)/);
     const taps = section(mdx, "TF tap points", "TF on Mac, iPad and iPhone");
     expect(taps.indexOf("**What to pick:**")).toBeLessThan(taps.indexOf("A *tap point*"));
+  });
+});
+
+// Facts: docs/research/mixer-recording/yamaha-dm3.md (#1075), from the DM3 Series Reference Manual (C0, 01/2025), the
+// owner's manual (B1) and the block diagram (C0). Yamaha says its driver is needed and names no iPhone or iPad, and it
+// documents no tap point for the INPUT signals on USB.
+describe("the Yamaha DM3 guide's facts", () => {
+  const guide = MIXER_GUIDES.find((g) => g.slug === "yamaha-dm3")!;
+
+  it("is in MIXER_GUIDES with its own campaign, and the hub's DM3 row links it", () => {
+    expect(guide.campaign).toBe("site-guide-yamaha-dm3");
+    expect(MIXER_ROWS.find((r) => /Yamaha DM3/.test(r.name))!.guide).toBe(guide.path);
+  });
+
+  const mdx = body("yamaha-dm3");
+  const all = () => mdx + guide.faqs.map((f) => f.q + " " + f.a).join(" ") + guide.pick + guide.description;
+
+  it("gives 18 x 18 USB at 48 or 96 kHz, 32-bit, and Yamaha's driver on Mac and Windows", () => {
+    const ways = section(mdx, "Ways to record a DM3", "DM3 recording settings");
+    expect(ways).toMatch(/18 to the computer[^\n]*18 back/);
+    expect(ways).toMatch(/48 kHz or 96 kHz/);
+    expect(ways).toMatch(/32-bit/);
+    expect(ways).toMatch(/It is necessary to install Yamaha Steinberg USB Driver in order to communicate with a computer/);
+    expect(ways).toMatch(/V3\.1\.7/);
+    expect(mdx).toMatch(/USB Sample Rate Mismatch/);
+  });
+
+  it("sets the clock in SETUP > Word Clock and picks Mode1 in SETUP > USB for 18 channels in one app", () => {
+    const settings = section(mdx, "DM3 recording settings", "DM3 USB routing");
+    expect(settings).toMatch(/\*\*SETUP\*\*[^\n]*\*\*Word Clock\*\*/);
+    expect(settings).toMatch(/\*\*Mode1\*\*/);
+    expect(settings).toMatch(/Mode2[^\n]*12/);
+    expect(settings).toMatch(/restart/);
+    expect(settings).toMatch(/Yamaha doesn't say which mode a new DM3 starts in/);
+  });
+
+  it("gives the default USB patch and how to change it in SETUP > Patch > OUTPUT", () => {
+    const routing = section(mdx, "DM3 USB routing", "DM3 playback for virtual soundcheck");
+    expect(routing).toMatch(/USB 1-16:\*\*[^\n]*INPUT 1-16/);
+    expect(routing).toMatch(/USB 17-18:\*\*[^\n]*STEREO/);
+    expect(routing).toMatch(/\*\*OUTPUT\*\*/);
+    expect(routing).toMatch(/OUTPUT CH PATCH/);
+    expect(routing).toMatch(/INSERT/);
+    expect(routing).toMatch(/DM3 Standard[^\n]*Dante/);
+  });
+
+  it("plays back with All USB for channels 1-16, and the gain turns digital", () => {
+    const play = section(mdx, "DM3 playback for virtual soundcheck", "DM3 tap points");
+    expect(play).toMatch(/\*\*All USB\*\*/);
+    expect(play).toMatch(/1-16/);
+    expect(play).toMatch(/digital gain/);
+    expect(play).toMatch(/\+48V/);
+  });
+
+  // No direct-out point in the C0 manual or block diagram (research gap): never name one as the USB tap.
+  it("says Yamaha doesn't document where the USB feed is taken, and lists the points that do exist", () => {
+    const taps = section(mdx, "DM3 tap points", "DM3 on Mac, iPad and iPhone");
+    expect(taps.indexOf("**What to pick:**")).toBeGreaterThan(-1);
+    expect(taps.indexOf("**What to pick:**")).toBeLessThan(taps.indexOf("A *tap point*"));
+    expect(taps).toMatch(/Yamaha doesn't say/);
+    for (const p of ["Pre EQ", "Pre Fader", "Post ON"]) expect(taps).toContain(p);
+    expect(all()).not.toMatch(/Pre DG[^.]*(by default|the default)/i);
+  });
+
+  it("records only 2 tracks with no computer: WAV 48 or 96 kHz 24-bit, or MP3, to FAT32 or exFAT", () => {
+    const ways = section(mdx, "Ways to record a DM3", "DM3 recording settings");
+    expect(ways).toMatch(/only in stereo \(2 tracks\)/);
+    expect(ways).toMatch(/FAT32 or exFAT/);
+    expect(ways).toMatch(/MP3/);
+    expect(ways).toMatch(/at the speed of a HDD or SSD/);
+  });
+
+  it("says Yamaha names no iPhone or iPad, not tested yet, should work only if class compliant, and records without Mixer Link", () => {
+    const apple = section(mdx, "DM3 on Mac, iPad and iPhone", "Sources");
+    expect(apple).toMatch(/not tested yet/);
+    expect(apple).toMatch(/class compliant/);
+    expect(apple).toMatch(/records without Mixer Link/);
+    expect(apple).toMatch(/StageMix/);
+    expect(all()).not.toMatch(/supported/i);
+    expect(mdx).not.toMatch(/ShowRecorder has recorded[^.]*DM3/);
+  });
+
+  it("labels its readings and cites both manual editions and the online manual", () => {
+    expect(mdx).toMatch(/\(our reading\)/);
+    expect(mdx).toMatch(/\(C0/);
+    expect(mdx).toMatch(/\(B1/);
+    expect(mdx).toContain("https://manual.yamaha.com/pa/mixers/dm3/rm/en-US/");
+  });
+
+  it("explains its terms for beginners: driver, MIX, MATRIX and Dante", () => {
+    expect(mdx).toMatch(/A \*driver\* is/);
+    expect(mdx).toMatch(/MIX[^\n]*\(the monitor mixes\)/);
+    expect(mdx).toMatch(/MATRIX[^\n]*\(extra output mixes\)/);
+    expect(mdx).toMatch(/Dante \(a network audio system/);
   });
 });
