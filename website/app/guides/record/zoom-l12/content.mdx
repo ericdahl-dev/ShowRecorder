@@ -1,0 +1,140 @@
+import { AskUs, Breadcrumbs, GetTheApp, LastChecked } from "@/components/GuideParts";
+import { guideTrail } from "@/lib/mixerGuides";
+
+<Breadcrumbs trail={guideTrail("L-12 and L-20", "/guides/record/zoom-l12")} />
+
+# How to multitrack record a Zoom LiveTrak L-12 or L-20
+
+<LastChecked path="/guides/record/zoom-l12" />
+
+**Short answer.** With the mixer off, set the rear switches: **MODE** to AUDIO INTERFACE, **SAMPLE RATE** to 44.1 or 48 kHz, and **CLASS COMPLIANT MODE** to ON for an iPhone or iPad. Then turn it on and plug its USB port into a computer, an iPhone or an iPad. The L-12 sends 14 channels and the L-20 22 channels, in a fixed order. Both also record the same channels to their own SD card, with or without a computer.
+
+**Quick start**
+
+1. **Set the three rear switches before you turn it on:** MODE to AUDIO INTERFACE, SAMPLE RATE to 44.1 or 48 kHz, CLASS COMPLIANT MODE to ON for an iPhone or iPad. ([Recording settings](#l-12-and-l-20-recording-settings))
+2. **Connect it.** On a Mac or Windows computer, install Zoom's driver first. On an iPhone or iPad, use Apple's Lightning to USB Camera Adapter, as Zoom says. ([Mac, iPad and iPhone](#l-12-and-l-20-on-mac-ipad-and-iphone))
+3. **For a long show on a phone, keep it charged** with a powered USB hub or a camera adapter that passes power through. Zoom doesn't guarantee operation through hubs, so test yours first. ([Mac, iPad and iPhone](#l-12-and-l-20-on-mac-ipad-and-iphone))
+4. **Turn each channel's COMP knob to zero** for clean tracks: the compressor is in the recording. ([Tap points](#l-12-and-l-20-tap-points))
+5. **Open your recording app** and check that it sees 14 channels (L-12) or 22 (L-20).
+6. **Record a 30 s test and play it back** before the show.
+7. **No USB audio?** Check the rear switches with the mixer off. ([Only the SD card records?](#only-the-sd-card-records-check-the-rear-switches))
+
+The L-12 and L-20 share one design, so this guide covers both; where they differ, it says which. Zoom's L-20R manual gives it the L-20's 22 USB channels, Class Compliant Mode and REC SOURCE setting, and we checked only those facts for it. The L-8 is not covered here.
+
+Every other mixer is in the [mixer recording guides](/guides/record), and the words used here are in its [glossary](/guides/record#glossary). Facts come from Zoom's manuals and product pages unless a line says otherwise. The [sources](#sources) are at the end.
+
+## Ways to record an L-12 and L-20
+
+### To a computer over USB
+
+Plug the mixer's **USB DEVICE** port into the computer and record in any DAW.
+
+- **Channels to the computer:** the L-12 sends 14 channels: channels 1-12 and the master L/R. The L-20 sends 22 channels: channels 1-20 and the master L/R.
+- **Channels back from the computer:** 4. On the L-12 they go to the stereo channels 9/10 and 11/12; on the L-20, to 17/18 and 19/20.
+- **Sample rate:** 44.1 or 48 kHz only. At 96 kHz the audio interface is off.
+- **Bit depth:** 24-bit.
+- **Connector:** the USB DEVICE port, USB 2.0. The separate **USB HOST** port is for USB flash drives (saving projects, importing and exporting audio files), not for live multitrack recording.
+- **Driver:** on a Mac or Windows computer, install Zoom's driver. Version 2 of the driver adds a control panel on both.
+- **SD at the same time:** at 44.1 or 48 kHz, the mixer records to the computer and its SD card at once (Zoom product pages).
+
+### With no computer: to the SD card
+
+The L-12 and L-20 are also multitrack recorders.
+
+- **Tracks:** the L-12 records 14 tracks at 44.1 or 48 kHz, and 12 at 96 kHz. The L-20 records 22 tracks at 44.1, 48 or 96 kHz.
+- **Format:** WAV, 44.1, 48 or 96 kHz, 16 or 24-bit, as mono and stereo files.
+- **Cards:** SD from 16 MB to 2 GB, SDHC from 4 to 32 GB, SDXC from 64 to 512 GB.
+- **Long shows:** "If the file size exceeds 2GB during recording, a new file will be created automatically", and recording continues without a pause. The new files end in "-01", "-02" and so on.
+- **File names:** on the L-12, TRACK01 to TRACK08 (mono), TRACK09_10 and TRACK11_12 (stereo) and MASTER (stereo). On the L-20, TRACK01 to TRACK16 (mono), TRACK17_18 and TRACK19_20 (stereo) and MASTER.
+- **To record:** press each channel's **REC/PLAY** button so it lights red, then press **REC** (L-12 manual).
+
+### To an iPhone, iPad or Mac with an app
+
+Zoom names the iPhone and the iPad, with the CLASS COMPLIANT MODE switch on and a Lightning camera adapter. A Mac works like any computer above, with Zoom's driver. See [Mac, iPad and iPhone](#l-12-and-l-20-on-mac-ipad-and-iphone) below.
+
+## L-12 and L-20 recording settings
+
+All three switches are on the rear panel.
+
+- **MODE:** USB HOST, CARD READER or AUDIO INTERFACE. Set it to AUDIO INTERFACE to record over USB. The L-12 manual says it "cannot be changed after starting up".
+- **SAMPLE RATE:** 44.1, 48 or 96 kHz, and it also "cannot be changed after starting up" (L-12 manual). For USB, pick 44.1 or 48 kHz.
+- **CLASS COMPLIANT MODE:** "Set it to ON when connected to an iOS device." The manual doesn't say this one is read only at power-on, but set all three before you turn it on (our advice).
+- **At 96 kHz** the audio interface is off on both. The L-12 then records tracks 1-12 only, its SEND EFX, EQ and OVER DUB are off, and MONITOR OUT carries only the master. On the L-20, SEND EFX 1/2, EQ and OVER DUB are off. Format the SD card before you record at 96 kHz.
+- **Bit depth on the SD card:** 16 or 24-bit, in **MENU > REC / PLAY > REC FORMAT** (L-12 manual). An overdub keeps the bit depth of the original file.
+- **Bit depth over USB:** 24-bit, fixed.
+- **Channel count:** fixed, 14 on the L-12 and 22 on the L-20. Zoom's manuals give no other count.
+- **Clock:** Zoom's manuals mention no word clock or external sync.
+- **File format:** WAV on the SD card.
+
+{/* Screenshot: the L-12's rear panel with MODE, SAMPLE RATE and CLASS COMPLIANT MODE. <Screenshot src="/images/guides/zoom-l12-rear-switches.png" alt="Zoom L-12 rear panel, with MODE at AUDIO INTERFACE, SAMPLE RATE at 48 kHz and CLASS COMPLIANT MODE at ON" /> */}
+
+### Only the SD card records? Check the rear switches
+
+If your computer, iPhone or iPad gets no audio from the mixer, check the rear switches with the mixer off:
+
+- MODE must be AUDIO INTERFACE.
+- SAMPLE RATE must be 44.1 or 48 kHz. At 96 kHz the audio interface is off and only the SD card records.
+- For an iPhone or iPad, CLASS COMPLIANT MODE must be ON.
+
+Then turn the mixer on again. Zoom also doesn't guarantee operation through USB hubs or expansion cards, so try a direct cable if it still fails.
+
+## L-12 and L-20 USB routing
+
+**Recording every channel? There is nothing to set.** The USB and SD order is fixed. Zoom: "After applying its compressor, each input channel always outputs its signal to the corresponding USB audio channel."
+
+- **L-12:** USB channels 1-12 are channels 1-12, then the master L/R (13 and 14).
+- **L-20:** USB channels 1-20 are channels 1-20, then the master L/R (21 and 22).
+- **No per-slot routing.** You can't choose a source for a USB or SD track, and no monitor mix can go to USB or the SD card.
+- **The master** is the stereo signal after the master fader, the last pair on both USB and the SD card.
+
+**The one change: master on 1 and 2.** Zoom's driver version 2 can send the master L/R as computer channels 1 and 2, so the inputs start at 3. Set it in the ZOOM L-12/L-20 Control Panel, on the **Channel** tab (on Windows, find the panel under Control Panel > Hardware and Sound; on a Mac, open the driver's control panel). This is a Mac and Windows driver only setting. An iPhone or iPad in Class Compliant Mode doesn't use the driver, so expect the standard order there (not tested yet).
+
+{/* Screenshot: the ZOOM L-12/L-20 Control Panel's Channel tab. <Screenshot src="/images/guides/zoom-l12-driver-channel-tab.png" alt="ZOOM L-12/L-20 Control Panel, Channel tab, with the option to send the master on computer channels 1 and 2" /> */}
+
+## L-12 and L-20 playback for virtual soundcheck
+
+- **From the SD card:** this is the way to play every channel back. Press a channel's **REC/PLAY** button so it lights green. "Playback signals are input before the equalizer", and that channel's input jack is off while it plays (L-12 manual).
+- **From a computer over USB:** only 4 channels come back, into the stereo channels (9/10 and 11/12 on the L-12, 17/18 and 19/20 on the L-20). On the L-12, a stereo channel's **USB** button switches it to the USB signal, before the EQ. The mono channels can't play back from USB, so a full virtual soundcheck over USB isn't possible.
+
+## L-12 and L-20 tap points
+
+Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). On the L-12 and L-20:
+
+- **Which to pick:** for a recording you'll remix, leave each channel's **COMP** knob at zero; the tap itself is fixed. On the L-20, also set **REC SOURCE** to PRE COMP for uncompressed SD tracks.
+- **L-12, USB and SD card:** after the analog GAIN knob and the channel's one-knob compressor, before the EQ, fader and pan. Zoom: "The signals for each channel are recorded after passing through their compressors", and "Tracks are recorded pre-EQ and effects". The compressor is in the recording if its knob is up.
+- **L-12 low cut:** the LOW CUT (75 Hz, 12 dB/oct) is not in the recording, per Zoom's block diagram (our reading): it draws the USB feed after the compressor and before the LOW CUT and EQ.
+- **L-20, SD card:** **MENU > REC/PLAY > REC SOURCE** picks PRE COMP or POST COMP, for all channels at once.
+- **L-20, USB:** after the compressor, whatever REC SOURCE says. Zoom's text says the USB signals come "after they pass through their compressors". That the feed is before the EQ, and that REC SOURCE feeds only the SD card, is per Zoom's block diagram (our reading). So with PRE COMP and a COMP knob up, the SD track is uncompressed but the USB track is compressed.
+- **L-20 phase:** the phase invert comes after the USB feed, so it isn't in the USB recording, per Zoom's block diagram (our reading).
+- **Gain:** there is no digital trim, only the analog GAIN knob on each channel. There is no shared stage box.
+- **Slate:** holding the **SLATE** button records the built-in slate mic onto the channels you pick (1-12, MASTER or all, on the L-12).
+
+## L-12 and L-20 on Mac, iPad and iPhone
+
+- **iPhone and iPad:** yes. Zoom names the iPhone, not only the iPad. Its product pages list "iPhone/iPad: iOS 8 ~ 26, iPadOS 26" for the L-12 and "iOS 9 ~ 26, iPadOS 17 ~ 26" for the L-20, with "Apple Lightning-to-USB Camera Adapter required". The manual: "use a Lightning to USB camera adapter (or Lightning to USB 3 camera adapter)".
+- **The switch:** set CLASS COMPLIANT MODE to ON, with MODE at AUDIO INTERFACE and SAMPLE RATE at 44.1 or 48 kHz, before you turn the mixer on.
+- **USB-C iPhone or iPad:** Zoom names only the Lightning camera adapter, so a USB-C iPhone or iPad is not tested yet.
+- **Mac:** install Zoom's driver ("L-12 Driver | Mac, macOS 10.14 ~ 26"). Zoom ties the driver-free Class Compliant Mode only to iOS, and doesn't say whether a Mac works without the driver. Zoom's Mac requirements name an Intel Core i3 or faster; Apple silicon is not listed by Zoom and not tested yet.
+- **Windows:** install Zoom's driver.
+- **Power:** the L-12 runs from its own AD-19 adapter (12 V, 2 A) and needs no power from the phone. Zoom doesn't say whether it charges the phone. For a long show, use a powered USB hub or a camera adapter that passes power through; Zoom doesn't guarantee operation through hubs, so test yours before the show.
+
+ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer. We haven't tested it with an L-12 or L-20 yet. There is no Mixer Link for the Zoom: Mixer Link, which reads channel names and colors, works only on the XR18/MR18 and X32/M32.
+
+<GetTheApp campaign="site-guide-zoom-l12" />
+
+<AskUs />
+
+## Sources
+
+Zoom manuals:
+
+- [L-12 Operation Manual](https://zoomcorp.com/media/documents/E_L-12_4.pdf): USB channels, the rear switches, SD recording, routing, playback, the block diagram.
+- [L-20 Operation Manual](https://zoomcorp.com/media/documents/E_L-20_OperationManual.pdf): the L-20's USB channels, REC SOURCE, the block diagram.
+- [L-20R Operation Manual](https://zoomcorp.com/media/documents/E_L-20R.pdf): the L-20R's USB channels, Class Compliant Mode and REC SOURCE.
+- [Audio driver version 2 supplementary manual](https://zoomcorp.com/media/documents/L-12_L-20_L-20R_Driver_V2manual_en.pdf): the control panel and the master on computer channels 1 and 2.
+
+Zoom product pages:
+
+- [L-12 product page](https://zoomcorp.com/en/us/digital-mixer-multi-track-recorders/digital-mixer-recorder/livetrak-l-12/): iPhone and iPad, system requirements, recording pre-EQ.
+- [L-20 product page](https://zoomcorp.com/en/us/digital-mixer-multi-track-recorders/digital-mixer-recorder/livetrak-l-20/): iPhone and iPad, system requirements.
+- [L-12 support page](https://zoomcorp.com/en/us/digital-mixer-multi-track-recorders/digital-mixer-recorder/livetrak-l-12/l-12-support/): the Mac driver.
