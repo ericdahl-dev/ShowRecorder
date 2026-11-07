@@ -57,6 +57,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     mac: "Works with no driver (maker).",
     ipad: "Not documented by the maker, and not tested yet.",
     iphone: "Not documented by the maker, and not tested yet.",
+    guide: "/guides/record/m32",
   },
   {
     name: "Behringer WING, WING Rack and WING Compact",
@@ -513,6 +514,31 @@ export const WING_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the Midas M32 guide (#1065). Facts: docs/research/mixer-recording/m32.md, and x32.md where it
+// says the X32 facts apply (labeled).
+export const M32_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can an M32 multitrack record without a computer?",
+    a: "Only with the DN32-LIVE card, fitted to the M32 LIVE and M32R LIVE. It records 8, 16 or 32 channels to two SD or SDHC cards (FAT32, up to 32 GB each), as uncompressed multichannel 32-bit WAV at the console's 44.1 or 48 kHz: up to 200 minutes at 32 channels and 44.1 kHz on two 32 GB cards. The top-panel USB stick port records stereo only, and the DN32-USB card can't record by itself.",
+  },
+  {
+    q: "Is recording an M32 the same as recording an X32?",
+    a: "Mostly. The M32 shares the X32's routing and firmware family, and its manual describes the same card out tab, in blocks of 8. The differences are the cards: Klark Teknik's DN32-USB (USB only) and DN32-LIVE (USB plus two SD slots) instead of Behringer's X-USB and X-LIVE.",
+  },
+  {
+    q: "Does the DN32-USB card need a driver on a Mac?",
+    a: "No. Klark Teknik calls the DN32-USB class compliant and CoreAudio compatible, with no driver required. On Windows, install the ASIO driver.",
+  },
+  {
+    q: "Can I record an M32 to an iPhone or iPad?",
+    a: "Not documented, and not tested yet. No Midas or Klark Teknik document lists iOS or iPadOS for the DN32-USB or DN32-LIVE. The DN32-USB is class compliant, which suggests it may work, but that is not a confirmation.",
+  },
+  {
+    q: "How do I send the main mix or buses to USB on an M32?",
+    a: "Card out works in blocks of 8. Put the main mix or a bus in an Out 1-16 or P16 slot, with its tap point, then pick that block (for example Out 9-16) on the card out tab. User Out routing on firmware 4.x probably works as on the X32, per user reports (our reading); no Midas document describes it.",
+  },
+];
+
 // The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
 export const X32_METHOD_A: readonly { name: string; text: string }[] = [
   { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
@@ -671,5 +697,31 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     ],
     campaign: "site-guide-wing",
     tapPick: "the raw inputs (Local In, AES50) on the USB slots, or a User Signal at the channel's INPUT tap",
+  },
+  {
+    slug: "m32",
+    path: "/guides/record/m32",
+    pageKey: "guideM32",
+    short: "M32",
+    mixer: "Midas M32",
+    description:
+      "Multitrack record a Midas M32, M32R or M32C with a DN32-USB or DN32-LIVE card, to a computer or SD cards (iPhone not tested yet): settings, routing, taps.",
+    published: "2026-11-07",
+    productPage: "/mixers/x32",
+    faqs: M32_GUIDE_FAQS,
+    faqsName: "M32_GUIDE_FAQS",
+    sources: [
+      "https://www.sgssistemas.lv/uploads/resources/107/en/klark-teknik-dn32-usb-p0bif-product-information-document.pdf",
+      "https://www.klangfarbe.com/files/Shop/Artikel/61587/A-T61587_1.pdf",
+      "https://leisuretec.co.uk/cdn/shop/files/M32R_LIVE_Quick_Start_Guide.pdf",
+      "https://www.manualslib.com/manual/819691/Midas-M32.html?page=33",
+      "https://www.manualslib.com/manual/819691/Midas-M32.html?page=34",
+      "https://cdn-media.empowertribe.com/e452c7959c0d4002908c23044a9558a7/8849399545886.pdf",
+      "https://cdn-media.empowertribe.com/2d70beac1fae4381ad62fe8a432ff6fd/QSG_BE_0606-ABU_X-LIVE_WW.pdf",
+      "https://behringer.world/viewtopic.php?p=8704",
+      "https://www.controlbooth.com/goto/post?id=417239",
+    ],
+    campaign: "site-guide-m32",
+    tapPick: "a Local block (the raw inputs) on card out",
   },
 ];
