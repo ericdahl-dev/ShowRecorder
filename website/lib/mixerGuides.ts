@@ -199,6 +199,15 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     ipad: "Yes, named by Zoom, with the rear Class Compliant Mode switch on (we suggest setting it before power-on) and a Lightning camera adapter. USB-C: not tested yet.",
     iphone: "Yes, named by Zoom, with the rear Class Compliant Mode switch on (we suggest setting it before power-on) and a Lightning camera adapter. USB-C: not tested yet.",
   },
+  {
+    name: "Pioneer DJ DJM-A9, V10, 900NXS2, 750MK2, 450 and 250MK2",
+    note: "DJ mixers. Every USB send is a stereo pair.",
+    usb: "6 stereo pairs (12 channels) on the A9, V10, 900NXS2 and 750MK2; 4 pairs (8 channels) on the 450 and 250MK2. What each pair carries is set in Pioneer's Setting Utility; the FX Send pair is fixed.",
+    onboard: "None for multitrack. Pioneer's DJM-REC iPhone app records the stereo mix.",
+    mac: "A9: no audio driver needed (maker), class compliance not stated. The other five need Pioneer's Mac driver (maker).",
+    ipad: "No multitrack support from Pioneer. The A9 manual says not to connect mobile devices to its computer USB ports; the other five need a Mac driver.",
+    iphone: "No multitrack support from Pioneer. The A9 manual says not to connect mobile devices to its computer USB ports; the other five need a Mac driver.",
+  },
 ];
 
 // The hub's own questions, from the hub's text and table. The page shows them and its FAQPage JSON-LD repeats them.
