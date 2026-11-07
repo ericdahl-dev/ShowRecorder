@@ -14,6 +14,15 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.2.4",
+    date: "2026-11-07",
+    channel: "TestFlight beta",
+    summary: "A 2-input interface records one stereo file.",
+    changes: [
+      "With an interface that has exactly two USB Channels and both armed, each Take is one stereo file instead of two mono files. Arm only one and you get a mono file as before.",
+    ],
+  },
+  {
     version: "1.2.3",
     date: "2026-11-06",
     channel: "TestFlight beta",
