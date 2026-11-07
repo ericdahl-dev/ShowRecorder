@@ -29,6 +29,8 @@ Checked 2026-11-06. Sources are numbered in section 9. Audited 2026-11-06 agains
 - Fixed blocks, not patchable per slot:
   - USB 1-32 = Direct Out of input channels CH1-32. Each channel's direct out has an on/off switch and a choice of tap point. Path: touch the channel name > CH VIEW > Direct out point button and Direct out on/off button. [3] Yamaha's 2016 guide: "By default, TF-series channels 1-32 each have a Direct Output enabled via the USB TO HOST port." [4]
   - USB 33/34 = the RECORDER record source. The choices are ST L/R or a pair of mono AUX buses (1-8), plus MTRX 1/2 and MTRX 3/4 from V3.5. Path: RECORDER screen > INPUT/OUTPUT > RECORD source selection menu. [3][4]
+- From V4.5, SETUP > PREFERENCE (Preference icon) > "USB 1/2 Output (V4.5 and later): Selects the signals to be output to channels 1 and 2 of the USB TO HOST connector." The choices: Ch 1/2 Direct, ST L/R, AUX or MTRX ("Ch 1/2 Direct is the output before the fader, and ST L/R, AUX, and MTRX are the outputs after the fader"). The factory setting is not stated. [3] (Added 2026-11-07 for the guide, #1074.)
+- The V4.5 reference manual says nothing about the Mac or a driver; the Mac statement comes only from the 2016 guide [4]. V4.5 is still the newest reference manual on the downloads page (firmware is V4.56, 2025-06-04). [5]
 - CH33-40 (not on TF1) and the stereo input channels have no Direct Out, "so they cannot be recorded". [4]
 - TF1 and TF-Rack have 16 local mic inputs but still have CH1-32 (32 mono channels). [1][2] CH17-32 carry signal only from Tio1608-D, Dante or USB sources. [3]
 - With an NY64-D card, the same CH1-32 direct outs also feed SLOT OUT 1-32 (Quick Config table). [3]
