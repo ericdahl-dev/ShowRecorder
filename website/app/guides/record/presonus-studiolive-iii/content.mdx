@@ -7,18 +7,20 @@ import { guideTrail } from "@/lib/mixerGuides";
 
 <LastChecked path="/guides/record/presonus-studiolive-iii" />
 
-**Short answer.** Plug the StudioLive's USB-B port into a computer, iPad or iPhone, and record at 48 kHz (or 44.1 kHz). Each channel already has its own USB channel: USB 1-32 carry channels 1-32, and on the 32-channel models USB 39-40 carry the main mix. The consoles can also record 34 tracks to an SD card with no computer; the rack mixers record only stereo to SD. PreSonus says its USB mixers work with an iPad or iPhone with no driver. We haven't tested a StudioLive yet.
+**Short answer.** Plug in USB. Record. Each mixer channel already has its own track (USB 1-32 = channels 1-32). No computer? The consoles record to an SD card; the rack mixers record only stereo to it.
+
+It records at 48 kHz (the default) or 44.1 kHz. PreSonus says a Mac, iPad or iPhone needs no driver. We haven't tested a StudioLive yet.
 
 **Quick start**
 
-1. **Plug the USB-B port into your computer, iPad or iPhone.** A Mac, iPad or iPhone needs no driver. On Windows, install PreSonus's Universal Control first. ([Ways to record](#ways-to-record-a-studiolive))
+1. **Connect the square USB port (USB-B) on the back of the mixer to your computer, iPad or iPhone.** A Mac, iPad or iPhone needs no driver. On Windows, install PreSonus's Universal Control first. ([Ways to record](#ways-to-record-a-studiolive))
 2. **Pick the sample rate on the mixer:** **Home > System > Sample Rate**, 48 kHz or 44.1 kHz. Set your recording app to the same. ([Recording settings](#studiolive-recording-settings))
 3. **Arm (set to record) USB 1-32 in your app** for channels 1-32. Nothing to patch on the mixer. ([USB routing](#studiolive-usb-routing))
 4. **Set each channel's gain before the show.** The gain knob changes the recording (our reading). ([Tap points](#studiolive-tap-points))
-5. **On an iPad or iPhone, if the app crashes when it opens,** switch the mixer to Compatibility Mode (34 channels). ([Too many channels for your app?](#only-34-channels-or-an-app-that-crashes-native-and-compatibility-mode))
+5. **On an iPad or iPhone, if the app crashes when it opens,** try Compatibility Mode, which sends 34 channels (our advice). ([Only 34 channels, or an app crashes?](#only-34-channels-or-an-app-crashes))
 6. **Record a 30 s test and play it back** before the show.
 
-This guide covers the StudioLive Series III consoles (64S, 32S, 32SX, 32SC, and the 32, 24 and 16) and the rack mixers (32R, 24R and 16R). PreSonus now also sells StudioLive SE consoles and SE racks; this guide doesn't cover the SE models.
+This guide covers the StudioLive Series III consoles (64S, 32S, 32SX, 32SC, and the 32, 24 and 16) and the rack mixers (32R, 24R and 16R). This guide doesn't cover the StudioLive SE models.
 
 Every other mixer is in the [mixer recording guides](/guides/record), and words like class compliant, tap point and virtual soundcheck are in its [glossary](/guides/record#glossary). Facts come from PreSonus's StudioLive Series III owner's manual and PreSonus's support articles unless a line says otherwise. The [sources](#sources) are at the end.
 
@@ -48,15 +50,15 @@ The consoles record by themselves to an SD card in the slot on top, under the **
 
 ### To an iPhone, iPad or Mac with an app
 
-PreSonus says its USB mixers "will work when directly connected for audio / MIDI recording" with iPads and iPhones. Use a camera adapter or a USB-C cable. See [Mac, iPad and iPhone](#studiolive-on-mac-ipad-and-iphone) below.
+PreSonus says its USB mixers "will work when directly connected for audio / MIDI recording" with iPads and iPhones. PreSonus recommends Apple's camera adapter, even on a USB-C iPad. See [Mac, iPad and iPhone](#studiolive-on-mac-ipad-and-iphone) below.
 
 ## StudioLive recording settings
 
 Do these once, before the show.
 
-- **Sample rate:** press **Home**, touch **System**, then **Sample Rate**. Pick 48 kHz or 44.1 kHz. Set your recording app to the same rate.
-- **How many USB channels:** **Home > System** has a switch between **Native USB Mode** (64 x 64) and **Compatibility Mode** (34 x 34). Universal Control has the same switch under **Device Settings**. It needs mixer firmware 2.7.0 or later.
-- **Clock:** leave **Home > System > Network Clock** at its default unless you use an AVB network.
+- **Sample rate:** press **Home**, touch **System**, then **Sample Rate**. Pick 48 kHz or 44.1 kHz; 48 kHz is the default. Set your recording app to the same rate.
+- **How many USB channels:** **Home > System** has a switch between **Native USB Mode** (64 x 64: 64 channels each way) and **Compatibility Mode** (34 x 34: 34 each way). Universal Control has the same switch under **Device Settings**. It needs mixer firmware 2.7.0 or later.
+- **Clock:** leave **Home > System > Network Clock** alone unless your mixer is networked to other PreSonus gear (AVB).
 - **Bit depth:** not a setting. The converters are 24-bit.
 
 To record to the SD card on a console:
@@ -64,19 +66,19 @@ To record to the SD card on a console:
 1. Put the card in and press **Edit** in the **Live Recording** section, above the card slot.
 2. The first time, touch **Speed Test**. It tells you how many tracks the card can record.
 3. Touch **New Session**, type a name, and touch **Create**. The **Capture** screen opens.
-4. Touch **Arm All Tracks** to record all 32 channels and the main mix. Or touch **Select Arm Tracks** and press each channel's **Select** button.
+4. Touch **Arm All Tracks** to record all 32 channels and the main mix. Or touch **Select Arm Tracks** and press each channel's **Select** button. On the 64S, the **Select** buttons arm Capture tracks, not channels.
 5. Press the **Record** button. Press **Stop** at the end, then touch **Save and Close** so you can play it back.
 
 Watch the **Rec. Errors** box: green is fine, yellow means the card is near its speed limit, red means a dropout. A card slows down as it fills.
 
 {/* Screenshot: the console's Capture screen with Arm All Tracks. <Screenshot src="/images/guides/studiolive-capture-screen.png" alt="PreSonus StudioLive Series III Capture screen on the touch display, with Arm All Tracks and the Rec. Errors box" /> */}
 
-### Only 34 channels, or an app that crashes? Native and Compatibility mode
+### Only 34 channels, or an app crashes?
 
 The mixer sends either 64 channels (Native USB Mode) or 34 (Compatibility Mode).
 
-- **App crashes on an iPad?** PreSonus: the 64 x 64 setup "causes some DAW apps on iPadOS to crash on launch". Switch to Compatibility Mode and try again (our advice; PreSonus doesn't say this for the iPad).
-- **USB recording unstable on a Mac or PC?** PreSonus made Compatibility Mode for computers whose USB chips have trouble with 64 channels. Plug the mixer straight in, with no USB hub.
+- **App crashes on an iPad?** In 2021 some iPad apps crashed on launch with all 64 channels; PreSonus says the two it named have since been fixed. If yours crashes, try Compatibility Mode (our advice).
+- **USB recording unstable on a Mac or PC?** PreSonus made Compatibility Mode for computers whose USB chips have trouble with 64 channels. On a Mac, PreSonus says plug straight in, no hub.
 - **In Compatibility Mode,** channels 1-32 are on USB 1-32 and the main mix moves to USB 33-34. Slots above 34 are grayed out.
 - **Seeing only 34 channels?** The mixer may be in Compatibility Mode. Check **Home > System**.
 
@@ -98,7 +100,13 @@ The mixer sends either 64 channels (Native USB Mode) or 34 (Compatibility Mode).
 3. Touch the USB send you want to change.
 4. Pick its source from the **Available Source** list.
 
-You can send any of these to any USB channel: an input, the Aux and Tape inputs, talkback, a FlexMix, an FX send mix, a subgroup (32-channel models), the main mix, the mono bus (64S only) or the solo bus. **Reset Sends** puts the defaults back. On the rack mixers, make the same change in Universal Control on a computer or iPad (our reading).
+You can send any input or mix to any USB channel (the full list is in the manual). For example:
+
+- a channel's input
+- a FlexMix
+- the main mix
+
+**Reset Sends** puts the defaults back. On the rack mixers, make the same change in Universal Control on a computer or iPad (our reading).
 
 **The SD card is mostly fixed.** On the 32-channel consoles, SD tracks 1-32 are always channels 1-32; only tracks 33-34 can take another mix, in **Digital Patching > SD Card**. On the 64S, any input or mix can go to any of the 34 SD tracks.
 
@@ -115,7 +123,9 @@ A virtual soundcheck plays last show's tracks back through the mixer, so you can
 3. While it's held, press the **Select** button on each channel you want to play back.
 4. When you're done, do the same with the **Analog** button to go back to the live inputs.
 
-USB return 1 plays on channel 1 by default. To change which return feeds a channel, go to **Home > Audio Routing > Digital Patching > Input Source**. In PreSonus's Capture app, the **Digital Return** button patches the tracks back for you; un-arm the tracks first, or you may get feedback.
+USB return 1 plays on channel 1 by default. To change which return feeds a channel, go to **Home > Audio Routing > Digital Patching > Input Source**. Using PreSonus's Capture app? Its **Digital Return** button patches the tracks back for you.
+
+Un-arm the tracks in Capture first, or you may get feedback.
 
 **From the SD card (consoles):**
 
@@ -131,27 +141,28 @@ A show recorded in Capture on a computer can go on the card too: in Capture, **S
 The tap point is where on the channel the recording is taken: before or after the EQ, the compressor and the fader. Which one to record, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). On the StudioLive:
 
 - **What to do:** leave the default (the channel inputs on USB 1-32) for a plain multitrack. Set each channel's gain before the show.
-- **Where the default is taken: PreSonus doesn't say.** The manual lists "Inputs" as a USB source but not where on the channel it is taken, and its block diagram isn't in the manual.
+- **Where the default is taken: PreSonus doesn't say.** The manual lists "Inputs" as a USB source but not where on the channel it is taken, and its signal-flow chart isn't in the manual.
 - **Check it yourself:** record a 30 s test, move one channel's fader and EQ, and listen. If the track doesn't change, the recording is taken before them (our advice).
 - **Gain:** the gain knob sets the level going into the mixer, so it changes the recording (our reading).
 - **No tap switch:** PreSonus documents no setting that moves the USB or SD tap.
 
-If you need a track from a known point, use a FlexMix and send it to a spare USB channel. A FlexMix is PreSonus's name for its aux, subgroup and matrix mixes. A FlexMix has three send points:
+If you need a track from a known point, set up a FlexMix with only that one channel turned up, and send it to a spare USB channel. Each FlexMix gives you one track this way. A FlexMix is PreSonus's name for its aux, subgroup and matrix mixes. It has three send points:
 
-- **Pre 1** (the default): after the polarity switch, high-pass filter and gate; before the compressor, EQ and fader. Pro: close to the raw sound. Con: uses up a FlexMix.
+- **Pre 1** (the default): after the polarity switch, high-pass filter and gate (the basic cleanup); before the compressor, EQ and fader. Pro: close to the raw sound. Con: uses up a FlexMix.
 - **Pre 2:** after all the channel processing, before the fader. Pro: the polished sound PreSonus suggests for in-ears. Con: the compression and EQ are in the recording for good.
-- **Post:** after the processing and the fader. Pro: what the room heard. Con: every fader move is in the recording.
+- **Post:** after the processing and the fader. Pro: what the room heard (our reading). Con: every fader move is in the recording.
 - **The main mix** (USB 39-40 on the 32-channel models) is the whole mix as you set it: good to share, but you can't remix it.
 
 ## StudioLive on Mac, iPad and iPhone
 
-- **Mac:** no driver for audio. PreSonus: "iOS/iPadOS much like macOS also support class device connectivity". If PreSonus support tells you to use Compatibility Mode on a Mac, plug in directly with no hub; on a USB-C-only Mac, PreSonus asks for Apple's own USB-C to USB adapter.
+- **Mac:** no driver for audio. PreSonus: "iOS/iPadOS much like macOS also support class device connectivity".
+- **Mac in Compatibility Mode:** plug in directly, with no hub. On a USB-C-only Mac, PreSonus asks for Apple's own USB-C to USB adapter.
 - **iPad and iPhone:** PreSonus says its USB mixers work "when directly connected for audio / MIDI recording" with iPads and iPhones, and lists the StudioLive Series III consoles and racks. That's a general statement for all its USB mixers, not a test of each iPhone. We haven't tested a StudioLive with an iPhone or iPad yet.
-- **Cable:** for a Lightning iPhone or iPad, use Apple's Lightning to USB Camera Adapter. PreSonus says USB-C devices work too; we'd use a USB-C to USB-B cable (our advice).
-- **Power:** the mixer has its own power, so it doesn't draw from the phone. The plain camera adapter doesn't charge the phone; PreSonus points to the Lightning to USB 3 Camera Adapter, which takes a charger. On USB-C, use a powered USB-C hub for a long show (our advice).
-- **Crashes on launch:** see [Native and Compatibility mode](#only-34-channels-or-an-app-that-crashes-native-and-compatibility-mode).
+- **Cable:** for a Lightning iPhone or iPad, use Apple's Lightning to USB Camera Adapter. On a USB-C iPad, PreSonus still recommends a camera adapter.
+- **Power:** the mixer has its own power, so it doesn't draw from the phone. The plain camera adapter doesn't charge the phone; PreSonus points to the Lightning to USB 3 Camera Adapter, which takes a charger. On USB-C, PreSonus names Apple's USB-C Digital AV Multiport Adapter, which has a USB port and takes a charger.
+- **Crashes on launch:** In 2021 some iPad apps crashed on launch with all 64 channels; PreSonus says the two it named have since been fixed. If yours crashes, try Compatibility Mode (our advice).
 
-ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer, so it records a StudioLive without Mixer Link. We haven't tested it with a StudioLive yet. There is no Mixer Link for the StudioLive: Mixer Link, which reads channel names and colors, works only on the XR18/MR18 and X32/M32. If you record a StudioLive with it, we'd like to hear how it goes.
+ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer, so it should record a StudioLive over USB, but we haven't tested it with one yet. There is no Mixer Link for the StudioLive: Mixer Link, which reads channel names and colors, works only on the XR18/MR18 and X32/M32. If you record a StudioLive with it, we'd like to hear how it goes.
 
 <GetTheApp campaign="site-guide-presonus-studiolive-iii" />
 

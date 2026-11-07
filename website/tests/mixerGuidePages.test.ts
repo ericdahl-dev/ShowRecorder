@@ -1134,11 +1134,23 @@ describe("the PreSonus StudioLive Series III guide's facts", () => {
   it("explains Native (64 x 64) and Compatibility (34 x 34) mode, the iPad crash, and the main mix on USB 33-34", () => {
     const settings = section(mdx, "StudioLive recording settings", "StudioLive USB routing");
     expect(settings).toMatch(/\*\*Home > System > Sample Rate\*\*|\*\*Home\*\*, touch \*\*System\*\*, then \*\*Sample Rate\*\*/);
-    expect(settings).toMatch(/\*\*Native USB Mode\*\* \(64 x 64\)/);
-    expect(settings).toMatch(/\*\*Compatibility Mode\*\* \(34 x 34\)/);
-    expect(settings).toMatch(/crash on launch/);
-    expect(settings).toMatch(/Compatibility Mode and try again \(our advice/);
+    expect(settings).toMatch(/\*\*Native USB Mode\*\* \(64 x 64: 64 channels each way\)/);
+    expect(settings).toMatch(/\*\*Compatibility Mode\*\* \(34 x 34: 34 each way\)/);
     expect(settings).toMatch(/main mix moves to USB 33-34/);
+    expect(settings).toMatch(/48 kHz is the default/);
+    expect(settings).toMatch(/64S, the \*\*Select\*\* buttons arm Capture tracks, not channels/);
+  });
+
+  // Fact check on #1120: PreSonus's iPad crash note has a 2021 update (both named apps fixed), and Compatibility Mode for
+  // a crash is our advice, not PreSonus's, everywhere it appears.
+  it("dates the iPad crash to 2021, says the named apps were fixed, and labels Compatibility Mode for it as our advice", () => {
+    const crash = /In 2021 some iPad apps crashed on launch with all 64 channels; PreSonus says the two it named have since been fixed\. If yours crashes, try Compatibility Mode \(our advice\)\./;
+    expect(mdx).toMatch(crash);
+    expect(guide.faqs.find((f) => /iPhone|iPad/.test(f.q))!.a).toMatch(crash);
+    expect(MIXER_ROWS.find((r) => /StudioLive/.test(r.name))!.ipad).toMatch(/2021/);
+    expect(mdx).not.toMatch(/causes some DAW apps/);
+    const quick = mdx.slice(mdx.indexOf("**Quick start**"), mdx.indexOf("\n## "));
+    expect(quick).toMatch(/try Compatibility Mode[^\n]*\(our advice\)/);
   });
 
   it("routes USB per slot in Home > Audio Routing > Digital Patching > USB Sends, with the default map and the two sources that differ", () => {
@@ -1171,6 +1183,8 @@ describe("the PreSonus StudioLive Series III guide's facts", () => {
     expect((taps.match(/Pro: /g) ?? []).length).toBeGreaterThanOrEqual(3);
     expect(taps).toMatch(/\(our reading\)/);
     expect(taps).toMatch(/\(our advice\)/);
+    expect(taps).toMatch(/what the room heard \(our reading\)/);
+    expect(taps).toMatch(/only that one channel turned up/);
     expect(taps).not.toMatch(/pre-EQ|raw input|post-preamp/i);
   });
 
@@ -1180,7 +1194,10 @@ describe("the PreSonus StudioLive Series III guide's facts", () => {
     expect(apple).toMatch(/haven't tested a StudioLive with an iPhone or iPad yet/);
     expect(apple).toMatch(/Camera Adapter/);
     expect(apple).toMatch(/doesn't charge/);
-    expect(mdx).toMatch(/records a StudioLive without Mixer Link/);
+    expect(apple).toMatch(/USB-C Digital AV Multiport Adapter/);
+    // Fact check on #1120: untested, so "should record", as on the Qu guide.
+    expect(mdx).toMatch(/so it should record a StudioLive over USB, but we haven't tested it with one yet/);
+    expect(mdx).not.toMatch(/records a StudioLive without Mixer Link/);
     expect(mdx).toMatch(/no Mixer Link/);
     expect(mdx).not.toMatch(/unsupported|not supported by ShowRecorder/i);
     expect(mdx).not.toMatch(/ShowRecorder has recorded[^.]*StudioLive/);
@@ -1189,7 +1206,9 @@ describe("the PreSonus StudioLive Series III guide's facts", () => {
 
   it("covers the Series III consoles and racks and leaves out the SE models in one line", () => {
     for (const m of ["64S", "32S", "32SX", "32SC", "32R", "24R", "16R"]) expect(mdx).toContain(m);
-    expect(mdx).toMatch(/doesn't cover the SE models/);
+    // Fact check on #1120: no source mentions SE racks.
+    expect(mdx).toMatch(/This guide doesn't cover the StudioLive SE models\./);
+    expect(mdx).not.toMatch(/SE racks/);
   });
 
   it("cites PreSonus's own July 2026 console manual, and the research file no longer leans on the dealer copy", () => {

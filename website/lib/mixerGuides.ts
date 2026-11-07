@@ -182,7 +182,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     usb: "64 in and 64 out (Native) or 34 x 34 (Compatibility), 44.1 or 48 kHz. 16R: 18 or more, depending on firmware.",
     onboard: "Consoles: 34 tracks to an SD or SDHC card (up to 32 GB; SDXC not supported). Racks: stereo only.",
     mac: "Works.",
-    ipad: "Class compliant (PreSonus support); the 64 x 64 mode crashes some iPad apps.",
+    ipad: "Class compliant (PreSonus support). In 2021 the 64 x 64 mode crashed two iPad apps; PreSonus says both have since been fixed.",
     iphone: "PreSonus lists the iPhone in a general statement; not tested by us.",
     guide: "/guides/record/presonus-studiolive-iii",
   },
@@ -660,7 +660,7 @@ export const AH_CQ_GUIDE_FAQS: readonly Faq[] = [
 export const STUDIOLIVE_GUIDE_FAQS: readonly Faq[] = [
   {
     q: "Can I record a StudioLive Series III to an iPhone or iPad?",
-    a: "PreSonus says its USB mixers work with iPads and iPhones for recording, with no driver, and lists the StudioLive Series III. That is a general statement, not a test of each device, and we haven't tested a StudioLive yet. If an iPad app crashes on launch, switch the mixer to Compatibility Mode (34 channels); PreSonus says the 64-channel mode crashes some iPad apps.",
+    a: "PreSonus says its USB mixers work with iPads and iPhones for recording, with no driver, and lists the StudioLive Series III. That is a general statement, not a test of each device, and we haven't tested a StudioLive yet. In 2021 some iPad apps crashed on launch with all 64 channels; PreSonus says the two it named have since been fixed. If yours crashes, try Compatibility Mode (our advice).",
   },
   {
     q: "Can a StudioLive Series III record without a computer?",
@@ -672,7 +672,7 @@ export const STUDIOLIVE_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Why does my StudioLive show 64 USB channels but only mix 32?",
-    a: "The 64 x 64 is a pool of USB slots to choose from, not 64 mixing channels. The 32-channel models mix 32 inputs; only the 64S mixes 64. Compatibility Mode cuts USB to 34 x 34 for computers and apps that struggle with 64.",
+    a: "The 64 x 64 is a pool of USB slots to choose from, not 64 mixing channels. The 32-channel models mix 32 inputs; only the 64S mixes 64. Compatibility Mode cuts USB to 34 x 34 for computers that struggle with 64.",
   },
   {
     q: "Are StudioLive recordings pre or post fader?",
@@ -680,7 +680,7 @@ export const STUDIOLIVE_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "What sample rate does a StudioLive Series III record at?",
-    a: "48 kHz or 44.1 kHz, set in Home > System > Sample Rate. The converters are 24-bit; PreSonus doesn't state the USB bit depth.",
+    a: "48 kHz (the default) or 44.1 kHz, set in Home > System > Sample Rate. The converters are 24-bit; PreSonus doesn't state the USB bit depth.",
   },
   {
     q: "How do I play a StudioLive recording back for a virtual soundcheck?",

@@ -31,7 +31,7 @@ The support.presonus.com pages return 403 to plain fetches; on 2026-11-06 we rea
 
 - 64x64 is the routing pool, not the mixing channel count: "allows for the 32 channel StudioLives to have 64 USB/AVB Inputs (Returns) and 64 USB/AVB Outputs (Sends) to choose from"; only the 64S mixes 64 inputs [KB-64].
 - 16R conflict: [KB-IFACE] (Oct 2020, firmware 2.4) says "the StudioLive 16R now has it's USB I/O updated to support an increased I/O count ... 24x24 USB I/O". The 2022 rack manual and the comparison chart still say 18x18. Which one current firmware gives: unknown without a test.
-- Sample rate: "StudioLive Series III mixers can operate at 48 kHz or 44.1 kHz" [OM 12.1, System]. The OM spec table lists "Sampling Rate: 48 kHz"; the 32S tech sheet lists "44.1 and 48 kHz" [TS-32S]. A factory default is not stated in words.
+- Sample rate: "StudioLive Series III mixers can operate at 48 kHz or 44.1 kHz" [OM 12.1, System]. The OM spec table lists "Sampling Rate: 48 kHz"; the 32S tech sheet lists "44.1 and 48 kHz" [TS-32S]. The default is 48 kHz: the OM's table of default settings lists "Sample Rate 48 kHz" [OM 9.6.8, Project Reset].
 - Bit depth: A/D/A 24-bit [OM spec]; rack feature list: "48 kHz and 44.1 kHz operation with 24-bit resolution" [RACK-OM]. USB stream word length is not stated separately (unknown).
 - Connector: "USB Recording Port: USB 2.0, Type-B" [OM spec; RACK-OM-OLD spec].
 
@@ -44,7 +44,7 @@ The support.presonus.com pages return 403 to plain fetches; on 2026-11-06 we rea
 - USB configuration switches:
   - **Compatibility Mode (34x34) vs Native USB Mode (64x64)**: console Home > System; Universal Control > Device Settings. Requires firmware 2.7.0+ and UC 4.0.0+. Introduced for Intel/Apple Silicon USB-controller problems [KB-COMPAT]. With fewer channels, sends and returns beyond 34 are not available (KB wording paraphrased).
   - **Interface Mode** (firmware 2.4+): console Home > System, or UC Settings. Rearranges USB returns to feed mix outputs directly; not available in Stage Box or Monitor Mixer mode [KB-IFACE]. Not needed for recording inputs.
-- Known iPad issue: "StudioLive Series III mixers support a 64x64 USB 2.0 configuration. This causes some DAW apps on iPadOS to crash on launch" (Auria Pro, n-Track) [KB-IOS]. Compatibility Mode (34x34) is the maker's lower-count option and the obvious workaround, but PreSonus does not say so for iPad (inference).
+- Known iPad issue: "StudioLive Series III mixers support a 64x64 USB 2.0 configuration. This causes some DAW apps on iPadOS to crash on launch" (Auria Pro, n-Track) [KB-IOS]. The same KB has "UPDATE: As of 5/11/2021": Wave Machine Labs says the Series III appears as a 24 x 24 device in Auria Pro's current version, and n-Track "delivered a fix" (all 64 inputs, 48 outputs). So the crash is a 2021 issue with both named apps since fixed. Compatibility Mode (34x34) is the maker's lower-count option and the obvious workaround, but PreSonus does not say so for iPad (inference).
 
 ## 3. Onboard recording without a computer (SD card)
 
@@ -81,7 +81,7 @@ The support.presonus.com pages return 403 to plain fetches; on 2026-11-06 we rea
 
 ## 7. Gotchas
 
-- 64x64 USB crashes some iPadOS DAWs at launch [KB-IOS]; Compatibility Mode drops to 34x34 [KB-COMPAT].
+- 64x64 USB crashed some iPad DAWs at launch in 2021; PreSonus's 5/11/2021 update says both named apps were fixed [KB-IOS]. Compatibility Mode drops to 34x34 [KB-COMPAT]; using it for an iPad crash is our advice, not PreSonus's.
 - iPad/iPhone is not charged through the plain camera adapter; the mixer is externally powered and does not need bus power [KB-IOS].
 - 32-channel consoles: SD tracks 1-32 are hard-wired to channels 1-32 [OM 14.2.5]; rack models record only stereo to SD [KB-RACKSD].
 - SD: SDHC up to 32 GB, Class 10 U3, FAT32, run Speed Test; SDXC not supported [OM 8; KB-SD; KB-SDXC].
@@ -98,7 +98,7 @@ The support.presonus.com pages return 403 to plain fetches; on 2026-11-06 we rea
 | 44.1/48 kHz only, USB 2.0 Type-B | maker (OM) |
 | Class compliant on iOS/iPadOS and macOS, camera adapter, no charging | maker (KB-IOS) |
 | iPhone named by PreSonus | maker, generic statement for all PreSonus USB mixers (not a model test) |
-| 64x64 crashes some iPad DAWs | maker (KB-IOS) |
+| 64x64 crashed some iPad DAWs in 2021; both named apps fixed (KB update 5/11/2021) | maker (KB-IOS) |
 | Compatibility Mode 34x34, Home > System | maker (KB-COMPAT) |
 | SD 34 tracks (32 + stereo) consoles, stereo only racks | maker (OM, KB-SD, KB-RACKSD) |
 | SDHC only, SDXC unsupported | maker (KB-SDXC, KB-SDHC) |
@@ -114,7 +114,7 @@ The support.presonus.com pages return 403 to plain fetches; on 2026-11-06 we rea
 
 Every console fact above that cites [OM] was re-read in PreSonus's current copy (fmicassets.com, PDF created July 2026). What changed:
 
-- **Scope:** the current manual also covers the StudioLive SE 32, SE 24 and SE 16; its illustrations show an SE 32. The guide doesn't cover the SE models (one line says so), and PreSonus also sells SE racks (SE 16R/24R/32R), which we haven't researched.
+- **Scope:** the current manual also covers the StudioLive SE 32, SE 24 and SE 16; its illustrations show an SE 32. The guide doesn't cover the SE models (one line says so). No document we read mentions SE rack models.
 - **Studio One is now Studio Pro:** SD sessions "can be opened directly in Studio Pro and Capture" [OM 8.3].
 - **Network Clock default:** now described as "PTP Clock (Default)" for most applications [OM 12.1]. The guide says to leave it at its default unless you use AVB.
 - **USB default table above USB 40:** the 2026 table shows USB 41-64 empty on all models, and the 64S with channels 1-39 on USB 1-39 and USB 40-64 empty [OM 14.2.4]. [KB-64] (updated 2021) says FlexMixes on 41-56. The guide states both and says to check the USB Sends screen. We did not find a statement of which one current firmware does (unknown without a test).
