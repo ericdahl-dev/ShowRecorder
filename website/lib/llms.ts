@@ -2,7 +2,7 @@ import { RELEASES, newestRelease } from "@/lib/changelog";
 import { DOCS, docHref } from "@/lib/docs";
 import { featureGroups, inBetaFeatures } from "@/lib/features";
 import { PAGES } from "@/lib/metadata";
-import { HUB_FAQS, MIXER_GUIDES, MIXER_ROWS } from "@/lib/mixerGuides";
+import { HUB_FAQS, MIXER_GUIDES, MIXER_ROWS, guideHeadline } from "@/lib/mixerGuides";
 import { inBeta, planned, worksNow } from "@/lib/mixers";
 import { APP_STORE_URL, PRO_PRICE_TEXT, appStoreLink, REPO_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL, TESTFLIGHT_URL, TRADEMARK_LINE } from "@/lib/site";
 
@@ -56,7 +56,7 @@ function guidesSection(): string[] {
     "",
     link("How to multitrack record a digital mixer (every mixer, one table)", PAGES.guidesHub.path, PAGES.guidesHub.description),
     link("Pre or post fader: which tap point to record", PAGES.guideTapPoints.path, PAGES.guideTapPoints.description),
-    ...MIXER_GUIDES.map((g) => link(`How to multitrack record a ${g.mixer}`, g.path, g.description)),
+    ...MIXER_GUIDES.map((g) => link(guideHeadline(g.mixer), g.path, g.description)),
     link("Record a gig without a laptop", PAGES.guideNoLaptop.path, PAGES.guideNoLaptop.description),
     "",
   ];
@@ -76,7 +76,7 @@ function mixerGuidesFull(): string[] {
     "",
     ...HUB_FAQS.flatMap((f) => [`### ${f.q}`, "", f.a, ""]),
     ...MIXER_GUIDES.flatMap((g) => [
-      `### How to multitrack record a ${g.mixer} (${abs(g.path)})`,
+      `### ${guideHeadline(g.mixer)} (${abs(g.path)})`,
       "",
       ...g.faqs.map((f) => `- ${f.q} ${f.a}`),
       "",

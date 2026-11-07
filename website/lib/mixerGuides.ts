@@ -98,6 +98,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     mac: "Class compliant.",
     ipad: "Allen & Heath says tablets and phones can work, but not every device is tested or officially supported; set USB Stream Mode to Multitrack. Not tested yet.",
     iphone: "Allen & Heath says tablets and phones can work, but not every device is tested or officially supported; set USB Stream Mode to Multitrack. Not tested yet.",
+    guide: "/guides/record/qu",
   },
   {
     name: "Allen & Heath Qu-16, Qu-24, Qu-32, Qu-SB and Qu-Pac",
@@ -107,6 +108,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     mac: "Works.",
     ipad: "iOS sees it as class compliant, says an Allen & Heath staff member on their forum. The iPad isn't named; not tested yet.",
     iphone: "Not named; not tested yet.",
+    guide: "/guides/record/qu",
   },
   {
     name: "Allen & Heath CQ-12T, CQ-18T and CQ-20B",
@@ -257,7 +259,10 @@ export type MixerGuide = {
   description: string;
   // The day the guide was first published.
   published: string;
-  productPage: string;
+  // The ShowRecorder page for this mixer, which links back. Only mixers with Mixer Link have one (not the Qu).
+  productPage?: string;
+  // How many hub rows link to this guide, when it covers more than one (the Qu: new Qu and Qu Classic).
+  hubRows?: number;
   faqs: readonly Faq[];
   faqsName: string;
   // The URLs in its Sources section, which the TechArticle data cites.
@@ -270,6 +275,12 @@ export type MixerGuide = {
 // "<mixer> USB multitrack recording: settings and routing - ShowRecorder", the <title> of every mixer guide.
 export function guideTitle(short: string): string {
   return `${short} USB multitrack recording: settings and routing - ShowRecorder`;
+}
+
+// "How to multitrack record a Behringer X32", "... an Allen & Heath Qu": the H1, the article headline and the
+// llms.txt line of every mixer guide.
+export function guideHeadline(mixer: string): string {
+  return `How to multitrack record ${/^[AEIOU]/.test(mixer) ? "an" : "a"} ${mixer}`;
 }
 
 // Home > Recording guides > the page.
@@ -353,6 +364,31 @@ export const XR18_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the Qu guide, from docs/research/mixer-recording/ah-qu.md. There is no Qu product page, so the
+// guide owns the iPad question. The first one is the question AI answers found nothing for (baseline 2026-11-06).
+export const QU_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I multitrack record a Qu-16 to an iPad?",
+    a: "Yes, with a multichannel recording app: Allen & Heath staff say iOS sees the Qu as a class-compliant multichannel device (a stereo app may see only the first two channels). The Qu-16 sends 24 channels over USB at 48 kHz; the Qu-24, Qu-32, Qu-SB and Qu-Pac send 32. The new Qu-5, Qu-6, Qu-7 and Qu-3 send 32 at 48 or 96 kHz with USB Stream Mode set to Multitrack. Allen & Heath doesn't name the iPad, and we haven't tested one with a Qu yet.",
+  },
+  {
+    q: "Can a Qu multitrack record without a computer?",
+    a: "Yes. The new Qu records up to 16 channels at 96 kHz or 32 at 48 kHz to an SDHC card (up to 32 GB), one 24-bit WAV per channel. A Qu Classic records 18 tracks (16 mono plus a stereo pair), 48 kHz 24-bit WAV, to a USB drive with Qu-Drive; Allen & Heath says most USB sticks are too slow.",
+  },
+  {
+    q: "Why does my app see only 2 channels from a Qu?",
+    a: "On a new Qu, USB Stream Mode is probably on Stereo, which sends only USB 1 and 2. Set it to Multitrack in SETUP > Audio > Sync & USB. A Qu Classic has no stream mode, but a stereo app may see only the first two channels; use a multichannel recording app.",
+  },
+  {
+    q: "Does a Qu need a driver?",
+    a: "Not on a Mac: both generations work there with no driver. On Windows, install Allen & Heath's driver; on a new Qu, all 32 channels need ASIO.",
+  },
+  {
+    q: "Is a Qu's USB recording pre or post fader?",
+    a: "On a Qu Classic, USB takes each channel's Insert Send by default: directly after the preamp, with no channel processing. You can switch it to Direct Outs with one global source point. On a new Qu, USB records the input direct outs, which include all processing before the Direct Out Source point you pick.",
+  },
+];
+
 // The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
 export const X32_METHOD_A: readonly { name: string; text: string }[] = [
   { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
@@ -411,5 +447,41 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     ],
     campaign: "site-guide-xr18",
     tapPick: "the Input tap on each USB send",
+  },
+  {
+    slug: "qu",
+    path: "/guides/record/qu",
+    pageKey: "guideQu",
+    short: "Qu",
+    mixer: "Allen & Heath Qu",
+    description:
+      "Multitrack record a Qu-16, Qu-24, Qu-32, Qu-SB, Qu-Pac or Qu-5/6/7 over USB, or to an SD card or drive: settings, routing, tap points. iPad not tested yet.",
+    published: "2026-11-07",
+    hubRows: 2,
+    faqs: QU_GUIDE_FAQS,
+    faqsName: "QU_GUIDE_FAQS",
+    sources: [
+      "https://support.allen-heath.com/hc/en-gb/articles/48350897327889-Qu-Qu-Drive-and-USB-audio",
+      "https://support.allen-heath.com/hc/en-gb/articles/48350711389457-Qu-Patching",
+      "https://support.allen-heath.com/hc/en-gb/articles/48350696072593-Qu-Mixer-Setup",
+      "https://support.allen-heath.com/hc/en-gb/articles/48350799066257-Qu-Routing",
+      "https://support.allen-heath.com/hc/en-gb/articles/48350755314705-Qu-Processing",
+      "https://support.allen-heath.com/hc/en-gb/articles/48348179394705-Qu-Connections",
+      "https://support.allen-heath.com/hc/en-gb/articles/39796618451729-Qu-5-6-7-Getting-Started-Guide",
+      "https://support.allen-heath.com/hc/en-gb/articles/52578169245073-Qu-3-Getting-Started-Guide",
+      "https://www.allen-heath.com/hardware/qu/qu-5/",
+      "https://www.allen-heath.com/hardware/qu/qu-6-qu-6d/",
+      "https://support.allen-heath.com/hc/en-gb/articles/4402943975569-Qu-Classic-Qu-Drive-USB-Audio",
+      "https://support.allen-heath.com/hc/en-gb/articles/4403019846033-Qu-Classic-How-do-I-route-audio-to-and-from-my-Qu-mixer-and-a-DAW",
+      "https://support.allen-heath.com/hc/en-gb/articles/4402944132753-Qu-Classic-Understanding-Qu-Drive-and-USB-devices",
+      "https://support.allen-heath.com/hc/en-gb/articles/41599046080913-Qu-SB-Getting-Started-Guide",
+      "https://support.allen-heath.com/hc/en-gb/articles/41402982389777-Qu-Pac-Getting-Started-Guide",
+      "https://www.allen-heath.com/hardware/qu/qu-classic/",
+      "https://www.allen-heath.com/hardware/qu/qu-classic/qu-16/",
+      "https://www.allen-heath.com/hardware/qu/qu-classic/qu-sb/",
+      "https://forums.allen-heath.com/t/qu-usb-channel-i-o-clarification/12192",
+    ],
+    campaign: "site-guide-qu",
+    tapPick: "Qu Classic: the channel Insert Send (the factory default, straight after the preamp). New Qu: the input direct outs, with the Direct Out Source set to the point you want",
   },
 ];

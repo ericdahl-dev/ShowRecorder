@@ -44,6 +44,7 @@ export const APP_STORE_CAMPAIGNS = [
   "site-guides",
   "site-guide-x32",
   "site-guide-xr18",
+  "site-guide-qu",
   "site-guide-taps",
 ] as const;
 export type AppStoreCampaign = (typeof APP_STORE_CAMPAIGNS)[number];

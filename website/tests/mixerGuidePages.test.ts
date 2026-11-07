@@ -6,7 +6,7 @@ import { GuideJsonLd } from "@/components/GuideJsonLd";
 import { tapPointsAnchor } from "@/components/TapPicks";
 import { llmsTxt } from "@/lib/llms";
 import { PAGES } from "@/lib/metadata";
-import { MIXER_GUIDES, MIXER_ROWS, TAP_POINT_GUIDE, X32_METHOD_A, guideTitle } from "@/lib/mixerGuides";
+import { MIXER_GUIDES, MIXER_ROWS, TAP_POINT_GUIDE, X32_METHOD_A, guideHeadline, guideTitle } from "@/lib/mixerGuides";
 import { PAGE_DATES } from "@/lib/pageDates";
 import { ROUTES } from "@/lib/site";
 
@@ -19,10 +19,14 @@ const headings = (mdx: string) => [...mdx.matchAll(/^## (.+)$/gm)].map((m) => m[
 const body = (slug: string) => read("app", "guides", "record", slug, "content.mdx");
 const shell = (slug: string) => read("app", "guides", "record", slug, "page.tsx");
 
+// "an X32", "an XR18", but "a Qu": the article before a guide's short name, by how the name is said.
+const A_SHORT: Record<string, string> = { Qu: "a" };
+const waysHeading = (short: string) => `Ways to record ${A_SHORT[short] ?? "an"} ${short}`;
+
 // The sections every mixer guide has, in this order. They name the mixer (review batch 1), so a heading quoted out of
 // context still says which mixer it is about.
 const TEMPLATE = (short: string) => [
-  `Ways to record an ${short}`,
+  waysHeading(short),
   `${short} recording settings`,
   `${short} USB routing`,
   `${short} playback for virtual soundcheck`,
@@ -50,6 +54,11 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
 
   it("has the template's sections in order", () => {
     expect(headings(mdx)).toEqual(TEMPLATE(guide.short));
+  });
+
+  it("uses its article headline as the H1 and in llms.txt", () => {
+    expect(mdx).toMatch(new RegExp(`^# ${guideHeadline(guide.mixer)}$`, "m"));
+    expect(llmsTxt()).toContain(`[${guideHeadline(guide.mixer)}](`);
   });
 
   it("opens with a short answer and a numbered quick start whose links reach its sections, before the caveats", () => {
@@ -103,26 +112,31 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   });
 
   it("covers every way to record: a computer, the mixer itself, and an iPhone, iPad or Mac", () => {
-    const ways = section(mdx, `Ways to record an ${guide.short}`, `${guide.short} recording settings`);
+    const ways = section(mdx, waysHeading(guide.short), `${guide.short} recording settings`);
     expect(ways).toMatch(/computer/i);
     expect(ways).toMatch(/no computer|without a computer/i);
     expect(ways).toMatch(/iPhone/);
   });
 
-  it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer, which links back", () => {
+  // A mixer with no ShowRecorder product page (no Mixer Link, such as the Qu) links only the hub and the tap guide.
+  it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
+    if (!guide.productPage) return;
     expect(mdx).toContain(`](${guide.productPage})`);
     expect(read("app", "mixers", guide.productPage.split("/").pop()!, "content.mdx")).toContain(`](${guide.path})`);
   });
 
+  // One hub row per model family; the Qu guide covers two rows (the new Qu and Qu Classic).
   it("is the guide link in the hub table", () => {
-    expect(MIXER_ROWS.filter((r) => r.guide === guide.path)).toHaveLength(1);
+    expect(MIXER_ROWS.filter((r) => r.guide === guide.path)).toHaveLength(guide.hubRows ?? 1);
   });
 
   it("cites its sources: the maker's documents, with forum posts marked as such", () => {
     const sources = mdx.slice(mdx.indexOf("## Sources"));
-    expect(sources).toMatch(/\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com)\//);
+    expect(sources).toMatch(
+      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com)\//,
+    );
   });
 
   it("says Mixer Link works only on the XR18/MR18 and X32/M32, and that ShowRecorder records every USB Channel", () => {
@@ -270,5 +284,67 @@ describe("the XR18 and MR18 guide's facts", () => {
     expect(apple).toMatch(/ShowRecorder \(the app this site makes\) has recorded all 18 XR18 channels on an iPhone/);
     expect(apple).toMatch(/full-length show on an iPhone through a powered hub is not tested yet/);
     expect(apple).toMatch(/Midas lists the same/);
+  });
+});
+
+describe("the Allen & Heath Qu guide's facts", () => {
+  const mdx = body("qu");
+  const guide = MIXER_GUIDES.find((g) => g.slug === "qu")!;
+  const short = mdx.slice(mdx.indexOf("**Short answer.**"), mdx.indexOf("**Quick start**"));
+
+  // AI citation baseline (2026-11-06): no engine answered "Can I multitrack record a Qu-16 to an iPad?".
+  it("answers 'Can I multitrack record a Qu-16 to an iPad?' in its short answer: yes, how many channels, which models", () => {
+    expect(short).toMatch(/^\*\*Short answer\.\*\* Yes, a Qu-16 can multitrack record to an iPad/);
+    expect(short).toMatch(/Qu-16 sends 24 channels at 48 kHz/);
+    for (const m of ["Qu-24", "Qu-32", "Qu-SB", "Qu-Pac", "Qu-5", "Qu-6", "Qu-7", "Qu-3"]) expect(short).toContain(m);
+    expect(short).toMatch(/send 32/);
+    expect(short).toMatch(/haven't tested/);
+    expect(guide.faqs[0].q).toBe("Can I multitrack record a Qu-16 to an iPad?");
+    expect(guide.faqs[0].a).toMatch(/^Yes/);
+  });
+
+  it("keeps the two generations apart: new Qu on USB-C and SD, Qu Classic on USB-B and Qu-Drive", () => {
+    expect(mdx).toMatch(/32 in and 32 out over USB-C, at 48 or 96 kHz/);
+    expect(mdx).toMatch(/16 channels at 96 kHz, or 32 at 48 kHz/);
+    expect(mdx).toMatch(/18 tracks, 48 kHz 24-bit WAV/);
+    expect(mdx).toMatch(/USB-B, high speed USB 2\.0/);
+  });
+
+  it("gives the stream mode switch, the patch screens, and the 'Only 2 channels?' fix", () => {
+    expect(mdx).toMatch(/\*\*SETUP > Audio > Sync & USB\*\*/);
+    expect(mdx).toMatch(/\*\*I\/O > Outputs > USB\*\*/);
+    expect(mdx).toMatch(/\*\*Setup > I\/O Patch > USB Audio\*\*/);
+    expect(mdx).toMatch(/^### Only 2 channels\? Set USB Stream Mode to Multitrack$/m);
+  });
+
+  // The research's Gaps section (docs/research/mixer-recording/ah-qu.md): each is "not confirmed" or left out.
+  it("respects the research gaps: no direct-out point names, no default for USB 3-32, no Qu-16 return count", () => {
+    expect(mdx).toMatch(/doesn't list the point names/);
+    expect(mdx).toMatch(/What sockets 3-32 carry out of the box is not confirmed/);
+    expect(mdx + guide.faqs.map((f) => f.a).join(" ")).not.toMatch(/\b22\b/);
+    expect(mdx).toMatch(/Which one your app gets is not confirmed/);
+    expect(mdx).toMatch(/Clock source options are not confirmed/);
+    expect(mdx).toMatch(/not confirmed for either generation/);
+  });
+
+  it("says ShowRecorder records a Qu, is untested on one, and has no Mixer Link for Allen & Heath", () => {
+    const apple = mdx.slice(mdx.indexOf("## Qu on Mac, iPad and iPhone"), mdx.indexOf("## Sources"));
+    expect(apple).toMatch(/ShowRecorder \(the app this site makes\) records every USB Channel/);
+    expect(apple).toMatch(/nobody has tested it on a Qu yet/);
+    expect(apple).toMatch(/no Mixer Link for Allen & Heath/);
+    expect(apple).toMatch(/we'd like to hear how it goes/);
+    expect(apple).toMatch(/not possible for all devices to be tested and officially supported/);
+    expect(guide.productPage).toBeUndefined();
+  });
+
+  it("marks the forum post as Allen & Heath staff", () => {
+    expect(mdx.slice(mdx.indexOf("## Sources"))).toMatch(/Allen & Heath staff on its forum/);
+  });
+});
+
+describe("guide headlines", () => {
+  it("say 'an' before a vowel", () => {
+    expect(guideHeadline("Allen & Heath Qu")).toBe("How to multitrack record an Allen & Heath Qu");
+    expect(guideHeadline("Behringer X32")).toBe("How to multitrack record a Behringer X32");
   });
 });
