@@ -593,13 +593,7 @@ public final class Recorder {
     /// Deletes the Show folder `name` from the chosen Copies, for good. Refused during a Take and for the open
     /// Show. The Drive is reached for the delete and let go after; without it the outcome says so.
     public func deleteShow(named name: String, from copies: Set<DestinationKind>) -> ShowDeleter.Outcome {
-        let kinds = copies.sorted { $0.index < $1.index }
-        guard !isRecording, !isStarting else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "A Take is running.") }) }
-        guard !isFinishing else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: RecorderError.finishing.errorDescription ?? "") }) }
-        // A move to the Drive works on these files too (#630).
-        guard !isMoving else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "Takes are moving to the Drive.") }) }
-        // Names are being put on a Take's files (#652): a delete would pull the folder from under it.
-        guard editsInProgress == 0 else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "The Take's files are being renamed.") }) }
+        if let refused = deleteRefusal(copies) { return refused }
         let access = copies.contains(.drive) ? driveFolder() : nil
         defer { access?.end() }
         let outcome = ShowDeleter.delete(show: name, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
@@ -607,9 +601,35 @@ public final class Recorder {
         return outcome
     }
 
-    /// `deleteShow`, for the Show list (#1021).
+    /// `deleteShow` with the file work off the main thread, for the Show list (#1021): resolving the Drive's bookmark,
+    /// reading its free space and removing its folder can block on a Drive that answers slowly, and iOS ends an app
+    /// whose main thread is blocked long enough. The refusals are checked here first. The delete is counted like a Show
+    /// detail edit while it runs, so a move to the Drive waits for it and another delete is refused.
     public func deleteShowOffMain(named name: String, from copies: Set<DestinationKind>) async -> ShowDeleter.Outcome {
-        deleteShow(named: name, from: copies)
+        if let refused = deleteRefusal(copies) { return refused }
+        editsInProgress += 1
+        defer { endEdit() }
+        let resolve = driveFolder, device = deviceFolder, openShow = currentShow?.name
+        let outcome = await runOffPool {
+            let access = copies.contains(.drive) ? resolve() : nil
+            defer { access?.end() }
+            return ShowDeleter.delete(show: name, from: copies, device: device, drive: access?.folder, openShow: openShow)
+        }
+        if !outcome.deleted.isEmpty { sendEvent(.showDeleted) }
+        return outcome
+    }
+
+    /// Why a delete from `copies` is refused right now, as the outcome to give; nil when it may go ahead.
+    private func deleteRefusal(_ copies: Set<DestinationKind>) -> ShowDeleter.Outcome? {
+        let kinds = copies.sorted { $0.index < $1.index }
+        func refuse(_ reason: String) -> ShowDeleter.Outcome { .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: reason) }) }
+        if isRecording || isStarting { return refuse("A Take is running.") }
+        if isFinishing { return refuse(RecorderError.finishing.errorDescription ?? "") }
+        // A move to the Drive works on these files too (#630).
+        if isMoving { return refuse("Takes are moving to the Drive.") }
+        // Names are being put on a Take's files (#652): a delete would pull the folder from under it.
+        if editsInProgress > 0 { return refuse("The Take's files are being renamed.") }
+        return nil
     }
 
     /// Everything recorded in the open Show, from its files, with `take` left out (#625): the Drive Copy is read under
@@ -656,7 +676,7 @@ public final class Recorder {
         case .failed(let reasons): return refuse(reasons)
         case .passed:
             // Not recording and not the open Show, as of the check; look again before deleting for good.
-            return deleteShow(named: show, from: [.device])
+            return await deleteShowOffMain(named: show, from: [.device])
         }
     }
 

@@ -20,6 +20,8 @@ struct DeleteShowSheet: View {
     @State private var check: CopyCheck.Result?
     @State private var checking = false
     @State private var confirmingPlain = false
+    /// A delete is running off the main thread (#1021).
+    @State private var deleting = false
 
     private var isOpenShow: Bool { model.recorder.currentShow?.name == show.name }
     private var blocked: String? {
@@ -92,12 +94,12 @@ struct DeleteShowSheet: View {
                     }
                 }
                 Section {
-                    Button(channel != nil ? "Delete channel \(channel ?? 0)'s file" : take.map { "Delete Take \(String(format: "%02d", $0))" } ?? "Delete \(show.name)", role: .destructive) {
+                    Button(deleting ? "Deleting…" : channel != nil ? "Delete channel \(channel ?? 0)'s file" : take.map { "Delete Take \(String(format: "%02d", $0))" } ?? "Delete \(show.name)", role: .destructive) {
                         if confirmation == .plain { confirmingPlain = true } else { delete() }
                     }
                         .buttonStyle(.borderedProminent)
                         .tint(.red)
-                        .disabled(blocked != nil || chosen.isEmpty || (needsCheck && !checkPassed) || (confirmation == .typedName && !ShowDeleter.confirms(typed: typed, for: show.name)))
+                        .disabled(deleting || blocked != nil || chosen.isEmpty || (needsCheck && !checkPassed) || (confirmation == .typedName && !ShowDeleter.confirms(typed: typed, for: show.name)))
                         .confirmationDialog("Delete for good?", isPresented: $confirmingPlain, titleVisibility: .visible) {
                             Button("Delete", role: .destructive) { delete() }
                         } message: {
@@ -150,7 +152,16 @@ struct DeleteShowSheet: View {
         let outcome: ShowDeleter.Outcome
         if let take, let channel { outcome = model.recorder.deleteChannel(channel, inTake: take, ofShow: show.name, from: chosen) }
         else if let take { outcome = model.recorder.deleteTake(take, ofShow: show.name, from: chosen) }
-        else { outcome = model.recorder.deleteShow(named: show.name, from: chosen) }
+        else {
+            // A whole Show: the Drive is reached off the main thread, where a slow Drive can't block the screen (#1021).
+            let copies = chosen
+            deleting = true
+            Task {
+                finish(await model.recorder.deleteShowOffMain(named: show.name, from: copies))
+                deleting = false
+            }
+            return
+        }
         finish(outcome)
     }
 
