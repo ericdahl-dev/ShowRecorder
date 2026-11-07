@@ -12,8 +12,6 @@ import type { Faq } from "@/lib/mixerFaqs";
 import type { AppStoreCampaign } from "@/lib/site";
 import type { Crumb } from "@/lib/structuredData";
 
-import type { Faq } from "@/lib/mixerFaqs";
-
 export const GUIDES_HUB = "/guides/record";
 // The shared guide every mixer guide links to (#1062).
 export const TAP_POINT_GUIDE = "/guides/record/pre-or-post-fader";

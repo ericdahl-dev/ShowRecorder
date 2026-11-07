@@ -56,6 +56,31 @@ describe("the tap-point guide", () => {
     expect(TAP_POINT_FAQS.some((f) => /pre.?fader or post.?fader/i.test(f.q))).toBe(true);
   });
 
+  // Review batch 1 on #1082.
+  it("puts the Zoom L-12 after the compressor but before EQ, not with the post-EQ taps", () => {
+    const tap3 = page.slice(page.indexOf("### 3."), page.indexOf("### 4."));
+    expect(tap3).not.toMatch(/Zoom/);
+    expect(page).toMatch(/Zoom L-12[^.]*after the compressor, before EQ/);
+  });
+
+  it("names the per-mixer setting in the short answer, and collapses the common names", () => {
+    const short = page.slice(page.indexOf("**The short answer.**"), page.indexOf("## The tap points"));
+    expect(short).toMatch(/XR18[^.]*Input tap/);
+    expect(short).toMatch(/X32[^.]*Local block on card out/);
+    expect(short).toContain("<TapPicks />");
+    expect(page.match(/<summary>Common names<\/summary>/g)).toHaveLength(4);
+    expect(page).not.toMatch(/^Common names:/m);
+  });
+
+  it("has breadcrumbs, a last-checked day, the app with its own campaign and the ask-us line", () => {
+    expect(page).toMatch(/<Breadcrumbs trail=\{guideTrail\("Pre or post fader", TAP_POINT_GUIDE\)\} \/>/);
+    expect(page).toMatch(/<LastChecked path=\{TAP_POINT_GUIDE\} \/>/);
+    expect(page).toContain('<GetTheApp campaign="site-guide-taps" />');
+    expect(page).toContain("<AskUs />");
+    expect(shell).toMatch(/breadcrumbListJsonLd\(guideTrail\(/);
+    expect(shell).toMatch(/techArticleJsonLd\(/);
+  });
+
   it("is linked from the hub", () => {
     expect(read("app", "guides", "record", "page.tsx")).toContain(`href="${PATH}"`);
   });

@@ -1,8 +1,18 @@
+import { AskUs, Breadcrumbs, GetTheApp, LastChecked } from "@/components/GuideParts";
+import { TapPicks } from "@/components/TapPicks";
+import { TAP_POINT_GUIDE, guideTrail } from "@/lib/mixerGuides";
+
+<Breadcrumbs trail={guideTrail("Pre or post fader", TAP_POINT_GUIDE)} />
+
 # Pre or post fader: which tap point to record
 
-Every digital mixer lets you take a recording feed from a point in the channel's signal path: the tap point. Where you take it decides what ends up in the file. Pick the wrong one and you can record your EQ mistakes, or a silent track because a fader was down.
+<LastChecked path={TAP_POINT_GUIDE} />
 
-**The short answer.** For a multitrack you will mix later, record from the earliest tap: the raw input after the preamp, or just after gain and trim and before EQ. Record post fader only for mixes and buses, not for channel tracks.
+Every digital mixer takes its recording feed from a point in the channel's signal path: the tap point. Some let you choose it. Where it is decides what ends up in the file. Pick the wrong one and you can record your EQ mistakes, or a silent track because a fader was down.
+
+**The short answer.** For a multitrack you will mix later, record from the earliest tap: the raw input after the preamp, or just after gain and trim and before EQ. Record post fader only for mixes and buses, not for channel tracks. On an XR18, that means the Input tap on each USB send; on an X32, a Local block on card out.
+
+<TapPicks />
 
 This page is general recording practice, not a maker's claim. What each mixer calls its tap points, and where they sit, is in that mixer's guide in the [mixer recording guides](/guides/record).
 
@@ -10,7 +20,12 @@ This page is general recording practice, not a maker's claim. What each mixer ca
 
 ### 1. The raw input, before the digital trim
 
-Common names: X32 "Local" or "AES50" blocks on the card, Allen & Heath "Post Preamp" and Tie Lines, Avantis Record Send, Mackie "Mic Pre", Yamaha TF "Pre DG", the Soundcraft Ui24R inputs.
+<details>
+<summary>Common names</summary>
+
+X32 "Local" or "AES50" blocks on the card, Allen & Heath "Post Preamp" and Tie Lines, Avantis Record Send, Mackie "Mic Pre", Yamaha TF "Pre DG", the Soundcraft Ui24R inputs.
+
+</details>
 
 - **Pros.** Raw and unprocessed. Trim, EQ, mute and fader moves don't touch it. Best for virtual soundcheck, since playback comes back in at the same point.
 - **Cons.** The preamp gain is still in it: a gain change during the show changes the track level, and a clip at the preamp is permanent. It is before the high-pass filter (HPF), so rumble and handling noise stay in.
@@ -18,7 +33,12 @@ Common names: X32 "Local" or "AES50" blocks on the card, Allen & Heath "Post Pre
 
 ### 2. After gain and trim, before EQ
 
-Common names: X32 "Pre-EQ", Allen & Heath "Post HPF", Yamaha TF "Pre HPF", Soundcraft Signature MTK "post-gain, pre-EQ".
+<details>
+<summary>Common names</summary>
+
+X32 "Pre-EQ", Allen & Heath "Post HPF", Yamaha TF "Pre HPF", Soundcraft Signature MTK "post-gain, pre-EQ". The Zoom L-12 sits nearby: after the compressor, before EQ.
+
+</details>
 
 - **Pros.** Clean tracks, with the digital trim included. A post-HPF version also removes rumble.
 - **Cons.** Trim moves change the recording. On a post-HPF tap, the HPF setting is in the file for good.
@@ -26,7 +46,12 @@ Common names: X32 "Pre-EQ", Allen & Heath "Post HPF", Yamaha TF "Pre HPF", Sound
 
 ### 3. After EQ and dynamics, before the fader
 
-Common names: X32 "Pre-Fader", Allen & Heath "Post Comp" or "Post Delay", Behringer WING "POST PROC", Mackie "Ch Direct Out", Zoom L-12 (after the compressor).
+<details>
+<summary>Common names</summary>
+
+X32 "Pre-Fader", Allen & Heath "Post Comp" or "Post Delay", Behringer WING "POST PROC", Mackie "Ch Direct Out".
+
+</details>
 
 - **Pros.** Sounds like front of house, so the tracks are ready to use.
 - **Cons.** EQ and compression are baked in and can't be undone in the mix. A bad compressor setting ruins the take.
@@ -34,7 +59,12 @@ Common names: X32 "Pre-Fader", Allen & Heath "Post Comp" or "Post Delay", Behrin
 
 ### 4. After the fader
 
-Common names: X32 "Post-Fader", Behringer WING "POST FDR", Yamaha TF "Post ON", Allen & Heath through mix sends.
+<details>
+<summary>Common names</summary>
+
+X32 "Post-Fader", Behringer WING "POST FDR", Yamaha TF "Post ON", Allen & Heath through mix sends.
+
+</details>
 
 - **Pros.** Follows the show mix exactly.
 - **Cons.** A fader pulled down or a muted channel gives a silent track. Every fader ride is in the recording.
@@ -51,7 +81,7 @@ Main L/R, aux, groups and matrix outputs: every mixer's "Main LR" or "ST".
 ## What even the raw tap can't avoid
 
 - **Gain changes reach the recording.** The earliest digital tap is still after the analog preamp. The X32 manual warns that front-of-house gain changes "can be heard in the recording". Some mixers can lock who changes gain: PreSonus (Preamp Permissions) and the Mackie DL32R (Access Limiting).
-- **Digital trim vs analog gain.** Where a mixer has both (Allen & Heath, Yamaha "DG" for digital gain, Mackie), the earliest tap is before the digital trim. Allen & Heath says its Post Preamp point is "affected only by the preamp gain". Set the analog gain for headroom, then ride level with the trim and the fader.
+- **Digital trim vs analog gain.** Where a mixer has both (Allen & Heath, Yamaha "DG" for digital gain, Mackie), the earliest tap is before the digital trim. Allen & Heath says the SQ's Post Preamp point is "affected only by the preamp gain". Set the analog gain for headroom, then ride level with the trim and the fader.
 - **Where the HPF sits.** The Ui24R inputs, Mackie "Mic Pre", Allen & Heath "Post Preamp" and Yamaha TF "Pre DG" are all before the HPF. If you want the low cut in the file, pick a tap after it.
 - **A low channel-count mode sends only a few channels.** The X32 card modes 8/8 and 2/2, the XR18's 2 x 2 mode, the smaller WING modes and the "Stereo" stream mode on the Allen & Heath CQ and new Qu all cut what the recorder sees. If a recorder shows only 2 or 8 channels, check this first.
 - **Phantom power** sits at the preamp and doesn't depend on the tap. Switching it on while recording makes a pop on that track.
@@ -61,3 +91,7 @@ Main L/R, aux, groups and matrix outputs: every mixer's "Main LR" or "ST".
 ## With ShowRecorder
 
 ShowRecorder records whatever the mixer sends to each USB Channel, so the tap point is set on the mixer, not in the app. [What the mixer sends over USB](/docs/what-gets-recorded) has more on tap points in ShowRecorder.
+
+<GetTheApp campaign="site-guide-taps" />
+
+<AskUs />
