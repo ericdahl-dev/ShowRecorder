@@ -8,6 +8,7 @@ import TakeActivity
 import Telemetry
 #if os(iOS)
 import AVFAudio
+import UIKit
 #endif
 
 /// The record screen. While it is showing, the recorder is Ready on the chosen device.
@@ -304,12 +305,12 @@ struct RecordScreen: View {
         }
     }
 
-    /// Hold to stop is for all of iOS (#753): only the Mac keeps click and confirm.
-    private var isIOS: Bool {
+    /// Hold to stop has a rule for the iPhone and one for the iPad (#753); the Mac keeps click and confirm.
+    private var stopDevice: TakeStopStyle.Device {
         #if os(iOS)
-        true
+        UIDevice.current.userInterfaceIdiom == .pad ? .iPad : .iPhone
         #else
-        false
+        .mac
         #endif
     }
 
@@ -327,7 +328,7 @@ struct RecordScreen: View {
                 .buttonStyle(.plain)
                 .disabled(true)
                 .accessibilityLabel("Finishing \(model.takeTitle)")
-        } else if model.recorder.isRecording, TakeStopStyle.current(isIOS: isIOS) == .hold {
+        } else if model.recorder.isRecording, TakeStopStyle.current(device: stopDevice) == .hold {
             // Hold to stop (#753): no dialog. A tap only shows the hint.
             HoldToStopRecordButton(size: size, label: "Stop \(model.takeTitle)", stop: { Task { await model.stop() } }, hint: { model.showStopHint() })
         } else {

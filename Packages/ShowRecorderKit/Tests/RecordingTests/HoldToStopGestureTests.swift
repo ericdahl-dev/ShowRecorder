@@ -91,10 +91,15 @@ struct StopHintTests {
 
 @Suite("Stop style in this build")
 struct TakeStopStyleCurrentTests {
-    @Test("The Mac keeps confirm; iOS holds only where the rule is on")
+    @Test("The Mac keeps confirm; the iPhone and iPad hold only where their own rule is on")
     func current() {
-        #expect(TakeStopStyle.current(isIOS: false) == .confirm)
-        let expected: TakeStopStyle = HoldToStopAvailability.isAvailableInThisBuild ? .hold : .confirm
-        #expect(TakeStopStyle.current(isIOS: true) == expected)
+        #expect(TakeStopStyle.current(device: .mac) == .confirm)
+        let pad: TakeStopStyle = HoldToStopOnIPadAvailability.isAvailableInThisBuild ? .hold : .confirm
+        #expect(TakeStopStyle.current(device: .iPad) == pad)
+    }
+
+    @Test("The iPhone holds to stop in every build (#753)")
+    func phoneEverywhere() {
+        #expect(TakeStopStyle.current(device: .iPhone) == .hold)
     }
 }
