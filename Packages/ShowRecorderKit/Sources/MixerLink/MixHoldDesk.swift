@@ -13,6 +13,9 @@ protocol MixHoldDesk: GainControl {
     /// The preamp behind input channel `channel`, or nil when it has none.
     func headamp(ofChannel channel: Int) async throws(MixerLinkProblem) -> Int?
     func mixHoldState(ofChannel channel: Int) async throws(MixerLinkProblem) -> MixHold.ChannelState
+    /// Whether input channel `channel` takes its signal from USB rather than its preamp (#1147): the X Air's per-channel
+    /// switch. A desk without one answers false.
+    func isFedFromUSB(channel: Int) async throws(MixerLinkProblem) -> Bool
     func keyedDynamics(from channel: Int) async throws(MixerLinkProblem) -> [MixHold.KeyedDynamics]
     /// Where the Mixer says whether a stereo link also links the preamps (`/config/linkcfg/…`).
     static var preampLinkAddress: String { get }
@@ -37,6 +40,9 @@ struct MixHoldMove {
 }
 
 extension MixHoldDesk {
+    /// The X32 has no per-channel USB switch: a channel on the card has no headamp at all (`headamp(ofChannel:)`).
+    func isFedFromUSB(channel: Int) async throws(MixerLinkProblem) -> Bool { false }
+
     public func channels(onHeadamp headamp: Int, movedWith channel: Int) async throws(MixerLinkProblem) -> [Int] {
         var channels = [channel]
         if let partner = try await linkedPartner(of: channel) { channels.append(partner) }
@@ -135,9 +141,15 @@ extension MixHoldDesk {
         let from = try await deskGainDb(ofHeadamp: headamp)
         let reachable = gainScale.snap(from + gainChangeDb) - from
         // Every channel on this preamp moves with it, so Mix Hold compensates each of them (#473).
+        let movedChannels = try await channels(onHeadamp: headamp, movedWith: channel)
+        // A channel fed from USB doesn't hear this preamp: moving it changes nothing recorded there, while Mix Hold
+        // would move that channel's mix the other way. Nothing is written, and auto-gain reports it once (#1147).
+        for other in movedChannels {
+            if try await isFedFromUSB(channel: other) { throw .fedFromUSB(channel: other) }
+        }
         var states: [MixHold.ChannelState] = []
         var keyed: Set<MixHold.KeyedDynamics> = []
-        for moved in try await channels(onHeadamp: headamp, movedWith: channel) {
+        for moved in movedChannels {
             states.append(try await mixHoldState(ofChannel: moved))
             keyed.formUnion(try await keyedDynamics(from: moved))
         }

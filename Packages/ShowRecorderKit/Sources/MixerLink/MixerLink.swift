@@ -62,6 +62,9 @@ public enum MixerLinkProblem: Error, Equatable, Sendable {
     case hostNotFound(String)
     /// Gain can't be set: input channel `channel` has no preamp (its source is digital, such as a card or USB input).
     case noPreamp(channel: Int)
+    /// Gain can't be set: input channel `channel`, on the preamp a move would change, takes its signal from USB (the X
+    /// Air's `/ch/NN/preamp/rtnsw`), so that preamp isn't in what it records (#1147). Nothing was written.
+    case fedFromUSB(channel: Int)
     /// The Mixer stopped answering partway through a gain move (#450). `step` is what was written before it stopped,
     /// with the exact values from before, so it can be logged and undone.
     case gainMoveInterrupted(GainStep)
@@ -90,6 +93,8 @@ public enum MixerLinkProblem: Error, Equatable, Sendable {
             "The preamp's gain was changed after auto-gain moved it (by clip protection or on the Mixer), so it was left as it is. Undo puts the earlier gain back, and that undoes the change made since."
         case .noPreamp(let channel):
             "Channel \(channel) on the Mixer has no preamp (its input is digital), so its gain can't be set."
+        case .fedFromUSB(let channel):
+            "Channel \(channel) is fed from USB on the Mixer, so its preamp can't change what's recorded."
         case .cantConnect(let host, let port, let code):
             "ShowRecorder couldn't open a connection to the Mixer at \(host):\(port) (error \(code)). Check the address in Settings › Mixer Link and try Connect again."
         case .other(let description):
