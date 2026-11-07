@@ -129,9 +129,26 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive, the SQ, the XR12/XR16/MR12, the Yamaha TF, the Signature MTK, the Yamaha DM3, the Yamaha MGX and the Yamaha MG XU have none; a Mixer Link guide that lost its product page must fail here, not skip.
+    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive, the SQ, the XR12/XR16/MR12, the Yamaha TF, the Signature MTK, the Yamaha DM3, the Yamaha MGX, the Yamaha MG XU and the Avantis have none; a Mixer Link guide that lost its product page must fail here, not skip.
     expect(guide.productPage === undefined).toBe(
-      ["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii", "ah-sq", "xr12-xr16-mr12", "yamaha-tf", "signature-mtk", "yamaha-dm3", "yamaha-mgx", "yamaha-mg-xu"].includes(guide.slug),
+      [
+        "qu",
+        "zoom-l12",
+        "mackie-dl32r",
+        "wing",
+        "mackie-dl32s",
+        "ui24r",
+        "ah-cq",
+        "presonus-studiolive-iii",
+        "ah-sq",
+        "xr12-xr16-mr12",
+        "yamaha-tf",
+        "signature-mtk",
+        "yamaha-dm3",
+        "yamaha-mgx",
+        "yamaha-mg-xu",
+        "ah-avantis",
+      ].includes(guide.slug),
     );
     if (guide.productPage === undefined) return;
     expect(mdx).toContain(`](${guide.productPage})`);
@@ -1971,5 +1988,127 @@ describe("the Yamaha MG XU guide's facts", () => {
     const readme = read("..", "docs", "research", "mixer-recording", "README.md");
     const row = readme.split("\n").find((l) => l.startsWith("| **Yamaha MG XU**"))!;
     expect(row).toMatch(/STEREO LEVEL knob doesn't change it/);
+  });
+});
+
+// Facts: docs/research/mixer-recording/ah-avantis.md (#1071). The Avantis and Avantis Solo have no USB audio
+// interface: USB records stereo only, and multitrack goes through an option card in an I/O Port. Maker facts come from
+// Allen & Heath's help center and product pages; inferences are labeled "(our reading)".
+describe("the Allen & Heath Avantis guide's facts", () => {
+  const mdx = body("ah-avantis");
+  const guide = MIXER_GUIDES.find((g) => g.slug === "ah-avantis")!;
+  const quick = mdx.slice(mdx.indexOf("**Quick start**"), mdx.indexOf("\n## "));
+
+  it("is in MIXER_GUIDES with its own campaign, and the hub's Avantis row links it", () => {
+    expect(guide.campaign).toBe("site-guide-ah-avantis");
+    expect(MIXER_ROWS.find((r) => /Avantis/.test(r.name))!.guide).toBe(guide.path);
+    expect(guide.pick).toMatch(/No USB audio interface/);
+    expect(guide.pick).toMatch(/option card/);
+  });
+
+  it("says up front there is no USB audio, so multitrack needs an option card, and covers the Avantis Solo", () => {
+    const top = mdx.slice(0, mdx.indexOf("**Quick start**"));
+    expect(top).toMatch(/no USB audio interface/);
+    expect(top).toMatch(/option card/);
+    expect(top).toMatch(/Avantis Solo/);
+    expect(quick).toMatch(/^1\. \*\*Fit an option card\*\*/m);
+  });
+
+  it("names the cards and the two I/O Ports at 128x128 and 96 kHz, and points to the card maker's software", () => {
+    const ways = section(mdx, "Ways to record an Avantis", "Avantis recording settings");
+    expect(ways).toMatch(/2 I\/O Ports, both capable of 128x128 operation at 96kHz/);
+    for (const card of ["Dante", "Waves", "MADI", "gigaACE"]) expect(ways).toContain(card);
+    expect(ways).toMatch(/Audinate/);
+    expect(ways).toMatch(/Bit depth and sample rate the computer sees:\*\* not stated by Allen & Heath/);
+  });
+
+  it("records only stereo by itself: a 24-bit 96 kHz WAV to internal storage, copied to a USB drive", () => {
+    const ways = section(mdx, "Ways to record an Avantis", "Avantis recording settings");
+    expect(ways).toMatch(/\*\*Utility\*\*, then \*\*USB Audio\*\*, then \*\*Manager\*\*/);
+    expect(ways).toMatch(/Stereo \.WAV files \(24bit 96kHz\)/);
+    expect(ways).toMatch(/Copy to USB/);
+    expect(ways).toMatch(/Tie Lines, PAFL or FX Unit outputs/);
+    expect(ways).toMatch(/no multitrack recorder/i);
+  });
+
+  it("explains the 'only 2 channels' case: the USB sockets are for drives, not a computer", () => {
+    const settings = section(mdx, "Avantis recording settings", "Avantis USB routing");
+    expect(settings).toMatch(/^### Only 2 channels over USB\? The Avantis has no USB audio$/m);
+    expect(settings).toMatch(/store and recall show files, update the firmware or to perform USB playback and recording/);
+  });
+
+  it("gives the clock settings, and says card clocks are set in Audinate or Waves software", () => {
+    const settings = section(mdx, "Avantis recording settings", "Avantis USB routing");
+    expect(settings).toMatch(/\*\*Setup\*\*, then \*\*Audio\*\*, then \*\*Audio Sync\*\*/);
+    expect(settings).toMatch(/Internal \(96kHz\)/);
+    expect(settings).toMatch(/Ext BNC/);
+    expect(settings).toMatch(/M-DL-ADAPT/);
+    expect(settings).toMatch(/accessed by the Audinate or Waves Audio software/);
+  });
+
+  it("routes with Record Send, Direct Outs or Tie Lines, and says Record Send overrides the port's output patch", () => {
+    const routing = section(mdx, "Avantis USB routing", "Avantis playback for virtual soundcheck");
+    expect(routing).toMatch(/\*\*I\/O\*\*, then \*\*Virtual SoundCheck\*\*/);
+    expect(routing).toMatch(/\*\*Record Send\*\*/);
+    expect(routing).toMatch(/temporarily override the normal output patch/);
+    expect(routing).toMatch(/\*\*I\/O\*\*, then \*\*Outputs\*\*/);
+    expect(routing).toMatch(/\*\*I\/O\*\*, then \*\*Tie Lines\*\*/);
+    expect(routing).toMatch(/independent of Scene memories/);
+    expect(routing).toMatch(/Default patch:\*\* not stated by Allen & Heath/);
+  });
+
+  it("plays back with Virtual SoundCheck mode, and lets a live mic run alongside from the Preamp screen", () => {
+    const play = section(mdx, "Avantis playback for virtual soundcheck", "Avantis tap points");
+    expect(play).toMatch(/A virtual soundcheck plays a recorded show back/);
+    expect(play).toMatch(/\*\*Virtual SoundCheck\*\* mode/);
+    expect(play).toMatch(/in place of the live inputs/);
+    expect(play).toMatch(/\*\*Processing\*\*, then \*\*Preamp\*\*/);
+    expect(play).toMatch(/\*\*Inactive\*\*/);
+  });
+
+  it("lists every tap point with pros and cons: Record Send pre-trim, the global Direct Output Source, Tie Lines", () => {
+    const taps = section(mdx, "Avantis tap points", "Avantis on Mac, iPad and iPhone");
+    expect(taps.split("\n").find((l) => l.trim() && !l.startsWith("##"))).toMatch(/^\*\*Pick Record Send for raw tracks/);
+    expect(taps).toMatch(/always pre-trim/);
+    for (const p of ["Post Preamp", "Post LPF", "Post Gate", "Post Insert A Return", "Post PEQ", "Post Compressor", "Post Insert B Return", "Post Delay"])
+      expect(taps).toContain(`**${p}:**`);
+    expect(taps).toMatch(/Follow Fader, Follow Mute and Follow All/);
+    expect(taps).toMatch(/unaffected by Digital Trim or Direct Out Source/);
+    expect(taps).toMatch(/\*\*Pros:\*\*/);
+    expect(taps).toMatch(/\*\*Cons:\*\*/);
+  });
+
+  it("labels the shared-preamp and Post LPF inferences as our reading, and quotes Gain Tracking", () => {
+    const taps = section(mdx, "Avantis tap points", "Avantis on Mac, iPad and iPhone");
+    expect(taps).toMatch(/Trim automatically changes to compensate for preamp gain changes/);
+    const shared = taps.split("\n").filter((l) => /another mixer/i.test(l));
+    expect(shared.length).toBeGreaterThan(0);
+    for (const l of shared) expect(l).toMatch(/our reading/);
+    expect(taps.split("\n").find((l) => l.startsWith("- **Post LPF:**"))).toMatch(/our reading/);
+    expect(taps).toMatch(/Preamp on Surface/);
+  });
+
+  it("says no iPhone, iPad or Mac records multitrack over USB, a card path is not tested yet, and there is no Mixer Link", () => {
+    const apple = section(mdx, "Avantis on Mac, iPad and iPhone", "Sources");
+    expect(apple).toMatch(/\*\*iPhone and iPad:\*\*[^\n]*no multitrack over USB/);
+    expect(apple).toMatch(/not tested yet/);
+    expect(mdx).toMatch(/records every USB Channel from any class-compliant mixer\. The Avantis sends no audio over USB/);
+    expect(mdx).toMatch(/We haven't tested ShowRecorder with an Avantis/);
+    expect(mdx).toMatch(/There is no Mixer Link for the Avantis/);
+    expect(mdx + guide.faqs.map((f) => f.a).join(" ")).not.toMatch(/\b(un)?supported\b/i);
+  });
+
+  it("explains its terms for beginners the first time they come up", () => {
+    expect(mdx).toMatch(/An option card is a network card/);
+    expect(mdx).toMatch(/A virtual soundcheck plays a recorded show back/);
+    expect(mdx).toMatch(/The tap point is the place in each channel where the recording is taken/);
+    expect(mdx).toMatch(/Trim is a digital level control/);
+    expect(mdx).toMatch(/A Tie Line sends a socket/);
+  });
+
+  it("files the forum link under one user's report", () => {
+    const sources = mdx.slice(mdx.indexOf("## Sources"));
+    const users = sources.slice(sources.indexOf("Users on Allen & Heath's forum"));
+    expect(users).toContain("https://forums.allen-heath.com/t/usb-multitrack/11250");
   });
 });
