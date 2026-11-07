@@ -15,22 +15,23 @@ struct MarkerButtonAvailabilityTests {
         #expect(MarkerButtonAvailability.isAvailable(isDebugBuild: false, environment: .sandbox))
     }
 
-    @Test("The App Store build does not, nor a Release build whose environment is unknown or not yet answered")
+    @Test("It is at the everyone level (#684)")
+    func level() {
+        #expect(MarkerButtonAvailability.level == .everyone)
+    }
+
+    @Test("The App Store build offers it, and so does a Release build whose environment is unknown or not yet answered")
     func everyoneElse() {
-        #expect(!MarkerButtonAvailability.isAvailable(isDebugBuild: false, environment: .production))
-        #expect(!MarkerButtonAvailability.isAvailable(isDebugBuild: false, environment: .unknown))
-        #expect(!MarkerButtonAvailability.isAvailable(isDebugBuild: false, environment: nil))
+        #expect(MarkerButtonAvailability.isAvailable(isDebugBuild: false, environment: .production))
+        #expect(MarkerButtonAvailability.isAvailable(isDebugBuild: false, environment: .unknown))
+        #expect(MarkerButtonAvailability.isAvailable(isDebugBuild: false, environment: nil))
     }
 }
 
 @Suite("Marker button availability in this build")
 struct MarkerButtonAvailabilityThisBuildTests {
-    @Test("A Debug build offers the button before the environment is known; a Release build waits for TestFlight")
+    @Test("Every build offers the button, before the environment is known too")
     func thisBuild() {
-        #if DEBUG
         #expect(MarkerButtonAvailability.isAvailableInThisBuild)
-        #else
-        #expect(!MarkerButtonAvailability.isAvailableInThisBuild, "no environment resolved in tests")
-        #endif
     }
 }
