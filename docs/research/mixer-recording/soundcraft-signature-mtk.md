@@ -77,7 +77,7 @@ Editions: the Recording Guide PDF (source 2) shows no date or edition; its file 
 The Recording Guide PDF and the User Manual PDF were read in full on 2026-11-07 (`pdftotext -layout`), as downloaded from soundcraft.com, which redirects to adn.harmanpro.com. They match the notes above. Added from that read, for the guide (#1073):
 - 22 MTK bit depth: "Bit Depth: 16-bit, 24-bit" (source 4, specs).
 - Mute: "a pre-fade mute and so does not affect the USB send on the Signature 22MTK console" (source 4, 5.1.1).
-- Limiters: on the 22 MTK, "channels 1 and 2 incorporate switchable input limiters" (source 4, 4.1). Place relative to the USB tap still not stated.
+- Limiters: the product pages' variants table says "dbx Limiters on inputs: 2 (12 / 12 MTK), 8 (22 / 22 MTK)" (source 3, checked in Chrome 2026-11-07 for #1127). The 22 MTK manual says "channels 1 and 2 incorporate switchable input limiters" (source 4, 4.1), which conflicts for the 22 MTK; the guide uses the product page. Place relative to the USB tap still not stated.
 - The Signature 16 and 22 (no MTK) "have 2-track USB input and output functionality", with a USB SEND switch for the main mix or Aux 1-2 (source 4, 7.1).
 - Windows control panel: "Reliable" with 1024 samples is clean; "Low Latency" with 128; "Reliable" with 64 "would result in distorted audio" (source 2).
 - Before playback, turn off record "to avoid recording over your recorded show" (source 2, REAPER).

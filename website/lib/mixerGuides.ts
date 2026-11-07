@@ -149,7 +149,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     usb: "12 MTK: 14 in, 12 out. 22 MTK: 24 in, 22 out. 44.1 or 48 kHz, 24-bit.",
     onboard: "None.",
     mac: "Uses Core Audio; current macOS not listed by Soundcraft.",
-    ipad: "Yes, with a camera adapter (maker).",
+    ipad: "Named by the maker, with a camera adapter; not tested yet.",
     iphone: "Not tested yet.",
     guide: "/guides/record/signature-mtk",
   },
@@ -751,11 +751,11 @@ export const SIGNATURE_MTK_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Are Signature MTK recordings pre or post fader?",
-    a: "Pre-fader. Soundcraft: input channels \"ALWAYS send their post-gain, pre-EQ signal\" to USB. The gain knob changes the recording; the EQ, the fader and the mute don't. Only the Master L/R pair is post-fader.",
+    a: "Pre-fader. Soundcraft: input channels \"ALWAYS send their post-gain, pre-EQ signal\" to USB. The gain knob changes the recording. The EQ and the fader don't, and on the 22 MTK the mute doesn't either. Only the Master L/R pair is post-fader.",
   },
   {
     q: "How do I play a Signature MTK recording back for a virtual soundcheck?",
-    a: "Send each track out of the computer on the USB channel with the same number as its input. Then press the USB RTN button on each channel. The USB audio then replaces that channel's input, just after the gain knob. Turn off record on your tracks before you press play.",
+    a: "Send each track out of the computer on the USB channel with the same number as its input. Then press the USB RTN button on each channel. The USB audio then replaces that channel's input (on the 22 MTK, just after the gain knob). Turn off record on your tracks before you press play.",
   },
 ];
 
@@ -1167,7 +1167,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
       "https://www.soundcraft.com/en-US/products/signature-12-mtk",
       "https://www.soundcraft.com/en-US/products/signature-22-mtk",
     ],
-    pick: "14 channels over USB (24 on the 22 MTK) to a computer. No recording without a computer. iPad: yes, with a camera adapter, says Soundcraft. iPhone: not tested yet.",
+    pick: "14 channels over USB (24 on the 22 MTK) to a computer. No recording without a computer. iPad: Soundcraft names it, with a camera adapter; not tested yet. iPhone: not tested yet.",
     campaign: "site-guide-signature-mtk",
     tapPick: "the fixed tap (after the gain knob, before the EQ and the fader); there is nothing to set",
   },
