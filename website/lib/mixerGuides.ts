@@ -95,6 +95,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     mac: "Class compliant (maker).",
     ipad: "Not named. Allen & Heath says no driver is needed on any system that supports class-compliant audio. Not tested yet.",
     iphone: "Not named. Allen & Heath says no driver is needed on any system that supports class-compliant audio. Not tested yet.",
+    guide: "/guides/record/ah-sq",
   },
   {
     name: "Allen & Heath Qu-5, Qu-6 and Qu-7",
@@ -688,6 +689,34 @@ export const STUDIOLIVE_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the Allen & Heath SQ guide (#1068). Facts: docs/research/mixer-recording/ah-sq.md.
+export const AH_SQ_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I record an Allen & Heath SQ to an iPhone or iPad?",
+    a: "Not tested yet. Allen & Heath says the SQ's USB-B interface needs no driver on any device that supports class-compliant audio, but it doesn't name the iPhone or iPad. A Mac works with no driver.",
+  },
+  {
+    q: "Can an SQ multitrack record without a computer?",
+    a: "Yes, with SQ-Drive: up to 16 tracks at 96 kHz or 32 at 48 kHz, one 24-bit WAV per track, to a drive in the SQ's USB-A socket. Use a fast external hard drive or SSD; Allen & Heath says most USB sticks are too slow. Only the USB channels you patched are recorded.",
+  },
+  {
+    q: "How many channels does the SQ send over USB?",
+    a: "32 to the computer and 32 back, at 48 or 96 kHz. Set the rate in Setup > Audio > Digital I/O > USB Sample Rate. A Mac needs no driver; Windows needs Allen & Heath's ASIO driver for all 32.",
+  },
+  {
+    q: "Which USB channel is each input on the SQ?",
+    a: "You choose, in the I/O screen. After a Standard reset (in Setup, on the Role tab), USB 1-2 carry the main mix and the channels follow. Other setups may differ, and Allen & Heath doesn't say which channel lands on USB 3, so check I/O before the show.",
+  },
+  {
+    q: "Are SQ recordings pre or post fader?",
+    a: "You choose. The channel direct outs have one Direct Out Source for every channel, from Post Preamp (only the preamp gain) to Post Delay (all processing), and switches for following the faders and mutes. For tracks you can mix later, pick Post Preamp and leave the fader and mute following off (our advice).",
+  },
+  {
+    q: "How do I play an SQ recording back for a virtual soundcheck?",
+    a: "Send each track out on its own USB output in your recording app. On the SQ, press I/O > Inputs > Input Channel and patch the USB sockets to the channels. Save that patch in an input patch library (press Library) so you can switch between the stage and USB in one step.",
+  },
+];
+
 // The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
 export const X32_METHOD_A: readonly { name: string; text: string }[] = [
   { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
@@ -995,5 +1024,34 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     ],
     campaign: "site-guide-presonus-studiolive-iii",
     tapPick: "the default Inputs on USB 1-32 (PreSonus doesn't say where on the channel they are taken), or a FlexMix at Pre 1, Pre 2 or Post for a known point",
+  },
+  {
+    slug: "ah-sq",
+    path: "/guides/record/ah-sq",
+    pageKey: "guideAhSq",
+    short: "SQ",
+    mixer: "Allen & Heath SQ",
+    description:
+      "Multitrack record an Allen & Heath SQ-5, SQ-6 or SQ-7 over USB or to SQ-Drive: settings, patching, playback, taps. iPhone and iPad not tested yet.",
+    published: "2026-11-07",
+    faqs: AH_SQ_GUIDE_FAQS,
+    faqsName: "AH_SQ_GUIDE_FAQS",
+    sources: [
+      "https://support.allen-heath.com/hc/en-gb/articles/45947079593105-SQ-SQ-Drive-and-USB-B",
+      "https://support.allen-heath.com/hc/en-gb/articles/45261631285009-SQ-Connections-and-Patching",
+      "https://support.allen-heath.com/hc/en-gb/articles/45946654916753-SQ-Routing",
+      "https://support.allen-heath.com/hc/en-gb/articles/4402940459537-SQ-Basic-Signal-Path-Diagrams-Input-Group-LR-Aux-Matrix",
+      "https://support.allen-heath.com/hc/en-gb/articles/45947065818769-SQ-Setup",
+      "https://support.allen-heath.com/hc/en-gb/articles/45946563062929-SQ-Processing",
+      "https://support.allen-heath.com/hc/en-gb/articles/45947235418385-SQ-Mix-System-Reset",
+      "https://support.allen-heath.com/hc/en-gb/articles/4402940155793-SQ-Understanding-SQ-USB-recording-and-playback",
+      "https://support.allen-heath.com/hc/en-gb/articles/4402941921553-SQ-Virtual-Soundcheck-using-the-USB-B-connection",
+      "https://support.allen-heath.com/hc/en-gb/articles/4402939458193-SQ-Troubleshooting-issues-with-the-SQ-USB-B-interface",
+      "https://support.allen-heath.com/hc/en-gb/articles/43757630905361-SQ-Firmware-Release-Notes",
+      "https://support.allen-heath.com/hc/en-gb/articles/41332471203985-SQ-5-SQ-6-SQ-7-Getting-Started-Guide",
+    ],
+    pick: "32 channels over USB to a computer, at 48 or 96 kHz. Records by itself to a fast USB drive: 16 channels at 96 kHz or 32 at 48 kHz. iPhone and iPad: not tested yet.",
+    campaign: "site-guide-ah-sq",
+    tapPick: "Direct Out Source set to Post Preamp (only the preamp gain, before the filter, EQ and fader), in Routing > Dir Out",
   },
 ];
