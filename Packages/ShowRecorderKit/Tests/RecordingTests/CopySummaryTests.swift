@@ -17,11 +17,34 @@ struct CopySummaryTests {
         #expect(!summary.isProblem)
     }
 
-    @Test("A lone Copy says there was no Drive")
+    @Test("A Take that missed its Drive says plainly it is on this iPhone only, as a warning (#1151)")
     func oneCopy() {
         let summary = CopySummary(copies: takeCopies(running: false, device: .complete, drive: .missing), dropoutCount: 0)
+        #expect(summary.text == "Saved on this iPhone only: the Drive was missing")
+        #expect(summary.isProblem)
+    }
+
+    @Test("A Take that missed its Drive names the device the app runs on (#1151)")
+    func oneCopyDeviceWord() {
+        let copies = takeCopies(running: false, device: .complete, drive: .missing)
+        #expect(CopySummary(copies: copies, dropoutCount: 0, deviceWord: "Mac").text == "Saved on this Mac only: the Drive was missing")
+        #expect(CopySummary.ofLastTake(copies, dropoutCount: 0, deviceWord: "Mac")?.text == "Saved on this Mac only: the Drive was missing")
+    }
+
+    @Test("A lone Device Copy with Gaps still says so after the missing Drive (#1151)")
+    func oneCopyWithGaps() {
+        let summary = CopySummary(copies: takeCopies(running: false, device: .hasGaps, drive: .missing), dropoutCount: 0)
+        #expect(summary.text == "Saved on this iPhone only: the Drive was missing · Device copy: has Gaps")
+        #expect(summary.isProblem)
+    }
+
+    @Test("On Free, which has no Drive Copy, a lone Device Copy reads as before and is no warning (#1151)")
+    func oneCopyOnFree() {
+        let copies = takeCopies(running: false, device: .complete, drive: .missing)
+        let summary = CopySummary(copies: copies, dropoutCount: 0, driveCopyAllowed: false)
         #expect(summary.text == "Device copy: complete (no Drive)")
         #expect(!summary.isProblem)
+        #expect(CopySummary.ofLastTake(copies, dropoutCount: 0, driveCopyAllowed: false)?.text == "Device copy: complete (no Drive)")
     }
 
     @Test("A Take recorded to the Device by choice reads as its Copy alone, with no \"(no Drive)\", and still counts Dropouts (#805)")
@@ -29,6 +52,7 @@ struct CopySummaryTests {
         let copies = takeCopies(running: false, deviceOnly: true, device: .complete, drive: .missing)
         #expect(CopySummary(copies: copies, dropoutCount: 0).text == "Device copy: complete")
         #expect(CopySummary(copies: copies, dropoutCount: 1).text == "Device copy: complete · 1 Dropout")
+        #expect(!CopySummary(copies: copies, dropoutCount: 0).isProblem, "no warning: no Drive Copy was meant")
     }
 
     @Test("A Take on the Device by choice whose Copy has Gaps still reads as a problem (#805)")
@@ -51,10 +75,10 @@ struct CopySummaryTests {
         #expect(summary.isProblem)
     }
 
-    @Test("One Dropout is singular, and goes with a lone Copy's note")
+    @Test("One Dropout is singular, and goes with the missing Drive's warning")
     func oneDropout() {
         let summary = CopySummary(copies: takeCopies(running: false, device: .complete, drive: .missing), dropoutCount: 1)
-        #expect(summary.text == "Device copy: complete (no Drive) · 1 Dropout")
+        #expect(summary.text == "Saved on this iPhone only: the Drive was missing · 1 Dropout")
         #expect(summary.isProblem)
     }
 
@@ -74,7 +98,7 @@ struct CopySummaryTests {
     @Test("A Copy that never ended (interrupted with no outcome) isn't counted, as a missing one isn't")
     func copyWithoutOutcome() {
         let summary = CopySummary(copies: takeCopies(running: false, device: .complete, drive: .interrupted), dropoutCount: 0)
-        #expect(summary.text == "Device copy: complete (no Drive)")
+        #expect(summary.text == "Saved on this iPhone only: the Drive was missing")
     }
 
     @Test("A Repair that failed is a problem")
@@ -87,7 +111,7 @@ struct CopySummaryTests {
         #expect(CopySummary.ofLastTake(takeCopies(running: true, device: .recording, drive: .recording), dropoutCount: 0) == nil)
         #expect(CopySummary.ofLastTake(takeCopies(running: false, device: .missing, drive: .missing), dropoutCount: 0) == nil)
         #expect(CopySummary.ofLastTake(takeCopies(running: false, device: .complete, drive: .missing), dropoutCount: 0)?.text
-                == "Device copy: complete (no Drive)")
+                == "Saved on this iPhone only: the Drive was missing")
     }
 
     @Test("Drive only: the Drive Copy ended reads as the Drive's word alone, with no device-copy note (#550)")

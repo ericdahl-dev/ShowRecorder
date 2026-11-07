@@ -7,20 +7,29 @@ public struct CopySummary: Equatable, Sendable {
     public let isProblem: Bool
 
     /// The summary of the last Take, or nil while a Take runs or when no Copy of it ended (there was no Take).
-    /// - Parameter deviceWord: the device the app runs on (iPhone, iPad or Mac), for a Drive only Take's line.
-    public static func ofLastTake(_ copies: TakeCopies, dropoutCount: Int, deviceWord: String = "iPhone") -> CopySummary? {
+    /// - Parameter deviceWord: the device the app runs on (iPhone, iPad or Mac), for a Drive only Take's line and a missed Drive's.
+    /// - Parameter driveCopyAllowed: false on Free, which has no Drive Copy: then a Take without one missed nothing.
+    public static func ofLastTake(
+        _ copies: TakeCopies, dropoutCount: Int, deviceWord: String = "iPhone", driveCopyAllowed: Bool = true
+    ) -> CopySummary? {
         guard !copies.isRunning, DestinationKind.allCases.contains(where: { copies[$0].outcome != nil }) else { return nil }
-        return CopySummary(copies: copies, dropoutCount: dropoutCount, deviceWord: deviceWord)
+        return CopySummary(copies: copies, dropoutCount: dropoutCount, deviceWord: deviceWord, driveCopyAllowed: driveCopyAllowed)
     }
 
     /// How each Copy of the last Take ended (#550); a Copy with no ended state (it never started) isn't counted.
     /// A Drive only Take (#196, ADR 0006) speaks of the Drive alone: the Device only stood in. A Take recorded to the Device
-    /// by choice (#805) misses no Drive.
-    public init(copies: TakeCopies, dropoutCount: Int, deviceWord: String = "iPhone") {
+    /// by choice (#805), or on Free, misses no Drive; any other Take on the Device alone missed it, and says so as a warning (#1151).
+    public init(copies: TakeCopies, dropoutCount: Int, deviceWord: String = "iPhone", driveCopyAllowed: Bool = true) {
         let outcomes = Dictionary(uniqueKeysWithValues: DestinationKind.allCases.compactMap { kind in
             copies[kind].outcome.map { (kind, $0) }
         })
         guard copies.isDriveOnly else {
+            if outcomes.count == 1, let device = outcomes[.device], !copies.isDeviceOnly, driveCopyAllowed {
+                let gaps = device == .complete ? [] : ["Device copy: \(device.word)"]
+                self.init(parts: ["Saved on this \(deviceWord) only: the Drive was missing"] + gaps, outcomes: outcomes,
+                          dropoutCount: dropoutCount, missedDrive: true)
+                return
+            }
             self.init(outcomes: outcomes, dropoutCount: dropoutCount, isDeviceOnly: copies.isDeviceOnly)
             return
         }
@@ -41,10 +50,10 @@ public struct CopySummary: Equatable, Sendable {
         self.init(parts: parts, outcomes: outcomes, dropoutCount: dropoutCount)
     }
 
-    private init(parts: [String], outcomes: [DestinationKind: CopyOutcome], dropoutCount: Int) {
+    private init(parts: [String], outcomes: [DestinationKind: CopyOutcome], dropoutCount: Int, missedDrive: Bool = false) {
         var parts = parts
         if dropoutCount > 0 { parts.append("\(dropoutCount) Dropout\(dropoutCount == 1 ? "" : "s")") }
         text = parts.joined(separator: " · ")
-        isProblem = dropoutCount > 0 || outcomes.values.contains { $0 == .hasGaps || $0 == .repairFailed }
+        isProblem = missedDrive || dropoutCount > 0 || outcomes.values.contains { $0 == .hasGaps || $0 == .repairFailed }
     }
 }
