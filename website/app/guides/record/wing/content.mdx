@@ -1,0 +1,153 @@
+import { AskUs, Breadcrumbs, GetTheApp, LastChecked } from "@/components/GuideParts";
+import { guideTrail } from "@/lib/mixerGuides";
+
+<Breadcrumbs trail={guideTrail("WING", "/guides/record/wing")} />
+
+# How to multitrack record a Behringer WING, WING Compact or WING Rack
+
+<LastChecked path="/guides/record/wing" />
+
+**Short answer.** Plug the WING's rear USB port into a computer, set **SETUP > AUDIO > USB AUDIO** to 48 x 48, and on **ROUTING > OUTPUTS** pick a source for each USB slot. It sends up to 48 channels at 24-bit. With no computer, its WING-LIVE card records up to 64 channels to two SD cards. On an iPhone or iPad it is not tested yet: Behringer names neither, and iPad reports from users differ.
+
+**Quick start**
+
+1. **Set the clock to 48 kHz** at SETUP > AUDIO > AUDIO CLOCK. USB audio at 44.1 kHz is not confirmed by Behringer, so 48 kHz is the safe choice (our advice). ([Recording settings](#wing-recording-settings))
+2. **Set SETUP > AUDIO > USB AUDIO to 48 x 48** (or fewer if you need fewer). ([Recording settings](#wing-recording-settings))
+3. **Patch every USB slot yourself** on ROUTING > OUTPUTS: pick the USB group, then a source per slot, such as Local In 1 for slot 1. Behringer doesn't say what the slots carry out of the box. ([USB routing](#wing-usb-routing))
+4. **Connect the rear USB-B port** to the computer. On Windows, install Behringer's ASIO driver first. ([Mac, iPad and iPhone](#wing-on-mac-ipad-and-iphone))
+5. **Open your recording app** and check that it sees the number of channels you set.
+6. **Record a 30 s test and play it back** before the show.
+7. **Only 2 or 8 channels, or a disk instead of audio?** ([Only 2 or 8 channels?](#only-2-or-8-channels-check-usb-audio-and-disk-mode))
+
+This guide covers the WING, the WING Compact and the WING Rack. Behringer's manual says "All WING models have the same digital I/O" and that "All WING models include the WING-LIVE card". Where a model differs, the guide says which.
+
+Every other mixer is in the [mixer recording guides](/guides/record), and the words used here are in its [glossary](/guides/record#glossary). Facts come from Behringer's WING manual (firmware 3.1), Quick Start Guide, product page and remote protocol document unless a line says otherwise. The [sources](#sources) are at the end.
+
+## Ways to record a WING
+
+### To a computer over USB
+
+Plug the rear **USB 2.0 Type B** port into the computer and record in any DAW.
+
+- **Channels:** up to 48 x 48: "48×48 channel USB 2.0 audio interface onboard" (Behringer product page). The count is set in SETUP > AUDIO > USB AUDIO, from 2 x 2 up to 48 x 48; inputs and outputs are always the same size.
+- **Bit depth:** 24-bit.
+- **Sample rate:** the console runs at 44.1 or 48 kHz. Behringer's spec tables list only 48 kHz, and no Behringer document says USB audio runs at 44.1 kHz. It presumably follows the console clock (our reading), but use 48 kHz.
+- **Driver:** on Windows, Behringer's ASIO driver from behringer.com. For a Mac, see [Mac, iPad and iPhone](#wing-on-mac-ipad-and-iphone).
+
+### With no computer: WING-LIVE to SD cards
+
+Every WING model includes the **WING-LIVE** card in its expansion slot.
+
+- **Channels:** "up to 64 channels of 48 kHz / 32-bit audio to be recorded onto a pair of SD or SDHC cards": 32 tracks on one card, 64 on two linked cards. Over 32 channels, press **LINK CARDS**.
+- **Files:** "Each card records multitrack WAV audio files of 8, 16 or 32 channels called a session". That is one multichannel (poly) WAV per session. Behringer's **LiveSessions** app splits it into tracks.
+- **Cards:** "SD cards must be formatted to FAT32 with an allocation unit size (cluster) of 32 kB. SD cards of up to 32 GB can be formatted directly on the console". The card writes an `X_LIVE` folder.
+- **Power cut:** an optional 3 V CR123 battery lets a recording be "stopped and saved in case of a power failure".
+- **Sample rate:** the manual says 48 kHz. Whether WING-LIVE records at 44.1 kHz is not stated, so plan on 48 kHz.
+
+### With no computer: a USB stick (4 tracks)
+
+The front **USB Type A** port takes a USB stick: "4 tracks can be recorded and played back to/from a USB stick", as 2 or 4-track WAV files at 16 or 24-bit. It is a 4-track recorder, not a multitrack replacement. See [Recording settings](#wing-recording-settings) for the speed setting it needs.
+
+### To an iPhone, iPad or Mac with an app
+
+The WING sends its channels over the same rear USB port. On a Mac, one forum user reports it works with no driver; on an iPad, reports differ; the iPhone is not tested yet. See [Mac, iPad and iPhone](#wing-on-mac-ipad-and-iphone) below.
+
+## WING recording settings
+
+- **Clock rate and sync:** **SETUP > AUDIO > AUDIO CLOCK** (Clock Rate, Sync Source): 44.1 or 48 kHz. For USB and WING-LIVE, use 48 kHz (our advice: 48 kHz is the only rate Behringer's manual and spec tables give for either).
+- **USB channel count:** **SETUP > AUDIO > USB AUDIO**: 2 x 2, 8 x 8, 16 x 16, 32 x 32 or 48 x 48.
+- **USB bit depth:** 24-bit. The file format is set by the recording app, not the console.
+- **WING-LIVE channel count:** per card, **SD RECORD** picks 8, 16 or 32 channels. Open it with the arrow next to the SD CARD 1 or SD CARD 2 header.
+- **WING-LIVE settings:** the recorder screen's **SETTINGS** button has SHOW METERS, AUTO INPUT SELECT, STOP / PLAY / RECORD INPUT (switches channels between their MAIN and ALT inputs with the transport) and FORMAT.
+- **WING-LIVE bit depth:** 32-bit; the manual describes no other choice.
+- **USB stick recorder:** 2 or 4 tracks, 16 or 24-bit, set in the recorder's top-right panel. **REC PATH** sets the folder on the stick. The sample rate follows SETUP > AUDIO.
+- **USB stick speed:** at SETUP > GENERAL, **USB HOST SPEED** must be **HS** for 4 tracks or 24-bit. On **FS**, "USB recording on the front port is restricted to 2 channels and 16 bits", so you get 2 tracks at 16-bit.
+
+{/* Screenshot: SETUP > AUDIO with USB AUDIO at 48/48 and the clock at 48 kHz. <Screenshot src="/images/guides/wing-setup-audio.png" alt="Behringer WING SETUP > AUDIO screen, with USB AUDIO set to 48 x 48 and the audio clock at 48 kHz" /> */}
+
+### Only 2 or 8 channels? Check USB AUDIO and disk mode
+
+If your recording app sees too few channels, or none:
+
+- **USB AUDIO:** SETUP > AUDIO > USB AUDIO sets how many channels the computer sees. At 2 x 2 or 8 x 8 it sends only 2 or 8.
+- **Disk mode:** the rear USB port also works as a USB disk. At SETUP > GENERAL, **WING OS** (for firmware updates) and **WING DATA** (for preset transfer) turn the connection into a USB disk. While it is a disk, a red OS or DATA tag shows at the top of the WING's screen. To get USB audio back, "eject the console as regularly done with a normal USB flash drive" (Behringer QSG).
+- **Silent tracks:** check that each USB slot has a source on ROUTING > OUTPUTS (our advice).
+
+## WING USB routing
+
+**The WING has a per-slot router.** Every output slot picks any single source, so there are no blocks of 8. Behringer: "The OUTPUTS screen allows you to route any Source to any digital or analog output."
+
+**Before you start: patch every slot yourself.** No Behringer document says what the USB, WLIVE REC or RECORDER slots carry after a factory reset. Check each slot, and patch every slot you want to record.
+
+- **Path:** **ROUTING > OUTPUTS**. The left side lists the outputs; the dropdown at the top picks the output group; the right side picks the source for the selected output.
+- **Unlock first:** "Before editing, the unlock icon must be clicked on". It lights green when editing is on (Behringer QSG).
+- **Output groups for recording:**
+  - **The USB group:** slots 1 to 48, to the computer. "Up to 48 channels can be recorded on a computer connected via USB to the rear panel" (Behringer QSG). The manual doesn't quote the group's on-screen name.
+  - **WLIVE REC:** up to 64 channels to the WING-LIVE SD cards.
+  - **RECORDER:** up to 4 tracks to the USB stick.
+- **Sources you can pick per slot:** raw inputs (Local In, Aux In on the full WING only, AES/EBU, AES50 A/B/C, StageConnect, USB Audio, Exp Card, Module), Bus (16 stereo), Main (4 stereo), Matrix (8 stereo), Oscillator, USB Player, User Signal and User Patches.
+
+### To record every input raw
+
+On ROUTING > OUTPUTS, pick the USB group (or WLIVE REC), select slot 1, and pick Local In 1 (or AES50 A 1 for a stage box) on the right. Repeat for each slot. A raw input carries no channel processing (see [tap points](#wing-tap-points)).
+
+### To record processed channels, buses or the main mix
+
+- **A channel with its processing:** make a **User Signal** from the channel, then route the User Signal to a USB, WLIVE REC or RECORDER slot. A User Signal is a copy of one of the 40 input channels, 8 aux channels, 16 buses, 8 matrices or 4 mains, taken from the channel's TAP point or post-fader. The manual gives at least 24 User Signals.
+- **The main mix or a bus:** pick it straight from the Main, Bus or Matrix source groups. Behringer doesn't say whether those are post-fader.
+
+{/* Screenshot: ROUTING > OUTPUTS with the USB group open and Local In 1 picked for slot 1. <Screenshot src="/images/guides/wing-routing-outputs-usb.png" alt="Behringer WING ROUTING > OUTPUTS screen, with the USB output group open and Local In 1 picked as the source for USB slot 1" /> */}
+
+## WING playback for virtual soundcheck
+
+- **Each channel has a MAIN and an ALT input.** Patch the live source to **MAIN** and the playback to **ALT**, per channel, on **ROUTING > CHANNELS**.
+- **Playback sources** (ROUTING > SOURCES): **USB Audio** for up to 48 channels from a computer, **WLIVE PLAY** for up to 64 from the SD cards, or **USB PLAYER** for 4 from a USB stick.
+- **Switch all at once:** **SETUP > AUDIO > INPUT SELECT** toggles all 40 channels and 8 aux between MAIN and ALT.
+- **Automatic:** the WING-LIVE STOP / PLAY / RECORD INPUT settings can switch MAIN and ALT with the transport.
+- **Match the tap (our advice):** record the raw inputs if you plan a virtual soundcheck, so the playback comes back in at the same point as the live source.
+
+## WING tap points
+
+Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). On the WING:
+
+- **Which to pick (our advice):** for a recording you'll remix, or a virtual soundcheck, route the raw inputs (Local In, AES50) to the USB slots. For tracks that sound like the show, make User Signals at POST PROC. Avoid POST FDR for channel tracks: a fader that is down records a quiet or silent track.
+- **Raw inputs on an output slot:** taken after the source's preamp gain. Gain, phantom power and polarity belong to the source (ROUTING > SOURCES), and no channel processing is applied.
+- **The channel TAP point:** set per input channel with the wrench icon on Channel Home. It feeds User Signals and TAP-mode sends. In order: INPUT, FILTER, TAP 3, TAP 4, TAP 5, PRE FDR, POST FDR and POST PROC.
+  - **INPUT:** "immediately after the preamp, before any processing", and before the low-cut filter.
+  - **FILTER:** "after the low-cut and high-cut filters".
+  - **TAP 3, 4 and 5:** between the processing slots (GATE, EQ, COMP, INS1). That order can be rearranged, so what TAP 3 to 5 contain depends on it.
+  - **PRE FDR:** after the 4th processing slot, before the fader.
+  - **POST FDR:** after the fader, before INS2.
+  - **POST PROC:** after INS2, before WIDTH.
+- **User Signals:** each one picks pre-fader (the channel's TAP point) or post-fader. Each is mono, with an L, R or L+R choice; two side by side make a stereo or mid/side pair.
+- **Aux channels and buses:** fixed. "The TAP point on Aux Channels is fixed post insert point and pre-fader"; on buses it is "fixed post insert point 1 and pre-fader".
+- **Gain vs trim:** analog gain is on the source; the channel has a digital **TRIM** ("digital level control up to ±18 dB gain"). The INPUT tap is right after the preamp, so it is before the digital TRIM too (our reading). The manual doesn't place TRIM against the INPUT tap. Set the analog gain for headroom and ride levels with the trim and fader (our advice).
+- **Shared stage box:** to remote-control a preamp, the source must come over AES50 with **ENABLE HA REMOTE** on. Whoever controls the headamp sets the raw record level: a gain change there changes the recording. We found no gain compensation feature for the WING.
+
+## WING on Mac, iPad and iPhone
+
+- **Mac:** one forum user reports it works with no driver; Behringer doesn't say. No Behringer document names macOS for USB audio or calls the WING class compliant. One forum user writes that it "shows up as a class compliant USB audio device on my M4 MacMini". Not tested yet by us.
+- **iPad:** reports differ, and it is not tested yet. One forum user writes: "All my Ipads works perfect with my Wing rack without any software driver." Another tested two 10th-generation iPads and an iPad mini 6 on iOS 18.3 through a port extender, and none worked. Test yours before you promise a recording.
+- **iPhone:** no report from Behringer or users, so the iPhone is not tested yet.
+- **Windows:** install Behringer's ASIO driver.
+- **Linux:** one forum user says a Raspberry Pi 4 was plug and play.
+- **Power:** the front USB-A port "can also charge a portable device such as a phone or tablet" (Behringer QSG), but the audio goes through the rear USB-B port, and an iPhone or iPad has one port. For a long show, use a powered USB-C hub or a camera adapter that passes power through (our advice). The iPad report that failed went through a port extender, so test your hub or adapter with the WING before a show (our advice).
+
+ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer. We haven't tested it with a WING yet; if you try it, we'd like to hear how it goes. There is no Mixer Link for the WING: Mixer Link, which reads channel names and colors, works only on the XR18/MR18 and X32/M32.
+
+<GetTheApp campaign="site-guide-wing" />
+
+<AskUs />
+
+## Sources
+
+Behringer:
+
+- [WING / WING COMPACT / WING RACK User Manual, firmware 3.1](https://cdn-media.empowertribe.com/25951c6f808c0a79abc407c07d5639d1/User-Manual_WING-series_2025-10-20.pdf): USB channels, WING-LIVE, the USB stick recorder, settings, routing, tap points, User Signals, ALT inputs.
+- [WING Quick Start Guide](https://cdn-media.empowertribe.com/c5ff61e785861bc4f4fe7bec6839f7ed/BE_0603-AFC_WING_QSG_Multi-Language.pdf): USB recording, unlocking routing, ejecting the USB disk, charging from the front port.
+- [WING Remote Protocols 3.1](https://cdn-media.empowertribe.com/2106004e217b8eb2639d93672823eef5/WING_Remote-Protocols-3.1-03.pdf): the 44.1 and 48 kHz clock, the USB AUDIO steps, the red OS or DATA tag.
+- [WING product page](https://www.behringer.com/en/products/0603-AEN): 48 x 48 USB, the Windows ASIO driver.
+
+Forums (not Behringer):
+
+- behringer.world, [Is WING USB audio class compliant?](https://behringer.world/viewtopic.php?p=13151): the Mac and Raspberry Pi reports, and the conflicting iPad reports.

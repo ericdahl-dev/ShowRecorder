@@ -20,7 +20,7 @@ const body = (slug: string) => read("app", "guides", "record", slug, "content.md
 const shell = (slug: string) => read("app", "guides", "record", slug, "page.tsx");
 
 // "an X32", "an XR18", but "a Qu": the article before a guide's short name, by how the name is said.
-const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a" };
+const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a", WING: "a" };
 const waysHeading = (short: string) => `Ways to record ${A_SHORT[short] ?? "an"} ${short}`;
 
 // The sections every mixer guide has, in this order. They name the mixer (review batch 1), so a heading quoted out of
@@ -122,8 +122,8 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    // Only the Qu, the Zoom and the DL32R have none; a Mixer Link guide that lost its product page must fail here, not skip.
-    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12", "mackie-dl32r"].includes(guide.slug));
+    // Only the Qu, the Zoom, the DL32R and the WING have none; a Mixer Link guide that lost its product page must fail here, not skip.
+    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12", "mackie-dl32r", "wing"].includes(guide.slug));
     if (guide.productPage === undefined) return;
     expect(mdx).toContain(`](${guide.productPage})`);
     expect(read("app", "mixers", guide.productPage.split("/").pop()!, "content.mdx")).toContain(`](${guide.path})`);
@@ -537,5 +537,81 @@ describe("the Mackie DL32R guide's facts", () => {
     const sources = mdx.slice(mdx.indexOf("## Sources"));
     expect(sources).toMatch(/ambertech\.com\.au/);
     expect(sources).toMatch(/distributor/);
+  });
+});
+
+// Facts: docs/research/mixer-recording/wing.md (#1066). iPad reports conflict and the Mac driverless report is a forum
+// post: the guide says both plainly, and says not tested yet for the iPhone.
+describe("the Behringer WING guide's facts", () => {
+  const mdx = body("wing");
+  const guide = MIXER_GUIDES.find((g) => g.slug === "wing")!;
+
+  it("is in MIXER_GUIDES with its own campaign, and the hub's WING row links it", () => {
+    expect(guide.campaign).toBe("site-guide-wing");
+    expect(MIXER_ROWS.find((r) => /WING/.test(r.name))!.guide).toBe(guide.path);
+  });
+
+  it("gives the USB channel counts, 24-bit, the USB AUDIO setting and the unconfirmed 44.1 kHz", () => {
+    expect(mdx).toMatch(/48 x 48/);
+    expect(mdx).toMatch(/24-bit/);
+    expect(mdx).toMatch(/\*\*SETUP > AUDIO > USB AUDIO\*\*/);
+    expect(mdx).toMatch(/2 x 2, 8 x 8, 16 x 16, 32 x 32 or 48 x 48/);
+    expect(mdx).toMatch(/44\.1 kHz[^.]*not confirmed/);
+  });
+
+  it("records with no computer: WING-LIVE to two SD cards, and a 4-track USB stick that needs HS", () => {
+    expect(mdx).toMatch(/64 channels/);
+    expect(mdx).toMatch(/32-bit/);
+    expect(mdx).toMatch(/LiveSessions/);
+    expect(mdx).toMatch(/FAT32/);
+    expect(mdx).toMatch(/32 kB/);
+    expect(mdx).toMatch(/\*\*USB HOST SPEED\*\*/);
+    expect(mdx).toMatch(/2 tracks at 16-bit/);
+  });
+
+  it("routes per slot on ROUTING > OUTPUTS, with User Signals for processed channels, and gives no default routing", () => {
+    const routing = section(mdx, "WING USB routing", "WING playback for virtual soundcheck");
+    expect(routing).toMatch(/\*\*ROUTING > OUTPUTS\*\*/);
+    expect(routing).toMatch(/no blocks of 8/);
+    expect(routing).toMatch(/WLIVE REC/);
+    expect(routing).toMatch(/RECORDER/);
+    expect(routing).toMatch(/User Signal/);
+    expect(routing).toMatch(/patch every slot/i);
+    expect(routing).not.toMatch(/\+1 AUTO/);
+    expect(routing).not.toMatch(/\b48 User Signals\b/);
+  });
+
+  it("plays back through each channel's ALT input, switched by INPUT SELECT", () => {
+    const play = section(mdx, "WING playback for virtual soundcheck", "WING tap points");
+    expect(play).toMatch(/WLIVE PLAY/);
+    expect(play).toMatch(/USB PLAYER/);
+    expect(play).toMatch(/\*\*ALT\*\*/);
+    expect(play).toMatch(/INPUT SELECT/);
+  });
+
+  it("lists the eight channel TAP points in Behringer's words, and labels the trim reading as ours", () => {
+    const taps = section(mdx, "WING tap points", "WING on Mac, iPad and iPhone");
+    expect(taps).toMatch(/INPUT, FILTER, TAP 3, TAP 4, TAP 5, PRE FDR, POST FDR and POST PROC/);
+    expect(taps).toMatch(/immediately after the preamp, before any processing/);
+    expect(taps).toMatch(/before the digital TRIM[^.]*\(our reading\)/);
+    expect(taps).toMatch(/fixed post insert point and pre-fader/);
+    expect(taps).toMatch(/changes the recording/);
+  });
+
+  it("says the iPad reports conflict, the iPhone is not tested yet, a Mac driverless only per a forum user, and no Mixer Link", () => {
+    const apple = section(mdx, "WING on Mac, iPad and iPhone", "Sources");
+    expect(apple).toMatch(/[Rr]eports differ/);
+    expect(apple).toMatch(/iPhone[^.]*not tested yet/);
+    expect(apple).toMatch(/Behringer doesn't say/);
+    expect(apple).toMatch(/forum/);
+    expect(mdx).toMatch(/no Mixer Link/);
+    expect(mdx).not.toMatch(/unsupported/i);
+    expect(mdx).not.toMatch(/ShowRecorder has recorded[^.]*WING/);
+  });
+
+  it("warns that the rear USB port can turn into a USB disk, and how to get audio back", () => {
+    expect(mdx).toMatch(/WING OS/);
+    expect(mdx).toMatch(/WING DATA/);
+    expect(mdx).toMatch(/[Ee]ject/);
   });
 });
