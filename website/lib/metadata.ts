@@ -23,7 +23,7 @@ export type PageInfo = {
   image?: ShareImage;
 };
 
-export const PAGES = {
+const STATIC_PAGES = {
   home: {
     path: "/",
     title: "Live multitrack recorder for iPhone and iPad - ShowRecorder",
@@ -96,9 +96,11 @@ export const PAGES = {
     description:
       "Help with ShowRecorder: getting started, where your recordings are, channel names from the mixer, and how to report a problem.",
   },
-  // One entry per mixer recording guide, built from MIXER_GUIDES (lib/mixerGuides.ts), so a new guide can't be missed.
-  ...guidePages(),
 } satisfies Record<string, PageInfo>;
+
+// The pages above, plus one entry per mixer recording guide, built from MIXER_GUIDES (lib/mixerGuides.ts) so a new
+// guide can't be missed. A guide page reads its entry by key: pageMetadata(PAGES.guideX32).
+export const PAGES: typeof STATIC_PAGES & Record<string, PageInfo> = { ...STATIC_PAGES, ...guidePages() };
 
 function guidePages(): Record<string, PageInfo> {
   return Object.fromEntries(
