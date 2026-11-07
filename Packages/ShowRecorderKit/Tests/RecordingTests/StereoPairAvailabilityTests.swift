@@ -24,8 +24,8 @@ struct StereoPairAvailabilityTests {
 
     @Test("The App Store (production) build offers it, and so does a Release build whose environment is unknown or not yet answered")
     func appStoreBuild() {
-        #expect(!StereoPairAvailability.isAvailable(isDebugBuild: false, environment: .production))
-        #expect(!StereoPairAvailability.isAvailable(isDebugBuild: false, environment: .unknown))
-        #expect(!StereoPairAvailability.isAvailable(isDebugBuild: false, environment: nil))
+        #expect(StereoPairAvailability.isAvailable(isDebugBuild: false, environment: .production))
+        #expect(StereoPairAvailability.isAvailable(isDebugBuild: false, environment: .unknown))
+        #expect(StereoPairAvailability.isAvailable(isDebugBuild: false, environment: nil))
     }
 }
