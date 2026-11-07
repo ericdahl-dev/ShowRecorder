@@ -562,4 +562,23 @@ struct X32GainTests {
         #expect(first.toGainDb - first.fromGainDb == 3 && first.limitedBy == compressor)
         #expect(second.toGainDb == second.fromGainDb && second.limitedBy == compressor)
     }
+
+    @Test("A cut the fader near its +10 dB top can only partly make up moves the X32 preamp in whole 0.5 dB steps, no further than the fader can follow (#1153)")
+    func limitedCutStaysOnPreampSteps() async throws {
+        var state = Self.kickDesk()
+        state.headampGains[0] = Float(X32Values.headampGain.toFloat(20))   // +20 dB
+        state.channels[0].fader = X32Values.fader.oscFloat(8.7)             // a fader step at about +8.71: room for 1.29 dB
+        let mixer = try await FakeXAirMixer(state)
+        let driver = X32Driver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+        let faderBefore = try #require(try await driver.mixHoldState(ofChannel: 1).mainFaderDb)
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: -6)
+
+        #expect(step.limitedBy == MixHold.Limit(setting: MixHold.Setting(channel: 1, parameter: .mainFader), endDb: 10))
+        #expect(abs(step.toGainDb - step.fromGainDb - -1) < 1e-9, "1.29 dB of room: two whole half-dB steps")
+        let gainAfter = try await driver.gainDb(ofHeadamp: 0)
+        let faderAfter = try #require(try await driver.mixHoldState(ofChannel: 1).mainFaderDb)
+        #expect(abs(gainAfter - 19) < 1e-9)
+        #expect(abs((gainAfter - 20) + (faderAfter - faderBefore)) <= 0.05, "the mix moves no more than half a fader step")
+    }
 }
