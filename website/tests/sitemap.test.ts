@@ -26,6 +26,7 @@ describe("sitemap", () => {
       "https://showrecorder.app/guides/record/xr18",
       "https://showrecorder.app/guides/record/qu",
       "https://showrecorder.app/guides/record/zoom-l12",
+      "https://showrecorder.app/guides/record/mackie-dl32r",
       "https://showrecorder.app/changelog",
       "https://showrecorder.app/support",
       "https://showrecorder.app/privacy",
