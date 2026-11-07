@@ -39,20 +39,26 @@ public final class MixerSession {
     @ObservationIgnored private let store: UserDefaults
     @ObservationIgnored private let network: () -> ScanRange?
     @ObservationIgnored private let scan: @Sendable ([String]) async -> [FoundMixer]
+    @ObservationIgnored private let checksUSBMixer: () -> Bool
 
     /// - Parameters:
     ///   - store: where the Mixer's address is remembered.
     ///   - network: the device's network, to look for a Template's Mixer by name; nil when there's none to scan.
     ///   - scan: asks those addresses who they are (Find Mixers).
+    ///   - checksUSBMixer: whether the linked Mixer is checked as the one plugged in by USB (#1018), read live: the app
+    ///     passes `USBMixerCheckAvailability` (Debug + TestFlight), which lives in Recording, above this module. Off,
+    ///     the Link is as it was before #1018: no scan, the gain control offered at once, and Find Mixers asks nothing.
     public init(
         link: MixerLinkController = MixerLinkController(), store: UserDefaults = .standard,
         network: @escaping () -> ScanRange? = { ScanRange.currentNetwork() },
-        scan: @escaping @Sendable ([String]) async -> [FoundMixer] = { await MixerScanner.scan(hosts: $0) }
+        scan: @escaping @Sendable ([String]) async -> [FoundMixer] = { await MixerScanner.scan(hosts: $0) },
+        checksUSBMixer: @escaping () -> Bool = { false }
     ) {
         self.link = link
         self.store = store
         self.network = network
         self.scan = scan
+        self.checksUSBMixer = checksUSBMixer
         address = store.string(forKey: Self.addressKey) ?? ""
         link.onConnected = { [weak self] identity in
             // A new Link is checked again before anything moves its gain (#1018).

@@ -15,7 +15,7 @@ struct MixerSessionTests {
         let link = MixerLinkController(makeDriver: { _, _ in driver })
         let store = UserDefaults(suiteName: "MixerSessionTests-\(UUID().uuidString)")!
         if let address { store.set(address, forKey: "mixerAddress") }
-        return (MixerSession(link: link, store: store, network: { nil }), link)
+        return (MixerSession(link: link, store: store, network: { nil }, checksUSBMixer: { true }), link)
     }
 
     // MARK: Which Mixer is plugged in by USB (#1018)
@@ -27,14 +27,47 @@ struct MixerSessionTests {
     ]
 
     /// A session whose Find Mixers scan answers `found`, on a Link to `driver`'s Mixer at 10.0.0.20.
-    func session(finding found: [FoundMixer], _ driver: FakeMixerDriver = FakeMixerDriver(gainControl: StubGainControl()))
-        -> (MixerSession, MixerLinkController) {
+    /// With `checking` false, `USBMixerCheckAvailability` is off, as in the App Store build; `scans` counts the scans.
+    func session(finding found: [FoundMixer], _ driver: FakeMixerDriver = FakeMixerDriver(gainControl: StubGainControl()),
+                 checking: Bool = true, scans: Counter = Counter()) -> (MixerSession, MixerLinkController) {
         let link = MixerLinkController(makeDriver: { _, _ in driver })
         let store = UserDefaults(suiteName: "MixerSessionTests-\(UUID().uuidString)")!
         store.set("10.0.0.20", forKey: "mixerAddress")
         let session = MixerSession(link: link, store: store, network: { ScanRange(address: "10.0.0.2", netmask: "255.255.255.0") },
-                                   scan: { _ in found })
+                                   scan: { _ in scans.increment(); return found }, checksUSBMixer: { checking })
         return (session, link)
+    }
+
+    // MARK: With the check off (USBMixerCheckAvailability, the App Store build), the Link is as it was before #1018.
+
+    @Test("With the check off, two Mixers of the Ready family on the network still get the gain control at once, as before #1018")
+    func twoOfTheFamilyOfferGainWhenCheckOff() async {
+        let (session, _) = session(finding: Self.twoXR18s, checking: false)
+
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
+
+        #expect(session.gainControl != nil)
+        #expect(session.usbMixerUnsure == nil, "so auto-gain gives no reason about other Mixers")
+    }
+
+    @Test("With the check off, a Link asks the network nothing")
+    func noScanWhenCheckOff() async {
+        let scans = Counter()
+        let (session, link) = session(finding: Self.twoXR18s, checking: false, scans: scans)
+
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
+        await session.connect()
+
+        #expect(link.identity != nil)
+        #expect(scans.value == 0)
+    }
+
+    @Test("With the check off, Find Mixers doesn't ask for the USB Mixer, even with two of the Ready family")
+    func findMixersAsksNothingWhenCheckOff() async {
+        let (session, _) = session(finding: Self.twoXR18s, checking: false)
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
+
+        #expect(!session.asksForUSBMixer(among: Self.twoXR18s))
     }
 
     @Test("With two Mixers of the Ready family on the network and none picked as the USB one, the gain control isn't offered, so auto-gain can't move either one's preamps (#1018)")
@@ -97,7 +130,7 @@ struct MixerSessionTests {
         let link = MixerLinkController(makeDriver: { endpoint, _ in drivers[endpoint.host]! })
         let store = UserDefaults(suiteName: "MixerSessionTests-\(UUID().uuidString)")!
         let session = MixerSession(link: link, store: store, network: { ScanRange(address: "10.0.0.2", netmask: "255.255.255.0") },
-                                   scan: { _ in Self.twoXR18s })
+                                   scan: { _ in Self.twoXR18s }, checksUSBMixer: { true })
         await session.ready(interfaceName: "XR18", usbChannelCount: 18)
         await session.connect(toUSBMixer: Self.twoXR18s[0])
 
@@ -123,7 +156,7 @@ struct MixerSessionTests {
                                        asked.increment()
                                        for await _ in gate.stream { break }
                                        return [Self.twoXR18s[0]]
-                                   })
+                                   }, checksUSBMixer: { true })
 
         let gettingReady = Task { await session.ready(interfaceName: "XR18", usbChannelCount: 18) }
         let scanning = await eventually { asked.value == 1 }
@@ -171,7 +204,7 @@ struct MixerSessionTests {
         let link = MixerLinkController(makeDriver: { endpoint, _ in drivers[endpoint.host]! })
         let store = UserDefaults(suiteName: "MixerSessionTests-\(UUID().uuidString)")!
         let session = MixerSession(link: link, store: store, network: { ScanRange(address: "10.0.0.2", netmask: "255.255.255.0") },
-                                   scan: { _ in Self.twoXR18s })
+                                   scan: { _ in Self.twoXR18s }, checksUSBMixer: { true })
         await session.ready(interfaceName: "XR18", usbChannelCount: 18)
 
         await session.choose(Self.twoXR18s[1], among: [Self.twoXR18s[1]])

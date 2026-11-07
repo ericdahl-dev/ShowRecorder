@@ -1161,7 +1161,8 @@ final class RecordScreenModel {
         // The screenshot build Gets ready only demo inputs, never a microphone or USB interface (#374).
         let inputs: any InputDeviceSource = DemoOnlyInputSource.isScreenshotBuild() ? DemoOnlyInputSource(AppInputDevices()) : AppInputDevices()
         sequencer = TakeSequencer(recorder: recorder, devices: inputs, capsAt48k: { pro.license().capsAt48k })
-        mixer = MixerSession()
+        // Checking the linked Mixer is the USB one (#1018): Debug and TestFlight only.
+        mixer = MixerSession(checksUSBMixer: { USBMixerCheckAvailability.isAvailableInThisBuild })
         // Failures the recorder catches on purpose (a Drive write, Repair) go to crash reports (ADR 0007, #1026).
         recorder.reportFailure = { AppTelemetry.shared.report($0) }
         // Show created and deleted (ADR 0007, #1026): the recorder decides when, the app only sends.
