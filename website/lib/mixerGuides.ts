@@ -311,7 +311,7 @@ export const X32_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Are the card's Local inputs pre or post fader?",
-    a: "Before everything in the channel. The Local and AES50 blocks on card out are the raw inputs, after the preamp and converter, so the channel's EQ, dynamics, mute and fader don't change them. Preamp gain does.",
+    a: "Before everything in the channel. The Local and AES50 blocks on card out are the raw inputs, after the preamp and converter, so the channel's EQ, dynamics and fader don't change them. Preamp gain does.",
   },
 ];
 
