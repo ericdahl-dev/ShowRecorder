@@ -1,0 +1,198 @@
+import { AskUs, Breadcrumbs, GetTheApp, LastChecked } from "@/components/GuideParts";
+import { guideTrail } from "@/lib/mixerGuides";
+
+<Breadcrumbs trail={guideTrail("Qu", "/guides/record/qu")} />
+
+# How to multitrack record an Allen & Heath Qu
+
+<LastChecked path="/guides/record/qu" />
+
+**Short answer.** Allen & Heath staff say yes: iOS sees a Qu as a class-compliant multichannel device, so a Qu-16 can multitrack record to an iPad over USB with a multichannel recording app. We haven't tested it yet. The Qu-16 sends 24 channels at 48 kHz. The Qu-24, Qu-32, Qu-SB and Qu-Pac send 32 at 48 kHz, and the new Qu-5, Qu-6, Qu-7 and Qu-3 send 32 at 48 or 96 kHz once **USB Stream Mode** is set to Multitrack. Allen & Heath doesn't name the iPad or iPhone.
+
+**Quick start**
+
+1. **Know which Qu you have.** The Qu-5, Qu-6, Qu-7 and Qu-3 (the new Qu) have a USB-C port. The Qu-16, Qu-24, Qu-32, Qu-SB and Qu-Pac (Qu Classic) have a USB-B port. ([Ways to record](#ways-to-record-a-qu))
+2. **New Qu: set USB Stream Mode to Multitrack** in **SETUP > Audio > Sync & USB**, and pick 48 or 96 kHz there. A Qu Classic runs at 48 kHz, and there is no stream mode to set. ([Recording settings](#qu-recording-settings))
+3. **Patch the USB outputs.** New Qu: **I/O > Outputs > USB**. Qu Classic: **Setup > I/O Patch > USB Audio**. ([USB routing](#qu-usb-routing))
+4. **Plug the Qu into the computer, iPad or iPhone** and open a multichannel recording app. For a long show on a phone or tablet, add a powered USB-C hub. ([Mac, iPad and iPhone](#qu-on-mac-ipad-and-iphone))
+5. **Record a 30 s test and play it back** before the show.
+6. **Seeing only 2 tracks?** ([Only 2 channels?](#only-2-channels-set-usb-stream-mode-to-multitrack))
+
+The Qu comes in two generations, and they record differently:
+
+- **The new Qu:** Qu-5, Qu-6 and Qu-7, the Qu-3, and the D models. It runs at 96 kHz, has a USB-C audio interface and records multitrack to an SD card.
+- **Qu Classic:** Qu-16, Qu-24, Qu-32, Qu-SB and Qu-Pac, the original 48 kHz models. It has a USB-B audio interface and records multitrack to a USB drive (Qu-Drive).
+
+Each section below covers both. Facts come from Allen & Heath's support articles and product pages unless a line says otherwise. The [sources](#sources) are at the end. Other mixers are in the [mixer recording guides](/guides/record), and the words used here are in its [glossary](/guides/record#glossary).
+
+## Ways to record a Qu
+
+### To a computer over USB
+
+Plug the Qu's USB audio port into the computer and record in any DAW.
+
+**New Qu (Qu-5, Qu-6, Qu-7, Qu-3):**
+
+- **Channels:** 32 in and 32 out over USB-C, at 48 or 96 kHz. Allen & Heath: "Multitrack mode provides all 32 input and 32 output sockets."
+- **Bit depth:** Allen & Heath lists 16 or 24-bit. Which one your app gets is not confirmed.
+- **Connector:** USB-C, USB 2.0, class compliant for audio and MIDI. The separate USB-A port is for stereo recording and data.
+- **Mac:** no driver needed: "Core Audio compliant so no driver is required."
+- **Windows:** install Allen & Heath's ASIO/WDM driver. All 32 channels need ASIO.
+- **USB 3.0 ports:** Allen & Heath warns that some USB 3.0 (xHCI) ports fail with USB audio. Try another port if the audio drops out.
+
+**Qu Classic (Qu-16, Qu-24, Qu-32, Qu-SB, Qu-Pac):**
+
+- **Channels to the computer:** the Qu-16 records "up to 24 tracks to your Mac or PC". The Qu-24, Qu-32 and Qu-Pac send up to 32, and the Qu-SB and Qu-Pac guides list "32 in, 32 out USB streaming".
+- **Sample rate:** 48 kHz. The USB bit depth is not confirmed.
+- **Connector:** USB-B, high speed USB 2.0.
+- **Mac:** class compliant, no driver.
+- **Windows:** install Allen & Heath's driver.
+
+### With no computer
+
+**New Qu: multitrack to an SD card.**
+
+- Up to 16 channels at 96 kHz, or 32 at 48 kHz, as one mono 24-bit WAV file per channel.
+- Use an SDHC card up to 32 GB, UHS-I, class 10.
+- Files go in `AH_QU\USBMTK\` in a folder per recording, named after the channel, for example `03SnrTop.WAV`.
+- A file stops at 4 GB: about 4 hours at 96 kHz, or 8 hours at 48 kHz.
+- Only patched USB outputs are recorded. At 96 kHz, only the first 16 patched ones.
+- The USB-A port records stereo instead: a 24-bit WAV of USB outputs 1 and 2, in `AH_QU\USBREC`, up to 2 hours at 96 kHz or 4 hours at 48 kHz, to a FAT32 stick. USB-A and SD can't record or play at the same time.
+
+**Qu Classic: Qu-Drive to a USB drive.**
+
+- 18 tracks, 48 kHz 24-bit WAV: 16 mono tracks plus a stereo pair you choose. It can also record stereo.
+- The multitrack takes USB sends 1-18. The stereo recording takes sends 17 and 18.
+- Use a FAT32 drive from 2 GB to 2 TB, and format it on the Qu. Allen & Heath says most USB sticks are too slow.
+- A file stops at 4 GB, about 8 hours per track.
+- Qu-Drive can record while the Qu also streams multitrack to a computer over USB-B.
+
+### To an iPhone, iPad or Mac with an app
+
+A Mac works like any computer above. For an iPad or iPhone, Allen & Heath says the new Qu can work but isn't officially supported, and its staff say iOS sees the Qu Classic as class compliant. Neither names the iPad or iPhone, and we haven't tested one yet; see [Mac, iPad and iPhone](#qu-on-mac-ipad-and-iphone) below.
+
+## Qu recording settings
+
+**New Qu,** in **SETUP > Audio > Sync & USB**:
+
+- **USB Stream Mode:** Stereo or Multitrack. Stereo sends only USB 1 and 2, "for compatibility with tablets and phones". Multitrack sends all 32 in and 32 out. Pick Multitrack to record every channel.
+- **USB Sample Rate:** 96 or 48 kHz. One setting covers USB-C, the USB-A stick and the SD card. The Qu always runs at 96 kHz inside; at 48 kHz it converts the sample rate.
+- **Audio Clock Source:** Internal or SLink, plus Dante on the D models.
+- **Bit depth:** 16 or 24-bit over USB-C, per the spec list. Whether you can set it on the mixer is not confirmed. SD and USB-A recordings are 24-bit.
+- **File format:** SD and USB-A recordings are WAV. Over USB, your recording app sets the format.
+- **Formatting the card or stick:** **UTILITY > USB Utility**, Status and Format. The recorder screens are under **UTILITIES > Qu Drive**, Stereo and Multitrack.
+- **Playback:** only recordings made at the current sample rate play back.
+
+{/* Screenshot: SETUP > Audio > Sync & USB with USB Stream Mode on Multitrack. <Screenshot src="/images/guides/qu-sync-usb.png" alt="New Qu SETUP, Audio, Sync and USB screen with USB Stream Mode set to Multitrack and the USB Sample Rate at 48 kHz" /> */}
+
+**Qu Classic:**
+
+- **Sample rate:** fixed at 48 kHz. Clock source options are not confirmed.
+- **What USB sends from each channel:** **Setup > I/O Patch > USB Audio**. Switch between **Insert Send** and **Direct Outs**, then press **Apply** (see [Tap points](#qu-tap-points)).
+- **Global USB Source:** Qu-Drive or USB B Streaming. It picks where the USB returns come from when channels play back.
+
+### Only 2 channels? Set USB Stream Mode to Multitrack
+
+- **New Qu:** with **USB Stream Mode** on Stereo, the Qu sends only USB 1 and 2, so an iPad or iPhone sees 2 channels. Set it to Multitrack in **SETUP > Audio > Sync & USB**, then check the recorder again.
+- **Qu Classic:** there is no stream mode. Allen & Heath staff say a stereo app may see only two channels, and on iOS often uses just the first two. Use a multichannel recording app.
+
+## Qu USB routing
+
+### New Qu: I/O > Outputs > USB
+
+Allen & Heath: "There are 32 USB output sockets available to patch to. These feed the USB-C connection to a computer or device, as well as the USB-A and SD Card for Qu Drive recording."
+
+1. Go to **I/O > Outputs > USB**.
+2. Pick a USB output socket and choose its source from the pop-up: any core output, including the input direct outs, the mix outputs and the FX returns. One source can feed several sockets.
+3. To patch many at once, open **Quick Patch** (the three-line menu, top right). **+1** patches the next socket with the next source in order.
+
+{/* Screenshot: I/O > Outputs > USB with input direct outs on USB 3-32. <Screenshot src="/images/guides/qu-io-outputs-usb.png" alt="New Qu I/O, Outputs, USB screen with Main LR on USB 1 and 2 and input direct outs on the sockets after them" /> */}
+
+**Out of the box,** USB outputs 1 and 2 carry the Main LR mix. What sockets 3-32 carry out of the box is not confirmed, so patch them yourself and listen to a short test.
+
+Which sockets each recorder uses:
+
+- **USB-C, Stereo mode:** 1-2.
+- **USB-C, Multitrack mode:** 1-32.
+- **USB-A stick:** 1-2.
+- **SD card at 48 kHz:** up to 32, patched sockets only.
+- **SD card at 96 kHz:** up to 16, the first 16 patched.
+
+### Qu Classic: Setup > I/O Patch > USB Audio
+
+1. Go to **Setup > I/O Patch > USB Audio** (also in the Qu-Pad app).
+2. Highlight a USB send and turn the rotary to pick its source. **Fn (+1)** moves on to the next channel.
+3. Press **Apply**.
+
+Any Qu output can feed a send: an input channel (at its Insert Send or Direct Out), a mix, the Main LR and so on. The factory patch suits "the most common configuration", for example the Main LR on sends 17 and 18 for a Qu-Drive stereo recording.
+
+**USB returns are fixed:** each return feeds one input channel, 1-to-1, and can't be re-patched. To play tracks back in a different order, reorder them in your app.
+
+## Qu playback for virtual soundcheck
+
+**New Qu:**
+
+- Set a channel's source to a USB socket in **I/O > Inputs**, or in **PROCESSING > Source**.
+- The **Input Channel Patch Library** (the **LIBRARY** key on **I/O > Inputs**) stores and recalls the whole input patch, so you can keep one patch for the live inputs and one for USB playback.
+- The dedicated stereo USB channel always takes USB inputs 1 and 2.
+- SD multitrack playback comes back on the same USB socket numbers it was recorded from.
+
+**Qu Classic:**
+
+- Set each channel's source to USB, and set the **Global USB Source** to USB B Streaming (or to Qu-Drive to play from the drive).
+- Returns land 1-to-1. On the Qu-32, Qu-SB and Qu-Pac, all 32 returns go to the 32 mono channels. On the Qu-24, the stereo channels take USB 25-30. On the Qu-16, USB 17 and 18 feed ST1.
+- Qu-Drive plays back 18 mono 48 kHz 24-bit WAV files.
+- What runs at once: Qu-Drive playback while recording multitrack to the computer works, and so does computer playback while Qu-Drive records. Qu-Drive playback and computer playback together don't.
+
+## Qu tap points
+
+Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). On the Qu:
+
+- **Which to pick on a Qu Classic:** leave each channel on **Insert Send**, the factory default. It is taken directly after the preamp, with no channel processing. Allen & Heath: "Live show multitrack recording typically uses the channel Insert Sends so that live mixing does not affect the recording."
+- **Which to pick on a new Qu:** patch the input direct outs to USB, then set **ROUTING > Direct Out** (on an input channel) **> Global Direct Out Settings > Source** to the point you want. Allen & Heath: "each source point includes all preceding processing", so an earlier point keeps more of the channel's processing out of the recording. Its article doesn't list the point names, so check what your Qu offers.
+- **New Qu direct out switches:** each direct out has its own Level. Global switches set whether the direct outs follow the mute, the fader, DCA mutes, DCA faders and mute groups. For a multitrack you'll remix, leave them off so mutes and fader moves stay out of the recording (our reading of the switch names).
+- **No other new Qu tap is confirmed:** we found no tie line or insert send tap for USB in Allen & Heath's new Qu articles.
+- **Qu Classic Direct Outs:** switching USB to **Direct Outs** uses one global source point for every channel: Post Preamp, Post Insert, Post EQ, Post Comp or Post Delay, with options to follow the fader and mute, and a Direct Out Trim per channel (**Routing**, then **Sel** on an input).
+- **Gain and trim (new Qu):** Gain is the analog preamp. Trim is digital, plus or minus 24 dB, in **PROCESSING > Input**. Preamp controls belong to the socket, so a socket patched to two channels shares one gain.
+- **HPF:** Allen & Heath's list for a different setting (the PAFL source point) shows the trim comes before the HPF in a new Qu channel. Where the HPF sits relative to each direct out point is not confirmed.
+- **Gain changes reach the recording:** the Insert Send and post-preamp taps follow any change to the analog gain (our reading of "directly after the preamp"). Whether the Qu compensates for a shared stage box's gain is not confirmed for either generation.
+
+## Qu on Mac, iPad and iPhone
+
+- **Mac:** works with no driver on both generations.
+- **iPad and iPhone, new Qu:** Allen & Heath: "It is possible to connect the Qu as an Audio/MIDI interface to any device which supports Class Compliant devices, including tablets and phones, though it is not possible for all devices to be tested and officially supported." Set **USB Stream Mode** to Multitrack, or the device sees only 2 channels.
+- **iPad and iPhone, Qu Classic:** an Allen & Heath staff member on its forum: "on macOS and iOS the Qu is class compliant so with multichannel apps it will be seen as a multichannel device, but with stereo apps, you may only see two channels". Use a multichannel recording app.
+- **Not named, not tested:** neither source names the iPad or the iPhone, and we haven't tested either with a Qu yet.
+- **Cable:** the new Qu has a USB-C port. The Qu Classic has a USB-B port. We'd use a USB-C to USB-B cable from a USB-C iPad or iPhone (our advice, not Allen & Heath's).
+- **Power:** Allen & Heath doesn't say whether a Qu charges a phone or tablet. For a long show, use a powered USB-C hub, or a camera adapter that passes power through.
+
+ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer, so it should record a Qu over USB, but nobody has tested it on a Qu yet. It has no Mixer Link for Allen & Heath: Mixer Link (channel names and colors) works only on the XR18/MR18 and X32/M32. If you record a Qu with it, we'd like to hear how it goes.
+
+<GetTheApp campaign="site-guide-qu" />
+
+<AskUs />
+
+## Sources
+
+Allen & Heath, new Qu:
+
+- [Qu: Qu Drive and USB audio](https://support.allen-heath.com/hc/en-gb/articles/48350897327889-Qu-Qu-Drive-and-USB-audio): USB-C channels, stream mode, SD and USB-A recording, drivers, iPad and iPhone.
+- [Qu: Patching](https://support.allen-heath.com/hc/en-gb/articles/48350711389457-Qu-Patching): USB output sockets, Quick Patch, playback patching.
+- [Qu mixer setup](https://support.allen-heath.com/hc/en-gb/articles/48350696072593-Qu-Mixer-Setup): Sync & USB settings, the PAFL source point list.
+- [Qu: Routing](https://support.allen-heath.com/hc/en-gb/articles/48350799066257-Qu-Routing): direct out settings.
+- [Qu: Processing](https://support.allen-heath.com/hc/en-gb/articles/48350755314705-Qu-Processing): gain and trim.
+- [Qu: Connections](https://support.allen-heath.com/hc/en-gb/articles/48348179394705-Qu-Connections): the USB-C port, the SD card.
+- [Qu-5/6/7 Getting Started Guide](https://support.allen-heath.com/hc/en-gb/articles/39796618451729-Qu-5-6-7-Getting-Started-Guide) and [Qu-3 Getting Started Guide](https://support.allen-heath.com/hc/en-gb/articles/52578169245073-Qu-3-Getting-Started-Guide): the spec lists.
+- [Qu-5 product page](https://www.allen-heath.com/hardware/qu/qu-5/) and [Qu-6 product page](https://www.allen-heath.com/hardware/qu/qu-6-qu-6d/).
+
+Allen & Heath, Qu Classic:
+
+- [Qu Classic: Qu-Drive and USB Audio](https://support.allen-heath.com/hc/en-gb/articles/4402943975569-Qu-Classic-Qu-Drive-USB-Audio): Insert Send and Direct Outs.
+- [Qu Classic: route audio to and from a DAW](https://support.allen-heath.com/hc/en-gb/articles/4403019846033-Qu-Classic-How-do-I-route-audio-to-and-from-my-Qu-mixer-and-a-DAW): USB patching and returns.
+- [Qu Classic: Qu-Drive and USB devices](https://support.allen-heath.com/hc/en-gb/articles/4402944132753-Qu-Classic-Understanding-Qu-Drive-and-USB-devices): Qu-Drive formats and what runs at once.
+- [Qu-SB Getting Started Guide](https://support.allen-heath.com/hc/en-gb/articles/41599046080913-Qu-SB-Getting-Started-Guide) and [Qu-Pac Getting Started Guide](https://support.allen-heath.com/hc/en-gb/articles/41402982389777-Qu-Pac-Getting-Started-Guide).
+- [Qu Classic product pages](https://www.allen-heath.com/hardware/qu/qu-classic/), including the [Qu-16](https://www.allen-heath.com/hardware/qu/qu-classic/qu-16/) and the [Qu-SB](https://www.allen-heath.com/hardware/qu/qu-classic/qu-sb/).
+
+Allen & Heath staff on its forum:
+
+- [Qu USB channel I/O clarification](https://forums.allen-heath.com/t/qu-usb-channel-i-o-clarification/12192), post 4 (2022): class compliant on macOS and iOS.
