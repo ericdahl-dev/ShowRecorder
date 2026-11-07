@@ -19,36 +19,55 @@ import { guideTrail } from "@/lib/mixerGuides";
 6. **Record a 30 s test and play it back** before the show.
 7. **Seeing only 2 tracks?** Set Setup > Audio/MIDI to 18 x 18. ([Only 2 channels?](#only-2-channels-set-usb-to-18-x-18))
 
-The Behringer XR18 and X18 share one manual and one spec table, so this guide covers both. The Midas MR18 is Midas's version of the XR18, the same hardware. Midas's own MR18 manual confirms 18 x 18 USB, type B, and 44.1 or 48 kHz, and lists the same supported systems as Behringer's.
+**Which mixers this covers.** The Behringer XR18 and X18 share one manual and one spec table, so this guide covers both. The Midas MR18 is Midas's version of the XR18: the same hardware. Midas's own MR18 manual confirms 18 x 18 USB, type B, and 44.1 or 48 kHz. It also lists the same supported systems as Behringer's.
 
-The smaller Behringer XR12 and XR16 and the Midas MR12 look similar but have no USB audio interface, so they can't multitrack over USB. They are in the [mixer recording guides](/guides/record) with every other mixer, and the words used here are in its [glossary](/guides/record#glossary). Facts come from Behringer's documents unless a line says otherwise. The [sources](#sources) are at the end.
+The smaller Behringer XR12 and XR16 and the Midas MR12 look similar, but they have no USB audio interface. So they can't make a multitrack recording (one track per channel) over USB. Every other mixer is in the [mixer recording guides](/guides/record). Words you may not know are in the [glossary](/guides/record#glossary). Facts come from Behringer's documents unless a line says otherwise. The [sources](#sources) are at the end.
 
 ## Ways to record an XR18
 
 ### To a computer over USB
 
-Plug the mixer's USB port into the computer and record in any DAW.
+Plug the mixer's USB port into the computer. Then record in any DAW (a recording app for computers, such as Reaper or Logic).
 
-- **Channels:** 18 in and 18 out (Behringer manual). "Up to 18 audio channels can be simultaneously recorded, and 18 channels are available for playback." A 2 x 2 mode sends only 2 (see [Recording settings](#xr18-recording-settings)).
-- **Sample rate:** 44.1 or 48 kHz, 48 kHz by default (Behringer manual).
-- **Bit depth:** Behringer doesn't state the USB bit depth. The converters are 24-bit.
+- **Channels:** 18 in and 18 out (Behringer manual). In Behringer's words: "Up to 18 audio channels can be simultaneously recorded, and 18 channels are available for playback."
+- **2 x 2 mode:** a smaller mode sends only 2 channels. See [Recording settings](#xr18-recording-settings).
+- **Sample rate:** 44.1 or 48 kHz. It is 48 kHz out of the box (Behringer manual).
+- **Bit depth:** Behringer doesn't state it for USB. The converters are 24-bit.
 - **Connector:** USB 2.0, type B. The same cable also carries 16 x 16 MIDI.
-- **Mac:** no driver needed (Behringer manual: CoreAudio; Mac OS X 10.6.8 or higher). Linux works through ALSA or Jack.
+- **Mac:** no driver needed. The manual says CoreAudio (Apple's built-in audio system), Mac OS X 10.6.8 or higher.
+- **Linux:** works through ALSA or Jack.
 - **Windows:** install Behringer's ASIO driver from behringer.com.
 
 ### With no computer
 
-The XR18 can't record by itself. It has no USB Type-A port for a stick or drive; its only USB port is the type-B audio port. To multitrack with no laptop, plug it into something that records over USB, such as an iPad or an iPhone.
+The XR18 can't record by itself.
+
+- It has no USB Type-A port for a stick or drive.
+- Its only USB port is the type-B audio port.
+- To multitrack with no laptop, plug it into something that records over USB, such as an iPad or an iPhone.
 
 ### To an iPhone, iPad or Mac with an app
 
-A Mac works like any computer above. Behringer lists the iPad, and ShowRecorder has recorded all 18 channels on an iPhone too; see [Mac, iPad and iPhone](#xr18-on-mac-ipad-and-iphone) below.
+- A Mac works like any computer above.
+- Behringer lists the iPad.
+- ShowRecorder has recorded all 18 channels on an iPhone too.
+
+The details are in [Mac, iPad and iPhone](#xr18-on-mac-ipad-and-iphone) below.
 
 ## XR18 recording settings
 
-- **Sample rate:** 44.1 or 48 kHz, in **Setup**, on the **Audio/MIDI** tab of the X AIR Edit or X AIR app. It is 48 kHz by default (Behringer manual). Mute the main LR fader before you change it, because pops can occur.
-- **Clock:** the spec table lists no word clock input, so the clock is internal (our reading).
-- **Channel count:** 18 x 18 or 2 x 2, on the same **Audio/MIDI** tab. Behringer offers 2 x 2 for overdubs and simple tracking.
+You set these in the X AIR Edit or X AIR app.
+
+1. Open **Setup**.
+2. Go to the **Audio/MIDI** tab.
+3. Set the USB interface to **18 x 18**. This sends every channel.
+4. Pick the sample rate: 44.1 or 48 kHz. First mute the main LR fader (the main mix to the speakers), because changing the rate can make pops.
+
+More about each setting:
+
+- **Channel count:** 18 x 18 or 2 x 2. Behringer offers 2 x 2 for overdubs and simple tracking.
+- **Sample rate:** 44.1 or 48 kHz. It is 48 kHz by default (Behringer manual).
+- **Clock:** the spec table lists no word clock input (a socket to sync to outside gear), so the clock is internal (our reading).
 - **Bit depth:** not selectable, and not stated for USB.
 - **File format:** set by the app that records. The mixer is only the interface.
 
@@ -56,56 +75,82 @@ A Mac works like any computer above. Behringer lists the iPad, and ShowRecorder 
 
 ### Only 2 channels? Set USB to 18 x 18
 
-A mixer left at 2 x 2 sends only 2 channels to the recorder. Set the USB interface to 18 x 18 on **Setup > Audio/MIDI** for a multitrack, then check the recorder again.
+A mixer left at 2 x 2 sends only 2 channels to the recorder.
+
+1. Open **Setup > Audio/MIDI**.
+2. Set the USB interface to **18 x 18**.
+3. Check the recorder again. It should now see 18 channels.
 
 ## XR18 USB routing
 
-**Recording every channel?** You rarely need to change much here, but Behringer doesn't document what each USB send carries out of the box. Check once that each send has the channel you want at the Input tap, then record a short test.
+**Recording every channel?** You rarely need to change much here. But Behringer doesn't document what each USB send carries out of the box. So check once:
 
-The XR18 lets you choose the source and the tap point of each USB send, one slot at a time.
+1. Each USB send has the channel you want.
+2. Each send's tap is Input.
+3. Record a short test and listen.
 
-1. Open **Routing**: the up and down arrow icon at the top of the Main View screen.
-2. Go to the **Inputs/USB** grid. Tap an empty box to move the orange dots and change the source for input channels, USB channels and P16 (Behringer's personal monitor system) outputs.
-3. Or pick the USB sends from the menu under the folder icon.
-4. To undo your changes, press the revert button.
+A USB send is one of the 18 tracks the mixer sends to your recorder. The XR18 lets you choose two things for each one: its source (which channel) and its tap point (where in the channel the sound is taken).
 
-The **Routing – Outputs** page sets the sources for the Main LR, Phones, Aux and P16 outputs.
+**To change the sources:**
 
-On the **USB Sends** page of Routing, each USB Send 1-18 has its own **Signal Source** (for example Ch 1) and its own **Signal Tap** (see [Tap points](#xr18-tap-points)). You can, for example, record one channel at two taps.
+1. Open **Routing**. It is the up and down arrow icon at the top of the Main View screen.
+2. Go to the **Inputs/USB** grid.
+3. Tap an empty box to move the orange dots. This changes the source for input channels, USB channels and P16 (Behringer's personal monitor system) outputs.
+4. Or pick the USB sends from the menu under the folder icon.
+5. To undo your changes, press the revert button.
+
+**Other pages in Routing:**
+
+- **Routing – Outputs** sets the sources for the Main LR, Phones, Aux and P16 outputs.
+- **USB Sends** gives each USB Send 1-18 its own **Signal Source** (for example Ch 1) and its own **Signal Tap** (see [Tap points](#xr18-tap-points)). So you can, for example, record one channel at two taps.
 
 {/* Screenshot: Routing > USB Sends with each send's Signal Source and Signal Tap. <Screenshot src="/images/guides/xr18-usb-sends.png" alt="X AIR Routing, USB Sends page, with Signal Source Ch 1 and Signal Tap Input on USB Send 1" /> */}
 
-**Out of the box,** the analog inputs and USB returns go 1:1 to the channel with the same number. Behringer doesn't spell out the default USB send map, so check the grid before a show and listen to a short test.
+**Out of the box,** the analog inputs and the USB returns (sound coming back from the recorder) go 1:1 to the channel with the same number. Behringer doesn't spell out the default USB send map. So check the grid before a show and listen to a short test.
 
-**Main mix and buses to USB:** Behringer's block diagram feeds the six mix buses (MIX 1-6 OUT), the main mix (MAIN LR OUT) and a pre-EQ main mix (MAIN LR PRE EQ OUT) into the routing patch, so they can be patched like the channels. The manual doesn't list exactly which sources each USB send offers, so check what your app shows.
+**Main mix and buses to USB:** Behringer's block diagram feeds these into the routing patch, so they can be patched like the channels:
+
+- the six mix buses (MIX 1-6 OUT)
+- the main mix (MAIN LR OUT)
+- a main mix taken before the EQ (MAIN LR PRE EQ OUT)
+
+The manual doesn't list exactly which sources each USB send offers, so check what your app shows.
 
 ## XR18 playback for virtual soundcheck
 
-- In X AIR Edit, click a channel's **USB** button to feed it from the USB return instead of its analog input.
-- In the app, use the channel's **Mic/USB** switch.
-- The analog Mic Gain and the digital USB Trim are set separately, but a channel uses only one source at a time.
-- The monitor source defaults to the main LR (post fader). You can also pick a bus, an aux or USB 17/18.
+Virtual soundcheck means playing a recording back through the mixer's channels, so you can set the mix with no band on stage.
+
+- In X AIR Edit, click a channel's **USB** button. The channel now plays the USB return instead of its analog input.
+- In the app, use the channel's **Mic/USB** switch instead.
+
+Good to know:
+
+- The analog Mic Gain and the digital USB Trim are set separately.
+- A channel uses only one source at a time.
+- The monitor source is the main LR (post fader) out of the box. You can also pick a bus, an aux or USB 17/18.
 
 ## XR18 tap points
 
-Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). On the XR18:
+The tap point is where in the channel the recording is taken: the raw input, or later, after the EQ or the fader. Which one to pick, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). On the XR18:
 
-- **Which to pick:** For a service or gig recording you'll remix: **Input**. Avoid +M and Post Fader. A tap marked "+M" goes silent when the channel is muted; the same tap without "+M" keeps recording through a mute. Post Fader follows every fader move, and a fader that is down records silence. The [tap-point guide](/guides/record/pre-or-post-fader) has the pros and cons of each.
-- **A tap per USB send.** Each USB Send has its own **Signal Tap**. Seen on a real XR18 on 2026-11-06 (the firmware version wasn't noted), the choices, in the order the app shows them, are: **Analog, Analog +M, Input, Input +M, Pre EQ, Pre EQ +M, Post EQ, Post EQ +M, Pre Fader, Pre Fader +M, Post Fader**.
-- **What Behringer's manual shows:** the V1.0 manual doesn't describe the per-send tap. Its block diagram shows each input channel feeding the routing patch at **pre low cut** and **post fader** only, so the longer list probably came with later firmware. Behringer doesn't say what each tap name covers, and the factory tap for each send isn't documented, so check every send before a show.
-- **Not USB taps:** the diagram's "Input, Pre INS, Pre EQ, Pre Fader, Post Fader" list belongs to the aux buses and the main mix, and its "Pre HP" to "Post Pan" list to the channel's aux and effects sends.
-- **Gain:** the analog preamp gain (-12 to +60 dB) and the +48 V phantom power, switchable per input, come before every tap. The digital USB Trim affects only the USB return into a channel, not what you record.
-- **Who can change your level:** the XR18 has no shared stage box, but anyone in the app who changes a channel's gain changes the recorded level.
+- **Which to pick:** For a service or gig recording you'll remix: **Input**. Avoid +M and Post Fader. A tap marked "+M" goes silent when the channel is muted. The same tap without "+M" keeps recording through a mute. Post Fader follows every fader move, and a fader that is down records silence. The [tap-point guide](/guides/record/pre-or-post-fader) has the pros and cons of each.
+- **Where to set it:** each USB Send has its own **Signal Tap**.
+- **The choices:** we saw these on a real XR18 on 2026-11-06 (the firmware version wasn't noted). Here they are in the order the app shows them: **Analog, Analog +M, Input, Input +M, Pre EQ, Pre EQ +M, Post EQ, Post EQ +M, Pre Fader, Pre Fader +M, Post Fader**.
+- **What Behringer's manual shows:** the V1.0 manual doesn't describe the tap on each send. Its block diagram shows each input channel feeding the routing patch at **pre low cut** and **post fader** only. So the longer list probably came with later firmware.
+- **Check every send before a show:** Behringer doesn't say what each tap name covers. The factory tap for each send isn't documented either.
+- **Not USB taps:** two other lists in the diagram are not for USB. "Input, Pre INS, Pre EQ, Pre Fader, Post Fader" belongs to the aux buses and the main mix. "Pre HP" to "Post Pan" belongs to the channel's aux and effects sends.
+- **Gain comes first:** the analog preamp gain (-12 to +60 dB) and the +48 V phantom power (power for condenser mics, switched per input) come before every tap. The digital USB Trim affects only the USB return into a channel, not what you record.
+- **Who can change your level:** the XR18 has no shared stage box. But anyone in the app who changes a channel's gain changes the recorded level.
 
 ## XR18 on Mac, iPad and iPhone
 
 - **Mac:** works with no driver (Behringer manual: CoreAudio).
 - **iPad:** yes. Behringer lists "iOS 7 or higher (iPad)" among the supported systems for the XR18, and Midas lists the same for the MR18. The XR18 manual's hookup drawing shows an "iPad with camera connection kit for multi-track recording up to 18 tracks".
-- **iPhone:** Behringer doesn't name the iPhone, but it works: ShowRecorder (the app this site makes) has recorded all 18 XR18 channels on an iPhone over USB. A full-length show on an iPhone through a powered hub is not tested yet.
-- **Cable:** the mixer has a USB type-B port, so a USB-C iPhone or iPad needs a USB-C to USB-B cable.
-- **Power:** the XR18 has its own mains power supply and needs no power from the phone. The phone doesn't charge from the mixer either. For a long show, a powered USB-C hub keeps it charged; we haven't tested particular hubs with the XR18.
+- **iPhone:** Behringer doesn't name the iPhone, but it works. ShowRecorder (the app this site makes) has recorded all 18 XR18 channels on an iPhone over USB. A full-length show on an iPhone through a powered hub is not tested yet.
+- **Cable:** the mixer has a USB type-B port. So a USB-C iPhone or iPad needs a USB-C to USB-B cable.
+- **Power:** the XR18 has its own mains power supply and needs no power from the phone. The phone doesn't charge from the mixer either. For a long show, a powered USB-C hub keeps the phone charged. We haven't tested particular hubs with the XR18.
 
-ShowRecorder records every USB Channel from any class-compliant mixer, and has recorded all 18 XR18 channels on an iPhone and on a Mac. Over Mixer Link it also reads the channel names and colors, which works only on the XR18/MR18 and X32/M32. The setup is on the [XR18 and MR18 page](/mixers/xr18).
+ShowRecorder records every USB Channel from any class-compliant mixer (one that needs no extra driver on a Mac, iPhone or iPad). It has recorded all 18 XR18 channels on an iPhone and on a Mac. Over Mixer Link it also reads the channel names and colors. Mixer Link works only on the XR18/MR18 and X32/M32. The setup is on the [XR18 and MR18 page](/mixers/xr18).
 
 <GetTheApp campaign="site-guide-xr18" />
 
