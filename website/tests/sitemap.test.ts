@@ -21,6 +21,7 @@ describe("sitemap", () => {
       "https://showrecorder.app/guides/record-gig-without-laptop",
       "https://showrecorder.app/guides/record",
       "https://showrecorder.app/guides/record/pre-or-post-fader",
+      "https://showrecorder.app/guides/best-app-record-digital-mixer-iphone",
       "https://showrecorder.app/guides/record/x32",
       "https://showrecorder.app/guides/record/xr18",
       "https://showrecorder.app/guides/record/qu",

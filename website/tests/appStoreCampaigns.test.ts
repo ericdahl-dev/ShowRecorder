@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AppStoreBadge } from "@/components/AppStoreBadge";
 import { facts } from "@/lib/llms";
-import { APP_STORE_CAMPAIGNS, APP_STORE_PROVIDER_TOKEN, APP_STORE_URL, appStoreLink, campaignLink } from "@/lib/site";
+import { APP_STORE_CAMPAIGNS, APP_STORE_ID, APP_STORE_PROVIDER_TOKEN, APP_STORE_URL, appStoreLink, campaignLink } from "@/lib/site";
 import { softwareApplicationJsonLd } from "@/lib/structuredData";
 
 // Every App Store link carries Apple's campaign parameters (pt, ct, mt=8) once the provider token is set, so App
@@ -60,12 +60,19 @@ describe("tagged App Store links", () => {
     expect(data.downloadUrl).toBe(appStoreLink("site-schema"));
   });
 
+  // lib/bestApp.ts cites other apps' own App Store pages as sources (#1085). It may name those, never ShowRecorder's.
+  const OTHER_APPS_SOURCES = path.join("lib", "bestApp.ts");
+
   it("no page or component types the App Store address itself", () => {
     const hits = ["app", "components", "lib"]
       .flatMap(files)
-      .filter((f) => /\.(tsx?|mdx?)$/.test(f) && f !== path.join("lib", "site.ts"))
+      .filter((f) => /\.(tsx?|mdx?)$/.test(f) && f !== path.join("lib", "site.ts") && f !== OTHER_APPS_SOURCES)
       .filter((f) => /apps\.apple\.com/.test(readFileSync(path.join(ROOT, f), "utf8")));
     expect(hits).toEqual([]);
+  });
+
+  it("the best-app sources never type ShowRecorder's own App Store address", () => {
+    expect(readFileSync(path.join(ROOT, OTHER_APPS_SOURCES), "utf8")).not.toContain(APP_STORE_ID);
   });
 });
 

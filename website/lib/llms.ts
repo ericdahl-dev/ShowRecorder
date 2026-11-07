@@ -56,6 +56,7 @@ function guidesSection(): string[] {
     "",
     link("How to multitrack record a digital mixer (every mixer, one table)", PAGES.guidesHub.path, PAGES.guidesHub.description),
     link("Pre or post fader: which tap point to record", PAGES.guideTapPoints.path, PAGES.guideTapPoints.description),
+    link("Best app to multitrack record a digital mixer on iPhone and iPad", PAGES.guideBestApp.path, PAGES.guideBestApp.description),
     ...MIXER_GUIDES.map((g) => link(guideHeadline(g.mixer), g.path, g.description)),
     link("Record a gig without a laptop", PAGES.guideNoLaptop.path, PAGES.guideNoLaptop.description),
     "",

@@ -106,6 +106,7 @@ The campaigns (40 characters or fewer; the list is `APP_STORE_CAMPAIGNS`):
 | `site-guides` | Mixer recording guides hub (`/guides/record`), "Where ShowRecorder fits" |
 | `site-guide-x32` / `site-guide-xr18` / `site-guide-qu` / `site-guide-zoom-l12` | X32, XR18, Allen & Heath Qu and Zoom LiveTrak recording guides, "Where ShowRecorder fits" |
 | `site-guide-taps` | Pre or post fader guide, "With ShowRecorder" |
+| `site-guide-best-app` | Best app for iPhone and iPad guide, after "Which app for which job" |
 
 An App Store link in a post uses the same format with its own `ct`, short and lowercase (for example `fb-xr18-group`).
 

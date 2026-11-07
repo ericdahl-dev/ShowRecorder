@@ -24,6 +24,7 @@ const EXTRA = {
   "/mixers/x32": ["lib/mixerFaqs.ts"],
   "/docs": ["lib/docs.ts"],
   "/guides/record": ["lib/mixerGuides.ts"],
+  "/guides/best-app-record-digital-mixer-iphone": ["lib/bestApp.ts"],
 };
 
 // The mixer recording guides keep their questions and lists in lib/mixerGuides.ts too.

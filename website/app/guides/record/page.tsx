@@ -1,5 +1,6 @@
 import { AskUs, Breadcrumbs, GetTheApp, LastChecked } from "@/components/GuideParts";
 import { MixerFaq } from "@/components/MixerFaq";
+import { BEST_APP_GUIDE } from "@/lib/bestApp";
 import { PAGES, pageMetadata } from "@/lib/metadata";
 import { GLOSSARY, HUB_FAQS, MIXER_GUIDES, MIXER_ROWS, RESEARCH_URL } from "@/lib/mixerGuides";
 import { breadcrumbListJsonLd, faqPageJsonLd, jsonLdScript } from "@/lib/structuredData";
@@ -140,7 +141,9 @@ export default function GuidesHubPage() {
         </p>
         <p>
           To record a gig on an iPhone or iPad with no laptop, see{" "}
-          <a href="/guides/record-gig-without-laptop">Record a gig without a laptop</a>.
+          <a href="/guides/record-gig-without-laptop">Record a gig without a laptop</a>. To choose the app,{" "}
+          <a href={BEST_APP_GUIDE}>the best app to multitrack record a digital mixer on iPhone and iPad</a> compares
+          nine of them.
         </p>
       </section>
 

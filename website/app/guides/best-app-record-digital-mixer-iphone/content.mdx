@@ -1,0 +1,54 @@
+import { BestAppSources, BestAppTable } from "@/components/BestAppTable";
+import { AskUs, Breadcrumbs, GetTheApp, LastChecked } from "@/components/GuideParts";
+import { BEST_APP_GUIDE, CHECKED, bestAppTrail } from "@/lib/bestApp";
+
+<Breadcrumbs trail={bestAppTrail} />
+
+# The best app to multitrack record a digital mixer on iPhone and iPad
+
+<LastChecked path={BEST_APP_GUIDE} />
+
+**Short answer.** It depends on what you want at the end of the night.
+
+- **Every channel as its own file, at no cost:** ShowRecorder's Free tier.
+- **Editing and mixing on the device:** Cubasis 3, or Auria on an iPad. They are full DAWs; ShowRecorder isn't.
+- **Free and simple:** Manytrack Recorder, MultiTrack DAW or GarageBand.
+- **A whole show with no laptop, files named after the mixer's channels:** ShowRecorder with Pro, on an XR18, MR18, X32 or M32.
+
+ShowRecorder is the app this site makes, so read our picks with that in mind. Every fact about the other apps comes from the app's own App Store page (US store) or its maker's site, read on {CHECKED}, and each row links its source. Where a maker doesn't say something, the table says "Not stated": we could not find it on their page, which doesn't mean the app can't do it. Prices change, so the table says free, paid or in-app purchase rather than an amount. Check the maker's page before you buy.
+
+All of these apps record from a USB audio interface, and a digital mixer with multitrack USB is one. Whether your mixer sends multitrack audio over USB to a phone or tablet at all is a separate question, answered mixer by mixer in the [mixer recording guides](/guides/record).
+
+## The apps, side by side
+
+<BestAppTable />
+
+## Which app for which job
+
+### Cheapest
+
+Six of the nine apps are free to download. **Manytrack Recorder** is free with no in-app purchases listed, and records every channel the mixer sends, though its listing doesn't say whether each channel gets its own file. **MultiTrack DAW** is free with all 32 tracks and up to 32 inputs at once; its paid unlock adds MIDI editing, time stretching and automation. **GarageBand** is free and records up to 32 tracks in a song with an audio interface, but Apple doesn't state how many inputs it records at once. **ShowRecorder** (the app this site makes) records every channel as its own file on its Free tier; Pro, with the channel names, is a one-time in-app purchase. **StudioMini** and **MultiTrackRecorder** are free to download too, with in-app purchases; MultiTrackRecorder needs a paid monthly or yearly plan for multi-channel recording.
+
+### Every channel as a separate file
+
+**ShowRecorder** saves one mono WAV file per channel, for every channel a class-compliant mixer sends. All 18 channels of a Behringer XR18 have been recorded on an iPhone (owner test, 2026-11-06) and verified on a Mac; a full-length show through a hub is still being tested. **AUM**'s manual says each recording-enabled channel is saved as a separate file. **MultiTrackRecorder** saves a separate file for each of up to 16 channels, with a paid monthly or yearly plan.
+
+The three DAWs don't say whether each input becomes its own file. **MultiTrack DAW** lists up to 32 inputs on 32 tracks and exports stems. **Auria** lists up to 24 tracks recorded at once, enough for an XR18's 18 channels but not all 32 of an X32, and exports AAF sessions. **Cubasis 3** lists 24 assignable physical inputs and outputs, and doesn't say how many record at once.
+
+### Editing on the device
+
+Pick **Cubasis 3** or **Auria** here, not ShowRecorder. Both are full DAWs with editors, mixers and plug-ins, and Auria exports AAF sessions to desktop DAWs. Auria runs on the iPad only; Cubasis 3 runs on the iPhone too. **MultiTrack DAW** and **GarageBand** edit and mix as well. ShowRecorder records the files, and you edit them in a DAW afterward, on the device or a computer.
+
+### No laptop at a gig
+
+Every app here runs on an iPhone or iPad, so none of them needs a laptop. What differs is what you take home. **ShowRecorder** is built to record a whole show: a file per channel, named after the channel on the mixer through Mixer Link on an XR18, MR18, X32 or M32 with Pro. ShowRecorder's X32 support has been tested only against an emulator so far, not a real console. On other mixers the files are numbered. [Record a gig without a laptop](/guides/record-gig-without-laptop) walks through the setup, and [the comparison page](/compare) puts ShowRecorder next to Manytrack, Auria, a laptop and X-Live.
+
+<GetTheApp campaign="site-guide-best-app" />
+
+## Sources
+
+Every page below was read on {CHECKED}. ShowRecorder's own facts come from its tested-hardware list and the mixer research in its public repository.
+
+<BestAppSources />
+
+<AskUs />
