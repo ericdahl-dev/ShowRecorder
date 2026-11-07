@@ -130,6 +130,11 @@ export default function GuidesHubPage() {
           </li>
         </ul>
         <p>
+          Whichever way you record, you also choose where in each channel the recording is taken: before or after the
+          gain, the EQ and the fader. <a href="/guides/record/pre-or-post-fader">Pre or post fader</a> explains each tap
+          point, with pros and cons.
+        </p>
+        <p>
           The mixer powers nothing on the phone or tablet through its USB audio port. For a long show, use a powered
           USB-C hub, or a camera adapter that passes power through, so the iPhone or iPad charges while it records.
         </p>

@@ -55,6 +55,7 @@ function guidesSection(): string[] {
     "## Guides",
     "",
     link("How to multitrack record a digital mixer (every mixer, one table)", PAGES.guidesHub.path, PAGES.guidesHub.description),
+    link("Pre or post fader: which tap point to record", PAGES.guideTapPoints.path, PAGES.guideTapPoints.description),
     ...MIXER_GUIDES.map((g) => link(`How to multitrack record a ${g.mixer}`, g.path, g.description)),
     link("Record a gig without a laptop", PAGES.guideNoLaptop.path, PAGES.guideNoLaptop.description),
     "",

@@ -2,7 +2,7 @@
 // for the sitemap's lastmod. Commit it with the page change.
 export const PAGE_DATES: Record<string, string> = {
   "/": "2026-11-05",
-  "/changelog": "2026-11-05",
+  "/changelog": "2026-11-06",
   "/compare": "2026-11-05",
   "/docs": "2026-11-05",
   "/docs/apple-watch": "2026-11-01",
@@ -18,10 +18,11 @@ export const PAGE_DATES: Record<string, string> = {
   "/docs/usb-drive": "2026-10-16",
   "/docs/what-gets-recorded": "2026-11-02",
   "/features": "2026-11-05",
-  "/guides/record": "2026-11-06",
+  "/guides/record": "2026-11-07",
   "/guides/record-gig-without-laptop": "2026-11-05",
-  "/mixers/x32": "2026-11-05",
-  "/mixers/xr18": "2026-11-05",
-  "/privacy": "2026-11-03",
+  "/guides/record/pre-or-post-fader": "2026-11-07",
+  "/mixers/x32": "2026-11-06",
+  "/mixers/xr18": "2026-11-06",
+  "/privacy": "2026-11-06",
   "/support": "2026-11-02",
 };
