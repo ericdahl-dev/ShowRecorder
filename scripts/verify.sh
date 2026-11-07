@@ -111,6 +111,7 @@ if [ $everything = 1 ]; then
   ./scripts/test-build-lock.sh
   python3 scripts/test_testflight.py
   python3 scripts/test_asc_stats.py
+  python3 scripts/test_weekly_numbers.py
   python3 scripts/test_coverage.py
 fi
 

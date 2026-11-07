@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import asc_stats
 
 COLUMNS = ["SKU", "Parent Identifier", "Product Type Identifier", "Units", "Developer Proceeds",
-           "Country Code", "Currency of Proceeds", "Apple Identifier"]
+           "Country Code", "Currency of Proceeds", "Apple Identifier", "Customer Price", "Device"]
 
 
 def report(*rows):
@@ -17,7 +17,8 @@ def report(*rows):
     lines = ["\t".join(COLUMNS)]
     for row in rows:
         full = {"SKU": "showrecorder", "Parent Identifier": " ", "Units": "1", "Developer Proceeds": "0",
-                "Country Code": "US", "Currency of Proceeds": "USD", "Apple Identifier": "app", **row}
+                "Country Code": "US", "Currency of Proceeds": "USD", "Apple Identifier": "app",
+                "Customer Price": "4.99", "Device": "iPhone", **row}
         lines.append("\t".join(full[c] for c in COLUMNS))
     return "\n".join(lines) + "\n"
 
@@ -73,6 +74,30 @@ class SummarizeTests(unittest.TestCase):
         summary = asc_stats.summarize(reports, app_id="app", sku="showrecorder")
         self.assertEqual(summary.downloads_by_day, {"2026-11-01": 2, "2026-11-02": 2})
         self.assertEqual(summary.downloads_by_country.most_common(), [("GB", 3), ("US", 1)])
+
+    def test_splits_downloads_between_iphone_and_mac(self):
+        reports = {"2026-11-01": report(
+            {"Product Type Identifier": "1F", "Units": "4"},
+            {"Product Type Identifier": "1F", "Device": "iPad"},
+            {"Product Type Identifier": "1F", "Device": "Apple Watch"},
+            {"Product Type Identifier": "1F", "Units": "2", "Device": "Desktop"},  # the iPhone app on a Mac
+            {"Product Type Identifier": "F1", "Device": "Desktop"},  # the Mac app
+            {"Product Type Identifier": "3F", "Device": "Desktop"},
+        )}
+        summary = asc_stats.summarize(reports, app_id="app", sku="showrecorder")
+        self.assertEqual(dict(summary.downloads_by_platform), {"iOS": 6, "Mac": 3})
+
+    def test_counts_offer_code_pro_and_packs_apart_from_paid_pro(self):
+        iap = {"Product Type Identifier": "IA1", "Apple Identifier": "iap", "Parent Identifier": "showrecorder"}
+        reports = {"2026-11-01": report(
+            {**iap, "SKU": "dev.ericdahl.ShowRecorder.pro", "Developer Proceeds": "4.24"},
+            {**iap, "SKU": "dev.ericdahl.ShowRecorder.pro", "Customer Price": "0.00", "Developer Proceeds": "0.00"},
+            {**iap, "SKU": "dev.ericdahl.ShowRecorder.pack.xair", "Customer Price": "2.99", "Developer Proceeds": "2.54"},
+            {**iap, "SKU": "dev.ericdahl.ShowRecorder.upgrade.pro", "Customer Price": "1.99", "Developer Proceeds": "1.69"},
+        )}
+        summary = asc_stats.summarize(reports, app_id="app", sku="showrecorder")
+        self.assertEqual((summary.units["pro"], summary.units["pro_codes"], summary.units["packs"]), (1, 1, 2))
+        self.assertEqual(summary.proceeds, {"USD": 8.47})
 
 
 if __name__ == "__main__":
