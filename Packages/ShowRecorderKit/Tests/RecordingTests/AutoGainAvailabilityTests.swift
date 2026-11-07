@@ -43,6 +43,20 @@ struct AutoGainAvailabilityTests {
         #expect(AutoGainAvailability.Unavailable.otherMixerLinked("FOH (XR18)").message == "The Mixer Link is on FOH (XR18), not the Mixer you're recording from. Connect to that Mixer in Settings › Mixer Link first.")
     }
 
+    @Test("With more Mixers of the linked one's kind on the network, it asks to pick the USB one, a Take and Pro still first (#1018)")
+    func pickUSBMixer() {
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: true, canSetGain: false, isRecording: false, mixersOfThisKind: 2) == .pickUSBMixer(2))
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: true, canSetGain: false, isRecording: true, mixersOfThisKind: 2) == .takeRunning)
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: true, canSetGain: false, isRecording: false, mixersOfThisKind: 2, allowed: false) == .needsPro)
+        #expect(AutoGainAvailability.Unavailable.pickUSBMixer(2).message == "2 Mixers of this kind are on the network. Auto-gain moves preamps only on the one plugged in by USB: tap Find Mixers in Settings › Mixer Link and pick it.")
+    }
+
+    @Test("While the network is still being asked for other Mixers of the linked one's kind, it says so (#1018)")
+    func checkingForOtherMixers() {
+        #expect(AutoGainAvailability.whyNot(hasMixerLink: true, canSetGain: false, isRecording: false, checkingOtherMixers: true) == .checkingOtherMixers)
+        #expect(AutoGainAvailability.Unavailable.checkingOtherMixers.message == "Looking for other Mixers of this kind on the network. Auto-gain is ready in a few seconds.")
+    }
+
     @Test("On Free auto-gain says it's Pro, after a running Take and before any Mixer Link reason (#705)")
     func needsPro() {
         #expect(AutoGainAvailability.whyNot(hasMixerLink: true, canSetGain: true, isRecording: false, allowed: false) == .needsPro)

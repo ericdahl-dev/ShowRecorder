@@ -95,6 +95,13 @@ public final class MixerSession {
     /// Whether the linked Mixer is the one plugged in by USB, as far as the session can tell (#1018).
     public private(set) var usbMixerCheck: USBMixerCheck = .checking
 
+    /// Why the linked Mixer isn't yet taken as the one plugged in by USB, while Mixer Link is offered and the linked
+    /// Mixer is the Ready family (#1018): still asking the network, or several of its family answer and none is picked.
+    /// Nil once it is taken as the USB one, and whenever `identity` is nil.
+    public var usbMixerUnsure: USBMixerCheck? {
+        linkedMixerIsReady && !linkedMixerIsUSBMixer ? usbMixerCheck : nil
+    }
+
     /// The Mixer the operator picked in Find Mixers as the one plugged in by USB (#1018); kept until the app quits.
     @ObservationIgnored private var pickedUSBMixer: FoundMixer?
 

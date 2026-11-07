@@ -94,9 +94,13 @@ public final class MixerGain {
     public var autoGainUnavailable: AutoGainAvailability.Unavailable? {
         let isConnecting = if case .connecting = mixer?.status { true } else { false }
         let canSetGain = mixer?.gainControl != nil && setsThisFamilysGain
+        // Not yet known as the Mixer plugged in by USB (#1018).
+        let checking = mixer?.usbMixerUnsure == .checking
+        let mixersOfThisKind = if case .several(let found) = mixer?.usbMixerUnsure { found.count } else { Int?.none }
         return AutoGainAvailability.whyNot(hasMixerLink: mixer?.identity != nil, isConnecting: isConnecting,
                                            canSetGain: canSetGain, isRecording: isRecording(),
-                                           otherMixer: mixer?.otherMixerLinked?.nameAndModel, allowed: allowsAutoGain())
+                                           otherMixer: mixer?.otherMixerLinked?.nameAndModel, checkingOtherMixers: checking,
+                                           mixersOfThisKind: mixersOfThisKind, allowed: allowsAutoGain())
     }
 
     /// False on an X32 where `X32AutoGainAvailability` doesn't allow it; true for any other family.
