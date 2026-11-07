@@ -129,8 +129,10 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive and the SQ have none; a Mixer Link guide that lost its product page must fail here, not skip.
-    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii", "ah-sq"].includes(guide.slug));
+    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive, the SQ and the XR12/XR16/MR12 have none; a Mixer Link guide that lost its product page must fail here, not skip.
+    expect(guide.productPage === undefined).toBe(
+      ["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii", "ah-sq", "xr12-xr16-mr12"].includes(guide.slug),
+    );
     if (guide.productPage === undefined) return;
     expect(mdx).toContain(`](${guide.productPage})`);
     expect(read("app", "mixers", guide.productPage.split("/").pop()!, "content.mdx")).toContain(`](${guide.path})`);
@@ -144,7 +146,7 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("cites its sources: the maker's documents, with forum posts marked as such", () => {
     const sources = mdx.slice(mdx.indexOf("## Sources"));
     expect(sources).toMatch(
-      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com|zoomcorp\.com|mackie\.com|help\.mackie\.com|www\.soundcraft\.com|harman\.helpjuice\.com|www\.fmicassets\.com|support\.presonus\.com)\//,
+      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com|zoomcorp\.com|mackie\.com|help\.mackie\.com|www\.soundcraft\.com|harman\.helpjuice\.com|www\.fmicassets\.com|support\.presonus\.com|www\.midasconsoles\.com)\//,
     );
   });
 
@@ -1312,5 +1314,66 @@ describe("the Allen & Heath SQ guide's facts", () => {
   it("cites only Allen & Heath pages", () => {
     expect(guide.sources.length).toBeGreaterThanOrEqual(5);
     for (const u of guide.sources) expect(u).toMatch(/^https:\/\/(support\.allen-heath\.com|www\.allen-heath\.com)\//);
+  });
+});
+
+// Facts: docs/research/mixer-recording/xr12-xr16-mr12.md (#1067). These mixers have no USB audio interface: they record
+// only a stereo mix to a USB flash drive. MR12 facts come from Midas (midasconsoles.com), not a retailer.
+describe("the XR12, XR16 and MR12 guide's facts", () => {
+  const mdx = body("xr12-xr16-mr12");
+  const guide = MIXER_GUIDES.find((g) => g.slug === "xr12-xr16-mr12")!;
+
+  it("is linked from the XR18 guide, where the XR12, XR16 and MR12 come up", () => {
+    expect(body("xr18")).toContain(`](${guide.path})`);
+  });
+
+  it("is in MIXER_GUIDES with its own campaign, and the hub's XR12 row links it and no longer calls the MR12 facts retail", () => {
+    expect(guide.campaign).toBe("site-guide-xr12-xr16-mr12");
+    const row = MIXER_ROWS.find((r) => /XR12/.test(r.name))!;
+    expect(row.guide).toBe(guide.path);
+    expect(row.note ?? "").not.toMatch(/retailer/i);
+  });
+
+  it("says plainly there is no multitrack and no USB audio, and points to the XR18 and MR18 guide", () => {
+    const top = mdx.slice(0, mdx.indexOf("**Quick start**"));
+    expect(top).toMatch(/\*\*Short answer\.\*\* You can't\./);
+    expect(top).toMatch(/no USB audio interface/);
+    expect(top).toContain("](/guides/record/xr18)");
+    expect(guide.faqs[0].a).toMatch(/^No\./);
+  });
+
+  it("gives the stereo flash drive recorder: Type A port, red light, 16-bit WAV at 44.1 or 48 kHz on the XR12 and MR12, XR16 not stated", () => {
+    const ways = section(mdx, "Ways to record an XR12, XR16 or MR12", "XR12, XR16 or MR12 recording settings");
+    expect(ways).toMatch(/2-track stereo recording/);
+    expect(ways).toMatch(/Type A/);
+    expect(ways).toMatch(/red light/);
+    expect(ways).toMatch(/\*\*XR12 file:\*\* stereo WAV, 16-bit, at 44\.1 or 48 kHz \(Behringer\)/);
+    expect(ways).toMatch(/\*\*MR12 file:\*\* WAV, 16-bit, at 44\.1 or 48 kHz[^\n]*\(Midas\)/);
+    expect(ways).toMatch(/\*\*XR16 file:\*\* Behringer says only "stereo files"[^\n]*\(our reading\)/);
+  });
+
+  it("gives the sample rate setting and the mute-first warning", () => {
+    const settings = section(mdx, "XR12, XR16 or MR12 recording settings", "XR12, XR16 or MR12 USB routing");
+    expect(settings).toMatch(/48 kHz/);
+    expect(settings).toMatch(/\*\*Setup\*\*[^\n]*\*\*Audio\/MIDI\*\*/);
+    expect(settings).toMatch(/Mute the main LR fader/);
+  });
+
+  it("keeps routing and virtual soundcheck short: nothing to route, stereo playback only", () => {
+    expect(section(mdx, "XR12, XR16 or MR12 USB routing", "XR12, XR16 or MR12 playback for virtual soundcheck")).toMatch(/nothing to route/);
+    expect(section(mdx, "XR12, XR16 or MR12 playback for virtual soundcheck", "XR12, XR16 or MR12 tap points")).toMatch(/stereo/);
+  });
+
+  it("says ShowRecorder can't multitrack these mixers, without calling anything unsupported", () => {
+    expect(mdx).toMatch(/ShowRecorder can't multitrack them/);
+    expect(mdx).not.toMatch(/unsupported/i);
+    expect(mdx).not.toMatch(/ShowRecorder has recorded[^.]*(XR12|XR16|MR12)/);
+  });
+
+  it("cites Midas's own manual and MR12 page, never midasgroup.com or a retailer", () => {
+    const sources = mdx.slice(mdx.indexOf("## Sources"));
+    expect(sources).toContain("](https://www.midasconsoles.com/en/products/0605-AAE)");
+    expect(sources).toContain("M_MI_0605-AAE_MR18-MR12_EN.pdf)");
+    expect(mdx).not.toMatch(/midasgroup\.com|long-mcquade/);
   });
 });

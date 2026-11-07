@@ -1,0 +1,112 @@
+import { AskUs, Breadcrumbs, GetTheApp, LastChecked } from "@/components/GuideParts";
+import { guideTrail } from "@/lib/mixerGuides";
+
+<Breadcrumbs trail={guideTrail("XR12, XR16 or MR12", "/guides/record/xr12-xr16-mr12")} />
+
+# How to multitrack record a Behringer XR12, XR16 or Midas MR12
+
+<LastChecked path="/guides/record/xr12-xr16-mr12" />
+
+**Short answer.** You can't. Multitrack means every channel on its own track, and these three mixers can't do it. They have no USB audio interface, the part that sends each channel to a computer, iPhone or iPad. What they can do is record a stereo mix (left and right, 2 tracks) to a USB flash drive plugged into the mixer. If you need every channel, you need an XR18 or MR18: see the [XR18 and MR18 guide](/guides/record/xr18).
+
+**Quick start**
+
+1. **Need every channel on its own track?** Use an XR18 or MR18 instead. ([Ways to record](#ways-to-record-an-xr12-xr16-or-mr12))
+2. **Plug a USB flash drive** into the mixer's USB port. ([With no computer](#with-no-computer-to-a-usb-flash-drive))
+3. **Check the sample rate.** The mixer runs at 48 kHz unless someone changed it. ([Recording settings](#xr12-xr16-or-mr12-recording-settings))
+4. **Press record** on the USB recorder in the app.
+5. **Record a 30 s test and play it back** before the show.
+6. **Wait for the red light** next to the USB port to go out before you pull the drive out.
+
+Every other mixer is in the [mixer recording guides](/guides/record), and the words used here are in its [glossary](/guides/record#glossary). Facts come from the Behringer and Midas manuals and product pages. The [sources](#sources) are at the end.
+
+## Ways to record an XR12, XR16 or MR12
+
+### To a computer over USB
+
+Not possible. These mixers have no USB audio interface, so a computer doesn't see them as a sound card.
+
+- The Behringer manual: the XR18 has "an 18x18 USB audio/MIDI interface", while "the XR12 and XR16 allow 2-track stereo recording".
+- The Midas manual says the same of the MR12: it "allows 2-track stereo recording".
+- Their only USB port is Type A, the flat kind a flash drive plugs into. It is not for a cable to a computer.
+
+### With no computer: to a USB flash drive
+
+This is the one way to record on these mixers. You get one stereo WAV file of the mix.
+
+1. **Plug a USB flash drive** into the Type A USB port.
+2. **Open the USB recorder** in the app (X AIR Edit for the XR12 and XR16, M AIR for the MR12).
+3. **Pick what to record and press record.** The manuals don't list the steps. Behringer's XR12 and XR16 product pages link a short video, "X AIR How To: USB Recorder (X AIR EDIT) XR12 / XR16".
+4. **Wait for the red light to go out** before you remove the drive. It lights while the mixer is reading or writing the drive.
+
+{/* Screenshot: the USB recorder in X AIR Edit with a flash drive plugged in. <Screenshot src="/images/guides/xr12-usb-recorder.png" alt="Behringer X AIR Edit USB recorder panel with a flash drive connected and the record button" /> */}
+
+What you get:
+
+- **Tracks:** 2, the left and right of a stereo mix.
+- **XR12 file:** stereo WAV, 16-bit, at 44.1 or 48 kHz (Behringer).
+- **MR12 file:** WAV, 16-bit, at 44.1 or 48 kHz, matching the mixer's sample rate (Midas).
+- **XR16 file:** Behringer says only "stereo files". It is most likely the same as the XR12, since they share a manual and an app (our reading).
+- **Drive size and format:** neither maker says.
+
+### To an iPhone, iPad or Mac with an app
+
+Not possible for the channels. No audio goes out over USB, so no app can record them. The iPhone, iPad and Android apps only control the mixer, over Wi-Fi. See [Mac, iPad and iPhone](#xr12-xr16-or-mr12-on-mac-ipad-and-iphone) below.
+
+## XR12, XR16 or MR12 recording settings
+
+- **Sample rate:** 48 kHz unless you change it. To use 44.1 kHz, open the **Setup** page in the app, then the **Audio/MIDI** tab.
+- **Mute the main LR fader first** when you change the sample rate. The manuals warn the change can make a pop.
+- **Bit depth:** 16-bit on the XR12 and MR12. The XR16's isn't stated.
+- **What gets recorded:** the recorder takes its stereo signal from "various sources" (Behringer's block diagram). The manuals don't list them or say where the menu is. The video above shows it.
+
+{/* Screenshot: the Setup page, Audio/MIDI tab, with the sample rate. <Screenshot src="/images/guides/xr12-setup-audio-midi.png" alt="Behringer X AIR Edit Setup page, Audio/MIDI tab, with the 48 kHz sample rate setting" /> */}
+
+### Only a stereo file on the stick? That is all these mixers record
+
+That is expected. The XR12, XR16 and MR12 record one stereo mix, never separate channels.
+
+- **To mix the show later,** with each instrument on its own track, you need a mixer with a multitrack USB interface, such as the XR18 or MR18 ([XR18 and MR18 guide](/guides/record/xr18)).
+- **They look alike.** The XR12, XR16 and MR12 share the look, the app and the family name with the XR18 and MR18. The difference is the USB audio interface, which only the 18-input models have.
+
+## XR12, XR16 or MR12 USB routing
+
+There is nothing to route: with no USB audio interface, there are no USB channels to send. To choose what the flash drive records, see [Recording settings](#xr12-xr16-or-mr12-recording-settings).
+
+## XR12, XR16 or MR12 playback for virtual soundcheck
+
+A [virtual soundcheck](/guides/record#glossary) plays each recorded channel back through its own fader. These mixers can't do that, because they never recorded separate channels.
+
+- **What they can do:** play a stereo file from the USB flash drive. It comes back on its own stereo "USB" input channel (Behringer's block diagram), so you hear the whole mix at once.
+
+## XR12, XR16 or MR12 tap points
+
+A [tap point](/guides/record#glossary) is where in a channel the signal is picked up for recording: before or after the EQ, the fader and so on. The full story is in [Pre or post fader](/guides/record/pre-or-post-fader).
+
+- **On these mixers it doesn't apply:** there are no per-channel recordings to tap.
+- **The stereo recorder:** neither maker says where its mix is taken, for example before or after the main fader.
+
+## XR12, XR16 or MR12 on Mac, iPad and iPhone
+
+- **iPhone and iPad:** can't record the channels. The apps control the mixer over Wi-Fi only. Record the stereo mix to a flash drive in the mixer instead.
+- **Mac:** the same. The mixer doesn't appear as a sound input, so a Mac can't record it over USB.
+- **Want every channel on an iPhone?** The XR18 sends all 18 channels over a USB cable, and ShowRecorder has recorded them on an iPhone. See the [XR18 and MR18 guide](/guides/record/xr18).
+
+ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer. The XR12, XR16 and MR12 send no audio over USB, so ShowRecorder can't multitrack them. Mixer Link, which reads channel names and colors, works only on the XR18/MR18 and X32/M32.
+
+<GetTheApp campaign="site-guide-xr12-xr16-mr12" />
+
+<AskUs />
+
+## Sources
+
+Behringer:
+
+- [X AIR User Manual](https://cdn-media.empowertribe.com/ffe0de45e14541f797928d639a8933b2/M_BE_0605-AAA_X-AIR_EN.pdf) (covers the XR18, X18, XR16 and XR12): "the XR12 and XR16 allow 2-track stereo recording", the Type A USB port and its red light, the sample rate setting, the block diagram's USB recorder and stereo playback channel.
+- [XR12 product page](https://www.behringer.com/en/products/0605-AAB): "stereo WAV recording at 16-bit, 44.1 or 48.0 kHz", and the USB Recorder video.
+- [XR16 product page](https://www.behringer.com/en/products/0605-AAC): "record and play back stereo files on a USB flash drive", and the USB Recorder video.
+
+Midas:
+
+- [M AIR MR18/MR12 User Manual](https://cdn-media.empowertribe.com/f4e89140f9994eed93e4f2a4e086c578/M_MI_0605-AAE_MR18-MR12_EN.pdf): "the MR12 allows 2-track stereo recording", "USB port (type A) accepts a flash drive for stereo recordings and playback", the sample rate setting.
+- [MR12 product page](https://www.midasconsoles.com/en/products/0605-AAE) (read 2026-11-07): "Files are WAV at 16-bit, 44.1 or 48 kHz, depending on the mixer sample rate."

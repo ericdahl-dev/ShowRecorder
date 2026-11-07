@@ -81,12 +81,12 @@ export const MIXER_ROWS: readonly MixerRow[] = [
   },
   {
     name: "Behringer XR12 and XR16, Midas MR12",
-    note: "MR12 facts come from retailers, not Midas.",
     usb: "No USB audio interface, so no multitrack over USB.",
     onboard: "Stereo WAV, 2 tracks, to a USB stick.",
     mac: "No multitrack: no USB audio interface.",
     ipad: "No multitrack: no USB audio interface.",
     iphone: "No multitrack: no USB audio interface.",
+    guide: "/guides/record/xr12-xr16-mr12",
   },
   {
     name: "Allen & Heath SQ-5, SQ-6, SQ-7 and SQ-Rack",
@@ -717,6 +717,31 @@ export const AH_SQ_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the Behringer XR12 / XR16 and Midas MR12 guide (#1067). Facts:
+// docs/research/mixer-recording/xr12-xr16-mr12.md. These mixers have no USB audio, so the answers say so plainly.
+export const XR12_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I multitrack record a Behringer XR12, XR16 or Midas MR12?",
+    a: "No. These mixers have no USB audio interface, so they can't send each channel to a computer, iPhone or iPad. They record only a stereo mix (2 tracks) to a USB flash drive. To record every channel on its own track, use an XR18 or MR18.",
+  },
+  {
+    q: "Can I record an XR12, XR16 or MR12 on an iPhone or iPad?",
+    a: "Not the channels: there is no USB audio to send. The iPhone, iPad and Android apps only control the mixer over Wi-Fi. To keep a recording, plug a USB flash drive into the mixer and record the stereo mix.",
+  },
+  {
+    q: "What file does the XR12, XR16 or MR12 record to the USB stick?",
+    a: "A stereo WAV file. Behringer gives the XR12 as 16-bit at 44.1 or 48 kHz. Midas gives the MR12 as 16-bit at 44.1 or 48 kHz, matching the mixer's sample rate. For the XR16, Behringer says only \"stereo files\".",
+  },
+  {
+    q: "How do I change the sample rate on an XR12, XR16 or MR12?",
+    a: "In the app, open the Setup page and the Audio/MIDI tab. The mixer runs at 48 kHz unless you change it to 44.1 kHz. Mute the main LR fader first, because the change can make a pop.",
+  },
+  {
+    q: "Can I do a virtual soundcheck with an XR12, XR16 or MR12?",
+    a: "Not with separate tracks. The mixer plays a stereo file from the USB stick back into one stereo channel, so you hear the whole mix, not each instrument on its own fader.",
+  },
+];
+
 // The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
 export const X32_METHOD_A: readonly { name: string; text: string }[] = [
   { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
@@ -1053,5 +1078,26 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pick: "32 channels over USB to a computer, at 48 or 96 kHz. Records by itself to a fast USB drive: 16 channels at 96 kHz or 32 at 48 kHz. iPhone and iPad: not tested yet.",
     campaign: "site-guide-ah-sq",
     tapPick: "Direct Out Source set to Post Preamp (only the preamp gain, before the filter, EQ and fader), in Routing > Dir Out",
+  },
+  {
+    slug: "xr12-xr16-mr12",
+    path: "/guides/record/xr12-xr16-mr12",
+    pageKey: "guideXR12",
+    short: "XR12, XR16 or MR12",
+    mixer: "Behringer XR12, XR16 or Midas MR12",
+    description:
+      "The XR12, XR16 and MR12 can't multitrack: no USB audio. They record a stereo WAV to a USB stick. How to do that, and which mixer records every channel.",
+    published: "2026-11-07",
+    faqs: XR12_GUIDE_FAQS,
+    faqsName: "XR12_GUIDE_FAQS",
+    sources: [
+      "https://cdn-media.empowertribe.com/ffe0de45e14541f797928d639a8933b2/M_BE_0605-AAA_X-AIR_EN.pdf",
+      "https://www.behringer.com/en/products/0605-AAB",
+      "https://www.behringer.com/en/products/0605-AAC",
+      "https://cdn-media.empowertribe.com/f4e89140f9994eed93e4f2a4e086c578/M_MI_0605-AAE_MR18-MR12_EN.pdf",
+      "https://www.midasconsoles.com/en/products/0605-AAE",
+    ],
+    campaign: "site-guide-xr12-xr16-mr12",
+    tapPick: "none for multitrack: these mixers record only a stereo mix to a USB stick, and neither maker says where that mix is taken",
   },
 ];
