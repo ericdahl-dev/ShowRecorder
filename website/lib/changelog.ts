@@ -19,7 +19,7 @@ export const RELEASES: readonly Release[] = [
     channel: "TestFlight beta",
     summary: "Auto-gain keeps the mix exactly and leaves USB-fed channels alone; the Auto-gain sheet fits the iPhone.",
     changes: [
-      "Auto-gain moves each preamp in the Mixer's own 0.5 dB steps, so the fader and sends always make up the same amount and the mix stays put.",
+      "Auto-gain moves each preamp in the mixer's own 0.5 dB steps, so the fader and sends always make up the same amount and the mix stays put.",
       "A channel fed from USB on the XR18 gets no gain move, and the Auto-gain sheet says why.",
       "The Auto-gain sheet fits the iPhone screen at every text size.",
       "A Take that couldn't reach its Drive ends in an orange summary that says it was saved on this device only.",

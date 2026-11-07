@@ -41,7 +41,7 @@ describe("the auto-gain docs page", () => {
   it("quotes every reason the sheet gives when auto-gain can't run, word for word", () => {
     const source = swift("Packages/ShowRecorderKit/Sources/Recording/AutoGainAvailability.swift");
     const messages = [...source.matchAll(/^\s*"([^"\n]+)"\s*$/gm)].map((m) => m[1]);
-    expect(messages.length).toBe(6);
+    expect(messages.length).toBe(8);
     // The app writes "Settings › Mixer Link"; the docs write "Settings > Mixer Link".
     const mdx = page().replace(/›/g, ">");
     for (const message of messages) {
