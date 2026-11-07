@@ -18,6 +18,35 @@ struct MixerSessionTests {
         return (MixerSession(link: link, store: store), link)
     }
 
+    // MARK: Which Mixer is plugged in by USB (#1018)
+
+    /// Two X Air mixers that answer on this network: the linked "FOH" at 10.0.0.20 and "MON" at 10.0.0.21.
+    static let twoXR18s = [
+        FoundMixer(host: "10.0.0.20", identity: MixerIdentity(networkName: "FOH", model: "XR18", firmware: "1.22")),
+        FoundMixer(host: "10.0.0.21", identity: MixerIdentity(networkName: "MON", model: "XR18", firmware: "1.22")),
+    ]
+
+    /// A session whose Find Mixers scan answers `found`, on a Link to `driver`'s Mixer at 10.0.0.20.
+    func session(finding found: [FoundMixer], _ driver: FakeMixerDriver = FakeMixerDriver(gainControl: StubGainControl()))
+        -> (MixerSession, MixerLinkController) {
+        let link = MixerLinkController(makeDriver: { _, _ in driver })
+        let store = UserDefaults(suiteName: "MixerSessionTests-\(UUID().uuidString)")!
+        store.set("10.0.0.20", forKey: "mixerAddress")
+        let session = MixerSession(link: link, store: store, network: { ScanRange(address: "10.0.0.2", netmask: "255.255.255.0") },
+                                   scan: { _ in found })
+        return (session, link)
+    }
+
+    @Test("With two Mixers of the Ready family on the network and none picked as the USB one, the gain control isn't offered, so auto-gain can't move either one's preamps (#1018)")
+    func twoOfTheFamilyRefuseGain() async {
+        let (session, link) = session(finding: Self.twoXR18s)
+
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
+
+        #expect(link.identity != nil, "the Link is up")
+        #expect(session.gainControl == nil, "MON may be the Mixer plugged in by USB, not FOH")
+    }
+
     @Test("With another input Ready, there's no status, no Sources and no gain control, though the Link is still up")
     func otherInputHidesTheLink() async {
         let (session, link) = session()
