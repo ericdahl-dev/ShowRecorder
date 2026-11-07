@@ -755,11 +755,11 @@ export const XR12_GUIDE_FAQS: readonly Faq[] = [
 export const YAMAHA_TF_GUIDE_FAQS: readonly Faq[] = [
   {
     q: "Can I record a Yamaha TF to an iPhone or iPad?",
-    a: "Yamaha doesn't say, and we haven't tested it yet. Yamaha says a Mac needs no driver, but no Yamaha document names the iPhone or iPad for the USB TO HOST socket. The separate iPad socket on top of the console only plays music in; it doesn't record.",
+    a: "Yamaha doesn't say, and we haven't tested it yet. Yamaha says a Mac needs no driver, but no Yamaha document names the iPhone or iPad for the USB TO HOST socket. The separate iPad socket on top plays music in from an iPhone or iPad, and records 2 tracks to a USB hard disk. It isn't a multitrack connection.",
   },
   {
     q: "How many tracks can a Yamaha TF record?",
-    a: "34 over USB to a computer: channels 1-32 on USB 1-32, plus one stereo pair (the main mix, an AUX or a MATRIX) on USB 33-34. Channels 33-40 and the stereo inputs can't be recorded. On its own, with no computer, the TF records only 2 tracks to a USB hard disk or SSD.",
+    a: "34 over USB to a computer: channels 1-32 on USB 1-32, plus one stereo pair on USB 33-34: the main mix, a pair of AUX mixes (the monitor mixes) or a MATRIX pair (extra output mixes). Channels 33-40 and the stereo inputs can't be recorded. On its own, with no computer, the TF records only 2 tracks to a USB hard disk or SSD.",
   },
   {
     q: "Does the Yamaha TF need a driver on a Mac?",

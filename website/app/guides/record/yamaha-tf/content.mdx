@@ -7,14 +7,14 @@ import { guideTrail } from "@/lib/mixerGuides";
 
 <LastChecked path="/guides/record/yamaha-tf" />
 
-**Short answer.** Connect the TF's USB-B socket marked **USB TO HOST** to a computer. Set the computer to 48 kHz. The TF sends 34 tracks: channels 1-32 on USB 1-32, and one stereo pair, such as the main mix, on USB 33-34. Out of the box, each of channels 1-32 is already sent to USB. A Mac needs no driver. Windows needs Yamaha's driver. On its own, with no computer, the TF records only 2 tracks. Yamaha doesn't say whether an iPhone or iPad works: not tested yet. This works the same on the TF1, TF3, TF5 and TF-Rack.
+**Short answer.** Plug the TF's **USB TO HOST** socket into a computer set to 48 kHz. You get 34 tracks: channels 1-32, plus one stereo pair such as the main mix. A Mac needs no driver; Windows needs Yamaha's. iPhone and iPad: not tested yet. This covers the TF1, TF3, TF5 and TF-Rack. The TF-Rack works the same way, with no driver on a Mac (our reading).
 
 **Quick start**
 
 1. **Connect USB TO HOST** to the computer. A Mac needs nothing else. On Windows, install the Yamaha Steinberg USB Driver first. ([Ways to record](#ways-to-record-a-tf))
 2. **Set your recording app to 48 kHz.** ([Recording settings](#tf-recording-settings))
 3. **Arm tracks 1-32 in your app.** Track 1 is channel 1, track 2 is channel 2, and so on. ([USB routing](#tf-usb-routing))
-4. **Check each channel's Direct Out.** Touch the channel name, then look at the **CH VIEW** screen: the Direct Out must be on, and set to **Pre DG** for a clean recording (our advice, from Yamaha's guide). ([Tap points](#tf-tap-points))
+4. **Check each channel sends to USB.** Touch the channel name to open **CH VIEW**. Turn **Direct out** on and set its point to **Pre DG**, which records before any EQ or effects (our advice, from Yamaha's guide). ([Tap points](#tf-tap-points))
 5. **Record a 30 s test and play it back** before the show.
 6. **A track is silent?** That channel's Direct Out is probably off. ([Only some channels recording?](#only-some-channels-recording-check-each-direct-out))
 
@@ -27,7 +27,7 @@ Every other mixer is in the [mixer recording guides](/guides/record). Words like
 This is the way to get every channel on its own track.
 
 - **What you need:** a USB cable with a square USB-B plug for the TF's **USB TO HOST** socket.
-- **Tracks:** 34 x 34: 34 tracks to the computer, and 34 back from it.
+- **Tracks:** 34 to the computer. The computer can also send 34 back, for playback.
 - **Sample rate:** 48 kHz, 24-bit.
 - **Mac:** no driver. Yamaha's guide: a Mac "will use a class compliant driver, so do not need any additional installation". *Class compliant* means the Mac sees the TF as a standard sound device.
 - **Windows:** install the Yamaha Steinberg USB Driver from Yamaha's TF downloads page (V2.1.9 for Windows 11 and 10, at the time of writing).
@@ -38,7 +38,7 @@ This is the way to get every channel on its own track.
 
 The TF can record by itself, but only in stereo (2 tracks). It can't make a multitrack recording on its own.
 
-- **The drive:** a USB hard disk or SSD in the USB socket on the top panel. USB thumb drives can play back but not record.
+- **The drive:** a USB hard disk or SSD in the **iPad** socket on the top panel. USB thumb drives can play back but not record.
 - **Format the drive** as FAT32. Drives bigger than 2 TB won't work.
 - **The file:** a 48 kHz, 24-bit stereo WAV.
 - **What it records:** the source you pick on the **RECORDER** screen, such as the main mix.
@@ -56,13 +56,13 @@ A Mac works like any computer above, with no driver. Yamaha doesn't say whether 
 - **The stereo pair on USB 33-34:** set on the **RECORDER** screen.
   1. Touch the **cassette tape icon** on the toolbar to open the **RECORDER** screen.
   2. Open the **INPUT/OUTPUT** tab.
-  3. In the **RECORD** source menu, pick **ST** (the main mix), a pair of AUX mixes, or a MATRIX pair.
+  3. In the **RECORD** source menu, pick **ST** (the main mix), a pair of AUX mixes (the monitor mixes), or a MATRIX pair (extra output mixes).
 
 {/* Screenshot: the RECORDER screen, INPUT/OUTPUT tab, with the RECORD source menu open. <Screenshot src="/images/guides/yamaha-tf-recorder-input-output.png" alt="Yamaha TF RECORDER screen, INPUT/OUTPUT tab, with the RECORD source menu showing ST, AUX and MTRX pairs" /> */}
 
 ### Only some channels recording? Check each Direct Out
 
-Each of channels 1-32 reaches USB through its own **Direct Out**. If a channel's Direct Out is off, its track is silent.
+A Direct Out is a channel's own feed to USB, one per channel. Each of channels 1-32 has one. If a channel's Direct Out is off, its track is silent.
 
 1. Touch the channel's name on the screen. The **CH VIEW** screen opens.
 2. Turn the **Direct out** button on.
@@ -72,7 +72,7 @@ Each of channels 1-32 reaches USB through its own **Direct Out**. If a channel's
 Other reasons for a missing track:
 
 - **Channels 33-40 and the stereo inputs (ST IN)** have no Direct Out, so they can't be recorded. Plug the sources you want to record into channels 1-32 (our advice).
-- **Inputs 1 and 2 missing, but the main mix on tracks 1-2?** From firmware V4.5, **SETUP > PREFERENCE > USB 1/2 Output** can send the main mix, an AUX or a MATRIX to USB 1-2 instead. Set it back to **Ch 1/2 Direct** to record channels 1 and 2.
+- **Tracks 1 and 2 have the main mix, not channels 1 and 2?** Firmware V4.5 added a setting that puts a mix there. Go to **SETUP > PREFERENCE > USB 1/2 Output** and pick **Ch 1/2 Direct**.
 - **Nothing at all?** Check the computer is set to 48 kHz, and on Windows that the Yamaha driver is installed.
 
 ## TF USB routing
@@ -80,12 +80,14 @@ Other reasons for a missing track:
 **Recording channels 1-32? There is nothing to patch.** Yamaha's guide: "By default, TF-series channels 1-32 each have a Direct Output enabled via the USB TO HOST port."
 
 - **USB 1-32:** channels 1-32, in order. Each one is that channel's Direct Out.
-- **USB 33-34:** one stereo pair. It's the source picked on the **RECORDER** screen: the main mix (ST), a pair of AUX mixes 1-8, or a MATRIX pair (MTRX 1/2 or 3/4, from firmware V3.5).
+- **USB 33-34:** one stereo pair. It's the source picked on the **RECORDER** screen: the main mix (ST), a pair of AUX mixes 1-8 (the monitor mixes), or a MATRIX pair (extra output mixes: MTRX 1/2 or 3/4, from firmware V3.5).
 - **Not on USB:** channels 33-40 (TF3 and TF5) and the stereo inputs (ST IN) have no Direct Out, so they can't be recorded one by one. They can still be heard in a mix on USB 33-34 (our reading).
 - **You can't reorder the tracks** on the TF. Move or rename them in your app.
 - **USB 1-2 from firmware V4.5:** these can carry a mix instead of channels 1 and 2 (see above).
-- **TF1 and TF-Rack:** they have 16 mic inputs on the back, but still 32 channels. Channels 17-32 carry sound only from a Tio1608-D stage box, a Dante card or USB.
 - **Recording the main mix too:** pick **ST** as the RECORD source. You get it on USB 33-34 alongside the 32 channels.
+- **TF1 and TF-Rack:** 16 mic inputs, but still 32 channels.
+- **TF3:** 24 mic inputs, but still 32 channels.
+- **Channels above the mic inputs** (17-32 on the TF1 and TF-Rack, 25-32 on the TF3) carry sound only from a Tio1608-D (Yamaha's digital stage box, connected by network cable), a Dante card (a network audio card in the TF's expansion slot) or USB (our reading).
 
 ## TF playback for virtual soundcheck
 
@@ -108,28 +110,28 @@ While a channel plays from USB, its gain control becomes a digital gain, and the
 
 ## TF tap points
 
-A *tap point* is the place in a channel where the recording is taken. Why it matters is in [Pre or post fader](/guides/record/pre-or-post-fader). On the TF, you set it for each channel.
-
 **What to pick:** **Pre DG** (our advice, and the point Yamaha's guide suggests). Set it on each channel's **CH VIEW** screen, with the **Direct out point** button.
+
+A *tap point* is the place in a channel where the recording is taken. Why it matters is in [Pre or post fader](/guides/record/pre-or-post-fader). On the TF, you set it for each channel.
 
 The four choices, earliest first:
 
 - **Pre DG:** before the digital gain. You get the input as it comes from the mic preamp. No EQ, compressor or effects. Best for a clean recording and for virtual soundcheck. Yamaha's guide: "the recording will be without any EQ, dynamics or effects settings".
 - **Pre HPF:** after the digital gain, before the high-pass filter (the low-cut). Use it if you want the digital gain in the recording (our reading).
 - **Pre Fader:** after the high-pass filter, EQ and dynamics, but before the fader. The track has your channel processing, but moving the fader doesn't change it.
-- **Post ON:** after the fader and the channel's ON key. The track follows the fader, and a channel that is switched off records silence (our reading). On channels 1-8 it comes right after the AUTOMIXER. Yamaha's 2016 guide calls this "Post Fader".
+- **Post ON:** after the fader and the channel's ON key. The track follows the fader, and a channel that is switched off records silence (our reading). On channels 1-8 it comes right after the AUTOMIXER (the TF's automatic mic mixer on channels 1-8). Yamaha's 2016 guide calls this "Post Fader" (our reading).
 
 Good to know:
 
 - **The analog gain is always in the recording.** It comes before every tap point. Set it well before the show.
 - **Which point a new TF starts on:** Yamaha doesn't say. Check every channel before the show.
-- **A Tio1608-D stage box shared with another console:** Yamaha doesn't say how a shared gain setting affects the recording.
+- **A Tio1608-D shared with another console:** Yamaha doesn't say how a shared gain setting affects the recording.
 
 ## TF on Mac, iPad and iPhone
 
-- **Mac:** no driver. Yamaha's guide says a Mac uses a class compliant driver: open the Mac's **Sound** settings and check that "Yamaha TF" is listed. That guide is from 2016, and Yamaha doesn't name a macOS version for it. The reference manual doesn't mention the Mac.
+- **Mac:** no driver. Yamaha's guide says a Mac uses a class compliant driver: open the Mac's **Sound** settings and check that "Yamaha TF" is listed. That guide is from 2016 and lists OS X 10.9 or newer. Yamaha hasn't said anything about newer macOS. The reference manual doesn't mention the Mac.
 - **iPhone and iPad:** Yamaha doesn't say whether either works on the USB TO HOST socket, and neither is tested yet with a TF.
-- **The "iPad" socket on top:** that USB socket is for playing music into the TF from an iPhone, iPad or USB drive. It isn't a way to make a multitrack recording.
+- **The iPad socket on top:** it plays music in from an iPhone or iPad, and records 2 tracks to a USB hard disk. It isn't a multitrack connection.
 - **Cable:** the USB TO HOST socket is USB-B. From a USB-C iPhone or iPad, we'd try a USB-C to USB-B cable (our advice, not Yamaha's).
 - **Power:** Yamaha doesn't say whether the TF charges a phone or tablet. For a long show, use a powered USB-C hub or a camera adapter that passes power through (our advice).
 - **Windows:** install the Yamaha Steinberg USB Driver.

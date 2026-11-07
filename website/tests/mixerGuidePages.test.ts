@@ -1426,7 +1426,7 @@ describe("the Yamaha TF guide's facts", () => {
 
   it("gives 34 x 34 USB at 48 kHz and 24-bit, the Mac with no driver and Windows with Yamaha's driver", () => {
     const ways = section(mdx, "Ways to record a TF", "TF recording settings");
-    expect(ways).toMatch(/34 x 34/);
+    expect(ways).toMatch(/34 to the computer[^\n]*34 back/);
     expect(ways).toMatch(/48 kHz, 24-bit/);
     expect(ways).toMatch(/class compliant driver, so do not need any additional installation/);
     expect(ways).toMatch(/Yamaha Steinberg USB Driver/);
@@ -1477,5 +1477,39 @@ describe("the Yamaha TF guide's facts", () => {
     expect(apple).toMatch(/records without Mixer Link/);
     expect(mdx).not.toMatch(/unsupported/i);
     expect(mdx).not.toMatch(/ShowRecorder has recorded[^.]*TF/);
+  });
+
+  // Fact check on #1115: the iPad socket records 2 tracks to a USB drive (manual p.15, spec page), and the 2016 guide
+  // names OS X 10.9 or newer.
+  it("says the iPad socket records 2 tracks to a USB hard disk, and gives the 2016 guide's OS X 10.9 or newer", () => {
+    const iphoneFaq = guide.faqs.find((f) => /iPhone or iPad/.test(f.q))!.a;
+    const apple = section(mdx, "TF on Mac, iPad and iPhone", "Sources");
+    for (const text of [iphoneFaq, apple]) {
+      expect(text).toMatch(/records 2 tracks to a USB hard disk/);
+      expect(text).not.toMatch(/doesn't record/);
+    }
+    expect(section(mdx, "Ways to record a TF", "TF recording settings")).toMatch(/\*\*iPad\*\* socket/);
+    expect(apple).toMatch(/OS X 10\.9 or newer/);
+    expect(mdx).not.toMatch(/doesn't name a macOS version/);
+  });
+
+  it("labels its readings: the TF-Rack on a Mac, channels 17-32, and Post Fader as Post ON", () => {
+    expect(mdx.slice(0, mdx.indexOf("**Quick start**"))).toMatch(/TF-Rack[^.]*\(our reading\)/);
+    expect(mdx).toMatch(/Tio1608-D[^.]*\(our reading\)/);
+    expect(mdx).toMatch(/"Post Fader" \(our reading\)/);
+    expect(mdx).toMatch(/\*\*TF3:\*\* 24 mic inputs/);
+    expect(mdx).not.toMatch(/on the back/);
+  });
+
+  it("explains Direct Out, AUX, MATRIX, the Tio1608-D, Dante and the AUTOMIXER for beginners", () => {
+    expect(mdx).toMatch(/A Direct Out is a channel's own feed to USB, one per channel/);
+    expect(mdx).toMatch(/AUX mixes \(the monitor mixes\)/);
+    expect(mdx).toMatch(/MATRIX pair \(extra output mixes\)/);
+    expect(mdx).toMatch(/Yamaha's digital stage box, connected by network cable/);
+    expect(mdx).toMatch(/AUTOMIXER \(the TF's automatic mic mixer on channels 1-8\)/);
+    const tf = guide.faqs.map((f) => f.a).join(" ");
+    expect(tf).toMatch(/AUX mixes \(the monitor mixes\)/);
+    const taps = section(mdx, "TF tap points", "TF on Mac, iPad and iPhone");
+    expect(taps.indexOf("**What to pick:**")).toBeLessThan(taps.indexOf("A *tap point*"));
   });
 });
