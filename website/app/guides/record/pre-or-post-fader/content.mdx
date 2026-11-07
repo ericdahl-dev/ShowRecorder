@@ -8,19 +8,26 @@ import { TAP_POINT_GUIDE, guideTrail } from "@/lib/mixerGuides";
 
 <LastChecked path={TAP_POINT_GUIDE} />
 
-Every digital mixer takes its recording feed from a point in the channel's signal path: the tap point. Some let you choose it. Where it is decides what ends up in the file. Pick the wrong one and you can record your EQ mistakes, or a silent track because a fader was down.
+Sound passes through each mixer channel in steps: the mic preamp, then the EQ and compressor, then the fader. The tap point is the step where the recording is copied off. Every digital mixer has one, and some let you choose it.
+
+- **Pre-fader** means the copy is taken before the fader, so moving the fader doesn't change the recording.
+- **Post-fader** means it is taken after the fader, so the recording follows every fader move.
+
+The tap point decides what ends up in the file. Pick the wrong one and you can record your EQ mistakes, or a silent track because a fader was down.
 
 **The short answer.** For a multitrack you will mix later, record from the earliest tap: the raw input after the preamp, or just after gain and trim and before EQ. Record post fader only for mixes and buses, not for channel tracks. On an XR18, that means the Input tap on each USB send; on an X32, a Local block on card out.
 
 <TapPicks />
 
-Some mixers also offer a "+M" version of a tap, which follows the channel mute: a muted channel then records silence even on an early tap. The XR18 shows these on each USB send.
+**Watch for "+M".** Some mixers also offer a "+M" version of a tap. It follows the channel mute: a muted channel then records silence, even on an early tap. The XR18 shows these on each USB send.
 
-This page is general recording practice, not a maker's claim. What each mixer calls its tap points, and where they sit, is in that mixer's guide in the [mixer recording guides](/guides/record).
+This page is general recording practice, not a maker's claim. What each mixer calls its tap points, and where they sit, is in that mixer's guide in the [mixer recording guides](/guides/record). Words you may not know are in the [glossary](/guides/record#glossary).
 
 ## The tap points, earliest first
 
 ### 1. The raw input, before the digital trim
+
+The sound straight from the mic preamp, before anything else touches it.
 
 <details>
 <summary>Common names</summary>
@@ -29,11 +36,13 @@ X32 "Local" or "AES50" blocks on the card, Allen & Heath "Post Preamp" and Tie L
 
 </details>
 
-- **Pros.** Raw and unprocessed. Trim, EQ, mute and fader moves don't touch it. Best for virtual soundcheck, since playback comes back in at the same point.
-- **Cons.** The preamp gain is still in it: a gain change during the show changes the track level, and a clip at the preamp is permanent. It is before the high-pass filter (HPF), so rumble and handling noise stay in.
+- **Pros.** Raw and unprocessed. Trim, EQ, mute and fader moves don't touch it. Best for virtual soundcheck (playing the recording back through the mixer to set the mix with no band), since playback comes back in at the same point.
+- **Cons.** The preamp gain is still in it. A gain change during the show changes the track level, and a clip (distortion from too much gain) at the preamp is permanent. It is before the high-pass filter (HPF, the low cut), so rumble and handling noise stay in.
 - **Use it** for a multitrack you will remix later, and for virtual soundcheck. This is the usual default.
 
 ### 2. After gain and trim, before EQ
+
+The sound after the gain and trim, before the EQ.
 
 <details>
 <summary>Common names</summary>
@@ -48,6 +57,8 @@ X32 "Pre-EQ", Allen & Heath "Post HPF", Yamaha TF "Pre HPF", Soundcraft Signatur
 
 ### 3. After EQ and dynamics, before the fader
 
+The sound with the EQ and compressor applied, but before the fader.
+
 <details>
 <summary>Common names</summary>
 
@@ -55,11 +66,13 @@ X32 "Pre-Fader", Allen & Heath "Post Comp" or "Post Delay", Behringer WING "POST
 
 </details>
 
-- **Pros.** Sounds like front of house, so the tracks are ready to use.
+- **Pros.** Sounds like front of house (the main speakers), so the tracks are ready to use.
 - **Cons.** EQ and compression are baked in and can't be undone in the mix. A bad compressor setting ruins the take.
 - **Use it** for quick release-ready recordings and streaming feeds.
 
 ### 4. After the fader
+
+The sound exactly as the channel is mixed, fader moves and mutes included.
 
 <details>
 <summary>Common names</summary>
@@ -74,25 +87,29 @@ X32 "Post-Fader", Behringer WING "POST FDR", Yamaha TF "Post ON", Allen & Heath 
 
 ### 5. The main mix and buses
 
-Main L/R, aux, groups and matrix outputs: every mixer's "Main LR" or "ST".
+Main L/R, aux, groups and matrix outputs: every mixer's "Main LR" or "ST". These are mixes of many channels, not single channels.
 
 - **Pros.** A reference mix. A matrix or audience-mic mix is handy for video.
-- **Cons.** It is the front-of-house balance for that room, so loud stage instruments are often too quiet in it.
+- **Cons.** It is the front-of-house balance for that room. So loud stage instruments are often too quiet in it.
 - **Use it** alongside the channel tracks, as a reference.
 
 ## What even the raw tap can't avoid
 
 - **Gain changes reach the recording.** The earliest digital tap is still after the analog preamp. The X32 manual warns that front-of-house gain changes "can be heard in the recording". Some mixers can lock who changes gain: PreSonus (Preamp Permissions) and the Mackie DL32R (Access Limiting).
-- **Digital trim vs analog gain.** Where a mixer has both (Allen & Heath, Yamaha "DG" for digital gain, Mackie), the earliest tap is before the digital trim. Allen & Heath says the SQ's Post Preamp point is "affected only by the preamp gain". Set the analog gain for headroom, then ride level with the trim and the fader.
+- **Digital trim vs analog gain.** Some mixers have both an analog gain and a digital trim (Allen & Heath, Yamaha "DG" for digital gain, Mackie). There, the earliest tap is before the digital trim. Allen & Heath says the SQ's Post Preamp point is "affected only by the preamp gain". Set the analog gain for headroom (room before it distorts), then ride level with the trim and the fader.
 - **Where the HPF sits.** The Ui24R inputs, Mackie "Mic Pre", Allen & Heath "Post Preamp" and Yamaha TF "Pre DG" are all before the HPF. If you want the low cut in the file, pick a tap after it.
-- **A low channel-count mode sends only a few channels.** The X32 card modes 8/8 and 2/2, the XR18's 2 x 2 mode, the smaller WING modes and the "Stereo" stream mode on the Allen & Heath CQ and new Qu all cut what the recorder sees. If a recorder shows only 2 or 8 channels, check this first.
-- **Phantom power** sits at the preamp and doesn't depend on the tap. Switching it on while recording makes a pop on that track.
-- **Shared stage boxes.** When two consoles share a stage box, the record feed is after its preamp, so whoever controls the preamp gain changes your recorded level. Allen & Heath Avantis has Gain Tracking to compensate the channel trim, but its Record Send and Tie Lines are before the trim. We found no gain compensation for X32, M32 or WING shared stage boxes.
-- **Some mixers have a fixed tap.** On the Soundcraft Ui24R, the Signature MTK, the Zoom LiveTrak and USB 1-32 of the Yamaha TF, you can't move the USB tap, except the per-channel point on the TF. For a processed or post-fader version on the Ui24R, Soundcraft says to use an AUX set to POST or POST PROC.
+- **A low channel-count mode sends only a few channels.** If a recorder shows only 2 or 8 channels, check this first. These modes all cut what the recorder sees:
+  - the X32 card modes 8/8 and 2/2
+  - the XR18's 2 x 2 mode
+  - the smaller WING modes
+  - the "Stereo" stream mode on the Allen & Heath CQ and new Qu
+- **Phantom power** (power for condenser mics) sits at the preamp and doesn't depend on the tap. Switching it on while recording makes a pop on that track.
+- **Shared stage boxes.** When two consoles share a stage box, the record feed is after its preamp. So whoever controls the preamp gain changes your recorded level. Allen & Heath Avantis has Gain Tracking to compensate the channel trim, but its Record Send and Tie Lines are before the trim. We found no gain compensation for X32, M32 or WING shared stage boxes.
+- **Some mixers have a fixed tap.** On the Soundcraft Ui24R, the Signature MTK, the Zoom LiveTrak and USB 1-32 of the Yamaha TF, you can't move the USB tap. The one exception is the per-channel point on the TF. For a processed or post-fader version on the Ui24R, Soundcraft says to use an AUX set to POST or POST PROC.
 
 ## With ShowRecorder
 
-ShowRecorder records whatever the mixer sends to each USB Channel, so the tap point is set on the mixer, not in the app. [What the mixer sends over USB](/docs/what-gets-recorded) has more on tap points in ShowRecorder.
+ShowRecorder records whatever the mixer sends to each USB Channel. So you set the tap point on the mixer, not in the app. [What the mixer sends over USB](/docs/what-gets-recorded) has more on tap points in ShowRecorder.
 
 <GetTheApp campaign="site-guide-taps" />
 
