@@ -62,7 +62,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     name: "Behringer WING, WING Rack and WING Compact",
     usb: "2 x 2 up to 48 x 48, 24-bit. The console runs at 44.1 or 48 kHz; USB at 44.1 kHz is not stated.",
     onboard: "WING-LIVE card: 64 channels on two SD cards. Front USB stick: 2 or 4 tracks.",
-    mac: "Users report it works with no driver; Behringer doesn't say.",
+    mac: "One forum user reports it works with no driver; Behringer doesn't say.",
     ipad: "Reports differ; not tested yet.",
     iphone: "Not tested yet.",
 
