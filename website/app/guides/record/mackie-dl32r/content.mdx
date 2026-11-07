@@ -30,7 +30,7 @@ Plug the **USB B** port into the computer and record in any DAW.
 - **Sample rate:** 48 kHz only.
 - **Bit depth:** 16 or 24-bit (DL32R manual). The recording app picks which (our reading; Mackie doesn't say).
 - **Driver:** none on a Mac. On Windows, Mackie says "Driver installation required".
-- **Channel count:** no mode or channel-count option is documented. The DL32R always offers 32 x 32.
+- **Channel count:** no mode or channel-count option is documented, so we expect 32 x 32 every time (our reading).
 
 ### With no computer: to a USB hard drive
 
@@ -54,7 +54,7 @@ Mackie's manual names the iPad, with Apple's camera connection kit. The iPhone i
 - **Over USB B:** 48 kHz only, 16 or 24-bit, set in your recording app (our reading). There is nothing to switch on the DL32R.
 - **To the drive:** in Master Fader, tap the **Recording/Playback** button (upper right of the navigation bar), name the recording, pick how many tracks (1-32) and 16 or 24 bits, then tap **Record**. Name, track count and bit depth can't change while it records.
 - **The iPad can leave the app:** drive recording carries on in the background (Master Fader 5 guide).
-- **Clock:** internal. An optional Dante card is offered (spec sheet). Mackie documents no word clock.
+- **Clock:** Mackie documents no word clock. An optional Dante card is offered (spec sheet).
 - **File format on the drive:** multichannel WAV, 48 kHz.
 
 {/* Screenshot: Master Fader's Recording/Playback view with the track count and bit depth. <Screenshot src="/images/guides/mackie-dl32r-recording-view.png" alt="Mackie Master Fader Recording/Playback view, with 32 tracks and 24 bits selected" /> */}
@@ -103,7 +103,7 @@ Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-po
 - **Mic Pre:** after the analog gain and the converter, before everything digital: before digital trim, polarity, HPF, gate, compressor, EQ, mute and fader. Mackie calls this "recording each input directly off the mic pre with no processing".
 - **Channel N Post-DSP** (the "Ch Direct Out" on the block diagram): after the HPF, gate, compressor and EQ, before mute and fader. For tracks that sound like front of house.
 - **Main L/R:** offered both pre-fader and post-fader.
-- **Gain vs trim:** the preamp gain is analog, digitally controlled, in 3 dB steps: 0 to 60 dB on XLR, -20 to 40 dB on the 1/4" input (spec sheet). Line inputs 25-32 add a -20 dB pad on TRS. The digital trim comes after the Mic Pre tap, so it doesn't change the recording.
+- **Gain vs trim:** the preamp gain is analog, digitally controlled, in 3 dB steps: 0 to 60 dB on XLR, -20 to 40 dB on the 1/4" input (spec sheet). Line inputs 25-32 add a -20 dB pad on TRS. The digital trim comes after the Mic Pre tap (block diagram), so it doesn't change the recording.
 - **Meters:** the channel meter sits right after the A/B source select, before the trim (block diagram). Mackie's FAQ: "Input meters are fixed Pre DSP."
 - **Several iPads:** up to 20 iOS devices can control one DL32R (spec sheet). The gain is one setting per input, so a gain change from any of them changes the Mic Pre recording (our reading). Mackie doesn't say so. **Access Limiting > Mic Preamps** locks "48v, gain, trim and polarity" on a device. Lock it on every iPad except the one that owns gain (our advice).
 
@@ -113,7 +113,7 @@ Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-po
 - **iPhone:** Mackie doesn't name the iPhone, and an iPhone with a DL32R is not tested yet.
 - **Mac:** class compliant, no driver: "connecting it to a Mac should work automatically with no additional drivers" (DL32R manual). Mackie's 2015 list stops at OS X 10.11; current macOS is not listed by Mackie.
 - **Windows:** Mackie says a driver installation is required.
-- **Power:** the DL32R powers nothing on the iPad through USB B. For a long show, use a powered USB hub or a camera adapter that passes power through (our advice), and test it before the show.
+- **Power:** Mackie doesn't say whether USB B charges an iPad. For a long show, use a powered USB hub or a camera adapter that passes power through (our advice), and test it before the show.
 
 ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer, one WAV file per channel. We haven't tested it with a DL32R yet. There is no Mixer Link for the DL32R: Mixer Link, which reads channel names and colors, works only on the XR18/MR18 and X32/M32.
 

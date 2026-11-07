@@ -191,7 +191,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
   {
     name: "Mackie DL32R",
     usb: "32 in and 32 out, 48 kHz.",
-    onboard: "Up to 32 tracks with current firmware (older units likely show 24 until updated), 16 or 24-bit at 48 kHz, as one multichannel WAV per take, split into files under 2 GB, to a spinning USB hard drive formatted by the DL32R (no thumb drive, no hub). The drive and a computer can't be used at the same time.",
+    onboard: "Up to 32 tracks with current firmware (older units may show 24 until updated; our reading), 16 or 24-bit at 48 kHz, as one multichannel WAV per take, split into files under 2 GB, to a spinning USB hard drive formatted by the DL32R (no thumb drive, no hub). The drive and a computer can't be used at the same time.",
     mac: "Class compliant; current macOS not listed by Mackie.",
     ipad: "Yes, with a camera adapter (manual).",
     iphone: "Not tested yet.",
@@ -471,7 +471,7 @@ export const DL32R_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Is DL32R USB recording pre or post fader?",
-    a: "Pre-fader either way. The default source, Mic Pre, is straight after the analog preamp: before digital trim, HPF, gate, compressor, EQ, mute and fader. Channel Post-DSP comes after the HPF, gate, compressor and EQ, before mute and fader (per Mackie's block diagram). You pick one per USB slot in I/O Patch > USB.",
+    a: "For the channels, pre-fader either way. The default source, Mic Pre, is straight after the analog preamp: before digital trim, HPF, gate, compressor, EQ, mute and fader. Channel Post-DSP comes after the HPF, gate, compressor and EQ, before mute and fader (per Mackie's block diagram). You pick one per USB slot in I/O Patch > USB.",
   },
   {
     q: "How do I record the main mix along with the channels on a DL32R?",

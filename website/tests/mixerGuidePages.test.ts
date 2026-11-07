@@ -517,6 +517,20 @@ describe("the Mackie DL32R guide's facts", () => {
     expect(mdx).not.toMatch(/unsupported/i);
   });
 
+  // Fact check, loop 1 on #1106: no claim past the sources; our readings say so.
+  it("makes no unsourced power or clock claim, and labels its readings", () => {
+    expect(mdx).not.toMatch(/powers nothing/);
+    expect(mdx).toMatch(/Mackie doesn't say whether USB B charges an iPad\./);
+    expect(mdx).not.toMatch(/\*\*Clock:\*\* internal/);
+    expect(mdx).toMatch(/\*\*Clock:\*\* Mackie documents no word clock\. An optional Dante card is offered \(spec sheet\)\./);
+    expect(read("..", "docs", "research", "mixer-recording", "mackie-dl32r.md")).not.toMatch(/Clock: internal/);
+    expect(mdx).not.toMatch(/always offers 32 x 32/);
+    expect(mdx).toMatch(/so we expect 32 x 32 every time \(our reading\)/);
+    expect(mdx).toMatch(/after the Mic Pre tap \(block diagram\)/);
+    expect(guide.faqs.find((f) => /pre or post fader/.test(f.q))!.a).toMatch(/^For the channels, pre-fader either way\./);
+    expect(MIXER_ROWS.find((r) => r.name === "Mackie DL32R")!.onboard).toMatch(/\(older units may show 24 until updated; our reading\)/);
+  });
+
   it("cites the Master Fader 5 guide as Mackie's, hosted by a distributor", () => {
     const sources = mdx.slice(mdx.indexOf("## Sources"));
     expect(sources).toMatch(/ambertech\.com\.au/);
