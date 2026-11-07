@@ -43,8 +43,10 @@ describe("the mixer recording guides hub", () => {
     }
   });
 
-  it("never calls the iPhone confirmed: no maker names it, and only XR18 to a Mac has been tested by us", () => {
-    for (const row of MIXER_ROWS) expect(row.apple).not.toMatch(/iPhone: yes/i);
+  // Makers rarely name the iPhone (Zoom does); elsewhere it stays "not tested yet" until someone records with one.
+  it("calls the iPhone confirmed only where the maker names it", () => {
+    const yes = MIXER_ROWS.filter((r) => /iPhone[^.]*: yes/i.test(r.apple)).map((r) => r.name);
+    expect(yes).toEqual([expect.stringMatching(/Zoom/)]);
     expect(MIXER_ROWS.find((r) => /X32/.test(r.name))!.apple).toMatch(/not documented|unknown|not tested/i);
   });
 
