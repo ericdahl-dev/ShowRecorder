@@ -40,6 +40,7 @@ describe("sitemap", () => {
       "https://showrecorder.app/guides/record/yamaha-dm3",
       "https://showrecorder.app/guides/record/yamaha-mgx",
       "https://showrecorder.app/guides/record/yamaha-mg-xu",
+      "https://showrecorder.app/guides/record/ah-avantis",
       "https://showrecorder.app/changelog",
       "https://showrecorder.app/support",
       "https://showrecorder.app/privacy",

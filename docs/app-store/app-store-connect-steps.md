@@ -116,6 +116,7 @@ The campaigns (40 characters or fewer; the list is `APP_STORE_CAMPAIGNS`):
 | `site-guide-yamaha-dm3` | Yamaha DM3 recording guide, "Where ShowRecorder fits" |
 | `site-guide-yamaha-mgx` | Yamaha MGX recording guide, after "on Mac, iPad and iPhone" |
 | `site-guide-yamaha-mg-xu` | Yamaha MG XU recording guide, after "on Mac, iPad and iPhone" |
+| `site-guide-ah-avantis` | Allen & Heath Avantis recording guide, "Where ShowRecorder fits" |
 | `site-guide-taps` | Pre or post fader guide, "With ShowRecorder" |
 | `site-guide-best-app` | Best app for iPhone and iPad guide, after "Which app for which job" |
 
