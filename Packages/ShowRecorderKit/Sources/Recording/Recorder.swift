@@ -769,6 +769,16 @@ public final class Recorder {
         return StemDeleter.delete(channel: channel, inTake: take, ofShow: show, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
     }
 
+    /// `deleteTake`, for Show detail (#1021).
+    public func deleteTakeOffMain(_ take: Int, ofShow show: String, from copies: Set<DestinationKind>) async -> ShowDeleter.Outcome {
+        deleteTake(take, ofShow: show, from: copies)
+    }
+
+    /// `deleteChannel`, for Show detail (#1021).
+    public func deleteChannelOffMain(_ channel: Int, inTake take: Int, ofShow show: String, from copies: Set<DestinationKind>) async -> ShowDeleter.Outcome {
+        deleteChannel(channel, inTake: take, ofShow: show, from: copies)
+    }
+
     /// Starts a Take in the open Show, creating a Show first if none is open.
     ///
     /// `sources` are frozen into the Take: Stem names and bext descriptions use them, and later
