@@ -53,6 +53,7 @@ export const APP_STORE_CAMPAIGNS = [
   "site-guide-mackie-dl32s",
   "site-guide-ui24r",
   "site-guide-ah-cq",
+  "site-guide-presonus-studiolive-iii",
   "site-guide-taps",
   "site-guide-best-app",
 ] as const;
