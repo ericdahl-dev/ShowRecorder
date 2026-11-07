@@ -21,6 +21,7 @@ public enum MixerLinkState: Equatable, Sendable {
 /// (`/xinfo`: its address, network name, model and firmware) ties it to the USB audio, and the USB audio names only the
 /// Mixer family ("X18/XR18", "X-USB"). So after each new Link the session asks the network which Mixers of that family
 /// answer: with only the linked one, it is the USB one, as before; with more, the operator picks it in Find Mixers.
+/// Only where the check is on (`USBMixerCheckAvailability`, Debug + TestFlight); elsewhere nothing is asked.
 public enum USBMixerCheck: Equatable, Sendable {
     /// Asking the network, or not asked yet for this Link: nothing moves the Mixer's gain until it's known.
     case checking
@@ -116,6 +117,8 @@ public final class MixerSession {
 
     /// The linked Mixer is the one picked in Find Mixers, or the only one of its family on the network.
     private var linkedMixerIsUSBMixer: Bool {
+        // The check off (the App Store build): the linked Mixer is the USB one, as before #1018.
+        guard checksUSBMixer() else { return true }
         if let pickedUSBMixer, let identity = link.identity, link.host == pickedUSBMixer.host,
            identity.networkName == pickedUSBMixer.identity.networkName, identity.model == pickedUSBMixer.identity.model {
             return true
@@ -127,6 +130,12 @@ public final class MixerSession {
     /// each address is asked `/xinfo`, as Find Mixers does.
     private func checkUSBMixer() async {
         guard let identity = link.identity, let host = link.host else { return }
+        // The check off: no scan. Taken as the only one, so a check switched on later (StoreKit answering after the
+        // Link came up, in TestFlight) doesn't leave the Link waiting on a scan that never ran.
+        guard checksUSBMixer() else {
+            usbMixerCheck = .onlyOne
+            return
+        }
         let connection = connections
         let family = MixerFamily.reading(model: identity.model)
         // With no network to ask, nothing else can answer: the linked Mixer is taken as the only one, as before.
@@ -212,7 +221,7 @@ public final class MixerSession {
 
     /// Whether Find Mixers asks which Mixer is plugged in by USB (#1018): more than one of the Ready family answered.
     public func asksForUSBMixer(among found: [FoundMixer]) -> Bool {
-        guard let family else { return false }
+        guard checksUSBMixer(), let family else { return false }
         return found.filter { MixerFamily.reading(model: $0.identity.model) == family }.count > 1
     }
 
