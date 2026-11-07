@@ -431,7 +431,14 @@ describe("the Midas M32 guide's facts", () => {
 
   it("gives the tap points from the M32 manual and the shared stage box caveat", () => {
     const taps = section(mdx, "M32 tap points", "M32 on Mac, iPad and iPhone");
-    expect(taps).toMatch(/Input, Pre-EQ, Pre-Fader and Post-Fader \(M32 manual\)/);
+    // #1124 fact check: Midas's current manual lists nine taps for Out 1-16 (p. 26) and P16 (p. 27).
+    expect(taps).toMatch(/IN\/LC, IN\/LC \+M, PreEQ, PreEQ \+M, PostEQ, PostEQ \+M, PreFdr, PreFdr \+M and Post Fader \(Midas M32 manual, pp\. 26-27\)/);
+    expect(taps).not.toMatch(/forum users report newer names/);
+    const sources = mdx.slice(mdx.indexOf("## Sources"));
+    expect(sources).toMatch(/\(pp\. 26-27\)/);
+    const notes = read("..", "docs", "research", "mixer-recording", "m32.md");
+    expect(notes).not.toMatch(/X32 forum sources only/);
+    expect(notes).toMatch(/IN\/LC[^\n]*PostEQ[^\n]*M-5 p\.26-27/);
     expect(taps).toMatch(/DL16 or DL32/);
     expect(taps).toMatch(/no gain compensation/i);
   });
@@ -454,7 +461,9 @@ describe("the Midas M32 guide's facts", () => {
     expect(mdx).toMatch(/on the X32 it is fixed \(X32 manual\), and we expect the same on the M32 \(our reading\)/);
     expect(mdx).not.toMatch(/Confirm if asked/);
     expect(mdx).toMatch(/config: This screen offers adjustments for sample rates and synchronisation/); // spelling: ok (Midas's own word, quoted)
-    expect(mdx).toMatch(/Input\/LC and \+M variants \(our reading for the M32\)/);
+    expect(mdx).not.toMatch(/Input\/LC and \+M variants \(our reading for the M32\)/);
+    expect(mdx).toMatch(/through a card in its expansion slot \(DN32-USB, DN32-LIVE or XUF\)/);
+    expect(mdx).not.toMatch(/DN32-USB is always 32 x 32/);
     expect(mdx).toMatch(/On a DN32-LIVE, set \*\*Setup > Card\*\* to 32 each way \(the DN32-USB is 32 x 32\)/);
     expect(mdx).toMatch(/it is built to also read channel names and colors over Mixer Link/);
     expect(guide.faqs.find((f) => /main mix/.test(f.q))!.a).toMatch(/per user reports \(our reading\)/);
@@ -695,6 +704,12 @@ describe("the Mackie DL32R guide's facts", () => {
     expect(read("..", "docs", "research", "mixer-recording", "mackie-dl32r.md")).not.toMatch(/Clock: internal/);
     expect(mdx).not.toMatch(/always offers 32 x 32/);
     expect(mdx).toMatch(/so we expect 32 x 32 every time \(our reading\)/);
+    // #1124 fact check: say what Mackie documents, not what the mixer has; the default is one input per channel.
+    expect(mdx).toMatch(/Mackie documents no mode or channel-count option/);
+    expect(mdx).toMatch(/32 channels at 48 kHz, by default one per input/);
+    expect(section(mdx, "Ways to record a DL32R", "DL32R recording settings")).toMatch(/\*\*Set the drive up:\*\*[^\n]*FAT32/);
+    expect(read("..", "docs", "research", "mixer-recording", "mackie-dl32r.md")).not.toMatch(/p\.209/);
+    expect(read("..", "docs", "research", "mixer-recording", "xr18-mr18.md")).not.toMatch(/midasgroup/);
     expect(mdx).toMatch(/after the Mic Pre tap \(block diagram\)/);
     expect(mdx).not.toMatch(/sound like front of house/);
     expect(mdx).toMatch(/Use it for processed tracks \(our advice\)\./);

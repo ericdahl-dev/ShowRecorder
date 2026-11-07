@@ -7,7 +7,7 @@ import { guideTrail } from "@/lib/mixerGuides";
 
 <LastChecked path="/guides/record/m32" />
 
-**Short answer.** The M32 records over USB only through a card in its expansion slot: a DN32-USB or a DN32-LIVE. On a DN32-LIVE, set the USB channel count on **Setup > Card** (the DN32-USB is always 32 x 32). Then put Local 1-8 to 25-32 on **ROUTING > card out**, and record the card's USB in any DAW (a recording app such as Reaper, Logic or Pro Tools). The M32 LIVE and M32R LIVE come with the DN32-LIVE, which can also record up to 32 channels to SD cards with no computer. Routing works as on the X32; the cards are what differ.
+**Short answer.** The M32 records over USB only through a card in its expansion slot (DN32-USB, DN32-LIVE or XUF). On a DN32-LIVE, set the USB channel count on **Setup > Card** (the DN32-USB is 32 x 32). Then put Local 1-8 to 25-32 on **ROUTING > card out**, and record the card's USB in any DAW (a recording app such as Reaper, Logic or Pro Tools). The M32 LIVE and M32R LIVE come with the DN32-LIVE, which can also record up to 32 channels to SD cards with no computer. Routing works as on the X32; the cards are what differ.
 
 **Quick start**
 
@@ -155,8 +155,9 @@ Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-po
 
 - **For a multitrack you will mix later:** Local or AES50 blocks on card out, as in the quick start.
 - **Local and AES50 blocks on card out** are the raw input: after the preamp, before the channel. You can't pick a tap for them.
-- **Out 1-16 and P16 slots** each have their own tap point: Input, Pre-EQ, Pre-Fader and Post-Fader (M32 manual). The manual says this "determines where in the audio signal path the source is 'tapped'".
-- **Newer names:** on the X32, forum users report newer names such as Input/LC and +M variants (our reading for the M32). Check what your console offers.
+- **Out 1-16 and P16 slots** each have their own tap point: IN/LC, IN/LC +M, PreEQ, PreEQ +M, PostEQ, PostEQ +M, PreFdr, PreFdr +M and Post Fader (Midas M32 manual, pp. 26-27).
+- **What the names mean:** the manual says the tap "determines where in the audio signal path the source is 'tapped'". A tap marked +M follows the channel mute, so a muted channel records silence (our reading). The manual doesn't explain +M.
+- **Older consoles:** an earlier edition of the M32 manual, on ManualsLib, used the names Input, Pre-EQ, Pre-Fader and Post-Fader. Check what your console offers.
 - **Mic gain and phantom power** sit at the preamp, local or on a DL16 or DL32 stage box over AES50. So they reach every feed, even the raw blocks. The channel's trim, low cut, EQ, dynamics and fader don't reach a raw block.
 - **Shared stage box** (a DL16 or DL32 on two consoles): whichever console controls the stage box preamp gain changes your recorded level. We found no gain compensation feature for the M32.
 
@@ -176,7 +177,7 @@ ShowRecorder (the app this site makes) records every USB Channel from any class-
 
 Midas and Klark Teknik (maker documents). Midas moved to midasconsoles.com; the first two documents are Midas's own, linked from there. The others are maker documents read on third-party hosts.
 
-- [Midas M32 User Manual](https://cdn-media.empowertribe.com/5a30d52258104865a4392b99550ee1f9/M32_M_EN.pdf): the card out blocks and the tap points on Out 1-16 and P16 (p. 27), the routing tabs.
+- [Midas M32 User Manual](https://cdn-media.empowertribe.com/5a30d52258104865a4392b99550ee1f9/M32_M_EN.pdf): the card out blocks and the tap points on Out 1-16 and P16 (pp. 26-27), the routing tabs.
 - [Midas M32 LIVE Quick Start Guide](https://cdn-media.empowertribe.com/019427b1584f42aab500bf0dc082ace5/QSG_MI_0603-AEO_M32%20LIVE.pdf): DN32-LIVE USB and SD specs (SD or SDHC, 1 to 32 GB per slot), the USB stick recorder, the routing tabs, Setup > Card and Setup > Config.
 - [Klark Teknik DN32-USB product information document](https://www.sgssistemas.lv/uploads/resources/107/en/klark-teknik-dn32-usb-p0bif-product-information-document.pdf), hosted by the reseller SGS Sistemas: DN32-USB channels, sample rate, class compliance, drivers.
 - [Midas M32R LIVE Quick Start Guide](https://leisuretec.co.uk/cdn/shop/files/M32R_LIVE_Quick_Start_Guide.pdf), hosted by Leisuretec.

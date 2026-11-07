@@ -48,7 +48,7 @@ Source key used below:
 - Default: "mic pres 1-16/32 [source] are routed to USB 1-16/32 [destination]" [RG p.203].
 - Sources on the USB tab [RG p.207, "I/O Patch at a Glance"]: Oscillator; Mic Pre 1-32; USB 1-32; Dante 1-32; Channel 1-32 Post-DSP; Return 1-4 Post-DSP; FX L/R Post-DSP; Main L/R Pre-Fader; Main L/R; Subgroups 1-6; Aux 1-14; FX Send 1-3; Matrix 1-6; Monitor L/R.
 - Recording the main mix alongside inputs: Mackie's example patches Mic Pre 1-12 to USB 1-12, Main L/R to USB 13-14 and Aux 1-2 to USB 15-16 [RG p.203]. With 32 inputs in use there are no spare slots, so a stereo mix costs two input tracks.
-- Reset: the tools button (upper left of I/O Patch) offers "Reset to Default" or "Clear" for the open tab. Patching is stored in snapshots [RG p.198, p.200, p.209].
+- Reset: the tools button (upper left of I/O Patch) offers "Reset to Default" or "Clear" for the open tab. Patching is stored in snapshots [RG p.198, p.200].
 - Playback / virtual soundcheck: each channel has Input A (default: mic pres) and Input B (default: USB returns) [RG p.199]. Switch channels to Input B to hear drive or computer playback. The Recording/Playback view has shortcuts "Channel A / B" (all channels) and "A Tracks / B Tracks" (only as many channels as the loaded file has tracks) [RG p.220, p.224]. Drive playback needs 48 kHz .wav; 44.1 kHz, AAC, MP3 and AIFF won't play [RG p.213]. Mackie notes multichannel files made in some DAWs "will only play back properly with 27 or fewer tracks" [RG p.223].
 
 ## 6. Tap points
