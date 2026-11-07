@@ -135,7 +135,8 @@ The tap point is where in the channel the recording is taken: the raw input, or 
 
 - **Which to pick:** For a service or gig recording you'll remix: **Input**. Avoid +M and Post Fader. A tap marked "+M" goes silent when the channel is muted. The same tap without "+M" keeps recording through a mute. Post Fader follows every fader move, and a fader that is down records silence. The [tap-point guide](/guides/record/pre-or-post-fader) has the pros and cons of each.
 - **Where to set it:** each USB Send has its own **Signal Tap**.
-- **The choices:** we saw these on a real XR18 on 2026-11-06 (the firmware version wasn't noted). Here they are in the order the app shows them: **Analog, Analog +M, Input, Input +M, Pre EQ, Pre EQ +M, Post EQ, Post EQ +M, Pre Fader, Pre Fader +M, Post Fader**.
+- **The choices:** we saw these on a real XR18 on 2026-11-06 (it ran firmware 1.26 when we checked it the next day). Here they are in the order the app shows them: **Analog, Analog +M, Input, Input +M, Pre EQ, Pre EQ +M, Post EQ, Post EQ +M, Pre Fader, Pre Fader +M, Post Fader**.
+- **How ours was set:** when we read our XR18's settings on 2026-11-07 (firmware 1.26), USB Sends 1-16 were Ch 1-16 at **Analog**, and 17-18 the main L and R at **Post Fader**. We may have changed some of that ourselves, so it's not a factory default we could confirm.
 - **What Behringer's manual shows:** the V1.0 manual doesn't describe the tap on each send. Its block diagram shows each input channel feeding the routing patch at **pre low cut** and **post fader** only. So the longer list probably came with later firmware.
 - **Check every send before a show:** Behringer doesn't say what each tap name covers. The factory tap for each send isn't documented either.
 - **Not USB taps:** two other lists in the diagram are not for USB. "Input, Pre INS, Pre EQ, Pre Fader, Post Fader" belongs to the aux buses and the main mix. "Pre HP" to "Post Pan" belongs to the channel's aux and effects sends.
@@ -170,4 +171,5 @@ Midas:
 Seen on a real mixer:
 
 - The Routing > USB Sends page of an XR18, checked by ShowRecorder's developer on 2026-11-06: the Signal Source and Signal Tap per USB Send.
+- The same XR18's settings, read from the mixer over the network on 2026-11-07 (firmware 1.26): the source and tap of each USB Send.
 - An iPhone Take of all 18 XR18 channels, recorded with ShowRecorder by its developer.

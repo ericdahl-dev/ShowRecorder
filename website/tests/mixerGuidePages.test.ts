@@ -288,6 +288,16 @@ describe("the XR18 and MR18 guide's facts", () => {
     expect(mdx).not.toMatch(/how you put a bus or the main mix on a USB channel/);
   });
 
+  // #993: the real XR18's own settings (OSC capture, 2026-11-07, firmware 1.26): USB sends 1-16 = Ch 1-16 at tap
+  // 0 "AIN" (Analog), 17-18 = main L and R at tap 10 "POST". Found state, not a confirmed factory default.
+  it("names the firmware the tap list was checked on, and how our XR18's USB sends were set, without calling it a factory default", () => {
+    const taps = mdx.slice(mdx.indexOf("## XR18 tap points"), mdx.indexOf("## XR18 on Mac"));
+    expect(taps).not.toMatch(/firmware version wasn't noted/);
+    expect(taps).toMatch(/firmware 1\.26/);
+    expect(taps).toMatch(/USB Sends 1-16 were Ch 1-16 at \*\*Analog\*\*, and 17-18 the main L and R at \*\*Post Fader\*\*/);
+    expect(taps).toMatch(/not a factory default we could confirm/);
+  });
+
   it("says the XR18 routing rarely needs changing but must be checked, and explains P16", () => {
     const routing = mdx.slice(mdx.indexOf("## XR18 USB routing"), mdx.indexOf("## XR18 playback"));
     expect(routing).toMatch(/Recording every channel\?/);
