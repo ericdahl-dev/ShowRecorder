@@ -971,6 +971,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pageKey: "guideStudioLive",
     short: "StudioLive",
     mixer: "PreSonus StudioLive Series III",
+    pick: "Up to 64 channels over USB (16R: 18 or more). The consoles record 34 tracks by themselves to an SD card; the racks record stereo only. iPhone: named by PreSonus in a general statement, not tested by us.",
     description:
       "Multitrack record a PreSonus StudioLive Series III over USB or to an SD card: 64 or 34 channels, routing, playback, tap points. iPhone not tested yet.",
     published: "2026-11-07",
