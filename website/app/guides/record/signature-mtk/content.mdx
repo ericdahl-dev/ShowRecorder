@@ -1,0 +1,157 @@
+import { AskUs, Breadcrumbs, GetTheApp, LastChecked } from "@/components/GuideParts";
+import { guideTrail } from "@/lib/mixerGuides";
+
+<Breadcrumbs trail={guideTrail("Signature MTK", "/guides/record/signature-mtk")} />
+
+# How to multitrack record a Soundcraft Signature MTK
+
+<LastChecked path="/guides/record/signature-mtk" />
+
+**Short answer.** Plug the mixer's USB-B socket into a computer and record at 44.1 or 48 kHz. The Signature 12 MTK sends 14 channels and the 22 MTK sends 24. Each input channel arrives on the USB channel with its own number, and the main mix is on the last two. There is nothing to patch and nothing to switch. A Mac needs no driver; Windows needs Soundcraft's driver. Soundcraft says an iPad works with a camera adapter; we haven't tested one yet. The mixer can't record by itself: it has no card slot or USB drive recorder. Both models are discontinued.
+
+**Quick start**
+
+1. **Check the name says MTK.** The Signature 16 and 22 without MTK send only 2 channels over USB. ([Only 2 channels?](#only-2-channels-check-that-the-mixer-says-mtk))
+2. **Connect the USB-B socket** to the computer with a USB-A to USB-B cable. On a Mac, no driver is needed. On Windows, install Soundcraft's driver first. ([Ways to record](#ways-to-record-a-signature-mtk))
+3. **Set your recording app to 44.1 or 48 kHz.** Higher rates don't work. ([Recording settings](#signature-mtk-recording-settings))
+4. **Turn on recording for USB 1-12 (12 MTK) or 1-22 (22 MTK)**, one track per input channel. The map is fixed. ([USB routing](#signature-mtk-usb-routing))
+5. **Set each channel's gain knob before the show.** The gain is in the recording. The EQ and the fader are not, and on the 22 MTK the mute isn't either. ([Tap points](#signature-mtk-tap-points))
+6. **Record a 30 s test and play it back** before the show.
+
+Every other mixer is in the [mixer recording guides](/guides/record). Words you may not know are in the [glossary](/guides/record#glossary). Facts come from Soundcraft's documents, listed in [Sources](#sources). Some facts come from a manual that covers only the 22 MTK, and those lines say so.
+
+## Ways to record a Signature MTK
+
+### To a computer over USB
+
+Plug the square USB-B socket into the computer. Then record in a DAW. A DAW is a recording app for computers, such as Reaper, Logic or Ableton Live.
+
+- **12 MTK:** 14 channels to the computer, 12 back.
+- **22 MTK:** 24 channels to the computer, 22 back.
+- **Sample rate:** 44.1 or 48 kHz. Soundcraft: "higher sample rates are not compatible with the Signature series Multi-track consoles."
+- **Bit depth:** up to 24-bit. The Recording Guide says "up to 48khz, 24-bit". The 22 MTK spec lists 16-bit or 24-bit.
+- **Connection:** "a standard USB 2.0 connection". The mixer's socket is USB-B, so you need a USB-A to USB-B cable for most computers.
+- **Class compliant:** Soundcraft calls it "a USB class compliant ASIO audio interface". Class compliant means a Mac or iPad can use it without a driver. Windows still needs Soundcraft's driver.
+- **Mac:** no driver. The Mac's built-in sound system (Core Audio) handles it.
+- **Windows:** install the Soundcraft Multichannel USB Audio Driver V3.20, from the product page.
+
+### With no computer: not possible
+
+The Signature MTK has no onboard recorder. There is no card slot and no USB drive recorder.
+
+- The 22 MTK has a second USB socket, a USB-A one next to the **PHANTOM POWER** switch. It is for power only. The manual: "Not for data."
+- To record, you need a computer, or an iPad (see below).
+
+### To an iPhone, iPad or Mac with an app
+
+- A Mac works like any computer above, with no driver.
+- **iPad:** Soundcraft says the USB port works with "an iPad (using a Camera Connectivity Kit)". That is Apple's camera adapter.
+- **iPhone:** Soundcraft doesn't name it.
+
+We haven't tested either one yet. The details are in [Mac, iPad and iPhone](#signature-mtk-on-mac-ipad-and-iphone) below.
+
+## Signature MTK recording settings
+
+**On the mixer, there is nothing to set.** You choose everything in your recording app or driver.
+
+- **Sample rate:** 44.1 or 48 kHz, set in your recording app.
+- **Bit depth:** 24-bit is the most the mixer sends. Set it in your recording app.
+- **USB channel count:** fixed: 14 on the 12 MTK, 24 on the 22 MTK. There is no setting for fewer.
+- **File format:** your recording app decides.
+- **Clock:** Soundcraft's documents mention no word clock or clock setting (a way to lock to outside gear).
+
+{/* Screenshot: Reaper's audio device settings with 48000 entered as the sample rate. <Screenshot src="/images/guides/signature-mtk-reaper-sample-rate.png" alt="Reaper audio device preferences for a Soundcraft Signature MTK with the sample rate set to 48000" /> */}
+
+**On Windows, match two driver settings.** Soundcraft's driver has a control panel with a **streaming mode** and a **buffer size** (how much audio the computer collects before it passes it on). Set them as a pair:
+
+- **Reliable** with 1024 samples: Soundcraft says this is enough for most recording, and "the audio will be clean".
+- **Low Latency** with 128 samples: for a smaller delay, if you listen through the computer.
+- **Don't mix them up.** Soundcraft: "Reliable" with 64 samples "would result in distorted audio in your recording". The control panel shows a warning when the two don't match.
+
+A Mac needs no driver, so it has no control panel. Set the buffer in your recording app.
+
+### Only 2 channels? Check that the mixer says MTK
+
+The Signature 16 and 22 look much like the MTK models, but they send only 2 channels over USB. The manual: "The Signature 16 and 22 consoles have 2-track USB input and output functionality." Their **USB SEND** switch picks the main mix or Aux 1-2.
+
+- **Only the 12 MTK and 22 MTK** send every input.
+- **On a 12 MTK or 22 MTK,** check that your recording app has every input turned on. Soundcraft's Reaper steps turn on inputs 1-14 on the 12 MTK and 1-24 on the 22 MTK.
+- **On Windows,** check that the Soundcraft driver is installed and picked in your app.
+
+## Signature MTK USB routing
+
+**There is nothing to set.** Every input channel always goes to the USB channel with its own number.
+
+- **12 MTK:** USB 1-12 are input channels 1-12. USB 13-14 are the Master L/R (the main mix).
+- **22 MTK:** USB 1-22 are input channels 1-22. USB 23-24 are the Master L/R.
+
+Good to know:
+
+- **Stereo channels** use two USB channels. The left side goes to the odd number and the right side to the even number. On a channel with a mic input, such as 9/10 on the 12 MTK, the mic and the left jack go to USB 9, and the right jack to USB 10.
+- **The main mix** is taken after the faders. So keep the main fader at a healthy level, or that pair records quietly.
+- **The mute button** doesn't stop a channel's recording on the 22 MTK, says its manual. On the 12 MTK we expect the same, because the recording is taken before the EQ (our reading).
+- **No reordering:** you can't choose a source for a USB channel on the mixer.
+- **Aux mixes and groups:** no Soundcraft document puts them on USB. Only the input channels and the Master L/R reach it (our reading).
+
+{/* Screenshot: Soundcraft's Graph 1, the input channels and their USB send numbers on the 12 MTK. <Screenshot src="/images/guides/signature-mtk-usb-sends.png" alt="Soundcraft Signature 12 MTK USB send channels: inputs 1-12 on USB 1-12 and the Mix LR on USB 13 and 14" /> */}
+
+## Signature MTK playback for virtual soundcheck
+
+A virtual soundcheck plays a recorded show back through the mixer's channels, so you can set the mix with no band on stage. On the Signature MTK, each channel has a **USB RTN** button for this (USB return: audio coming back from the computer).
+
+1. In your recording app, send each track out on the USB channel with the same number as its input. Track 1 goes to output 1, track 2 to output 2, and so on.
+2. **Turn off record** on every track before you press play. Soundcraft asks for this so you don't record over the show.
+3. Press **USB RTN** on each channel you want to play back. On the 22 MTK, its red light comes on.
+4. Press play.
+
+What USB RTN does:
+
+- **It replaces the input.** The playback goes through the channel's EQ, fader and sends like a live input. On the 22 MTK, the manual says it comes in just after the gain knob and before the low-cut filter (HPF, a filter that cuts low rumble).
+- **The gain knob doesn't change the playback** on the 22 MTK (our reading of its manual's "post-gain").
+- **The mixer keeps sending** to the computer while USB RTN is on. You can use this to add computer effects to a channel.
+
+**For music between sets,** Soundcraft suggests the stereo channel 11/12 on the 12 MTK, or 21/22 on the 22 MTK. Interval mute (the master button that mutes everything else between sets) leaves that channel playing. On a Mac:
+
+1. Open **Audio MIDI Setup**.
+2. Right-click the Soundcraft device and choose **Use this device for sound output**.
+3. Choose **Configure Speakers** and set left and right to 11 and 12 (21 and 22 on the 22 MTK).
+4. Press **USB RTN** on that channel.
+
+## Signature MTK tap points
+
+**Set each channel's gain before you record.** The gain knob changes the recording. The EQ and the fader don't.
+
+The tap point is the place in each channel where the recording is taken: the raw input, or later, after the EQ or the fader. Which one to pick, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). On the Signature MTK:
+
+- **Which to pick:** there is nothing to pick. The tap is fixed for every input channel.
+- **Where it is:** after the gain knob, before the EQ and the fader. Soundcraft: "Console channels always send their post-gain, pre-EQ signal to their respective USB channel."
+- **Gain is in the recording.** The mixer is analog, so the preamp gain sets the recorded level directly. The manual gives a gain range of 10 dB to 60 dB for the 22 MTK.
+- **Low-cut filter (HPF):** the 22 MTK manual puts the recording point before it, so the filter is not in the recording (our reading). The 12 MTK isn't covered by that manual.
+- **Limiter:** the 12 MTK has limiters on 2 inputs and the 22 MTK on 8, says Soundcraft's product page (a limiter stops sudden peaks). Soundcraft doesn't say whether they are in the recording.
+- **The main mix** on the last two USB channels is post-fader.
+
+## Signature MTK on Mac, iPad and iPhone
+
+- **Mac:** no driver.
+  - Soundcraft: "MAC computers do not require these drivers as the Signature MTK USB audio interface uses Apple® Core Audio drivers."
+  - Soundcraft lists Mac OS "10.7.x Lion through 10.11.x El Capitan" only. The mixers are discontinued, so no newer list will come. We expect current macOS to work, because Macs still use Core Audio for this (our reading).
+- **iPad:** Soundcraft says it works with a camera adapter ("Camera Connectivity Kit"), but it's not tested yet by us.
+- **iPhone:** Soundcraft doesn't name it, and we haven't tested one yet.
+- **Cable:** the mixer's socket is USB-B. From a USB-C iPad or iPhone, a USB-C to USB-B cable is the simplest way to try it (our advice, not Soundcraft's).
+- **Power:** the 22 MTK's USB-A socket can charge a phone (500 mA) but can't carry audio. For a long show, use a camera adapter with a power input (our advice).
+- **Windows:** install the Soundcraft Multichannel USB Audio Driver V3.20.
+
+ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer (one that needs no extra driver on a Mac, iPhone or iPad). Soundcraft calls the Signature MTK's USB interface class compliant, so it should work. We haven't tested it with a Signature MTK yet. There is no Mixer Link for the Signature MTK. Mixer Link, which reads channel names and colors, works only on the XR18/MR18 and X32/M32. If you record a Signature MTK with it, we'd like to hear how it goes.
+
+<GetTheApp campaign="site-guide-signature-mtk" />
+
+<AskUs />
+
+## Sources
+
+Soundcraft documents:
+
+- [Soundcraft Signature MTK Recording Guide (PDF)](https://www.soundcraft.com/en-US/product_documents/soundcraft_signaturemtk_recordingguide-pdf-9360dc07-d05a-411b-8759-b15f6664b458), no date or edition shown: both models, the channel counts, 44.1 or 48 kHz, class compliance, the Mac and iPad, the fixed map (Graph 1), the post-fader main mix, USB RTN, the Windows control panel, stereo playback.
+- [Soundcraft Signature MTK Recording Guide on Harman's help center](https://harman.helpjuice.com/en_US/soundcraft-signature-mtk-recording-guide), updated February 10, 2026: the same guide as a web page.
+- [Signature 16, 22 and 22MTK User Manual (PDF)](https://www.soundcraft.com/en-US/product_documents/soundcraft_signature_16-22_user_guide-pdf-90501050-7f3c-46c3-8d93-50a286334ded), Rev 1.1, September 2014: the 22 MTK only. The USB map (section 7.2), the post-gain, pre-EQ tap, USB RTN, the pre-fade mute, the gain range, the USB power socket, the 22 MTK specs, and the 2-channel USB on the Signature 16 and 22.
+- Product pages for the [Signature 12 MTK](https://www.soundcraft.com/en-US/products/signature-12-mtk) and the [Signature 22 MTK](https://www.soundcraft.com/en-US/products/signature-22-mtk): both marked discontinued, the Mac OS list, the Windows driver V3.20, the number of inputs with limiters.

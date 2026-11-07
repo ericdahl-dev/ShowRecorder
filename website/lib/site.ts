@@ -55,6 +55,7 @@ export const APP_STORE_CAMPAIGNS = [
   "site-guide-ah-cq",
   "site-guide-presonus-studiolive-iii",
   "site-guide-ah-sq",
+  "site-guide-signature-mtk",
   "site-guide-xr12-xr16-mr12",
   "site-guide-yamaha-tf",
   "site-guide-taps",

@@ -20,7 +20,7 @@ const body = (slug: string) => read("app", "guides", "record", slug, "content.md
 const shell = (slug: string) => read("app", "guides", "record", slug, "page.tsx");
 
 // "an X32", "an XR18", but "a Qu": the article before a guide's short name, by how the name is said.
-const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a", WING: "a", DL32S: "a", Ui24R: "a", CQ: "a", StudioLive: "a", TF: "a" };
+const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a", WING: "a", DL32S: "a", Ui24R: "a", CQ: "a", StudioLive: "a", TF: "a", "Signature MTK": "a" };
 const waysHeading = (short: string) => `Ways to record ${A_SHORT[short] ?? "an"} ${short}`;
 
 // The sections every mixer guide has, in this order. They name the mixer (review batch 1), so a heading quoted out of
@@ -129,9 +129,9 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive, the SQ, the XR12/XR16/MR12 and the Yamaha TF have none; a Mixer Link guide that lost its product page must fail here, not skip.
+    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive, the SQ, the XR12/XR16/MR12, the Yamaha TF and the Signature MTK have none; a Mixer Link guide that lost its product page must fail here, not skip.
     expect(guide.productPage === undefined).toBe(
-      ["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii", "ah-sq", "xr12-xr16-mr12", "yamaha-tf"].includes(guide.slug),
+      ["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii", "ah-sq", "xr12-xr16-mr12", "yamaha-tf", "signature-mtk"].includes(guide.slug),
     );
     if (guide.productPage === undefined) return;
     expect(mdx).toContain(`](${guide.productPage})`);
@@ -1316,6 +1316,141 @@ describe("the Allen & Heath SQ guide's facts", () => {
   it("cites only Allen & Heath pages", () => {
     expect(guide.sources.length).toBeGreaterThanOrEqual(5);
     for (const u of guide.sources) expect(u).toMatch(/^https:\/\/(support\.allen-heath\.com|www\.allen-heath\.com)\//);
+  });
+});
+
+// Facts: docs/research/mixer-recording/soundcraft-signature-mtk.md (#1073). Maker facts come from the Signature MTK
+// Recording Guide (both models) and the Signature 16, 22, 22MTK User Manual (Rev 1.1, September 2014; the 22 MTK
+// only). Anything the manual says only of the 22 MTK is labeled as such, and our readings are labeled.
+describe("the Soundcraft Signature MTK guide's facts", () => {
+  const mdx = body("signature-mtk");
+  const guide = MIXER_GUIDES.find((g) => g.slug === "signature-mtk")!;
+  const row = MIXER_ROWS.find((r) => /Signature 12 MTK/.test(r.name))!;
+
+  it("is in MIXER_GUIDES with its own campaign, and the hub's Signature MTK row links it", () => {
+    expect(guide.campaign).toBe("site-guide-signature-mtk");
+    expect(row.guide).toBe(guide.path);
+  });
+
+  it("builds its 'Pick your mixer' line only from the hub row's facts", () => {
+    expect(guide.pick).toMatch(/14 channels over USB \(24 on the 22 MTK\)/);
+    expect(guide.pick).toMatch(/No recording without a computer/);
+    expect(guide.pick).toMatch(/iPad: Soundcraft names it, with a camera adapter; not tested yet\./);
+    expect(guide.pick).toMatch(/iPhone: not tested yet/);
+    expect(row.usb).toMatch(/12 MTK: 14 in, 12 out\. 22 MTK: 24 in, 22 out/);
+    expect(row.onboard).toBe("None.");
+    expect(row.ipad).toBe("Named by the maker, with a camera adapter; not tested yet.");
+  });
+
+  it("gives each model's USB channel count, 44.1 or 48 kHz, 24-bit, class compliant, and the Windows driver", () => {
+    const ways = section(mdx, "Ways to record a Signature MTK", "Signature MTK recording settings");
+    expect(ways).toMatch(/12 MTK:\*\* 14 channels to the computer, 12 back/);
+    expect(ways).toMatch(/22 MTK:\*\* 24 channels to the computer, 22 back/);
+    expect(ways).toMatch(/44\.1 or 48 kHz/);
+    expect(ways).toMatch(/higher sample rates are not compatible/);
+    expect(ways).toMatch(/24-bit/);
+    expect(ways).toMatch(/USB 2\.0/);
+    expect(ways).toMatch(/USB class compliant ASIO audio interface/);
+    expect(ways).toMatch(/Soundcraft Multichannel USB Audio Driver V3\.20/);
+    // No onboard recorder: say so plainly, and don't invent one.
+    expect(ways).toMatch(/### With no computer: not possible/);
+    // Fact check on #1127: class compliance is maker-stated for the Mac and iPad, never the iPhone.
+    expect(ways).toMatch(/Class compliant means a Mac or iPad can use it without a driver\. Windows still needs Soundcraft's driver\./);
+    expect(ways).not.toMatch(/without a driver on a Mac, iPhone or iPad/);
+  });
+
+  it("explains 'only 2 channels' as a non-MTK Signature, and gives the Windows streaming mode and buffer pairs", () => {
+    const settings = section(mdx, "Signature MTK recording settings", "Signature MTK USB routing");
+    expect(settings).toMatch(/^### Only 2 channels\? Check that the mixer says MTK$/m);
+    expect(settings).toMatch(/Signature 16 and 22 consoles have 2-track USB/);
+    expect(settings).toMatch(/\*\*Reliable\*\*[^\n]*1024 samples/);
+    expect(settings).toMatch(/\*\*Low Latency\*\*[^\n]*128 samples/);
+    expect(settings).toMatch(/distorted audio/);
+  });
+
+  it("gives the fixed map: inputs on USB 1-12 or 1-22, Master L/R post-fader on the last pair, stereo channels odd/even", () => {
+    const routing = section(mdx, "Signature MTK USB routing", "Signature MTK playback for virtual soundcheck");
+    expect(routing).toMatch(/\*\*12 MTK:\*\* USB 1-12 are input channels 1-12\. USB 13-14 are the Master L\/R/);
+    expect(routing).toMatch(/\*\*22 MTK:\*\* USB 1-22 are input channels 1-22\. USB 23-24 are the Master L\/R/);
+    expect(routing).toMatch(/taken after the faders/);
+    expect(routing).toMatch(/odd[^\n]*left[^\n]*even[^\n]*right|left[^\n]*odd[^\n]*right[^\n]*even/i);
+    // Aux buses on USB: no maker source; our reading, never a maker claim.
+    expect(routing).toMatch(/aux[^\n]*\(our reading\)/i);
+    // Fact check on #1127: the mute fact is from the 22 MTK manual only.
+    expect(routing).toMatch(/\*\*The mute button\*\* doesn't stop a channel's recording on the 22 MTK, says its manual\. On the 12 MTK[^\n]*\(our reading\)/);
+  });
+
+  it("plays back with each channel's USB RTN button, which replaces the input post-gain, pre-EQ, while the send continues", () => {
+    const play = section(mdx, "Signature MTK playback for virtual soundcheck", "Signature MTK tap points");
+    expect(play).toMatch(/\*\*USB RTN\*\*/);
+    // Fact check on #1127: the entry point, the red light and the gain line are 22 MTK manual facts.
+    expect(play).toMatch(/On the 22 MTK, the manual says it comes in just after the gain knob and before the low-cut filter/);
+    expect(play).toMatch(/On the 22 MTK, its red light comes on/);
+    expect(play).toMatch(/doesn't change the playback\*\* on the 22 MTK \(our reading/);
+    expect(play).toMatch(/\*\*The mixer keeps sending\*\* to the computer while USB RTN is on/);
+    // The Mac stereo playback as steps, with the output choice.
+    expect(play).toMatch(/^2\. Right-click the Soundcraft device and choose \*\*Use this device for sound output\*\*\./m);
+    expect(play).toMatch(/\*\*Configure Speakers\*\*/);
+    expect(play).toMatch(/disarm|turn off record/i);
+    expect(play).toMatch(/11\/12[^\n]*21\/22/);
+    expect(play).toMatch(/Audio MIDI Setup/);
+  });
+
+  it("gives one fixed tap, post-gain and pre-EQ, and leaves the limiter's place unstated", () => {
+    const taps = section(mdx, "Signature MTK tap points", "Signature MTK on Mac, iPad and iPhone");
+    expect(taps.split("\n").find((l) => l.trim() && !l.startsWith("##"))).toMatch(
+      /^\*\*Set each channel's gain before you record\.\*\* The gain knob changes the recording\. The EQ and the fader don't\.$/,
+    );
+    expect(mdx).not.toMatch(/only control/);
+    expect(taps).toMatch(/post-gain, pre-EQ/);
+    expect(taps).toMatch(/nothing to pick/);
+    // Coordinator on #1127: the product page's limiter counts (2 on the 12 MTK, 8 on the 22 MTK), not the manual's line.
+    expect(taps).toMatch(/\*\*Limiter:\*\* the 12 MTK has limiters on 2 inputs and the 22 MTK on 8, says Soundcraft's product page/);
+    expect(taps).toMatch(/Soundcraft doesn't say whether they are in the recording/);
+    expect(taps).not.toMatch(/channels 1 and 2/);
+    expect(taps).toMatch(/\*\*Low-cut filter \(HPF\):\*\* the 22 MTK manual puts the recording point before it/);
+    expect(taps).toMatch(/10 dB to 60 dB[^\n]*22 MTK/);
+    expect(taps).not.toMatch(/before the limiter|after the limiter/);
+  });
+
+  it("says Mac needs no driver but isn't listed past 10.11, the iPad works per Soundcraft, the iPhone is not tested yet", () => {
+    const apple = section(mdx, "Signature MTK on Mac, iPad and iPhone", "Sources");
+    expect(apple).toMatch(/Core Audio/);
+    expect(apple).toMatch(/10\.7\.x Lion through 10\.11\.x El Capitan/);
+    expect(apple).toMatch(/iPad:\*\* Soundcraft says it works with a camera adapter[^\n]*not tested yet/);
+    expect(apple).toMatch(/iPhone:\*\* Soundcraft doesn't name it, and we haven't tested one yet/);
+    expect(apple).toMatch(/can charge a phone \(500 mA\) but can't carry audio/);
+    expect(mdx).toMatch(
+      /records every USB Channel from any class-compliant mixer[^\n]*should work[^\n]*We haven't tested it with a Signature MTK yet\. There is no Mixer Link for the Signature MTK/,
+    );
+    expect(mdx).not.toMatch(/unsupported|supported/i);
+  });
+
+  // Fact check on #1127: the FAQ labels the 22 MTK manual's facts too.
+  it("labels the 22 MTK manual's mute and entry point in its FAQ", () => {
+    const tap = guide.faqs.find((f) => /pre or post fader/.test(f.q))!.a;
+    expect(tap).toMatch(/The EQ and the fader don't, and on the 22 MTK the mute doesn't either\./);
+    const play = guide.faqs.find((f) => /play a Signature MTK recording back/.test(f.q))!.a;
+    expect(play).toMatch(/replaces that channel's input \(on the 22 MTK, just after the gain knob\)/);
+  });
+
+  it("explains its terms for beginners the first time they come up", () => {
+    expect(mdx).toMatch(/Class compliant means a Mac or iPad can use it without a driver/);
+    expect(mdx).toMatch(/A virtual soundcheck plays a recorded show back/);
+    expect(mdx).toMatch(/The tap point is the place in each channel where the recording is taken/);
+    expect(mdx).toMatch(/A DAW is a recording app/);
+  });
+
+  it("gives each Soundcraft document's date or edition in its Sources", () => {
+    const sources = mdx.slice(mdx.indexOf("## Sources"));
+    expect(sources).toMatch(/Rev 1\.1, September 2014/);
+    expect(sources).toMatch(/Recording Guide[^\n]*no date or edition shown/);
+    expect(sources).toContain("harman.helpjuice.com/en_US/soundcraft-signature-mtk-recording-guide");
+  });
+
+  it("notes in its research that both Soundcraft PDFs were read in full on 2026-11-07", () => {
+    const notes = read("..", "docs", "research", "mixer-recording", "soundcraft-signature-mtk.md");
+    expect(notes).toMatch(/Recording Guide[^\n]*User Manual[^\n]*read in full on 2026-11-07[^\n]*adn\.harmanpro\.com/);
   });
 });
 
