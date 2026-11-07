@@ -1159,6 +1159,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
       "https://usa.yamaha.com/products/proaudio/mixers/tf/downloads.html",
     ],
     campaign: "site-guide-yamaha-tf",
+    pick: "34 channels over USB to a computer. Records only stereo by itself, to a USB hard disk or SSD. iPhone and iPad: not tested yet.",
     tapPick: "Pre DG on each channel's direct out (CH VIEW), before the digital gain, HPF and EQ; Yamaha states no factory setting, so check each channel",
   },
 ];
