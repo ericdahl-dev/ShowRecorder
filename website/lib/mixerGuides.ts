@@ -128,11 +128,11 @@ export const MIXER_ROWS: readonly MixerRow[] = [
   },
   {
     name: "Allen & Heath Avantis and Avantis Solo",
-    usb: "No USB audio interface. Multitrack needs an option card (Dante, Waves, MADI or gigaACE).",
+    usb: "No USB audio interface. Multitrack needs an option card, such as Dante (64x64 or 128x128) or Waves.",
     onboard: "Stereo only, as 24-bit 96 kHz WAV.",
     mac: "No multitrack over USB.",
-    ipad: "No multitrack over USB.",
-    iphone: "No multitrack over USB.",
+    ipad: "No multitrack over USB. Through an option card: not tested yet.",
+    iphone: "No multitrack over USB. Through an option card: not tested yet.",
     guide: "/guides/record/ah-avantis",
   },
   {
@@ -908,7 +908,7 @@ export const YAMAHA_MGXU_GUIDE_FAQS: readonly Faq[] = [
 export const AH_AVANTIS_GUIDE_FAQS: readonly Faq[] = [
   {
     q: "Can I multitrack record an Avantis over USB?",
-    a: "No. The Avantis and Avantis Solo have no USB audio interface. Their USB sockets take a USB drive, for show files, firmware, and stereo playback and recording. For multitrack, fit an option card (Dante, Waves SoundGrid, MADI or gigaACE) in one of the two I/O Ports.",
+    a: "No. The Avantis and Avantis Solo have no USB audio interface. Their USB sockets take a USB drive, for show files, firmware, and stereo playback and recording. For multitrack, fit an option card, such as Dante or Waves SoundGrid, in one of the two I/O Ports.",
   },
   {
     q: "How do I multitrack record an Avantis?",
@@ -924,7 +924,7 @@ export const AH_AVANTIS_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Are Avantis recordings pre or post fader?",
-    a: "Record Send is always pre-trim, so before the fader. Direct Outs use the Global Direct Output Source on the Routing screen, from Post Preamp to Post Delay. They follow the fader only if you turn on Follow Fader in its options.",
+    a: "Record Send is always pre-trim, so it is before the fader too (our reading). Direct Outs use the Global Direct Output Source on the Routing screen, from Post Preamp to Post Delay. They follow the fader only if you turn on Follow Fader or Follow All in the Direct Out options.",
   },
   {
     q: "How do I run a virtual soundcheck on an Avantis?",
@@ -1417,6 +1417,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     faqs: AH_AVANTIS_GUIDE_FAQS,
     faqsName: "AH_AVANTIS_GUIDE_FAQS",
     sources: [
+      "https://www.allen-heath.com/hardware/avantis/",
       "https://support.allen-heath.com/hc/en-gb/articles/40468836946065-Avantis-Getting-Started-Guide",
       "https://support.allen-heath.com/hc/en-gb/articles/40469887089809-Avantis-Solo-Getting-Started-Guide",
       "https://support.allen-heath.com/hc/en-gb/articles/39863634007185-I-O",
@@ -1427,7 +1428,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
       "https://support.allen-heath.com/hc/en-gb/articles/44018705862289-Avantis-Firmware-Release-Notes",
       "https://forums.allen-heath.com/t/usb-multitrack/11250",
     ],
-    pick: "No USB audio interface: multitrack needs an option card (Dante, Waves, MADI or gigaACE). Records only stereo by itself. Mac, iPhone or iPad: no multitrack over USB.",
+    pick: "No USB audio interface: multitrack needs an option card, such as Dante or Waves. Records only stereo by itself. Mac, iPhone or iPad: no multitrack over USB; through a card, not tested yet.",
     campaign: "site-guide-ah-avantis",
     tapPick: "Record Send in I/O > Virtual SoundCheck for raw, pre-trim tracks, or Direct Outs with the Global Direct Output Source on the Routing screen for processed ones",
     noMultitrack: true,

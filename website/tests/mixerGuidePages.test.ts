@@ -2013,21 +2013,34 @@ describe("the Allen & Heath Avantis guide's facts", () => {
     expect(guide.campaign).toBe("site-guide-ah-avantis");
     expect(MIXER_ROWS.find((r) => /Avantis/.test(r.name))!.guide).toBe(guide.path);
     expect(guide.pick).toMatch(/No USB audio interface/);
-    expect(guide.pick).toMatch(/option card/);
+    expect(guide.pick).toMatch(/option card, such as Dante or Waves/);
+    // Fact check on #1128: card lists say "such as", and a card path is not tested yet.
+    const row = MIXER_ROWS.find((r) => /Avantis/.test(r.name))!;
+    expect(row.usb).toMatch(/such as Dante \(64x64 or 128x128\) or Waves/);
+    for (const t of [row.ipad, row.iphone]) expect(t).toBe("No multitrack over USB. Through an option card: not tested yet.");
+    expect(guide.pick).toMatch(/through a card, not tested yet/);
+    expect(guide.faqs[0].a).toMatch(/fit an option card, such as Dante or Waves SoundGrid, in one of the two I\/O Ports/);
+    for (const t of [guide.pick, row.usb, guide.faqs[0].a]) expect(t).not.toMatch(/gigaACE/);
   });
 
   it("says up front there is no USB audio, so multitrack needs an option card, and covers the Avantis Solo", () => {
     const top = mdx.slice(0, mdx.indexOf("**Quick start**"));
+    expect(top).toMatch(/\*\*Short answer\.\*\* The Avantis can't record every channel over USB/);
     expect(top).toMatch(/no USB audio interface/);
-    expect(top).toMatch(/option card/);
+    expect(top).toMatch(/You can't plug an iPhone, iPad or Mac into it with a USB cable and record every channel\./);
+    expect(top).toMatch(/option card, sold separately, in one of its two I\/O Ports/);
     expect(top).toMatch(/Avantis Solo/);
+    expect(top).toMatch(/Dante is a way to send many audio channels over a computer network cable\. Audinate makes it\./);
     expect(quick).toMatch(/^1\. \*\*Fit an option card\*\*/m);
   });
 
   it("names the cards and the two I/O Ports at 128x128 and 96 kHz, and points to the card maker's software", () => {
     const ways = section(mdx, "Ways to record an Avantis", "Avantis recording settings");
-    expect(ways).toMatch(/2 I\/O Ports, both capable of 128x128 operation at 96kHz/);
+    expect(ways).toMatch(/two I\/O Ports\. Each carries up to 128 channels out and 128 back, at 96 kHz/);
+    expect(ways).toMatch(/A card can carry fewer\. For example, Allen & Heath sells Dante cards in 64x64 and 128x128 sizes\./);
     for (const card of ["Dante", "Waves", "MADI", "gigaACE"]) expect(ways).toContain(card);
+    expect(ways).toMatch(/Harrison LiveTrax/);
+    expect(mdx.slice(mdx.indexOf("## Sources"))).toContain("](https://www.allen-heath.com/hardware/avantis/)");
     expect(ways).toMatch(/Audinate/);
     expect(ways).toMatch(/Bit depth and sample rate the computer sees:\*\* not stated by Allen & Heath/);
   });
@@ -2037,14 +2050,15 @@ describe("the Allen & Heath Avantis guide's facts", () => {
     expect(ways).toMatch(/\*\*Utility\*\*, then \*\*USB Audio\*\*, then \*\*Manager\*\*/);
     expect(ways).toMatch(/Stereo \.WAV files \(24bit 96kHz\)/);
     expect(ways).toMatch(/Copy to USB/);
-    expect(ways).toMatch(/Tie Lines, PAFL or FX Unit outputs/);
+    expect(ways).toMatch(/\*\*What you can record:\*\* the source you pick with \*\*Assign\*\*\. The file is always stereo \(2 tracks\)\./);
+    expect(ways).toMatch(/a Tie Line, the headphone \(PAFL\) signal or an effect's output \(firmware V1\.10 and later\)/);
     expect(ways).toMatch(/no multitrack recorder/i);
   });
 
   it("explains the 'only 2 channels' case: the USB sockets are for drives, not a computer", () => {
     const settings = section(mdx, "Avantis recording settings", "Avantis USB routing");
     expect(settings).toMatch(/^### Only 2 channels over USB\? The Avantis has no USB audio$/m);
-    expect(settings).toMatch(/store and recall show files, update the firmware or to perform USB playback and recording/);
+    expect(settings).toMatch(/show files, firmware updates, and stereo playback and recording/);
   });
 
   it("gives the clock settings, and says card clocks are set in Audinate or Waves software", () => {
@@ -2053,7 +2067,8 @@ describe("the Allen & Heath Avantis guide's facts", () => {
     expect(settings).toMatch(/Internal \(96kHz\)/);
     expect(settings).toMatch(/Ext BNC/);
     expect(settings).toMatch(/M-DL-ADAPT/);
-    expect(settings).toMatch(/accessed by the Audinate or Waves Audio software/);
+    expect(settings).toMatch(/in the Audinate \(Dante\) or Waves software, not on the Avantis/);
+    expect(settings).toMatch(/Word clock is a timing signal on a cable that keeps digital gear in step/);
   });
 
   it("routes with Record Send, Direct Outs or Tie Lines, and says Record Send overrides the port's output patch", () => {
@@ -2065,8 +2080,12 @@ describe("the Allen & Heath Avantis guide's facts", () => {
     expect(routing).toMatch(/temporarily override the normal output patch/);
     expect(routing).toMatch(/\*\*I\/O\*\*, then \*\*Outputs\*\*/);
     expect(routing).toMatch(/\*\*I\/O\*\*, then \*\*Tie Lines\*\*/);
-    expect(routing).toMatch(/independent of Scene memories/);
-    expect(routing).toMatch(/Default patch:\*\* not stated by Allen & Heath/);
+    expect(routing).toMatch(/Scenes don't change it/);
+    expect(routing).toMatch(/"It is typical to leave this patch to 1:1 so that Inputs are straight from\/to the same numbered I\/O Port channel\."/);
+    expect(routing).not.toMatch(/Hold down and draw a line/);
+    expect(routing).toMatch(/\*\*Default patch:\*\* not stated by Allen & Heath\. Check \*\*I\/O\*\* before the show\./);
+    expect(routing).not.toMatch(/Template Show/);
+    expect(routing).toMatch(/Recording more than 96 channels with Record Send\? Use firmware V1\.24 or later\./);
   });
 
   it("plays back with Virtual SoundCheck mode, and lets a live mic run alongside from the Preamp screen", () => {
@@ -2088,12 +2107,25 @@ describe("the Allen & Heath Avantis guide's facts", () => {
     expect(taps).toMatch(/unaffected by Digital Trim or Direct Out Source/);
     expect(taps).toMatch(/\*\*Pros:\*\*/);
     expect(taps).toMatch(/\*\*Cons:\*\*/);
+    // Fact check on #1128: the order and what each point adds are our reading.
+    expect(taps).toMatch(/The choices, in signal order \(our reading: Allen & Heath lists them but doesn't say each one adds the step before it\):/);
+    expect(taps).toMatch(/\*\*Post Delay:\*\* after all the channel processing, including the channel delay \(our reading\)\./);
+    expect(taps).toMatch(/It is in every tap point \(our reading\), so set it before the show and don't change it while recording \(our advice\)\./);
+    expect(taps).toMatch(/Good for an audience mic \(our advice\)\./);
+    expect(taps).toMatch(/a DCA is a fader that turns a group of channels up or down/);
+  });
+
+  it("puts gain, trim and the shared stage box under their own sub-heading", () => {
+    const taps = section(mdx, "Avantis tap points", "Avantis on Mac, iPad and iPhone");
+    const shared = taps.slice(taps.indexOf("### If you share a stage box with another mixer"));
+    expect(taps).toMatch(/^### If you share a stage box with another mixer$/m);
+    for (const w of ["**Gain**", "Trim", "Gain Tracking", "Preamp on Surface"]) expect(shared).toContain(w);
   });
 
   it("labels the shared-preamp and Post LPF inferences as our reading, and quotes Gain Tracking", () => {
     const taps = section(mdx, "Avantis tap points", "Avantis on Mac, iPad and iPhone");
     expect(taps).toMatch(/Trim automatically changes to compensate for preamp gain changes/);
-    const shared = taps.split("\n").filter((l) => /another mixer/i.test(l));
+    const shared = taps.split("\n").filter((l) => /another mixer/i.test(l) && !l.startsWith("#"));
     expect(shared.length).toBeGreaterThan(0);
     for (const l of shared) expect(l).toMatch(/our reading/);
     expect(taps.split("\n").find((l) => l.startsWith("- **Post LPF:**"))).toMatch(/our reading/);
@@ -2103,6 +2135,10 @@ describe("the Allen & Heath Avantis guide's facts", () => {
   it("says no iPhone, iPad or Mac records multitrack over USB, a card path is not tested yet, and there is no Mixer Link", () => {
     const apple = section(mdx, "Avantis on Mac, iPad and iPhone", "Sources");
     expect(apple).toMatch(/\*\*iPhone and iPad:\*\*[^\n]*no multitrack over USB/);
+    for (const who of ["Mac", "Windows"])
+      expect(apple).toMatch(
+        new RegExp(`\\*\\*${who}:\\*\\* no multitrack over USB\\. Through an option card, the card's settings are made in the card maker's software on a computer, and you record in a recording app \\(our reading\\)\\. We haven't tested it yet\\.`),
+      );
     expect(apple).toMatch(/not tested yet/);
     // The plain ShowRecorder line of #1113, with no Mixer Link line (it doesn't apply).
     expect(mdx).toMatch(
@@ -2114,10 +2150,16 @@ describe("the Allen & Heath Avantis guide's facts", () => {
   });
 
   it("explains its terms for beginners the first time they come up", () => {
-    expect(mdx).toMatch(/An option card is a network card/);
+    expect(mdx).toMatch(
+      /An option card is an extra card that slides into a slot on the back of the mixer\. You buy it separately\. Some cards send many channels at once to a computer or recorder\. Others link the Avantis to other Allen & Heath gear\./,
+    );
+    expect(mdx).not.toMatch(/network card/);
+    expect(mdx).toMatch(/A DAW is a recording app, such as Reaper or Logic\./);
+    expect(mdx).toMatch(/1:1 means input 1 goes to port channel 1, and so on\./);
+    expect(mdx.indexOf("Trim is a second level control inside the channel")).toBeGreaterThan(-1);
+    expect(mdx.indexOf("Trim is a second level control inside the channel")).toBeLessThan(mdx.search(/[^-]\bTrim\b(?! is a second)/));
     expect(mdx).toMatch(/A virtual soundcheck plays a recorded show back/);
     expect(mdx).toMatch(/The tap point is the place in each channel where the recording is taken/);
-    expect(mdx).toMatch(/Trim is a digital level control/);
     expect(mdx).toMatch(/A Tie Line sends a socket/);
   });
 

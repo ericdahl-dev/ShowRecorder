@@ -7,30 +7,31 @@ import { guideTrail } from "@/lib/mixerGuides";
 
 <LastChecked path="/guides/record/ah-avantis" />
 
-**Short answer.** The Avantis has no USB audio interface, so a USB cable to a computer won't record its channels. Its USB sockets record and play only stereo. To record every channel, fit an option card in one of its two I/O Ports, such as Dante, Waves SoundGrid, MADI or gigaACE. Then turn on **Record Send**, and record on a computer or recorder on that card's network. With no computer, the Avantis records only a stereo WAV file. This guide covers the Avantis and the Avantis Solo, which have the same I/O Ports and the same USB sockets.
+**Short answer.** The Avantis can't record every channel over USB: it has no USB audio interface. You can't plug an iPhone, iPad or Mac into it with a USB cable and record every channel. To record every channel, fit an option card, sold separately, in one of its two I/O Ports, such as Dante or Waves, and record on a computer. Dante is a way to send many audio channels over a computer network cable. Audinate makes it. With no computer, it records only a stereo file. This guide covers the Avantis and the Avantis Solo.
 
 **Quick start**
 
-1. **Fit an option card** in an I/O Port on the back of the mixer, and connect it to your recorder. The card's maker tells you what the computer needs. ([Ways to record](#ways-to-record-an-avantis))
-2. **Set up the card's clock and sample rate in the card maker's software,** not on the Avantis. Leave the Avantis clock on **Internal (96kHz)**. ([Recording settings](#avantis-recording-settings))
-3. **Turn on Record Send:** go to **I/O**, then **Virtual SoundCheck**. Pick the I/O Port, patch the channels 1:1, and select **Record Send**. ([Routing](#avantis-usb-routing))
+1. **Fit an option card** in an I/O Port on the back of the mixer, and connect it to your computer or recorder. ([Ways to record](#ways-to-record-an-avantis))
+2. **Set up the card with its maker's software on the computer.** Leave the Avantis clock on **Internal (96kHz)**. ([Recording settings](#avantis-recording-settings))
+3. **Turn on Record Send:** go to **I/O**, then **Virtual SoundCheck**. Pick the I/O Port, patch the channels 1:1, and select **Record Send**. 1:1 means input 1 goes to port channel 1, and so on. ([Routing](#avantis-usb-routing))
 4. **Want the channel's EQ and compression in the tracks?** Patch Direct Outs instead, and pick their tap point. ([Tap points](#avantis-tap-points))
 5. **Record a 30 s test and play it back** before the show.
 
-New to this? The words used here, such as tap point and virtual soundcheck, are in the [glossary](/guides/record#glossary). Other mixers are in the [mixer recording guides](/guides/record). Facts come from Allen & Heath's help pages unless a line says otherwise. The [sources](#sources) are at the end.
+New to this? The words used here, such as tap point and virtual soundcheck, are in the [glossary](/guides/record#glossary). Other mixers are in the [mixer recording guides](/guides/record). Facts come from Allen & Heath's help pages and product page unless a line says otherwise. The [sources](#sources) are at the end.
 
 ## Ways to record an Avantis
 
 ### To a computer: through an option card, not USB
 
-An option card is a network card that slides into the back of the mixer. It sends many channels at once over a network cable to a computer, a recorder or another mixer. The Avantis has two slots for them, called I/O Ports.
+An option card is an extra card that slides into a slot on the back of the mixer. You buy it separately. Some cards send many channels at once to a computer or recorder. Others link the Avantis to other Allen & Heath gear. The Avantis has two slots for them, called I/O Ports.
 
-- **The ports:** Allen & Heath: "2 I/O Ports, both capable of 128x128 operation at 96kHz". That is up to 128 channels out and 128 back on each port.
-- **The cards:** Allen & Heath: "Digital audio networking cards are available to enable integration with other digital audio systems via protocols such as gigaACE, Dante, MADI and Waves SoundGrid."
-- **How many channels you get:** it depends on the card and what you record with. Check the card's own page.
-- **What the computer needs:** software from the card's maker. Allen & Heath says the Dante and Waves cards are set up in "the Audinate or Waves Audio software" (Audinate makes Dante). We'd start with the card maker's recording guide (our advice).
+- **The ports:** the Avantis has two I/O Ports. Each carries up to 128 channels out and 128 back, at 96 kHz.
+- **Card sizes:** A card can carry fewer. For example, Allen & Heath sells Dante cards in 64x64 and 128x128 sizes.
+- **The cards:** Allen & Heath's product page names Dante, Waves, gigaACE, MADI "and more".
+- **What the computer needs:** software from the card's maker. The Dante and Waves cards are set up in Audinate's or Waves' software, Allen & Heath says. We'd start with the card maker's recording guide (our advice).
 - **Bit depth and sample rate the computer sees:** not stated by Allen & Heath. The Avantis itself runs at 96 kHz. Check the card's documents.
-- **Then record** in any multitrack recording app (a DAW) that can see the card's channels.
+- **Then record** in a multitrack recording app (a DAW) that can see the card's channels. A DAW is a recording app, such as Reaper or Logic.
+- **A recording app made for this:** Allen & Heath's product page names Harrison LiveTrax, which it calls "multitrack recording and virtual sound check software".
 
 ### With no computer: stereo only
 
@@ -43,7 +44,8 @@ The Avantis records a stereo file by itself. It has no multitrack recorder.
 
 - **File:** Allen & Heath: "Stereo .WAV files (24bit 96kHz)". There is no setting for another format.
 - **Where it goes:** the mixer's internal storage, not the USB drive. The screen shows how much space is left.
-- **What you can record:** channels you pick with **Assign**. Firmware V1.10 added "Tie Lines, PAFL or FX Unit outputs" as sources.
+- **What you can record:** the source you pick with **Assign**. The file is always stereo (2 tracks).
+- **Other sources:** you can also record a Tie Line, the headphone (PAFL) signal or an effect's output (firmware V1.10 and later).
 - **Playback:** the same page plays mono or stereo WAV (16 or 24-bit, 44.1, 48 or 96 kHz), MP3 and FLAC files from USB or the internal storage.
 
 ### To an iPhone, iPad or Mac with an app
@@ -52,12 +54,12 @@ The Avantis records a stereo file by itself. It has no multitrack recorder.
 
 ## Avantis recording settings
 
-The Avantis runs at 96 kHz. Allen & Heath: "Avantis is a 96kHz digital mixing console". The card's own settings are not on the mixer.
+The Avantis always runs at 96 kHz. The card's own settings are not on the mixer.
 
 - **The mixer's clock:** go to **Setup**, then **Audio**, then **Audio Sync**, and look at **Audio Clock Source**. **Internal (96kHz)** is the default. Leave it there when the Avantis is the main mixer (our advice).
-- **The other clock choices:** an **I/O Port**, to follow a networking card, or **Ext BNC**, to follow a 96 kHz word clock on the back of the mixer. A clock keeps digital gear in step.
+- **The other clock choices:** an **I/O Port**, to follow a networking card, or **Ext BNC**, to follow a 96 kHz word clock on the back of the mixer. Word clock is a timing signal on a cable that keeps digital gear in step.
 - **A 48 kHz card:** Allen & Heath: "Only sync from 96kHz sources or, if an M-DL-ADAPT 'letter-box' adapter is fitted, from a 48kHz audio networking card fitted in the adapter."
-- **The card's clock and sample rate:** set on the card, not the Avantis. Allen & Heath: "clock, redundancy and other options for the Dante and Waves cards are accessed by the Audinate or Waves Audio software respectively."
+- **The card's clock and sample rate:** set in the Audinate (Dante) or Waves software, not on the Avantis.
 - **See which card is fitted:** **Setup**, then **Audio**, then **I/O Port**.
 - **Bit depth over a card:** not stated by Allen & Heath.
 - **The stereo recorder:** fixed at 24-bit, 96 kHz WAV. Nothing to set.
@@ -68,8 +70,8 @@ The Avantis runs at 96 kHz. Allen & Heath: "Avantis is a 96kHz digital mixing co
 
 If you plugged the Avantis into a computer and found no multitrack, that is how it is built.
 
-- **What the USB sockets do:** there is one USB 2.0 socket on the back and one USB 3.0 socket on the front. Both take a USB drive. Allen & Heath says each one is there to "store and recall show files, update the firmware or to perform USB playback and recording."
-- **Recording over USB is stereo only.** Allen & Heath lists "USB stereo recording and playback".
+- **What the USB sockets do:** there is one USB 2.0 socket on the back and one USB 3.0 socket on the front. Both take a USB drive, for show files, firmware updates, and stereo playback and recording.
+- **Recording over USB is stereo only.**
 - **The fix:** fit an option card. See [Ways to record](#ways-to-record-an-avantis).
 - **Users have asked for it:** users on Allen & Heath's forum asked for USB multitrack in 2021 ([USB Multitrack](https://forums.allen-heath.com/t/usb-multitrack/11250), users' reports). The release notes up to V2.02 (October 2026) don't add it (our reading).
 
@@ -81,13 +83,14 @@ If you plugged the Avantis into a computer and found no multitrack, that is how 
 
 1. Go to **I/O**, then **Virtual SoundCheck**.
 2. Pick the **I/O Port** your card is in.
-3. Patch the channels 1:1, so input 1 goes to port channel 1, and so on. Allen & Heath: "Hold down and draw a line on the matrix to quickly patch sources to destinations 1:1."
-4. Set the **Range** if the port does other jobs too. Allen & Heath gives "plugin processing or audio distribution" as examples.
+3. Patch the channels 1:1. Allen & Heath: "It is typical to leave this patch to 1:1 so that Inputs are straight from/to the same numbered I/O Port channel."
+4. Set the **Range** if the port does other jobs too, such as plugin processing.
 5. Select **Record Send**.
 
-- **What it sends:** Allen & Heath: "Record Send sends the pre-trim audio from the Input Channels to the I/O Port for multitrack recording purposes."
+- **What it sends:** Trim is a second level control inside the channel. Record Send takes each input channel's audio before it.
 - **It takes over the port:** Allen & Heath: "This will temporarily override the normal output patch to the selected I/O Port, if different." If that port also feeds another mixer, check it first (our advice).
-- **Scenes don't change it:** Allen & Heath: "The Record Send and Virtual SoundCheck modes are independent of Scene memories."
+- **Scenes don't change it:** recalling or storing a Scene leaves Record Send and Virtual SoundCheck as they are.
+- **Recording more than 96 channels with Record Send? Use firmware V1.24 or later.** Older firmware had a bug with outputs 97 and up.
 
 **2. Direct Outs (tracks with your processing):**
 
@@ -102,7 +105,7 @@ If you plugged the Avantis into a computer and found no multitrack, that is how 
 
 **Mixes in the recording:** on **I/O**, then **Outputs**, patch the main mix, an aux, a group or a matrix to spare I/O Port channels. A matrix is a spare mix you can build just for the recording.
 
-- **Default patch:** not stated by Allen & Heath. It depends on the Template Show you load. Check **I/O** before the show.
+- **Default patch:** not stated by Allen & Heath. Check **I/O** before the show.
 - **Avoid accidents:** hold **Options** and touch the **I/O** screen, then turn on "Only patch when the Patch button is pressed".
 
 {/* Screenshot: I/O > Virtual SoundCheck with an I/O Port picked and Record Send selected. <Screenshot src="/images/guides/ah-avantis-record-send.png" alt="Allen & Heath Avantis I/O screen, Virtual SoundCheck page, with an I/O Port patched 1:1 and Record Send selected" /> */}
@@ -113,7 +116,7 @@ A virtual soundcheck plays a recorded show back through the mixer's channels, so
 
 1. In your recording app, send each track back out on the card channel it came in on (our advice).
 2. On the Avantis, go to **I/O**, then **Virtual SoundCheck**. Use the same I/O Port and 1:1 patch as for recording.
-3. Select **Virtual SoundCheck** mode. Allen & Heath: it "sends audio from the I/O Port to the Input Channels in place of the live inputs".
+3. Select **Virtual SoundCheck** mode. The input channels then play the I/O Port in place of the live inputs.
 4. Play the recording and mix.
 5. When you're done, select **Inactive**. The channels take the stage inputs again.
 
@@ -133,7 +136,7 @@ The tap point is the place in each channel where the recording is taken. Which o
 - **Pros:** raw tracks you can mix later. One switch also gives you virtual soundcheck playback.
 - **Cons:** none of your processing is in the tracks. It overrides the port's normal output patch while it is on.
 
-**Direct Outs:** one setting for every channel, the **Global Direct Output Source**. Go to **Routing**, with an input channel selected, and use the drop-down. The choices, in order. Each adds the step before it:
+**Direct Outs:** one setting for every channel, the **Global Direct Output Source**. Go to **Routing**, with an input channel selected, and use the drop-down. The choices, in signal order (our reading: Allen & Heath lists them but doesn't say each one adds the step before it):
 
 - **Post Preamp:** right after the preamp. The rawest Direct Out choice.
 - **Post LPF:** adds the high-pass and low-pass filters (our reading: Allen & Heath doesn't say what this point covers, and the filters share one page).
@@ -142,31 +145,31 @@ The tap point is the place in each channel where the recording is taken. Which o
 - **Post PEQ:** adds the EQ.
 - **Post Compressor:** adds the compressor.
 - **Post Insert B Return:** adds anything on insert B.
-- **Post Delay:** adds all the channel processing, including the channel delay.
+- **Post Delay:** after all the channel processing, including the channel delay (our reading).
 
-- **Following the fader:** hold **Options** and touch the **Routing** screen. Allen & Heath offers Follow Fader, Follow Mute and Follow All. Follow All also follows the DCA level and mute. Leave them off for a recording you can mix later (our advice).
+- **Following the fader:** hold **Options** and touch the **Routing** screen. Allen & Heath offers Follow Fader, Follow Mute and Follow All. Follow All also follows the DCA level and mute: a DCA is a fader that turns a group of channels up or down. Leave them off for a recording you can mix later (our advice).
 - **Per-channel level:** each Direct Out has its own level on the **Routing** screen.
 - **Pros:** you choose how much processing goes in. With Follow Fader on, the tracks match your mix.
 - **Cons:** each track has the processing you picked, and you can't undo it later.
 
 **Tie Lines:** A Tie Line sends a socket straight to an output, with no channel in between. Allen & Heath says this "splits the signals straight after the preamp so they are unaffected by Digital Trim or Direct Out Source".
 
-- **Pros:** as raw as it gets, and it uses no channel. Good for an audience mic.
+- **Pros:** as raw as it gets, and it uses no channel. Good for an audience mic (our advice).
 - **Cons:** no processing, and you patch each one by hand.
 
-**Gain and Trim:**
+### If you share a stage box with another mixer
 
-- **Gain** is the analog preamp. It is in every tap point, so set it before the show and don't change it while recording.
-- **Trim is a digital level control** in the channel, +/-24 dB. Allen & Heath: "Trim is part of the channel, not the preamp". Record Send and Tie Lines come before it.
-- **Sharing a stage box with another mixer:** if another mixer changes the gain, your Record Send and Tie Line tracks change level too (our reading, from the two Allen & Heath quotes above).
+- **Gain** is the analog preamp. It is in every tap point (our reading), so set it before the show and don't change it while recording (our advice).
+- **Trim** is +/-24 dB, in the channel, not the preamp. Record Send and Tie Lines come before it.
+- **Sharing a stage box with another mixer:** if another mixer changes the gain, your Record Send and Tie Line tracks change level too (our reading, from how Allen & Heath describes Record Send and Trim).
 - **Gain Tracking:** Allen & Heath: "When Gain Tracking is activated, Trim automatically changes to compensate for preamp gain changes." It corrects the channel, so it may not help Record Send or Tie Line tracks when another mixer changes the gain (our reading).
 - **Preamp on Surface:** turn it off on the mixer that shouldn't touch the gain. Allen & Heath: "Turn it off to prevent accidental Gain changes in situations where the same preamp is shared between FoH and Monitor consoles." It is on **Processing**, then **Preamp**.
 
 ## Avantis on Mac, iPad and iPhone
 
-- **Mac:** no multitrack over USB. Through an option card, the Mac needs the card maker's software. We haven't tested it yet.
+- **Mac:** no multitrack over USB. Through an option card, the card's settings are made in the card maker's software on a computer, and you record in a recording app (our reading). We haven't tested it yet.
 - **iPhone and iPad:** no multitrack over USB, because the Avantis sends no audio over USB. Through an option card, Allen & Heath doesn't say, and it's not tested yet.
-- **Windows:** the same as the Mac: an option card and the card maker's software.
+- **Windows:** no multitrack over USB. Through an option card, the card's settings are made in the card maker's software on a computer, and you record in a recording app (our reading). We haven't tested it yet.
 - **The stereo file:** record it on the mixer, copy it to a USB drive, then open it on any computer.
 
 ShowRecorder (our app) records each channel from mixers that send their channels over USB. The Avantis sends none, so it can't record its channels with a USB cable. We haven't tested ShowRecorder with an Avantis or with an option card.
@@ -177,16 +180,17 @@ ShowRecorder (our app) records each channel from mixers that send their channels
 
 ## Sources
 
-Allen & Heath help pages:
+Allen & Heath:
 
+- [Avantis product page](https://www.allen-heath.com/hardware/avantis/): the I/O Ports and option cards, "including Dante (64×64 and 128×128), Waves, gigaACE, MADI and more", and Harrison LiveTrax.
 - [Avantis Getting Started Guide](https://support.allen-heath.com/hc/en-gb/articles/40468836946065-Avantis-Getting-Started-Guide): the two I/O Ports at 128x128 and 96 kHz, the option cards, USB stereo recording, what the USB sockets do.
 - [Avantis Solo Getting Started Guide](https://support.allen-heath.com/hc/en-gb/articles/40469887089809-Avantis-Solo-Getting-Started-Guide): the same I/O Ports and USB sockets on the Avantis Solo.
-- [I/O](https://support.allen-heath.com/hc/en-gb/articles/39863634007185-I-O): Outputs, Tie Lines, Virtual SoundCheck, Record Send and its pre-trim source point.
+- [I/O](https://support.allen-heath.com/hc/en-gb/articles/39863634007185-I-O): Outputs, Tie Lines, Virtual SoundCheck, Record Send and its pre-trim source point, the 1:1 patch, Scenes.
 - [Routing](https://support.allen-heath.com/hc/en-gb/articles/39862914224145-Routing): the Global Direct Output Source and the Follow Fader, Follow Mute and Follow All options.
 - [Processing](https://support.allen-heath.com/hc/en-gb/articles/39862260219025-Processing): Gain and Trim, Gain Tracking, Preamp on Surface, the filters.
 - [Setup](https://support.allen-heath.com/hc/en-gb/articles/39867015930513-Setup): Audio Sync and the clock, the I/O Port page, card settings in Audinate or Waves software.
 - [Utility](https://support.allen-heath.com/hc/en-gb/articles/39867376134033-Utility): the stereo recorder and player, file formats, Copy to USB.
-- [Avantis Firmware Release Notes](https://support.allen-heath.com/hc/en-gb/articles/44018705862289-Avantis-Firmware-Release-Notes): V2.02 (October 2026), the V1.10 stereo record sources.
+- [Avantis Firmware Release Notes](https://support.allen-heath.com/hc/en-gb/articles/44018705862289-Avantis-Firmware-Release-Notes): V2.02 (October 2026), the V1.10 stereo record sources, the V1.24 Record Send fix for outputs 97 and up.
 
 Users on Allen & Heath's forum (one user's report each, not confirmed by Allen & Heath):
 
