@@ -669,8 +669,11 @@ describe("the Mackie DL32R guide's facts", () => {
     expect(mdx).toMatch(/USB A and USB B connectors may NOT be used simultaneously/);
   });
 
-  it("names the drive track-count contradiction plainly: 24 in the 2015 spec table, 32 in the text and the 2018 guide", () => {
+  it("names the drive track-count contradiction plainly: 24 in the 2015 spec table, 32 in the text and the 2026 V5.1 guide", () => {
     expect(mdx).toMatch(/1-24 channel/);
+    // #1111: the 32-track side rests on Mackie's own V5.1 guide, not the 2018 V5.0 copy.
+    expect(mdx).not.toMatch(/2018 Master Fader/);
+    expect(mdx).toMatch(/2026 V5\.1 guide also says the drive records 32 channels \(48 kHz, 24-bit\)/);
     expect(mdx).toMatch(/1-32/);
     expect(mdx).toMatch(/contradict/i);
     expect(mdx).toMatch(/\(our reading\)/);
@@ -681,6 +684,9 @@ describe("the Mackie DL32R guide's facts", () => {
     expect(mdx).toMatch(/2 GB/);
     expect(mdx).toMatch(/spinning hard/);
     expect(mdx).toMatch(/Do not use a thumb drive/);
+    // The V5.1 guide (p. 224) adds a Pro SSD Drive to the spinning hard drive.
+    expect(mdx).toMatch(/Pro SSD Drive/);
+    expect(guide.faqs.find((f) => /without a computer/.test(f.q))!.a).toMatch(/Pro SSD/);
     expect(mdx).toMatch(/hub/);
     expect(mdx).toMatch(/100 MB/);
   });
@@ -738,14 +744,17 @@ describe("the Mackie DL32R guide's facts", () => {
     expect(MIXER_ROWS.find((r) => r.name === "Mackie DL32R")!.onboard).toMatch(/\(older units may show 24 until updated; our reading\)/);
   });
 
-  // #1111: Mackie hosts the current guide (V5.1, Feb 2026) itself; the Ambertech V5.0 copy is secondary at most.
+  // #1111: Mackie hosts the current guide (V5.1, Feb 2026) itself; it replaces the Ambertech-hosted V5.0 copy.
   it("cites Mackie's own Master Fader V5.1 guide first, from help.mackie.com", () => {
     const sources = mdx.slice(mdx.indexOf("## Sources"));
     expect(sources).toContain(`](${MACKIE_MF_DOWNLOADS})`);
     expect(sources).toMatch(/V5\.1[^\n]*2026/);
     expect(guide.sources).toContain(MACKIE_MF_DOWNLOADS);
-    const ambertech = sources.indexOf("ambertech.com.au");
-    if (ambertech >= 0) expect(sources.indexOf(MACKIE_MF_DOWNLOADS)).toBeLessThan(ambertech);
+    // #1111: Mackie's own V5.1 replaces the Ambertech-hosted V5.0 copy outright.
+    expect(mdx).not.toMatch(/ambertech/i);
+    expect(mdx).not.toMatch(/V5\.0/);
+    expect(guide.sources.join(" ")).not.toMatch(/ambertech/i);
+    expect(guide.faqs.map((f) => f.a).join(" ")).not.toMatch(/V5\.0/);
     expect(read("..", "docs", "research", "mixer-recording", "mackie-dl32r.md")).toContain(MACKIE_MF_DOWNLOADS);
   });
 
@@ -902,14 +911,17 @@ describe("the Mackie DL32S guide's facts", () => {
     expect(guide.faqs.find((f) => /iPhone|iPad/.test(f.q))!.a).toMatch(/not tested yet/i);
   });
 
-  // #1111: Mackie hosts the current guide (V5.1, Feb 2026) itself; the Ambertech V5.0 copy is secondary at most.
+  // #1111: Mackie hosts the current guide (V5.1, Feb 2026) itself; it replaces the Ambertech-hosted V5.0 copy.
   it("cites Mackie's own Master Fader V5.1 guide first, from help.mackie.com, and not the DL32R FAQ page", () => {
     const sources = mdx.slice(mdx.indexOf("## Sources"));
     expect(sources).toContain(`](${MACKIE_MF_DOWNLOADS})`);
     expect(sources).toMatch(/V5\.1[^\n]*2026/);
     expect(guide.sources).toContain(MACKIE_MF_DOWNLOADS);
-    const ambertech = sources.indexOf("ambertech.com.au");
-    if (ambertech >= 0) expect(sources.indexOf(MACKIE_MF_DOWNLOADS)).toBeLessThan(ambertech);
+    // #1111: Mackie's own V5.1 replaces the Ambertech-hosted V5.0 copy outright.
+    expect(mdx).not.toMatch(/ambertech/i);
+    expect(mdx).not.toMatch(/V5\.0/);
+    expect(guide.sources.join(" ")).not.toMatch(/ambertech/i);
+    expect(guide.faqs.map((f) => f.a).join(" ")).not.toMatch(/V5\.0/);
     const notes = read("..", "docs", "research", "mixer-recording", "mackie-dl32s.md");
     expect(notes).toContain(MACKIE_MF_DOWNLOADS);
     expect(notes).not.toMatch(/mackie\.com\/en\/support\/faq/);
