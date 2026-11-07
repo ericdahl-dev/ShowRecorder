@@ -11,6 +11,12 @@ extension XAirDriver: GainControl, MixHoldDesk {
         return (0...17).contains(source) ? source + 1 : nil
     }
 
+    /// Whether input channel `channel` (1-16) takes USB instead of its preamp (`/ch/NN/preamp/rtnsw`, 1 on; an int
+    /// on Eric's XR18, firmware 1.26). Its preamp then isn't in what it records (#1147).
+    public func isFedFromUSB(channel: Int) async throws(MixerLinkProblem) -> Bool {
+        try await queries.int(at: String(format: "/ch/%02d/preamp/rtnsw", channel)) != 0
+    }
+
     /// The gain of preamp `headamp` (1-18), in dB.
     public func gainDb(ofHeadamp headamp: Int) async throws(MixerLinkProblem) -> Double {
         try await deskGainDb(ofHeadamp: headamp)
