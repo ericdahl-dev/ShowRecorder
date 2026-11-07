@@ -30,6 +30,7 @@ describe("sitemap", () => {
       "https://showrecorder.app/guides/record/wing",
       "https://showrecorder.app/guides/record/m32",
       "https://showrecorder.app/guides/record/mackie-dl32s",
+      "https://showrecorder.app/guides/record/ui24r",
       "https://showrecorder.app/changelog",
       "https://showrecorder.app/support",
       "https://showrecorder.app/privacy",
