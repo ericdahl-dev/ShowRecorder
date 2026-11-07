@@ -527,6 +527,8 @@ describe("the Mackie DL32R guide's facts", () => {
     expect(mdx).not.toMatch(/always offers 32 x 32/);
     expect(mdx).toMatch(/so we expect 32 x 32 every time \(our reading\)/);
     expect(mdx).toMatch(/after the Mic Pre tap \(block diagram\)/);
+    expect(mdx).not.toMatch(/sound like front of house/);
+    expect(mdx).toMatch(/Use it for processed tracks \(our advice\)\./);
     expect(guide.faqs.find((f) => /pre or post fader/.test(f.q))!.a).toMatch(/^For the channels, pre-fader either way\./);
     expect(MIXER_ROWS.find((r) => r.name === "Mackie DL32R")!.onboard).toMatch(/\(older units may show 24 until updated; our reading\)/);
   });
