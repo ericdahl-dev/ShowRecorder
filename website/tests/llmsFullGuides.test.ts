@@ -90,6 +90,18 @@ describe("llms-full.txt carries the recording guides in full", () => {
     for (const g of GLOSSARY) expect(hub).toContain(`- **${g.term}:** ${g.def}`);
   });
 
+  it("has the hub's 'Pick your mixer' list: each guide linked, its short facts, Mixer Link where it has it", () => {
+    const hub = section("How to multitrack record a digital mixer");
+    expect(hub).toContain("#### Pick your mixer");
+    for (const g of MIXER_GUIDES) {
+      const line = hub.split("\n").find((l) => l.startsWith(`- [${g.mixer}](https://showrecorder.app${g.path}):`));
+      expect(line, g.slug).toBeDefined();
+      expect(line, g.slug).toContain(g.pick);
+      if (g.productPage) expect(line, g.slug).toContain(`Mixer Link: ShowRecorder takes the channel names and colors from this mixer ([how it works](https://showrecorder.app${g.productPage})).`);
+      else expect(line, g.slug).not.toContain("Mixer Link");
+    }
+  });
+
   it("has the best-app guide's table, every app's facts and its sources", () => {
     const part = section("The best app to multitrack record a digital mixer on iPhone and iPad");
     expect(part).toMatch(/\| App \| Price model \| A file per channel \| Channels at once \| Runs on \| Channel names from the mixer \| Editing on the device \|/);

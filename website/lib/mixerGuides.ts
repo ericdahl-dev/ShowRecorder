@@ -249,13 +249,15 @@ export const HUB_COPY = {
   title: "How to multitrack record a digital mixer",
   lede: "Most digital mixers can record every channel to its own track. How they do it differs a lot: over USB to a computer, to a card or stick in the mixer, or to an iPad or iPhone. This page lists what each mixer can do, and each guide shows the settings and routing step by step.",
   method: `Facts come from the makers' own manuals and spec pages where we could find them. Where only a forum or a retailer says it, we say so. Where nobody says, we write "not stated" or "unknown" instead of guessing. Researched November 2026; check your mixer's manual and firmware before a show. [Sources and method](${RESEARCH_URL}).`,
+  pickTitle: "Pick your mixer",
+  pickOthers: "Every other mixer, in the table",
   tableTitle: "What each mixer can record",
   tableIntro: `"Over USB" is what the mixer sends to a computer, iPad or iPhone. "With no computer" is what it records by itself. Words like card out and class compliant are in the [glossary](#glossary).`,
   waysTitle: "Three ways to record every channel",
   ways: [
-    "**To a computer over USB.** The mixer acts as a USB audio interface, and a DAW records each channel to its own track. On a Mac, most of the mixers above need no driver.",
+    "**To a computer over USB.** The mixer acts as a USB audio interface, and a recording app on the computer (a [DAW](#glossary)) records each channel to its own track. On a Mac, most of the mixers above need no driver.",
     "**To a card or stick in the mixer.** Some mixers, or an option card in them, record many tracks to an SD card or a USB drive with no computer at all. Many others record only a stereo mix this way.",
-    `**To an iPad, iPhone or Mac with an app.** A class-compliant mixer can send its channels to an iPad or iPhone over a USB cable. Some makers say their class-compliant mixers work with an iPad or iPhone; the table shows which, and says "not tested yet" where nobody has checked.`,
+    `**To an iPad, iPhone or Mac with an app.** A [class-compliant](#glossary) mixer can send its channels to an iPad or iPhone over a USB cable. Some makers say their class-compliant mixers work with an iPad or iPhone; the table shows which, and says "not tested yet" where nobody has checked.`,
   ],
   waysAfter: [
     `Whichever way you record, you also choose where in each channel the recording is taken: before or after the gain, the EQ and the fader. [Pre or post fader](${TAP_POINT_GUIDE}) explains each tap point, with pros and cons.`,
@@ -266,6 +268,11 @@ export const HUB_COPY = {
   fits: "ShowRecorder records every USB Channel from any class-compliant mixer, one WAV file per channel, on a USB-C iPhone or iPad. Names and colors from the mixer (Mixer Link) work only with the [XR18 and MR18](/mixers/xr18) and the [X32 and M32](/mixers/x32). Its X32 and M32 support has run only against an X32 emulator so far.",
   glossaryTitle: "Glossary",
 } as const;
+
+// The line under a guide in "Pick your mixer" when ShowRecorder has Mixer Link for it, linking to its ShowRecorder page.
+export function pickMixerLink(productPage: string): string {
+  return `Mixer Link: ShowRecorder takes the channel names and colors from this mixer ([how it works](${productPage})).`;
+}
 
 // Words the guides use, defined once on the hub; each guide links here.
 export const GLOSSARY: readonly { term: string; def: string }[] = [
@@ -278,6 +285,10 @@ export const GLOSSARY: readonly { term: string; def: string }[] = [
   { term: "2 x 2, 18 x 18, 32/32", def: "How many channels USB sends to the computer and back. A mixer left at 2 x 2 sends only 2." },
   { term: "DAW", def: "Digital audio workstation: the app on a computer that records and mixes, such as Reaper, Logic or Pro Tools." },
   { term: "Virtual soundcheck", def: "Playing a recorded show back through the mixer's channels over USB, to set the mix with no band on stage." },
+  {
+    term: "Mixer Link",
+    def: "ShowRecorder takes each channel's name and color from the mixer, so every track is named for you. It works only with the XR18 and MR18 and the X32 and M32; the X32 and M32 support has run only against an X32 emulator so far.",
+  },
   { term: "CoreAudio", def: "Apple's audio system on the Mac. A mixer that is CoreAudio compatible works on a Mac with no driver." },
 ];
 
@@ -291,6 +302,8 @@ export type MixerGuide = {
   short: string;
   // The full name, for the H1 and the article headline: "Behringer X32".
   mixer: string;
+  // Its short facts in plain words, under its name in the hub's "Pick your mixer" list. From its hub rows.
+  pick: string;
   description: string;
   // The day the guide was first published.
   published: string;
@@ -625,6 +638,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pageKey: "guideX32",
     short: "X32",
     mixer: "Behringer X32",
+    pick: "With a USB card, up to 32 channels to a computer. With an X-LIVE card, up to 32 to SD cards, no computer needed. iPhone and iPad: not tested yet.",
     description:
       "Multitrack record an X32 with an X-USB or X-LIVE card, to a computer or to SD cards (iPhone not tested yet): settings, card out blocks and tap points.",
     published: "2026-11-06",
@@ -654,6 +668,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pageKey: "guideXR18",
     short: "XR18",
     mixer: "Behringer XR18 or Midas MR18",
+    pick: "18 channels over USB to a computer, iPad or iPhone. Records no multitrack by itself.",
     description:
       "Multitrack record an XR18 or MR18 over USB: to a computer, an iPad or an iPhone. Settings, the USB routing grid, virtual soundcheck and tap points.",
     published: "2026-11-06",
@@ -674,6 +689,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pageKey: "guideQu",
     short: "Qu",
     mixer: "Allen & Heath Qu",
+    pick: "Up to 32 channels over USB (24 on the Qu-16). Records by itself: the new Qu to an SD card, the Qu Classic to a USB drive. iPhone and iPad: not tested yet.",
     description:
       "Multitrack record a Qu-16, Qu-24, Qu-32, Qu-SB, Qu-Pac or Qu-5/6/7 over USB, or to an SD card or drive: settings, routing, tap points. iPad not tested yet.",
     published: "2026-11-07",
@@ -710,6 +726,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pageKey: "guideZoomL12",
     short: "L-12 and L-20",
     mixer: "Zoom LiveTrak L-12 or L-20",
+    pick: "14 channels (L-12) or 22 (L-20) over USB. Records every channel by itself to an SD card. Zoom names the iPhone and iPad (Lightning adapter; USB-C not tested yet).",
     description:
       "Multitrack record a Zoom LiveTrak L-12 or L-20 to a computer, an iPhone or iPad (named by Zoom) or its SD card: rear switches, USB order and tap points.",
     published: "2026-11-07",
@@ -733,6 +750,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pageKey: "guideMackieDL32R",
     short: "DL32R",
     mixer: "Mackie DL32R",
+    pick: "32 channels over USB to a computer. Records up to 32 tracks by itself to a USB hard drive. iPad: yes, with a camera adapter. iPhone: not tested yet.",
     description:
       "Multitrack record a Mackie DL32R over USB to a computer or iPad, or to a USB hard drive: settings, I/O Patch routing, tap points. iPhone not tested yet.",
     published: "2026-11-07",
@@ -753,6 +771,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pageKey: "guideWing",
     short: "WING",
     mixer: "Behringer WING, WING Compact or WING Rack",
+    pick: "Up to 48 channels over USB to a computer. With a WING-LIVE card, 64 channels to SD cards, no computer needed. iPhone and iPad: not tested yet.",
     description:
       "Multitrack record a Behringer WING over USB or to its WING-LIVE SD cards: settings, per-slot routing, tap points, playback. iPhone not tested yet.",
     published: "2026-11-07",
@@ -774,6 +793,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pageKey: "guideM32",
     short: "M32",
     mixer: "Midas M32",
+    pick: "With a DN32-USB card, 32 channels to a computer. With a DN32-LIVE card, records to SD cards, no computer needed. iPhone and iPad: not tested yet.",
     description:
       "Multitrack record a Midas M32, M32R or M32C with a DN32-USB or DN32-LIVE card, to a computer or SD cards (iPhone not tested yet): settings, routing, taps.",
     published: "2026-11-07",
@@ -800,6 +820,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pageKey: "guideMackieDL32S",
     short: "DL32S",
     mixer: "Mackie DL32S or DL16S",
+    pick: "32 channels over USB (16 on the DL16S) to a computer. Records nothing by itself. iPhone and iPad: not tested yet.",
     description:
       "Multitrack record a Mackie DL32S or DL16S over USB to a computer (iPhone and iPad not tested yet): 48 kHz, I/O Patch USB routing, virtual soundcheck, taps.",
     published: "2026-11-07",
@@ -821,6 +842,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pageKey: "guideUi24r",
     short: "Ui24R",
     mixer: "Soundcraft Ui24R",
+    pick: "32 channels over USB to a computer. Records 22 channels by itself to a USB stick. iPhone and iPad: not stated by Soundcraft, not tested yet.",
     description:
       "Multitrack record a Soundcraft Ui24R to a computer or USB drive: the fixed USB map, 48 kHz, playback, the tap point. iPhone and iPad not tested yet.",
     published: "2026-11-07",

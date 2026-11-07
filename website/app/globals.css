@@ -2060,12 +2060,40 @@ ol.cards {
   font-weight: 600;
 }
 
+/* "Pick your mixer" (Eric, 2026-11-07): one mixer per row, its name as the link, its short facts under it. */
 .guides-pick ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
+  max-width: 46rem;
+  margin: 0;
   padding: 0;
   list-style: none;
+  border-top: 1px solid var(--hairline);
+}
+
+.guides-pick li {
+  padding: 10px 0 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+/* A full-width tap target at least 44px tall. */
+.guides-pick-name {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.guides-pick li p {
+  margin: 0 0 4px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+@media (max-width: 639px) {
+  /* The stacked table (.compare-table above) must not keep the desktop width, or the page scrolls sideways. */
+  .guides-table {
+    min-width: 0;
+  }
 }
 
 .glossary dt {

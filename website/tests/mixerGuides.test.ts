@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import GuidesHubPage from "@/app/guides/record/page";
 import { llmsTxt } from "@/lib/llms";
 import { PAGES } from "@/lib/metadata";
-import { GUIDES_HUB, MIXER_ROWS } from "@/lib/mixerGuides";
+import { GLOSSARY, GUIDES_HUB, MIXER_GUIDES, MIXER_ROWS } from "@/lib/mixerGuides";
 import { PAGE_DATES } from "@/lib/pageDates";
 import { ROUTES } from "@/lib/site";
 
@@ -14,6 +14,7 @@ import { ROUTES } from "@/lib/site";
 
 const ROOT = path.resolve(__dirname, "..");
 const read = (...p: string[]) => readFileSync(path.join(ROOT, ...p), "utf8");
+const esc = (s: string) => s.replace(/&/g, "&amp;");
 
 describe("the mixer recording guides hub", () => {
   it("lives at /guides/record, in the sitemap, with metadata, a date and an llms.txt line", () => {
@@ -63,6 +64,34 @@ describe("the mixer recording guides hub", () => {
     expect(read("app", "mixers", "xr18", "content.mdx")).toContain(`](${GUIDES_HUB})`);
     expect(read("app", "mixers", "x32", "content.mdx")).toContain(`](${GUIDES_HUB})`);
     expect(read("components", "Footer.tsx")).toContain(`href="${GUIDES_HUB}"`);
+  });
+
+  // Eric, 2026-11-07: "pick your mixer" was a wrapped row of links, hard to scan on a phone. It is a list: each mixer's
+  // name links to its guide, with its short facts in plain words on a line under it.
+  it("lists each guide under 'Pick your mixer': its name linking to the guide, its short facts under it", () => {
+    const hub = renderToStaticMarkup(createElement(GuidesHubPage));
+    const start = hub.indexOf('id="pick-title"');
+    const pick = hub.slice(start, hub.indexOf("</nav>", start));
+    const items = pick.split("<li").slice(1);
+    for (const g of MIXER_GUIDES) {
+      const item = items.find((i) => i.includes(`href="${g.path}"`));
+      expect(item, g.slug).toBeDefined();
+      expect(item, g.slug).toContain(`>${esc(g.mixer)}</a>`);
+      expect(g.pick.trim(), g.slug).not.toBe("");
+      expect(item, g.slug).toContain(esc(g.pick));
+    }
+  });
+
+  it("says in the list which mixers have Mixer Link, with Mixer Link in the glossary", () => {
+    const hub = renderToStaticMarkup(createElement(GuidesHubPage));
+    const start = hub.indexOf('id="pick-title"');
+    const items = hub.slice(start, hub.indexOf("</nav>", start)).split("<li").slice(1);
+    for (const g of MIXER_GUIDES) {
+      const item = items.find((i) => i.includes(`href="${g.path}"`))!;
+      if (g.productPage) expect(item, g.slug).toMatch(new RegExp(`Mixer Link.*href="${g.productPage}"`));
+      else expect(item, g.slug).not.toMatch(/Mixer Link/);
+    }
+    expect(GLOSSARY.map((t) => t.term)).toContain("Mixer Link");
   });
 
   it("renders the table as HTML with a header per column, so it reads on a phone and to a screen reader", () => {
