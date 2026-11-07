@@ -1149,7 +1149,7 @@ final class RecordScreenModel {
             store.beginAccess()
         }, driveProblem: {
             store.problemDescription()
-        }, preRollSeconds: PreRollSetting.load())
+        }, preRollSeconds: PreRollSetting.load(), stereoPairAvailable: { StereoPairAvailability.isAvailableInThisBuild })
         self.recorder = recorder
         self.pro = pro
         // The screenshot build Gets ready only demo inputs, never a microphone or USB interface (#374).

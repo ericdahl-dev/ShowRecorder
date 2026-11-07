@@ -10,6 +10,79 @@ struct StemSpec {
     /// False for a USB Channel this Take doesn't record (Free records 2): it is captured like the others, so
     /// every channel stays in step, but its samples go nowhere and no file is made.
     var isRecorded = true
+    /// Set on both USB Channels of a stereo pair recorded as one file (#1088): which side of `file` this channel is. The
+    /// left one comes first, and the right one right after it.
+    var stereoSide: StereoSide?
+
+    enum StereoSide {
+        case left, right
+    }
+
+    /// The Info for this Stem's file: its Source name, and 2 channels for a stereo pair.
+    func info(from base: StemWriter.Info) -> StemWriter.Info {
+        var info = base.described(description)
+        info.channels = stereoSide == nil ? 1 : 2
+        return info
+    }
+
+    /// Appends one sink per spec, in order, to `sinks`: `unrecorded` for a channel the Take doesn't record, the Stem `open`
+    /// makes for a mono one, and for a stereo pair the two lanes of the one Stem `open` makes for its left channel. Appended
+    /// one by one, so a caller that catches an error can finalize what was made.
+    static func appendSinks(
+        for specs: [StemSpec], to sinks: inout [any StemSink], open: (_ index: Int, StemSpec) throws -> any StemSink,
+        unrecorded: (_ index: Int) -> any StemSink
+    ) throws {
+        var right: (any StemSink)?
+        for (index, spec) in specs.enumerated() {
+            guard spec.isRecorded else {
+                sinks.append(unrecorded(index))
+                continue
+            }
+            switch spec.stereoSide {
+            case nil:
+                sinks.append(try open(index, spec))
+            case .left:
+                let lanes = StereoPair.lanes(writingTo: try open(index, spec))
+                sinks.append(lanes.left)
+                right = lanes.right
+            case .right:
+                guard let lane = right else { preconditionFailure("a stereo pair's right channel comes right after its left") }
+                sinks.append(lane)
+                right = nil
+            }
+        }
+    }
+
+    /// `counts` (one per spec) with both channels of a stereo pair at the lower of the two: its file holds whole frames only.
+    static func evenPairs(_ counts: [UInt64], specs: [StemSpec]) -> [UInt64] {
+        var counts = counts
+        for index in specs.indices.dropLast() where specs[index].stereoSide == .left && specs[index].isRecorded {
+            let frames = min(counts[index], counts[index + 1])
+            counts[index] = frames
+            counts[index + 1] = frames
+        }
+        return counts
+    }
+}
+
+/// Opens a stereo pair's Stem once for the two stand-in sinks of a Drive only Take's standby (#196, #1088), whichever asks
+/// first, and gives each its lane.
+final class StereoPairOpener: @unchecked Sendable {
+    private let lock = NSLock()
+    private let open: () throws -> any StemSink
+    private var lanes: (left: any StemSink, right: any StemSink)?
+
+    init(open: @escaping () throws -> any StemSink) {
+        self.open = open
+    }
+
+    func lane(_ side: StemSpec.StereoSide) throws -> any StemSink {
+        try lock.withLock {
+            let lanes = try self.lanes ?? StereoPair.lanes(writingTo: open())
+            self.lanes = lanes
+            return side == .left ? lanes.left : lanes.right
+        }
+    }
 }
 
 /// Where an unrecorded USB Channel's samples go: counted, never written.
@@ -203,13 +276,13 @@ final class TakeSession {
             guard let folder = folders[kind] else { continue }
             let feed = feeds[kind]!
             // A Drive prepared before the session has its Stems and `Take.json` already, made off the main actor (#914).
-            let sinks: [any StemSink]
+            var sinks: [any StemSink] = []
             if kind == .drive, let preparedDrive {
                 sinks = preparedDrive.sinks
             } else {
-                sinks = try stems.map { spec in
-                    spec.isRecorded ? try makeStem(folder.appending(path: spec.file), info.described(spec.description), nil) : DiscardingSink()
-                }
+                try StemSpec.appendSinks(
+                    for: stems, to: &sinks, open: { _, spec in try makeStem(folder.appending(path: spec.file), spec.info(from: info), nil) },
+                    unrecorded: { _ in DiscardingSink() })
                 try metadata.write(to: folder)
             }
             records.append(CopyRecord(
@@ -401,7 +474,7 @@ final class TakeSession {
         let freeSpace = readFree ?? self.freeSpace
         // Keep 60 s of audio free on each Destination. A Copy that's short stops cleanly while another
         // has room; when the last healthy one is short the Take finalizes, before anything fills.
-        let reserve = SpaceReserve(channelCount: metadata.usbChannels.count, sampleRate: info.sampleRate)
+        let reserve = SpaceReserve(channelCount: metadata.recordedChannelCount, sampleRate: info.sampleRate)
         let healthy = copies.filter { !$0.writer.hasFailed }
         let low = healthy.filter { reserve.isLow(free: freeSpace($0.folder)) }
         if !low.isEmpty {
@@ -548,7 +621,7 @@ final class TakeSession {
         }
         return Finished(
             metadata: metadata, folders: folders, access: copies.lazy.compactMap(\.access).first,
-            signal: TakeSignal(recorded: metadata.usbChannels.count, withSignal: levels.channelsWithSignal(), loudest: levels.loudest()),
+            signal: TakeSignal(recorded: metadata.recordedChannelCount, withSignal: levels.channelsWithSignal(), loudest: levels.loudest()),
             abandoned: abandoned, show: show,
             abandonedDriveWriter: copies.first { $0.kind == .drive && $0.writer.wasAbandoned }?.writer)
     }
@@ -608,7 +681,7 @@ final class TakeSession {
     private func attachJob(replacing old: CopyRecord?, cancel: AttachCancel) -> DriveAttachJob {
         DriveAttachJob(
             old: old, show: show, metadata: metadata, stems: stems, info: info, makeStem: makeStem, freeSpace: freeSpace,
-            reserve: SpaceReserve(channelCount: metadata.usbChannels.count, sampleRate: info.sampleRate), cancel: cancel)
+            reserve: SpaceReserve(channelCount: metadata.recordedChannelCount, sampleRate: info.sampleRate), cancel: cancel)
     }
 
     /// Starts the Drive Copy, or restarts it over `old`, all on this thread (the check that tests and the
@@ -694,20 +767,20 @@ final class TakeSession {
             // `fsync` returning doesn't mean a USB Drive's own cache reached the medium (#602): a Drive pulled inside that
             // window can leave a Stem shorter than its last commit, and resuming at the commit would extend it with zeros
             // outside any Gap. Each Stem resumes at what its file really holds if that is less.
-            let counts: [UInt64]? = job.old?.writer.stemFramesKept.enumerated().map { index, committed in
+            let counts: [UInt64]? = (job.old?.writer.stemFramesKept.enumerated().map { (index, committed) -> UInt64 in
                 let spec = job.stems[index]
                 // An unrecorded channel has no file. A recorded one that is there but can't be read has nothing to resume.
                 guard spec.isRecorded, FileManager.default.fileExists(atPath: folder.appending(path: spec.file).path) else { return committed }
                 guard let onDisk = try? StemFile.inspect(folder.appending(path: spec.file)).framesOnDisk else { return 0 }
                 return min(committed, onDisk)
-            }
-            for (index, spec) in job.stems.enumerated() {
-                if job.cancel.isCanceled { throw AttachCanceled() }
-                sinks.append(
-                    spec.isRecorded
-                        ? try job.makeStem(folder.appending(path: spec.file), job.info.described(spec.description), counts?[index])
-                        : DiscardingSink(frameCount: counts?[index] ?? 0))
-            }
+            }).map { StemSpec.evenPairs($0, specs: job.stems) }
+            try StemSpec.appendSinks(
+                for: job.stems, to: &sinks,
+                open: { index, spec in
+                    if job.cancel.isCanceled { throw AttachCanceled() }
+                    return try job.makeStem(folder.appending(path: spec.file), spec.info(from: job.info), counts?[index])
+                },
+                unrecorded: { index in DiscardingSink(frameCount: counts?[index] ?? 0) })
             if job.cancel.isCanceled { throw AttachCanceled() }
             // A Take folder that was rejoined already has its Take.json.
             if job.old == nil { try job.metadata.write(to: folder) }
@@ -736,7 +809,7 @@ final class TakeSession {
         guard !cancel.isCanceled, let access = drive() else { return nil }
         let job = DriveAttachJob(
             old: nil, show: show, metadata: metadata, stems: stems, info: info, makeStem: makeStem, freeSpace: freeSpace,
-            reserve: SpaceReserve(channelCount: metadata.usbChannels.count, sampleRate: info.sampleRate), cancel: cancel,
+            reserve: SpaceReserve(channelCount: metadata.recordedChannelCount, sampleRate: info.sampleRate), cancel: cancel,
             writesDeviceShow: false)
         return prepareDrive(job, access: access)
     }
@@ -877,12 +950,21 @@ final class TakeSession {
         let folder = standby.folder.appending(path: TakeMetadata.StandIn(start: start, end: start).folderName, directoryHint: .isDirectory)
         var startInfo = info
         startInfo.timeReference += UInt64(start)
+        // A stereo pair's two stand-ins share one Stem: whichever starts first opens it (#1088).
+        var pairs: [String: StereoPairOpener] = [:]
         for (spec, sink) in zip(stems, standby.sinks) where spec.isRecorded {
             let url = folder.appending(path: spec.file)
-            let stemInfo = startInfo.described(spec.description)
-            sink.standIn(from: start) { [makeStem] in
+            let stemInfo = spec.info(from: startInfo)
+            let open: () throws -> any StemSink = { [makeStem] in
                 try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
                 return try makeStem(url, stemInfo, nil)
+            }
+            if let side = spec.stereoSide {
+                let opener = pairs[spec.file] ?? StereoPairOpener(open: open)
+                pairs[spec.file] = opener
+                sink.standIn(from: start) { try opener.lane(side) }
+            } else {
+                sink.standIn(from: start, open: open)
             }
         }
         standby.start = start

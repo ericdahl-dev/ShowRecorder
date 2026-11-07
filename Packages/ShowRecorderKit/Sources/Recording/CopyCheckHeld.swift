@@ -147,7 +147,9 @@ extension CopyCheck {
               let deviceHandle = try? FileHandle(forReadingFrom: device), let driveHandle = try? FileHandle(forReadingFrom: drive)
         else { return false }
         defer { try? deviceHandle.close(); try? driveHandle.close() }
-        let bytesPerFrame = StemWriter.bytesPerSample
+        // Bytes in a frame: a stereo Stem (#1088) has two samples in each. Two Stems of different widths never match.
+        guard a.channelCount == b.channelCount else { return false }
+        let bytesPerFrame = a.bytesPerFrame
         var done = 0
         let chunkFrames = 262_144
         while done < frames {
