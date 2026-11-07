@@ -18,7 +18,7 @@ import { guideTrail } from "@/lib/mixerGuides";
 5. **Record a 30 s test and play it back** before the show.
 6. **For a long show on an iPad, keep it charged** with a powered USB hub or a camera adapter that passes power through (our advice). ([Mac, iPad and iPhone](#dl32r-on-mac-ipad-and-iphone))
 
-This guide covers the DL32R, the rack mixer controlled from an iPad. The DL32S, DL16S and DL32SE are a different design and have no drive recorder; they are in the [mixer recording guides](/guides/record), with every other mixer. The words used here are in its [glossary](/guides/record#glossary). Facts come from Mackie's DL32R manual (2015), the DL32R spec sheet (2015) and Mackie's Master Fader 5 Reference Guide (2018) unless a line says otherwise. The [sources](#sources) are at the end.
+This guide covers the DL32R, the rack mixer controlled from an iPad. The DL32S, DL16S and DL32SE are a different design and have no drive recorder; they are in the [mixer recording guides](/guides/record), with every other mixer. The words used here are in its [glossary](/guides/record#glossary). Facts come from Mackie's DL32R manual (2015), the DL32R spec sheet (2015) and Mackie's Master Fader Reference Guide V5.1 (2026) unless a line says otherwise. The [sources](#sources) are at the end.
 
 ## Ways to record a DL32R
 
@@ -36,7 +36,7 @@ Plug the **USB B** port into the computer and record in any DAW.
 
 The DL32R records to a hard drive on its **USB A** port.
 
-- **Tracks:** 1 to 32, chosen per recording (Master Fader 5 guide). See [24 or 32 tracks?](#24-or-32-tracks-on-the-drive) below.
+- **Tracks:** 1 to 32, chosen per recording (Master Fader guide). See [24 or 32 tracks?](#24-or-32-tracks-on-the-drive) below.
 - **Format:** 16 or 24-bit at 48 kHz, as one multichannel (interleaved) WAV per take: "The DL32R records to multichannel .wav files that contain between one and 32 channels (or tracks) in a single file." Most DAWs split it into tracks on import; otherwise Mackie suggests Sound Devices Wave Agent.
 - **Long shows:** each file stays under 2 GB. The DL32R starts a new one "without any data loss", so a long take is several WAV files; line them up end to end in the DAW. Mackie's example: a 50-minute, 24-channel recording gives 5 files.
 - **Drive:** Mackie says use a "USB 2.0 or better spinning hard disk drive" and "Do not use a thumb drive" for recording (a thumb drive is fine for stereo playback). Dedicate the drive to the DL32R, format it in the DL32R, and don't use a USB hub. A bus-powered drive is fine "from 5V up to 1A". The manual's spec table says FAT32.
@@ -53,7 +53,7 @@ Mackie's manual names the iPad, with Apple's camera connection kit. The iPhone i
 
 - **Over USB B:** 48 kHz only, 16 or 24-bit, set in your recording app (our reading). There is nothing to switch on the DL32R.
 - **To the drive:** in Master Fader, tap the **Recording/Playback** button (upper right of the navigation bar), name the recording, pick how many tracks (1-32) and 16 or 24 bits, then tap **Record**. Name, track count and bit depth can't change while it records.
-- **The iPad can leave the app:** drive recording carries on in the background (Master Fader 5 guide).
+- **The iPad can leave the app:** drive recording carries on in the background (Master Fader guide).
 - **Clock:** Mackie documents no word clock. An optional Dante card is offered (spec sheet).
 - **File format on the drive:** multichannel WAV, 48 kHz.
 
@@ -61,7 +61,7 @@ Mackie's manual names the iPad, with Apple's camera connection kit. The iPhone i
 
 ### 24 or 32 tracks on the drive?
 
-Mackie's own documents contradict each other. The 2015 spec table, in the manual and on the spec sheet, says the drive records "1-24 channel, 48 kHz, 16/24-bit (multichannel .wav)". The manual's own text, the spec sheet's feature list and the 2018 Master Fader 5 guide say 32, and the guide's track menu goes "1-32". We read the 2018 guide as the current one: up to 32 tracks with current firmware and Master Fader, and an older unit may show 24 until it is updated (our reading). Mackie doesn't say which firmware first allowed 32, so update the mixer and the app before a show, and check the track menu.
+Mackie's own documents contradict each other. The 2015 spec table, in the manual and on the spec sheet, says the drive records "1-24 channel, 48 kHz, 16/24-bit (multichannel .wav)". The manual's own text, the spec sheet's feature list and the 2018 Master Fader 5 guide say 32, and the guide's track menu goes "1-32". The 2026 V5.1 guide also says the drive records 32 channels (48 kHz, 24-bit), p. 210. We read the guides as the current word: up to 32 tracks with current firmware and Master Fader, and an older unit may show 24 until it is updated (our reading). Mackie's release notes in the V5.1 guide say 32-track drive recording came with Master Fader and mixer firmware V3.2 (p. 320). Update the mixer and the app before a show, and check the track menu.
 
 ### Only some channels, or none? Check USB A and the track count
 
@@ -71,7 +71,7 @@ Mackie's own documents contradict each other. The 2015 spec table, in the manual
 
 ## DL32R USB routing
 
-**Recording every input? There is nothing to change.** The default sends Mic Pre 1-32 to USB 1-32 (Master Fader 5 guide).
+**Recording every input? There is nothing to change.** The default sends Mic Pre 1-32 to USB 1-32 (Master Fader guide).
 
 Each USB slot takes any source: "Any combination of channels or outputs may be selected as the record source and playback destination." The same patch feeds the drive and the computer.
 
@@ -97,14 +97,14 @@ Because the default record tap is Mic Pre and the playback comes back at the cha
 
 ## DL32R tap points
 
-Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). On the DL32R you pick the tap per USB slot, from the block diagram in the Master Fader 5 guide:
+Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). On the DL32R you pick the tap per USB slot, from the block diagram in the Master Fader guide:
 
 - **Which to pick:** for a recording you'll remix, **Mic Pre**, the default.
 - **Mic Pre:** after the analog gain and the converter, before everything digital: before digital trim, polarity, HPF, gate, compressor, EQ, mute and fader. Mackie calls this "recording each input directly off the mic pre with no processing".
 - **Channel N Post-DSP** (the "Ch Direct Out" on the block diagram): after the HPF, gate, compressor and EQ, before mute and fader. Use it for processed tracks (our advice).
 - **Main L/R:** offered both pre-fader and post-fader.
 - **Gain vs trim:** the preamp gain is analog, digitally controlled, in 3 dB steps: 0 to 60 dB on XLR, -20 to 40 dB on the 1/4" input (spec sheet). Line inputs 25-32 add a -20 dB pad on TRS. The digital trim comes after the Mic Pre tap (block diagram), so it doesn't change the recording.
-- **Meters:** the channel meter sits right after the A/B source select, before the trim (block diagram). Mackie's FAQ: "Input meters are fixed Pre DSP."
+- **Meters:** the channel meter sits right after the A/B source select, before the trim (block diagram). The Master Fader guide: "The input meters display the input signal level to the channel before all channel processing."
 - **Several iPads:** up to 20 iOS devices can control one DL32R (spec sheet). The gain is one setting per input, so a gain change from any of them changes the Mic Pre recording (our reading). Mackie doesn't say so. **Access Limiting > Mic Preamps** locks "48v, gain, trim and polarity" on a device. Lock it on every iPad except the one that owns gain (our advice).
 
 ## DL32R on Mac, iPad and iPhone
@@ -127,5 +127,5 @@ Mackie documents:
 
 - [DL32R Owner's Manual](https://mackie.com/img/file_resources/DL32R_OM.pdf) (2015): USB A and USB B, 32 x 32 over USB, the iPad camera connection kit, the Mac and Windows drivers, the spec table.
 - [DL32R spec sheet](https://mackie.com/img/file_resources/DL32R_SS.pdf) (2015): USB and drive specs, gain ranges, up to 20 iOS devices.
-- [Master Fader 5 Reference Guide](https://www.ambertech.com.au/Documents/Master%20Fader_V5_0_RG-compressed.pdf) (2018): drive recording and playback, I/O Patch, the block diagram, Access Limiting. This is Mackie's own guide; we could not find it on mackie.com, so the link is the copy hosted by Ambertech, Mackie's Australian distributor.
-- [DL32R FAQ](https://mackie.com/en/support/faq/dl32r.html): input and output meter points. The page would not load for us; we read it through search excerpts.
+- [Master Fader Reference Guide V5.1](https://help.mackie.com/hc/en-us/articles/14288356150159-Master-Fader-Downloads) (Feb 2026), on Mackie's Master Fader Downloads page ("Click here" opens Mackie's file library, "Master Fader V5 1 RG"): drive recording and playback (pp. 210-224), I/O Patch (pp. 196-209), the input meters (p. 38), Access Limiting, the DL32R block diagram (pp. 290-291).
+- [Master Fader 5 Reference Guide V5.0](https://www.ambertech.com.au/Documents/Master%20Fader_V5_0_RG-compressed.pdf) (2018), an older edition of the same Mackie guide, hosted by Ambertech, Mackie's Australian distributor.

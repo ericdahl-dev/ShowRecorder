@@ -21,7 +21,7 @@ This guide covers the Midas M32, M32R and M32C, and the M32 LIVE and M32R LIVE. 
 
 - **DN32-USB:** USB only. Older M32 and M32R consoles shipped with it.
 - **DN32-LIVE:** USB plus two SD card slots, for recording with no computer. Fitted to the M32 LIVE and M32R LIVE.
-- **XUF:** the M32's version of the X32's X-UF card. The first M32 manual calls the card "XUF".
+- **XUF:** the M32's version of the X32's X-UF card. The name "XUF" is from an earlier edition of the M32 manual, on ManualsLib; Midas's current manual names only the DN32-USB.
 
 Without one of these cards, the M32 sends no multichannel audio over USB. The console's own rear USB port is for remote control only (M32 LIVE guide). Facts come from Midas and Klark Teknik documents unless a line says otherwise; where only the X32's documents say it, the line says so. The [sources](#sources) are at the end. Other mixers are in the [mixer recording guides](/guides/record), and the words used here are in its [glossary](/guides/record#glossary).
 
@@ -38,7 +38,7 @@ Plug the card's USB port into the computer and record in any DAW.
 
 ### With no computer
 
-- **DN32-LIVE card to SD cards** (M32 LIVE guide). It records 8, 16 or 32 channels to two SD or SDHC cards (FAT32, 1 to 32 GB each). SDXC cards above 32 GB are not supported. Files are uncompressed multichannel WAV (8, 16 or 32 channels) at the console's 44.1 or 48 kHz, 32-bit PCM (M32 LIVE guide); on the X-LIVE each session is one file (X-LIVE guide, our reading).
+- **DN32-LIVE card to SD cards** (M32 LIVE guide). It records 8, 16 or 32 channels to two SD or SDHC cards (FAT32, 1 to 32 GB per slot). Files are uncompressed multichannel WAV (8, 16 or 32 channels) at the console's 44.1 or 48 kHz, 32-bit PCM (M32 LIVE guide); on the X-LIVE each session is one file (X-LIVE guide, our reading).
   - A 32-channel session at 44.1 kHz runs up to 200 min (3 hours 20 minutes) on two 32 GB cards.
   - Use class 10 cards for 32 channels. Class 6 is enough for 8 or 16.
   - An optional CR123A battery protects the files in a blackout.
@@ -80,8 +80,8 @@ Midas doesn't state a factory default for card out. Check **ROUTING > card out**
 ### Method A: blocks of 8 on the card out tab
 
 1. **Open card out.** Press **ROUTING** and go to the **card out** tab.
-2. **Pick four blocks.** "Adjust the first rotary control to select an 8-channel signal path that will be sent to the first eight channels", then "repeat the process with controls 2-4", for card outputs 1-8, 9-16, 17-24 and 25-32 (M32 manual).
-3. **Assign.** "Tap the first control to assign the selected output path, completing the process" (M32 manual), and do the same for controls 2-4.
+2. **Pick four blocks.** "Adjust the first rotary control to select an 8-channel signal path that will be sent to the first eight channels", then "repeat the process with controls 2-4", for card outputs 1-8, 9-16, 17-24 and 25-32 (an earlier edition of the M32 manual, on ManualsLib; Midas's current manual says "push encoder" for the control).
+3. **Assign.** "Tap the first control to assign the selected output path, completing the process" (an earlier edition of the M32 manual, on ManualsLib), and do the same for controls 2-4.
 
 {/* Screenshot: ROUTING > card out with Local 1-8 to 25-32. <Screenshot src="/images/guides/m32-card-out.png" alt="M32 ROUTING card out tab with Local 1-8, 9-16, 17-24 and 25-32 on the four rotary controls" /> */}
 
@@ -145,12 +145,13 @@ ShowRecorder (the app this site makes) records every USB Channel from any class-
 
 ## Sources
 
-Midas and Klark Teknik (maker documents, read on third-party hosts because midasgroup.com could not be read on 2026-11-06):
+Midas and Klark Teknik (maker documents). Midas moved to midasconsoles.com; the first two documents are Midas's own, linked from there. The others are maker documents read on third-party hosts.
 
+- [Midas M32 User Manual](https://cdn-media.empowertribe.com/5a30d52258104865a4392b99550ee1f9/M32_M_EN.pdf): the card out blocks and the tap points on Out 1-16 and P16 (p. 27), the routing tabs.
+- [Midas M32 LIVE Quick Start Guide](https://cdn-media.empowertribe.com/019427b1584f42aab500bf0dc082ace5/QSG_MI_0603-AEO_M32%20LIVE.pdf): DN32-LIVE USB and SD specs (SD or SDHC, 1 to 32 GB per slot), the USB stick recorder, the routing tabs, Setup > Card and Setup > Config.
 - [Klark Teknik DN32-USB product information document](https://www.sgssistemas.lv/uploads/resources/107/en/klark-teknik-dn32-usb-p0bif-product-information-document.pdf), hosted by the reseller SGS Sistemas: DN32-USB channels, sample rate, class compliance, drivers.
-- [Midas M32 LIVE Quick Start Guide](https://www.klangfarbe.com/files/Shop/Artikel/61587/A-T61587_1.pdf), hosted by the retailer Klangfarbe: DN32-LIVE USB and SD specs, the USB stick recorder, the routing tabs, Setup > Card.
 - [Midas M32R LIVE Quick Start Guide](https://leisuretec.co.uk/cdn/shop/files/M32R_LIVE_Quick_Start_Guide.pdf), hosted by Leisuretec.
-- Midas M32 User Manual, ManualsLib copy: [P16 out tap points](https://www.manualslib.com/manual/819691/Midas-M32.html?page=33) and [card out blocks](https://www.manualslib.com/manual/819691/Midas-M32.html?page=34).
+- Midas M32 User Manual, an earlier edition, on ManualsLib: the card-out step wording and the name "XUF", which Midas's current manual doesn't use. [P16 out tap points](https://www.manualslib.com/manual/819691/Midas-M32.html?page=33) and [card out blocks](https://www.manualslib.com/manual/819691/Midas-M32.html?page=34).
 
 Behringer, for the facts this page labels as X32:
 

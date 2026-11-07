@@ -2,6 +2,8 @@
 
 Checked 2026-11-06. Sources are numbered in section 9.
 
+Recheck: the Ui24R User Manual v1.0 [1] and the v2.0 User Guide Addendum [6] were read in full on 2026-11-07 (Claude in Chrome), served from Harman's file host adn.harmanpro.com, and every manual line in the guide matched: 32 x 32 USB, up to 22 tracks, USB 3.0 at 25mb/s for playback, the speed buffer, 2 TRK RECORD MODE, Soundcheck, Patch 1:1, USB DAW 17-32, and the V2 direct-to-output. No changes needed.
+
 ## 1. USB audio to a computer
 - "32 x 32 USB Audio Interface" over the USB-B "DAW Connection" socket. [1]
 - Sample rate: 48 kHz. Harman's DAW article says Pro Tools "Sample Rate NEEDS to be 48kHz", and Ableton "should automatically set to 48kHz". [3]
