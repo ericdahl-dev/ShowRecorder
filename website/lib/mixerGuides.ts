@@ -133,6 +133,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     mac: "No multitrack over USB.",
     ipad: "No multitrack over USB.",
     iphone: "No multitrack over USB.",
+    guide: "/guides/record/ah-avantis",
   },
   {
     name: "Soundcraft Ui24R",
@@ -717,6 +718,34 @@ export const AH_SQ_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the Allen & Heath Avantis guide (#1071). Facts: docs/research/mixer-recording/ah-avantis.md.
+export const AH_AVANTIS_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I multitrack record an Avantis over USB?",
+    a: "No. The Avantis and Avantis Solo have no USB audio interface. Their USB sockets take a USB drive, for show files, firmware, and stereo playback and recording. For multitrack, fit an option card (Dante, Waves SoundGrid, MADI or gigaACE) in one of the two I/O Ports.",
+  },
+  {
+    q: "How do I multitrack record an Avantis?",
+    a: "Fit an option card and connect it to your recorder, such as a computer on the card's network. Then go to I/O > Virtual SoundCheck, pick that I/O Port, patch the channels 1:1 and select Record Send. Each I/O Port carries up to 128 channels each way at 96 kHz.",
+  },
+  {
+    q: "Can the Avantis record by itself, with no computer?",
+    a: "Only in stereo. Utility > USB Audio > Manager records a stereo 24-bit, 96 kHz WAV file to the internal storage. Copy to USB then copies it to a USB drive. There is no multitrack recorder on the mixer.",
+  },
+  {
+    q: "Can I record an Avantis to an iPhone or iPad?",
+    a: "Not over USB: the Avantis sends no audio over USB. Through an option card, Allen & Heath doesn't say, and we haven't tested it yet.",
+  },
+  {
+    q: "Are Avantis recordings pre or post fader?",
+    a: "Record Send is always pre-trim, so before the fader. Direct Outs use the Global Direct Output Source on the Routing screen, from Post Preamp to Post Delay. They follow the fader only if you turn on Follow Fader in its options.",
+  },
+  {
+    q: "How do I run a virtual soundcheck on an Avantis?",
+    a: "Go to I/O > Virtual SoundCheck and select Virtual SoundCheck. The input channels then take audio from the I/O Port in place of the live inputs. Select Inactive to go back to the stage inputs.",
+  },
+];
+
 // The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
 export const X32_METHOD_A: readonly { name: string; text: string }[] = [
   { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
@@ -1053,5 +1082,31 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pick: "32 channels over USB to a computer, at 48 or 96 kHz. Records by itself to a fast USB drive: 16 channels at 96 kHz or 32 at 48 kHz. iPhone and iPad: not tested yet.",
     campaign: "site-guide-ah-sq",
     tapPick: "Direct Out Source set to Post Preamp (only the preamp gain, before the filter, EQ and fader), in Routing > Dir Out",
+  },
+  {
+    slug: "ah-avantis",
+    path: "/guides/record/ah-avantis",
+    pageKey: "guideAhAvantis",
+    short: "Avantis",
+    mixer: "Allen & Heath Avantis",
+    description:
+      "Multitrack record an Allen & Heath Avantis or Avantis Solo with no USB audio: option cards, Record Send, Direct Outs, virtual soundcheck, tap points.",
+    published: "2026-11-07",
+    faqs: AH_AVANTIS_GUIDE_FAQS,
+    faqsName: "AH_AVANTIS_GUIDE_FAQS",
+    sources: [
+      "https://support.allen-heath.com/hc/en-gb/articles/40468836946065-Avantis-Getting-Started-Guide",
+      "https://support.allen-heath.com/hc/en-gb/articles/40469887089809-Avantis-Solo-Getting-Started-Guide",
+      "https://support.allen-heath.com/hc/en-gb/articles/39863634007185-I-O",
+      "https://support.allen-heath.com/hc/en-gb/articles/39862914224145-Routing",
+      "https://support.allen-heath.com/hc/en-gb/articles/39862260219025-Processing",
+      "https://support.allen-heath.com/hc/en-gb/articles/39867015930513-Setup",
+      "https://support.allen-heath.com/hc/en-gb/articles/39867376134033-Utility",
+      "https://support.allen-heath.com/hc/en-gb/articles/44018705862289-Avantis-Firmware-Release-Notes",
+      "https://forums.allen-heath.com/t/usb-multitrack/11250",
+    ],
+    pick: "No USB audio interface: multitrack needs an option card (Dante, Waves, MADI or gigaACE). Records only stereo by itself. Mac, iPhone or iPad: no multitrack over USB.",
+    campaign: "site-guide-ah-avantis",
+    tapPick: "Record Send in I/O > Virtual SoundCheck for raw, pre-trim tracks, or Direct Outs with the Global Direct Output Source on the Routing screen for processed ones",
   },
 ];
