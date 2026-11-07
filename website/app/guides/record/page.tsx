@@ -1,8 +1,8 @@
 import { AskUs, Breadcrumbs, GetTheApp, LastChecked } from "@/components/GuideParts";
 import { MixerFaq } from "@/components/MixerFaq";
-import { BEST_APP_GUIDE } from "@/lib/bestApp";
 import { PAGES, pageMetadata } from "@/lib/metadata";
-import { GLOSSARY, HUB_FAQS, MIXER_GUIDES, MIXER_ROWS, RESEARCH_URL } from "@/lib/mixerGuides";
+import { InlineMarkdown } from "@/components/InlineMarkdown";
+import { GLOSSARY, HUB_COPY, HUB_FAQS, MIXER_GUIDES, MIXER_ROWS } from "@/lib/mixerGuides";
 import { breadcrumbListJsonLd, faqPageJsonLd, jsonLdScript } from "@/lib/structuredData";
 
 export const metadata = pageMetadata(PAGES.guidesHub);
@@ -30,18 +30,13 @@ export default function GuidesHubPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(faqPageJsonLd(HUB_FAQS)) }} />
       <Breadcrumbs trail={TRAIL} />
       <header className="features-head">
-        <h1>How to multitrack record a digital mixer</h1>
+        <h1>{HUB_COPY.title}</h1>
         <LastChecked path={PAGES.guidesHub.path} />
         <p className="lede">
-          Most digital mixers can record every channel to its own track. How they do it differs a lot: over USB to a
-          computer, to a card or stick in the mixer, or to an iPad or iPhone. This page lists what each mixer can do, and
-          each guide shows the settings and routing step by step.
+          <InlineMarkdown text={HUB_COPY.lede} />
         </p>
         <p className="features-links">
-          Facts come from the makers&apos; own manuals and spec pages where we could find them. Where only a forum or a
-          retailer says it, we say so. Where nobody says, we write &quot;not stated&quot; or &quot;unknown&quot; instead
-          of guessing. Researched November 2026; check your mixer&apos;s manual and firmware before a show.{" "}
-          <a href={RESEARCH_URL}>Sources and method</a>.
+          <InlineMarkdown text={HUB_COPY.method} />
         </p>
       </header>
 
@@ -63,11 +58,9 @@ export default function GuidesHubPage() {
 
       <section aria-labelledby="mixers-title" className="feature-group">
         <div className="section-head">
-          <h2 id="mixers-title">What each mixer can record</h2>
+          <h2 id="mixers-title">{HUB_COPY.tableTitle}</h2>
           <p>
-            &quot;Over USB&quot; is what the mixer sends to a computer, iPad or iPhone. &quot;With no computer&quot; is
-            what it records by itself. Words like card out and class compliant are in the{" "}
-            <a href="#glossary">glossary</a>.
+            <InlineMarkdown text={HUB_COPY.tableIntro} />
           </p>
         </div>
         <div className="compare-scroll" role="region" aria-labelledby="mixers-title" tabIndex={0}>
@@ -113,56 +106,35 @@ export default function GuidesHubPage() {
 
       <section aria-labelledby="ways-title" className="feature-group doc">
         <div className="section-head">
-          <h2 id="ways-title">Three ways to record every channel</h2>
+          <h2 id="ways-title">{HUB_COPY.waysTitle}</h2>
         </div>
         <ul>
-          <li>
-            <strong>To a computer over USB.</strong> The mixer acts as a USB audio interface, and a DAW records each
-            channel to its own track. On a Mac, most of the mixers above need no driver.
-          </li>
-          <li>
-            <strong>To a card or stick in the mixer.</strong> Some mixers, or an option card in them, record many tracks
-            to an SD card or a USB drive with no computer at all. Many others record only a stereo mix this way.
-          </li>
-          <li>
-            <strong>To an iPad, iPhone or Mac with an app.</strong> A class-compliant mixer can send its channels to an
-            iPad or iPhone over a USB cable. Some makers say their class-compliant mixers work with an iPad or iPhone;
-            the table shows which, and says &quot;not tested yet&quot; where nobody has checked.
-          </li>
+          {HUB_COPY.ways.map((w) => (
+            <li key={w}>
+              <InlineMarkdown text={w} />
+            </li>
+          ))}
         </ul>
-        <p>
-          Whichever way you record, you also choose where in each channel the recording is taken: before or after the
-          gain, the EQ and the fader. <a href="/guides/record/pre-or-post-fader">Pre or post fader</a> explains each tap
-          point, with pros and cons.
-        </p>
-        <p>
-          The mixer powers nothing on the phone or tablet through its USB audio port. For a long show, use a powered
-          USB-C hub, or a camera adapter that passes power through, so the iPhone or iPad charges while it records.
-        </p>
-        <p>
-          To record a gig on an iPhone or iPad with no laptop, see{" "}
-          <a href="/guides/record-gig-without-laptop">Record a gig without a laptop</a>. To choose the app,{" "}
-          <a href={BEST_APP_GUIDE}>the best app to multitrack record a digital mixer on iPhone and iPad</a> compares
-          nine of them.
-        </p>
+        {HUB_COPY.waysAfter.map((p) => (
+          <p key={p}>
+            <InlineMarkdown text={p} />
+          </p>
+        ))}
       </section>
 
       <section aria-labelledby="sr-title" className="feature-group doc">
         <div className="section-head">
-          <h2 id="sr-title">Where ShowRecorder fits</h2>
+          <h2 id="sr-title">{HUB_COPY.fitsTitle}</h2>
         </div>
         <p>
-          ShowRecorder records every USB Channel from any class-compliant mixer, one WAV file per channel, on a USB-C
-          iPhone or iPad. Names and colors from the mixer (Mixer Link) work only with the{" "}
-          <a href="/mixers/xr18">XR18 and MR18</a> and the <a href="/mixers/x32">X32 and M32</a>. Its X32 and M32
-          support has run only against an X32 emulator so far.
+          <InlineMarkdown text={HUB_COPY.fits} />
         </p>
         <GetTheApp campaign="site-guides" />
       </section>
 
       <section aria-labelledby="glossary" className="feature-group doc">
         <div className="section-head">
-          <h2 id="glossary">Glossary</h2>
+          <h2 id="glossary">{HUB_COPY.glossaryTitle}</h2>
         </div>
         <dl className="glossary">
           {GLOSSARY.map((g) => (

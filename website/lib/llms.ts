@@ -1,8 +1,12 @@
+import { BEST_APP_FAQS, BEST_APP_GUIDE } from "@/lib/bestApp";
 import { RELEASES, newestRelease } from "@/lib/changelog";
 import { DOCS, docHref } from "@/lib/docs";
 import { featureGroups, inBetaFeatures } from "@/lib/features";
 import { PAGES } from "@/lib/metadata";
-import { HUB_FAQS, MIXER_GUIDES, MIXER_ROWS, guideHeadline } from "@/lib/mixerGuides";
+import { absoluteLinks, guideMarkdown, guideMdx } from "@/lib/guideMarkdown";
+import type { Faq } from "@/lib/mixerFaqs";
+import { GLOSSARY, HUB_COPY, HUB_FAQS, MIXER_GUIDES, MIXER_ROWS, TAP_POINT_FAQS, TAP_POINT_GUIDE, guideHeadline } from "@/lib/mixerGuides";
+import { PAGE_DATES } from "@/lib/pageDates";
 import { inBeta, planned, worksNow } from "@/lib/mixers";
 import { APP_STORE_URL, PRO_PRICE_TEXT, appStoreLink, REPO_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL, TESTFLIGHT_URL, TRADEMARK_LINE } from "@/lib/site";
 
@@ -63,26 +67,66 @@ function guidesSection(): string[] {
   ];
 }
 
-// The hub's table as Markdown, and the questions of the hub and of each mixer guide, for llms-full.txt.
+// The recording guides in full, for llms-full.txt: the hub (its words from HUB_COPY, its table, glossary and
+// questions), then the tap-point guide and each mixer guide, each read from the page's own content.mdx.
 function mixerGuidesFull(): string[] {
   const cell = (s: string) => s.replace(/\|/g, "/");
+  const hub = PAGES.guidesHub.path;
+  const md = (text: string) => absoluteLinks(text, hub);
+  const guideName = (path: string) => MIXER_GUIDES.find((g) => g.path === path)?.short ?? "";
   return [
     "## Recording guides, mixer by mixer",
     "",
-    `Every way to multitrack record a digital mixer, from the makers' own documents: ${abs(PAGES.guidesHub.path)}`,
+    `### ${HUB_COPY.title}`,
+    "",
+    `URL: ${abs(hub)}`,
+    "",
+    ...(PAGE_DATES[hub] ? [`Last checked: ${PAGE_DATES[hub]}`, ""] : []),
+    md(HUB_COPY.lede),
+    "",
+    md(HUB_COPY.method),
+    "",
+    `#### ${HUB_COPY.tableTitle}`,
+    "",
+    md(HUB_COPY.tableIntro),
     "",
     "| Model | Over USB | With no computer | Mac | iPad | iPhone |",
     "| --- | --- | --- | --- | --- | --- |",
     ...MIXER_ROWS.map((r) => `| ${r.name} | ${[r.usb, r.onboard, r.mac, r.ipad, r.iphone].map(cell).join(" | ")} |`),
     "",
-    ...HUB_FAQS.flatMap((f) => [`### ${f.q}`, "", f.a, ""]),
-    ...MIXER_GUIDES.flatMap((g) => [
-      `### ${guideHeadline(g.mixer)} (${abs(g.path)})`,
-      "",
-      ...g.faqs.map((f) => `- ${f.q} ${f.a}`),
-      "",
-    ]),
+    "Notes on the table:",
+    "",
+    ...MIXER_ROWS.filter((r) => r.note || r.guide).map(
+      (r) => `- ${r.name}:${r.note ? ` ${r.note}` : ""}${r.guide ? ` [Read the ${guideName(r.guide)} guide](${abs(r.guide)}).` : ""}`,
+    ),
+    "",
+    `#### ${HUB_COPY.waysTitle}`,
+    "",
+    ...HUB_COPY.ways.map((w) => `- ${md(w)}`),
+    "",
+    ...HUB_COPY.waysAfter.flatMap((p) => [md(p), ""]),
+    `#### ${HUB_COPY.fitsTitle}`,
+    "",
+    md(HUB_COPY.fits),
+    "",
+    `#### ${HUB_COPY.glossaryTitle}`,
+    "",
+    ...GLOSSARY.map((g) => `- **${g.term}:** ${g.def}`),
+    "",
+    ...faqSection(HUB_FAQS),
+    ...fullGuide(TAP_POINT_GUIDE, TAP_POINT_FAQS),
+    ...MIXER_GUIDES.flatMap((g) => fullGuide(g.path, g.faqs)),
+    ...fullGuide(BEST_APP_GUIDE, BEST_APP_FAQS),
   ];
+}
+
+// A page's questions, as the page shows them at the end.
+const faqSection = (faqs: readonly Faq[]) => ["#### Frequently asked questions", "", ...faqs.flatMap((f) => [`##### ${f.q}`, "", f.a, ""])];
+
+// One guide in full: its title, URL and the whole page (content.mdx as Markdown), then its questions, as on the page.
+function fullGuide(path: string, faqs: readonly Faq[]): string[] {
+  const { title, body } = guideMarkdown(guideMdx(path), path);
+  return [`### ${title}`, "", `URL: ${abs(path)}`, "", body, "", ...faqSection(faqs)];
 }
 
 export function llmsTxt(): string {

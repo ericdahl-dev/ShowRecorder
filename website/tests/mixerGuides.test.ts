@@ -1,5 +1,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import GuidesHubPage from "@/app/guides/record/page";
 import { llmsTxt } from "@/lib/llms";
 import { PAGES } from "@/lib/metadata";
 import { GUIDES_HUB, MIXER_ROWS } from "@/lib/mixerGuides";
@@ -53,7 +56,8 @@ describe("the mixer recording guides hub", () => {
   });
 
   it("is linked both ways with the ShowRecorder mixer pages, and from the footer", () => {
-    const hub = read("app", "guides", "record", "page.tsx");
+    // The hub's words live in HUB_COPY, so check the page as rendered.
+    const hub = renderToStaticMarkup(createElement(GuidesHubPage));
     expect(hub).toContain('href="/mixers/xr18"');
     expect(hub).toContain('href="/mixers/x32"');
     expect(read("app", "mixers", "xr18", "content.mdx")).toContain(`](${GUIDES_HUB})`);
