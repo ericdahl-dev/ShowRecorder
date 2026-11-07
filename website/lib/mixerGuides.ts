@@ -504,7 +504,7 @@ export const DL32R_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Can a DL32R multitrack record without a computer?",
-    a: "Yes, to a USB hard drive on its USB A port: 16 or 24-bit at 48 kHz, as one multichannel WAV per take, split into files under 2 GB with no gap. Mackie's Master Fader guide (V5.0 and the 2026 V5.1) says 1 to 32 tracks; the 2015 spec table says 1 to 24 (see the guide). Mackie says to use a spinning hard drive formatted by the DL32R, not a thumb drive, and no USB hub.",
+    a: "Yes, to a USB hard drive on its USB A port: 16 or 24-bit at 48 kHz, as one multichannel WAV per take, split into files under 2 GB with no gap. Mackie's 2026 Master Fader guide (V5.1) says 1 to 32 tracks; the 2015 spec table says 1 to 24 (see the guide). Mackie says to use a spinning hard drive or a Pro SSD, formatted by the DL32R, not a thumb drive, and no USB hub.",
   },
   {
     q: "Can the DL32R record to a drive and a computer at the same time?",
@@ -1070,7 +1070,6 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
       "https://mackie.com/img/file_resources/DL32R_OM.pdf",
       "https://mackie.com/img/file_resources/DL32R_SS.pdf",
       "https://help.mackie.com/hc/en-us/articles/14288356150159-Master-Fader-Downloads",
-      "https://www.ambertech.com.au/Documents/Master%20Fader_V5_0_RG-compressed.pdf",
     ],
     campaign: "site-guide-mackie-dl32r",
     tapPick: "Mic Pre (the default on each USB slot, before trim, HPF and EQ)",
@@ -1143,7 +1142,6 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
       "https://mackie.com/img/file_resources/DL16SE_DL32SE_OM.pdf",
       "https://mackie.com/img/file_resources/DL32R_OM.pdf",
       "https://help.mackie.com/hc/en-us/articles/14288356150159-Master-Fader-Downloads",
-      "https://www.ambertech.com.au/Documents/Master%20Fader_V5_0_RG-compressed.pdf",
     ],
     campaign: "site-guide-mackie-dl32s",
     tapPick: "Mic Pre, the default on the I/O Patch USB tab (after the analog gain, before the Digital Trim and high pass filter)",
