@@ -241,6 +241,9 @@ describe("the XR18 and MR18 guide's facts", () => {
     const apple = mdx.slice(mdx.indexOf("## Mac, iPad and iPhone"), mdx.indexOf("## Sources"));
     expect(apple).toMatch(/iOS 7 or higher \(iPad\)/);
     expect(apple).toMatch(/doesn't name the iPhone/);
+    // Eric records XR18 Takes on his iPhone (TestFlight builds); only a full show through a powered hub (#327) is untested.
+    expect(apple).toMatch(/all 18 XR18 channels on an iPhone and on a Mac/);
+    expect(apple).toMatch(/full-length show on an iPhone through a powered hub is not tested yet/);
     expect(mdx).toMatch(/retailer/i);
   });
 });

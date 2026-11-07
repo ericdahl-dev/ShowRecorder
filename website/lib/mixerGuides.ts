@@ -324,7 +324,7 @@ export const XR18_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Does the XR18 work with an iPad or iPhone?",
-    a: "Behringer lists iOS 7 or higher (iPad) for the XR18. It doesn't name the iPhone, which is not tested yet, and Midas doesn't list any systems for the MR18. On a Mac it works with no driver.",
+    a: "Behringer lists iOS 7 or higher (iPad) for the XR18. It doesn't name the iPhone, but ShowRecorder records the XR18 on an iPhone. Midas doesn't list any systems for the MR18. On a Mac it works with no driver.",
   },
   {
     q: "How do I choose what goes to each USB channel on an XR18?",
