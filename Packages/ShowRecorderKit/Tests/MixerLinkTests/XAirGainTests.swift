@@ -605,4 +605,40 @@ struct XAirGainTests {
         #expect(first.toGainDb - first.fromGainDb == -3 && first.limitedBy == gate)
         #expect(second.toGainDb == second.fromGainDb && second.limitedBy == gate)
     }
+
+    // The XR18 stores a preamp gain in 0.5 dB steps (measured on Eric's XR18, firmware 1.26, 2026-11-07): the gain
+    // change Mix Hold makes up must be one the preamp can take, or the mix moves by the difference (#1153).
+
+    @Test("A cut the fader near its +10 dB top can only partly make up moves the preamp in whole 0.5 dB steps, no further than the fader can follow: the mix stays put (#1153)")
+    func limitedCutStaysOnPreampSteps() async throws {
+        var state = Self.kickDesk()
+        state.channels[0].fader = X32Values.fader.oscFloat(8.7)   // a fader step at about +8.71: room for 1.29 dB
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+        let faderBefore = try #require(try await driver.mixHoldState(ofChannel: 1).mainFaderDb)
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: -6)
+
+        #expect(step.limitedBy == MixHold.Limit(setting: MixHold.Setting(channel: 1, parameter: .mainFader), endDb: 10))
+        #expect(abs(step.toGainDb - step.fromGainDb - -1) < 1e-9, "1.29 dB of room: two whole half-dB steps")
+        let gainAfter = try await driver.gainDb(ofHeadamp: 1)
+        let faderAfter = try #require(try await driver.mixHoldState(ofChannel: 1).mainFaderDb)
+        #expect(gainAfter == step.toGainDb, "the preamp holds what the step says")
+        #expect(abs((gainAfter - 14.5) + (faderAfter - faderBefore)) <= 0.05, "the mix moves no more than half a fader step")
+    }
+
+    @Test("Auto-gain's requests land on the preamp's 0.5 dB steps, rounded so the level never ends louder than asked, and Mix Hold makes up that much (#1153)",
+          arguments: [(7.3, 7.0), (-4.2, -4.5), (6.0, 6.0), (-2.75, -3.0)])
+    func requestOnPreampSteps(requested: Double, moved: Double) async throws {
+        let mixer = try await FakeXAirMixer(Self.kickDesk())
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        let step = try await driver.applyMixHold(channel: 1, gainChangeDb: requested)
+
+        #expect(abs(step.toGainDb - step.fromGainDb - moved) < 1e-9)
+        let gainAfter = try await driver.gainDb(ofHeadamp: 1)
+        #expect(abs(gainAfter - (14.5 + moved)) < 1e-9)
+        #expect(abs((step.held[MixHold.Setting(channel: 1, parameter: .gateThreshold)] ?? 0) - (-18.5 + moved)) < 1e-9)
+        #expect(abs((step.held[MixHold.Setting(channel: 1, parameter: .send(7))] ?? 0) - (-8.5 - moved)) < 1e-9)
+    }
 }

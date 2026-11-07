@@ -96,6 +96,28 @@ struct MixHoldTests {
         #expect(plan.changes.contains(MixHold.Change(setting: .init(channel: 1, parameter: .mainFader), fromDb: 8, toDb: 10)))
     }
 
+    @Test("With the preamp's 0.5 dB steps, a limit off a step rounds toward zero and the compensation follows it (#1153)")
+    func limitOnPreampSteps() {
+        var state = channel()
+        state.mainFaderDb = 8.7
+        let cut = MixHold.plan(headamp: 1, gainChangeDb: -6, channels: [state], ranges: x32Ranges, gainStepDb: 0.5)
+        #expect(cut.gainChangeDb == -1, "1.3 dB of room: two whole steps, not three")
+        #expect(cut.limitedBy == MixHold.Limit(setting: .init(channel: 1, parameter: .mainFader), endDb: 10))
+        #expect(cut.changes.contains { $0.setting.parameter == .mainFader && abs($0.toDb - 9.7) < 1e-9 })
+
+        state.mainFaderDb = -88.6
+        let boost = MixHold.plan(headamp: 1, gainChangeDb: 6, channels: [state], ranges: x32Ranges, gainStepDb: 0.5)
+        #expect(boost.gainChangeDb == 1, "1.4 dB of room down to -90: two whole steps")
+    }
+
+    @Test("With the preamp's 0.5 dB steps, a request rounds down, so the level never ends louder than asked (#1153)",
+          arguments: [(7.3, 7.0), (-4.2, -4.5), (5.0, 5.0), (-0.25, -0.5)])
+    func requestOnPreampSteps(requested: Double, planned: Double) {
+        let plan = MixHold.plan(headamp: 1, gainChangeDb: requested, channels: [channel()], ranges: x32Ranges, gainStepDb: 0.5)
+        #expect(plan.gainChangeDb == planned)
+        #expect(plan.limitedBy == nil)
+    }
+
     @Test("The compensable range runs from whichever setting runs out first in each direction (Mix Hold's red lines)")
     func compensableRange() {
         var state = channel()
