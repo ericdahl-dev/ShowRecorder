@@ -81,12 +81,12 @@ export const MIXER_ROWS: readonly MixerRow[] = [
   },
   {
     name: "Behringer XR12 and XR16, Midas MR12",
-    note: "MR12 facts come from retailers, not Midas.",
     usb: "No USB audio interface, so no multitrack over USB.",
-    onboard: "Stereo WAV, 2 tracks, to a USB stick.",
+    onboard: "Stereo recording, 2 tracks, to a USB stick.",
     mac: "No multitrack: no USB audio interface.",
     ipad: "No multitrack: no USB audio interface.",
     iphone: "No multitrack: no USB audio interface.",
+    guide: "/guides/record/xr12-xr16-mr12",
   },
   {
     name: "Allen & Heath SQ-5, SQ-6, SQ-7 and SQ-Rack",
@@ -235,7 +235,7 @@ export const HUB_FAQS: readonly Faq[] = [
   },
   {
     q: "Can I multitrack record a mixer on an iPad or iPhone?",
-    a: "Often, if the mixer sends its channels over USB as a class-compliant interface. Some makers say their mixers work with an iPad or iPhone; the table shows which, and says not tested yet where nobody has checked. The XR12, XR16 and Avantis have no USB audio interface, so they can't.",
+    a: "Often, if the mixer sends its channels over USB as a class-compliant interface. Some makers say their mixers work with an iPad or iPhone; the table shows which, and says not tested yet where nobody has checked. The XR12, XR16, MR12 and Avantis have no USB audio interface, so they can't.",
   },
   {
     q: "Do I need a driver to record a mixer on a Mac?",
@@ -322,18 +322,26 @@ export type MixerGuide = {
   campaign: AppStoreCampaign;
   // The setting the tap-point guide's short answer names for this mixer.
   tapPick: string;
+  // True for a mixer with no USB audio, which can't multitrack (the XR12, XR16 and MR12): its title and H1 say
+  // "How to record", and it has no "every USB Channel" or Mixer Link line.
+  noMultitrack?: true;
 };
 
-// "<mixer> USB multitrack recording: settings and routing - ShowRecorder", the <title> of every mixer guide.
-export function guideTitle(short: string): string {
-  return `${short} USB multitrack recording: settings and routing - ShowRecorder`;
+// "<mixer> USB multitrack recording: settings and routing - ShowRecorder", the <title> of every mixer guide. A guide
+// for a mixer that can't multitrack passes its own headline instead (see noMultitrack).
+export function guideTitle(short: string, headline?: string): string {
+  return headline ? `${headline} - ShowRecorder` : `${short} USB multitrack recording: settings and routing - ShowRecorder`;
 }
 
 // "How to multitrack record a Behringer X32", "... an Allen & Heath Qu": the H1, the article headline and the
-// llms.txt line of every mixer guide.
-export function guideHeadline(mixer: string): string {
-  return `How to multitrack record ${/^[AEIOU]/.test(mixer) ? "an" : "a"} ${mixer}`;
+// llms.txt line of every mixer guide. "How to record a ..." for a mixer that can't multitrack (the XR12).
+export function guideHeadline(mixer: string, noMultitrack = false): string {
+  return `How to ${noMultitrack ? "record" : "multitrack record"} ${/^[AEIOU]/.test(mixer) ? "an" : "a"} ${mixer}`;
 }
+
+// A guide's own headline and <title>, with its noMultitrack override applied.
+export const headlineOf = (g: MixerGuide) => guideHeadline(g.mixer, g.noMultitrack);
+export const titleOf = (g: MixerGuide) => guideTitle(g.short, g.noMultitrack ? headlineOf(g) : undefined);
 
 // Home > Recording guides > the page.
 export function guideTrail(name: string, path: string): Crumb[] {
@@ -750,6 +758,31 @@ export const SIGNATURE_MTK_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the Behringer XR12 / XR16 and Midas MR12 guide (#1067). Facts:
+// docs/research/mixer-recording/xr12-xr16-mr12.md. These mixers have no USB audio, so the answers say so plainly.
+export const XR12_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I multitrack record a Behringer XR12, XR16 or Midas MR12?",
+    a: "No. These mixers have no USB audio interface, so they can't send each channel to a computer, iPhone or iPad. They record only a stereo mix (2 tracks) to a USB flash drive. To record every channel on its own track, use an XR18 or MR18.",
+  },
+  {
+    q: "Can I record an XR12, XR16 or MR12 on an iPhone or iPad?",
+    a: "Not the channels: there is no USB audio to send. The X AIR and M AIR apps (tablet, phone and computer) only control the mixer, over Wi-Fi or a network cable. To keep a recording, plug a USB flash drive into the mixer and record the stereo mix.",
+  },
+  {
+    q: "What file does the XR12, XR16 or MR12 record to the USB stick?",
+    a: "A stereo WAV file. Behringer gives the XR12 as 16-bit at 44.1 or 48 kHz. Midas gives the MR12 as 16-bit at 44.1 or 48 kHz, matching the mixer's sample rate. For the XR16, Behringer says only \"stereo files\".",
+  },
+  {
+    q: "How do I change the sample rate on an XR12, XR16 or MR12?",
+    a: "In the app, open the Setup page and the Audio/MIDI tab. The mixer runs at 48 kHz unless you change it to 44.1 kHz. Pull down or mute the main fader (Main LR) first, or the speakers may pop.",
+  },
+  {
+    q: "Can I do a virtual soundcheck with an XR12, XR16 or MR12?",
+    a: "Not with separate tracks. The mixer plays a stereo file from the USB stick back into one stereo channel, so you hear the whole mix, not each instrument on its own fader.",
+  },
+];
+
 // The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
 export const X32_METHOD_A: readonly { name: string; text: string }[] = [
   { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
@@ -1108,5 +1141,28 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pick: "14 channels over USB (24 on the 22 MTK) to a computer. No recording without a computer. iPad: yes, with a camera adapter, says Soundcraft. iPhone: not tested yet.",
     campaign: "site-guide-signature-mtk",
     tapPick: "the fixed tap (after the gain knob, before the EQ and the fader); there is nothing to set",
+  },
+  {
+    slug: "xr12-xr16-mr12",
+    path: "/guides/record/xr12-xr16-mr12",
+    pageKey: "guideXR12",
+    short: "XR12, XR16 or MR12",
+    mixer: "Behringer XR12, XR16 or Midas MR12",
+    description:
+      "The XR12, XR16 and MR12 can't multitrack: no USB audio. They record a stereo WAV to a USB stick. How to do that, and which mixer records every channel.",
+    published: "2026-11-07",
+    faqs: XR12_GUIDE_FAQS,
+    faqsName: "XR12_GUIDE_FAQS",
+    sources: [
+      "https://cdn-media.empowertribe.com/ffe0de45e14541f797928d639a8933b2/M_BE_0605-AAA_X-AIR_EN.pdf",
+      "https://www.behringer.com/en/products/0605-AAB",
+      "https://www.behringer.com/en/products/0605-AAC",
+      "https://cdn-media.empowertribe.com/f4e89140f9994eed93e4f2a4e086c578/M_MI_0605-AAE_MR18-MR12_EN.pdf",
+      "https://www.midasconsoles.com/en/products/0605-AAE",
+    ],
+    campaign: "site-guide-xr12-xr16-mr12",
+    tapPick: "none for multitrack: these mixers record only a stereo mix to a USB stick, and neither maker says where that mix is taken",
+    pick: "Sends no channels over USB: no USB audio interface. Records a stereo mix (2 tracks) by itself to a USB stick.",
+    noMultitrack: true,
   },
 ];

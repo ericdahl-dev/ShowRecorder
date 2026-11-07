@@ -111,6 +111,7 @@ The campaigns (40 characters or fewer; the list is `APP_STORE_CAMPAIGNS`):
 | `site-guide-presonus-studiolive-iii` | PreSonus StudioLive Series III recording guide, "Where ShowRecorder fits" |
 | `site-guide-ah-sq` | Allen & Heath SQ recording guide, "Where ShowRecorder fits" |
 | `site-guide-signature-mtk` | Soundcraft Signature MTK recording guide, "Where ShowRecorder fits" |
+| `site-guide-xr12-xr16-mr12` | Behringer XR12 / XR16 and Midas MR12 recording guide, after "on Mac, iPad and iPhone" |
 | `site-guide-taps` | Pre or post fader guide, "With ShowRecorder" |
 | `site-guide-best-app` | Best app for iPhone and iPad guide, after "Which app for which job" |
 

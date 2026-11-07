@@ -6,7 +6,7 @@ import { GuideJsonLd } from "@/components/GuideJsonLd";
 import { tapPointsAnchor } from "@/components/TapPicks";
 import { llmsTxt } from "@/lib/llms";
 import { PAGES } from "@/lib/metadata";
-import { MIXER_GUIDES, MIXER_ROWS, TAP_POINT_GUIDE, X32_METHOD_A, guideHeadline, guideTitle } from "@/lib/mixerGuides";
+import { MIXER_GUIDES, MIXER_ROWS, TAP_POINT_GUIDE, X32_METHOD_A, guideHeadline, guideTitle, headlineOf, titleOf } from "@/lib/mixerGuides";
 import { PAGE_DATES } from "@/lib/pageDates";
 import { ROUTES } from "@/lib/site";
 
@@ -53,7 +53,7 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("lives under the hub, in the sitemap, with metadata, a date and an llms.txt line", () => {
     expect(guide.path).toBe(`/guides/record/${guide.slug}`);
     expect(page.path).toBe(guide.path);
-    expect(page.title).toBe(guideTitle(guide.short));
+    expect(page.title).toBe(titleOf(guide));
     expect(ROUTES).toContain(guide.path);
     expect(PAGE_DATES[guide.path]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(llmsTxt()).toContain(`https://showrecorder.app${guide.path})`);
@@ -64,8 +64,8 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   });
 
   it("uses its article headline as the H1 and in llms.txt", () => {
-    expect(mdx).toMatch(new RegExp(`^# ${guideHeadline(guide.mixer)}$`, "m"));
-    expect(llmsTxt()).toContain(`[${guideHeadline(guide.mixer)}](`);
+    expect(mdx).toMatch(new RegExp(`^# ${headlineOf(guide)}$`, "m"));
+    expect(llmsTxt()).toContain(`[${headlineOf(guide)}](`);
   });
 
   it("opens with a short answer and a numbered quick start whose links reach its sections, before the caveats", () => {
@@ -78,7 +78,7 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
     const anchors = [...quick.matchAll(/\]\(#([^)]+)\)/g)].map((m) => m[1]);
     expect(anchors.length).toBeGreaterThanOrEqual(3);
     for (const a of anchors) expect(ids.has(a), a).toBe(true);
-    expect(quick).toMatch(/30 s|short test/i);
+    expect(quick).toMatch(/30 s|30-second|short test/i);
   });
 
   it("has a 'seeing too few channels?' heading under its recording settings", () => {
@@ -106,7 +106,7 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
     expect(mdx).toContain(`<GetTheApp campaign="${guide.campaign}" />`);
     expect(mdx).toContain("<AskUs />");
     expect(mdx).toContain("](/guides/record#glossary)");
-    expect(mdx).toContain("ShowRecorder (the app this site makes)");
+    expect(mdx).toMatch(guide.noMultitrack ? /ShowRecorder \(our app\)/ : /ShowRecorder \(the app this site makes\)/);
   });
 
   it("has commented-out screenshot slots, with alt text, for Eric's images", () => {
@@ -129,8 +129,10 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive, the SQ and the Signature MTK have none; a Mixer Link guide that lost its product page must fail here, not skip.
-    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii", "ah-sq", "signature-mtk"].includes(guide.slug));
+    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive, the SQ, the XR12/XR16/MR12 and the Signature MTK have none; a Mixer Link guide that lost its product page must fail here, not skip.
+    expect(guide.productPage === undefined).toBe(
+      ["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii", "ah-sq", "xr12-xr16-mr12", "signature-mtk"].includes(guide.slug),
+    );
     if (guide.productPage === undefined) return;
     expect(mdx).toContain(`](${guide.productPage})`);
     expect(read("app", "mixers", guide.productPage.split("/").pop()!, "content.mdx")).toContain(`](${guide.path})`);
@@ -144,11 +146,13 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("cites its sources: the maker's documents, with forum posts marked as such", () => {
     const sources = mdx.slice(mdx.indexOf("## Sources"));
     expect(sources).toMatch(
-      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com|zoomcorp\.com|mackie\.com|help\.mackie\.com|www\.soundcraft\.com|harman\.helpjuice\.com|www\.fmicassets\.com|support\.presonus\.com)\//,
+      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com|zoomcorp\.com|mackie\.com|help\.mackie\.com|www\.soundcraft\.com|harman\.helpjuice\.com|www\.fmicassets\.com|support\.presonus\.com|www\.midasconsoles\.com)\//,
     );
   });
 
+  // A mixer that can't multitrack (noMultitrack) has its own ShowRecorder line instead, checked in its facts below.
   it("says Mixer Link works only on the XR18/MR18 and X32/M32, and that ShowRecorder records every USB Channel", () => {
+    if (guide.noMultitrack) return;
     expect(mdx).toMatch(/every USB Channel/);
     expect(mdx).toMatch(/Mixer Link/);
   });
@@ -1422,5 +1426,98 @@ describe("the Soundcraft Signature MTK guide's facts", () => {
   it("notes in its research that both Soundcraft PDFs were read in full on 2026-11-07", () => {
     const notes = read("..", "docs", "research", "mixer-recording", "soundcraft-signature-mtk.md");
     expect(notes).toMatch(/Recording Guide[^\n]*User Manual[^\n]*read in full on 2026-11-07[^\n]*adn\.harmanpro\.com/);
+  });
+});
+
+// Facts: docs/research/mixer-recording/xr12-xr16-mr12.md (#1067). These mixers have no USB audio interface: they record
+// only a stereo mix to a USB flash drive. MR12 facts come from Midas (midasconsoles.com), not a retailer.
+describe("the XR12, XR16 and MR12 guide's facts", () => {
+  const mdx = body("xr12-xr16-mr12");
+  const guide = MIXER_GUIDES.find((g) => g.slug === "xr12-xr16-mr12")!;
+
+  // Eric (#1113): the honest title. These mixers can't multitrack, so the title and H1 say "How to record"; every
+  // other guide keeps "multitrack".
+  it("says 'How to record' in its title and H1, not 'multitrack record', while every other guide keeps multitrack", () => {
+    const headline = "How to record a Behringer XR12, XR16 or Midas MR12";
+    expect(PAGES.guideXR12.title).toBe(`${headline} - ShowRecorder`);
+    expect(mdx).toMatch(new RegExp(`^# ${headline}$`, "m"));
+    expect(PAGES.guideXR12.title).not.toMatch(/multitrack/i);
+    expect(llmsTxt()).toContain(`[${headline}](`);
+    for (const g of MIXER_GUIDES.filter((x) => x.slug !== guide.slug)) {
+      const page = (PAGES as Record<string, { title: string }>)[g.pageKey];
+      expect(page.title).toBe(guideTitle(g.short));
+      expect(page.title).toMatch(/USB multitrack recording/);
+      expect(body(g.slug)).toMatch(new RegExp(`^# How to multitrack record `, "m"));
+    }
+  });
+
+  it("is linked from the XR18 guide, where the XR12, XR16 and MR12 come up", () => {
+    expect(body("xr18")).toContain(`](${guide.path})`);
+  });
+
+  it("is in MIXER_GUIDES with its own campaign, and the hub's XR12 row links it and no longer calls the MR12 facts retail", () => {
+    expect(guide.campaign).toBe("site-guide-xr12-xr16-mr12");
+    const row = MIXER_ROWS.find((r) => /XR12/.test(r.name))!;
+    expect(row.guide).toBe(guide.path);
+    expect(row.note ?? "").not.toMatch(/retailer/i);
+  });
+
+  it("says plainly there is no multitrack and no USB audio, and points to the XR18 and MR18 guide", () => {
+    const top = mdx.slice(0, mdx.indexOf("**Quick start**"));
+    expect(top).toMatch(/\*\*Short answer\.\*\* You can't multitrack them\./);
+    expect(top).toMatch(/no USB audio interface/);
+    expect(top).toContain("](/guides/record/xr18)");
+    expect(guide.faqs[0].a).toMatch(/^No\./);
+  });
+
+  it("gives the stereo flash drive recorder: Type A port, red light, 16-bit WAV at 44.1 or 48 kHz on the XR12 and MR12, XR16 not stated", () => {
+    const ways = section(mdx, "Ways to record an XR12, XR16 or MR12", "XR12, XR16 or MR12 recording settings");
+    expect(ways).toMatch(/2-track stereo recording/);
+    expect(ways).toMatch(/Type A/);
+    expect(ways).toMatch(/red light/);
+    expect(ways).toMatch(/\*\*XR12 file:\*\* stereo WAV, 16-bit, at 44\.1 or 48 kHz \(Behringer\)/);
+    expect(ways).toMatch(/\*\*MR12 file:\*\* WAV, 16-bit, at 44\.1 or 48 kHz[^\n]*\(Midas\)/);
+    expect(ways).toMatch(/\*\*XR16 file:\*\* Behringer says only "stereo files"[^\n]*\(our reading\)/);
+  });
+
+  it("gives the sample rate setting and the mute-first warning", () => {
+    const settings = section(mdx, "XR12, XR16 or MR12 recording settings", "XR12, XR16 or MR12 USB routing");
+    expect(settings).toMatch(/48 kHz/);
+    expect(settings).toMatch(/\*\*Setup\*\*[^\n]*\*\*Audio\/MIDI\*\*/);
+    expect(settings).toMatch(/mute the main fader \(Main LR\) first, or the speakers may pop/);
+  });
+
+  it("keeps routing and virtual soundcheck short: nothing to route, stereo playback only", () => {
+    expect(section(mdx, "XR12, XR16 or MR12 USB routing", "XR12, XR16 or MR12 playback for virtual soundcheck")).toMatch(/nothing to route/);
+    expect(section(mdx, "XR12, XR16 or MR12 playback for virtual soundcheck", "XR12, XR16 or MR12 tap points")).toMatch(/stereo/);
+  });
+
+  // Fact check on #1113: plain words, no Mixer Link line (it doesn't apply), and the XR18 iPhone claim is cited.
+  it("says plainly ShowRecorder can't record their channels, without calling anything unsupported", () => {
+    expect(mdx).toMatch(
+      /ShowRecorder \(our app\) records each channel from mixers that send their channels over USB\. These three send none, so it can't record their channels\./,
+    );
+    expect(mdx).not.toMatch(/Mixer Link/);
+    expect(mdx).not.toMatch(/unsupported/i);
+    expect(mdx).not.toMatch(/ShowRecorder has recorded[^.]*(XR12|XR16|MR12)/);
+    expect(mdx.slice(mdx.indexOf("## Sources"))).toMatch(/\]\(\/guides\/record\/xr18[^)]*\)[^\n]*iPhone/);
+  });
+
+  // Fact check on #1113: nobody watched the video; the apps work over Wi-Fi or Ethernet; no source names an iPhone app.
+  it("doesn't claim what the video shows, gets the apps' connection right, and names no iPhone app", () => {
+    expect(mdx).not.toMatch(/video above shows|short video/);
+    expect(mdx).toMatch(/Behringer's USB Recorder video \(above\) is the best place to look \(our advice\)\./);
+    expect(mdx).toMatch(/The apps only control the mixer, over Wi-Fi or a network cable\. They can't record its channels\./);
+    const text = mdx + guide.faqs.map((f) => f.a).join(" ");
+    expect(text).not.toMatch(/Wi-Fi only/);
+    expect(text).not.toMatch(/iPhone[^.]*apps?\b[^.]*control/);
+    expect(mdx).toMatch(/M AIR Edit for the MR12 \(our reading: it mirrors X AIR Edit\)/);
+  });
+
+  it("cites Midas's own manual and MR12 page, never midasgroup.com or a retailer", () => {
+    const sources = mdx.slice(mdx.indexOf("## Sources"));
+    expect(sources).toContain("](https://www.midasconsoles.com/en/products/0605-AAE)");
+    expect(sources).toContain("M_MI_0605-AAE_MR18-MR12_EN.pdf)");
+    expect(mdx).not.toMatch(/midasgroup\.com|long-mcquade/);
   });
 });
