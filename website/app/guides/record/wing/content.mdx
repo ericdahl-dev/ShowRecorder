@@ -50,11 +50,11 @@ The front **USB Type A** port takes a USB stick: "4 tracks can be recorded and p
 
 ### To an iPhone, iPad or Mac with an app
 
-The WING sends its channels over the same rear USB port. On a Mac, users report it works with no driver; on an iPad, reports differ; the iPhone is not tested yet. See [Mac, iPad and iPhone](#wing-on-mac-ipad-and-iphone) below.
+The WING sends its channels over the same rear USB port. On a Mac, one forum user reports it works with no driver; on an iPad, reports differ; the iPhone is not tested yet. See [Mac, iPad and iPhone](#wing-on-mac-ipad-and-iphone) below.
 
 ## WING recording settings
 
-- **Clock rate and sync:** **SETUP > AUDIO > AUDIO CLOCK** (Clock Rate, Sync Source): 44.1 or 48 kHz. For USB and WING-LIVE, use 48 kHz (our advice: 48 kHz is the only rate Behringer states for both).
+- **Clock rate and sync:** **SETUP > AUDIO > AUDIO CLOCK** (Clock Rate, Sync Source): 44.1 or 48 kHz. For USB and WING-LIVE, use 48 kHz (our advice: 48 kHz is the only rate Behringer's manual and spec tables give for either).
 - **USB channel count:** **SETUP > AUDIO > USB AUDIO**: 2 x 2, 8 x 8, 16 x 16, 32 x 32 or 48 x 48.
 - **USB bit depth:** 24-bit. The file format is set by the recording app, not the console.
 - **WING-LIVE channel count:** per card, **SD RECORD** picks 8, 16 or 32 channels. Open it with the arrow next to the SD CARD 1 or SD CARD 2 header.
@@ -119,19 +119,19 @@ Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-po
   - **PRE FDR:** after the 4th processing slot, before the fader.
   - **POST FDR:** after the fader, before INS2.
   - **POST PROC:** after INS2, before WIDTH.
-- **User Signals:** each one picks pre-fader (the channel's TAP point) or post-fader. Each is mono, with an L, R or L+R choice; two side by side make a stereo pair.
+- **User Signals:** each one picks pre-fader (the channel's TAP point) or post-fader. Each is mono, with an L, R or L+R choice; two side by side make a stereo or mid/side pair.
 - **Aux channels and buses:** fixed. "The TAP point on Aux Channels is fixed post insert point and pre-fader"; on buses it is "fixed post insert point 1 and pre-fader".
 - **Gain vs trim:** analog gain is on the source; the channel has a digital **TRIM** ("digital level control up to ±18 dB gain"). The INPUT tap is right after the preamp, so it is before the digital TRIM too (our reading). The manual doesn't place TRIM against the INPUT tap. Set the analog gain for headroom and ride levels with the trim and fader (our advice).
 - **Shared stage box:** to remote-control a preamp, the source must come over AES50 with **ENABLE HA REMOTE** on. Whoever controls the headamp sets the raw record level: a gain change there changes the recording. We found no gain compensation feature for the WING.
 
 ## WING on Mac, iPad and iPhone
 
-- **Mac:** users report it works with no driver; Behringer doesn't say. No Behringer document names macOS for USB audio or calls the WING class compliant. One forum user writes that it "shows up as a class compliant USB audio device on my M4 MacMini". Not tested yet by us.
+- **Mac:** one forum user reports it works with no driver; Behringer doesn't say. No Behringer document names macOS for USB audio or calls the WING class compliant. One forum user writes that it "shows up as a class compliant USB audio device on my M4 MacMini". Not tested yet by us.
 - **iPad:** reports differ, and it is not tested yet. One forum user writes: "All my Ipads works perfect with my Wing rack without any software driver." Another tested two 10th-generation iPads and an iPad mini 6 on iOS 18.3 through a port extender, and none worked. Test yours before you promise a recording.
 - **iPhone:** no report from Behringer or users, so the iPhone is not tested yet.
 - **Windows:** install Behringer's ASIO driver.
 - **Linux:** one forum user says a Raspberry Pi 4 was plug and play.
-- **Power:** the front USB-A port "can also charge a portable device such as a phone or tablet" (Behringer QSG), but the audio goes through the rear USB-B port, and an iPhone or iPad has one port. For a long show, use a powered USB-C hub or a camera adapter that passes power through (our advice).
+- **Power:** the front USB-A port "can also charge a portable device such as a phone or tablet" (Behringer QSG), but the audio goes through the rear USB-B port, and an iPhone or iPad has one port. For a long show, use a powered USB-C hub or a camera adapter that passes power through (our advice). The iPad report that failed went through a port extender, so test your hub or adapter with the WING before a show (our advice).
 
 ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer. We haven't tested it with a WING yet; if you try it, we'd like to hear how it goes. There is no Mixer Link for the WING: Mixer Link, which reads channel names and colors, works only on the XR18/MR18 and X32/M32.
 

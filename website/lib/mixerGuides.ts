@@ -489,7 +489,7 @@ export const WING_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Does the WING need a driver on a Mac?",
-    a: "Users report it works on a Mac with no driver; Behringer doesn't say. Behringer offers an ASIO driver for Windows only.",
+    a: "One forum user reports it works on a Mac with no driver; Behringer doesn't say. Behringer offers an ASIO driver for Windows only.",
   },
   {
     q: "Can the WING multitrack record without a computer?",
