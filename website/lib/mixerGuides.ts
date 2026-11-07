@@ -44,6 +44,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     mac: "Works with no driver (maker), though Behringer's own OS lists are years old.",
     ipad: "Not documented by the maker, and not tested yet.",
     iphone: "Not documented by the maker, and not tested yet.",
+    guide: "/guides/record/x32",
   },
   {
     name: "Midas M32 and M32R",
@@ -256,9 +257,6 @@ export type MixerGuide = {
   tapPick: string;
 };
 
-// The per-mixer guides, in the order the sitemap and llms.txt list them.
-export const MIXER_GUIDES: readonly MixerGuide[] = [];
-
 // "<mixer> USB multitrack recording: settings and routing - ShowRecorder", the <title> of every mixer guide.
 export function guideTitle(short: string): string {
   return `${short} USB multitrack recording: settings and routing - ShowRecorder`;
@@ -290,5 +288,62 @@ export const TAP_POINT_FAQS: readonly Faq[] = [
   {
     q: "Should I record pre-EQ or post-EQ?",
     a: "Pre-EQ, if you want to mix the tracks later: EQ and compression after the tap are baked in and can't be undone. Post-EQ gives tracks that sound like front of house, which suits a quick release or a streaming feed.",
+  },
+];
+
+// The questions on the X32 guide.
+export const X32_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can an X32 multitrack record without a computer?",
+    a: "Only with the X-LIVE card. It records 8, 16 or 32 channels to two SD or SDHC cards, up to 32 GB each, as one multichannel 32-bit WAV per session: up to 200 minutes at 32 channels and 44.1 kHz. The top-panel USB stick port records stereo only, and the X-USB card can't record by itself.",
+  },
+  {
+    q: "How do I send the main mix or buses to USB on an X32?",
+    a: "Card out works in blocks of 8. Put the main mix or a bus in an Out 1-16 or P16 slot, with its tap point, then pick that block (for example Out 9-16) on the card out tab. On firmware 4.0 or later you can also point single User Out slots at those staged slots.",
+  },
+  {
+    q: "Does the X32 USB card need a driver?",
+    a: "Not on a Mac: Behringer says the X-USB and X-LIVE are CoreAudio compatible with no driver. On Windows, install Behringer's ASIO driver.",
+  },
+  {
+    q: "Can I record an X32 to an iPhone or iPad?",
+    a: "Behringer doesn't document iPhone or iPad audio from the X-USB or X-LIVE card, and we know of no real recording from one into an iPhone yet. The cards work on a Mac with no driver, which suggests they may work. ShowRecorder's X32 support has run only against an emulator so far.",
+  },
+  {
+    q: "Are the card's Local inputs pre or post fader?",
+    a: "Before everything in the channel. The Local and AES50 blocks on card out are the raw inputs, after the preamp and converter, so the channel's EQ, dynamics, mute and fader don't change them. Preamp gain does.",
+  },
+];
+
+// The per-mixer guides, in the order the sitemap and llms.txt list them. The template test
+// (tests/mixerGuidePages.test.ts) checks each one.
+export const MIXER_GUIDES: readonly MixerGuide[] = [
+  {
+    slug: "x32",
+    path: "/guides/record/x32",
+    pageKey: "guideX32",
+    short: "X32",
+    mixer: "Behringer X32",
+    description:
+      "Multitrack record an X32 with an X-USB or X-LIVE card: to a computer, to SD cards or an iPhone. Settings, card out blocks, user routing and tap points.",
+    published: "2026-11-06",
+    productPage: "/mixers/x32",
+    faqs: X32_GUIDE_FAQS,
+    faqsName: "X32_GUIDE_FAQS",
+    sources: [
+      "https://cdn-media.empowertribe.com/651b847b3f4443c2b64487af85e1d74a/8849630134302.pdf",
+      "https://cdn-media.empowertribe.com/e452c7959c0d4002908c23044a9558a7/8849399545886.pdf",
+      "https://cdn-media.empowertribe.com/2d70beac1fae4381ad62fe8a432ff6fd/QSG_BE_0606-ABU_X-LIVE_WW.pdf",
+      "https://cdn-media.empowertribe.com/bb23e8fae45174d1ffa9702b6fdaf040/X32-firmware-4.15_release-notes.pdf",
+      "https://www.behringer.com/en/products/0603-ACE",
+      "https://www.behringer.com/en/products/0606-abu",
+      "https://www.behringer.com/en/products/0606-ABV",
+      "https://behringer.world/viewtopic.php?p=4722",
+      "https://behringer.world/viewtopic.php?p=8704",
+      "https://behringer.world/viewtopic.php?p=9167",
+      "https://behringer.world/viewtopic.php?p=10364",
+    ],
+    campaign: "site-guide-x32",
+    tapPick: "a Local block (the raw inputs) on card out",
   },
 ];

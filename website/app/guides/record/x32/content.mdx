@@ -1,0 +1,124 @@
+# How to multitrack record a Behringer X32
+
+This guide covers every X32 with the expansion card slot: the full-size X32, Compact, Producer, Rack and Core. The card in that slot decides what you can record:
+
+- **X-USB:** USB only. It was the factory card for years and is no longer made.
+- **X-LIVE:** USB, plus two SD card slots for recording with no computer. The current card.
+- **X-UF:** an older card with USB and FireWire. Discontinued. What little is known about it comes from a retailer, not Behringer.
+
+Without one of these cards, the X32 sends no multichannel audio over USB. The console's own rear USB port is for remote control only. Facts come from Behringer's documents unless a line says a forum. The [sources](#sources) are at the end. Other mixers are in the [mixer recording guides](/guides/record).
+
+## Ways to record
+
+### To a computer over USB
+
+Plug the card's USB port into the computer and record in any DAW.
+
+- **Channels:** up to 32 in and 32 out, at 44.1 or 48 kHz, 24-bit.
+- **Connector:** the X-LIVE has a USB 2.0 type-B port. The X-USB guide doesn't name the plug type.
+- **Mac:** no driver needed. Behringer says both cards are CoreAudio compatible.
+- **Windows:** install Behringer's ASIO driver from behringer.com.
+- **Latency:** the X-USB guide gives about 14 ms round trip, typical.
+
+### With no computer
+
+- **X-LIVE card to SD cards.** It records 8, 16 or 32 channels to two SD or SDHC cards (FAT32, up to 32 GB each). SDXC cards are not supported. Each session is one multichannel WAV file at 44.1 or 48 kHz, 32-bit PCM.
+  - A 32-channel session at 44.1 kHz runs up to 200 min (3 hours 20 minutes) on two 32 GB cards. A session can carry on from card 1 to card 2. Behringer gives "more than 12 hours" for 8 channels.
+  - Use class 10 cards for 32 channels. Class 6 is enough for 8 or 16.
+  - You can set up to 100 markers. An optional CR123A battery protects the files in a blackout.
+  - To mix, split the multichannel WAV into one file per channel in Audacity or your DAW.
+- **The top-panel USB stick port** on every X32 records stereo only. A file stops at 2 GB, about 3 hours of stereo.
+- **X-USB and X-UF cards** can't record by themselves.
+
+### To an iPhone, iPad or Mac with an app
+
+A Mac works like any computer above. Behringer doesn't document iPhone or iPad audio from either card; see [Mac, iPad and iPhone](#mac-ipad-and-iphone) below.
+
+## Recording settings
+
+- **Sample rate and clock:** **Setup > Config** (an older manual calls it Setup > Global). Changing the rate needs a console reboot. A red square at the top of the screen means a sync problem.
+- **USB channel count:** **Setup > Card**. Choose 32/32, 16/16, 32/8, 8/32, 8/8 or 2/2. The card selected there must be the card that is fitted. There is no separate class-compliant mode switch.
+- **X-LIVE options**, on the same **Setup > Card** page: the SD channel count, whether playback comes from SD or USB, which SD slot records, and the Channel Routing preset (Record, Play or Automatic).
+- **Bit depth:** fixed. USB is 24-bit; X-LIVE SD files are 32-bit PCM.
+- **File format:** the X-LIVE writes multichannel WAV only. Over USB, your recording app sets the format.
+
+## Routing
+
+What goes to each USB channel is set on the **card out** tab, in blocks of 8. There are two ways to fill those blocks. Method A works on every firmware. Method B needs firmware 4.0 or later.
+
+Behringer doesn't state a factory default for card out. Forums say inputs go 1:1, but check yours before a show, and listen to a short test.
+
+### Method A: blocks of 8 on the card out tab
+
+1. Press **ROUTING** and go to the **card out** tab.
+2. Turn encoders 1 to 4 to pick the block of 8 for card outputs 1-8, 9-16, 17-24 and 25-32.
+3. Press each encoder to confirm.
+
+The blocks you can pick: Local 1-8 to 25-32, AES50-A 1-8 to 41-48, AES50-B 1-8 to 41-48, Card 1-8 to 25-32, Out 1-8, Out 9-16, P16 1-8, P16 9-16, and Aux 1-6/Mon.
+
+The **Local** and **AES50** blocks are the raw inputs, after the preamp and converter but before any channel processing. The channel's EQ, dynamics and fader don't touch them. Neither does the channel's own source choice: re-patching a channel strip doesn't change what a Local block sends to the card.
+
+### Main mix, buses and tapped channels: stage them in Out 1-16 or P16
+
+To record the main mix, a bus, a matrix, or a channel at a chosen tap point, put it in an output slot first, then send that block to the card.
+
+1. In **ROUTING**, open the **analog out** tab (Out 1-16), the **p16 out** tab (P16 1-16) or the **aux out** tab.
+2. For each slot, pick the source: Main (LRC), Mix Bus, Matrix, Direct Out (any of the 32 channels), Monitor, Talkback and so on.
+3. Pick the slot's tap point (see [Tap points](#tap-points)).
+4. On the **card out** tab, pick Out 1-8, Out 9-16, P16 1-8 or P16 9-16 for a card block.
+
+### Method B: user routing, firmware 4.0 and later
+
+Firmware 4 added **User In** and **User Out** tabs under **ROUTING**. In them you pick a source for each single slot, which builds your own blocks of 8. Behringer's 4.15 release notes name "User Routing", so the feature exists. The details below come from forum posts, not from a Behringer manual.
+
+- User Out has 48 slots. User In has 32.
+- A User Out slot can take a single physical input (Local, AES50-A, AES50-B or Card) or a slot from Out 1-16, P16 or Aux Out.
+- Then, on the **card out** tab, pick a block such as User Out 1-8 instead of a fixed block.
+- Example from a forum: User Out 1-8 = Local 1-3 plus AES50-A 1-5, then User Out 1-8 on card out.
+- **User Out has no tap points of its own.** For the main mix, a bus or a channel at a chosen tap, patch it into an Out 1-16 or P16 slot first (as above), then point the User Out slot at that slot.
+- The physical outputs, including the card, still work in blocks of 4 or 8.
+
+### Which method to use
+
+- **8, 16, 24 or 32 inputs in order, untouched by processing:** Method A with Local or AES50 blocks. This is the simplest.
+- **Fewer than 8 from a block, a mix of local and stage-box inputs, or a different track order:** Method B.
+- **The main mix, buses, matrices or a different tap per track alongside your inputs:** stage them in Out 1-16 or P16, then send those blocks to the card (Method A), or pick the staged slots one by one in User Out (Method B).
+
+## Playback for virtual soundcheck
+
+1. On the **ROUTING** home tab, set a channel input block to Card 1-8, Card 9-16 and so on.
+2. With an X-LIVE, Routing home also has Record and Play input presets. Pick Record or Play with the 6th encoder, then switch between them at **Setup > Card** under Channel Routing, or set Automatic to follow the transport.
+
+When a channel's source is the card, its gain knob becomes a digital trim of plus or minus 12 dB, and phantom power and preamp gain move to **Setup > Preamps**.
+
+## Tap points
+
+Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). On the X32:
+
+- **Local and AES50 blocks on card out** are the raw input: after the analog preamp and converter, before the channel. You can't pick a tap for them.
+- **Out 1-16, P16 and Aux Out slots** each have their own tap point. Behringer's older manual lists **Input, Pre-EQ, Pre-Fader** and **Post-Fader**. A forum moderator also names an **Input/LC** tap, after the low cut, on later firmware. Behringer hasn't published the current list for firmware 4.x, so check what your console offers.
+- **Mic gain and phantom power** sit at the preamp, so they reach every feed, even the raw Local and AES50 blocks. The channel's digital trim, low cut, EQ and dynamics don't reach a raw block.
+- Behringer warns that when the preamp gain is controlled from the front-of-house console, "Gain changes during the show can be heard in the recording".
+- **Shared stage box** (an S16 or SD8 on two consoles): whoever controls the stage box preamp gain changes your recorded level. We found no gain compensation feature in Behringer's X32 documents.
+
+## Mac, iPad and iPhone
+
+- **Mac:** works with no driver, for both the X-USB and the X-LIVE (Behringer).
+- **iPhone and iPad:** not documented. No Behringer document lists iOS or iPadOS for audio from either card. The X-LIVE page mentions iPad apps only for remote control. The cards work on a Mac with no driver, which suggests they may work, but that is not a confirmation. We will say it works once someone makes a real recording from an X-USB or X-LIVE card into an iPhone.
+- **Power:** the X32 runs from the mains and doesn't charge a phone. For a long show, use a powered USB-C hub.
+
+ShowRecorder records every USB Channel from any class-compliant mixer. On the X32 and M32 it also reads channel names and colors over Mixer Link, which works only on the XR18/MR18 and X32/M32. Its X32 support has run only against an emulator so far, not a real mixer. If you try it, the [X32 and M32 page](/mixers/x32) has the setup, and we'd like to hear how it goes.
+
+## Sources
+
+Behringer:
+
+- [X32 preliminary user manual](https://cdn-media.empowertribe.com/e452c7959c0d4002908c23044a9558a7/8849399545886.pdf): routing, card out blocks, tap points, sample rate, the USB stick recorder.
+- [X-USB Interface Operation Guide](https://cdn-media.empowertribe.com/651b847b3f4443c2b64487af85e1d74a/8849630134302.pdf) and the [X-USB product page](https://www.behringer.com/en/products/0606-ABV).
+- [X-LIVE Quick Start Guide V3.0](https://cdn-media.empowertribe.com/2d70beac1fae4381ad62fe8a432ff6fd/QSG_BE_0606-ABU_X-LIVE_WW.pdf) and the [X-LIVE product page](https://www.behringer.com/en/products/0606-abu).
+- [X32 firmware 4.15 release notes](https://cdn-media.empowertribe.com/bb23e8fae45174d1ffa9702b6fdaf040/X32-firmware-4.15_release-notes.pdf): "User Routing".
+- [X32 product page](https://www.behringer.com/en/products/0603-ACE).
+
+Forums (not Behringer):
+
+- behringer.world: [Routing, again](https://behringer.world/viewtopic.php?p=4722) (the card feed is before channel processing; the Input/LC tap), [X32 ADAT Tap Points](https://behringer.world/viewtopic.php?p=8704) (taps only in Out 1-16, P16 and Aux Out), [User Out, what's it for](https://behringer.world/viewtopic.php?p=9167) (48 User Out slots) and [physical outputs still in blocks](https://behringer.world/viewtopic.php?p=10364).
