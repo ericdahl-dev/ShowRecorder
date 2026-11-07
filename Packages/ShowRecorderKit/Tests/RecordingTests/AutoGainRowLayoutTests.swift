@@ -43,6 +43,14 @@ struct AutoGainRowLayoutTests {
                 for showsUndo in [true, false] {
                     let layout = AutoGainRowLayout.choose(rowWidth: row, textScale: scale, showsUndo: showsUndo)
                     let needed = layout.width(textScale: scale, showsUndo: showsUndo)
+                    // At AX5 on the smallest phone not even one button fits on a line: stacked, its title wraps.
+                    let fits = AutoGainRowLayout.allCases.contains {
+                        $0.width(textScale: scale, showsUndo: showsUndo) <= row
+                    }
+                    guard fits else {
+                        #expect(layout == .buttonsStacked, "\(screen) pt, text \(scale)")
+                        continue
+                    }
                     #expect(needed <= row, "\(screen) pt, text \(scale), Undo \(showsUndo): \(layout) needs \(needed)")
                     if layout == .beside {
                         #expect(row - layout.buttonsWidth(textScale: scale, showsUndo: showsUndo)

@@ -40,8 +40,12 @@ struct AutoGainSheet: View {
                 #endif
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
-        // A List has no size of its own; without this a Mac sheet shows it empty.
+        // A List has no size of its own; without this a Mac sheet shows it empty. Mac only: on an iPhone (402 pt wide on
+        // a 17 Pro, 375 with Display Zoom) a 480 pt minimum made the sheet wider than the screen and cut off both
+        // sides, Done included (#1149).
+        #if os(macOS)
         .frame(minWidth: 480, minHeight: 560)
+        #endif
         .interactiveDismissDisabled(isDemo || !autoGain.running.isEmpty)
     }
 }
@@ -71,6 +75,10 @@ struct AutoGainList: View {
     let compensation: (Int) -> String?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The body text's scale (1 at default text), for the row layout's button widths.
+    @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
+    /// A channel row's content width, measured; every row has the same.
+    @State private var rowWidth: CGFloat = 0
     /// Why it can't run right now, said at the top; everything is locked meanwhile.
     var unavailable: AutoGainAvailability.Unavailable? = nil
     /// Why Undo went away (it was made on another Mixer, #508), said at the top.
@@ -115,28 +123,7 @@ struct AutoGainList: View {
             }
             Section("Channels") {
                 ForEach(channels, id: \.number) { channel in
-                    HStack(alignment: .firstTextBaseline) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("\(channel.number). \(channel.name)")
-                            if let label = phases[channel.number]?.label {
-                                Text(label).font(.caption).foregroundStyle(.secondary)
-                            } else if running.contains(channel.number), phases[channel.number] == nil {
-                                Text("Putting the gain back…").font(.caption).foregroundStyle(.secondary)
-                            } else if let result = results[channel.number] {
-                                Text(result.summary).font(.caption).foregroundStyle(result.isProblem ? .orange : .secondary)
-                                if let moved = compensation(channel.number) {
-                                    Text(moved).font(.caption).foregroundStyle(.tertiary)
-                                }
-                            }
-                        }
-                        // One VoiceOver stop: the channel, its result and what moved to keep the mix.
-                        .accessibilityElement(children: .combine)
-                        Spacer()
-                        if canUndo(channel.number), !running.contains(channel.number) {
-                            Button("Undo") { undoOne(channel.number) }.disabled(locked).buttonStyle(.borderless)
-                        }
-                        Button("Auto-gain") { runOne(channel.number) }.disabled(locked).buttonStyle(.borderless)
-                    }
+                    channelRow(channel)
                 }
             }
         }
@@ -146,6 +133,65 @@ struct AutoGainList: View {
             AccessibilityNotification.Announcement(
                 "Auto-gain finished on \(lastRunTotal) \(lastRunTotal == 1 ? "channel" : "channels")").post()
         }
+    }
+
+    /// One channel: its name, result and what moved to keep the mix, with Undo and Auto-gain beside the text when
+    /// there's room and under it when not (#1149). The text wraps; nothing is wider than the row.
+    private func channelRow(_ channel: (number: Int, name: String)) -> some View {
+        let showsUndo = canUndo(channel.number) && !running.contains(channel.number)
+        let layout = rowWidth > 0
+            ? AutoGainRowLayout.choose(rowWidth: rowWidth, textScale: textScale, showsUndo: showsUndo)
+            : .beside
+        return Group {
+            switch layout {
+            case .beside:
+                HStack(alignment: .firstTextBaseline, spacing: AutoGainRowLayout.spacing) {
+                    channelText(channel).frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(spacing: AutoGainRowLayout.spacing) { channelButtons(channel.number, showsUndo: showsUndo) }
+                        .layoutPriority(1)
+                }
+            case .buttonsBelow:
+                VStack(alignment: .leading, spacing: 6) {
+                    channelText(channel)
+                    HStack(spacing: AutoGainRowLayout.spacing) { channelButtons(channel.number, showsUndo: showsUndo) }
+                }
+            case .buttonsStacked:
+                VStack(alignment: .leading, spacing: 6) {
+                    channelText(channel)
+                    channelButtons(channel.number, showsUndo: showsUndo)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { rowWidth = $0 }
+    }
+
+    private func channelText(_ channel: (number: Int, name: String)) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("\(channel.number). \(channel.name)")
+            if let label = phases[channel.number]?.label {
+                Text(label).font(.caption).foregroundStyle(.secondary)
+            } else if running.contains(channel.number), phases[channel.number] == nil {
+                Text("Putting the gain back…").font(.caption).foregroundStyle(.secondary)
+            } else if let result = results[channel.number] {
+                Text(result.summary).font(.caption).foregroundStyle(result.isProblem ? .orange : .secondary)
+                if let moved = compensation(channel.number) {
+                    Text(moved).font(.caption).foregroundStyle(.tertiary)
+                }
+            }
+        }
+        // The whole text wraps, never cut to a line.
+        .fixedSize(horizontal: false, vertical: true)
+        // One VoiceOver stop: the channel, its result and what moved to keep the mix.
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private func channelButtons(_ usb: Int, showsUndo: Bool) -> some View {
+        if showsUndo {
+            Button("Undo") { undoOne(usb) }.disabled(locked || unavailable != nil).buttonStyle(.borderless)
+        }
+        Button("Auto-gain") { runOne(usb) }.disabled(locked || unavailable != nil).buttonStyle(.borderless)
     }
 }
 
@@ -210,7 +256,8 @@ extension AutoGainList {
     ]
     static let demoUndoable: Set<Int> = [1, 4]
     static let demoCompensation: [Int: String] = [
-        1: "To keep the mix: fader, 6 sends and 2 thresholds moved -25.0 dB",
+        // As long as a linked pair's gets (#1149), so the screenshots show it wrapping.
+        1: "To keep the mix: compressor threshold -2.5 to -9.5 dB, fader -21.2 to -14.2 dB, send 4 -22.0 to -15.0 dB, channel 2's compressor threshold -2.5 to -9.5 dB, channel 2's fader -21.2 to -14.2 dB, channel 2's send 4 -22.0 to -15.0 dB",
     ]
     static let demoPhases: [Int: AutoGainSession.Phase] = [5: .adjusting]
 }
