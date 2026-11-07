@@ -3,7 +3,7 @@
 /// Where it is off, a 2-input interface records two mono Stems as before. Opening it up is this one rule.
 public enum StereoPairAvailability {
     /// Where it is offered; moving it up a level is this one line.
-    public static let level: AvailabilityLevel = .debugAndTestFlight
+    public static let level: AvailabilityLevel = .everyone
 
     /// `environment` is nil until StoreKit has answered; only a sandbox (TestFlight) answer offers it in a Release build.
     public static func isAvailable(isDebugBuild: Bool, environment: DistributionEnvironment?) -> Bool {
