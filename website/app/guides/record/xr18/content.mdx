@@ -120,8 +120,8 @@ The manual doesn't list exactly which sources each USB send offers, so check wha
 
 Virtual soundcheck means playing a recording back through the mixer's channels, so you can set the mix with no band on stage.
 
-1. In X AIR Edit, click a channel's **USB** button. The channel now plays the USB return instead of its analog input.
-2. In the app, use the channel's **Mic/USB** switch instead.
+- In X AIR Edit, click a channel's **USB** button. The channel now plays the USB return instead of its analog input.
+- In the app, use the channel's **Mic/USB** switch instead.
 
 Good to know:
 
@@ -137,7 +137,7 @@ The tap point is where in the channel the recording is taken: the raw input, or 
 - **Where to set it:** each USB Send has its own **Signal Tap**.
 - **The choices:** we saw these on a real XR18 on 2026-11-06 (the firmware version wasn't noted). Here they are in the order the app shows them: **Analog, Analog +M, Input, Input +M, Pre EQ, Pre EQ +M, Post EQ, Post EQ +M, Pre Fader, Pre Fader +M, Post Fader**.
 - **What Behringer's manual shows:** the V1.0 manual doesn't describe the tap on each send. Its block diagram shows each input channel feeding the routing patch at **pre low cut** and **post fader** only. So the longer list probably came with later firmware.
-- **Check every send:** Behringer doesn't say what each tap name covers. The factory tap for each send isn't documented either.
+- **Check every send before a show:** Behringer doesn't say what each tap name covers. The factory tap for each send isn't documented either.
 - **Not USB taps:** two other lists in the diagram are not for USB. "Input, Pre INS, Pre EQ, Pre Fader, Post Fader" belongs to the aux buses and the main mix. "Pre HP" to "Post Pan" belongs to the channel's aux and effects sends.
 - **Gain comes first:** the analog preamp gain (-12 to +60 dB) and the +48 V phantom power (power for condenser mics, switched per input) come before every tap. The digital USB Trim affects only the USB return into a channel, not what you record.
 - **Who can change your level:** the XR18 has no shared stage box. But anyone in the app who changes a channel's gain changes the recorded level.
@@ -150,7 +150,7 @@ The tap point is where in the channel the recording is taken: the raw input, or 
 - **Cable:** the mixer has a USB type-B port. So a USB-C iPhone or iPad needs a USB-C to USB-B cable.
 - **Power:** the XR18 has its own mains power supply and needs no power from the phone. The phone doesn't charge from the mixer either. For a long show, a powered USB-C hub keeps the phone charged. We haven't tested particular hubs with the XR18.
 
-ShowRecorder records every USB Channel from any class-compliant mixer (one that works with no driver). It has recorded all 18 XR18 channels on an iPhone and on a Mac. Over Mixer Link it also reads the channel names and colors. Mixer Link works only on the XR18/MR18 and X32/M32. The setup is on the [XR18 and MR18 page](/mixers/xr18).
+ShowRecorder records every USB Channel from any class-compliant mixer (one that needs no extra driver on a Mac, iPhone or iPad). It has recorded all 18 XR18 channels on an iPhone and on a Mac. Over Mixer Link it also reads the channel names and colors. Mixer Link works only on the XR18/MR18 and X32/M32. The setup is on the [XR18 and MR18 page](/mixers/xr18).
 
 <GetTheApp campaign="site-guide-xr18" />
 
