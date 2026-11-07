@@ -1,6 +1,7 @@
 import Foundation
 
-/// Writes one mono 24-bit Broadcast WAV file: a Stem (ADR 0001).
+/// Writes one 24-bit Broadcast WAV file: a Stem (ADR 0001). A Stem is mono, except a stereo pair recorded as one file
+/// (#1088), whose samples arrive and are stored interleaved (left, right, left, right ...). Frames count both together.
 ///
 /// Not real-time safe; used on the writer thread. Samples arrive as 32-bit float and are
 /// converted as `x × 2²³`, rounded and clamped to the 24-bit range.
@@ -19,13 +20,18 @@ public final class StemWriter: StemSink {
         /// Samples since local midnight at the start of the Take. Identical across a Take's Stems.
         public var timeReference: UInt64
         public var originationDate: Date
+        /// 1 for a mono Stem, 2 for a stereo pair in one file (#1088).
+        public var channels: Int
 
-        public init(sampleRate: Int, description: String, originator: String, timeReference: UInt64, originationDate: Date) {
+        public init(
+            sampleRate: Int, description: String, originator: String, timeReference: UInt64, originationDate: Date, channels: Int = 1
+        ) {
             self.sampleRate = sampleRate
             self.description = description
             self.originator = originator
             self.timeReference = timeReference
             self.originationDate = originationDate
+            self.channels = channels
         }
 
         /// This info with another Source name as the description.
@@ -37,6 +43,11 @@ public final class StemWriter: StemSink {
     }
 
     public let url: URL
+    /// 1 for a mono Stem, 2 for a stereo pair (#1088).
+    public let channels: Int
+    /// Bytes in one frame: a 24-bit sample per channel.
+    public var bytesPerFrame: Int { Self.bytesPerSample * channels }
+    /// Frames written so far: one sample per channel each.
     public private(set) var frameCount: UInt64 = 0
     /// Samples the last header commit flushed to disk.
     public private(set) var committedFrameCount: UInt64 = 0
@@ -62,7 +73,9 @@ public final class StemWriter: StemSink {
     /// so promotion can be checked without writing 4 GB.
     init(url: URL, info: Info, rf64Threshold: UInt64) throws {
         precondition(rf64Threshold <= Self.maxRIFFSize)
+        precondition(info.channels >= 1)
         self.url = url
+        channels = info.channels
         self.rf64Threshold = rf64Threshold
         guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
             throw CocoaError(.fileReadCorruptFile, userInfo: [NSFilePathErrorKey: url.path])
@@ -85,12 +98,15 @@ public final class StemWriter: StemSink {
 
     private init(resuming url: URL, info: Info, frameCount: UInt64, rf64Threshold: UInt64) throws {
         self.url = url
+        // The file's own header says how many channels it has: a resumed or reopened stereo Stem stays stereo whatever the
+        // caller's Info says, so its frames are never cut at a mono length (#1088).
+        channels = (try? StemFile.inspect(url))?.channelCount ?? info.channels
         self.rf64Threshold = rf64Threshold
         handle = try FileHandle(forUpdating: url)
         let header = Self.header(info: info)
         dataSizeOffset = UInt64(header.dataSizeOffset)
         markerRegionOffset = UInt64(header.markerRegionOffset)
-        let end = UInt64(header.bytes.count) + frameCount * UInt64(Self.bytesPerSample)
+        let end = UInt64(header.bytes.count) + frameCount * UInt64(Self.bytesPerSample * channels)
         try handle.truncate(atOffset: end)
         try handle.seek(toOffset: 0)
         isRF64 = try handle.read(upToCount: 4) == Data("RF64".utf8)
@@ -142,12 +158,13 @@ public final class StemWriter: StemSink {
     }
 
     /// Replaces samples already written, starting at `frame`, without moving the write position.
-    /// Used by Repair to fill a Gap in place.
+    /// Used by Repair to fill a Gap in place. A stereo Stem's samples are interleaved.
     public func overwrite(_ samples: UnsafeBufferPointer<Float>, atFrame frame: UInt64) throws {
-        precondition(frame + UInt64(samples.count) <= frameCount, "overwrite past the end of the Stem")
+        precondition(samples.count % channels == 0, "a stereo Stem takes whole frames")
+        precondition(frame + UInt64(samples.count / channels) <= frameCount, "overwrite past the end of the Stem")
         encode(samples)
         let end = try handle.offset()
-        try handle.seek(toOffset: UInt64(Self.dataStart) + frame * UInt64(Self.bytesPerSample))
+        try handle.seek(toOffset: UInt64(Self.dataStart) + frame * UInt64(bytesPerFrame))
         try handle.write(contentsOf: bytes)
         try handle.seek(toOffset: end)
     }
@@ -165,26 +182,32 @@ public final class StemWriter: StemSink {
         let frames = stem.framesOnDisk
         // A resumed Stem keeps its own header, so this Info is only used to find where the sizes and
         // Marker region are, and is the same for every Stem.
-        let info = Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: Date(timeIntervalSince1970: 0))
+        let info = Info(
+            sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: Date(timeIntervalSince1970: 0),
+            channels: stem.channelCount)
         // Not `open`: a readable Stem with no samples yet keeps its header too, rather than this placeholder Info.
         return try StemWriter(resuming: url, info: info, frameCount: frames, rf64Threshold: maxRIFFSize)
     }
 
     /// The samples of `frames` (counted from the start of the Stem) in the Stem at `url`, as Floats in
-    /// -1...1. Frames past the end of the Stem read as silence. Works on plain RIFF and RF64 Stems alike.
+    /// -1...1, interleaved for a stereo Stem. Frames past the end of the Stem read as silence. Works on plain RIFF and RF64
+    /// Stems alike.
     public static func readSamples(url: URL, frames: Range<Int>) throws -> [Float] {
-        var out = [Float](repeating: 0, count: frames.count)
         let stem = try StemFile.inspect(url)
+        let channels = stem.channelCount
+        var out = [Float](repeating: 0, count: frames.count * channels)
         let available = frames.clamped(to: 0..<Int(stem.framesOnDisk))
         guard !available.isEmpty else { return out }
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
-        try handle.seek(toOffset: stem.dataStart + UInt64(available.lowerBound * bytesPerSample))
-        let data = [UInt8](try handle.read(upToCount: available.count * bytesPerSample) ?? Data())
-        for index in 0..<min(available.count, data.count / bytesPerSample) {
+        let bytesPerFrame = stem.bytesPerFrame
+        try handle.seek(toOffset: stem.dataStart + UInt64(available.lowerBound * bytesPerFrame))
+        let data = [UInt8](try handle.read(upToCount: available.count * bytesPerFrame) ?? Data())
+        let first = (available.lowerBound - frames.lowerBound) * channels
+        for index in 0..<min(available.count * channels, data.count / bytesPerSample) {
             let base = index * bytesPerSample
             let raw = Int32(data[base]) | Int32(data[base + 1]) << 8 | Int32(data[base + 2]) << 16
-            out[available.lowerBound - frames.lowerBound + index] = Float((raw << 8) >> 8) / 8_388_608  // sign-extend 24 bits
+            out[first + index] = Float((raw << 8) >> 8) / 8_388_608  // sign-extend 24 bits
         }
         return out
     }
@@ -196,19 +219,20 @@ public final class StemWriter: StemSink {
     /// Where the samples start in a Stem this writer makes: the header is a fixed size whatever the Info.
     public static let dataStart = header(info: Info(sampleRate: 48_000, description: "", originator: "", timeReference: 0, originationDate: Date(timeIntervalSince1970: 0))).bytes.count
 
-    /// Appends samples. Values outside -1...1 are clamped.
+    /// Appends samples, interleaved for a stereo Stem. Values outside -1...1 are clamped.
     public func append(_ samples: UnsafeBufferPointer<Float>) throws {
+        precondition(samples.count % channels == 0, "a stereo Stem takes whole frames")
         encode(samples)
         try promoteIfNeeded(riffEnd: try handle.offset() + UInt64(bytes.count))
         try handle.write(contentsOf: bytes)
-        frameCount += UInt64(samples.count)
+        frameCount += UInt64(samples.count / channels)
     }
 
     /// Rewrites the chunk sizes to cover every sample appended so far and flushes to disk.
     /// If the app dies later, the file still plays up to this point.
     public func commitHeader() throws {
         let end = try handle.offset()
-        try writeSizes(dataBytes: frameCount * UInt64(Self.bytesPerSample), riffEnd: end)
+        try writeSizes(dataBytes: frameCount * UInt64(bytesPerFrame), riffEnd: end)
         try flush(handle)
         committedFrameCount = frameCount
         try handle.seek(toOffset: end)
@@ -216,7 +240,7 @@ public final class StemWriter: StemSink {
 
     /// Writes the final chunk sizes and closes the file.
     public func finalize() throws {
-        let dataBytes = frameCount * UInt64(Self.bytesPerSample)
+        let dataBytes = frameCount * UInt64(bytesPerFrame)
         // A commitHeader or setMarkers that threw can leave the position inside the header (#878).
         // dataStart is the same for plain RIFF and RF64 Stems.
         try handle.seek(toOffset: UInt64(Self.dataStart) + dataBytes)
@@ -262,7 +286,7 @@ public final class StemWriter: StemSink {
         let end = try handle.offset()
         var head: [UInt8] = Array("RF64".utf8) + UInt32.max.littleEndianBytes + Array("WAVE".utf8)
         head += Array("ds64".utf8) + UInt32(Self.ds64BodySize).littleEndianBytes
-        head += ds64Sizes(dataBytes: frameCount * UInt64(Self.bytesPerSample), riffEnd: end)
+        head += ds64Sizes(dataBytes: frameCount * UInt64(bytesPerFrame), riffEnd: end)
         head += UInt32(0).littleEndianBytes  // table length
         try handle.seek(toOffset: 0)
         try handle.write(contentsOf: head)
@@ -274,7 +298,7 @@ public final class StemWriter: StemSink {
         isRF64 = true
     }
 
-    /// The ds64 RIFF size, data size and sample count (one sample per frame in a mono Stem).
+    /// The ds64 RIFF size, data size and sample count (frames: one per sample in a mono Stem).
     private func ds64Sizes(dataBytes: UInt64, riffEnd: UInt64) -> [UInt8] {
         (riffEnd - 8).littleEndianBytes + dataBytes.littleEndianBytes + frameCount.littleEndianBytes
     }
@@ -330,12 +354,13 @@ public final class StemWriter: StemSink {
         out += Array("JUNK".utf8) + UInt32(ds64BodySize).littleEndianBytes
         out += [UInt8](repeating: 0, count: ds64BodySize)
 
-        // fmt: PCM, mono, 24-bit
+        // fmt: PCM, mono (or a stereo pair, #1088), 24-bit. The same size either way, so every Stem's audio starts at `dataStart`.
+        let blockAlign = Self.bytesPerSample * info.channels
         out += Array("fmt ".utf8) + UInt32(16).littleEndianBytes
-        out += UInt16(1).littleEndianBytes + UInt16(1).littleEndianBytes
+        out += UInt16(1).littleEndianBytes + UInt16(info.channels).littleEndianBytes
         out += UInt32(info.sampleRate).littleEndianBytes
-        out += UInt32(info.sampleRate * Self.bytesPerSample).littleEndianBytes
-        out += UInt16(3).littleEndianBytes + UInt16(24).littleEndianBytes
+        out += UInt32(info.sampleRate * blockAlign).littleEndianBytes
+        out += UInt16(blockAlign).littleEndianBytes + UInt16(24).littleEndianBytes
 
         // bext (EBU Tech 3285 v2), 602 bytes with no coding history
         var bext: [UInt8] = []

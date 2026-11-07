@@ -13,6 +13,18 @@ public struct StemFile: Equatable, Sendable {
     /// The bytes from `dataStart` to the end of the file. The data chunk is a Stem's last, so these are its samples
     /// plus at most a pad byte.
     public let bytesOnDisk: UInt64
+    /// 1 for a mono Stem, 2 for a stereo pair in one file (#1088), from the `fmt ` chunk; 1 when there is none.
+    public let channelCount: Int
+
+    public init(dataStart: UInt64, declaredBytes: UInt64, bytesOnDisk: UInt64, channelCount: Int = 1) {
+        self.dataStart = dataStart
+        self.declaredBytes = declaredBytes
+        self.bytesOnDisk = bytesOnDisk
+        self.channelCount = max(channelCount, 1)
+    }
+
+    /// Bytes in one frame: a 24-bit sample per channel.
+    public var bytesPerFrame: Int { StemWriter.bytesPerSample * channelCount }
 
     /// Reads the Stem at `url`. Throws when the file can't be read or isn't a WAV with a data chunk.
     public static func inspect(_ url: URL) throws -> StemFile {
@@ -26,6 +38,7 @@ public struct StemFile: Equatable, Sendable {
         else { throw notAStem(url) }
 
         var ds64DataSize: UInt64?
+        var channelCount = 1
         var offset: UInt64 = 12
         while offset + 8 <= fileSize {
             try handle.seek(toOffset: offset)
@@ -35,9 +48,11 @@ public struct StemFile: Equatable, Sendable {
             let body = offset + 8
             if id.elementsEqual("ds64".utf8), let sizes = try handle.read(upToCount: 16), sizes.count == 16 {
                 ds64DataSize = littleEndian(sizes.suffix(8))
+            } else if id.elementsEqual("fmt ".utf8), let format = try handle.read(upToCount: 4), format.count == 4 {
+                channelCount = Int(littleEndian(format.suffix(2)))
             } else if id.elementsEqual("data".utf8) {
                 if size == 0xFFFF_FFFF, let ds64DataSize { size = ds64DataSize }
-                return StemFile(dataStart: body, declaredBytes: size, bytesOnDisk: fileSize - body)
+                return StemFile(dataStart: body, declaredBytes: size, bytesOnDisk: fileSize - body, channelCount: channelCount)
             }
             offset = body + size + size % 2
         }
@@ -45,10 +60,10 @@ public struct StemFile: Equatable, Sendable {
     }
 
     /// The frames the header declares, capped at the bytes really in the file: a finished Stem's length.
-    public var frameCount: UInt64 { audioRegion.length / UInt64(StemWriter.bytesPerSample) }
+    public var frameCount: UInt64 { audioRegion.length / UInt64(bytesPerFrame) }
 
-    /// Every whole sample in the file, whatever the header says. A half-written sample or the pad byte is ignored.
-    public var framesOnDisk: UInt64 { bytesOnDisk / UInt64(StemWriter.bytesPerSample) }
+    /// Every whole frame in the file, whatever the header says. A half-written frame or the pad byte is ignored.
+    public var framesOnDisk: UInt64 { bytesOnDisk / UInt64(bytesPerFrame) }
 
     /// Where the samples are: the start of the data chunk and the bytes the header declares, capped at the file.
     public var audioRegion: (offset: UInt64, length: UInt64) { (dataStart, min(declaredBytes, bytesOnDisk)) }
