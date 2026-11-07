@@ -1998,6 +1998,24 @@ ol.cards {
   border-bottom: 0;
 }
 
+/* ---------- Mixer recording guides hub (#1061): the compare table's look, four columns ---------- */
+
+.guides-table {
+  min-width: 860px;
+}
+
+.guides-table thead th:first-child {
+  width: 14rem;
+}
+
+.guides-table .row-note {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
 /* The home hero (#719): a compatibility line under the lede, the Show-Safe line and two plain links under the button. */
 .hero .compat {
   margin-top: 12px;

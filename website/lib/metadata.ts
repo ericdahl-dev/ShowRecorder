@@ -71,6 +71,12 @@ export const PAGES = {
     description:
       "Multitrack an XR18, MR18, X32 or M32 to an iPhone or iPad with no laptop: what you need, the steps, the files you get and the limits.",
   },
+  guidesHub: {
+    path: "/guides/record",
+    title: "How to multitrack record a digital mixer - ShowRecorder",
+    description:
+      "Every way to multitrack record a digital mixer, mixer by mixer: USB channels, recording with no computer, and Mac, iPad and iPhone status.",
+  },
   privacy: {
     path: "/privacy",
     title: `Privacy policy - ${SITE_NAME}`,

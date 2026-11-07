@@ -66,6 +66,11 @@ export function Footer() {
                 X32 and M32
               </a>
             </li>
+            <li>
+              <a href="/guides/record" data-current-match="" suppressHydrationWarning>
+                Recording guides
+              </a>
+            </li>
           </ul>
         </nav>
         <p className="legal">{TRADEMARK_LINE}</p>
