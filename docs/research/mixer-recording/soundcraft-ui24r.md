@@ -50,7 +50,7 @@ Checked 2026-11-06. Sources are numbered in section 9.
   - Harman (Ui24R article, onboard recorder only): "The tracks are recorded directly from the mic preamps." Re-patching a channel does not change this: "the record 'send' is the physical input jack and preamp on the mixer." [11]
   - No maker source says in so many words that USB 11-32 use the same point as the onboard recorder. Both sources point that way.
   - Analog preamp gain therefore affects the recording. Channel EQ, dynamics, HPF and fader do not (HPF placement relative to the tap is implied by "pre-processing", not stated).
-- Secondary (Soundcraft forum, via search snippet; the page could not be fetched): "Post gain ... pre mute, pre gate, pre comp, pre EQ, pre fader". [12]
+- Secondary (Soundcraft forum, via search snippet; the page could not be fetched): "Post gain ... pre mute, pre gate, pre comp, pre EQ, pre fader". [12] **Unverified** (proforums.harman.com doesn't resolve, checked 2026-11-07); not used in the guide.
 - Not selectable per channel. AUX sends have PRE/POST and PRE/POST PROCESSING options, which is the documented workaround. [1][10]
 
 ## 7. Gotchas
@@ -87,7 +87,7 @@ Checked 2026-11-06. Sources are numbered in section 9.
 9. Harman "Creating playable multitrack session ...": https://harman.helpjuice.com/en_US/sc-ui-series/creating-playable-multitrack-session-from-imported-audio-files-on-ui24r-with-usb-stick
 10. Harman "Recording from groups to achieve post-fader processing and effect": https://harman.helpjuice.com/en_US/sc-ui-series/recording-from-groups-to-achieve-post-fader-processing-and-effect
 11. Harman "Ui24R record track labels": https://harman.helpjuice.com/en_US/sc-ui-series/ui24r-record-track-labels
-12. Secondary, forum: https://proforums.harman.com/soundcraft/discussion/comment/198507
+12. Secondary, forum (unverified: doesn't resolve, checked 2026-11-07): https://proforums.harman.com/soundcraft/discussion/comment/198507
 13. Product page: https://www.soundcraft.com/en-US/products/ui24r
 14. Secondary, review: Mike Crofts, "Soundcraft Ui24R", Sound On Sound, August 2017 (linked from soundcraft.com as https://www.soundcraft.com/en-US/product_reviews/soundcraft-ui24r): https://www.soundonsound.com/reviews/soundcraft-ui24r
 

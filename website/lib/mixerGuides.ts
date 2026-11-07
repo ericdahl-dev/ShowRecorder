@@ -839,7 +839,6 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
       "https://harman.helpjuice.com/en_US/sc-ui-series/recording-from-groups-to-achieve-post-fader-processing-and-effect",
       "https://harman.helpjuice.com/en_US/sc-ui-series/ui24r-record-track-labels",
       "https://www.soundonsound.com/reviews/soundcraft-ui24r",
-      "https://proforums.harman.com/soundcraft/discussion/comment/198507",
     ],
     campaign: "site-guide-ui24r",
     tapPick: "the fixed tap (straight after the mic preamp, before processing and the fader); there is nothing to set",

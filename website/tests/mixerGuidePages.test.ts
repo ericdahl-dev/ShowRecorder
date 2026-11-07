@@ -823,12 +823,13 @@ describe("the Soundcraft Ui24R guide's facts", () => {
     expect(play).toMatch(/SETTINGS > PATCHING > OVERVIEW/);
   });
 
-  it("gives the tap as straight after the preamp, pre-fader and pre-processing, with readings and the forum labeled", () => {
+  // Fact check on #1110: the forum post (proforums.harman.com) doesn't resolve, so no claim rests on it.
+  it("gives the tap as straight after the preamp, pre-fader and pre-processing, with our readings labeled and no forum claim", () => {
     const taps = section(mdx, "Ui24R tap points", "Ui24R on Mac, iPad and iPhone");
     expect(taps).toMatch(/directly from the mic preamps/);
     expect(taps).toMatch(/pre-fader, pre-processing/);
     expect(taps).toMatch(/\(our reading\)/);
-    expect(taps).toMatch(/forum/i);
+    expect(mdx).not.toMatch(/forum|proforums\.harman\.com/i);
     expect(taps).not.toMatch(/pre-HPF|before the HPF/);
   });
 
