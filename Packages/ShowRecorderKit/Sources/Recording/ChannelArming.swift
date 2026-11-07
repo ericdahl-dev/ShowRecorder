@@ -5,7 +5,7 @@ import Foundation
 /// build on 2026-10-29: 13 of 18 channels armed, and the Take's files were right. Opening it to everyone is this one rule.
 public enum ChannelArmingAvailability {
     /// Where it is offered; moving it up a level is this one line.
-    public static let level: AvailabilityLevel = .debugAndTestFlight
+    public static let level: AvailabilityLevel = .everyone
 
     /// `environment` is nil until StoreKit has answered.
     public static func isAvailable(isDebugBuild: Bool, environment: DistributionEnvironment?) -> Bool {
