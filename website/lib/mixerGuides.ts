@@ -191,10 +191,11 @@ export const MIXER_ROWS: readonly MixerRow[] = [
   {
     name: "Mackie DL32R",
     usb: "32 in and 32 out, 48 kHz.",
-    onboard: "Up to 32 tracks with current firmware (older units likely show 24 until updated), 16 or 24-bit at 48 kHz, as one multichannel WAV per take, split into files under 2 GB, to a spinning USB hard drive formatted by the DL32R (no thumb drive, no hub). The drive and a computer can't be used at the same time.",
+    onboard: "Up to 32 tracks with current firmware (older units may show 24 until updated; our reading), 16 or 24-bit at 48 kHz, as one multichannel WAV per take, split into files under 2 GB, to a spinning USB hard drive formatted by the DL32R (no thumb drive, no hub). The drive and a computer can't be used at the same time.",
     mac: "Class compliant; current macOS not listed by Mackie.",
     ipad: "Yes, with a camera adapter (manual).",
     iphone: "Not tested yet.",
+    guide: "/guides/record/mackie-dl32r",
   },
   {
     name: "Zoom LiveTrak L-12, L-20 and L-20R",
@@ -450,6 +451,34 @@ export const ZOOM_L12_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the Mackie DL32R guide (#1079). Facts: docs/research/mixer-recording/mackie-dl32r.md.
+export const DL32R_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I multitrack record a Mackie DL32R to an iPad or iPhone?",
+    a: "Mackie's manual names the iPad: \"you may stream audio directly to and from an iPad using the iPad camera connection kit.\" The DL32R sends 32 channels at 48 kHz as a class-compliant USB device. Mackie doesn't name the iPhone, and nobody has tested one with a DL32R yet. The manual dates from 2015, so a USB-C iPad is not tested yet either.",
+  },
+  {
+    q: "Can a DL32R multitrack record without a computer?",
+    a: "Yes, to a USB hard drive on its USB A port: 16 or 24-bit at 48 kHz, as one multichannel WAV per take, split into files under 2 GB with no gap. Mackie's Master Fader 5 guide says 1 to 32 tracks; the 2015 spec table says 1 to 24 (see the guide). Mackie says to use a spinning hard drive formatted by the DL32R, not a thumb drive, and no USB hub.",
+  },
+  {
+    q: "Can the DL32R record to a drive and a computer at the same time?",
+    a: "No. Mackie: \"USB A and USB B connectors may NOT be used simultaneously.\" A drive on USB A takes priority and interrupts a computer recording, and the computer won't see the DL32R again until you unplug and replug USB B.",
+  },
+  {
+    q: "Does the DL32R need a driver?",
+    a: "Not on a Mac: it is USB Audio Class 2.0 compliant, and Mackie says a Mac should work with no extra driver. Mackie's 2015 list stops at OS X 10.11, so current macOS is not listed. On Windows, Mackie says a driver installation is required.",
+  },
+  {
+    q: "Is DL32R USB recording pre or post fader?",
+    a: "For the channels, pre-fader either way. The default source, Mic Pre, is straight after the analog preamp: before digital trim, HPF, gate, compressor, EQ, mute and fader. Channel Post-DSP comes after the HPF, gate, compressor and EQ, before mute and fader (per Mackie's block diagram). You pick one per USB slot in I/O Patch > USB.",
+  },
+  {
+    q: "How do I record the main mix along with the channels on a DL32R?",
+    a: "In Master Fader, open I/O Patch, the USB tab, and patch Main L/R (post-fader, or Pre-Fader) to two USB slots. With all 32 inputs in use there are no spare slots, so a stereo mix costs two input tracks.",
+  },
+];
+
 // The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
 export const X32_METHOD_A: readonly { name: string; text: string }[] = [
   { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
@@ -567,5 +596,25 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     ],
     campaign: "site-guide-zoom-l12",
     tapPick: "the fixed tap (after the compressor, before the EQ), with the COMP knob at zero",
+  },
+  {
+    slug: "mackie-dl32r",
+    path: "/guides/record/mackie-dl32r",
+    pageKey: "guideMackieDL32R",
+    short: "DL32R",
+    mixer: "Mackie DL32R",
+    description:
+      "Multitrack record a Mackie DL32R over USB to a computer or iPad, or to a USB hard drive: settings, I/O Patch routing, tap points. iPhone not tested yet.",
+    published: "2026-11-07",
+    faqs: DL32R_GUIDE_FAQS,
+    faqsName: "DL32R_GUIDE_FAQS",
+    sources: [
+      "https://mackie.com/img/file_resources/DL32R_OM.pdf",
+      "https://mackie.com/img/file_resources/DL32R_SS.pdf",
+      "https://www.ambertech.com.au/Documents/Master%20Fader_V5_0_RG-compressed.pdf",
+      "https://mackie.com/en/support/faq/dl32r.html",
+    ],
+    campaign: "site-guide-mackie-dl32r",
+    tapPick: "Mic Pre (the default on each USB slot, before trim, HPF and EQ)",
   },
 ];

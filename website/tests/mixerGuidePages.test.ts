@@ -20,7 +20,7 @@ const body = (slug: string) => read("app", "guides", "record", slug, "content.md
 const shell = (slug: string) => read("app", "guides", "record", slug, "page.tsx");
 
 // "an X32", "an XR18", but "a Qu": the article before a guide's short name, by how the name is said.
-const A_SHORT: Record<string, string> = { Qu: "a" };
+const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a" };
 const waysHeading = (short: string) => `Ways to record ${A_SHORT[short] ?? "an"} ${short}`;
 
 // The sections every mixer guide has, in this order. They name the mixer (review batch 1), so a heading quoted out of
@@ -122,8 +122,8 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    // Only the Qu and the Zoom have none; a Mixer Link guide that lost its product page must fail here, not skip.
-    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12"].includes(guide.slug));
+    // Only the Qu, the Zoom and the DL32R have none; a Mixer Link guide that lost its product page must fail here, not skip.
+    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12", "mackie-dl32r"].includes(guide.slug));
     if (guide.productPage === undefined) return;
     expect(mdx).toContain(`](${guide.productPage})`);
     expect(read("app", "mixers", guide.productPage.split("/").pop()!, "content.mdx")).toContain(`](${guide.path})`);
@@ -137,7 +137,7 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("cites its sources: the maker's documents, with forum posts marked as such", () => {
     const sources = mdx.slice(mdx.indexOf("## Sources"));
     expect(sources).toMatch(
-      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com|zoomcorp\.com)\//,
+      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com|zoomcorp\.com|mackie\.com)\//,
     );
   });
 
@@ -443,5 +443,99 @@ describe("the Zoom LiveTrak L-12 and L-20 guide's facts", () => {
     expect(mdx).toMatch(/SD card/);
     expect(mdx).toMatch(/2 GB/);
     expect(mdx).toMatch(/TRACK01/);
+  });
+});
+
+// Facts: docs/research/mixer-recording/mackie-dl32r.md (#1079). The manual's spec table says 24 drive tracks, its text
+// and the newer Master Fader 5 guide say 32: the page says so plainly.
+describe("the Mackie DL32R guide's facts", () => {
+  const mdx = body("mackie-dl32r");
+  const guide = MIXER_GUIDES.find((g) => g.slug === "mackie-dl32r")!;
+
+  it("is in MIXER_GUIDES with its own campaign, and the hub's DL32R row links it", () => {
+    expect(guide.campaign).toBe("site-guide-mackie-dl32r");
+    expect(MIXER_ROWS.find((r) => r.name === "Mackie DL32R")!.guide).toBe(guide.path);
+  });
+
+  it("gives USB: 32 in and 32 out, 48 kHz only, 16 or 24-bit, class compliant, a driver on Windows", () => {
+    expect(mdx).toMatch(/32 in and 32 out/);
+    expect(mdx).toMatch(/48 kHz only/);
+    expect(mdx).toMatch(/16 or 24-bit/);
+    expect(mdx).toMatch(/class compliant/i);
+    expect(mdx).toMatch(/Windows[^.]*driver/);
+  });
+
+  it("says the drive and a computer can't record at the same time", () => {
+    expect(mdx).toMatch(/can't be used at the same time/);
+    expect(mdx).toMatch(/USB A and USB B connectors may NOT be used simultaneously/);
+  });
+
+  it("names the drive track-count contradiction plainly: 24 in the 2015 spec table, 32 in the text and the 2018 guide", () => {
+    expect(mdx).toMatch(/1-24 channel/);
+    expect(mdx).toMatch(/1-32/);
+    expect(mdx).toMatch(/contradict/i);
+    expect(mdx).toMatch(/\(our reading\)/);
+  });
+
+  it("gives the drive rules: one multichannel WAV per take, split under 2 GB, a spinning hard drive, no thumb drive, no hub", () => {
+    expect(mdx).toMatch(/multichannel/);
+    expect(mdx).toMatch(/2 GB/);
+    expect(mdx).toMatch(/spinning hard/);
+    expect(mdx).toMatch(/Do not use a thumb drive/);
+    expect(mdx).toMatch(/hub/);
+    expect(mdx).toMatch(/100 MB/);
+  });
+
+  it("gives the per-slot routing path, the default and the main mix example", () => {
+    const routing = section(mdx, "DL32R USB routing", "DL32R playback for virtual soundcheck");
+    expect(routing).toMatch(/\*\*I\/O Patch\*\*/);
+    expect(routing).toMatch(/\*\*USB\*\* tab/);
+    expect(routing).toMatch(/Mic Pre 1-32 to USB 1-32/);
+    expect(routing).toMatch(/Main L\/R/);
+  });
+
+  it("gives virtual soundcheck through Input B", () => {
+    const pb = section(mdx, "DL32R playback for virtual soundcheck", "DL32R tap points");
+    expect(pb).toMatch(/Input B/);
+    expect(pb).toMatch(/A Tracks \/ B Tracks/);
+  });
+
+  it("gives both taps from the block diagram, and labels the second-iPad gain point as our reading", () => {
+    const taps = section(mdx, "DL32R tap points", "DL32R on Mac, iPad and iPhone");
+    expect(taps).toMatch(/\*\*Mic Pre\*\*/);
+    expect(taps).toMatch(/Post-DSP/);
+    expect(taps).toMatch(/Access Limiting/);
+    expect(taps).toMatch(/\(our reading\)/);
+  });
+
+  it("says the manual names the iPad with a camera adapter, the iPhone is not tested yet, and there is no Mixer Link", () => {
+    const apple = section(mdx, "DL32R on Mac, iPad and iPhone", "Sources");
+    expect(apple).toMatch(/camera connection kit/);
+    expect(apple).toMatch(/iPhone[^.]*not tested yet/);
+    expect(apple).toMatch(/10\.11/);
+    expect(mdx).toMatch(/no Mixer Link/);
+    expect(mdx).not.toMatch(/unsupported/i);
+  });
+
+  // Fact check, loop 1 on #1106: no claim past the sources; our readings say so.
+  it("makes no unsourced power or clock claim, and labels its readings", () => {
+    expect(mdx).not.toMatch(/powers nothing/);
+    expect(mdx).toMatch(/Mackie doesn't say whether USB B charges an iPad\./);
+    expect(mdx).not.toMatch(/\*\*Clock:\*\* internal/);
+    expect(mdx).toMatch(/\*\*Clock:\*\* Mackie documents no word clock\. An optional Dante card is offered \(spec sheet\)\./);
+    expect(read("..", "docs", "research", "mixer-recording", "mackie-dl32r.md")).not.toMatch(/Clock: internal/);
+    expect(mdx).not.toMatch(/always offers 32 x 32/);
+    expect(mdx).toMatch(/so we expect 32 x 32 every time \(our reading\)/);
+    expect(mdx).toMatch(/after the Mic Pre tap \(block diagram\)/);
+    expect(mdx).not.toMatch(/sound like front of house/);
+    expect(mdx).toMatch(/Use it for processed tracks \(our advice\)\./);
+    expect(guide.faqs.find((f) => /pre or post fader/.test(f.q))!.a).toMatch(/^For the channels, pre-fader either way\./);
+    expect(MIXER_ROWS.find((r) => r.name === "Mackie DL32R")!.onboard).toMatch(/\(older units may show 24 until updated; our reading\)/);
+  });
+
+  it("cites the Master Fader 5 guide as Mackie's, hosted by a distributor", () => {
+    const sources = mdx.slice(mdx.indexOf("## Sources"));
+    expect(sources).toMatch(/ambertech\.com\.au/);
+    expect(sources).toMatch(/distributor/);
   });
 });

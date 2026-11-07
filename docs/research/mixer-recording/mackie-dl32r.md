@@ -37,7 +37,7 @@ Source key used below:
 
 - USB-B (computer): 48 kHz only; 16 or 24-bit [OM spec]. Which word length is used is set by the computer's recording app (inference; Mackie does not say).
 - Drive: Master Fader > Recording/Playback button (upper right of the navigation bar) > name the recording > track count 1-32 > 16 or 24 bits > Record [RG p.210, p.217-218]. Name, track count and bit depth can't be changed while recording [RG p.218]. Recording continues in the background if the iPad leaves the app [RG p.219].
-- Clock: internal; Dante expansion card optional [SS]. No word clock documented (unknown).
+- Clock: no word clock documented (unknown). Dante expansion card optional [SS]. The spec sheet has no clock line; the manual's LED appendix shows the DL32R can follow a Dante clock master with the card [OM].
 - Drive and computer cannot run together: "USB A and USB B connectors may NOT be used simultaneously. If a hard drive is connected to USB A, it will take priority over anything connected to USB B ... the DAW recording interrupted" [OM p.11; RG p.210]; "Streaming and HDD Record / Playback are not available simultaneously." [OM spec footnote].
 
 ## 5. Routing (per-slot patching)
