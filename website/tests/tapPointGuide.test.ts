@@ -43,7 +43,7 @@ describe("the tap-point guide", () => {
   });
 
   it("covers the caveats: gain changes reach the raw tap, digital trim vs analog gain, HPF, phantom, shared stage boxes", () => {
-    for (const re of [/gain change/i, /digital trim/i, /HPF|high-pass/i, /phantom/i, /stage box/i]) expect(page).toMatch(re);
+    for (const re of [/gain change/i, /digital trim/i, /HPF|high-pass/i, /phantom/i, /stage box/i, /only 2 or 8 channels/]) expect(page).toMatch(re);
   });
 
   it("says it is general practice, not a maker's claim", () => {
