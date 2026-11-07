@@ -364,6 +364,87 @@ describe("the Allen & Heath Qu guide's facts", () => {
   });
 });
 
+// Facts: docs/research/mixer-recording/m32.md (#1065), and x32.md where m32.md says the X32 facts apply. The M32
+// shares the X32 page's routing; the guide calls out the differences: the DN32 cards and the M32 LIVE's SD recorder.
+describe("the Midas M32 guide's facts", () => {
+  const mdx = body("m32");
+  const guide = MIXER_GUIDES.find((g) => g.slug === "m32")!;
+  const all = () => mdx + guide.faqs.map((f) => f.q + " " + f.a).join(" ");
+
+  it("is in MIXER_GUIDES with its own campaign, links the X32 and M32 product page, and the hub's M32 row links it", () => {
+    expect(guide.campaign).toBe("site-guide-m32");
+    expect(guide.productPage).toBe("/mixers/x32");
+    expect(MIXER_ROWS.find((r) => /Midas M32/.test(r.name))!.guide).toBe(guide.path);
+  });
+
+  it("names the three cards and which consoles carry which, and that no card means no USB multitrack", () => {
+    expect(mdx).toMatch(/\*\*DN32-USB:\*\*/);
+    expect(mdx).toMatch(/\*\*DN32-LIVE:\*\*/);
+    expect(mdx).toMatch(/\*\*XUF:\*\*/);
+    expect(mdx).toMatch(/M32 LIVE and M32R LIVE/);
+    expect(mdx).toMatch(/M32C/);
+    expect(mdx).toMatch(/rear USB port is for remote control only/);
+  });
+
+  it("gives the DN32-USB and DN32-LIVE USB specs, and says what Midas doesn't state", () => {
+    expect(mdx).toMatch(/32 in and 32 out, 24-bit at 48 kHz/);
+    expect(mdx).toMatch(/32, 16, 8 or 2 channels/);
+    expect(mdx).toMatch(/44\.1 kHz is not stated for the DN32-USB/);
+    expect(mdx).toMatch(/bit depth on USB is not stated/);
+  });
+
+  it("gives the DN32-LIVE SD recorder limits and the stereo USB stick recorder", () => {
+    expect(mdx).toMatch(/8, 16 or 32 channels/);
+    expect(mdx).toMatch(/32-bit PCM/);
+    expect(mdx).toMatch(/FAT32/);
+    expect(mdx).toMatch(/32 GB/);
+    expect(mdx).toMatch(/200 min/);
+    expect(mdx).toMatch(/16-bit/);
+    expect(mdx).toMatch(/2 GB/);
+    expect(mdx).toMatch(/DN32-USB[^.]*can't record by itself/);
+  });
+
+  it("routes with card out blocks of 8 from the M32 manual, and stages buses in Out 1-16 or P16", () => {
+    expect(mdx).toMatch(/\*\*ROUTING > card out\*\*/);
+    expect(mdx).toMatch(/blocks of 8/);
+    expect(mdx).toMatch(/\(M32 manual\)/);
+    expect(mdx).toMatch(/Out 1-16/);
+    expect(mdx).toMatch(/P16/);
+  });
+
+  // The research gaps: what is documented for the X32 only is labeled, never stated as a Midas fact.
+  it("labels what is known only from the X32: user routing, the Setup > Card mode names, presets, card trim", () => {
+    expect(mdx).toMatch(/^### Advanced: user routing \(firmware 4\.x, per user reports\)$/m);
+    expect(mdx).toMatch(/No Midas document describes User In or User Out/);
+    expect(mdx).toMatch(/32\/32, 16\/16, 32\/8, 8\/32, 8\/8 and 2\/2[^.]*X32[^.]*\(our reading\)/);
+    expect(mdx).toMatch(/Record and Play[^.]*\(our reading\)/);
+    expect(mdx).toMatch(/digital trim[^.]*\(our reading\)/);
+    expect(mdx).toMatch(/reboot[^.]*X32/);
+  });
+
+  it("gives the tap points from the M32 manual and the shared stage box caveat", () => {
+    const taps = section(mdx, "M32 tap points", "M32 on Mac, iPad and iPhone");
+    expect(taps).toMatch(/Input, Pre-EQ, Pre-Fader and Post-Fader \(M32 manual\)/);
+    expect(taps).toMatch(/DL16 or DL32/);
+    expect(taps).toMatch(/no gain compensation/i);
+  });
+
+  it("says iPhone, iPad and Mixer Link are not tested yet, and names no macOS version", () => {
+    const apple = section(mdx, "M32 on Mac, iPad and iPhone", "Sources");
+    expect(apple).toMatch(/iPhone and iPad:\*\* not documented, and not tested yet/);
+    expect(apple).toMatch(/Mixer Link with an M32 is not tested yet/);
+    expect(apple).toMatch(/emulator/);
+    expect(all()).not.toMatch(/10\.12|Sonoma|Sequoia|Ventura/);
+    expect(all()).not.toMatch(/unsupported/i);
+  });
+
+  it("marks the Midas documents read on third-party hosts, and the forum posts as not Midas", () => {
+    const sources = mdx.slice(mdx.indexOf("## Sources"));
+    expect(sources).toMatch(/hosted by/);
+    expect(sources).toMatch(/not Midas/);
+  });
+});
+
 describe("guide headlines", () => {
   it("say 'an' before a vowel", () => {
     expect(guideHeadline("Allen & Heath Qu")).toBe("How to multitrack record an Allen & Heath Qu");

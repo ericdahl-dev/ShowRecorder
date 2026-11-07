@@ -105,6 +105,7 @@ The campaigns (40 characters or fewer; the list is `APP_STORE_CAMPAIGNS`):
 | `llms` | llms.txt and llms-full.txt |
 | `site-guides` | Mixer recording guides hub (`/guides/record`), "Where ShowRecorder fits" |
 | `site-guide-x32` / `site-guide-xr18` / `site-guide-qu` / `site-guide-zoom-l12` / `site-guide-mackie-dl32r` / `site-guide-wing` | X32, XR18, Allen & Heath Qu, Zoom LiveTrak, Mackie DL32R and Behringer WING recording guides, "Where ShowRecorder fits" |
+| `site-guide-m32` | Midas M32 recording guide, "Where ShowRecorder fits" |
 | `site-guide-taps` | Pre or post fader guide, "With ShowRecorder" |
 | `site-guide-best-app` | Best app for iPhone and iPad guide, after "Which app for which job" |
 
