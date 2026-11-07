@@ -2,6 +2,7 @@ import Foundation
 import MixerLink
 import Recording
 import StoreKit
+import Telemetry
 
 /// The App Store side of Pro (ADR 0004): loads the Pro product, buys it, restores it and keeps what is owned
 /// (the operator's own purchase or one shared by Family Sharing) current. The tier is read from the cached state
@@ -145,7 +146,10 @@ final class ProStore {
             switch try await product.purchase() {
             case .success(.verified(let transaction)):
                 await transaction.finish()
+                let before = purchases
                 await refreshOwned()
+                // Trial started and Pro bought (ADR 0007, #1026): only what this purchase changed.
+                for event in PurchaseTelemetry.events(before: before, after: purchases) { AppTelemetry.shared.send(event) }
             case .success(.unverified):
                 note = "The App Store couldn't confirm the purchase. Try Restore Purchases."
             case .pending:
