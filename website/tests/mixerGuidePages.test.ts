@@ -20,7 +20,7 @@ const body = (slug: string) => read("app", "guides", "record", slug, "content.md
 const shell = (slug: string) => read("app", "guides", "record", slug, "page.tsx");
 
 // "an X32", "an XR18", but "a Qu": the article before a guide's short name, by how the name is said.
-const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a", WING: "a" };
+const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a", WING: "a", DL32S: "a" };
 const waysHeading = (short: string) => `Ways to record ${A_SHORT[short] ?? "an"} ${short}`;
 
 // The sections every mixer guide has, in this order. They name the mixer (review batch 1), so a heading quoted out of
@@ -122,8 +122,8 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    // Only the Qu, the Zoom, the DL32R and the WING have none; a Mixer Link guide that lost its product page must fail here, not skip.
-    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12", "mackie-dl32r", "wing"].includes(guide.slug));
+    // Only the Qu, the Zoom, the DL32R, the WING and the Mackie DL32S have none; a Mixer Link guide that lost its product page must fail here, not skip.
+    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s"].includes(guide.slug));
     if (guide.productPage === undefined) return;
     expect(mdx).toContain(`](${guide.productPage})`);
     expect(read("app", "mixers", guide.productPage.split("/").pop()!, "content.mdx")).toContain(`](${guide.path})`);
@@ -710,5 +710,66 @@ describe("the Behringer WING guide's facts", () => {
     expect(mdx).toMatch(/WING OS/);
     expect(mdx).toMatch(/WING DATA/);
     expect(mdx).toMatch(/[Ee]ject/);
+  });
+});
+
+// Facts: docs/research/mixer-recording/mackie-dl32s.md (#1078). Mackie names no iPhone or iPad for the DL32S.
+describe("the Mackie DL32S guide's facts", () => {
+  const mdx = body("mackie-dl32s");
+  const guide = MIXER_GUIDES.find((g) => g.slug === "mackie-dl32s")!;
+
+  it("is in MIXER_GUIDES with its own campaign, and the hub's DL32S row links it", () => {
+    expect(guide.campaign).toBe("site-guide-mackie-dl32s");
+    expect(MIXER_ROWS.find((r) => /DL32S/.test(r.name))!.guide).toBe(guide.path);
+  });
+
+  it("gives 32 x 32 (16 x 16 on the DL16S), 48 kHz only, 16/24-bit, and no onboard recorder", () => {
+    expect(mdx).toMatch(/32 channels/);
+    expect(mdx).toMatch(/DL16S[^.]*16 channels/);
+    expect(mdx).toMatch(/48 kHz only/);
+    expect(mdx).toMatch(/16 or 24-bit/);
+    expect(mdx).toMatch(/can't record by itself/);
+  });
+
+  it("routes per slot in Master Fader's I/O Patch > USB tab, Mic Pre N to USB N by default", () => {
+    const routing = section(mdx, "DL32S USB routing", "DL32S playback for virtual soundcheck");
+    expect(routing).toMatch(/\*\*I\/O Patch\*\*/);
+    expect(routing).toMatch(/\*\*USB\*\* tab/);
+    expect(routing).toMatch(/Mic Pre 1-32 to USB 1-32/);
+    expect(routing).toMatch(/Any combination of channels or outputs/);
+    expect(routing).toMatch(/Main L\/R/);
+    expect(routing).toMatch(/Reset to Default/);
+  });
+
+  it("plays back through Input B, the USB returns, for virtual soundcheck", () => {
+    const vsc = section(mdx, "DL32S playback for virtual soundcheck", "DL32S tap points");
+    expect(vsc).toMatch(/Input A/);
+    expect(vsc).toMatch(/Input B/);
+    expect(vsc).toMatch(/virtual sound check/);
+  });
+
+  it("gives both taps from the block diagram: Mic Pre before trim and HPF, Channel Post-DSP after EQ, before mute and fader", () => {
+    const taps = section(mdx, "DL32S tap points", "DL32S on Mac, iPad and iPhone");
+    expect(taps).toMatch(/\*\*Mic Pre\*\*[^\n]*before[^\n]*Digital Trim/);
+    expect(taps).toMatch(/\*\*Channel Post-DSP\*\*[^\n]*before the mute and fader/);
+    expect(taps).toMatch(/6 dB/);
+    expect(taps).toMatch(/Access Limiting/);
+    expect(taps).toMatch(/\(our reading\)/);
+  });
+
+  it("says a Mac needs no driver, Windows needs Mackie's, and the iPhone and iPad are not tested yet, with no Mixer Link", () => {
+    const apple = section(mdx, "DL32S on Mac, iPad and iPhone", "Sources");
+    expect(apple).toMatch(/no additional drivers/);
+    expect(apple).toMatch(/Windows[^.]*driver/);
+    expect(apple).toMatch(/iPhone[^.]*not tested yet/);
+    expect(apple).toMatch(/macOS 10\.13 and 10\.14/);
+    expect(mdx).toMatch(/no Mixer Link/);
+    expect(mdx).not.toMatch(/ShowRecorder has recorded[^.]*DL32S/);
+    expect(guide.faqs.find((f) => /iPhone|iPad/.test(f.q))!.a).toMatch(/not tested yet/i);
+  });
+
+  it("keeps the SE models apart: their patch menu is not in the Master Fader guide", () => {
+    expect(mdx).toMatch(/DL32SE/);
+    expect(mdx).toMatch(/SE models[^.]*not in/);
   });
 });
