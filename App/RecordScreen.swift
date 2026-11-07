@@ -1040,6 +1040,7 @@ final class RecordScreenModel {
         s.dropoutCount = recorder.dropoutCount
         s.driveNotice = recorder.driveNotice
         s.driveCopyAllowed = recorder.driveCopyAllowed
+        s.deviceWord = ThisHardware.word
         s.takeNumber = takeNumber
         s.routingChanges = recorder.routingChanges
         s.routingNotice = recorder.routingNotice

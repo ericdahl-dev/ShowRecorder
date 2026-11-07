@@ -33,6 +33,8 @@ public struct RecordScreenSnapshot: Equatable, Sendable {
     public var dropoutCount = 0
     public var driveNotice: String?
     public var driveCopyAllowed = true
+    /// The device the app runs on (iPhone, iPad or Mac), as the App's `ThisHardware.word` says.
+    public var deviceWord = "iPhone"
     public var takeNumber = 0
     public var routingChanges: [TakeMetadata.RoutingChange] = []
     public var routingNotice: String?
@@ -203,7 +205,8 @@ public struct RecordScreenState: Equatable, Sendable {
     public func copySummary(_ s: RecordScreenSnapshot) -> (text: String, isProblem: Bool)? {
         if s.takeBusy { return nil }
         if s.isRepairing { return ("Repairing Gaps from the other Copy…", false) }
-        guard let summary = CopySummary.ofLastTake(s.recorderCopies, dropoutCount: s.dropoutCount) else { return nil }
+        guard let summary = CopySummary.ofLastTake(
+            s.recorderCopies, dropoutCount: s.dropoutCount, deviceWord: s.deviceWord, driveCopyAllowed: s.driveCopyAllowed) else { return nil }
         return (summary.text, summary.isProblem)
     }
 
@@ -218,7 +221,7 @@ public struct RecordScreenState: Equatable, Sendable {
         if let error = s.recordError {
             list.append(ScreenAlert(id: "record", priority: .cannotRecord, tone: .critical, text: error))
         }
-        if let alert = DestinationAlert.make(copies: s.copies, checkedAndNotFound: driveCheckedAndNotFound,
+        if let alert = DestinationAlert.make(copies: s.copies, checkedAndNotFound: driveCheckedAndNotFound, deviceWord: s.deviceWord,
                                              driveNote: s.driveNotice, driveCopyAllowed: s.driveCopyAllowed) {
             list.append(alert)
         }
