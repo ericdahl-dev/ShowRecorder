@@ -2,7 +2,7 @@ import { AskUs, Breadcrumbs, GetTheApp, LastChecked } from "@/components/GuidePa
 import { MixerFaq } from "@/components/MixerFaq";
 import { PAGES, pageMetadata } from "@/lib/metadata";
 import { InlineMarkdown } from "@/components/InlineMarkdown";
-import { GLOSSARY, HUB_COPY, HUB_FAQS, MIXER_GUIDES, MIXER_ROWS } from "@/lib/mixerGuides";
+import { GLOSSARY, HUB_COPY, HUB_FAQS, MIXER_GUIDES, MIXER_ROWS, pickMixerLink } from "@/lib/mixerGuides";
 import { breadcrumbListJsonLd, faqPageJsonLd, jsonLdScript } from "@/lib/structuredData";
 
 export const metadata = pageMetadata(PAGES.guidesHub);
@@ -42,15 +42,25 @@ export default function GuidesHubPage() {
 
       {MIXER_GUIDES.length ? (
         <nav aria-labelledby="pick-title" className="guides-pick">
-          <h2 id="pick-title">Pick your mixer</h2>
+          <h2 id="pick-title">{HUB_COPY.pickTitle}</h2>
           <ul>
             {MIXER_GUIDES.map((g) => (
               <li key={g.slug}>
-                <a href={g.path}>{g.mixer}</a>
+                <a className="guides-pick-name" href={g.path}>
+                  {g.mixer}
+                </a>
+                <p>{g.pick}</p>
+                {g.productPage ? (
+                  <p>
+                    <InlineMarkdown text={pickMixerLink(g.productPage)} />
+                  </p>
+                ) : null}
               </li>
             ))}
             <li>
-              <a href="#mixers-title">Every other mixer, in the table</a>
+              <a className="guides-pick-name" href="#mixers-title">
+                {HUB_COPY.pickOthers}
+              </a>
             </li>
           </ul>
         </nav>

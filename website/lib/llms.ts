@@ -5,7 +5,7 @@ import { featureGroups, inBetaFeatures } from "@/lib/features";
 import { PAGES } from "@/lib/metadata";
 import { absoluteLinks, guideMarkdown, guideMdx } from "@/lib/guideMarkdown";
 import type { Faq } from "@/lib/mixerFaqs";
-import { GLOSSARY, HUB_COPY, HUB_FAQS, MIXER_GUIDES, MIXER_ROWS, TAP_POINT_FAQS, TAP_POINT_GUIDE, guideHeadline } from "@/lib/mixerGuides";
+import { GLOSSARY, HUB_COPY, HUB_FAQS, MIXER_GUIDES, MIXER_ROWS, TAP_POINT_FAQS, TAP_POINT_GUIDE, guideHeadline, pickMixerLink } from "@/lib/mixerGuides";
 import { PAGE_DATES } from "@/lib/pageDates";
 import { inBeta, planned, worksNow } from "@/lib/mixers";
 import { APP_STORE_URL, PRO_PRICE_TEXT, appStoreLink, REPO_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL, TESTFLIGHT_URL, TRADEMARK_LINE } from "@/lib/site";
@@ -85,6 +85,11 @@ function mixerGuidesFull(): string[] {
     md(HUB_COPY.lede),
     "",
     md(HUB_COPY.method),
+    "",
+    `#### ${HUB_COPY.pickTitle}`,
+    "",
+    ...MIXER_GUIDES.map((g) => `- [${g.mixer}](${abs(g.path)}): ${g.pick}${g.productPage ? ` ${md(pickMixerLink(g.productPage))}` : ""}`),
+    `- ${HUB_COPY.pickOthers}: see the table below.`,
     "",
     `#### ${HUB_COPY.tableTitle}`,
     "",
