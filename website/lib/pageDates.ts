@@ -37,6 +37,8 @@ export const PAGE_DATES: Record<string, string> = {
   "/guides/record/xr18": "2026-11-07",
   "/guides/record/yamaha-dm3": "2026-11-07",
   "/guides/record/yamaha-tf": "2026-11-07",
+  "/guides/record/yamaha-mg-xu": "2026-11-07",
+  "/guides/record/yamaha-mgx": "2026-11-07",
   "/guides/record/zoom-l12": "2026-11-07",
   "/mixers/x32": "2026-11-07",
   "/mixers/xr18": "2026-11-07",

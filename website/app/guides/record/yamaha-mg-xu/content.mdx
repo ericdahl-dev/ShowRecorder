@@ -1,0 +1,109 @@
+import { AskUs, Breadcrumbs, GetTheApp, LastChecked } from "@/components/GuideParts";
+import { guideTrail } from "@/lib/mixerGuides";
+
+<Breadcrumbs trail={guideTrail("MG XU", "/guides/record/yamaha-mg-xu")} />
+
+# How to record a Yamaha MG XU
+
+<LastChecked path="/guides/record/yamaha-mg-xu" />
+
+**Short answer.** You can't multitrack an MG XU. Multitrack means every channel on its own track, so you can mix the show again later.
+
+The MG10XU, MG12XU, MG16XU and MG20XU send only their stereo mix over USB: 2 channels, left and right. That gives you one finished recording of what the room heard. You can't remix it later: a vocal that was too quiet stays too quiet. To record every channel, you need a mixer that sends each one, such as Yamaha's newer MGX: see the [MGX guide](/guides/record/yamaha-mgx).
+
+**Quick start**
+
+1. **Plug the MG XU's USB port** into a computer, or an iPad with Apple's camera adapter. ([Ways to record](#ways-to-record-an-mg-xu))
+2. **Set the sample rate in your recording app** and record 2 channels. ([Recording settings](#mg-xu-recording-settings))
+3. **Listening to the computer while you record?** On the MG10XU, set the channel 9/10 switch to **TO MON**. ([Recording settings](#mg-xu-recording-settings))
+4. **Set your mix before the show.** You record the mix you hear. ([USB routing](#mg-xu-usb-routing))
+5. **Record a 30-second test and play it back** before the show (our advice).
+
+Every other mixer is in the [mixer recording guides](/guides/record). Words you may not know are in the [glossary](/guides/record#glossary). Facts come from Yamaha's MG10XU manual and spec sheets unless a line says otherwise. The [sources](#sources) are at the end.
+
+## Ways to record an MG XU
+
+### To a computer over USB: the stereo mix only
+
+Plug a USB cable from the mixer's **USB 2.0** port into the computer. The port is USB type B, the square-ish kind.
+
+- **Channels:** 2 channels to the computer and 2 back, on all four models.
+- **What you get:** the stereo mix, never the separate channels.
+- **Driver:** Yamaha says it is a standard USB audio device, so a Mac should need no extra software, called a driver (our reading).
+- **Quality:** up to 192 kHz and 24-bit on all four models. It is 16 or 24-bit with no driver on the MG10XU (Yamaha's MG10XU spec).
+
+### With no computer
+
+The MG XU records nothing by itself. Yamaha lists no recorder or card slot.
+
+### To an iPhone, iPad or Mac with an app
+
+- **iPad:** Yamaha names the iPad 2 or later, with Apple's camera adapter. It records the stereo mix only.
+- **iPhone:** Yamaha doesn't name any iPhone, and no USB-C iPad: not tested yet.
+- **Mac:** works like any computer above.
+
+The details are in [Mac, iPad and iPhone](#mg-xu-on-mac-ipad-and-iphone) below.
+
+## MG XU recording settings
+
+**Set the sample rate in your recording app.** The mixer has no sample rate setting of its own (our reading). The manual describes none.
+
+- **Listening to the computer while you record (MG10XU):** set the channel 9/10 **LINE / USB** switch to USB. Then set its **TO MON / TO STO** switch to **TO MON**.
+- **Why TO MON:** Yamaha warns that **TO STO** can make a loop, with feedback (a loud howl). With **TO MON**, you hear the computer only in the headphones and MONITOR OUT, not the main speakers, and it isn't recorded.
+- **TO STO** is for playing music from a computer into the mix, for example background music or a stream.
+- **Computer too loud in the mixer (MG10XU):** press the **PROGRAM** knob five times. Turn it to set -24 dB to 0 dB, then press it again.
+- **MG12XU, MG16XU and MG20XU:** we have only read the MG10XU's manual. Check your model's owner's manual for where the computer's sound comes back into the mixer and how to listen to it.
+
+{/* Screenshot: the MG10XU rear panel USB section with the LINE/USB and TO MON/TO STO switches. <Screenshot src="/images/guides/mg10xu-usb-switches.png" alt="Yamaha MG10XU rear panel USB section with the LINE/USB switch and the TO MON/TO STO switch" /> */}
+
+### Only 2 channels? That is all an MG XU sends
+
+- **The MG XU sends one stereo mix,** never separate channels.
+- **To mix the show later,** with each instrument on its own track, you need a mixer that sends each channel, such as the [Yamaha MGX](/guides/record/yamaha-mgx).
+
+## MG XU USB routing
+
+There is nothing to route. USB carries the stereo mix, and the STEREO LEVEL knob doesn't change it.
+
+- **The stereo mix** is the main left and right mix you hear.
+- **No channel can go to USB on its own.**
+
+{/* Screenshot: the MG10XU top panel with the STEREO LEVEL knob. <Screenshot src="/images/guides/mg10xu-stereo-level.png" alt="Yamaha MG10XU top panel with the red STEREO LEVEL knob" /> */}
+
+## MG XU playback for virtual soundcheck
+
+A [virtual soundcheck](/guides/record#glossary) plays each recorded channel back through its own fader. The MG XU can't, because it never records separate channels.
+
+- **What it can do:** play stereo from the computer back into the mixer (channels 9/10 on the MG10XU). You hear the whole mix at once.
+
+## MG XU tap points
+
+A tap point is where in the channel the recording is taken: before or after the EQ or the fader. The full story is in [Pre or post fader](/guides/record/pre-or-post-fader).
+
+- **On the MG XU there is nothing to pick:** there are no channel recordings to tap.
+- **The stereo mix:** USB carries it, and the STEREO LEVEL knob doesn't change it.
+
+## MG XU on Mac, iPad and iPhone
+
+- **iPad:** Yamaha's brochure names the iPad 2 or later, with Apple's iPad Camera Connection Kit or Lightning to USB Camera Adapter. Stereo only.
+- **iPhone, or a USB-C iPad:** Yamaha doesn't name them: not tested yet.
+- **Mac:** no driver should be needed (our reading). The manual says you may need Yamaha's driver, without naming a system.
+
+ShowRecorder (our app) records every USB Channel from a mixer that needs no extra driver. On an MG XU, that is the 2-channel stereo mix. We haven't tested it with an MG XU yet. For each channel on its own track, see the [MGX guide](/guides/record/yamaha-mgx).
+
+<GetTheApp campaign="site-guide-yamaha-mg-xu" />
+
+<AskUs />
+
+## Sources
+
+Yamaha:
+
+- [MG XU series specs page](https://usa.yamaha.com/products/proaudio/mixers/mg_series_xu_model/specs.html) (checked 2026-11-06): "2 IN / 2 OUT", "USB Audio Class 2.0 compliant", "Max 192 kHz, Bit Depth: 24-bit" for all four models.
+- [MG10XU Owner's Manual](https://usa.yamaha.com/files/download/other_assets/8/1506958/MG10XU_owners_manual_En_B0.pdf) (edition B0, published 03/2024), p. 2:
+  - "The sound of the stereo bus is output to the computer. (The [STEREO LEVEL] knob does not affect the sound.)"
+  - "you may need a dedicated USB driver";
+  - the TO MON/TO STO chart and note 2: "a loop may be produced, possibly resulting in feedback";
+  - the attenuator.
+- [MG10XU Technical Specifications](https://usa.yamaha.com/files/download/other_assets/2/1507032/MG10XU_technical_specifications_En_B0.pdf) (edition B0, published 03/2024), p. 1: 44.1 to 192 kHz; footnote 1, "USB Audio Class2.0: 16 / 24-bit, Yamaha Steinberg USB Driver: 24-bit".
+- [MG series brochure](https://usa.yamaha.com/files/download/brochure/1/330961/mg_brochure_en_webcatalogue.pdf): "Works with the iPad (2 or later) through the Apple iPad Camera Connection Kit / Lightning to USB Camera Adapter".
