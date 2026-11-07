@@ -1678,13 +1678,18 @@ describe("the Yamaha DM3 guide's facts", () => {
     expect(settings).toMatch(/\*\*SETUP\*\*[^\n]*\*\*Word Clock\*\*/);
     expect(settings).toMatch(/\*\*Mode1\*\*/);
     expect(settings).toMatch(/Mode2[^\n]*12/);
+    expect(settings).toMatch(/\(the console's sample rate setting\)/);
+    expect(all()).not.toMatch(/four apps/);
     expect(settings).toMatch(/restart/);
     expect(settings).toMatch(/Yamaha doesn't say which mode a new DM3 starts in/);
   });
 
   it("gives the default USB patch and how to change it in SETUP > Patch > OUTPUT", () => {
     const routing = section(mdx, "DM3 USB routing", "DM3 playback for virtual soundcheck");
-    expect(routing).toMatch(/USB 1-16:\*\*[^\n]*INPUT 1-16/);
+    expect(routing).toMatch(/USB 1-16:\*\*[^\n]*INPUT 1-16, the 16 input jacks in order/);
+    expect(routing).toMatch(/A \*patch\* is/);
+    expect(routing).toMatch(/\*\*INPUT 1-16:\*\* each input jack's own sound/);
+    expect(routing).not.toMatch(/\*\*Channels 1-16:\*\*/);
     expect(routing).toMatch(/USB 17-18:\*\*[^\n]*STEREO/);
     expect(routing).toMatch(/\*\*OUTPUT\*\*/);
     expect(routing).toMatch(/OUTPUT CH PATCH/);
@@ -1700,12 +1705,18 @@ describe("the Yamaha DM3 guide's facts", () => {
     expect(play).toMatch(/\+48V/);
   });
 
-  // No direct-out point in the C0 manual or block diagram (research gap): never name one as the USB tap.
-  it("says Yamaha doesn't document where the USB feed is taken, and lists the points that do exist", () => {
+  // Fact check on #1129: the block diagram (C0, p.2) takes INPUT 1-16 from the input jacks' path, before the channel's
+  // digital gain, EQ and fader. Yamaha's text never says so, so it's our reading of the diagram, and there's no setting.
+  it("takes USB 1-16 from the input jacks before the channel's EQ and fader, as our reading of the diagram, with no setting", () => {
     const taps = section(mdx, "DM3 tap points", "DM3 on Mac, iPad and iPhone");
     expect(taps.indexOf("**What to pick:**")).toBeGreaterThan(-1);
     expect(taps.indexOf("**What to pick:**")).toBeLessThan(taps.indexOf("A *tap point*"));
-    expect(taps).toMatch(/Yamaha doesn't say/);
+    expect(taps).toMatch(/before the channel's digital gain, low-cut, EQ, compressor and fader \(our reading of the diagram, page 2\)/);
+    expect(taps).toMatch(/no setting to move this point/);
+    expect(taps).toMatch(/"direct output"/);
+    expect(taps).not.toMatch(/Yamaha doesn't say where in the channel/);
+    expect(guide.faqs.find((f) => /pre or post fader/.test(f.q))!.a).toMatch(/^Pre fader, by our reading of Yamaha's block diagram/);
+    expect(guide.tapPick).toMatch(/our reading of the block diagram/);
     for (const p of ["Pre EQ", "Pre Fader", "Post ON"]) expect(taps).toContain(p);
     expect(all()).not.toMatch(/Pre DG[^.]*(by default|the default)/i);
   });
