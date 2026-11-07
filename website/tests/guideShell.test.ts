@@ -91,9 +91,9 @@ describe("last checked", () => {
 });
 
 describe("getting the app from a guide", () => {
-  it("has the four guide campaigns, each listed in the App Store Connect doc", () => {
+  it("has the guide campaigns, each listed in the App Store Connect doc", () => {
     const doc = readFileSync(path.join(ROOT, "..", "docs", "app-store", "app-store-connect-steps.md"), "utf8");
-    for (const ct of ["site-guides", "site-guide-x32", "site-guide-xr18", "site-guide-taps"] as const) {
+    for (const ct of ["site-guides", "site-guide-x32", "site-guide-xr18", "site-guide-zoom-l12", "site-guide-taps"] as const) {
       expect(APP_STORE_CAMPAIGNS).toContain(ct);
       expect(doc).toContain(`\`${ct}\``);
     }

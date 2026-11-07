@@ -122,8 +122,8 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    // Only the Qu has none; a Mixer Link guide that lost its product page must fail here, not skip.
-    expect(guide.productPage === undefined).toBe(guide.slug === "qu");
+    // Only the Qu and the Zoom have none; a Mixer Link guide that lost its product page must fail here, not skip.
+    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12"].includes(guide.slug));
     if (guide.productPage === undefined) return;
     expect(mdx).toContain(`](${guide.productPage})`);
     expect(read("app", "mixers", guide.productPage.split("/").pop()!, "content.mdx")).toContain(`](${guide.path})`);
@@ -137,7 +137,7 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("cites its sources: the maker's documents, with forum posts marked as such", () => {
     const sources = mdx.slice(mdx.indexOf("## Sources"));
     expect(sources).toMatch(
-      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com)\//,
+      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com|zoomcorp\.com)\//,
     );
   });
 
@@ -368,5 +368,80 @@ describe("guide headlines", () => {
   it("say 'an' before a vowel", () => {
     expect(guideHeadline("Allen & Heath Qu")).toBe("How to multitrack record an Allen & Heath Qu");
     expect(guideHeadline("Behringer X32")).toBe("How to multitrack record a Behringer X32");
+  });
+});
+
+// Facts: docs/research/mixer-recording/zoom-livetrak-l12-l20.md (#1080). Zoom is the one maker that names the iPhone.
+describe("the Zoom LiveTrak L-12 and L-20 guide's facts", () => {
+  const mdx = body("zoom-l12");
+  const guide = MIXER_GUIDES.find((g) => g.slug === "zoom-l12")!;
+
+  it("is in MIXER_GUIDES with its own campaign, and the hub's Zoom row links it", () => {
+    expect(guide.campaign).toBe("site-guide-zoom-l12");
+    expect(MIXER_ROWS.find((r) => /Zoom/.test(r.name))!.guide).toBe(guide.path);
+  });
+
+  it("gives the USB channel counts, the 44.1/48 kHz limit, and that USB stops at 96 kHz", () => {
+    expect(mdx).toMatch(/14 channels/);
+    expect(mdx).toMatch(/22 channels/);
+    expect(mdx).toMatch(/44\.1 or 48 kHz/);
+    expect(mdx).toMatch(/audio interface is off/);
+  });
+
+  it("names the rear switches, read at power-on, and the Class Compliant Mode switch for iPhone and iPad", () => {
+    expect(mdx).toMatch(/\*\*CLASS COMPLIANT MODE\*\*/);
+    expect(mdx).toMatch(/\*\*MODE\*\*/);
+    expect(mdx).toMatch(/\*\*SAMPLE RATE\*\*/);
+    expect(mdx).toMatch(/cannot be changed after starting up/);
+    expect(mdx).toMatch(/before you turn it on/);
+  });
+
+  it("says the USB order is fixed, with no per-slot routing, and the driver can move the master to 1/2", () => {
+    const routing = section(mdx, "L-12 and L-20 USB routing", "L-12 and L-20 playback for virtual soundcheck");
+    expect(routing).toMatch(/fixed/i);
+    expect(routing).toMatch(/master/i);
+    expect(routing).toMatch(/Mac and Windows driver only/);
+  });
+
+  it("gives the tap points: post-compressor, pre-EQ, the L-20 REC SOURCE for SD only, from the block diagram", () => {
+    const taps = section(mdx, "L-12 and L-20 tap points", "L-12 and L-20 on Mac, iPad and iPhone");
+    expect(taps).toMatch(/after the compressor/i);
+    expect(taps).toMatch(/before the EQ/i);
+    expect(taps).toMatch(/\*\*REC SOURCE\*\*/);
+    expect(taps).toMatch(/PRE COMP/);
+    expect(taps).toMatch(/per Zoom's block diagram/);
+  });
+
+  it("says Zoom names the iPhone and iPad, with a Lightning camera adapter, USB-C not tested, and no Mixer Link", () => {
+    const apple = section(mdx, "L-12 and L-20 on Mac, iPad and iPhone", "Sources");
+    expect(apple).toMatch(/Zoom names the iPhone/);
+    expect(apple).toMatch(/Lightning-to-USB Camera Adapter required/);
+    expect(apple).toMatch(/USB-C[^.]*not tested yet/);
+    expect(apple).toMatch(/install Zoom's driver/i);
+    expect(mdx).toMatch(/no Mixer Link/);
+    expect(mdx).not.toMatch(/ShowRecorder has recorded[^.]*(L-12|L-20|Zoom)/);
+  });
+
+  // Fact check, loop 1 on #1101: only what Zoom states is stated; our readings and advice say so.
+  it("labels our readings and advice, and states only what Zoom's text says", () => {
+    const faq = guide.faqs.find((f) => /see no audio/.test(f.q))!;
+    expect(faq.a).toMatch(/MODE and SAMPLE RATE are read at power-on \(Zoom\); set CLASS COMPLIANT MODE before power-on too \(our advice\)/);
+    expect(mdx).not.toMatch(/records silence there/);
+    expect(mdx).not.toMatch(/before the EQ, LOW CUT, fader and pan/);
+    expect(mdx).toMatch(/the same channels to their own SD card/);
+    expect(mdx).not.toMatch(/same tracks to their own SD card/);
+    expect(mdx).toMatch(/then press \*\*REC\*\* \(L-12 manual\)/);
+    expect(mdx).toMatch(/REC FORMAT\*\* \(L-12 manual\)/);
+    expect(mdx).not.toMatch(/the app that records sets it\./);
+    expect(mdx).not.toMatch(/Turning it during the show changes the recorded level\./);
+    const l20usb = mdx.split("\n").find((l) => l.startsWith("- **L-20, USB:**"))!;
+    expect(l20usb).toMatch(/^- \*\*L-20, USB:\*\* after the compressor, whatever/);
+    expect(l20usb).toMatch(/before the EQ[^.]*per Zoom's block diagram \(our reading\)/);
+  });
+
+  it("records to an SD card with no computer: 14 or 22 tracks, WAV, a new file every 2 GB", () => {
+    expect(mdx).toMatch(/SD card/);
+    expect(mdx).toMatch(/2 GB/);
+    expect(mdx).toMatch(/TRACK01/);
   });
 });

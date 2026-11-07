@@ -200,6 +200,8 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     mac: "Install Zoom's driver.",
     ipad: "Yes, named by Zoom, with the rear Class Compliant Mode switch on (we suggest setting it before power-on) and a Lightning camera adapter. USB-C: not tested yet.",
     iphone: "Yes, named by Zoom, with the rear Class Compliant Mode switch on (we suggest setting it before power-on) and a Lightning camera adapter. USB-C: not tested yet.",
+
+    guide: "/guides/record/zoom-l12",
   },
   {
     name: "Pioneer DJ DJM-A9, V10, 900NXS2, 750MK2, 450 and 250MK2",
@@ -389,6 +391,38 @@ export const QU_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the Zoom LiveTrak L-12 and L-20 guide (#1080). Facts: docs/research/mixer-recording/zoom-livetrak-l12-l20.md.
+export const ZOOM_L12_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I record a Zoom L-12 or L-20 to an iPhone or iPad?",
+    a: "Yes, Zoom names both. Set the rear CLASS COMPLIANT MODE switch to ON and the MODE switch to AUDIO INTERFACE, at 44.1 or 48 kHz, before you turn the mixer on, and connect with Apple's Lightning to USB Camera Adapter. A USB-C iPhone or iPad is not named by Zoom and not tested yet.",
+  },
+  {
+    q: "Can the L-12 or L-20 multitrack record without a computer?",
+    a: "Yes, to an SD card: 14 tracks on the L-12 (12 at 96 kHz) and 22 on the L-20, as WAV files at 16 or 24-bit, up to 96 kHz. Each file starts a new one when it passes 2 GB, with no gap.",
+  },
+  {
+    q: "Does the L-12 or L-20 need a driver on a Mac?",
+    a: "Install Zoom's driver. Zoom's manual has you install it on a Mac and on Windows, and ties the driver-free Class Compliant Mode only to iOS. Whether a Mac works with no driver is not stated by Zoom.",
+  },
+  {
+    q: "Can I record the L-12 or L-20 at 96 kHz over USB?",
+    a: "No. At 96 kHz the audio interface is off; only the SD card records. Over USB the L-12 and L-20 run at 44.1 or 48 kHz, 24-bit.",
+  },
+  {
+    q: "Can I choose which channels go to each USB channel on the L-12 or L-20?",
+    a: "No. The order is fixed: each input channel goes to the USB channel with the same number, and the master L/R comes last. No monitor mix can go to USB or the SD card. Zoom's driver version 2 can move the master to computer channels 1 and 2, on a Mac or Windows only.",
+  },
+  {
+    q: "Are L-12 and L-20 recordings pre or post fader?",
+    a: "Pre-fader, and before the EQ, but after each channel's compressor. Leave the COMP knob at zero for clean tracks. On the L-20, MENU > REC/PLAY > REC SOURCE = PRE COMP gives uncompressed SD tracks; USB tracks still follow the compressor (per Zoom's block diagram).",
+  },
+  {
+    q: "Why does my iPhone or computer see no audio from the L-12 or L-20?",
+    a: "Check the rear switches: MODE must be AUDIO INTERFACE, SAMPLE RATE 44.1 or 48 kHz (at 96 kHz the audio interface is off), and for an iPhone or iPad CLASS COMPLIANT MODE must be ON. MODE and SAMPLE RATE are read at power-on (Zoom); set CLASS COMPLIANT MODE before power-on too (our advice). Change them with the mixer off, then turn it on again.",
+  },
+];
+
 // The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
 export const X32_METHOD_A: readonly { name: string; text: string }[] = [
   { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
@@ -483,5 +517,28 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     ],
     campaign: "site-guide-qu",
     tapPick: "Qu Classic: the channel Insert Send (the factory default, straight after the preamp). New Qu: the input direct outs, with the Direct Out Source set to the point you want",
+  },
+  {
+    slug: "zoom-l12",
+    path: "/guides/record/zoom-l12",
+    pageKey: "guideZoomL12",
+    short: "L-12 and L-20",
+    mixer: "Zoom LiveTrak L-12 or L-20",
+    description:
+      "Multitrack record a Zoom LiveTrak L-12 or L-20 to a computer, an iPhone or iPad (named by Zoom) or its SD card: rear switches, USB order and tap points.",
+    published: "2026-11-07",
+    faqs: ZOOM_L12_GUIDE_FAQS,
+    faqsName: "ZOOM_L12_GUIDE_FAQS",
+    sources: [
+      "https://zoomcorp.com/media/documents/E_L-12_4.pdf",
+      "https://zoomcorp.com/media/documents/E_L-20_OperationManual.pdf",
+      "https://zoomcorp.com/media/documents/E_L-20R.pdf",
+      "https://zoomcorp.com/media/documents/L-12_L-20_L-20R_Driver_V2manual_en.pdf",
+      "https://zoomcorp.com/en/us/digital-mixer-multi-track-recorders/digital-mixer-recorder/livetrak-l-12/",
+      "https://zoomcorp.com/en/us/digital-mixer-multi-track-recorders/digital-mixer-recorder/livetrak-l-20/",
+      "https://zoomcorp.com/en/us/digital-mixer-multi-track-recorders/digital-mixer-recorder/livetrak-l-12/l-12-support/",
+    ],
+    campaign: "site-guide-zoom-l12",
+    tapPick: "the fixed tap (after the compressor, before the EQ), with the COMP knob at zero",
   },
 ];
