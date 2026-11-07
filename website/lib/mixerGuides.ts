@@ -821,7 +821,7 @@ export const YAMAHA_DM3_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "How many tracks can a Yamaha DM3 record?",
-    a: "18 over USB to a computer: channels 1-16 plus the main stereo mix, out of the box. Each USB port can be repatched, for example to a MIX bus (one of the monitor mixes). On its own, with no computer, the DM3 records only 2 tracks to a USB drive.",
+    a: "18 over USB to a computer: inputs 1-16 plus the main stereo mix, out of the box. Each USB port can be repatched, for example to a MIX bus (one of the monitor mixes). On its own, with no computer, the DM3 records only 2 tracks to a USB drive.",
   },
   {
     q: "Does the Yamaha DM3 need a driver on a Mac?",
@@ -829,7 +829,7 @@ export const YAMAHA_DM3_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Why does my DM3 show only 12 tracks?",
-    a: "The USB Driver Mode is set to Mode2, which splits USB into four smaller devices, the biggest with 12 channels. On the SETUP screen, set Driver Mode in the USB section to Mode1 for 18 in and 18 out. The console asks to restart.",
+    a: "The USB Driver Mode is set to Mode2, which splits USB into four smaller devices instead of one, the biggest with 12 channels. On the SETUP screen, set Driver Mode in the USB section to Mode1 for 18 in and 18 out. The console asks to restart.",
   },
   {
     q: "What sample rate does the Yamaha DM3 record at?",
@@ -837,7 +837,7 @@ export const YAMAHA_DM3_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Are Yamaha DM3 recordings pre or post fader?",
-    a: "Yamaha doesn't say. The reference manual (C0) and block diagram show no tap point setting for the input channels on USB. Record a 30 s test with some EQ on a channel and listen back. The main mix on USB 17-18 is after the faders.",
+    a: "Pre fader, by our reading of Yamaha's block diagram: USB 1-16 carry the input jacks' sound before the channel's EQ and fader. There is no setting for it, and Yamaha's text doesn't say, so record a 30 s test with some EQ on a channel and listen back. The main mix on USB 17-18 is after the faders.",
   },
   {
     q: "How do I play a DM3 recording back for a virtual soundcheck?",
@@ -1273,6 +1273,6 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     campaign: "site-guide-yamaha-dm3",
     pick: "Up to 18 channels over USB to a computer, at 48 or 96 kHz, with the Yamaha driver. Records only stereo by itself, to USB storage. iPhone and iPad: not tested yet.",
     tapPick:
-      "INPUT 1-16 on USB 1-16 (the default patch); Yamaha documents no tap point for them, so record a short test and listen for EQ and fader moves",
+      "INPUT 1-16 on USB 1-16 (the default patch): the input jacks before the channel's EQ and fader, by our reading of the block diagram; no setting, so record a short test",
   },
 ];
