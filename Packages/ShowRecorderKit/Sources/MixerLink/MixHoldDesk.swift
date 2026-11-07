@@ -139,7 +139,8 @@ extension MixHoldDesk {
         guard let headamp = try await headamp(ofChannel: channel) else { throw .noPreamp(channel: channel) }
         let gainScale = Self.gainScale(headamp)
         let from = try await deskGainDb(ofHeadamp: headamp)
-        let reachable = gainScale.snap(from + gainChangeDb) - from
+        // On the preamp's own steps, rounded down: the level never ends louder than asked (#1153).
+        let reachable = gainScale.snap(from + gainChangeDb, rounding: .down) - from
         // Every channel on this preamp moves with it, so Mix Hold compensates each of them (#473).
         let movedChannels = try await channels(onHeadamp: headamp, movedWith: channel)
         // A channel fed from USB doesn't hear this preamp: moving it changes nothing recorded there, while Mix Hold
@@ -155,7 +156,9 @@ extension MixHoldDesk {
         }
         let ranges = Self.mixHoldRanges
         let plan = MixHold.plan(headamp: headamp, gainChangeDb: reachable, channels: states, ranges: ranges, scopes: scopes, keyed: Array(keyed),
-                                live: live)
+                                live: live, gainStepDb: gainScale.stepDb)
+        // A whole number of the preamp's steps, also when Mix Hold limited it: what the preamp stores is what the plan
+        // compensates, so the mix doesn't move by the difference (#1153).
         let to = gainScale.snap(from + plan.gainChangeDb)
 
         // The raw value of every address about to change, so undo restores it exactly.

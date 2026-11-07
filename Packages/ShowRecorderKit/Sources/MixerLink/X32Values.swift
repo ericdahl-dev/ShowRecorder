@@ -29,9 +29,17 @@ struct X32Values: Sendable {
     /// The lowest and highest dB the scale reaches.
     var dbRange: ClosedRange<Double> { toDb(0)...toDb(1) }
 
-    /// The nearest step to `db`, in dB.
-    func snap(_ db: Double) -> Double {
-        toDb(Double(step(db)) / Double(steps))
+    /// The nearest step to `db` (or the one below, with `.down`), in dB.
+    func snap(_ db: Double, rounding: FloatingPointRoundingRule = .toNearestOrAwayFromZero) -> Double {
+        toDb(Double(step(db, rounding: rounding)) / Double(steps))
+    }
+
+    /// One step, in dB, on a linear scale (0.5 on the preamp gain and the thresholds); nil on the pseudo-log level
+    /// scales, whose steps vary.
+    var stepDb: Double? {
+        let first = toDb(1 / Double(steps)) - toDb(0)
+        let last = toDb(1) - toDb(Double(steps - 1) / Double(steps))
+        return abs(first - last) < 1e-9 ? (first * 1e6).rounded() / 1e6 : nil
     }
 
     /// The OSC float to write for `db`: its nearest step, nudged up a hair so float error can't floor it to the step

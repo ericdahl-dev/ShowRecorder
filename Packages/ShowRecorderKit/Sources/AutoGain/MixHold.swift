@@ -161,6 +161,9 @@ public enum MixHold {
     ///   - channels: every channel the headamp moves, read fresh.
     ///   - keyed: gates and compressors whose sidechain key is another channel, read fresh. Those keyed from a moved
     ///     channel, on a channel that isn't moved, have their threshold moved +g like the moved channels' own.
+    ///   - gainStepDb: the preamp's step, when it has one (0.5 dB on the X-Air and the X32, #1153). The change is then
+    ///     a whole number of steps, so the preamp stores exactly what is compensated: the request rounds down (the level
+    ///     never ends louder than asked), and a limit rounds toward zero (never past what the settings can make up).
     public static func plan(
         headamp: Int,
         gainChangeDb: Double,
@@ -168,17 +171,24 @@ public enum MixHold {
         ranges: Ranges,
         scopes: Scopes = .all,
         keyed: [KeyedDynamics] = [],
-        live: Set<Setting> = []
+        live: Set<Setting> = [],
+        gainStepDb: Double? = nil
     ) -> Plan {
         let items = compensated(channels, keyed: keyed, ranges: ranges, scopes: scopes, live: live)
         let range = compensableRange(items)
-        var g = gainChangeDb
+        // A hair of slack, so a value a float error puts just off a step counts as on it.
+        func steps(_ db: Double, _ rule: FloatingPointRoundingRule) -> Double {
+            guard let step = gainStepDb, step > 0 else { return db }
+            let slack = rule == .down ? 1e-9 : -1e-9
+            return (db / step + slack).rounded(rule) * step
+        }
+        var g = steps(gainChangeDb, .down)
         var limit: Limit?
         if g > range.highestDb {
-            g = range.highestDb
+            g = steps(range.highestDb, .down)
             limit = range.upperLimit
         } else if g < range.lowestDb {
-            g = range.lowestDb
+            g = steps(range.lowestDb, .up)
             limit = range.lowerLimit
         }
         let changes = items.map { Change(setting: $0.setting, fromDb: $0.valueDb, toDb: $0.valueDb + $0.direction * g) }
