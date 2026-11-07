@@ -129,8 +129,8 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ and the StudioLive have none; a Mixer Link guide that lost its product page must fail here, not skip.
-    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii"].includes(guide.slug));
+    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive and the SQ have none; a Mixer Link guide that lost its product page must fail here, not skip.
+    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii", "ah-sq"].includes(guide.slug));
     if (guide.productPage === undefined) return;
     expect(mdx).toContain(`](${guide.productPage})`);
     expect(read("app", "mixers", guide.productPage.split("/").pop()!, "content.mdx")).toContain(`](${guide.path})`);
@@ -1217,5 +1217,100 @@ describe("the PreSonus StudioLive Series III guide's facts", () => {
     const research = readFileSync(path.join(ROOT, "..", "docs", "research", "mixer-recording", "presonus-studiolive-iii.md"), "utf8");
     expect(research).toContain("fmicassets.com/Damroot/Original/10153/OM_StudioLive-Series-III-Console-Mixers_EN.pdf");
     expect(research).toMatch(/Differences from the old manual/);
+  });
+});
+
+// Facts: docs/research/mixer-recording/ah-sq.md (#1068), checked again against Allen & Heath's help center (the SQ
+// Firmware Reference Guide). Allen & Heath doesn't name the iPhone or iPad, and doesn't say where "1-to-1" starts.
+describe("the Allen & Heath SQ guide's facts", () => {
+  const mdx = body("ah-sq");
+  const guide = MIXER_GUIDES.find((g) => g.slug === "ah-sq")!;
+
+  it("is in MIXER_GUIDES with its own campaign, and the hub's SQ row links it", () => {
+    expect(guide.campaign).toBe("site-guide-ah-sq");
+    expect(guide.mixer).toBe("Allen & Heath SQ");
+    expect(MIXER_ROWS.find((r) => /SQ-5/.test(r.name))!.guide).toBe(guide.path);
+  });
+
+  it("gives 32 x 32 over USB-B at 48 or 96 kHz, set in Setup > Audio > Digital I/O, with no Mac driver", () => {
+    expect(mdx).toMatch(/32 inputs and 32 outputs/);
+    expect(mdx).toMatch(/\*\*Setup\*\* > \*\*Audio\*\* > \*\*Digital I\/O\*\*/);
+    expect(mdx).toMatch(/USB Sample Rate/);
+    expect(mdx).toMatch(/Core Audio compliant so drivers are not required/);
+    expect(mdx).toMatch(/ASIO/);
+    expect(mdx).toMatch(/bit depth[^.]*doesn't say/i);
+  });
+
+  it("records SQ-Drive: 16 tracks at 96 kHz or 32 at 48 kHz, 24-bit WAV, only patched channels, to a fast drive", () => {
+    const ways = section(mdx, "Ways to record an SQ", "SQ recording settings");
+    expect(ways).toMatch(/16 tracks at 96 kHz/);
+    expect(ways).toMatch(/32 at 48 kHz/);
+    expect(ways).toMatch(/24-bit/);
+    expect(ways).toMatch(/Only USB channels that have been patched to will be recorded/);
+    expect(ways).toMatch(/USB stick/);
+    expect(ways).toMatch(/FAT32/);
+    expect(ways).toMatch(/\*\*Utility\*\* > \*\*SQ-Drive\*\* > \*\*Multitrack\*\*/);
+  });
+
+  it("routes USB in the I/O screen: Main LR on 1-2 by default, then direct outs, and Tie Lines for raw inputs", () => {
+    const routing = section(mdx, "SQ USB routing", "SQ playback for virtual soundcheck");
+    expect(routing).toMatch(/\*\*I\/O\*\*/);
+    expect(routing).toMatch(/Direct Outs/);
+    expect(routing).toMatch(/Main LR to 1-2, then 1-to-1 direct outs/);
+    expect(routing).toMatch(/Tie Lines/);
+    expect(routing).toMatch(/\*\*Patch\*\*/);
+    expect(routing).toMatch(/doesn't say which channel/);
+  });
+
+  it("plays back from USB returns patched in Inputs > Input Channel, with a patch library, and from SQ-Drive", () => {
+    const play = section(mdx, "SQ playback for virtual soundcheck", "SQ tap points");
+    expect(play).toMatch(/\*\*Input Channel\*\*/);
+    expect(play).toMatch(/Library/);
+    expect(play).toMatch(/same USB socket numbers/);
+    expect(play).toMatch(/USB return/);
+  });
+
+  it("lists every Direct Out Source with what each adds, and Tie Lines as unprocessed, with Trim kept apart", () => {
+    const taps = section(mdx, "SQ tap points", "SQ on Mac, iPad and iPhone");
+    for (const t of ["Post Preamp", "Post HPF", "Post Gate", "Post Insert Return", "Post PEQ", "Post Comp", "Post Delay"]) {
+      expect(taps).toContain(t);
+    }
+    expect(taps).toMatch(/affected only by the preamp gain/);
+    expect(taps).toMatch(/Tie Line/);
+  });
+
+  // Fact check on #1117: A&H's signal path diagram puts Trim in the "Preamp/Trim/Width" block, before the first tap.
+  it("says Gain and Trim are both in the recording, Trim at Post Preamp as our reading of A&H's diagram", () => {
+    const taps = section(mdx, "SQ tap points", "SQ on Mac, iPad and iPhone");
+    expect(taps).toMatch(/Gain and Trim are in the recording/);
+    expect(taps).toMatch(/signal diagram puts it in the same block as the preamp, so Post Preamp probably includes it \(our reading\)/);
+    expect(taps).not.toMatch(/neither has Trim|Trim is not at Post Preamp/);
+    expect(guide.sources).toContain(
+      "https://support.allen-heath.com/hc/en-gb/articles/4402940459537-SQ-Basic-Signal-Path-Diagrams-Input-Group-LR-Aux-Matrix",
+    );
+  });
+
+  // Fact check on #1117: Main LR to 1-2 then direct outs is the Standard reset only; the Monitor reset leaves USB unassigned.
+  it("ties the default USB map to a Standard reset, in the quick start, the routing section and the FAQ", () => {
+    const standard = /After a \*\*Standard\*\* reset \(\*\*Setup\*\* > \*\*Mixer Config\*\* > \*\*Role\*\*\)/;
+    const quick = mdx.slice(mdx.indexOf("**Quick start**"), mdx.indexOf("\n## "));
+    expect(quick).toMatch(standard);
+    expect(section(mdx, "SQ USB routing", "SQ playback for virtual soundcheck")).toMatch(standard);
+    expect(mdx).not.toMatch(/A reset SQ/);
+    expect(guide.faqs.find((f) => /Which USB channel/.test(f.q))!.a).toMatch(/After a Standard reset \(in Setup, on the Role tab\)/);
+  });
+
+  it("says Allen & Heath doesn't name the iPhone or iPad, not tested yet, no Mixer Link, never unsupported", () => {
+    const apple = section(mdx, "SQ on Mac, iPad and iPhone", "Sources");
+    expect(apple).toMatch(/class compliant/);
+    expect(apple).toMatch(/not tested yet/);
+    expect(mdx).toMatch(/no Mixer Link/);
+    expect(mdx).not.toMatch(/unsupported/i);
+    expect(mdx).not.toMatch(/ShowRecorder has recorded[^.]*SQ/);
+  });
+
+  it("cites only Allen & Heath pages", () => {
+    expect(guide.sources.length).toBeGreaterThanOrEqual(5);
+    for (const u of guide.sources) expect(u).toMatch(/^https:\/\/(support\.allen-heath\.com|www\.allen-heath\.com)\//);
   });
 });

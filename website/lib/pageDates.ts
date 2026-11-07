@@ -23,6 +23,7 @@ export const PAGE_DATES: Record<string, string> = {
   "/guides/record-gig-without-laptop": "2026-11-07",
   "/guides/record/ah-cq": "2026-11-07",
   "/guides/record/m32": "2026-11-07",
+  "/guides/record/ah-sq": "2026-11-07",
   "/guides/record/mackie-dl32r": "2026-11-07",
   "/guides/record/mackie-dl32s": "2026-11-07",
   "/guides/record/pre-or-post-fader": "2026-11-07",
