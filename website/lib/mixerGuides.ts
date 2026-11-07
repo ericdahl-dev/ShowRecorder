@@ -415,7 +415,7 @@ export const ZOOM_L12_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Are L-12 and L-20 recordings pre or post fader?",
-    a: "Pre-fader, and before the EQ, but after each channel's compressor. Leave the COMP knob at zero for clean tracks. On the L-20, MENU > REC/PLAY > REC SOURCE = PRE COMP gives uncompressed SD tracks; USB tracks still follow the compressor (per Zoom's block diagram).",
+    a: "Pre-fader and after each channel's compressor; before the EQ too, per Zoom's block diagrams (our reading). Leave the COMP knob at zero for clean tracks. On the L-20, MENU > REC/PLAY > REC SOURCE = PRE COMP gives uncompressed SD tracks; USB tracks still follow the compressor (per Zoom's block diagram).",
   },
   {
     q: "Why does my iPhone or computer see no audio from the L-12 or L-20?",

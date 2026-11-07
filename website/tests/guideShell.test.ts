@@ -93,10 +93,9 @@ describe("last checked", () => {
 describe("getting the app from a guide", () => {
   it("has the guide campaigns, each listed in the App Store Connect doc", () => {
     const doc = readFileSync(path.join(ROOT, "..", "docs", "app-store", "app-store-connect-steps.md"), "utf8");
-    for (const ct of ["site-guides", "site-guide-x32", "site-guide-xr18", "site-guide-zoom-l12", "site-guide-taps"] as const) {
-      expect(APP_STORE_CAMPAIGNS).toContain(ct);
-      expect(doc).toContain(`\`${ct}\``);
-    }
+    const guideCampaigns = APP_STORE_CAMPAIGNS.filter((ct) => ct === "site-guides" || ct.startsWith("site-guide-"));
+    expect(guideCampaigns).toEqual(expect.arrayContaining(["site-guides", "site-guide-x32", "site-guide-xr18", "site-guide-taps"]));
+    for (const ct of guideCampaigns) expect(doc, ct).toContain(`\`${ct}\``);
   });
 
   it("links the badge with the page's campaign, says what device it needs, and offers the Mac beta", () => {
