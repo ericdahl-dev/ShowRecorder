@@ -1,3 +1,4 @@
+import { BEST_APP_FAQS, BEST_APP_GUIDE } from "@/lib/bestApp";
 import { RELEASES, newestRelease } from "@/lib/changelog";
 import { DOCS, docHref } from "@/lib/docs";
 import { featureGroups, inBetaFeatures } from "@/lib/features";
@@ -115,6 +116,7 @@ function mixerGuidesFull(): string[] {
     ...faqSection(HUB_FAQS),
     ...fullGuide(TAP_POINT_GUIDE, TAP_POINT_FAQS),
     ...MIXER_GUIDES.flatMap((g) => fullGuide(g.path, g.faqs)),
+    ...fullGuide(BEST_APP_GUIDE, BEST_APP_FAQS),
   ];
 }
 

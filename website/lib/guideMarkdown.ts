@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { APP_ROWS, CHECKED } from "@/lib/bestApp";
 import { MIXER_GUIDES, X32_METHOD_A } from "@/lib/mixerGuides";
 import { PAGE_DATES } from "@/lib/pageDates";
 import { SITE_URL } from "@/lib/site";
@@ -17,6 +18,30 @@ const tapPicks = () =>
   MIXER_GUIDES.map((g) => `- **${g.mixer}:** ${g.tapPick} ([${g.short} tap points](${abs(g.path)}#${tapPointsAnchor(g.short)}))`).join("\n");
 
 const x32MethodA = () => X32_METHOD_A.map((s, i) => `${i + 1}. **${s.name}.** ${s.text}`).join("\n");
+
+// components/BestAppTable.tsx: the best-app comparison table and its source list, from APP_ROWS.
+const BEST_APP_COLUMNS = [
+  ["price", "Price model"],
+  ["perChannel", "A file per channel"],
+  ["inputs", "Channels at once"],
+  ["platforms", "Runs on"],
+  ["names", "Channel names from the mixer"],
+  ["editing", "Editing on the device"],
+] as const;
+
+function bestAppTable(): string {
+  const cell = (s: string) => s.replace(/\|/g, "/");
+  return [
+    `| App | ${BEST_APP_COLUMNS.map(([, label]) => label).join(" | ")} |`,
+    `| --- |${" --- |".repeat(BEST_APP_COLUMNS.length)}`,
+    ...APP_ROWS.map(
+      (r) => `| ${cell(r.name)} (${cell(r.maker)}. [Source](${r.source}), checked ${CHECKED}) | ${BEST_APP_COLUMNS.map(([k]) => cell(r[k])).join(" | ")} |`,
+    ),
+  ].join("\n");
+}
+
+const bestAppSources = () =>
+  APP_ROWS.map((r) => `- ${r.name}: [${r.source}](${r.source})${r.extraSource ? ` and [${r.extraSource}](${r.extraSource})` : ""}, checked ${CHECKED}.`).join("\n");
 
 // Markdown links to the site's pages, and to this page's own headings, made absolute.
 export function absoluteLinks(md: string, pagePath: string): string {
@@ -45,6 +70,9 @@ export function guideMarkdown(src: string, pagePath: string, depth = 2): GuideMa
     .replace(/<AskUs\s*\/>/g, "")
     .replace(/<TapPicks\s*\/>/g, tapPicks())
     .replace(/<ol>\s*\{X32_METHOD_A\.map[\s\S]*?<\/ol>/g, x32MethodA())
+    .replace(/<BestAppTable\s*\/>/g, bestAppTable())
+    .replace(/<BestAppSources\s*\/>/g, bestAppSources())
+    .replace(/\{CHECKED\}/g, CHECKED)
     .replace(/<details>\s*<summary>([^<]*)<\/summary>/g, "**$1:**")
     .replace(/<\/details>/g, "");
   s = absoluteLinks(s, pagePath);
