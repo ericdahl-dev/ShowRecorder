@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { BEST_APP_GUIDE } from "@/lib/bestApp";
-import { MIXER_GUIDES, guideTitle } from "@/lib/mixerGuides";
+import { MIXER_GUIDES, titleOf } from "@/lib/mixerGuides";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 
 // Per-page titles and descriptions, kept in one place so tests can check every route has them
@@ -111,7 +111,7 @@ export const PAGES: typeof STATIC_PAGES & Record<string, PageInfo> = { ...STATIC
 
 function guidePages(): Record<string, PageInfo> {
   return Object.fromEntries(
-    MIXER_GUIDES.map((g) => [g.pageKey, { path: g.path, title: guideTitle(g.short), description: g.description }]),
+    MIXER_GUIDES.map((g) => [g.pageKey, { path: g.path, title: titleOf(g), description: g.description }]),
   );
 }
 

@@ -5,7 +5,7 @@ import { featureGroups, inBetaFeatures } from "@/lib/features";
 import { PAGES } from "@/lib/metadata";
 import { absoluteLinks, guideMarkdown, guideMdx } from "@/lib/guideMarkdown";
 import type { Faq } from "@/lib/mixerFaqs";
-import { GLOSSARY, HUB_COPY, HUB_FAQS, MIXER_GUIDES, MIXER_ROWS, TAP_POINT_FAQS, TAP_POINT_GUIDE, guideHeadline, pickMixerLink } from "@/lib/mixerGuides";
+import { GLOSSARY, HUB_COPY, HUB_FAQS, MIXER_GUIDES, MIXER_ROWS, TAP_POINT_FAQS, TAP_POINT_GUIDE, headlineOf, pickMixerLink } from "@/lib/mixerGuides";
 import { PAGE_DATES } from "@/lib/pageDates";
 import { inBeta, planned, worksNow } from "@/lib/mixers";
 import { APP_STORE_URL, PRO_PRICE_TEXT, appStoreLink, REPO_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL, TESTFLIGHT_URL, TRADEMARK_LINE } from "@/lib/site";
@@ -61,7 +61,7 @@ function guidesSection(): string[] {
     link("How to multitrack record a digital mixer (every mixer, one table)", PAGES.guidesHub.path, PAGES.guidesHub.description),
     link("Pre or post fader: which tap point to record", PAGES.guideTapPoints.path, PAGES.guideTapPoints.description),
     link("Best app to multitrack record a digital mixer on iPhone and iPad", PAGES.guideBestApp.path, PAGES.guideBestApp.description),
-    ...MIXER_GUIDES.map((g) => link(guideHeadline(g.mixer), g.path, g.description)),
+    ...MIXER_GUIDES.map((g) => link(headlineOf(g), g.path, g.description)),
     link("Record a gig without a laptop", PAGES.guideNoLaptop.path, PAGES.guideNoLaptop.description),
     "",
   ];

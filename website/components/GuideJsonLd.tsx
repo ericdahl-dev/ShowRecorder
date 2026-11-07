@@ -1,5 +1,5 @@
 import { PAGES } from "@/lib/metadata";
-import { guideBySlug, guideHeadline, guideTrail } from "@/lib/mixerGuides";
+import { guideBySlug, guideTrail, headlineOf } from "@/lib/mixerGuides";
 import { PAGE_DATES } from "@/lib/pageDates";
 import {
   breadcrumbListJsonLd,
@@ -20,7 +20,7 @@ export function GuideJsonLd({ slug }: { slug: string }) {
     faqPageJsonLd(guide.faqs),
     techArticleJsonLd({
       page,
-      headline: guideHeadline(guide.mixer),
+      headline: headlineOf(guide),
       datePublished: guide.published,
       dateModified: PAGE_DATES[guide.path] ?? guide.published,
       citations: guide.sources,
