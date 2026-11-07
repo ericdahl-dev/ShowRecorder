@@ -342,6 +342,17 @@ struct AutoGainSessionTests {
         #expect(await session.run(usbChannels: [1]) == [.error(usbChannel: 1, channel: 1, problem: .noReply(host: "10.0.0.20"))])
     }
 
+    @Test("A channel fed from USB on the Mixer is reported once, not retried: its preamp can't change what's recorded (#1147)")
+    func fedFromUSB() async throws {
+        let control = FakeGainControl(gainDb: [3: 0], channelOfUSB: [1: 3])
+        control.problem = .fedFromUSB(channel: 3)
+        let session = AutoGainSession(control: control, measure: Self.meters(control, source: [1: -40]))
+
+        #expect(await session.run(usbChannels: [1]) == [.error(usbChannel: 1, channel: 3, problem: .fedFromUSB(channel: 3))])
+        #expect(control.moveStarts == 1, "one try, no loop")
+        #expect(session.steps[1, default: []].isEmpty, "nothing moved, nothing to undo")
+    }
+
     @Test("Undo puts one channel's gain back, or every channel's")
     func undo() async throws {
         let control = FakeGainControl(gainDb: [1: 0, 2: 5], channelOfUSB: [1: 1, 2: 2])

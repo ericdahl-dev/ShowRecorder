@@ -211,6 +211,37 @@ struct XAirGainTests {
         #expect(step.changes.allSatisfy { $0.setting.channel == 1 })
     }
 
+    @Test("A channel fed from USB (rtnsw on) moves nothing: its preamp isn't in what's recorded (#1147)")
+    func channelFedFromUSB() async throws {
+        var state = Self.kickDesk()
+        state.channels[2].usbReturn = 1   // channel 3 takes USB, not In03
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        await #expect(throws: MixerLinkProblem.fedFromUSB(channel: 3)) { try await driver.applyMixHold(channel: 3, gainChangeDb: 6) }
+        #expect(mixer.writes.isEmpty, "no gain, threshold, fader or send written")
+        #expect(try await driver.applyMixHold(channel: 1, gainChangeDb: 6).toGainDb == 20.5, "a channel on its preamp still moves")
+    }
+
+    @Test("A preamp that also feeds a channel fed from USB moves nothing (#1147)")
+    func sharedPreampWithAChannelFedFromUSB() async throws {
+        var state = Self.kickDesk()
+        state.channels[3].inputSource = 0   // channel 4 on In01 as well as channel 1
+        state.channels[3].usbReturn = 1     // but it takes USB
+        let mixer = try await FakeXAirMixer(state)
+        let driver = XAirDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: mixer.port), timeout: Loopback.replyTimeout)
+
+        await #expect(throws: MixerLinkProblem.fedFromUSB(channel: 4)) { try await driver.applyMixHold(channel: 1, gainChangeDb: 6) }
+        #expect(mixer.writes.isEmpty)
+        #expect(try await driver.gainDb(ofHeadamp: 1) == 14.5)
+    }
+
+    @Test("A channel fed from USB says why in plain words (#1147)")
+    func fedFromUSBMessage() {
+        #expect(MixerLinkProblem.fedFromUSB(channel: 3).message
+                == "Channel 3 is fed from USB on the Mixer, so its preamp can't change what's recorded.")
+    }
+
     /// The input source queries a Mix Hold call made, per channel.
     static func inputQueries(_ mixer: FakeXAirMixer, after count: Int) -> [String] {
         mixer.queries.dropFirst(count).filter { $0.hasSuffix("/config/insrc") }

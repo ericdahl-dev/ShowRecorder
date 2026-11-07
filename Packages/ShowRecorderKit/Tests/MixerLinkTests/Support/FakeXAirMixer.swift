@@ -27,6 +27,8 @@ final class FakeXAirMixer: Sendable {
         /// `gate/on` and `dyn/on`: 1 on, 0 off.
         var gateOn: Int32 = 1
         var compressorOn: Int32 = 1
+        /// X-Air `preamp/rtnsw`: 1 when the channel takes its signal from USB instead of its preamp (#1147).
+        var usbReturn: Int32 = 0
     }
 
     struct State: Sendable {
@@ -340,6 +342,7 @@ final class FakeXAirMixer: Sendable {
             case ("dyn", "keysrc"): OSCMessage(address, [.int(channel.compressorKey)])
             case ("gate", "on"): OSCMessage(address, [.int(channel.gateOn)])
             case ("dyn", "on"): OSCMessage(address, [.int(channel.compressorOn)])
+            case ("preamp", "rtnsw") where inputSourceField == "insrc": OSCMessage(address, [.int(channel.usbReturn)])
             default: nil
             }
         }
