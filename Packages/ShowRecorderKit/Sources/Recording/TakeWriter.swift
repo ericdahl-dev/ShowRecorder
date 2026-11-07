@@ -282,14 +282,20 @@ final class TakeWriter: @unchecked Sendable {
         }
         let start = framesWritten
         if join > start { leadGapRange.withLock { $0 = start..<join } }
+        try writeSilence(upTo: stems.map { join - Int($0.frameCount) })
+    }
+
+    /// Appends `remaining[i]` frames of silence to Stem `i`, a block at a time to each Stem in turn, so the two lanes of a
+    /// stereo pair (#1088) never hold more than a block for each other, however long the silence.
+    private func writeSilence(upTo remaining: [Int]) throws {
         let silence = [Float](repeating: 0, count: 4096)
-        for stem in stems {
-            var remaining = join - Int(stem.frameCount)
-            while remaining > 0 {
-                let count = min(remaining, silence.count)
+        var remaining = remaining
+        while remaining.contains(where: { $0 > 0 }) {
+            for (index, stem) in stems.enumerated() where remaining[index] > 0 {
+                let count = min(remaining[index], silence.count)
                 try silence.withUnsafeBufferPointer { try stem.append(UnsafeBufferPointer(rebasing: $0[..<count])) }
                 noteProgress()
-                remaining -= count
+                remaining[index] -= count
             }
         }
     }
@@ -329,15 +335,6 @@ final class TakeWriter: @unchecked Sendable {
     }
 
     private func writeSilence(_ frames: Int) throws {
-        let silence = [Float](repeating: 0, count: 4096)
-        for stem in stems {
-            var remaining = frames
-            while remaining > 0 {
-                let count = min(remaining, silence.count)
-                try silence.withUnsafeBufferPointer { try stem.append(UnsafeBufferPointer(rebasing: $0[..<count])) }
-                noteProgress()
-                remaining -= count
-            }
-        }
+        try writeSilence(upTo: Array(repeating: frames, count: stems.count))
     }
 }
