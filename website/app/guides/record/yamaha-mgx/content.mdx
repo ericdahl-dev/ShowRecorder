@@ -1,0 +1,136 @@
+import { AskUs, Breadcrumbs, GetTheApp, LastChecked } from "@/components/GuideParts";
+import { guideTrail } from "@/lib/mixerGuides";
+
+<Breadcrumbs trail={guideTrail("MGX", "/guides/record/yamaha-mgx")} />
+
+# How to multitrack record a Yamaha MGX
+
+<LastChecked path="/guides/record/yamaha-mgx" />
+
+**Short answer.** Plug the MGX's **USB MAIN** port into a computer, iPhone or iPad. It sends every channel on its own track: 16 on the MGX16 and MGX16V, 12 on the MGX12 and MGX12V. Set the mixer to 44.1 or 48 kHz. With no computer, it records up to 16 tracks to a microSD card. Yamaha names the iPhone and iPad.
+
+This guide is for the digital MGX. The older MG10XU to MG20XU send only a stereo mix: see the [MG XU guide](/guides/record/yamaha-mg-xu).
+
+**Quick start**
+
+1. **Plug USB MAIN** into the computer, iPhone or iPad with a USB-C cable. ([Ways to record](#ways-to-record-an-mgx))
+2. **Set 44.1 or 48 kHz** in **SETUP > Sampling Frequency**, to get every channel. ([Recording settings](#mgx-recording-settings))
+3. **Only 2 channels?** Set Generic Driver Audio Channel Suppression to None. ([Only 2 channels?](#only-2-channels-check-usb-main))
+4. **Pick the Rec Point** in each channel's settings: where in the channel the recording is taken. ([Rec Point](#mgx-tap-points))
+5. **Record a 30-second test and play it back** before the show (our advice).
+
+Every other mixer is in the [mixer recording guides](/guides/record). Words you may not know are in the [glossary](/guides/record#glossary). Facts come from Yamaha's MGX user guide and specifications unless a line says otherwise. The [sources](#sources) are at the end.
+
+## Ways to record an MGX
+
+### To a computer over USB
+
+Plug a USB-C cable from the mixer's **USB MAIN** port into the computer.
+
+- **With no driver,** you get 18 channels on the MGX16 (14 on the MGX12): every channel plus one stereo pair (a left and right mix you choose).
+- **Yamaha's driver adds two more stereo pairs.** Yamaha's user guide says to install "TOOLS for MGX/URX", which adds the driver.
+- **On a Mac,** the driver shows the channels as separate devices. The channel tracks are in "Yamaha MGX16 DAW" ("Yamaha MGX12 DAW" on an MGX12). Each pair is its own device (A, B and C).
+- **On Windows,** the channel tracks are the driver's ASIO device, and A, B and C are sound devices.
+- **Quality:** 32-bit, up to 96 kHz.
+- **The other port:** **USB SUB** sends only 2 channels. It is not for multitrack.
+
+### With no computer: to a microSD card
+
+The MGX records by itself to a microSD card in its slot.
+
+- **Tracks:** 16 tracks at 44.1 or 48 kHz, or 8 at 88.2 or 96 kHz.
+- **File:** 24-bit WAV.
+- **The card:** a fast card, marked UHS-I and Class 10 or higher. Format the card in the mixer before an important recording (Yamaha's advice).
+- **How many tracks:** set **Track Count** in the microSD screen's **RECORDER** menu, in pairs.
+- **What it records:** pick it with the **Source** button in the same menu.
+
+{/* Screenshot: the MGX microSD screen, RECORDER menu, with Track Count and Source. <Screenshot src="/images/guides/mgx-microsd-recorder.png" alt="Yamaha MGX microSD screen, RECORDER menu, with the Track Count pulldown and the Source button" /> */}
+
+### To an iPhone, iPad or Mac with an app
+
+- **iPhone and iPad:** Yamaha names both. It says they recognize the mixer with no settings.
+- **Mac:** works like any computer above.
+
+The details are in [Mac, iPad and iPhone](#mgx-on-mac-ipad-and-iphone) below.
+
+## MGX recording settings
+
+**Set 44.1 or 48 kHz on the mixer,** in **SETUP > Sampling Frequency**. The buttons are 44.1, 48, 88.2 and 96 kHz.
+
+- **Follow USB:** turn on **Follow USB** to let the computer on USB MAIN set the rate instead.
+- **At 88.2 or 96 kHz:** the MGX16 sends only 12 channel tracks to a computer, like the MGX12. At 44.1 or 48 kHz it sends 16.
+- **iPhone and iPad at 88.2 or 96 kHz:** Yamaha's iPad table doesn't say. Use 44.1 or 48 kHz (our advice).
+- **Bit depth:** 32-bit over USB MAIN. The microSD card records 24-bit WAV.
+- **microSD tracks:** at 44.1 or 48 kHz pick 2 to 16. At 88.2 or 96 kHz pick 2 to 8.
+
+{/* Screenshot: SETUP, Sampling Frequency menu with the 48 kHz and Follow USB buttons. <Screenshot src="/images/guides/mgx-sampling-frequency.png" alt="Yamaha MGX SETUP screen, Sampling Frequency menu with the 44.1, 48, 88.2 and 96 kHz buttons and Follow USB" /> */}
+
+### Only 2 channels? Check USB Main
+
+- **The fix:** pick **None** in **SETUP > Peripheral > USB Main > Generic Driver Audio Channel Suppression**.
+- **Why:** **2 Channels** sends only one stereo mix (USB MAIN A), not your channels. It is meant for apps that handle only 2 channels, on a phone or tablet.
+- **Check the port:** **USB SUB** always sends only 2. Use **USB MAIN**.
+
+## MGX USB routing
+
+- **USB DAW 1-16:** one USB channel per mixer channel. You can't change these. The MGX12 has USB DAW 1-12.
+- **USB MAIN A, B and C:** three stereo pairs. Choose what each carries in **SETUP > Output Patch > USB**.
+- **With Yamaha's driver** you get all three pairs. The MGX16's 22 are its 16 channels plus 3 pairs (Yamaha's Mac and Windows table).
+- **With no driver,** as on an iPhone or iPad, only pair A arrives, as channels 17 and 18 (13 and 14 on the MGX12).
+- **Channel names:** Yamaha's user guide has a table of what each USB channel is called on a Mac, PC, iPhone or iPad.
+
+{/* Screenshot: SETUP, Output Patch, USB menu with the USB MAIN A, B and C source buttons. <Screenshot src="/images/guides/mgx-usb-output-patch.png" alt="Yamaha MGX SETUP screen, Output Patch, USB menu with the source buttons for USB MAIN A, B and C" /> */}
+
+## MGX playback for virtual soundcheck
+
+A [virtual soundcheck](/guides/record#glossary) plays each recorded channel back through its own fader, so you can set the mix with no band.
+
+**Over USB:**
+
+1. Open the channel's **INPUT** screen.
+2. Press **All USB DAW** and confirm. Every channel now takes its USB return (sound coming back from the computer): CH 1/2 from USB DAW 1/2, and so on.
+3. Play the tracks from your app on its USB outputs 1-16.
+4. To go back to the mics, press **All Input** on the same screen.
+
+**From the microSD card:** the card plays back only 2 tracks, so it can't do a multitrack soundcheck.
+
+## MGX tap points
+
+A tap point is where in the channel the recording is taken: the raw input, or later, after the EQ. Which to pick, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader).
+
+- **Where to set it:** each channel has a **Rec Point**, in **Channel view > Channel settings > Rec Point**.
+- **Which to pick:** for tracks you will mix later, the earliest point (our advice). In Yamaha's block diagram, the earliest is just after the low-cut filter (HPF), and the gain knob comes before every point (our reading of the diagram).
+- **The choices:** Yamaha's user guide doesn't list them in words. Look on your mixer's Rec Point menu.
+
+## MGX on Mac, iPad and iPhone
+
+**Yamaha names the iPad and iPhone.** It says the MGX is automatically recognized once connected, with no settings on the device.
+
+- **USB-C iPhone or iPad:** a USB-C to USB-C cable into **USB MAIN**.
+- **Lightning iPhone or iPad:** Apple's Lightning to USB 3 Camera Adapter, plus a USB-A to USB-C cable to the mixer.
+- **What arrives (MGX16):** 16 channel tracks, plus USB MAIN A as channels 17 and 18 (Yamaha's iPad and iPhone table). The MGX12 sends 12 plus a pair.
+- **Power:** for long use, Yamaha suggests powering the device, with Apple's USB-C Digital AV Multiport Adapter.
+- **Mac with no driver:** 18 channels on the MGX16, the same as an iPad.
+- **Mac with Yamaha's driver:** "Yamaha MGX16 DAW" holds the channel tracks, and pairs A, B and C are three more devices. Pick "Yamaha MGX16 DAW" in your recording app.
+- **Windows:** the driver's ASIO device holds the channel tracks.
+
+ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer (one that needs no extra driver on a Mac, iPhone or iPad). On an MGX16 that should be 18 channels. We haven't tested it with an MGX yet. Mixer Link, which reads channel names and colors, works only on the XR18/MR18 and X32/M32. If you record an MGX with it, we'd like to hear how it goes.
+
+<GetTheApp campaign="site-guide-yamaha-mgx" />
+
+<AskUs />
+
+## Sources
+
+Yamaha:
+
+- [MGX16V/MGX16/MGX12V/MGX12 User Guide](https://usa.yamaha.com/files/download/other_assets/4/2926764/MGX16V_16_12V_12_user_guide_En_D0.pdf) (edition D0, published 06/2026):
+  - connecting a Mac, PC, iPad or iPhone (pp. 28-31), "automatically recognized by the iPad, iPhone or Android device once connected";
+  - the Sampling Frequency menu (p. 57), the USB menu (p. 59) and the USB Main menu (p. 61);
+  - formatting the card (p. 83) and the RECORDER menu (p. 86);
+  - Rec Point (p. 99): "select the point within the signal path from which to directly record the signal of a channel";
+  - the INPUT screen (p. 108);
+  - the digital I/O table (p. 197);
+  - the USB MAIN signal name tables (pp. 204-205): "Yamaha MGX** DAW", A, B and C on a Mac, and channels 17 and 18 on an iPad or iPhone.
+- [MGX Technical Specifications](https://usa.yamaha.com/files/download/other_assets/4/2927054/mgx16v_16_12v_12_technical_specifications_en_c0.pdf) (edition C0, published 06/2026): USB channel counts, microSD recording and 2-track playback, the block diagram with Rec Point.
+- [MGX specs page](https://usa.yamaha.com/products/proaudio/mixers/mgx/specs.html).

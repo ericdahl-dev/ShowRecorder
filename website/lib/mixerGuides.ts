@@ -173,12 +173,23 @@ export const MIXER_ROWS: readonly MixerRow[] = [
   },
   {
     name: "Yamaha MG10XU, MG12XU, MG16XU and MG20XU",
-    note: "The newer Yamaha MGX12 and MGX16 differ: Yamaha says iPhone and iPad recognize them, with up to 18 in on the MGX16 at 44.1 or 48 kHz.",
-    usb: "Stereo only: 2 in and 2 out, up to 192 kHz.",
+    note: "Analog. Not the newer MGX, in the next row.",
+    usb: "Stereo only: 2 in and 2 out, up to 192 kHz. Not multitrack.",
     onboard: "None.",
     mac: "USB Audio Class 2.0 compliant (maker).",
     ipad: "Yes with a camera adapter, stereo only (maker). A USB-C iPad: not tested yet.",
-    iphone: "A USB-C iPhone: not tested yet.",
+    iphone: "Not named by Yamaha: not tested yet.",
+    guide: "/guides/record/yamaha-mg-xu",
+  },
+  {
+    name: "Yamaha MGX12, MGX16, MGX12V and MGX16V",
+    note: "Digital. The V models add video.",
+    usb: "USB MAIN: 18 in and 16 out on the MGX16 (14 in, 12 out on the MGX12) with no driver; up to 22 x 22 (18 x 18) with Yamaha's driver. 44.1 to 96 kHz, 32-bit. The MGX16 sends 12 channel tracks at 88.2 or 96 kHz.",
+    onboard: "microSD card: 16 tracks at 44.1 or 48 kHz, 8 at 88.2 or 96 kHz, 24-bit WAV.",
+    mac: "Yamaha's guide installs its driver (TOOLS for MGX/URX). Yamaha also lists a class-compliant mode with fewer channels.",
+    ipad: "Yes, named by Yamaha: recognized with no settings, over USB-C or a Lightning to USB 3 Camera Adapter. 16 channels plus a stereo pair on the MGX16.",
+    iphone: "Yes, named by Yamaha: recognized with no settings, over USB-C or a Lightning to USB 3 Camera Adapter. 16 channels plus a stereo pair on the MGX16.",
+    guide: "/guides/record/yamaha-mgx",
   },
   {
     name: "PreSonus StudioLive Series III",
@@ -324,8 +335,8 @@ export type MixerGuide = {
   campaign: AppStoreCampaign;
   // The setting the tap-point guide's short answer names for this mixer.
   tapPick: string;
-  // True for a mixer with no USB audio, which can't multitrack (the XR12, XR16 and MR12): its title and H1 say
-  // "How to record", and it has no "every USB Channel" or Mixer Link line.
+  // True for a mixer that can't multitrack: the XR12, XR16 and MR12 (no USB audio) and the Yamaha MG XU (stereo-only
+  // USB). Its title and H1 say "How to record", and it has no "every USB Channel" or Mixer Link line.
   noMultitrack?: true;
 };
 
@@ -845,6 +856,52 @@ export const YAMAHA_DM3_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the Yamaha MGX guide (#1076). Facts: docs/research/mixer-recording/yamaha-mg-xu.md and Yamaha's MGX
+// user guide (D0) and specifications (C0).
+export const YAMAHA_MGX_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I multitrack record a Yamaha MGX on an iPhone or iPad?",
+    a: "Yamaha says the iPad and iPhone recognize the MGX with no settings, over a USB-C cable to USB MAIN or a Lightning to USB 3 Camera Adapter. The MGX16 sends 18 channels: its 16 channels plus one stereo pair. The MGX12 sends 12 plus a pair. We haven't tested ShowRecorder with an MGX yet.",
+  },
+  {
+    q: "Does the MGX need a driver on a Mac?",
+    a: "Not for 18 channels on the MGX16 (14 on the MGX12): every channel plus one stereo pair. Yamaha's driver (TOOLS for MGX/URX) adds two more stereo pairs. On a Mac it shows the channels as separate devices: the channel tracks are in Yamaha MGX16 DAW (Yamaha MGX12 DAW on an MGX12), and each pair is its own device (A, B and C).",
+  },
+  {
+    q: "Why does my app see only 2 channels from an MGX?",
+    a: "Check SETUP > Peripheral > USB Main > Generic Driver Audio Channel Suppression and set it to None. 2 Channels sends only one stereo mix, not your channels. Also use the USB MAIN port: USB SUB is always 2 in and 2 out.",
+  },
+  {
+    q: "Can an MGX multitrack record without a computer?",
+    a: "Yes, to a microSD card: up to 16 tracks at 44.1 or 48 kHz, or 8 at 88.2 or 96 kHz, as 24-bit WAV. Set the number in the RECORDER menu, under Track Count. The card plays back only 2 tracks.",
+  },
+  {
+    q: "Why does my MGX16 send only 12 channels?",
+    a: "At 88.2 or 96 kHz the MGX16 sends only 12 channel tracks to a computer. Set SETUP > Sampling Frequency to 44.1 or 48 kHz for all 16.",
+  },
+];
+
+// The questions on the Yamaha MG XU guide (#1076). Facts: docs/research/mixer-recording/yamaha-mg-xu.md and Yamaha's
+// MG10XU manual and specifications (B0). The MG XU sends only a stereo mix, so the first answer says so plainly.
+export const YAMAHA_MGXU_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I multitrack record a Yamaha MG XU?",
+    a: "No. The MG10XU, MG12XU, MG16XU and MG20XU send only their stereo mix over USB: 2 channels. You get one stereo recording of the show, which you can't remix later. Yamaha's newer MGX sends each channel.",
+  },
+  {
+    q: "Does the MG XU need a driver on a Mac?",
+    a: "Yamaha calls it a standard USB audio device (USB Audio Class 2.0), so a Mac should need no driver (our reading). The manual says you may need Yamaha's driver, without naming a system.",
+  },
+  {
+    q: "Which switch do I set to record an MG XU while I listen to the computer?",
+    a: "On the MG10XU, set the channel 9/10 LINE/USB switch to USB and its TO MON/TO STO switch to TO MON. Yamaha warns that TO STO can make a loop, with feedback.",
+  },
+  {
+    q: "Can I record an MG XU on an iPad?",
+    a: "Yes, the stereo mix: Yamaha names the iPad 2 or later with Apple's camera adapter. Yamaha doesn't name any iPhone, or a USB-C iPad: not tested yet.",
+  },
+];
+
 // The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
 export const X32_METHOD_A: readonly { name: string; text: string }[] = [
   { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
@@ -1274,5 +1331,48 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pick: "Up to 18 channels over USB to a computer, at 48 or 96 kHz, with the Yamaha driver. Records only stereo by itself, to USB storage. iPhone and iPad: not tested yet.",
     tapPick:
       "INPUT 1-16 on USB 1-16 (the default patch): the input jacks before the channel's EQ and fader, by our reading of the block diagram; no setting, so record a short test",
+  },
+  {
+    slug: "yamaha-mgx",
+    path: "/guides/record/yamaha-mgx",
+    pageKey: "guideYamahaMgx",
+    short: "MGX",
+    mixer: "Yamaha MGX",
+    pick: "Up to 18 channels over USB with no driver (22 with the Yamaha driver). Records 16 tracks by itself to a microSD card. iPhone and iPad: named by Yamaha.",
+    description:
+      "Multitrack record a Yamaha MGX12 or MGX16 to a computer, iPhone, iPad or microSD card: USB MAIN, the driver, 48 kHz, routing, playback, Rec Point.",
+    published: "2026-11-07",
+    faqs: YAMAHA_MGX_GUIDE_FAQS,
+    faqsName: "YAMAHA_MGX_GUIDE_FAQS",
+    sources: [
+      "https://usa.yamaha.com/files/download/other_assets/4/2926764/MGX16V_16_12V_12_user_guide_En_D0.pdf",
+      "https://usa.yamaha.com/files/download/other_assets/4/2927054/mgx16v_16_12v_12_technical_specifications_en_c0.pdf",
+      "https://usa.yamaha.com/products/proaudio/mixers/mgx/specs.html",
+    ],
+    campaign: "site-guide-yamaha-mgx",
+    tapPick: "Rec Point in each channel's Channel settings screen; the earliest is just after the low-cut filter (HPF), per our reading of Yamaha's block diagram",
+  },
+  {
+    // The MG XU sends only its stereo mix, so the title and H1 say "How to record" (noMultitrack).
+    slug: "yamaha-mg-xu",
+    path: "/guides/record/yamaha-mg-xu",
+    pageKey: "guideYamahaMgxu",
+    short: "MG XU",
+    mixer: "Yamaha MG XU",
+    pick: "A stereo mix (2 channels) over USB, not multitrack. Records nothing by itself. iPad: yes with a camera adapter, stereo only (Yamaha).",
+    description:
+      "The Yamaha MG10XU to MG20XU send only a stereo mix over USB, not multitrack. How to record it, the TO MON switch, and which Yamaha records each channel.",
+    published: "2026-11-07",
+    faqs: YAMAHA_MGXU_GUIDE_FAQS,
+    faqsName: "YAMAHA_MGXU_GUIDE_FAQS",
+    sources: [
+      "https://usa.yamaha.com/products/proaudio/mixers/mg_series_xu_model/specs.html",
+      "https://usa.yamaha.com/files/download/other_assets/8/1506958/MG10XU_owners_manual_En_B0.pdf",
+      "https://usa.yamaha.com/files/download/other_assets/2/1507032/MG10XU_technical_specifications_En_B0.pdf",
+      "https://usa.yamaha.com/files/download/brochure/1/330961/mg_brochure_en_webcatalogue.pdf",
+    ],
+    campaign: "site-guide-yamaha-mg-xu",
+    tapPick: "none to set: USB carries the stereo mix, and the STEREO LEVEL knob doesn't change it",
+    noMultitrack: true,
   },
 ];
