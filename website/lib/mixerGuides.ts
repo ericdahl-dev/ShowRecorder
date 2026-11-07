@@ -65,12 +65,13 @@ export const MIXER_ROWS: readonly MixerRow[] = [
   },
   {
     name: "Behringer XR18 and Midas MR18",
-    note: "Also the X18. Midas's manual confirms the MR18's USB specs; its iPad support comes only from retailers.",
-    usb: "18 in and 18 out, or 2 x 2, at 44.1 or 48 kHz (48 by default).",
+    note: "Also the X18. Midas's own manual gives the MR18 the same USB specs and systems.",
+    usb: "18 in and 18 out, or 2 x 2, at 44.1 or 48 kHz (48 by default). Each USB send has its own source and tap point.",
     onboard: "None for multitrack.",
     mac: "Works with no driver (maker).",
-    ipad: "Yes, iOS 7 or later (Behringer, for the XR18).",
+    ipad: "Yes, iOS 7 or later (Behringer for the XR18, Midas for the MR18).",
     iphone: "Not named by the maker. ShowRecorder (the app this site makes) has recorded all 18 XR18 channels on an iPhone.",
+    guide: "/guides/record/xr18",
   },
   {
     name: "Behringer XR12 and XR16, Midas MR12",
@@ -315,6 +316,38 @@ export const X32_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the XR18 and MR18 guide.
+export const XR18_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can an XR18 multitrack record without a computer?",
+    a: "Not by itself. The XR18 has no USB port for a stick or drive, only the type-B audio port. Plug it into something that records over USB, such as a computer or an iPad, and it sends up to 18 channels, once the USB interface is set to 18 x 18.",
+  },
+  {
+    q: "Does the XR18 work with an iPad or iPhone?",
+    a: "Behringer lists iOS 7 or higher (iPad) for the XR18, and Midas lists the same for the MR18. Neither names the iPhone, but ShowRecorder (the app this site makes) has recorded all 18 XR18 channels on an iPhone. On a Mac it works with no driver.",
+  },
+  {
+    q: "How do I choose what goes to each USB channel on an XR18?",
+    a: "Open Routing (the up and down arrow icon at the top of the Main View) and use the Inputs/USB grid: tap a box to move the orange dots, or pick the USB sends from the menu under the folder icon. Each USB send has its own source.",
+  },
+  {
+    q: "Can I choose pre or post fader for each USB channel on an XR18?",
+    a: "Yes. On the USB Sends page of Routing, each USB Send has its own Signal Source and Signal Tap: Analog, Input, Pre EQ, Post EQ, Pre Fader and Post Fader, most with a +M version that goes silent when the channel is muted. For a recording you will remix, pick Input. We saw this on a real XR18; Behringer's V1.0 manual doesn't describe it.",
+  },
+  {
+    q: "Can the XR12 or XR16 multitrack record?",
+    a: "Not over USB. They have no USB audio interface. They record stereo to a USB stick.",
+  },
+  {
+    q: "Why does my recorder see only 2 channels from the XR18?",
+    a: "The USB interface can be set to 18 x 18 or 2 x 2 in Setup, on the Audio/MIDI tab. At 2 x 2 it sends only 2 channels. Set it to 18 x 18 for a multitrack.",
+  },
+  {
+    q: "What sample rate does the XR18 record at?",
+    a: "48 kHz by default, or 44.1 kHz, set in Setup on the Audio/MIDI tab. Mute the main LR fader before you change it, because pops can occur.",
+  },
+];
+
 // The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
 export const X32_METHOD_A: readonly { name: string; text: string }[] = [
   { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
@@ -353,5 +386,25 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     ],
     campaign: "site-guide-x32",
     tapPick: "a Local block (the raw inputs) on card out",
+  },
+  {
+    slug: "xr18",
+    path: "/guides/record/xr18",
+    pageKey: "guideXR18",
+    short: "XR18",
+    mixer: "Behringer XR18 or Midas MR18",
+    description:
+      "Multitrack record an XR18 or MR18 over USB: to a computer, an iPad or an iPhone. Settings, the USB routing grid, virtual soundcheck and tap points.",
+    published: "2026-11-06",
+    productPage: "/mixers/xr18",
+    faqs: XR18_GUIDE_FAQS,
+    faqsName: "XR18_GUIDE_FAQS",
+    sources: [
+      "https://cdn-media.empowertribe.com/ffe0de45e14541f797928d639a8933b2/M_BE_0605-AAA_X-AIR_EN.pdf",
+      "https://www.behringer.com/en/products/0605-AAD",
+      "https://cdn-media.empowertribe.com/f4e89140f9994eed93e4f2a4e086c578/M_MI_0605-AAF_MR18-MR12_EN.pdf",
+    ],
+    campaign: "site-guide-xr18",
+    tapPick: "the Input tap on each USB send",
   },
 ];
