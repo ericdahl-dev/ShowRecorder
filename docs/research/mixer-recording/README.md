@@ -7,7 +7,7 @@ Confidence labels:
 - **secondary**: retailer, forum user, review, or a third party's own text. A maker's own PDF read on a dealer or distributor site counts as maker, and the detail file names the host.
 - **unknown**: no source found. We don't guess.
 
-ShowRecorder context: it records over USB from any class-compliant interface. Mixer Link (names, colors, auto-gain) works only on XR18/MR18 and X32/M32. In `docs/tested-hardware.md`, the only verified rig is XR18 to a Mac over USB. XR18 to an iPhone over USB is still waiting on #327.
+ShowRecorder context: it records over USB from any class-compliant interface. Mixer Link (names, colors, auto-gain) works only on XR18/MR18 and X32/M32. In `docs/tested-hardware.md`, the only verified rig is XR18 to a Mac over USB. ShowRecorder has also recorded all 18 XR18 channels on an iPhone (owner fact O-2 in xr18-mr18.md, 2026-11-06); a full-length show on an iPhone through a powered hub is still waiting on #327.
 
 ## iPhone/iPad without a computer: read this first
 
@@ -131,7 +131,7 @@ Also frequent: "how to record live band practice", "how to record a gig", "how t
 
 ## Biggest open items (worth a real-device test before publishing)
 
-- iPhone (not iPad) over USB for any mixer. No maker names the iPhone; #327 covers XR18.
+- iPhone (not iPad) over USB for any mixer other than the XR18. No maker names the iPhone. XR18: all 18 channels recorded (O-2); a full show through a powered hub is #327.
 - iOS with X32/M32 cards, WING, SQ, TF, Ui24R and DL32S.
 - PreSonus III "Inputs" tap point; DM3 tap point; new Qu direct-out point names; CQ source-point names (forum only).
 - Ui24R onboard file format (secondary only); PreSonus 16R USB count (maker sources conflict); WING USB and WING-LIVE at 44.1 kHz (console clock 44.1 is maker-confirmed).

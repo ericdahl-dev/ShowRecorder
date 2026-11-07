@@ -65,11 +65,11 @@ export const MIXER_ROWS: readonly MixerRow[] = [
   },
   {
     name: "Behringer XR18 and Midas MR18",
-    note: "Also the X18. Midas's manual confirms the MR18's USB specs; its iPad support comes only from retailers.",
+    note: "Also the X18. Midas's own manual gives the MR18 the same USB specs and systems.",
     usb: "18 in and 18 out, or 2 x 2, at 44.1 or 48 kHz (48 by default). Each USB send has its own source and tap point.",
     onboard: "None for multitrack.",
     mac: "Works with no driver (maker).",
-    ipad: "Yes, iOS 7 or later (Behringer, for the XR18).",
+    ipad: "Yes, iOS 7 or later (Behringer for the XR18, Midas for the MR18).",
     iphone: "Not named by the maker. ShowRecorder (the app this site makes) has recorded all 18 XR18 channels on an iPhone.",
     guide: "/guides/record/xr18",
   },
@@ -324,7 +324,7 @@ export const XR18_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Does the XR18 work with an iPad or iPhone?",
-    a: "Behringer lists iOS 7 or higher (iPad) for the XR18. It doesn't name the iPhone, but ShowRecorder records the XR18 on an iPhone. Midas doesn't list any systems for the MR18. On a Mac it works with no driver.",
+    a: "Behringer lists iOS 7 or higher (iPad) for the XR18, and Midas lists the same for the MR18. Neither names the iPhone, but ShowRecorder (the app this site makes) has recorded all 18 XR18 channels on an iPhone. On a Mac it works with no driver.",
   },
   {
     q: "How do I choose what goes to each USB channel on an XR18?",
@@ -332,7 +332,7 @@ export const XR18_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Can I choose pre or post fader for each USB channel on an XR18?",
-    a: "Yes. On the USB Sends page of Routing, each USB Send has its own Signal Source and Signal Tap: Analog, Input, Pre EQ, Post EQ, Pre Fader and Post Fader, most with a +M version that follows the channel mute. We saw this on a real XR18; Behringer's V1.0 manual doesn't describe it.",
+    a: "Yes. On the USB Sends page of Routing, each USB Send has its own Signal Source and Signal Tap: Analog, Input, Pre EQ, Post EQ, Pre Fader and Post Fader, most with a +M version that goes silent when the channel is muted. For a recording you will remix, pick Input. We saw this on a real XR18; Behringer's V1.0 manual doesn't describe it.",
   },
   {
     q: "Can the XR12 or XR16 multitrack record?",
@@ -386,5 +386,25 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     ],
     campaign: "site-guide-x32",
     tapPick: "a Local block (the raw inputs) on card out",
+  },
+  {
+    slug: "xr18",
+    path: "/guides/record/xr18",
+    pageKey: "guideXR18",
+    short: "XR18",
+    mixer: "Behringer XR18 or Midas MR18",
+    description:
+      "Multitrack record an XR18 or MR18 over USB: to a computer, an iPad or an iPhone. Settings, the USB routing grid, virtual soundcheck and tap points.",
+    published: "2026-11-06",
+    productPage: "/mixers/xr18",
+    faqs: XR18_GUIDE_FAQS,
+    faqsName: "XR18_GUIDE_FAQS",
+    sources: [
+      "https://cdn-media.empowertribe.com/ffe0de45e14541f797928d639a8933b2/M_BE_0605-AAA_X-AIR_EN.pdf",
+      "https://www.behringer.com/en/products/0605-AAD",
+      "https://cdn-media.empowertribe.com/f4e89140f9994eed93e4f2a4e086c578/M_MI_0605-AAF_MR18-MR12_EN.pdf",
+    ],
+    campaign: "site-guide-xr18",
+    tapPick: "the Input tap on each USB send",
   },
 ];
