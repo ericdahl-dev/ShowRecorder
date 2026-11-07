@@ -46,7 +46,6 @@ struct MeterGrid: View {
     /// Short screens (landscape iPhone): every channel gets its number and a Mixer-color swatch, and the
     /// Source's name only when there are few enough channels to have room for it.
     var compact = false
-    @Environment(\.appearanceMode) private var mode
 
     /// The widest a meter (and its label) gets. Wide enough that 18 channels fill an iPad, narrow enough
     /// that one or two channels aren't a screen-wide slab. The strip is centered when it's narrower
@@ -54,74 +53,28 @@ struct MeterGrid: View {
     static let maxBarWidth: CGFloat = 64
 
     var body: some View {
-        // Reading the levels here makes this view, and only this one, redraw as they move.
-        let meters = model.levels
+        // Only the count here, never the levels: a new reading redraws each lane's `LaneMeter` and nothing else, so a lane
+        // and its menu aren't rebuilt 30 times a second under an open menu, where a tap on "Arm channel" got lost (#1135).
+        let count = model.channelCount
+        let reservesNameRow = anyNamed(count: count)
         HStack(alignment: .bottom, spacing: 4) {
-            ForEach(meters.indices, id: \.self) { index in
-                VStack(spacing: 4) {
-                    VStack(spacing: 2) {
-                        // Shape as well as color: a triangle with an exclamation mark. The row is always there so
-                        // a clip doesn't move the meters.
-                        if notArmed.contains(index + 1), !clipped.contains(index) {
-                            Image(systemName: "circle.slash").font(.caption2).foregroundStyle(.secondary)
-                        } else {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.caption2)
-                                .foregroundStyle(mode == .system ? Color.red : Color(Palette.meter(.red, mode: mode)))
-                                .opacity(clipped.contains(index) ? 1 : 0)
-                        }
-                        MeterBar(meter: meters[index])
-                            .frame(maxHeight: .infinity)
-                            .opacity(dimming(index))
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture { if clipped.contains(index) { clearClip(index) } }
-                    .accessibilityElement(children: .ignore)
-                    // The Source's name too, so a VoiceOver user hears "Level, USB Channel 1, Kick" (#249).
-                    .accessibilityLabel(source(at: index).map { "Level, USB Channel \(index + 1), \($0.name)" } ?? "Level, USB Channel \(index + 1)")
-                    // Coarse on purpose: the zone and any clip, not a dB number that changes every frame.
-                    .accessibilityValue((notArmed.contains(index + 1) ? "Not armed. " : "") + meters[index].spoken(clipped: clipped.contains(index)))
-                    .accessibilityAddTraits(clipped.contains(index) ? .isButton : [])
-                    .accessibilityHint(clipped.contains(index) ? "Double tap to clear the clip mark" : "")
-                    .accessibilityAction(named: notArmed.contains(index + 1) ? "Arm channel" : "Don't arm channel") {
-                        armChannel?(index + 1, notArmed.contains(index + 1))
-                    }
-                    SourceLabel(
-                        number: index + 1,
-                        source: source(at: index),
-                        compact: compact, showsName: !compact || meters.count <= 8,
-                        reservesNameRow: anyNamed(count: meters.count))
-                        .opacity(dimming(index))
-                        .contentShape(Rectangle())
-                        .onTapGesture { nameChannel(index + 1) }
-                        .accessibilityAddTraits(.isButton)
-                        .accessibilityHint("Double tap to name this channel")
-                }
-                // A 44 pt touch zone at the foot of the lane (#240): the label is shorter than that, and making it
-                // taller would take height from the meters. It clears a clip mark when there is one, else names.
-                .overlay(alignment: .bottom) {
-                    Color.clear
-                        .frame(height: 44)
-                        .contentShape(Rectangle())
-                        .onTapGesture { if clipped.contains(index) { clearClip(index) } else { nameChannel(index + 1) } }
-                        .accessibilityHidden(true)
-                }
-                // The lane's menu (a long press, over the whole lane including that foot): a tap is taken, it clears a clip mark (#991).
-                .contextMenu {
-                    if let armChannel {
-                        let isArmed = !notArmed.contains(index + 1)
-                        Button(isArmed ? "Don't arm channel \(index + 1)" : "Arm channel \(index + 1)", systemImage: isArmed ? "circle.slash" : "circle") {
-                            armChannel(index + 1, !isArmed)
-                        }
-                    }
-                }
+            ForEach(0..<count, id: \.self) { index in
+                MeterLane(
+                    steady: MeterLane.Steady(
+                        model: model, index: index, isClipped: clipped.contains(index),
+                        armItem: ChannelArmMenuItem(channel: index + 1, notArmed: notArmed), offersArming: armChannel != nil,
+                        source: source(at: index), compact: compact, showsName: !compact || count <= 8, reservesNameRow: reservesNameRow),
+                    clearClip: clearClip, armChannel: armChannel, nameChannel: nameChannel)
+                    // Compared by its steady data alone (the closures aren't comparable), so a redraw of the screen above
+                    // that changes nothing for this lane leaves its menu alone too.
+                    .equatable()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     /// A not-armed lane's meter and label are dimmed; the meter still moves (#991).
-    private func dimming(_ index: Int) -> Double { notArmed.contains(index + 1) ? 0.45 : 1 }
+    fileprivate static func dimming(_ item: ChannelArmMenuItem) -> Double { item.isArmed ? 1 : 0.45 }
 
     /// Whether any channel has a name to show. Then every lane keeps the same space for one, so a name under one
     /// meter never makes that meter shorter than the others.
@@ -140,6 +93,112 @@ struct MeterGrid: View {
     /// Maps dBFS to 0...1 on a -60...0 scale.
     static func fraction(forDbfs dbfs: Double) -> Double {
         min(max((dbfs + 60) / 60, 0), 1)
+    }
+}
+
+/// One channel's lane: its meter, its label, the touch zone at its foot and its menu. Everything here is steady data;
+/// the level is read only inside `LaneMeter`, so a new reading never rebuilds the lane's menu (#1135).
+private struct MeterLane: View, Equatable {
+    /// What the lane shows, all of it comparable; the closures below aren't, and stay out of `==`.
+    struct Steady: Equatable, Sendable {
+        let model: MeterModel
+        let index: Int
+        let isClipped: Bool
+        let armItem: ChannelArmMenuItem
+        let offersArming: Bool
+        let source: Source?
+        let compact: Bool
+        let showsName: Bool
+        let reservesNameRow: Bool
+
+        nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+            lhs.model === rhs.model && lhs.index == rhs.index && lhs.isClipped == rhs.isClipped && lhs.armItem == rhs.armItem
+                && lhs.offersArming == rhs.offersArming && lhs.source == rhs.source && lhs.compact == rhs.compact
+                && lhs.showsName == rhs.showsName && lhs.reservesNameRow == rhs.reservesNameRow
+        }
+    }
+
+    let steady: Steady
+    let clearClip: (Int) -> Void
+    let armChannel: ((Int, Bool) -> Void)?
+    let nameChannel: (Int) -> Void
+
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool { lhs.steady == rhs.steady }
+
+    private var index: Int { steady.index }
+    private var armItem: ChannelArmMenuItem { steady.armItem }
+
+    var body: some View {
+        VStack(spacing: 4) {
+            LaneMeter(model: steady.model, index: index, isClipped: steady.isClipped, armItem: armItem, source: steady.source, clearClip: clearClip, armChannel: armChannel)
+            SourceLabel(number: index + 1, source: steady.source, compact: steady.compact, showsName: steady.showsName, reservesNameRow: steady.reservesNameRow)
+                .opacity(MeterGrid.dimming(armItem))
+                .contentShape(Rectangle())
+                .onTapGesture { nameChannel(index + 1) }
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("Double tap to name this channel")
+        }
+        // A 44 pt touch zone at the foot of the lane (#240): the label is shorter than that, and making it
+        // taller would take height from the meters. It clears a clip mark when there is one, else names.
+        .overlay(alignment: .bottom) {
+            Color.clear
+                .frame(height: 44)
+                .contentShape(Rectangle())
+                .onTapGesture { if steady.isClipped { clearClip(index) } else { nameChannel(index + 1) } }
+                .accessibilityHidden(true)
+        }
+        // The lane's menu (a long press, over the whole lane including that foot): a tap is taken, it clears a clip mark (#991).
+        .contextMenu {
+            if steady.offersArming, let armChannel {
+                Button(armItem.title, systemImage: armItem.systemImage) {
+                    armChannel(armItem.channel, armItem.armsOnTap)
+                }
+            }
+        }
+    }
+}
+
+/// The part of a lane that moves with the level: the clip mark row and the meter, and what VoiceOver says about them.
+/// The only view that reads the levels, so it alone redraws with each reading.
+private struct LaneMeter: View {
+    let model: MeterModel
+    let index: Int
+    let isClipped: Bool
+    let armItem: ChannelArmMenuItem
+    let source: Source?
+    let clearClip: (Int) -> Void
+    let armChannel: ((Int, Bool) -> Void)?
+    @Environment(\.appearanceMode) private var mode
+
+    var body: some View {
+        let meter = model.levels.indices.contains(index) ? model.levels[index] : ChannelMeter()
+        VStack(spacing: 2) {
+            // Shape as well as color: a triangle with an exclamation mark. The row is always there so
+            // a clip doesn't move the meters.
+            if !armItem.isArmed, !isClipped {
+                Image(systemName: "circle.slash").font(.caption2).foregroundStyle(.secondary)
+            } else {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(mode == .system ? Color.red : Color(Palette.meter(.red, mode: mode)))
+                    .opacity(isClipped ? 1 : 0)
+            }
+            MeterBar(meter: meter)
+                .frame(maxHeight: .infinity)
+                .opacity(MeterGrid.dimming(armItem))
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { if isClipped { clearClip(index) } }
+        .accessibilityElement(children: .ignore)
+        // The Source's name too, so a VoiceOver user hears "Level, USB Channel 1, Kick" (#249).
+        .accessibilityLabel(source.map { "Level, USB Channel \(index + 1), \($0.name)" } ?? "Level, USB Channel \(index + 1)")
+        // Coarse on purpose: the zone and any clip, not a dB number that changes every frame.
+        .accessibilityValue((armItem.isArmed ? "" : "Not armed. ") + meter.spoken(clipped: isClipped))
+        .accessibilityAddTraits(isClipped ? .isButton : [])
+        .accessibilityHint(isClipped ? "Double tap to clear the clip mark" : "")
+        .accessibilityAction(named: armItem.accessibilityName) {
+            armChannel?(armItem.channel, armItem.armsOnTap)
+        }
     }
 }
 
