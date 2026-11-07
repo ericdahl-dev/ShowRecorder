@@ -36,6 +36,7 @@ describe("sitemap", () => {
       "https://showrecorder.app/guides/record/ah-sq",
       "https://showrecorder.app/guides/record/xr12-xr16-mr12",
       "https://showrecorder.app/guides/record/yamaha-tf",
+      "https://showrecorder.app/guides/record/yamaha-dm3",
       "https://showrecorder.app/changelog",
       "https://showrecorder.app/support",
       "https://showrecorder.app/privacy",
