@@ -494,6 +494,45 @@ describe("the Midas M32 guide's facts", () => {
   });
 });
 
+// Plain-language pass (#1111, Eric 2026-11-07): the guides are for laypeople, such as a church volunteer with the mixer
+// and an iPhone. Each term is explained where it first appears (or links the glossary), and prose sentences stay short.
+const PLAIN_TERMS: readonly { term: RegExp; explained: RegExp }[] = [
+  { term: /tap points?/i, explained: /where (in the channel )?the (recording|feed)[^.]*(is taken|comes from)|#glossary/ },
+  { term: /pre-fader/i, explained: /before the (channel |main )?fader|fader doesn't change|#glossary/ },
+  { term: /class compliant/i, explained: /no driver|without a driver|#glossary/ },
+  { term: /virtual soundcheck|virtual sound check/i, explained: /play(s|ing)? (a|the) recording back|no band|#glossary/ },
+  { term: /USB returns?/i, explained: /back (in|into|from)|comes back|#glossary/ },
+];
+
+// The prose of a guide, one sentence per entry: no headings, code, comments, Sources, link targets or emphasis marks.
+const proseSentences = (mdx: string) =>
+  mdx
+    .slice(0, mdx.indexOf("## Sources"))
+    .split("\n")
+    .filter((l) => l.trim() && !/^(#|import|export|<|\{\/\*)/.test(l.trim()))
+    .map((l) => l.replace(/\]\([^)]*\)/g, "]").replace(/[*[\]`]/g, "").replace(/^\s*(-|\d+\.)\s*/, ""))
+    .flatMap((l) => l.split(/(?<=[.:;?])\s+(?=[A-Z"(])/))
+    .filter((s) => s.trim());
+
+describe.each(["mackie-dl32r", "mackie-dl32s", "m32"])("the %s guide, for beginners", (slug) => {
+  const mdx = body(slug);
+  const lines = mdx
+    .slice(0, mdx.indexOf("## Sources"))
+    .split("\n")
+    .filter((l) => l.trim() && !/^(#|import|export|<|\{\/\*)/.test(l.trim()));
+
+  it.each(PLAIN_TERMS.map((t) => [t.term.source, t] as const))("explains %s where it first appears", (_, { term, explained }) => {
+    const first = lines.find((l) => term.test(l.replace(/\]\([^)]*\)/g, "]")));
+    if (first === undefined) return;
+    expect(first).toMatch(explained);
+  });
+
+  it("keeps every prose sentence to 30 words or fewer", () => {
+    const long = proseSentences(mdx).filter((s) => s.split(/\s+/).filter(Boolean).length > 30);
+    expect(long).toEqual([]);
+  });
+});
+
 describe("guide headlines", () => {
   it("say 'an' before a vowel", () => {
     expect(guideHeadline("Allen & Heath Qu")).toBe("How to multitrack record an Allen & Heath Qu");

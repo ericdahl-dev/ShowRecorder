@@ -7,7 +7,7 @@ import { guideTrail } from "@/lib/mixerGuides";
 
 <LastChecked path="/guides/record/m32" />
 
-**Short answer.** Fit a DN32-USB or DN32-LIVE card, on a DN32-LIVE set the USB channel count on **Setup > Card** (the DN32-USB is 32 x 32), put Local 1-8 to 25-32 on **ROUTING > card out**, and record the card's USB in any DAW. An M32 LIVE or M32R LIVE has the DN32-LIVE card, which can also record up to 32 channels to SD cards with no computer. Routing works as on the X32; the cards are what differ.
+**Short answer.** The M32 records over USB only through a card in its expansion slot: a DN32-USB or a DN32-LIVE. On a DN32-LIVE, set the USB channel count on **Setup > Card** (the DN32-USB is always 32 x 32). Then put Local 1-8 to 25-32 on **ROUTING > card out**, and record the card's USB in any DAW (a recording app such as Reaper, Logic or Pro Tools). The M32 LIVE and M32R LIVE come with the DN32-LIVE, which can also record up to 32 channels to SD cards with no computer. Routing works as on the X32; the cards are what differ.
 
 **Quick start**
 
@@ -17,43 +17,52 @@ import { guideTrail } from "@/lib/mixerGuides";
 4. **Plug the card's USB port into the computer** and open your recording app. An iPhone or iPad is not tested yet. ([Mac, iPad and iPhone](#m32-on-mac-ipad-and-iphone))
 5. **Record a 30 s test and play it back** before the show.
 
-This guide covers the Midas M32, M32R and M32C, and the M32 LIVE and M32R LIVE. The M32 shares the Behringer X32's routing and firmware family, so most of the [X32 recording guide](/guides/record/x32) applies. What differs is the card in the expansion slot, made by Klark Teknik:
+This guide covers the Midas M32, M32R and M32C, and the M32 LIVE and M32R LIVE. The M32 shares the Behringer X32's routing and firmware family. So most of the [X32 recording guide](/guides/record/x32) applies. What differs is the card in the expansion slot, made by Klark Teknik:
 
 - **DN32-USB:** USB only. Older M32 and M32R consoles shipped with it.
 - **DN32-LIVE:** USB plus two SD card slots, for recording with no computer. Fitted to the M32 LIVE and M32R LIVE.
-- **XUF:** the M32's version of the X32's X-UF card. The name "XUF" is from an earlier edition of the M32 manual, on ManualsLib; Midas's current manual names only the DN32-USB.
+- **XUF:** the M32's version of the X32's X-UF card. The name "XUF" is from an earlier edition of the M32 manual, on ManualsLib. Midas's current manual names only the DN32-USB.
 
-Without one of these cards, the M32 sends no multichannel audio over USB. The console's own rear USB port is for remote control only (M32 LIVE guide). Facts come from Midas and Klark Teknik documents unless a line says otherwise; where only the X32's documents say it, the line says so. The [sources](#sources) are at the end. Other mixers are in the [mixer recording guides](/guides/record), and the words used here are in its [glossary](/guides/record#glossary).
+**No card, no multitrack.** Without one of these cards, the M32 sends no multichannel audio over USB. The console's own rear USB port is for remote control only (M32 LIVE guide).
+
+Facts come from Midas and Klark Teknik documents unless a line says otherwise. Where only the X32's documents say it, the line says so. The [sources](#sources) are at the end. Other mixers are in the [mixer recording guides](/guides/record), and the words used here are explained in its [glossary](/guides/record#glossary).
 
 ## Ways to record an M32
 
 ### To a computer over USB
 
-Plug the card's USB port into the computer and record in any DAW.
+Plug the card's USB port into the computer. Record in any DAW.
 
 - **DN32-USB:** 32 in and 32 out, 24-bit at 48 kHz (Klark Teknik). 44.1 kHz is not stated for the DN32-USB. It is USB 2.0; the plug type is not stated.
 - **DN32-LIVE:** 32, 16, 8 or 2 channels each way, over a USB 2.0 type-B port (M32 LIVE guide). It follows the console's clock, 44.1 or 48 kHz (the guide states this in its SD specs). Its bit depth on USB is not stated.
-- **Mac:** Klark Teknik calls the DN32-USB class compliant, with no driver required. The DN32-LIVE is listed for CoreAudio, but its list of Mac versions is years old and names no current macOS.
+- **Mac:** Klark Teknik calls the DN32-USB class compliant, meaning it works with no driver. The DN32-LIVE is listed for CoreAudio, but its list of Mac versions is years old and names no current macOS.
 - **Windows:** install the ASIO driver. The DN32-LIVE guide lists ASIO, WASAPI and WDM.
 
 ### With no computer
 
-- **DN32-LIVE card to SD cards** (M32 LIVE guide). It records 8, 16 or 32 channels to two SD or SDHC cards (FAT32, 1 to 32 GB per slot). Files are uncompressed multichannel WAV (8, 16 or 32 channels) at the console's 44.1 or 48 kHz, 32-bit PCM (M32 LIVE guide); on the X-LIVE each session is one file (X-LIVE guide, our reading).
-  - A 32-channel session at 44.1 kHz runs up to 200 min (3 hours 20 minutes) on two 32 GB cards.
-  - Use class 10 cards for 32 channels. Class 6 is enough for 8 or 16.
-  - An optional CR123A battery protects the files in a blackout.
-  - To mix, split the multichannel WAV into one file per channel in Audacity or your DAW.
-- **The top-panel USB stick port** records stereo only, as a 16-bit file at the console's 44.1 or 48 kHz, to a stick formatted FAT. A file stops at 2 GB, about three hours (M32 LIVE guide).
-- **The DN32-USB card can't record by itself.**
+**DN32-LIVE card to SD cards** (M32 LIVE guide):
+
+- It records 8, 16 or 32 channels to two SD or SDHC cards (FAT32, 1 to 32 GB per slot).
+- Files are uncompressed multichannel WAV (8, 16 or 32 channels) at the console's 44.1 or 48 kHz, 32-bit PCM (M32 LIVE guide). On the X-LIVE each session is one file (X-LIVE guide, our reading).
+- A 32-channel session at 44.1 kHz runs up to 200 min (3 hours 20 minutes) on two 32 GB cards.
+- Use class 10 cards for 32 channels. Class 6 is enough for 8 or 16.
+- An optional CR123A battery protects the files in a blackout.
+- To mix, split the multichannel WAV into one file per channel in Audacity or your DAW.
+
+**The top-panel USB stick port** records stereo only. It writes a 16-bit file at the console's 44.1 or 48 kHz, to a stick formatted FAT. A file stops at 2 GB, about three hours (M32 LIVE guide).
+
+**The DN32-USB card can't record by itself.**
 
 ### To an iPhone, iPad or Mac with an app
 
-A Mac works like any computer above. Midas and Klark Teknik don't document iPhone or iPad audio from either card; see [Mac, iPad and iPhone](#m32-on-mac-ipad-and-iphone) below.
+A Mac works like any computer above. Midas and Klark Teknik don't document iPhone or iPad audio from either card. See [Mac, iPad and iPhone](#m32-on-mac-ipad-and-iphone) below.
 
 ## M32 recording settings
 
-- **Sample rate and clock:** on **Setup > Config** (M32 LIVE guide: "config: This screen offers adjustments for sample rates and synchronisation"). On the X32 a rate change needs a console reboot (X32 manual); Midas doesn't say so for the M32, so plan for one (our reading). {/* spelling: ok (Midas's own word, quoted) */}
-- **USB channel count:** **Setup > Card**. The DN32-LIVE offers 32, 16, 8 or 2 channels each way (M32 LIVE guide). The choices 32/32, 16/16, 32/8, 8/32, 8/8 and 2/2 are named in Behringer's X32 documents, and we expect the M32 list to match because the firmware is shared, but no Midas document lists it (our reading).
+- **Sample rate and clock:** set them on **Setup > Config**. The M32 LIVE guide: "config: This screen offers adjustments for sample rates and synchronisation". {/* spelling: ok (Midas's own word, quoted) */}
+- **Plan for a reboot:** on the X32 a rate change needs a console reboot (X32 manual). Midas doesn't say so for the M32, so plan for one (our reading).
+- **USB channel count:** set it on **Setup > Card**. The DN32-LIVE offers 32, 16, 8 or 2 channels each way (M32 LIVE guide).
+- **The exact choices:** 32/32, 16/16, 32/8, 8/32, 8/8 and 2/2 come from Behringer's X32 documents; we expect the same on the M32 (our reading). No Midas document lists them.
 - **DN32-LIVE options:** the SD channel count and recording controls are on the same **Setup > Card** page (M32 LIVE guide).
 - **Bit depth:** DN32-USB audio is 24-bit, DN32-LIVE SD files are 32-bit PCM, and the USB stick recorder is 16-bit. Midas documents no bit-depth setting; on the X32 it is fixed (X32 manual), and we expect the same on the M32 (our reading).
 - **File format:** the DN32-LIVE writes multichannel WAV only. Over USB, your recording app sets the format.
@@ -62,36 +71,46 @@ A Mac works like any computer above. Midas and Klark Teknik don't document iPhon
 
 ### Only 8 or 2 channels? Check Setup > Card
 
-A DN32-LIVE set to 8 or 2 channels sends only 8 or 2 to the computer. On a DN32-LIVE, set **Setup > Card** to 32 each way (the DN32-USB is 32 x 32) for a full multitrack, then check the recorder again.
+A DN32-LIVE set to 8 or 2 channels sends only 8 or 2 to the computer. On a DN32-LIVE, set **Setup > Card** to 32 each way (the DN32-USB is 32 x 32) for a full multitrack. Then check the recorder again.
 
 ## M32 USB routing
 
-What goes to each USB channel is set on the **card out** tab, in blocks of 8, exactly as on the X32. The routing tabs on an M32 LIVE are home, out 1-16, aux out, p16 out, card out, aes50-a, aes50-b and xlr out (M32 LIVE guide).
+**What to do:** on the **card out** tab, pick what each block of 8 USB channels carries, exactly as on the X32. Midas doesn't state a factory default for card out. So check **ROUTING > card out** before a show, and listen to a short test.
+
+The routing tabs on an M32 LIVE are home, out 1-16, aux out, p16 out, card out, aes50-a, aes50-b and xlr out (M32 LIVE guide).
 
 The words on this page, also in the [glossary](/guides/record#glossary):
 
 - **Local:** the inputs on the console itself.
 - **AES50:** the inputs from a stage box, such as a DL16 or DL32, on the AES50 ports (A or B).
 - **card out:** the routing tab that picks what the USB card sends.
+- **Tap point:** where in the channel the recording is taken from, such as before or after the EQ.
+- **Pre-fader:** before the fader, so the fader doesn't change the recording.
 - **P16:** the 16 personal monitor outputs. Each P16 slot has its own tap point.
-
-Midas doesn't state a factory default for card out. Check **ROUTING > card out** before a show, and listen to a short test.
 
 ### Method A: blocks of 8 on the card out tab
 
 1. **Open card out.** Press **ROUTING** and go to the **card out** tab.
-2. **Pick four blocks.** "Adjust the first rotary control to select an 8-channel signal path that will be sent to the first eight channels", then "repeat the process with controls 2-4", for card outputs 1-8, 9-16, 17-24 and 25-32 (an earlier edition of the M32 manual, on ManualsLib; Midas's current manual says "push encoder" for the control).
-3. **Assign.** "Tap the first control to assign the selected output path, completing the process" (an earlier edition of the M32 manual, on ManualsLib), and do the same for controls 2-4.
+2. **Pick four blocks,** one per rotary control, for card outputs 1-8, 9-16, 17-24 and 25-32.
+3. **Assign each one.** Tap the control to confirm the block, for controls 1 to 4.
+
+In the manual's words: "Adjust the first rotary control to select an 8-channel signal path that will be sent to the first eight channels". Then "repeat the process with controls 2-4". Then "Tap the first control to assign the selected output path, completing the process" (an earlier edition of the M32 manual, on ManualsLib). Midas's current manual says "push encoder" for the control.
 
 {/* Screenshot: ROUTING > card out with Local 1-8 to 25-32. <Screenshot src="/images/guides/m32-card-out.png" alt="M32 ROUTING card out tab with Local 1-8, 9-16, 17-24 and 25-32 on the four rotary controls" /> */}
 
-The blocks you can pick: Local 1-8 to 25-32, AES50-A 1-8 to 41-48, AES50-B 1-8 to 41-48, Card 1-8 to 25-32, Out 1-8, Out 9-16, P16 1-8, P16 9-16, and Aux 1-6/Mon (M32 manual).
+The blocks you can pick (M32 manual):
+
+- Local 1-8 to 25-32.
+- AES50-A 1-8 to 41-48, and AES50-B 1-8 to 41-48.
+- Card 1-8 to 25-32.
+- Out 1-8, Out 9-16, P16 1-8 and P16 9-16.
+- Aux 1-6/Mon.
 
 The **Local** and **AES50** blocks are the raw inputs, after the preamp but before the channel strip. The channel's EQ, dynamics and fader don't touch them.
 
 ### Main mix, buses and tapped channels: stage them in Out 1-16 or P16
 
-To record the main mix, a bus, or a channel at a chosen tap point, put it in an output slot first, then send that block to the card.
+To record the main mix, a bus, or a channel at a chosen tap point, put it in an output slot first. Then send that block to the card.
 
 1. In **ROUTING**, open the **out 1-16** tab or the **p16 out** tab.
 2. For each slot, pick the source, such as the main mix or a bus.
@@ -102,11 +121,16 @@ To record the main mix, a bus, or a channel at a chosen tap point, put it in an 
 
 - **8, 16, 24 or 32 inputs in order, untouched by processing:** Method A with Local or AES50 blocks. This is the simplest.
 - **Fewer than 8 from a block, a mix of local and stage-box inputs, or a different track order:** user routing, below.
-- **The main mix, buses or a different tap per track alongside your inputs:** stage them in Out 1-16 or P16, then send those blocks to the card.
+- **The main mix, buses or a different tap per track, alongside your inputs:** stage them in Out 1-16 or P16. Then send those blocks to the card.
 
 ### Advanced: user routing (firmware 4.x, per user reports)
 
-No Midas document describes User In or User Out on the M32. The X32 and M32 share firmware generations: forum users report updating both to firmware 4.02, and an M32 owner's routing question on a Behringer forum got the same firmware 4 answer as an X32. So user routing probably works as the X32 guide describes it (our reading):
+No Midas document describes User In or User Out on the M32. But the X32 and M32 share firmware generations:
+
+- Forum users report updating both to firmware 4.02.
+- An M32 owner's routing question on a Behringer forum got the same firmware 4 answer as an X32.
+
+So user routing probably works as the X32 guide describes it (our reading):
 
 - User Out has 48 slots and User In has 32. A User Out slot can take a single input or a staged Out 1-16 or P16 slot.
 - On the **card out** tab, pick a block such as User Out 1-8 instead of a fixed block.
@@ -116,10 +140,14 @@ The [X32 guide's user routing section](/guides/record/x32#advanced-user-routing-
 
 ## M32 playback for virtual soundcheck
 
+Virtual soundcheck means playing the recording back through the console's channels, so you can set the mix with no band on stage.
+
 1. On the **ROUTING** home tab, set a channel input block to Card 1-8, Card 9-16 and so on.
 2. Play the recording back from the computer into those card channels.
 
-On the X32, when a channel's source is the card, its gain knob becomes a digital trim and preamp gain moves to **Setup > Preamps** (X32 manual); expect the same on the M32 (our reading). The X-LIVE's Record and Play input presets are not described in the M32 LIVE guide we read, though they may exist on the DN32-LIVE as the firmware is shared (our reading).
+- **Gain becomes trim:** on a card channel, the gain knob becomes a digital trim on the X32 (X32 manual); we expect the same on the M32 (our reading).
+- **Preamp gain:** on the X32 it then moves to **Setup > Preamps** (X32 manual).
+- **Presets:** the M32 LIVE guide we read doesn't describe the X-LIVE's Record and Play input presets; they may exist on the DN32-LIVE, as the firmware is shared (our reading).
 
 ## M32 tap points
 
@@ -127,17 +155,18 @@ Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-po
 
 - **For a multitrack you will mix later:** Local or AES50 blocks on card out, as in the quick start.
 - **Local and AES50 blocks on card out** are the raw input: after the preamp, before the channel. You can't pick a tap for them.
-- **Out 1-16 and P16 slots** each have their own tap point: Input, Pre-EQ, Pre-Fader and Post-Fader (M32 manual). The manual says this "determines where in the audio signal path the source is 'tapped'". On the X32, forum users report newer names such as Input/LC and +M variants (our reading for the M32), so check what your console offers.
-- **Mic gain and phantom power** sit at the preamp, local or on a DL16 or DL32 stage box over AES50, so they reach every feed, even the raw blocks. The channel's trim, low cut, EQ, dynamics and fader don't reach a raw block.
+- **Out 1-16 and P16 slots** each have their own tap point: Input, Pre-EQ, Pre-Fader and Post-Fader (M32 manual). The manual says this "determines where in the audio signal path the source is 'tapped'".
+- **Newer names:** on the X32, forum users report newer names such as Input/LC and +M variants (our reading for the M32). Check what your console offers.
+- **Mic gain and phantom power** sit at the preamp, local or on a DL16 or DL32 stage box over AES50. So they reach every feed, even the raw blocks. The channel's trim, low cut, EQ, dynamics and fader don't reach a raw block.
 - **Shared stage box** (a DL16 or DL32 on two consoles): whichever console controls the stage box preamp gain changes your recorded level. We found no gain compensation feature for the M32.
 
 ## M32 on Mac, iPad and iPhone
 
-- **Mac:** the DN32-USB works with no driver (Klark Teknik: "class-compliant", "no driver required"). The DN32-LIVE guide lists CoreAudio but only old Mac versions. Its "Intel CPU only" line dates from the PowerPC era and says nothing about Apple silicon Macs (our reading).
+- **Mac:** the DN32-USB works with no driver (Klark Teknik: "class-compliant", "no driver required"). The DN32-LIVE guide lists CoreAudio but only old Mac versions. Its "Intel CPU only" line dates from the PowerPC era. It says nothing about Apple silicon Macs (our reading).
 - **iPhone and iPad:** not documented, and not tested yet. No Midas or Klark Teknik document lists iOS or iPadOS for audio from either card. The DN32-USB is class compliant, which suggests it may work, but that is not a confirmation. We will say it works once someone makes a real recording from a DN32 card into an iPhone.
 - **Power:** for a long show, keep the iPhone or iPad on a powered USB-C hub (our advice).
 
-ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer. On the X32 and M32 it is built to also read channel names and colors over Mixer Link, which works only on the XR18/MR18 and X32/M32. Its X32 and M32 support has run only against an X32 emulator so far, and Mixer Link with an M32 is not tested yet. If you try it, the [X32 and M32 page](/mixers/x32) has the setup, and we'd like to hear how it goes.
+ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer. On the X32 and M32 it is built to also read channel names and colors over Mixer Link. Mixer Link works only on the XR18/MR18 and X32/M32. Its X32 and M32 support has run only against an X32 emulator so far, and Mixer Link with an M32 is not tested yet. If you try it, the [X32 and M32 page](/mixers/x32) has the setup, and we'd like to hear how it goes.
 
 <GetTheApp campaign="site-guide-m32" />
 
