@@ -21,12 +21,19 @@ public enum StemRepair {
         func read(_ part: Range<Int>) throws -> [Float] {
             try StemWriter.readSamples(url: source, frames: (part.lowerBound - sourceStart)..<(part.upperBound - sourceStart))
         }
-        let targetFrames = try StemFile.inspect(target).framesOnDisk
+        let targetFile = try StemFile.inspect(target)
+        let targetFrames = targetFile.framesOnDisk
         // Only frames the source really holds: `readSamples` answers silence past its end, and silence written over audio the
         // target has (an uncommitted tail that did reach the disk, say) would destroy it (#602).
         // Looked at only when something will be read from it: a stand-in with nothing to give may be missing altogether.
         let needsSource = !ranges.isEmpty || Int(targetFrames) < length
-        let sourceEnd = needsSource ? sourceStart + Int(try StemFile.inspect(source).framesOnDisk) : sourceStart
+        let sourceFile = needsSource ? try StemFile.inspect(source) : nil
+        // A stereo Stem is never filled from a mono one, or the other way round (#1088): its frames would be scrambled.
+        if let sourceFile, sourceFile.channelCount != targetFile.channelCount {
+            throw CocoaError(.fileReadCorruptFile, userInfo: [
+                NSFilePathErrorKey: source.path, NSLocalizedDescriptionKey: "\(source.lastPathComponent) doesn't have the same channels as the Stem it would repair."])
+        }
+        let sourceEnd = sourceStart + Int(sourceFile?.framesOnDisk ?? 0)
         let writer = try StemWriter.reopen(url: target)
         let chunk = 48_000
 

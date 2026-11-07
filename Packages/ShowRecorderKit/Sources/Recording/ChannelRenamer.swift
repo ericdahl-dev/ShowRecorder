@@ -56,7 +56,8 @@ public enum ChannelRenamer {
         }
         for index in take.usbChannels.indices {
             let channel = take.usbChannels[index]
-            guard let name = names[channel.usbChannel], name != channel.name else { continue }
+            // A stereo pair's file keeps the name "Stereo" (#1088): a name is a channel's, and the file holds two.
+            guard channel.channelCount == 1, let name = names[channel.usbChannel], name != channel.name else { continue }
             let file = StemFileName.make(usbChannel: channel.usbChannel, sourceName: name)
             for stemFolder in stemFolders ?? [folder] {
                 let old = stemFolder.appending(path: channel.stemFile), new = stemFolder.appending(path: file)
