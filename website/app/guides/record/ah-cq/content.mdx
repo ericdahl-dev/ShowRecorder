@@ -1,0 +1,178 @@
+import { AskUs, Breadcrumbs, GetTheApp, LastChecked } from "@/components/GuideParts";
+import { guideTrail } from "@/lib/mixerGuides";
+
+<Breadcrumbs trail={guideTrail("CQ", "/guides/record/ah-cq")} />
+
+# How to multitrack record an Allen & Heath CQ
+
+<LastChecked path="/guides/record/ah-cq" />
+
+**Short answer.** Set **Stream Mode** to **Multitrack**, then plug the CQ's USB-B port into a computer or iPad. Every input arrives on its own track, in order: input 1 on track 1, input 2 on track 2. The CQ-12T sends 16 tracks, the CQ-18T and CQ-20B send 24. A Mac needs no driver. Allen & Heath staff say an iPad works too; we haven't tested an iPhone or iPad yet. With no computer, the CQ records every channel to an SD card.
+
+**Quick start**
+
+1. **Set Stream Mode to Multitrack.** Go to **CONFIG**, then **Digital Audio**, then **USB/SD**. Without this, you get only 2 tracks. ([Recording settings](#cq-recording-settings))
+2. **Pick the sample rate** on the same screen: 48 kHz is the safe choice (our advice). Set your recording app to the same rate.
+3. **Plug the USB-B port into your computer or iPad** and open a recording app. ([Ways to record](#ways-to-record-a-cq))
+4. **Arm the tracks.** Input 1 is on USB 1, input 2 on USB 2, and so on. The main mix is on the last 2 tracks. ([USB routing](#cq-usb-routing))
+5. **Check the Source Point** on the USB/SD screen. It decides how much of the channel's EQ and effects end up in the recording. ([Tap points](#cq-tap-points))
+6. **Record a 30 s test and play it back** before the show.
+
+New to this? The words used here, such as tap point, class compliant and virtual soundcheck, are in the [glossary](/guides/record#glossary). Other mixers are in the [mixer recording guides](/guides/record). Facts come from Allen & Heath's help pages unless a line says otherwise. The [sources](#sources) are at the end.
+
+## Ways to record a CQ
+
+### To a computer over USB
+
+Plug the CQ's square USB-B port into the computer. Then record in any recording app (a DAW).
+
+- **CQ-12T:** 16 channels to the computer, 16 back.
+- **CQ-18T:** 24 channels to the computer, 22 back.
+- **CQ-20B:** 24 channels to the computer, 24 back.
+- **Sample rate:** 48 or 96 kHz, on all three.
+- **Bit depth over USB:** not stated by Allen & Heath.
+- **The port:** USB-B, USB 2.0, class compliant. Allen & Heath: "Class compliant USB-B interface."
+- **Mac:** no driver needed. Allen & Heath: "CQ mixers are Core Audio compliant on MacOS so no driver is required."
+- **Windows:** install Allen & Heath's ASIO driver for low latency.
+
+### With no computer: to an SD card
+
+The CQ records every channel by itself to a full-size SD card in its SD slot.
+
+1. Go to **HOME**, then **RECORD**, then **Multitrack**.
+2. Arm each channel you want.
+3. Press **Record** in the transport bar.
+
+- **CQ-12T:** 16 tracks, at 48 or 96 kHz.
+- **CQ-18T and CQ-20B:** 24 tracks at 48 kHz, or 16 tracks at 96 kHz.
+- **Files:** one mono 24-bit WAV file per channel, named by channel number and name, such as `03SnrTop.WAV`. They go in a folder under `AHCQ\USBMTK`.
+- **Length:** a file stops at 4 GB, about 8 hours at 48 kHz or 4 hours at 96 kHz.
+- **The card:** SDHC, up to 32 GB, UHS-I, class 10. Format it in the CQ first: **HOME**, then **SYSTEM**, then **USB/SD**.
+- **A slow card records fewer channels.** The record screen shows "Armed X of Y" so you can see how many fit.
+- **A USB stick records only stereo.** The USB-A port takes a FAT32 stick and records a 24-bit stereo WAV of the last stereo pair (the main mix out of the box), up to 4 hours at 48 kHz.
+- **SD and the USB stick can't run at the same time.**
+
+### To an iPhone, iPad or Mac with an app
+
+A Mac works like any computer above, with no driver. For an iPad, Allen & Heath staff on its forum say: "CQ's USB-B audio interface is class compliant, so yes, it can be used with an iPad." Class compliant means it works without a driver. Allen & Heath doesn't name the iPhone. We haven't tested an iPhone or iPad with a CQ yet. See [Mac, iPad and iPhone](#cq-on-mac-ipad-and-iphone) below.
+
+## CQ recording settings
+
+All the recording settings are on one screen: **CONFIG**, then **Digital Audio** (the symbols tab), then **USB/SD**.
+
+- **Stream Mode:** pick **Multitrack** to record every channel. **Stereo** sends only one stereo pair.
+- **Sample Rate:** 48 or 96 kHz. This one setting covers USB-B, the USB stick and the SD card.
+- **Source Point:** how much channel processing goes into the recording. See [Tap points](#cq-tap-points).
+- **Channel Assignment:** what goes on the last few USB channels. See [USB routing](#cq-usb-routing).
+- **Bit depth over USB:** not stated by Allen & Heath. Files on the SD card and the USB stick are 24-bit.
+- **File format on the mixer:** WAV only.
+- **Clock:** Allen & Heath documents no external clock input, so the CQ runs on its own clock (our reading).
+- **Changing the rate later:** an SD recording made at 48 kHz won't play back while the CQ is set to 96 kHz, and the other way around.
+
+{/* Screenshot: CONFIG > Digital Audio > USB/SD with Stream Mode set to Multitrack. <Screenshot src="/images/guides/ah-cq-usb-sd-config.png" alt="Allen & Heath CQ CONFIG, Digital Audio, USB/SD screen with Stream Mode set to Multitrack and Sample Rate 48 kHz" /> */}
+
+### Only 2 channels? Set Stream Mode to Multitrack
+
+If your app sees only 2 channels, Stream Mode is set to **Stereo**.
+
+1. Go to **CONFIG**, then **Digital Audio**, then **USB/SD**.
+2. Set **Stream Mode** to **Multitrack**.
+3. Unplug the USB cable and plug it back in, so your app sees the new channel count (our advice).
+
+Allen & Heath's help text: "Set to Stereo for streaming or recording with mobile devices that do not support multichannel audio devices. Set to Multitrack for multichannel recording to and from a DAW." An iPad needs Multitrack to see more than 2 channels, Allen & Heath staff say. We'd use Multitrack on an iPhone too (our advice).
+
+## CQ USB routing
+
+**Recording every input? There is nothing to patch.** Each mono input goes to the USB channel with the same number, and you can't change that. Allen & Heath: "CQ input 7 is being sent to USB channel 7."
+
+**What reaches the computer:**
+
+- **CQ-12T:** USB 1-10 are inputs 1-10. USB 11-16 are 3 stereo pairs you choose.
+- **CQ-18T and CQ-20B:** USB 1-16 are inputs 1-16. USB 17-24 are 4 stereo pairs you choose.
+
+**The stereo pairs you choose:**
+
+1. Go to **CONFIG**, then **Digital Audio**, then **USB/SD**, then **Channel Assignment**.
+2. Pick a source for each pair: a stereo line input, an FX unit, the main mix (**Main LR**) or one of outputs 1-6.
+
+- **The last pair is the main mix** out of the box. Allen & Heath: "The last stereo pair is set to Main LR by default."
+- **The last pair is also what the USB stick records** and what Stereo stream mode sends.
+- **Other pairs' defaults:** not stated by Allen & Heath. Check them before the show.
+- **A monitor mix in the recording:** put that output in one of the pairs.
+
+{/* Screenshot: the Channel Assignment list with Main LR on the last pair. <Screenshot src="/images/guides/ah-cq-channel-assignment.png" alt="Allen & Heath CQ Channel Assignment list with Main LR on the last stereo pair" /> */}
+
+**What comes back from the computer (USB returns),** fixed:
+
+- **CQ-12T:** USB 1-10 to inputs 1-10, 11-12 to ST1, 13-14 to the USB L/R input, 15-16 to Bluetooth (BT).
+- **CQ-18T:** USB 1-16 to inputs 1-16, 17-18 to ST1, 19-20 to the USB L/R input, 23-24 to BT. USB 21-22 are not used.
+- **CQ-20B:** USB 1-16 to inputs 1-16, 17-18 to ST1, 19-20 to ST2, 21-22 to the USB L/R input, 23-24 to BT.
+
+## CQ playback for virtual soundcheck
+
+A virtual soundcheck plays a recorded show back through the mixer's channels, so you can set the mix with no band on stage.
+
+1. Play the recording from your app, with each track going back on the USB channel it came in on (see the returns in [USB routing](#cq-usb-routing)).
+2. On the CQ, go to **CONFIG**, then **INPUTS**.
+3. Select the channels you want. **Multi Select** picks several at once.
+4. Set **Input Source** to **USB/SD**.
+5. To make a played-back channel louder or quieter, use its **Trim**. The preamp **Gain** works only on the analog inputs; USB/SD sources get a digital Trim instead.
+6. When you're done, set **Input Source** back to the analog inputs before the show (our advice).
+
+**From the SD card instead:** the same **USB/SD** setting plays from the SD card while a multitrack is playing on the CQ, and from USB-B otherwise. The SD recorder is on **HOME**, then **RECORD**, then **Multitrack**.
+
+**Stereo inputs:** Allen & Heath staff say the stereo inputs can also switch to the USB source, from the preamp screen of the channel.
+
+## CQ tap points
+
+The tap point is the place in each channel where the recording is taken. Which one to pick, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). On the CQ:
+
+- **Always pre-fader:** pre-fader means the recording is taken before the fader, so moving a fader doesn't change it. Every CQ Source Point is pre-fader, users report (see below).
+- **One setting for every channel:** **Source Point**, on **CONFIG**, then **Digital Audio**, then **USB/SD**. It covers USB and the SD card.
+- **What it does:** Allen & Heath: "Choose whether the signal being sent to USB/SD from input channels includes no input channel processing, some processing, or all processing."
+- **The option names:** Allen & Heath's help pages don't list them. One user on its forum listed them in 2023 as Post Preamp, Post HPF, Post Gate, Post Insert Return, Post EQ, Post Compressor and Post AMM. AMM is the automatic mic mixer.
+- **Which to pick:** for a raw recording you can mix later, pick the earliest point, with no processing. For a recording that sounds like the room, pick a later one (our advice).
+- **The factory setting:** not stated by Allen & Heath. One user found Post AMM on their CQ-20B. Check yours before you record.
+- **No post-fader option:** users say there's no post-fader option, and we couldn't confirm one. Faders and mutes don't change the recording, users report.
+- **For a post-fader mix:** record the main mix or an output in one of the stereo pairs (see [USB routing](#cq-usb-routing)).
+- **Gain is always in the recording.** The preamp gain comes before every Source Point, so it changes the recorded level (our reading).
+- **Turn off Auto Gain while recording (our advice).** Allen & Heath says it can "automatically reduce the preamp gain ... if high levels are detected", which changes the recorded level in the middle of the show.
+
+## CQ on Mac, iPad and iPhone
+
+- **Mac:** no driver. Plug in, then pick the CQ as the input in your app.
+- **iPad:** Allen & Heath staff on its forum say it works, because the CQ is class compliant. Set Stream Mode to **Multitrack** first. One user reports recording a CQ-18 to an iPad in Cubasis. We haven't tested an iPad with a CQ yet.
+- **iPhone:** Allen & Heath doesn't name it, and we haven't tested one yet.
+- **Cable:** the CQ's audio port is USB-B. From a USB-C iPhone or iPad, try a USB-C to USB-B cable (our advice).
+- **Power:** the CQ won't charge an iPad. Allen & Heath staff say its USB-A port "is designed only to power a USB drive", and suggest a camera adapter that passes power through. For a long show, plug the iPad or iPhone into power that way (our advice).
+- **Windows:** install Allen & Heath's ASIO driver.
+
+ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer, so it records a CQ without Mixer Link. We haven't tested it with a CQ yet. There is no Mixer Link for the CQ: Mixer Link, which reads channel names and colors, works only on the XR18/MR18 and X32/M32. If you record a CQ with it, we'd like to hear how it goes.
+
+<GetTheApp campaign="site-guide-ah-cq" />
+
+<AskUs />
+
+## Sources
+
+Allen & Heath help pages:
+
+- [CQ CONFIG screens](https://support.allen-heath.com/hc/en-gb/articles/48456934886545-CQ-CONFIG-screens): Stream Mode, Sample Rate, Source Point, Channel Assignment, Input Source, Gain and Auto Gain.
+- [CQ HOME screens](https://support.allen-heath.com/hc/en-gb/articles/48457057592721-CQ-HOME-screens): SD and USB stick files, folders, lengths, "Armed X of Y".
+- [CQ How to](https://support.allen-heath.com/hc/en-gb/articles/48456861200017-CQ-How-to): channel counts, the 1:1 input map, the ASIO driver.
+- [CQ USB-B Routing](https://support.allen-heath.com/hc/en-gb/articles/31464715078929-CQ-USB-B-Routing): the USB map and returns for each model.
+- [CQ Multitrack streaming](https://support.allen-heath.com/hc/en-gb/articles/19338440353425-CQ-Multitrack-streaming-using-CQ): Core Audio on the Mac, playback with Input Source.
+- [CQ Multitrack Recording and Playback from SD Card](https://support.allen-heath.com/hc/en-gb/articles/19853352600337-CQ-Multitrack-Recording-and-Playback-from-SD-Card): SD track counts, arming and recording.
+- [CQ Connections](https://support.allen-heath.com/hc/en-gb/articles/48456773235473-CQ-Connections): the USB-B and USB-A ports, the SD card.
+- Product pages: [CQ-12T](https://www.allen-heath.com/hardware/cq/cq-12t/), [CQ-18T](https://www.allen-heath.com/hardware/cq/cq-18t/), [CQ-20B](https://www.allen-heath.com/hardware/cq/cq-20b/).
+
+Allen & Heath staff on its forum:
+
+- [USB interface](https://forums.allen-heath.com/t/usb-interface/16038) (2024): the iPad, the two stream modes, the stereo inputs, power from the USB-A port.
+
+Users on Allen & Heath's forum (one user's report each, not confirmed by Allen & Heath):
+
+- [Source Point options](https://forums.allen-heath.com/t/13551) (2023): the option names, faders not in the USB feed.
+- [Source Point on a CQ-20B](https://forums.allen-heath.com/t/14728): found set to Post AMM.
+- [Post-fader as a global source point for USB](https://forums.allen-heath.com/t/post-fader-as-global-source-point-for-usb/25766): a feature request; no post-fader option.
+- [Recording to iPad](https://forums.allen-heath.com/t/recording-to-ipad-garageband/15620): a CQ-18 to Cubasis; the CQ doesn't charge the iPad.
