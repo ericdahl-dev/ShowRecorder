@@ -369,7 +369,7 @@ export const XR18_GUIDE_FAQS: readonly Faq[] = [
 export const QU_GUIDE_FAQS: readonly Faq[] = [
   {
     q: "Can I multitrack record a Qu-16 to an iPad?",
-    a: "Yes, with a multichannel recording app: Allen & Heath staff say iOS sees the Qu as a class-compliant multichannel device (a stereo app may see only the first two channels). The Qu-16 sends 24 channels over USB at 48 kHz; the Qu-24, Qu-32, Qu-SB and Qu-Pac send 32. The new Qu-5, Qu-6, Qu-7 and Qu-3 send 32 at 48 or 96 kHz with USB Stream Mode set to Multitrack. Allen & Heath doesn't name the iPad, and we haven't tested one with a Qu yet.",
+    a: "Allen & Heath staff say yes: iOS sees a Qu as a class-compliant multichannel device, so a multichannel recording app sees its channels (a stereo app may see only the first two). We haven't tested it yet, and Allen & Heath doesn't name the iPad. The Qu-16 sends 24 channels over USB at 48 kHz; the Qu-24, Qu-32, Qu-SB and Qu-Pac send 32. The new Qu-5, Qu-6, Qu-7 and Qu-3 send 32 at 48 or 96 kHz with USB Stream Mode set to Multitrack.",
   },
   {
     q: "Can a Qu multitrack record without a computer?",
@@ -385,7 +385,7 @@ export const QU_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Is a Qu's USB recording pre or post fader?",
-    a: "On a Qu Classic, USB takes each channel's Insert Send by default: directly after the preamp, with no channel processing. You can switch it to Direct Outs with one global source point. On a new Qu, USB records the input direct outs, which include all processing before the Direct Out Source point you pick.",
+    a: "On a Qu Classic, USB takes each channel's Insert Send by default: directly after the preamp, with no channel processing. You can switch it to Direct Outs with one global source point. On a new Qu, patch the input direct outs to USB; they include all processing before the Direct Out Source point you pick.",
   },
 ];
 

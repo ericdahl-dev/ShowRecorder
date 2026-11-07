@@ -122,7 +122,9 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    if (!guide.productPage) return;
+    // Only the Qu has none; a Mixer Link guide that lost its product page must fail here, not skip.
+    expect(guide.productPage === undefined).toBe(guide.slug === "qu");
+    if (guide.productPage === undefined) return;
     expect(mdx).toContain(`](${guide.productPage})`);
     expect(read("app", "mixers", guide.productPage.split("/").pop()!, "content.mdx")).toContain(`](${guide.path})`);
   });
@@ -293,14 +295,33 @@ describe("the Allen & Heath Qu guide's facts", () => {
   const short = mdx.slice(mdx.indexOf("**Short answer.**"), mdx.indexOf("**Quick start**"));
 
   // AI citation baseline (2026-11-06): no engine answered "Can I multitrack record a Qu-16 to an iPad?".
-  it("answers 'Can I multitrack record a Qu-16 to an iPad?' in its short answer: yes, how many channels, which models", () => {
-    expect(short).toMatch(/^\*\*Short answer\.\*\* Yes, a Qu-16 can multitrack record to an iPad/);
+  // The "yes" is Allen & Heath staff's, not ours: the first sentence carries the attribution (it is what FAQPage
+  // JSON-LD and a quoting AI answer pick up), and the untested status follows.
+  it("answers 'Can I multitrack record a Qu-16 to an iPad?' in its short answer: whose yes, how many channels, which models", () => {
+    const attributed = /^Allen & Heath staff say yes: iOS sees a Qu as a class-compliant multichannel device/;
+    expect(short).toMatch(/^\*\*Short answer\.\*\* /);
+    expect(short.replace("**Short answer.** ", "")).toMatch(attributed);
+    expect(short).not.toMatch(/Yes, a Qu-16 can/);
     expect(short).toMatch(/Qu-16 sends 24 channels at 48 kHz/);
     for (const m of ["Qu-24", "Qu-32", "Qu-SB", "Qu-Pac", "Qu-5", "Qu-6", "Qu-7", "Qu-3"]) expect(short).toContain(m);
     expect(short).toMatch(/send 32/);
     expect(short).toMatch(/haven't tested/);
     expect(guide.faqs[0].q).toBe("Can I multitrack record a Qu-16 to an iPad?");
-    expect(guide.faqs[0].a).toMatch(/^Yes/);
+    expect(guide.faqs[0].a).toMatch(attributed);
+    expect(guide.faqs[0].a).toMatch(/haven't tested/);
+  });
+
+  // Research: the default patch for new Qu USB sockets 3-32 is unknown, so the answer says to patch the direct outs.
+  it("tells new Qu owners to patch the direct outs to USB rather than implying a default", () => {
+    const tap = guide.faqs.find((f) => /pre or post fader/.test(f.q))!.a;
+    expect(tap).toMatch(/On a new Qu, patch the input direct outs to USB; they include all processing before the Direct Out Source point you pick/);
+    expect(tap).not.toMatch(/USB records the input direct outs/);
+  });
+
+  it("labels the cable tip as our advice and doesn't say a Qu Classic has nothing to set", () => {
+    expect(mdx).toMatch(/We'd use a USB-C to USB-B cable/);
+    expect(mdx).not.toMatch(/with nothing to set/);
+    expect(mdx).toMatch(/there is no stream mode to set/);
   });
 
   it("keeps the two generations apart: new Qu on USB-C and SD, Qu Classic on USB-B and Qu-Drive", () => {
@@ -331,6 +352,7 @@ describe("the Allen & Heath Qu guide's facts", () => {
     const apple = mdx.slice(mdx.indexOf("## Qu on Mac, iPad and iPhone"), mdx.indexOf("## Sources"));
     expect(apple).toMatch(/ShowRecorder \(the app this site makes\) records every USB Channel/);
     expect(apple).toMatch(/nobody has tested it on a Qu yet/);
+    expect(apple).toMatch(/so it should record a Qu over USB/);
     expect(apple).toMatch(/no Mixer Link for Allen & Heath/);
     expect(apple).toMatch(/we'd like to hear how it goes/);
     expect(apple).toMatch(/not possible for all devices to be tested and officially supported/);

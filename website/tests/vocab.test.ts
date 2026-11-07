@@ -14,8 +14,11 @@ const SCANNED: { dir: string; extensions: string[] }[] = [
   { dir: "lib", extensions: [".ts"] },
 ];
 
-// A hyphen before it means a URL slug ("Qu-Mixer-Setup"), not prose.
-const MIXER_CAPITAL = /(?<!-)\bMixer\b(?! Link)|(?<!Find |-)\bMixers\b/;
+const MIXER_CAPITAL = /\bMixer\b(?! Link)|(?<!Find )\bMixers\b/;
+
+// URLs (a link target such as ".../articles/48350696072593-Qu-Mixer-Setup") keep the site's spelling, so the scan
+// skips them; the prose around them is still checked.
+const withoutUrls = (line: string) => line.replace(/https?:\/\/[^\s)"'`]+/g, "");
 
 // In MDX, bold text quotes the app's own UI strings ("No Mixer answered.", "Mixer IP address"),
 // which keep the app's capitals; an entry with skipUiStrings ignores them.
@@ -65,7 +68,7 @@ describe("site vocabulary", () => {
         .split("\n")
         .map((line, i) => ({ line, at: `${path.relative(ROOT, file)}:${i + 1}` }))
         .filter(({ line }) =>
-          pattern.test(skipUiStrings && file.endsWith(".mdx") ? line.replace(/\*\*[^*]+\*\*/g, "") : line),
+          pattern.test(withoutUrls(skipUiStrings && file.endsWith(".mdx") ? line.replace(/\*\*[^*]+\*\*/g, "") : line)),
         )
         .map(({ at, line }) => `${at}: ${line.trim()}`),
     );
@@ -74,7 +77,10 @@ describe("site vocabulary", () => {
 
   it("allows Mixer Link and Find Mixers but no other capital Mixer", () => {
     expect(MIXER_CAPITAL.test("Open Settings, then Mixer Link, then Find Mixers.")).toBe(false);
-    expect(MIXER_CAPITAL.test("https://support.allen-heath.com/hc/en-gb/articles/48350696072593-Qu-Mixer-Setup")).toBe(false);
+    const link = "[Qu mixer setup](https://support.allen-heath.com/hc/en-gb/articles/48350696072593-Qu-Mixer-Setup)";
+    expect(MIXER_CAPITAL.test(withoutUrls(link))).toBe(false);
+    expect(MIXER_CAPITAL.test(withoutUrls("a Qu-Mixer in prose"))).toBe(true);
+    expect(MIXER_CAPITAL.test(withoutUrls(`[Qu: Mixer Setup](https://example.com/a)`))).toBe(true);
     expect(MIXER_CAPITAL.test("Named from your mixer")).toBe(false);
     expect(MIXER_CAPITAL.test("Named from the Mixer")).toBe(true);
     expect(MIXER_CAPITAL.test("Mixers that work")).toBe(true);
