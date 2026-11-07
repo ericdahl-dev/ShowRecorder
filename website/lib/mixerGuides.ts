@@ -581,7 +581,7 @@ export const MACKIE_DL32S_GUIDE_FAQS: readonly Faq[] = [
 export const UI24R_GUIDE_FAQS: readonly Faq[] = [
   {
     q: "Can I record a Soundcraft Ui24R to an iPhone or iPad?",
-    a: "Soundcraft doesn't say, and we haven't tested one yet. Harman says a Mac sees the Ui24R as an audio interface with no driver, but no Soundcraft or Harman document names the iPhone or iPad.",
+    a: "Soundcraft doesn't say: not tested yet. Harman says a Mac sees the Ui24R as an audio interface with no driver, but no Soundcraft or Harman document names the iPhone or iPad.",
   },
   {
     q: "Can the Ui24R multitrack record without a computer?",
@@ -597,7 +597,7 @@ export const UI24R_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Are Ui24R recordings pre or post fader?",
-    a: "Pre-fader. Harman: \"Recording from channels will only be pre-fader, pre-processing.\" The preamp gain is in the recording; the channel EQ, dynamics and fader are not. For a post-fader or processed track, use an AUX set to POST and POST PROC as a group, and record its USB channel (3-10).",
+    a: "Pre-fader. Harman: \"Recording from channels will only be pre-fader, pre-processing.\" Harman's quote comes from an article that covers the Si and Ui series. The preamp gain is in the recording; the channel EQ, dynamics and fader are not (our reading). For a post-fader or processed track, use an AUX set to POST and POST PROC as a group, and record its USB channel (3-10).",
   },
   {
     q: "What sample rate does the Ui24R record at?",

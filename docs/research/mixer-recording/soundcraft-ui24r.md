@@ -40,7 +40,7 @@ Checked 2026-11-06. Sources are numbered in section 9.
 - Virtual soundcheck from the onboard recorder: Soundcheck patch set, activated at SETTINGS > PATCHING > OVERVIEW or PLAYER > MULTITRACK. [1]
 - When to use which:
   - Inputs: USB 11-32.
-  - Main mix: USB 1-2. It is post-processing, per the forum, secondary.
+  - Main mix: USB 1-2. Post-processing per a forum search snippet only; **unverified** (proforums.harman.com doesn't resolve, checked 2026-11-07). Soundcraft doesn't state the tap.
   - A processed or post-fader version of a channel: use an AUX as a group. Set it to POST and POST PROC, send the channel at 0 dB, and record USB 3-10. [10]
   - Reordering tracks: not possible on the console.
 
@@ -99,6 +99,6 @@ Checked 2026-11-06. Sources are numbered in section 9.
 - USB bit depth to a computer: unknown. Leave out.
 - USB 11-32 tap: Harman's wording comes from an Si-tagged article; the Ui24R-specific article covers only the onboard recorder. Say "pre-processing, pre-fader, per Harman" and avoid naming the exact point (for example "pre-HPF") as fact.
 - HPF before or after the input tap: implied by "pre-processing", not stated. Say "before channel processing".
-- Main mix on USB 1-2 being post-processing: forum only. Label it.
+- Main mix on USB 1-2 being post-processing: unverified (forum search snippet only; the page doesn't resolve). Leave out; say Soundcraft doesn't state where it is taken.
 - USB stick larger than 32 GB: Harman says 32 GB or less. Don't repeat forum reports of larger sticks working.
 - Clock / sync: not documented. Leave out.

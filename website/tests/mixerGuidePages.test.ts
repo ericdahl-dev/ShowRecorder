@@ -800,6 +800,9 @@ describe("the Soundcraft Ui24R guide's facts", () => {
     expect(routing).toMatch(/USB 11-32[^\n]*inputs 1-22/);
     expect(routing).toMatch(/No USB send patching is required/);
     expect(routing).toMatch(/POST PROC/);
+    // Fact check on #1110: the forum claim that the main mix is post-processing has no fetchable source.
+    expect(routing).toMatch(/doesn't state where the main mix on USB 1-2 is taken/);
+    expect(routing).not.toMatch(/after the processing/);
   });
 
   it("records up to 22 tracks to a FAT32 USB drive of 32 GB or less, and says Soundcraft doesn't state the file format", () => {
@@ -808,7 +811,7 @@ describe("the Soundcraft Ui24R guide's facts", () => {
     expect(mdx).toMatch(/FAT32/);
     expect(mdx).toMatch(/32 GB or less/);
     expect(mdx).toMatch(/file format[^.]*not stated by Soundcraft/i);
-    expect(mdx).toMatch(/WAV or FLAC[^.]*2017 review/);
+    expect(mdx).toMatch(/WAV or FLAC[^.]*2017 Sound On Sound review/);
     expect(mdx).toMatch(/\*\*SETTINGS > 2 TRK RECORD MODE\*\*/);
   });
 
@@ -831,7 +834,7 @@ describe("the Soundcraft Ui24R guide's facts", () => {
 
   it("says Soundcraft doesn't name the iPhone or iPad, not tested yet, and no Mixer Link", () => {
     const apple = section(mdx, "Ui24R on Mac, iPad and iPhone", "Sources");
-    expect(apple).toMatch(/not tested yet/);
+    expect(apple).toMatch(/neither is tested yet/);
     expect(apple).toMatch(/Soundcraft doesn't say/);
     expect(mdx).toMatch(/no Mixer Link/);
     expect(mdx).not.toMatch(/unsupported/i);
