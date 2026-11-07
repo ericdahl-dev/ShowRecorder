@@ -99,10 +99,13 @@ The campaigns (40 characters or fewer; the list is `APP_STORE_CAMPAIGNS`):
 | `site-xr18` / `site-xr18-footer` | XR18 page: hero badge and text link / closing band |
 | `site-x32` / `site-x32-footer` | X32 page: hero badge and text links / closing band |
 | `site-compare-footer` | Comparison page closing band |
-| `site-docs` | Getting started doc |
+| `site-docs` | Getting started and Pricing docs |
 | `site-changelog` | What's new page |
 | `site-schema` | `installUrl` and `downloadUrl` in the structured data |
 | `llms` | llms.txt and llms-full.txt |
+| `site-guides` | Mixer recording guides hub (`/guides/record`), "Where ShowRecorder fits" |
+| `site-guide-x32` / `site-guide-xr18` | X32 and XR18 recording guides, "Where ShowRecorder fits" |
+| `site-guide-taps` | Pre or post fader guide, "With ShowRecorder" |
 
 An App Store link in a post uses the same format with its own `ct`, short and lowercase (for example `fb-xr18-group`).
 

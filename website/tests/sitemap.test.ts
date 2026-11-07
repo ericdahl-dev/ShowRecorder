@@ -19,6 +19,7 @@ describe("sitemap", () => {
       "https://showrecorder.app/mixers/x32",
       "https://showrecorder.app/compare",
       "https://showrecorder.app/guides/record-gig-without-laptop",
+      "https://showrecorder.app/guides/record",
       "https://showrecorder.app/changelog",
       "https://showrecorder.app/support",
       "https://showrecorder.app/privacy",
