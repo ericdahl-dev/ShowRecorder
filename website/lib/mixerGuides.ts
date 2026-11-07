@@ -926,6 +926,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
       "https://forums.allen-heath.com/t/post-fader-as-global-source-point-for-usb/25766",
       "https://forums.allen-heath.com/t/recording-to-ipad-garageband/15620",
     ],
+    pick: "16 channels over USB (24 on the CQ-18T and CQ-20B) to a computer. Records as many by itself to an SD card. iPad: yes, says Allen & Heath staff. iPhone: not tested yet.",
     campaign: "site-guide-ah-cq",
     tapPick: "the Source Point in CONFIG > Digital Audio > USB/SD, one setting for every channel (pick how much processing you want; users report no post-fader option)",
   },
