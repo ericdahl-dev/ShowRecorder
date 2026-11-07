@@ -58,6 +58,9 @@ public final class Recorder {
     }
     /// Holds `reportFailure`, so Repair, made in `init`, can call it without capturing `self` there.
     @ObservationIgnored private let failureReporter: FailureReporter
+    /// Told of usage events the recorder decides (ADR 0007, #1026): show_created when it makes a Show, show_deleted
+    /// when a Show delete removed a Copy. Main actor only, never from the real-time audio path (ADR 0002).
+    @ObservationIgnored public var sendEvent: (TelemetryEvent) -> Void = { _ in }
     /// How each Copy of the last Take ended up: complete, has Gaps, Repaired or Repair failed.
     private(set) var lastTakeOutcomes: [DestinationKind: CopyOutcome] = [:]
     /// How many USB Channels the last Take recorded and how many carried signal (#62: Free's limit, felt).
@@ -486,6 +489,7 @@ public final class Recorder {
         let date = now()
         nextShow = nil
         var show = try Show.create(in: deviceFolder, drive: nil, on: date, name: name, venue: venue)
+        sendEvent(.showCreated)
         // Names belong to a Show: the one being replaced keeps its own; names typed before any Show carry over.
         if currentShow != nil { naming.replace(with: [:]) } else if !channelNames.isEmpty { show.setChannelNames(channelNames) }
         currentShow?.end(at: date, skipping: suspectDrive)
@@ -593,7 +597,9 @@ public final class Recorder {
         guard editsInProgress == 0 else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "The Take's files are being renamed.") }) }
         let access = copies.contains(.drive) ? driveFolder() : nil
         defer { access?.end() }
-        return ShowDeleter.delete(show: name, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
+        let outcome = ShowDeleter.delete(show: name, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
+        if !outcome.deleted.isEmpty { sendEvent(.showDeleted) }
+        return outcome
     }
 
     /// Everything recorded in the open Show, from its files, with `take` left out (#625): the Drive Copy is read under
@@ -1043,6 +1049,7 @@ public final class Recorder {
             } else {
                 show = try Show.create(in: deviceFolder, drive: drive?.folder, on: date, name: nextShow?.name, venue: nextShow?.venue)
                 nextShow = nil
+                sendEvent(.showCreated)
             }
         } catch {
             drive?.end()

@@ -1158,6 +1158,8 @@ final class RecordScreenModel {
         mixer = MixerSession()
         // Failures the recorder catches on purpose (a Drive write, Repair) go to crash reports (ADR 0007, #1026).
         recorder.reportFailure = { AppTelemetry.shared.report($0) }
+        // Show created and deleted (ADR 0007, #1026): the recorder decides when, the app only sends.
+        recorder.sendEvent = { AppTelemetry.shared.send($0) }
         sequencer.sampleRateChoice = {
             #if os(macOS)
             SampleRateSetting.load(platformDefault: nil)
