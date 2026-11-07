@@ -159,6 +159,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     mac: "Class compliant (maker).",
     ipad: "Not stated by the maker; not tested yet.",
     iphone: "Not stated by the maker; not tested yet.",
+    guide: "/guides/record/yamaha-tf",
   },
   {
     name: "Yamaha DM3 and DM3 Standard",
@@ -750,6 +751,34 @@ export const XR12_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the Yamaha TF guide (#1074). Facts: docs/research/mixer-recording/yamaha-tf.md.
+export const YAMAHA_TF_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I record a Yamaha TF to an iPhone or iPad?",
+    a: "Yamaha doesn't say, and we haven't tested it yet. Yamaha says a Mac needs no driver, but no Yamaha document names the iPhone or iPad for the USB TO HOST socket. The separate iPad socket on top plays music in from an iPhone or iPad, and records 2 tracks to a USB hard disk. It isn't a multitrack connection.",
+  },
+  {
+    q: "How many tracks can a Yamaha TF record?",
+    a: "34 over USB to a computer: channels 1-32 on USB 1-32, plus one stereo pair on USB 33-34: the main mix, a pair of AUX mixes (the monitor mixes) or a MATRIX pair (extra output mixes). Channels 33-40 and the stereo inputs can't be recorded. On its own, with no computer, the TF records only 2 tracks to a USB hard disk or SSD.",
+  },
+  {
+    q: "Does the Yamaha TF need a driver on a Mac?",
+    a: "No. Yamaha's TF recording guide says a Mac uses a class compliant driver, so nothing needs installing. Windows needs the Yamaha Steinberg USB Driver.",
+  },
+  {
+    q: "What sample rate does the Yamaha TF record at?",
+    a: "48 kHz, 24-bit. Set your computer or recording app to 48 kHz. If they don't match, the TF shows \"USB Sample Rate Mismatch\".",
+  },
+  {
+    q: "Are Yamaha TF recordings pre or post fader?",
+    a: "You choose, for each channel, in CH VIEW: Pre DG, Pre HPF, Pre Fader or Post ON. Yamaha's recording guide suggests Pre DG, which records the input with no EQ, dynamics or effects. Yamaha doesn't say which point a new console starts on, so check every channel before the show.",
+  },
+  {
+    q: "How do I play a TF recording back for a virtual soundcheck?",
+    a: "Play the tracks from your app on USB 1-32. On the TF, open the INPUT screen, press the Menu key and pick All USB. That switches the channels on the current layer to USB, so do it once for each layer.",
+  },
+];
+
 // The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
 export const X32_METHOD_A: readonly { name: string; text: string }[] = [
   { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
@@ -1109,5 +1138,28 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     tapPick: "none for multitrack: these mixers record only a stereo mix to a USB stick, and neither maker says where that mix is taken",
     pick: "Sends no channels over USB: no USB audio interface. Records a stereo mix (2 tracks) by itself to a USB stick.",
     noMultitrack: true,
+  },
+  {
+    slug: "yamaha-tf",
+    path: "/guides/record/yamaha-tf",
+    pageKey: "guideYamahaTf",
+    short: "TF",
+    mixer: "Yamaha TF",
+    description:
+      "Multitrack record a Yamaha TF1, TF3, TF5 or TF-Rack over USB: 34 tracks at 48 kHz, direct outs, playback, tap points. iPhone and iPad not tested yet.",
+    published: "2026-11-07",
+    faqs: YAMAHA_TF_GUIDE_FAQS,
+    faqsName: "YAMAHA_TF_GUIDE_FAQS",
+    sources: [
+      "https://usa.yamaha.com/files/download/other_assets/8/392718/tf5_en_rm_v45_j0.pdf",
+      "https://usa.yamaha.com/files/download/other_assets/5/1199125/TF_series_Live_Recording_en.pdf",
+      "https://usa.yamaha.com/files/download/other_assets/8/811748/tfv3.5_mixer_blockdiagram.pdf",
+      "https://usa.yamaha.com/products/proaudio/mixers/tf/specs.html",
+      "https://usa.yamaha.com/products/proaudio/mixers/tf-rack/specs.html",
+      "https://usa.yamaha.com/products/proaudio/mixers/tf/downloads.html",
+    ],
+    campaign: "site-guide-yamaha-tf",
+    pick: "34 channels over USB to a computer. Records only stereo by itself, to a USB hard disk or SSD. iPhone and iPad: not tested yet.",
+    tapPick: "Pre DG on each channel's direct out (CH VIEW), before the digital gain, HPF and EQ; Yamaha states no factory setting, so check each channel",
   },
 ];

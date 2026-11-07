@@ -20,7 +20,7 @@ const body = (slug: string) => read("app", "guides", "record", slug, "content.md
 const shell = (slug: string) => read("app", "guides", "record", slug, "page.tsx");
 
 // "an X32", "an XR18", but "a Qu": the article before a guide's short name, by how the name is said.
-const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a", WING: "a", DL32S: "a", Ui24R: "a", CQ: "a", StudioLive: "a" };
+const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a", WING: "a", DL32S: "a", Ui24R: "a", CQ: "a", StudioLive: "a", TF: "a" };
 const waysHeading = (short: string) => `Ways to record ${A_SHORT[short] ?? "an"} ${short}`;
 
 // The sections every mixer guide has, in this order. They name the mixer (review batch 1), so a heading quoted out of
@@ -129,9 +129,9 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive, the SQ and the XR12/XR16/MR12 have none; a Mixer Link guide that lost its product page must fail here, not skip.
+    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive, the SQ, the XR12/XR16/MR12 and the Yamaha TF have none; a Mixer Link guide that lost its product page must fail here, not skip.
     expect(guide.productPage === undefined).toBe(
-      ["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii", "ah-sq", "xr12-xr16-mr12"].includes(guide.slug),
+      ["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii", "ah-sq", "xr12-xr16-mr12", "yamaha-tf"].includes(guide.slug),
     );
     if (guide.productPage === undefined) return;
     expect(mdx).toContain(`](${guide.productPage})`);
@@ -146,7 +146,7 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("cites its sources: the maker's documents, with forum posts marked as such", () => {
     const sources = mdx.slice(mdx.indexOf("## Sources"));
     expect(sources).toMatch(
-      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com|zoomcorp\.com|mackie\.com|help\.mackie\.com|www\.soundcraft\.com|harman\.helpjuice\.com|www\.fmicassets\.com|support\.presonus\.com|www\.midasconsoles\.com)\//,
+      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com|zoomcorp\.com|mackie\.com|help\.mackie\.com|www\.soundcraft\.com|harman\.helpjuice\.com|www\.fmicassets\.com|support\.presonus\.com|www\.midasconsoles\.com|usa\.yamaha\.com)\//,
     );
   });
 
@@ -1409,5 +1409,107 @@ describe("the XR12, XR16 and MR12 guide's facts", () => {
     expect(sources).toContain("](https://www.midasconsoles.com/en/products/0605-AAE)");
     expect(sources).toContain("M_MI_0605-AAE_MR18-MR12_EN.pdf)");
     expect(mdx).not.toMatch(/midasgroup\.com|long-mcquade/);
+  });
+});
+
+// Facts: docs/research/mixer-recording/yamaha-tf.md (#1074), from the TF Series Reference Manual V4.5 and Yamaha's
+// 2016 TF Live Recording guide. Yamaha states no factory direct-out point and names no iPhone or iPad.
+describe("the Yamaha TF guide's facts", () => {
+  const guide = MIXER_GUIDES.find((g) => g.slug === "yamaha-tf")!;
+
+  it("is in MIXER_GUIDES with its own campaign, and the hub's TF row links it", () => {
+    expect(guide.campaign).toBe("site-guide-yamaha-tf");
+    expect(MIXER_ROWS.find((r) => /Yamaha TF1/.test(r.name))!.guide).toBe(guide.path);
+  });
+
+  const mdx = body("yamaha-tf");
+
+  it("gives 34 x 34 USB at 48 kHz and 24-bit, the Mac with no driver and Windows with Yamaha's driver", () => {
+    const ways = section(mdx, "Ways to record a TF", "TF recording settings");
+    expect(ways).toMatch(/34 to the computer[^\n]*34 back/);
+    expect(ways).toMatch(/48 kHz, 24-bit/);
+    expect(ways).toMatch(/class compliant driver, so do not need any additional installation/);
+    expect(ways).toMatch(/Yamaha Steinberg USB Driver/);
+    expect(mdx).toMatch(/USB Sample Rate Mismatch/);
+    expect(mdx).toMatch(/Reference Manual \(V4\.5/);
+  });
+
+  it("gives the fixed USB map: 1-32 the channel direct outs, 33-34 the RECORDER source, and 33-40 and ST IN not recordable", () => {
+    const routing = section(mdx, "TF USB routing", "TF playback for virtual soundcheck");
+    expect(routing).toMatch(/USB 1-32:\*\*[^\n]*channels 1-32/);
+    expect(routing).toMatch(/USB 33-34:\*\*[^\n]*RECORDER/);
+    expect(routing).toMatch(/By default, TF-series channels 1-32 each have a Direct Output enabled/);
+    expect(routing).toMatch(/channels 33-40[^\n]*can't be recorded/i);
+    expect(mdx).toMatch(/\*\*SETUP > PREFERENCE > USB 1\/2 Output\*\*/);
+  });
+
+  it("plays back with All USB on the INPUT screen, one layer at a time, for each model", () => {
+    const play = section(mdx, "TF playback for virtual soundcheck", "TF tap points");
+    expect(play).toMatch(/\*\*INPUT\*\* screen/);
+    expect(play).toMatch(/\*\*All USB\*\*/);
+    expect(play).toMatch(/TF5:\*\* channels 1-32, then 33-40/);
+    expect(play).toMatch(/TF3:\*\* channels 1-24, then 25-32, then 33-40/);
+    expect(play).toMatch(/TF1 and TF-Rack:\*\* channels 1-16, then 17-32/);
+    expect(play).toMatch(/\+48V/);
+  });
+
+  // Yamaha states no factory direct-out point (research gap): never "Pre DG by default".
+  it("gives the four direct-out points, suggests Pre DG, and says Yamaha states no default", () => {
+    const taps = section(mdx, "TF tap points", "TF on Mac, iPad and iPhone");
+    for (const p of ["Pre DG", "Pre HPF", "Pre Fader", "Post ON"]) expect(taps).toContain(`**${p}:**`);
+    expect(taps).toMatch(/CH VIEW/);
+    expect(taps).toMatch(/Yamaha doesn't say/);
+    expect(mdx).not.toMatch(/Pre DG[^.]*(by default|the default)/i);
+  });
+
+  it("records only 2 tracks with no computer, to a FAT32 hard disk or SSD, not a thumb drive", () => {
+    const ways = section(mdx, "Ways to record a TF", "TF recording settings");
+    expect(ways).toMatch(/only in stereo \(2 tracks\)/);
+    expect(ways).toMatch(/FAT32/);
+    expect(ways).toMatch(/thumb drives can play back but not record/);
+    expect(ways).toMatch(/48 kHz, 24-bit stereo WAV/);
+  });
+
+  it("says Yamaha doesn't name the iPhone or iPad, not tested yet, and the TF records without Mixer Link", () => {
+    const apple = section(mdx, "TF on Mac, iPad and iPhone", "Sources");
+    expect(apple).toMatch(/neither is tested yet/);
+    expect(apple).toMatch(/Yamaha doesn't say/);
+    expect(apple).toMatch(/records without Mixer Link/);
+    expect(mdx).not.toMatch(/unsupported/i);
+    expect(mdx).not.toMatch(/ShowRecorder has recorded[^.]*TF/);
+  });
+
+  // Fact check on #1115: the iPad socket records 2 tracks to a USB drive (manual p.15, spec page), and the 2016 guide
+  // names OS X 10.9 or newer.
+  it("says the iPad socket records 2 tracks to a USB hard disk, and gives the 2016 guide's OS X 10.9 or newer", () => {
+    const iphoneFaq = guide.faqs.find((f) => /iPhone or iPad/.test(f.q))!.a;
+    const apple = section(mdx, "TF on Mac, iPad and iPhone", "Sources");
+    for (const text of [iphoneFaq, apple]) {
+      expect(text).toMatch(/records 2 tracks to a USB hard disk/);
+      expect(text).not.toMatch(/doesn't record/);
+    }
+    expect(section(mdx, "Ways to record a TF", "TF recording settings")).toMatch(/\*\*iPad\*\* socket/);
+    expect(apple).toMatch(/OS X 10\.9 or newer/);
+    expect(mdx).not.toMatch(/doesn't name a macOS version/);
+  });
+
+  it("labels its readings: the TF-Rack on a Mac, channels 17-32, and Post Fader as Post ON", () => {
+    expect(mdx.slice(0, mdx.indexOf("**Quick start**"))).toMatch(/TF-Rack[^.]*\(our reading\)/);
+    expect(mdx).toMatch(/Tio1608-D[^.]*\(our reading\)/);
+    expect(mdx).toMatch(/"Post Fader" \(our reading\)/);
+    expect(mdx).toMatch(/\*\*TF3:\*\* 24 mic inputs/);
+    expect(mdx).not.toMatch(/on the back/);
+  });
+
+  it("explains Direct Out, AUX, MATRIX, the Tio1608-D, Dante and the AUTOMIXER for beginners", () => {
+    expect(mdx).toMatch(/A Direct Out is a channel's own feed to USB, one per channel/);
+    expect(mdx).toMatch(/AUX mixes \(the monitor mixes\)/);
+    expect(mdx).toMatch(/MATRIX pair \(extra output mixes\)/);
+    expect(mdx).toMatch(/Yamaha's digital stage box, connected by network cable/);
+    expect(mdx).toMatch(/AUTOMIXER \(the TF's automatic mic mixer on channels 1-8\)/);
+    const tf = guide.faqs.map((f) => f.a).join(" ");
+    expect(tf).toMatch(/AUX mixes \(the monitor mixes\)/);
+    const taps = section(mdx, "TF tap points", "TF on Mac, iPad and iPhone");
+    expect(taps.indexOf("**What to pick:**")).toBeLessThan(taps.indexOf("A *tap point*"));
   });
 });
