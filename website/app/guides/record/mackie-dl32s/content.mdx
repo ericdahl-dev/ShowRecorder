@@ -37,7 +37,7 @@ Plug the mixer's **USB-B** port into the computer and record in any DAW.
 
 ### With no computer
 
-None. The DL32S has no onboard recorder and no port for a USB stick or SD card: "recording and playback is possible when a computer is connected ... via the USB type B connector" (DL32S manual). It can't record by itself. If you need a Mackie DL mixer that records to a drive with no computer, that is the DL32R.
+None. The DL32S has no onboard recorder; Mackie documents only the USB-B port: "recording and playback is possible when a computer is connected ... via the USB type B connector" (DL32S manual). It can't record by itself. If you need a Mackie DL mixer that records to a drive with no computer, that is the DL32R.
 
 ### To an iPhone, iPad or Mac with an app
 
@@ -100,9 +100,9 @@ Mackie: "The most common use for this is for virtual sound check, switching betw
 
 Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). Each USB channel picks its own tap through its source. Per Mackie's block diagram, a DL32S channel runs: analog gain, input A/B select, meter, Digital Trim, polarity, insert, high pass filter, gate, compressor, 4-band EQ, insert, the direct out, mute, fader.
 
-- **Which to pick:** **Mic Pre**, the default, for a recording you'll remix or play back for a virtual soundcheck.
+- **Which to pick:** **Mic Pre**, the default, for a recording you'll remix or play back for a virtual soundcheck (our advice).
 - **Mic Pre** (the default): after the analog gain, before the Digital Trim, polarity, high pass filter, gate, compressor, EQ, mute and fader. The trim, HPF and EQ are not in the recording, so rumble the HPF would cut stays in the track (our reading).
-- **Channel Post-DSP** (the "Ch Direct Out" on Mackie's diagram): after the high pass filter, gate, compressor and EQ, before the mute and fader. Use it for tracks that sound like front of house.
+- **Channel Post-DSP** (the "Ch Direct Out" on Mackie's diagram): after the high pass filter, gate, compressor and EQ, before the mute and fader. Use it for processed tracks (our advice).
 - **Main L/R:** offered pre-fader and post-fader.
 - **Gain vs trim:** the analog gain is in every tap; the Digital Trim comes after the Mic Pre tap. Mackie's preamp gain runs "0 ~ +60dB (6dB steps w/ 1dB digital interpolation)": the analog gain moves in 6 dB steps, filled in by 1 dB digital steps. Set the gain for headroom before the show and ride levels with the trim and faders (our advice).
 - **Meters:** the channel meter sits right after the A/B select, before the Digital Trim, so it shows the level the Mic Pre tap records (our reading of the block diagram).
@@ -129,4 +129,5 @@ Mackie documents:
 - [DL16S / DL32S Owner's Manual](https://mackie.com/img/file_resources/DL16S_DL32S_OM.pdf): USB channels, 48 kHz and 16/24-bit, the Mac and Windows driver notes, recording needs a computer, any source to any USB channel.
 - [DL16S / DL32S spec sheet](https://mackie.com/img/file_resources/DL16S_DL32S_SS.pdf): sample rate, the block diagram (tap points, gain steps), virtual sound check.
 - [DL16SE / DL32SE Owner's Manual](https://mackie.com/img/file_resources/DL16SE_DL32SE_OM.pdf): the SE models' USB channels, format and macOS.
+- [DL32R Owner's Manual](https://mackie.com/img/file_resources/DL32R_OM.pdf): the DL32R connecting an iPad through Apple's camera connection kit, and recording to a USB hard drive by itself.
 - [Master Fader 5 Reference Guide](https://www.ambertech.com.au/Documents/Master%20Fader_V5_0_RG-compressed.pdf): I/O Patch and its USB tab, the default patch, the source list, Input A and B, Access Limiting. Mackie's own PDF, hosted by its Australian distributor Ambertech; we didn't find it on mackie.com.
