@@ -135,7 +135,8 @@ struct FreeTakeTests {
         try await recorder.stopTake()
         await recorder.waitForRepair()
 
-        #expect(CopySummary.ofLastTake(recorder.copies, dropoutCount: recorder.dropoutCount)?.text == "Device copy: complete (no Drive)")
+        #expect(CopySummary.ofLastTake(recorder.copies, dropoutCount: recorder.dropoutCount, driveCopyAllowed: recorder.driveCopyAllowed)?.text
+                == "Device copy: complete (no Drive)")
     }
 
     @Test("Drive only on a Take without the Drive Copy (Free) records a full Device Copy, not a stand-in (#705)")

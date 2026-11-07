@@ -48,6 +48,38 @@ struct AlertQueueTests {
         #expect(queue.moreCount == 0)
     }
 
+    @Test("A Take that missed its Drive ends in an orange Copy summary that names the device, not a green one (#1151)")
+    func driveMissedSummaryIsAWarning() throws {
+        var s = RecordScreenSnapshot()
+        s.setupHintDismissed = true
+        s.recorderCopies = takeCopies(running: false, device: .complete, drive: .missing)
+        let phone = try #require(RecordScreenState().alerts(s).ordered.first { $0.id == "copies" })
+        #expect(phone.tone == .warning)
+        #expect(phone.text == "Saved on this iPhone only: the Drive was missing")
+
+        s.deviceWord = "Mac"
+        s.dropoutCount = 2
+        let mac = try #require(RecordScreenState().alerts(s).ordered.first { $0.id == "copies" })
+        #expect(mac.tone == .warning)
+        #expect(mac.text == "Saved on this Mac only: the Drive was missing · 2 Dropouts", "Dropouts still show")
+    }
+
+    @Test("A Take on the Device by choice, or on Free, still ends in a green Copy summary (#805, #1151)")
+    func deviceByChoiceSummaryStaysGreen() throws {
+        var s = RecordScreenSnapshot()
+        s.setupHintDismissed = true
+        s.recorderCopies = takeCopies(running: false, deviceOnly: true, device: .complete, drive: .missing)
+        let chosen = try #require(RecordScreenState().alerts(s).ordered.first { $0.id == "copies" })
+        #expect(chosen.tone == .ok)
+        #expect(chosen.text == "Device copy: complete")
+
+        s.recorderCopies = takeCopies(running: false, device: .complete, drive: .missing)
+        s.driveCopyAllowed = false
+        let free = try #require(RecordScreenState().alerts(s).ordered.first { $0.id == "copies" })
+        #expect(free.tone == .ok)
+        #expect(free.text == "Device copy: complete (no Drive)")
+    }
+
     @Test("With nothing to say there is no alert")
     func emptyQueue() {
         let queue = AlertQueue([])
@@ -84,7 +116,7 @@ struct SwipedAlertsTests {
 
     @Test("A green summary can be swiped away, and shows again when its text changes (#698)")
     func greenSummarySwipes() {
-        let summary = ScreenAlert(id: "copies", priority: .copyResult, tone: .ok, text: "Device copy: complete (no Drive)")
+        let summary = ScreenAlert(id: "copies", priority: .copyResult, tone: .ok, text: "Device copy: complete")
         let next = ScreenAlert(id: "copies", priority: .copyResult, tone: .ok, text: "Device copy: complete · Drive copy: complete")
         var swiped = SwipedAlerts()
         swiped.swipe(summary)
