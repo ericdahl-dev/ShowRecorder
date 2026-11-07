@@ -1,5 +1,5 @@
 import type { Faq } from "@/lib/mixerFaqs";
-import { guideTrail } from "@/lib/mixerGuides";
+import { BEST_APP_GUIDE, guideTrail } from "@/lib/mixerGuides";
 import { PRO_PRICE_TEXT } from "@/lib/price";
 
 // The comparison at /guides/best-app-record-digital-mixer-iphone (#1085): which app to multitrack record a digital
@@ -14,7 +14,8 @@ import { PRO_PRICE_TEXT } from "@/lib/price";
 // - ShowRecorder facts come from docs/tested-hardware.md and docs/research/mixer-recording/README.md. It is "the app
 //   this site makes" everywhere on the page, so the affiliation is plain.
 
-export const BEST_APP_GUIDE = "/guides/best-app-record-digital-mixer-iphone";
+// The page's path, defined in lib/mixerGuides.ts (the hub links to it).
+export { BEST_APP_GUIDE };
 
 // The day every row was read.
 export const CHECKED = "2026-11-07";

@@ -1,5 +1,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import GuidesHubPage from "@/app/guides/record/page";
 import { APP_ROWS, BEST_APP_FAQS, CHECKED, NOT_STATED, RESEARCH_URL, TESTED_HARDWARE_URL } from "@/lib/bestApp";
 import { llmsTxt } from "@/lib/llms";
 import { PRO_PRICE_TEXT } from "@/lib/price";
@@ -184,7 +187,8 @@ describe("the best-app page", () => {
   });
 
   it("is linked from the hub", () => {
-    expect(read("app", "guides", "record", "page.tsx")).toContain("BEST_APP_GUIDE");
+    // The hub's words live in HUB_COPY, so check the page as rendered.
+    expect(renderToStaticMarkup(createElement(GuidesHubPage))).toContain(`href="${PATH}"`);
   });
 
   it("has its own App Store campaign, listed in the App Store Connect doc", () => {

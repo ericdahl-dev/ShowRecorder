@@ -15,6 +15,9 @@ import type { Crumb } from "@/lib/structuredData";
 export const GUIDES_HUB = "/guides/record";
 // The shared guide every mixer guide links to (#1062).
 export const TAP_POINT_GUIDE = "/guides/record/pre-or-post-fader";
+// The best-app comparison (#1085). Its facts live in lib/bestApp.ts, which re-exports this; it is here because the
+// hub's words (HUB_COPY) link to it, and lib/bestApp.ts already imports this file.
+export const BEST_APP_GUIDE = "/guides/best-app-record-digital-mixer-iphone";
 
 // Where the facts come from and how sure each one is: the research README in the app's public repository.
 export const RESEARCH_URL = "https://github.com/ericdahl-dev/ShowRecorder/blob/main/docs/research/mixer-recording/README.md";
@@ -233,6 +236,30 @@ export const HUB_FAQS: readonly Faq[] = [
     a: "The mixer powers nothing on the phone or tablet through its USB audio port. For a long show, use a powered USB-C hub, or a camera adapter that passes power through.",
   },
 ];
+
+// The hub's own words, as Markdown with only **bold** and [links](...). The page renders them with InlineMarkdown and
+// llms-full.txt prints them as they are, so the two never differ.
+export const HUB_COPY = {
+  title: "How to multitrack record a digital mixer",
+  lede: "Most digital mixers can record every channel to its own track. How they do it differs a lot: over USB to a computer, to a card or stick in the mixer, or to an iPad or iPhone. This page lists what each mixer can do, and each guide shows the settings and routing step by step.",
+  method: `Facts come from the makers' own manuals and spec pages where we could find them. Where only a forum or a retailer says it, we say so. Where nobody says, we write "not stated" or "unknown" instead of guessing. Researched November 2026; check your mixer's manual and firmware before a show. [Sources and method](${RESEARCH_URL}).`,
+  tableTitle: "What each mixer can record",
+  tableIntro: `"Over USB" is what the mixer sends to a computer, iPad or iPhone. "With no computer" is what it records by itself. Words like card out and class compliant are in the [glossary](#glossary).`,
+  waysTitle: "Three ways to record every channel",
+  ways: [
+    "**To a computer over USB.** The mixer acts as a USB audio interface, and a DAW records each channel to its own track. On a Mac, most of the mixers above need no driver.",
+    "**To a card or stick in the mixer.** Some mixers, or an option card in them, record many tracks to an SD card or a USB drive with no computer at all. Many others record only a stereo mix this way.",
+    `**To an iPad, iPhone or Mac with an app.** A class-compliant mixer can send its channels to an iPad or iPhone over a USB cable. Some makers say their class-compliant mixers work with an iPad or iPhone; the table shows which, and says "not tested yet" where nobody has checked.`,
+  ],
+  waysAfter: [
+    `Whichever way you record, you also choose where in each channel the recording is taken: before or after the gain, the EQ and the fader. [Pre or post fader](${TAP_POINT_GUIDE}) explains each tap point, with pros and cons.`,
+    "The mixer powers nothing on the phone or tablet through its USB audio port. For a long show, use a powered USB-C hub, or a camera adapter that passes power through, so the iPhone or iPad charges while it records.",
+    `To record a gig on an iPhone or iPad with no laptop, see [Record a gig without a laptop](/guides/record-gig-without-laptop). To choose the app, [the best app to multitrack record a digital mixer on iPhone and iPad](${BEST_APP_GUIDE}) compares nine of them.`,
+  ],
+  fitsTitle: "Where ShowRecorder fits",
+  fits: "ShowRecorder records every USB Channel from any class-compliant mixer, one WAV file per channel, on a USB-C iPhone or iPad. Names and colors from the mixer (Mixer Link) work only with the [XR18 and MR18](/mixers/xr18) and the [X32 and M32](/mixers/x32). Its X32 and M32 support has run only against an X32 emulator so far.",
+  glossaryTitle: "Glossary",
+} as const;
 
 // Words the guides use, defined once on the hub; each guide links here.
 export const GLOSSARY: readonly { term: string; def: string }[] = [

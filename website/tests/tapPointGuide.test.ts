@@ -1,5 +1,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import GuidesHubPage from "@/app/guides/record/page";
 import { llmsTxt } from "@/lib/llms";
 import { PAGES } from "@/lib/metadata";
 import { TAP_POINT_FAQS } from "@/lib/mixerGuides";
@@ -82,7 +85,7 @@ describe("the tap-point guide", () => {
   });
 
   it("is linked from the hub", () => {
-    expect(read("app", "guides", "record", "page.tsx")).toContain(`href="${PATH}"`);
+    expect(renderToStaticMarkup(createElement(GuidesHubPage))).toContain(`href="${PATH}"`);
   });
 
   it("has no em dashes or exclamation points in its prose", () => {
