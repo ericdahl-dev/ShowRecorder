@@ -240,7 +240,8 @@ public final class Recorder {
         writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) },
         asyncStopAvailable: @escaping () -> Bool = { AsyncStopAvailability.isAvailableInThisBuild },
         channelArmingAvailable: @escaping () -> Bool = { ChannelArmingAvailability.isAvailableInThisBuild },
-        stereoPairAvailable: @escaping () -> Bool = { StereoPairAvailability.isAvailableInThisBuild }
+        // Off unless the app passes the rule (#1088): a recorder made elsewhere (a test) keeps two mono Stems at 2 inputs.
+        stereoPairAvailable: @escaping () -> Bool = { false }
     ) {
         asyncStopRule = asyncStopAvailable
         channelArmingRule = channelArmingAvailable
