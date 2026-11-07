@@ -1,4 +1,4 @@
-# App Store listing (1.1 draft for Eric's review, #411; 1.0 was #64)
+# App Store listing (1.2 changes marked "1.2"; 1.1 draft for Eric's review, #411; 1.0 was #64)
 
 Paste into App Store Connect > ShowRecorder > the 1.1 version (and App Information for the name and subtitle). The number after each heading is Apple's character limit; every field here is within it (recounted 2026-10-29, with auto-gain for X Air and no X32 or M32: name 12, subtitle 30, promotional text 165, keywords 100, description 3778, What's New 475; the review notes are 3216 of 4000).
 
@@ -17,11 +17,15 @@ Brand names (Behringer, Midas, X Air, XR18, MR18) appear only as compatibility t
 
 ## Name (30)
 
-ShowRecorder
+ShowRecorder: Mixer Multitrack
+
+1.2 (Eric, 2026-11-07, ASO audit): uses all 30 characters so "mixer" and "multitrack" are indexed in the name. 30 characters. Set in App Information.
 
 ## Subtitle (30)
 
-Multitrack recorder for mixers
+Live recorder, every channel
+
+1.2 (Eric, 2026-11-07): pairs with the new name; "multitrack" and "mixer" moved to the name. 28 characters.
 
 ## Promotional text (170)
 
@@ -31,15 +35,19 @@ Leads with Free (Eric, 2026-10-16). 165 characters. It says "your mixer", not XR
 
 ## Keywords (100)
 
-live,stems,wav,gig,band,church,worship,concert,rehearsal,multichannel,usb,audio,daw,soundcheck,sound
+multi,track,stems,usb,wav,gig,band,church,worship,concert,sound,board,daw,record,rehearsal,foh,pa
+
+1.2 (Eric, 2026-11-07): 97 characters, no word repeated from the name or subtitle, no brand names. Dropped audio, multichannel, soundcheck (now in name/subtitle or low value). The spare 3 characters wait for the Apple Ads test's keyword data.
 
 ## Description (4000)
 
-First line changed for 1.2 (Eric, 2026-11-06): it now names "USB digital mixer" and the three devices, the words people and AI answers use (AI citation baseline, milestone "Mixer recording guides").
+Lines 2 and 3 changed for 1.2 (Eric, 2026-11-07, ASO audit): Free and no subscription above the fold, then compatibility. Add X32 and M32 to line 3 only once the X32 gate (#411) is closed. First line changed for 1.2 (Eric, 2026-11-06): it now names "USB digital mixer" and the three devices, the words people and AI answers use (AI citation baseline, milestone "Mixer recording guides").
 
 Record every channel of a USB digital mixer on your iPhone, iPad or Mac, with no laptop at the gig.
 
-Plug a compatible mixer into your iPhone, iPad or Mac, press record, and get one 24-bit WAV file per channel, named after what's on it and ready for your DAW.
+Free records every channel as its own 24-bit WAV file, ready for your DAW. No subscription.
+
+Works with class-compliant USB mixers and interfaces. Pro, a one-time purchase with a 14-day free Trial, names each file from the mixer on Behringer X Air and Midas MR18 mixers.
 
 EVERY CHANNEL, ITS OWN FILE
 One Broadcast WAV per USB channel, at the mixer's 48 kHz or up to 96 kHz on interfaces that offer it. From an 18-channel mixer you get 18 Stems in step with each other.
