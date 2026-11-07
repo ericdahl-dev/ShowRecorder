@@ -5,8 +5,9 @@ Source key used below:
 - [SS] DL16S / DL32S spec sheet incl. block diagram on page 8 (Mackie): https://mackie.com/img/file_resources/DL16S_DL32S_SS.pdf
 - [SE-OM] DL16SE / DL32SE Owner's Manual (Mackie): https://mackie.com/img/file_resources/DL16SE_DL32SE_OM.pdf
 - [SE-SS] DL16SE / DL32SE spec sheet incl. block diagram on page 13 (Mackie): https://mackie.com/img/file_resources/DL16SE_DL32SE_SS[99].pdf
-- [RG] Master Fader Reference Guide V5.0 (Mackie / LOUD, (c) 2018; covers DL16S, DL32S, DL32R; not the SE models). Mackie's own PDF, read from the copy hosted by Mackie's Australian distributor Ambertech, because we could not find it on mackie.com: https://www.ambertech.com.au/Documents/Master%20Fader_V5_0_RG-compressed.pdf . Page numbers are the guide's own.
-- [FAQ] Mackie DL32R FAQ page: https://mackie.com/en/support/faq/dl32r.html . Returned HTTP 404 to direct fetches on 2026-11-06; known only from search-engine excerpts. Superseded here by [RG].
+- [RG] Master Fader Reference Guide V5.1 (Mackie, Feb 2026; covers DL16S, DL32S, DL32R; not the SE models). Mackie's own PDF, from Mackie's Master Fader Downloads page: https://help.mackie.com/hc/en-us/articles/14288356150159-Master-Fader-Downloads (its "Click here" opens Mackie's Brandfolder, file "Master Fader V5 1 RG"; the PDF is a signed storage URL, so we cite the page). Read on 2026-11-07. Page numbers are the guide's own and were rechecked against V5.1.
+- [RG5.0] Master Fader Reference Guide V5.0 (Mackie / LOUD, (c) 2018): the older edition, read first from the copy hosted by Mackie's Australian distributor Ambertech: https://www.ambertech.com.au/Documents/Master%20Fader_V5_0_RG-compressed.pdf . Secondary only.
+- Dropped: Mackie's DL32R FAQ page. It showed an error page to scripts on 2026-11-06 and in a real browser on 2026-11-07; nothing here rests on it.
 
 Note: mackie.com product pages render via JavaScript and returned an error page to scripts; the PDFs above download fine.
 
@@ -50,7 +51,7 @@ None. Recording requires a USB host. [OM ch.4: "recording and playback is possib
 
 ## 6. Tap points
 
-From the maker block diagram [SS p.8; same structure on SE-SS p.13; RG p.282]:
+From the maker block diagram [SS p.8; same structure on SE-SS p.13; RG p.288-289]:
 - Input: phantom, preamp "Gain: 0 ~ +60dB (6dB steps w/ 1dB digital interpolation)", ADC, then "To Routing Matrix". This is the **Mic Pre** source: after analog gain, before everything digital.
 - Channel strip order: A/B source select > meter > **Digital Trim** > polarity > Pre-DSP insert > **High Pass** > Gate > Comp > 4-band PEQ > Post-DSP insert > **Ch Direct Out to Routing Matrix** > mute > fader.
 - So the two per-channel taps, chosen per USB slot:
@@ -59,7 +60,7 @@ From the maker block diagram [SS p.8; same structure on SE-SS p.13; RG p.282]:
 - Main L/R is offered both pre-fader and post-fader [RG p.207].
 - Digital Trim is a channel-strip control after the routing matrix; it does not affect the Mic Pre tap (per diagram). Analog gain does.
 - Meters: the block diagram shows the channel meter right after A/B select, before digital trim [SS p.8].
-- Several devices controlling one mixer: Access Limiting > Mic Preamps locks "48v, gain, trim and polarity" on a device [RG, Access Limits section]. A gain change made from any device with access changes the Mic Pre tap and so the recording (inference from the diagram, not a Mackie statement).
+- Several devices controlling one mixer: Access Limiting > Mic Preamps locks "48v, gain, trim and polarity" on a device [RG p.191, Access Limits]. A gain change made from any device with access changes the Mic Pre tap and so the recording (inference from the diagram, not a Mackie statement).
 
 ## 7. Gotchas
 
@@ -91,8 +92,8 @@ From the maker block diagram [SS p.8; same structure on SE-SS p.13; RG p.282]:
 - https://mackie.com/img/file_resources/DL16S_DL32S_SS.pdf
 - https://mackie.com/img/file_resources/DL16SE_DL32SE_OM.pdf
 - https://mackie.com/img/file_resources/DL16SE_DL32SE_SS[99].pdf
-- https://www.ambertech.com.au/Documents/Master%20Fader_V5_0_RG-compressed.pdf (Mackie Master Fader Reference Guide V5.0, distributor-hosted)
-- https://mackie.com/en/support/faq/dl32r.html (via search excerpts; 404 to direct fetch)
+- https://help.mackie.com/hc/en-us/articles/14288356150159-Master-Fader-Downloads (Mackie Master Fader Reference Guide V5.1, Feb 2026, Mackie-hosted; main citation)
+- https://www.ambertech.com.au/Documents/Master%20Fader_V5_0_RG-compressed.pdf (Mackie Master Fader Reference Guide V5.0, 2018, distributor-hosted; secondary)
 
 ## Gaps
 
@@ -103,5 +104,5 @@ From the maker block diagram [SS p.8; same structure on SE-SS p.13; RG p.282]:
 - Clock / external sync: not documented. Leave out.
 - macOS newer than 10.14 for DL32S: not listed by Mackie. Say "class compliant; current macOS not listed by Mackie".
 - Phone charging from the mixer: unknown. Tell readers to use a powered adapter or hub.
-- Main source for the menu path [RG] is Mackie's PDF on a distributor's site. Cite it as "Mackie Master Fader 5 Reference Guide".
+- Main source for the menu path [RG] is Mackie's own V5.1 PDF, reached from help.mackie.com. Cite it as "Mackie Master Fader Reference Guide V5.1"; the Ambertech V5.0 copy may stay as a secondary link.
 - Gain change from a second device reaching the recording: our inference. Label it as advice.

@@ -7,53 +7,73 @@ import { guideTrail } from "@/lib/mixerGuides";
 
 <LastChecked path="/guides/record/mackie-dl32r" />
 
-**Short answer.** Plug the DL32R's **USB B** port into a computer or an iPad and it sends 32 channels at 48 kHz, with no driver on a Mac. By default USB 1-32 carry the 32 mic preamps, straight after the gain. With no computer, it records to a USB hard drive on its **USB A** port, from the Recording/Playback view in Mackie's Master Fader app. The two ports can't be used at the same time.
+**Short answer.** Plug a computer or an iPad into the DL32R's **USB B** port. It sends 32 channels at 48 kHz, by default one per input. A Mac needs no driver. With no computer, the DL32R records to a USB hard drive on its **USB A** port, started from Mackie's Master Fader app. You can use one port or the other, not both at once.
 
 **Quick start**
 
 1. **Pick one way to record:** a computer or iPad on USB B, or a hard drive on USB A. Not both: a drive on USB A stops a computer recording. ([Ways to record](#ways-to-record-a-dl32r))
-2. **Check the patch.** In Master Fader, open **I/O Patch** and the **USB** tab. The default sends Mic Pre 1-32 to USB 1-32; add Main L/R if you want the mix too. ([USB routing](#dl32r-usb-routing))
-3. **Set the gain, then lock it** on every other iPad with Access Limiting, so nobody else changes your recording levels (our advice). ([Tap points](#dl32r-tap-points))
-4. **Open your recording app** and check that it sees 32 channels at 48 kHz. ([Recording settings](#dl32r-recording-settings))
+2. **Check what goes to USB.** In Master Fader, open **I/O Patch**, then the **USB** tab. Out of the box, Mic Pre 1-32 go to USB 1-32: every input on its own track. ([USB routing](#dl32r-usb-routing))
+3. **Set the gain, then lock it** on every other iPad with Access Limiting. Then nobody else can change your recording levels (our advice). ([Tap points](#dl32r-tap-points): where the recording is taken from in each channel.)
+4. **Open your recording app.** Check that it sees 32 channels at 48 kHz. ([Recording settings](#dl32r-recording-settings))
 5. **Record a 30 s test and play it back** before the show.
-6. **For a long show on an iPad, keep it charged** with a powered USB hub or a camera adapter that passes power through (our advice). ([Mac, iPad and iPhone](#dl32r-on-mac-ipad-and-iphone))
+6. **Long show on an iPad? Keep it charged** with a powered USB hub, or a camera adapter that passes power through (our advice). ([Mac, iPad and iPhone](#dl32r-on-mac-ipad-and-iphone))
 
-This guide covers the DL32R, the rack mixer controlled from an iPad. The DL32S, DL16S and DL32SE are a different design and have no drive recorder; they are in the [mixer recording guides](/guides/record), with every other mixer. The words used here are in its [glossary](/guides/record#glossary). Facts come from Mackie's DL32R manual (2015), the DL32R spec sheet (2015) and Mackie's Master Fader 5 Reference Guide (2018) unless a line says otherwise. The [sources](#sources) are at the end.
+This guide is for the DL32R, the rack mixer you control from an iPad. The DL32S, DL16S and DL32SE are a different design, with no drive recorder. They and every other mixer are in the [mixer recording guides](/guides/record). Words used here are explained in its [glossary](/guides/record#glossary).
+
+Facts come from Mackie's DL32R manual (2015), the DL32R spec sheet (2015) and Mackie's Master Fader Reference Guide V5.1 (2026), unless a line says otherwise. The [sources](#sources) are at the end.
 
 ## Ways to record a DL32R
 
 ### To a computer over USB
 
-Plug the **USB B** port into the computer and record in any DAW.
+Plug the **USB B** port into the computer. Record in any DAW (a recording app such as Reaper, Logic or Pro Tools).
 
-- **Channels:** 32 in and 32 out: "32x32 channels of recording and playback to a connected computer over USB 2.0 by presenting the DL32R as an audio class 2.0 compliant device" (DL32R manual).
+- **Channels:** 32 in and 32 out. Mackie: "32x32 channels of recording and playback to a connected computer over USB 2.0 by presenting the DL32R as an audio class 2.0 compliant device" (DL32R manual).
 - **Sample rate:** 48 kHz only.
-- **Bit depth:** 16 or 24-bit (DL32R manual). The recording app picks which (our reading; Mackie doesn't say).
-- **Driver:** none on a Mac. On Windows, Mackie says "Driver installation required".
-- **Channel count:** no mode or channel-count option is documented, so we expect 32 x 32 every time (our reading).
+- **Bit depth:** 16 or 24-bit (DL32R manual). Your recording app picks which (our reading; Mackie doesn't say).
+- **Mac:** no driver needed.
+- **Windows:** Mackie says "Driver installation required".
+- **Channel count:** Mackie documents no mode or channel-count option, so we expect 32 x 32 every time (our reading).
 
 ### With no computer: to a USB hard drive
 
-The DL32R records to a hard drive on its **USB A** port.
+Plug a hard drive into the **USB A** port. The DL32R records to it by itself.
 
-- **Tracks:** 1 to 32, chosen per recording (Master Fader 5 guide). See [24 or 32 tracks?](#24-or-32-tracks-on-the-drive) below.
-- **Format:** 16 or 24-bit at 48 kHz, as one multichannel (interleaved) WAV per take: "The DL32R records to multichannel .wav files that contain between one and 32 channels (or tracks) in a single file." Most DAWs split it into tracks on import; otherwise Mackie suggests Sound Devices Wave Agent.
-- **Long shows:** each file stays under 2 GB. The DL32R starts a new one "without any data loss", so a long take is several WAV files; line them up end to end in the DAW. Mackie's example: a 50-minute, 24-channel recording gives 5 files.
-- **Drive:** Mackie says use a "USB 2.0 or better spinning hard disk drive" and "Do not use a thumb drive" for recording (a thumb drive is fine for stereo playback). Dedicate the drive to the DL32R, format it in the DL32R, and don't use a USB hub. A bus-powered drive is fine "from 5V up to 1A". The manual's spec table says FAT32.
+- **Tracks:** 1 to 32, picked for each recording (Master Fader guide). See [24 or 32 tracks?](#24-or-32-tracks-on-the-drive) below.
+- **Format:** 16 or 24-bit at 48 kHz. Each take is one multichannel (interleaved) WAV file, holding all the tracks.
+- **In Mackie's words:** "The DL32R records to multichannel .wav files that contain between one and 32 channels (or tracks) in a single file."
+- **Splitting into tracks:** most DAWs split the file into tracks when you import it. If yours doesn't, Mackie suggests Sound Devices Wave Agent.
+- **Long shows:** each file stays under 2 GB. The DL32R then starts a new file "without any data loss". So a long take is several WAV files. Line them up end to end in the DAW.
+- **Mackie's example:** a 50-minute, 24-channel recording gives 5 files.
+- **Which drive:** Mackie says use a "USB 2.0 or better spinning hard disk drive". Also: "Do not use a thumb drive" for recording. A thumb drive is fine for stereo playback.
+- **Set the drive up:** keep it just for the DL32R and format it in the DL32R. Don't use a USB hub. The manual's spec table says FAT32.
+- **Power:** a drive powered by the USB cable is fine, "from 5V up to 1A".
 - **Free space:** recording won't start, and stops, below 100 MB free.
 - **Folders:** the drive holds "Music" (stereo files to play) and "Recordings" (one folder per take).
 
-**Drive or computer, not both.** The drive and a computer can't be used at the same time. Mackie: "USB A and USB B connectors may NOT be used simultaneously. If a hard drive is connected to USB A, it will take priority over anything connected to USB B." A drive plugged in during a computer recording interrupts it.
+**Drive or computer, not both.** The two ports can't be used at the same time. Plugging in a drive interrupts a computer recording. Mackie: "USB A and USB B connectors may NOT be used simultaneously. If a hard drive is connected to USB A, it will take priority over anything connected to USB B."
 
 ### To an iPad, iPhone or Mac with an app
 
-Mackie's manual names the iPad, with Apple's camera connection kit. The iPhone isn't named. A Mac works like any computer above, with no driver. See [Mac, iPad and iPhone](#dl32r-on-mac-ipad-and-iphone) below.
+- **iPad:** Mackie's manual names it, with Apple's camera connection kit.
+- **iPhone:** not named by Mackie.
+- **Mac:** works like any computer above, with no driver.
+
+More in [Mac, iPad and iPhone](#dl32r-on-mac-ipad-and-iphone) below.
 
 ## DL32R recording settings
 
-- **Over USB B:** 48 kHz only, 16 or 24-bit, set in your recording app (our reading). There is nothing to switch on the DL32R.
-- **To the drive:** in Master Fader, tap the **Recording/Playback** button (upper right of the navigation bar), name the recording, pick how many tracks (1-32) and 16 or 24 bits, then tap **Record**. Name, track count and bit depth can't change while it records.
-- **The iPad can leave the app:** drive recording carries on in the background (Master Fader 5 guide).
+**Recording to a computer or iPad:** there is nothing to switch on the DL32R. It runs at 48 kHz only. Pick 16 or 24-bit in your recording app (our reading).
+
+**Recording to the drive,** in Master Fader:
+
+1. Tap the **Recording/Playback** button, at the upper right of the navigation bar.
+2. Name the recording.
+3. Pick how many tracks (1-32).
+4. Pick 16 or 24 bits.
+5. Tap **Record**. The name, track count and bit depth can't change while it records.
+
+- **The iPad can leave the app:** drive recording carries on in the background (Master Fader guide).
 - **Clock:** Mackie documents no word clock. An optional Dante card is offered (spec sheet).
 - **File format on the drive:** multichannel WAV, 48 kHz.
 
@@ -61,61 +81,96 @@ Mackie's manual names the iPad, with Apple's camera connection kit. The iPhone i
 
 ### 24 or 32 tracks on the drive?
 
-Mackie's own documents contradict each other. The 2015 spec table, in the manual and on the spec sheet, says the drive records "1-24 channel, 48 kHz, 16/24-bit (multichannel .wav)". The manual's own text, the spec sheet's feature list and the 2018 Master Fader 5 guide say 32, and the guide's track menu goes "1-32". We read the 2018 guide as the current one: up to 32 tracks with current firmware and Master Fader, and an older unit may show 24 until it is updated (our reading). Mackie doesn't say which firmware first allowed 32, so update the mixer and the app before a show, and check the track menu.
+**What to do:** update the mixer and the Master Fader app before a show, then check the track menu goes to 32.
+
+Why: Mackie's own documents contradict each other.
+
+- **24:** the 2015 spec table, in the manual and on the spec sheet, says the drive records "1-24 channel, 48 kHz, 16/24-bit (multichannel .wav)".
+- **32:** the manual's own text, the spec sheet's feature list and the 2018 Master Fader 5 guide say 32. The guide's track menu goes "1-32".
+- **2026:** the 2026 V5.1 guide also says the drive records 32 channels (48 kHz, 24-bit), p. 210.
+- **When it changed:** Mackie's release notes in the V5.1 guide say 32-track drive recording came with Master Fader and mixer firmware V3.2 (p. 320).
+
+So we read the guides as the current word: up to 32 tracks with current firmware and Master Fader. An older unit may show 24 until it is updated (our reading).
 
 ### Only some channels, or none? Check USB A and the track count
 
-- **The computer lost the DL32R?** A drive on USB A takes priority over USB B. Unplug the drive, then unplug and replug USB B: the DL32R won't reappear until you do (DL32R manual).
-- **Fewer tracks on the drive than you wanted?** The track count is set per recording, before you press Record. Check it, and see [24 or 32 tracks?](#24-or-32-tracks-on-the-drive).
-- **A channel is silent?** Check its USB slot in **I/O Patch > USB**: a cleared slot sends nothing.
+- **The computer lost the DL32R?** A drive on USB A takes priority over USB B. Unplug the drive. Then unplug and replug USB B: the DL32R won't come back until you do (DL32R manual).
+- **Fewer tracks on the drive than you wanted?** You set the track count for each recording, before you press Record. Check it, and see [24 or 32 tracks?](#24-or-32-tracks-on-the-drive).
+- **A channel is silent?** Check its USB slot in **I/O Patch > USB**. An empty slot sends nothing.
 
 ## DL32R USB routing
 
-**Recording every input? There is nothing to change.** The default sends Mic Pre 1-32 to USB 1-32 (Master Fader 5 guide).
+**Recording every input? There is nothing to change.** Out of the box, the patch sends Mic Pre 1-32 to USB 1-32 (Master Fader guide). The same patch feeds the drive and the computer.
 
-Each USB slot takes any source: "Any combination of channels or outputs may be selected as the record source and playback destination." The same patch feeds the drive and the computer.
+To change what a USB slot carries:
 
-1. In Master Fader, tap the **I/O Patch** button (upper right of the navigation bar).
-2. Open the **USB** tab. Rows are sources, columns are USB slots; tap a crosshair to patch.
-3. To start over, the tools button (upper left) offers **Reset to Default** or **Clear** for the open tab. Snapshots store the patch.
+1. In Master Fader, tap the **I/O Patch** button, at the upper right of the navigation bar.
+2. Open the **USB** tab. Rows are sources; columns are USB slots.
+3. Tap a crosshair to send a source to a slot.
+4. To start over, tap the tools button (upper left). It offers **Reset to Default** or **Clear** for the open tab.
 
-Sources on the USB tab: Oscillator, Mic Pre 1-32, USB 1-32, Dante 1-32, Channel 1-32 Post-DSP, Return 1-4 Post-DSP, FX L/R Post-DSP, Main L/R Pre-Fader, Main L/R, Subgroups 1-6, Aux 1-14, FX Send 1-3, Matrix 1-6 and Monitor L/R.
+Snapshots store the patch. Any source can go to any slot. Mackie: "Any combination of channels or outputs may be selected as the record source and playback destination."
 
-**Recording the mix too.** Mackie's example patches Mic Pre 1-12 to USB 1-12, Main L/R to USB 13-14 and Aux 1-2 to USB 15-16. With all 32 inputs in use there are no spare slots, so a stereo mix costs two input tracks.
+**Sources on the USB tab:**
+
+- Oscillator, Mic Pre 1-32, USB 1-32 and Dante 1-32.
+- Channel 1-32 Post-DSP, Return 1-4 Post-DSP and FX L/R Post-DSP.
+- Main L/R Pre-Fader (before the main fader) and Main L/R.
+- Subgroups 1-6, Aux 1-14, FX Send 1-3, Matrix 1-6 and Monitor L/R.
+
+**Recording the mix too.** Mackie's example sends Mic Pre 1-12 to USB 1-12, Main L/R to USB 13-14, and Aux 1-2 to USB 15-16. With all 32 inputs in use there are no spare slots. So a stereo mix costs two input tracks.
 
 {/* Screenshot: I/O Patch, USB tab, with Mic Pre 1-32 on USB 1-32. <Screenshot src="/images/guides/mackie-dl32r-io-patch-usb.png" alt="Mackie Master Fader I/O Patch, USB tab, with Mic Pre 1-32 patched to USB 1-32" /> */}
 
 ## DL32R playback for virtual soundcheck
 
-Each channel has two sources: **Input A** (by default the mic pres) and **Input B** (by default the USB returns, from the drive or the computer). Switch the channels to Input B to hear the recording through the mix.
+Virtual soundcheck means playing a recording back through the mixer's channels, so you can set the mix with no band on stage.
 
-- **Shortcuts:** the Recording/Playback view has **Channel A / B** (all channels) and **A Tracks / B Tracks** (only as many channels as the loaded file has tracks).
-- **From the drive:** it plays 48 kHz WAV files. 44.1 kHz, AAC, MP3 and AIFF won't play. Mackie notes that multichannel files made in some DAWs "will only play back properly with 27 or fewer tracks".
-- **From a computer:** play 32 tracks out of the DAW to USB 1-32, and the channels on Input B hear them.
+**What to do:** switch the channels to **Input B**. Each channel has two sources:
 
-Because the default record tap is Mic Pre and the playback comes back at the channel's input, the trim, HPF, EQ and dynamics work on the playback as they did on the live input (our reading of the block diagram).
+- **Input A:** by default, the mic inputs.
+- **Input B:** by default, the USB returns: the audio coming back in from the drive or the computer.
+
+Shortcuts, in the Recording/Playback view:
+
+- **Channel A / B:** switches all channels.
+- **A Tracks / B Tracks:** switches only as many channels as the loaded file has tracks.
+
+Playing back from the drive:
+
+- It plays 48 kHz WAV files. 44.1 kHz, AAC, MP3 and AIFF won't play.
+- Multichannel files made in some DAWs "will only play back properly with 27 or fewer tracks" (Mackie).
+
+Playing back from a computer: play 32 tracks out of the DAW to USB 1-32. The channels on Input B hear them.
+
+The playback goes through the same channel settings as the live show (our reading of the block diagram). The recording is taken at Mic Pre, and the playback comes back at the channel's input. So the trim, HPF, EQ and dynamics work on it as they did live.
 
 ## DL32R tap points
 
-Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). On the DL32R you pick the tap per USB slot, from the block diagram in the Master Fader 5 guide:
+A tap point is where in the channel the recording is taken from. Which to pick, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). On the DL32R you pick it for each USB slot, from the block diagram in the Master Fader guide.
 
-- **Which to pick:** for a recording you'll remix, **Mic Pre**, the default.
-- **Mic Pre:** after the analog gain and the converter, before everything digital: before digital trim, polarity, HPF, gate, compressor, EQ, mute and fader. Mackie calls this "recording each input directly off the mic pre with no processing".
+- **Which to pick:** for a recording you'll mix later, **Mic Pre**, the default.
+- **Mic Pre:** right after the analog gain and the converter, before anything digital. That means before digital trim, polarity, HPF, gate, compressor, EQ, mute and fader. Mackie calls this "recording each input directly off the mic pre with no processing".
 - **Channel N Post-DSP** (the "Ch Direct Out" on the block diagram): after the HPF, gate, compressor and EQ, before mute and fader. Use it for processed tracks (our advice).
-- **Main L/R:** offered both pre-fader and post-fader.
-- **Gain vs trim:** the preamp gain is analog, digitally controlled, in 3 dB steps: 0 to 60 dB on XLR, -20 to 40 dB on the 1/4" input (spec sheet). Line inputs 25-32 add a -20 dB pad on TRS. The digital trim comes after the Mic Pre tap (block diagram), so it doesn't change the recording.
-- **Meters:** the channel meter sits right after the A/B source select, before the trim (block diagram). Mackie's FAQ: "Input meters are fixed Pre DSP."
-- **Several iPads:** up to 20 iOS devices can control one DL32R (spec sheet). The gain is one setting per input, so a gain change from any of them changes the Mic Pre recording (our reading). Mackie doesn't say so. **Access Limiting > Mic Preamps** locks "48v, gain, trim and polarity" on a device. Lock it on every iPad except the one that owns gain (our advice).
+- **Main L/R:** offered both pre-fader (before the main fader, so the fader doesn't change it) and post-fader.
+- **Gain:** the preamp gain is analog, set digitally in 3 dB steps (spec sheet). It runs 0 to 60 dB on XLR, and -20 to 40 dB on the 1/4" input. Line inputs 25-32 add a -20 dB pad on TRS.
+- **Trim:** the digital trim comes after the Mic Pre tap (block diagram), so it doesn't change the recording.
+- **Meters:** the channel meter sits right after the A/B source select, before the trim (block diagram). The Master Fader guide: "The input meters display the input signal level to the channel before all channel processing."
+
+**Several iPads? Lock the gain on all but one.** Up to 20 iOS devices can control one DL32R (spec sheet). Each input has one gain setting. So a gain change from any of them changes the Mic Pre recording (our reading). Mackie doesn't say so.
+
+- **Access Limiting > Mic Preamps** locks "48v, gain, trim and polarity" on a device.
+- Lock it on every iPad except the one that owns gain (our advice).
 
 ## DL32R on Mac, iPad and iPhone
 
-- **iPad:** yes, per Mackie: "you may stream audio directly to and from an iPad using the iPad camera connection kit" (DL32R manual). The manual is from 2015 and names only that kit, so a USB-C iPad is not tested yet.
-- **iPhone:** Mackie doesn't name the iPhone, and an iPhone with a DL32R is not tested yet.
-- **Mac:** class compliant, no driver: "connecting it to a Mac should work automatically with no additional drivers" (DL32R manual). Mackie's 2015 list stops at OS X 10.11; current macOS is not listed by Mackie.
+- **iPad:** yes, per Mackie: "you may stream audio directly to and from an iPad using the iPad camera connection kit" (DL32R manual). The manual is from 2015 and names only that kit. A USB-C iPad is not tested yet.
+- **iPhone:** Mackie doesn't name the iPhone. An iPhone with a DL32R is not tested yet.
+- **Mac:** class compliant, meaning it works with no driver: "connecting it to a Mac should work automatically with no additional drivers" (DL32R manual). Mackie's 2015 list stops at OS X 10.11. Current macOS is not listed by Mackie.
 - **Windows:** Mackie says a driver installation is required.
-- **Power:** Mackie doesn't say whether USB B charges an iPad. For a long show, use a powered USB hub or a camera adapter that passes power through (our advice), and test it before the show.
+- **Power:** Mackie doesn't say whether USB B charges an iPad. For a long show, use a powered USB hub or a camera adapter that passes power through (our advice). Test it before the show.
 
-ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer, one WAV file per channel. We haven't tested it with a DL32R yet. There is no Mixer Link for the DL32R: Mixer Link, which reads channel names and colors, works only on the XR18/MR18 and X32/M32.
+ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer, one WAV file per channel. We haven't tested it with a DL32R yet. There is no Mixer Link for the DL32R. Mixer Link reads channel names and colors, and works only on the XR18/MR18 and X32/M32.
 
 <GetTheApp campaign="site-guide-mackie-dl32r" />
 
@@ -127,5 +182,5 @@ Mackie documents:
 
 - [DL32R Owner's Manual](https://mackie.com/img/file_resources/DL32R_OM.pdf) (2015): USB A and USB B, 32 x 32 over USB, the iPad camera connection kit, the Mac and Windows drivers, the spec table.
 - [DL32R spec sheet](https://mackie.com/img/file_resources/DL32R_SS.pdf) (2015): USB and drive specs, gain ranges, up to 20 iOS devices.
-- [Master Fader 5 Reference Guide](https://www.ambertech.com.au/Documents/Master%20Fader_V5_0_RG-compressed.pdf) (2018): drive recording and playback, I/O Patch, the block diagram, Access Limiting. This is Mackie's own guide; we could not find it on mackie.com, so the link is the copy hosted by Ambertech, Mackie's Australian distributor.
-- [DL32R FAQ](https://mackie.com/en/support/faq/dl32r.html): input and output meter points. The page would not load for us; we read it through search excerpts.
+- [Master Fader Reference Guide V5.1](https://help.mackie.com/hc/en-us/articles/14288356150159-Master-Fader-Downloads) (Feb 2026), on Mackie's Master Fader Downloads page ("Click here" opens Mackie's file library, "Master Fader V5 1 RG"): drive recording and playback (pp. 210-224), I/O Patch (pp. 196-209), the input meters (p. 38), Access Limiting, the DL32R block diagram (pp. 290-291).
+- [Master Fader 5 Reference Guide V5.0](https://www.ambertech.com.au/Documents/Master%20Fader_V5_0_RG-compressed.pdf) (2018), an older edition of the same Mackie guide, hosted by Ambertech, Mackie's Australian distributor.

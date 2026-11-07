@@ -39,6 +39,13 @@ const TEMPLATE = (short: string) => [
 const slugify = (h: string) => h.toLowerCase().replace(/[^a-z0-9 -]/g, "").replace(/ /g, "-");
 const section = (mdx: string, start: string, end: string) => mdx.slice(mdx.indexOf(`## ${start}`), mdx.indexOf(`## ${end}`));
 
+// Mackie's page for the current Master Fader Reference Guide (V5.1, Feb 2026). Its "Click here" opens Mackie's
+// Brandfolder; the PDF itself sits behind a signed URL, so the guides link this page (#1111).
+const MACKIE_MF_DOWNLOADS = "https://help.mackie.com/hc/en-us/articles/14288356150159-Master-Fader-Downloads";
+// Midas's own M32 documents, linked from midasconsoles.com (Midas's current site) (#1111).
+const MIDAS_M32_MANUAL = "https://cdn-media.empowertribe.com/5a30d52258104865a4392b99550ee1f9/M32_M_EN.pdf";
+const MIDAS_M32_LIVE_QSG = "https://cdn-media.empowertribe.com/019427b1584f42aab500bf0dc082ace5/QSG_MI_0603-AEO_M32%20LIVE.pdf";
+
 describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   const mdx = body(guide.slug);
   const page = (PAGES as Record<string, { path: string; title: string; description: string }>)[guide.pageKey];
@@ -137,7 +144,7 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("cites its sources: the maker's documents, with forum posts marked as such", () => {
     const sources = mdx.slice(mdx.indexOf("## Sources"));
     expect(sources).toMatch(
-      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com|zoomcorp\.com|mackie\.com|www\.soundcraft\.com|harman\.helpjuice\.com)\//,
+      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com|zoomcorp\.com|mackie\.com|help\.mackie\.com|www\.soundcraft\.com|harman\.helpjuice\.com)\//,
     );
   });
 
@@ -424,7 +431,14 @@ describe("the Midas M32 guide's facts", () => {
 
   it("gives the tap points from the M32 manual and the shared stage box caveat", () => {
     const taps = section(mdx, "M32 tap points", "M32 on Mac, iPad and iPhone");
-    expect(taps).toMatch(/Input, Pre-EQ, Pre-Fader and Post-Fader \(M32 manual\)/);
+    // #1124 fact check: Midas's current manual lists nine taps for Out 1-16 (p. 26) and P16 (p. 27).
+    expect(taps).toMatch(/IN\/LC, IN\/LC \+M, PreEQ, PreEQ \+M, PostEQ, PostEQ \+M, PreFdr, PreFdr \+M and Post Fader \(Midas M32 manual, pp\. 26-27\)/);
+    expect(taps).not.toMatch(/forum users report newer names/);
+    const sources = mdx.slice(mdx.indexOf("## Sources"));
+    expect(sources).toMatch(/\(pp\. 26-27\)/);
+    const notes = read("..", "docs", "research", "mixer-recording", "m32.md");
+    expect(notes).not.toMatch(/X32 forum sources only/);
+    expect(notes).toMatch(/IN\/LC[^\n]*PostEQ[^\n]*M-5 p\.26-27/);
     expect(taps).toMatch(/DL16 or DL32/);
     expect(taps).toMatch(/no gain compensation/i);
   });
@@ -445,10 +459,11 @@ describe("the Midas M32 guide's facts", () => {
     expect(guide.faqs[0].a).toMatch(/as uncompressed multichannel 32-bit WAV/);
     expect(mdx).not.toMatch(/\*\*Bit depth:\*\* fixed/);
     expect(mdx).toMatch(/on the X32 it is fixed \(X32 manual\), and we expect the same on the M32 \(our reading\)/);
-    expect(mdx).toMatch(/"Tap the first control to assign the selected output path, completing the process" \(M32 manual\)/);
     expect(mdx).not.toMatch(/Confirm if asked/);
     expect(mdx).toMatch(/config: This screen offers adjustments for sample rates and synchronisation/); // spelling: ok (Midas's own word, quoted)
-    expect(mdx).toMatch(/Input\/LC and \+M variants \(our reading for the M32\)/);
+    expect(mdx).not.toMatch(/Input\/LC and \+M variants \(our reading for the M32\)/);
+    expect(mdx).toMatch(/through a card in its expansion slot \(DN32-USB, DN32-LIVE or XUF\)/);
+    expect(mdx).not.toMatch(/DN32-USB is always 32 x 32/);
     expect(mdx).toMatch(/On a DN32-LIVE, set \*\*Setup > Card\*\* to 32 each way \(the DN32-USB is 32 x 32\)/);
     expect(mdx).toMatch(/it is built to also read channel names and colors over Mixer Link/);
     expect(guide.faqs.find((f) => /main mix/.test(f.q))!.a).toMatch(/per user reports \(our reading\)/);
@@ -458,6 +473,72 @@ describe("the Midas M32 guide's facts", () => {
     const sources = mdx.slice(mdx.indexOf("## Sources"));
     expect(sources).toMatch(/hosted by/);
     expect(sources).toMatch(/not Midas/);
+  });
+
+  // #1111: Midas's own manual and M32 LIVE guide, linked from midasconsoles.com, are now in hand.
+  it("cites Midas's own M32 manual and M32 LIVE guide from midasconsoles.com, and never midasgroup.com", () => {
+    const sources = mdx.slice(mdx.indexOf("## Sources"));
+    for (const url of [MIDAS_M32_MANUAL, MIDAS_M32_LIVE_QSG]) {
+      expect(sources).toContain(`](${url})`);
+      expect(guide.sources).toContain(url);
+    }
+    expect(sources).toMatch(/Midas moved to midasconsoles\.com/);
+    const notes = read("..", "docs", "research", "mixer-recording", "m32.md");
+    expect(notes).toContain(MIDAS_M32_MANUAL);
+    expect(notes).toContain(MIDAS_M32_LIVE_QSG);
+    for (const text of [mdx, notes, guide.sources.join(" ")]) expect(text).not.toMatch(/midasgroup/);
+  });
+
+  // #1111: the card-out step quotes and the name "XUF" are only in the ManualsLib copy, not Midas's current manual.
+  it("says the card-out quotes and the XUF name come from an earlier edition of the M32 manual, on ManualsLib", () => {
+    expect(mdx).toMatch(/"Tap the first control to assign the selected output path, completing the process" \(an earlier edition of the M32 manual, on ManualsLib\)/);
+    expect(mdx).not.toMatch(/"(Adjust the first rotary control|Tap the first control)[^"]*" \(M32 manual\)/);
+    expect(mdx).toMatch(/\*\*XUF:\*\*[^\n]*an earlier edition of the M32 manual, on ManualsLib/);
+  });
+
+  it("gives the SD card sizes the M32 LIVE guide gives: SD or SDHC, 1 to 32 GB per slot", () => {
+    expect(mdx).not.toMatch(/SDXC/);
+    expect(mdx).toMatch(/SD or SDHC cards \(FAT32, 1 to 32 GB per slot\)/);
+    expect(read("..", "docs", "research", "mixer-recording", "m32.md")).not.toMatch(/SDXC above 32 GB is not supported/);
+  });
+});
+
+// Plain-language pass (#1111, Eric 2026-11-07): the guides are for laypeople, such as a church volunteer with the mixer
+// and an iPhone. Each term is explained where it first appears (or links the glossary), and prose sentences stay short.
+const PLAIN_TERMS: readonly { term: RegExp; explained: RegExp }[] = [
+  { term: /tap points?/i, explained: /where (in the channel )?the (recording|feed)[^.]*(is taken|comes from)|#glossary/ },
+  { term: /pre-fader/i, explained: /before the (channel |main )?fader|fader doesn't change|#glossary/ },
+  { term: /class compliant/i, explained: /no driver|without a driver|#glossary/ },
+  { term: /virtual soundcheck|virtual sound check/i, explained: /play(s|ing)? (a|the) recording back|no band|#glossary/ },
+  { term: /USB returns?/i, explained: /back (in|into|from)|comes back|#glossary/ },
+];
+
+// The prose of a guide, one sentence per entry: no headings, code, comments, Sources, link targets or emphasis marks.
+const proseSentences = (mdx: string) =>
+  mdx
+    .slice(0, mdx.indexOf("## Sources"))
+    .split("\n")
+    .filter((l) => l.trim() && !/^(#|import|export|<|\{\/\*)/.test(l.trim()))
+    .map((l) => l.replace(/\]\([^)]*\)/g, "]").replace(/[*[\]`]/g, "").replace(/^\s*(-|\d+\.)\s*/, ""))
+    .flatMap((l) => l.split(/(?<=[.:;?])\s+(?=[A-Z"(])/))
+    .filter((s) => s.trim());
+
+describe.each(["mackie-dl32r", "mackie-dl32s", "m32"])("the %s guide, for beginners", (slug) => {
+  const mdx = body(slug);
+  const lines = mdx
+    .slice(0, mdx.indexOf("## Sources"))
+    .split("\n")
+    .filter((l) => l.trim() && !/^(#|import|export|<|\{\/\*)/.test(l.trim()));
+
+  it.each(PLAIN_TERMS.map((t) => [t.term.source, t] as const))("explains %s where it first appears", (_, { term, explained }) => {
+    const first = lines.find((l) => term.test(l.replace(/\]\([^)]*\)/g, "]")));
+    if (first === undefined) return;
+    expect(first).toMatch(explained);
+  });
+
+  it("keeps every prose sentence to 30 words or fewer", () => {
+    const long = proseSentences(mdx).filter((s) => s.split(/\s+/).filter(Boolean).length > 30);
+    expect(long).toEqual([]);
   });
 });
 
@@ -623,6 +704,12 @@ describe("the Mackie DL32R guide's facts", () => {
     expect(read("..", "docs", "research", "mixer-recording", "mackie-dl32r.md")).not.toMatch(/Clock: internal/);
     expect(mdx).not.toMatch(/always offers 32 x 32/);
     expect(mdx).toMatch(/so we expect 32 x 32 every time \(our reading\)/);
+    // #1124 fact check: say what Mackie documents, not what the mixer has; the default is one input per channel.
+    expect(mdx).toMatch(/Mackie documents no mode or channel-count option/);
+    expect(mdx).toMatch(/32 channels at 48 kHz, by default one per input/);
+    expect(section(mdx, "Ways to record a DL32R", "DL32R recording settings")).toMatch(/\*\*Set the drive up:\*\*[^\n]*FAT32/);
+    expect(read("..", "docs", "research", "mixer-recording", "mackie-dl32r.md")).not.toMatch(/p\.209/);
+    expect(read("..", "docs", "research", "mixer-recording", "xr18-mr18.md")).not.toMatch(/midasgroup/);
     expect(mdx).toMatch(/after the Mic Pre tap \(block diagram\)/);
     expect(mdx).not.toMatch(/sound like front of house/);
     expect(mdx).toMatch(/Use it for processed tracks \(our advice\)\./);
@@ -630,10 +717,36 @@ describe("the Mackie DL32R guide's facts", () => {
     expect(MIXER_ROWS.find((r) => r.name === "Mackie DL32R")!.onboard).toMatch(/\(older units may show 24 until updated; our reading\)/);
   });
 
-  it("cites the Master Fader 5 guide as Mackie's, hosted by a distributor", () => {
+  // #1111: Mackie hosts the current guide (V5.1, Feb 2026) itself; the Ambertech V5.0 copy is secondary at most.
+  it("cites Mackie's own Master Fader V5.1 guide first, from help.mackie.com", () => {
     const sources = mdx.slice(mdx.indexOf("## Sources"));
-    expect(sources).toMatch(/ambertech\.com\.au/);
-    expect(sources).toMatch(/distributor/);
+    expect(sources).toContain(`](${MACKIE_MF_DOWNLOADS})`);
+    expect(sources).toMatch(/V5\.1[^\n]*2026/);
+    expect(guide.sources).toContain(MACKIE_MF_DOWNLOADS);
+    const ambertech = sources.indexOf("ambertech.com.au");
+    if (ambertech >= 0) expect(sources.indexOf(MACKIE_MF_DOWNLOADS)).toBeLessThan(ambertech);
+    expect(read("..", "docs", "research", "mixer-recording", "mackie-dl32r.md")).toContain(MACKIE_MF_DOWNLOADS);
+  });
+
+  // #1111: the FAQ page shows an error in a real browser; the meter fact now rests on the V5.1 guide (p. 38).
+  it("doesn't link Mackie's DL32R FAQ page, and sources the meter point from the V5.1 guide", () => {
+    expect(mdx).not.toMatch(/mackie\.com\/en\/support\/faq/);
+    expect(guide.sources).not.toContain("https://mackie.com/en/support/faq/dl32r.html");
+    expect(mdx).not.toMatch(/Input meters are fixed Pre DSP/);
+    expect(mdx).toMatch(/before all channel processing/);
+    expect(read("..", "docs", "research", "mixer-recording", "mackie-dl32r.md")).not.toMatch(/\[FAQ\] excerpt/);
+  });
+
+  it("says the 2026 V5.1 guide also gives 32 drive channels at 48 kHz, 24-bit (p. 210)", () => {
+    const tracks = section(mdx, "DL32R recording settings", "DL32R USB routing");
+    expect(tracks).toMatch(/2026 V5\.1 guide also says[^.]*32 channels \(48 kHz, 24-bit\)[^.]*p\. 210/);
+  });
+
+  it("cites V5.1 page numbers in the research notes (block diagram pp. 290-291, not V5.0's p. 284)", () => {
+    const notes = read("..", "docs", "research", "mixer-recording", "mackie-dl32r.md");
+    expect(notes).not.toMatch(/p\.284/);
+    expect(notes).toMatch(/RG p\.290-291/);
+    expect(notes).toMatch(/RG p\.210\]/);
   });
 });
 
@@ -768,6 +881,19 @@ describe("the Mackie DL32S guide's facts", () => {
     expect(guide.faqs.find((f) => /iPhone|iPad/.test(f.q))!.a).toMatch(/not tested yet/i);
   });
 
+  // #1111: Mackie hosts the current guide (V5.1, Feb 2026) itself; the Ambertech V5.0 copy is secondary at most.
+  it("cites Mackie's own Master Fader V5.1 guide first, from help.mackie.com, and not the DL32R FAQ page", () => {
+    const sources = mdx.slice(mdx.indexOf("## Sources"));
+    expect(sources).toContain(`](${MACKIE_MF_DOWNLOADS})`);
+    expect(sources).toMatch(/V5\.1[^\n]*2026/);
+    expect(guide.sources).toContain(MACKIE_MF_DOWNLOADS);
+    const ambertech = sources.indexOf("ambertech.com.au");
+    if (ambertech >= 0) expect(sources.indexOf(MACKIE_MF_DOWNLOADS)).toBeLessThan(ambertech);
+    const notes = read("..", "docs", "research", "mixer-recording", "mackie-dl32s.md");
+    expect(notes).toContain(MACKIE_MF_DOWNLOADS);
+    expect(notes).not.toMatch(/mackie\.com\/en\/support\/faq/);
+  });
+
   it("keeps the SE models apart: their patch menu is not in the Master Fader guide", () => {
     expect(mdx).toMatch(/DL32SE/);
     expect(mdx).toMatch(/SE models[^.]*not in/);
@@ -840,5 +966,11 @@ describe("the Soundcraft Ui24R guide's facts", () => {
     expect(mdx).toMatch(/no Mixer Link/);
     expect(mdx).not.toMatch(/unsupported/i);
     expect(mdx).not.toMatch(/ShowRecorder has recorded[^.]*Ui24R/);
+  });
+
+  // #1111: both Soundcraft PDFs were read in full in a real browser, from Harman's file host, and matched the guide.
+  it("notes in its research that the v1.0 manual and v2.0 addendum were read in full on 2026-11-07 and matched", () => {
+    const notes = read("..", "docs", "research", "mixer-recording", "soundcraft-ui24r.md");
+    expect(notes).toMatch(/v1\.0[^\n]*v2\.0 (User Guide )?[Aa]ddendum[^\n]*read in full on 2026-11-07[^\n]*adn\.harmanpro\.com[^\n]*match/);
   });
 });

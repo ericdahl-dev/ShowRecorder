@@ -7,18 +7,18 @@ import { guideTrail } from "@/lib/mixerGuides";
 
 <LastChecked path="/guides/record/mackie-dl32s" />
 
-**Short answer.** Plug the DL32S's USB-B port into a computer and record in any DAW. It sends 32 channels and takes 32 back, at 48 kHz only; the DL16S sends 16. Out of the box, Mic Pre 1-32 go to USB 1-32, so every input is already on its own track. To change what each USB channel carries, use **I/O Patch > USB** in Mackie's Master Fader app. The DL32S can't record by itself, and Mackie doesn't name the iPhone or iPad for it: not tested yet.
+**Short answer.** Plug the DL32S's USB-B port into a computer and record in any DAW (a recording app such as Reaper, Logic or Pro Tools). It sends 32 channels and takes 32 back, at 48 kHz only. The DL16S sends 16. Out of the box, every input already goes to its own track: Mic Pre 1-32 to USB 1-32. To change that, use **I/O Patch > USB** in Mackie's Master Fader app. The DL32S can't record by itself. Mackie doesn't name the iPhone or iPad for it: not tested yet.
 
 **Quick start**
 
 1. **Connect the DL32S's USB-B port** to the computer. On a Mac, no driver is needed. On Windows, install Mackie's driver first. ([Ways to record](#ways-to-record-a-dl32s))
 2. **Pick the DL32S** as the input and output device in the computer's sound settings and in your DAW. ([Recording settings](#dl32s-recording-settings))
 3. **Leave the USB patch at its default** (Mic Pre N to USB N) for raw tracks, or change it in Master Fader's **I/O Patch > USB** tab. ([USB routing](#dl32s-usb-routing))
-4. **Set the analog gain before the show** and ride levels with the faders: the gain is in the recording, the trim and faders are not. ([Tap points](#dl32s-tap-points))
+4. **Set the analog gain before the show,** then ride levels with the faders. The gain is in the recording; the trim and faders are not. ([Tap points](#dl32s-tap-points): where the recording is taken from in each channel.)
 5. **Record a 30 s test and play it back** before the show.
 6. **Too few channels, or none?** ([Check the device and the USB tab](#only-some-channels-or-none-check-the-device-and-the-usb-tab))
 
-This guide covers the DL32S and the DL16S, which share one manual and one app; where they differ, it says which. The DL32SE and DL16SE have the same USB counts and format, but their patch menu is not covered here (see [the SE models](#dl32se-and-dl16se)). The rack-mount DL32R records differently.
+This guide covers the DL32S and the DL16S. They share one manual and one app; where they differ, the guide says which. The DL32SE and DL16SE have the same USB counts and format, but their patch menu is not covered here (see [the SE models](#dl32se-and-dl16se)). The rack-mount DL32R records differently.
 
 Every other mixer is in the [mixer recording guides](/guides/record), and the words used here are in its [glossary](/guides/record#glossary). Facts come from Mackie's manuals, spec sheet and Master Fader guide unless a line says otherwise. The [sources](#sources) are at the end.
 
@@ -26,7 +26,7 @@ Every other mixer is in the [mixer recording guides](/guides/record), and the wo
 
 ### To a computer over USB
 
-Plug the mixer's **USB-B** port into the computer and record in any DAW.
+Plug the mixer's **USB-B** port into the computer. Record in any DAW.
 
 - **Channels to the computer:** the DL32S sends 32 channels and takes 32 back. The DL16S sends 16 channels and takes 16 back.
 - **Sample rate:** 48 kHz only.
@@ -37,7 +37,7 @@ Plug the mixer's **USB-B** port into the computer and record in any DAW.
 
 ### With no computer
 
-None. The DL32S has no onboard recorder; Mackie documents only the USB-B port: "recording and playback is possible when a computer is connected ... via the USB type B connector" (DL32S manual). It can't record by itself. If you need a Mackie DL mixer that records to a drive with no computer, that is the DL32R.
+**You need a computer.** The DL32S has no onboard recorder, so it can't record by itself. Mackie documents only the USB-B port: "recording and playback is possible when a computer is connected ... via the USB type B connector" (DL32S manual). The Mackie DL mixer that records to a drive with no computer is the DL32R.
 
 ### To an iPhone, iPad or Mac with an app
 
@@ -75,48 +75,76 @@ If your app gets fewer channels than you expect, or silence:
 3. Rows are sources and columns are destinations (USB 1-32 on the DL32S, USB 1-16 on the DL16S). Tap a crosshair to patch a source to a USB channel.
 4. To start over, tap the tools button at the upper left of I/O Patch and pick **Reset to Default** or **Clear** for the open tab.
 
-**What you can send to USB**, per Mackie's I/O Patch table: Oscillator, Mic Pre, USB, Channel Post-DSP, Return Post-DSP, FX L/R Post-DSP, Main L/R Pre-Fader, Main L/R, subgroups, auxes, FX sends, matrix outputs and Monitor L/R. Mackie's table is shared with the DL32R, so check the exact number of auxes, subgroups and matrix outputs in the app.
+**What you can send to USB**, per Mackie's I/O Patch table:
+
+- Oscillator, Mic Pre and USB.
+- Channel Post-DSP, Return Post-DSP and FX L/R Post-DSP.
+- Main L/R Pre-Fader (before the main fader, so the fader doesn't change it) and Main L/R.
+- Subgroups, auxes, FX sends, matrix outputs and Monitor L/R.
+
+Mackie's table is shared with the DL32R. Check the exact number of auxes, subgroups and matrix outputs in the app.
 
 **Recording a mix with the inputs.** Mackie's example patches Mic Pre 1-12 to USB 1-12, Main L/R to USB 13-14 and Aux 1-2 to USB 15-16. On the DL32S, a stereo mix takes two of the 32 USB channels.
 
-**Which source to use** (our advice): Mic Pre for a raw multitrack you'll remix, the default. Channel Post-DSP for processed stems. Main L/R or an aux on spare USB channels for a reference mix.
+**Which source to use** (our advice):
+
+- **A raw multitrack you'll mix later:** Mic Pre, the default.
+- **Processed stems:** Channel Post-DSP.
+- **A reference mix:** Main L/R or an aux, on spare USB channels.
 
 {/* Screenshot: Master Fader's I/O Patch, USB tab, with Mic Pre 1-32 on USB 1-32. <Screenshot src="/images/guides/mackie-dl32s-io-patch-usb.png" alt="Mackie Master Fader I/O Patch, USB tab, with Mic Pre sources patched to USB 1 to 32" /> */}
 
 ### DL32SE and DL16SE
 
-The DL32SE sends 32 channels and the DL16SE 16, at 48 kHz, 16 or 24-bit, over USB-B, like the DL32S (SE manual). Mackie says any channel or output can be the record source on them too. But the SE models' patch menu is not in the Master Fader guide we used, and we didn't find it in the SE manual, so don't assume the steps above match.
+The DL32SE sends 32 channels and the DL16SE 16, at 48 kHz, 16 or 24-bit, over USB-B, like the DL32S (SE manual). Mackie says any channel or output can be the record source on them too. But the SE models' patch menu is not in the Master Fader guide we used. We didn't find it in the SE manual either. So don't assume the steps above match.
 
 ## DL32S playback for virtual soundcheck
 
+Virtual soundcheck means playing the recording back through the mixer's channels, so you can set the mix with no band on stage.
+
 Every channel has two inputs, and Master Fader's I/O Patch has a tab for each:
 
-- **Input A:** the mic pres, by default.
-- **Input B:** the USB returns, by default.
+- **Input A:** the mic inputs, by default.
+- **Input B:** the USB returns, by default: the audio coming back in from the computer.
 
-Mackie: "The most common use for this is for virtual sound check, switching between the mic pres and USB returns." Play the recorded tracks from the computer back to the mixer over USB, switch the channels to Input B, and mix as if the band were playing. Switch back to Input A for the show. Send each track to the USB return with the same number as its channel (our advice), and check the Input B tab if a track lands on the wrong channel.
+**What to do:**
+
+1. Play the recorded tracks from the computer back to the mixer over USB.
+2. Switch the channels to **Input B**, and mix as if the band were playing.
+3. Switch back to **Input A** for the show.
+
+Send each track to the USB return with the same number as its channel (our advice). If a track lands on the wrong channel, check the Input B tab. Mackie: "The most common use for this is for virtual sound check, switching between the mic pres and USB returns."
 
 ## DL32S tap points
 
-Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). Each USB channel picks its own tap through its source. Per Mackie's block diagram, a DL32S channel runs: analog gain, input A/B select, meter, Digital Trim, polarity, insert, high pass filter, gate, compressor, 4-band EQ, insert, the direct out, mute, fader.
+A tap point is where in the channel the recording is taken from. Which to pick, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). On the DL32S, each USB channel picks its own tap through its source.
+
+Per Mackie's block diagram, a DL32S channel runs in this order:
+
+1. Analog gain, then input A/B select and the meter.
+2. Digital Trim, polarity and an insert.
+3. High pass filter, gate, compressor, 4-band EQ and an insert.
+4. The direct out, then mute and fader.
 
 - **Which to pick:** **Mic Pre**, the default, for a recording you'll remix or play back for a virtual soundcheck (our advice).
 - **Mic Pre** (the default): after the analog gain, before the Digital Trim, polarity, high pass filter, gate, compressor, EQ, mute and fader. The trim, HPF and EQ are not in the recording, so rumble the HPF would cut stays in the track (our reading).
 - **Channel Post-DSP** (the "Ch Direct Out" on Mackie's diagram): after the high pass filter, gate, compressor and EQ, before the mute and fader. Use it for processed tracks (our advice).
 - **Main L/R:** offered pre-fader and post-fader.
-- **Gain vs trim:** the analog gain is in every tap; the Digital Trim comes after the Mic Pre tap. Mackie's preamp gain runs "0 ~ +60dB (6dB steps w/ 1dB digital interpolation)": the analog gain moves in 6 dB steps, filled in by 1 dB digital steps. Set the gain for headroom before the show and ride levels with the trim and faders (our advice).
+- **Gain vs trim:** the analog gain is in every tap. The Digital Trim comes after the Mic Pre tap. Mackie's preamp gain runs "0 ~ +60dB (6dB steps w/ 1dB digital interpolation)". So the analog gain moves in 6 dB steps, filled in by 1 dB digital steps. Set the gain for headroom before the show, then ride levels with the trim and faders (our advice).
 - **Meters:** the channel meter sits right after the A/B select, before the Digital Trim, so it shows the level the Mic Pre tap records (our reading of the block diagram).
-- **More than one device:** when several phones or tablets control the mixer, a gain change from any of them changes the Mic Pre recording (our reading of the signal flow). **Access Limiting > Mic Preamps** locks "48v, gain, trim and polarity" on a device (Master Fader guide).
+- **More than one device:** when several phones or tablets control the mixer, a gain change from any of them changes the Mic Pre recording (our reading of the signal flow). To stop that, use **Access Limiting > Mic Preamps**. It locks "48v, gain, trim and polarity" on a device (Master Fader guide).
 
 ## DL32S on Mac, iPad and iPhone
 
-- **Mac:** no driver. Mackie: "connecting it to a Mac should work automatically with no additional drivers". Its spec lists macOS 10.13 and 10.14 for the DL32S, as an Audio Class 2.0 compliant device; newer macOS is not listed by Mackie (the DL32SE lists macOS 10.15 or higher). As a class compliant device it should work on newer macOS too, but Mackie doesn't confirm it (our reading), so test yours before a show.
+- **Mac:** no driver. Mackie: "connecting it to a Mac should work automatically with no additional drivers".
+- **macOS versions:** Mackie's spec lists macOS 10.13 and 10.14 for the DL32S, as an Audio Class 2.0 compliant device. Newer macOS is not listed by Mackie (the DL32SE lists macOS 10.15 or higher).
+- **Newer macOS:** it is class compliant (it works with no driver), so it should work on newer macOS too (our reading). Mackie doesn't confirm it, so test yours before a show.
 - **Windows:** install Mackie's driver ("Driver installation required").
-- **iPhone and iPad:** not tested yet. Mackie doesn't name the iPhone or iPad for the DL32S, DL16S or the SE models. The DL32S is class compliant on a Mac, so an iPhone or iPad may work, but nobody has checked. Mackie's older DL32R manual connects an iPad through Apple's camera connection kit; for the DL32S, Mackie names no adapter or cable.
+- **iPhone and iPad:** not tested yet. Mackie doesn't name the iPhone or iPad for the DL32S, DL16S or the SE models. The DL32S is class compliant on a Mac, so an iPhone or iPad may work, but nobody has checked. Mackie's older DL32R manual connects an iPad through Apple's camera connection kit. For the DL32S, Mackie names no adapter or cable.
 - **Master Fader is not a recorder.** Mackie's iOS app (iOS 11 or later) controls the mixer. Mackie's guide says recording on the DL16S and DL32S "occurs outside of Master Fader", so you need a recording app.
 - **Power:** the DL32S runs from mains power and needs no power from the phone. Mackie doesn't say whether it charges the phone. For a long show, use a powered USB hub or a camera adapter that passes power through (our advice).
 
-ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer. We haven't tested it with a DL32S yet. There is no Mixer Link for the DL32S: Mixer Link, which reads channel names and colors, works only on the XR18/MR18 and X32/M32.
+ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer. We haven't tested it with a DL32S yet. There is no Mixer Link for the DL32S. Mixer Link reads channel names and colors, and works only on the XR18/MR18 and X32/M32.
 
 <GetTheApp campaign="site-guide-mackie-dl32s" />
 
@@ -130,4 +158,5 @@ Mackie documents:
 - [DL16S / DL32S spec sheet](https://mackie.com/img/file_resources/DL16S_DL32S_SS.pdf): sample rate, the block diagram (tap points, gain steps), virtual sound check.
 - [DL16SE / DL32SE Owner's Manual](https://mackie.com/img/file_resources/DL16SE_DL32SE_OM.pdf): the SE models' USB channels, format and macOS.
 - [DL32R Owner's Manual](https://mackie.com/img/file_resources/DL32R_OM.pdf): the DL32R connecting an iPad through Apple's camera connection kit, and recording to a USB hard drive by itself.
-- [Master Fader 5 Reference Guide](https://www.ambertech.com.au/Documents/Master%20Fader_V5_0_RG-compressed.pdf): I/O Patch and its USB tab, the default patch, the source list, Input A and B, Access Limiting. Mackie's own PDF, hosted by its Australian distributor Ambertech; we didn't find it on mackie.com.
+- [Master Fader Reference Guide V5.1](https://help.mackie.com/hc/en-us/articles/14288356150159-Master-Fader-Downloads) (Feb 2026), on Mackie's Master Fader Downloads page ("Click here" opens Mackie's file library, "Master Fader V5 1 RG"): I/O Patch and its USB tab (pp. 196-209), the default patch (p. 203), the source list (p. 207), Input A and B (p. 199), Access Limiting (p. 191), recording "outside of Master Fader" (p. 210), the DL16S / DL32S block diagram (pp. 288-289).
+- [Master Fader 5 Reference Guide V5.0](https://www.ambertech.com.au/Documents/Master%20Fader_V5_0_RG-compressed.pdf) (2018), an older edition of the same Mackie guide, hosted by Ambertech, Mackie's Australian distributor.

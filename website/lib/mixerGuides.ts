@@ -477,7 +477,7 @@ export const DL32R_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Can a DL32R multitrack record without a computer?",
-    a: "Yes, to a USB hard drive on its USB A port: 16 or 24-bit at 48 kHz, as one multichannel WAV per take, split into files under 2 GB with no gap. Mackie's Master Fader 5 guide says 1 to 32 tracks; the 2015 spec table says 1 to 24 (see the guide). Mackie says to use a spinning hard drive formatted by the DL32R, not a thumb drive, and no USB hub.",
+    a: "Yes, to a USB hard drive on its USB A port: 16 or 24-bit at 48 kHz, as one multichannel WAV per take, split into files under 2 GB with no gap. Mackie's Master Fader guide (V5.0 and the 2026 V5.1) says 1 to 32 tracks; the 2015 spec table says 1 to 24 (see the guide). Mackie says to use a spinning hard drive formatted by the DL32R, not a thumb drive, and no USB hub.",
   },
   {
     q: "Can the DL32R record to a drive and a computer at the same time?",
@@ -759,8 +759,8 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     sources: [
       "https://mackie.com/img/file_resources/DL32R_OM.pdf",
       "https://mackie.com/img/file_resources/DL32R_SS.pdf",
+      "https://help.mackie.com/hc/en-us/articles/14288356150159-Master-Fader-Downloads",
       "https://www.ambertech.com.au/Documents/Master%20Fader_V5_0_RG-compressed.pdf",
-      "https://mackie.com/en/support/faq/dl32r.html",
     ],
     campaign: "site-guide-mackie-dl32r",
     tapPick: "Mic Pre (the default on each USB slot, before trim, HPF and EQ)",
@@ -801,8 +801,9 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     faqs: M32_GUIDE_FAQS,
     faqsName: "M32_GUIDE_FAQS",
     sources: [
+      "https://cdn-media.empowertribe.com/5a30d52258104865a4392b99550ee1f9/M32_M_EN.pdf",
+      "https://cdn-media.empowertribe.com/019427b1584f42aab500bf0dc082ace5/QSG_MI_0603-AEO_M32%20LIVE.pdf",
       "https://www.sgssistemas.lv/uploads/resources/107/en/klark-teknik-dn32-usb-p0bif-product-information-document.pdf",
-      "https://www.klangfarbe.com/files/Shop/Artikel/61587/A-T61587_1.pdf",
       "https://leisuretec.co.uk/cdn/shop/files/M32R_LIVE_Quick_Start_Guide.pdf",
       "https://www.manualslib.com/manual/819691/Midas-M32.html?page=33",
       "https://www.manualslib.com/manual/819691/Midas-M32.html?page=34",
@@ -831,6 +832,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
       "https://mackie.com/img/file_resources/DL16S_DL32S_SS.pdf",
       "https://mackie.com/img/file_resources/DL16SE_DL32SE_OM.pdf",
       "https://mackie.com/img/file_resources/DL32R_OM.pdf",
+      "https://help.mackie.com/hc/en-us/articles/14288356150159-Master-Fader-Downloads",
       "https://www.ambertech.com.au/Documents/Master%20Fader_V5_0_RG-compressed.pdf",
     ],
     campaign: "site-guide-mackie-dl32s",
