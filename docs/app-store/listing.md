@@ -35,7 +35,9 @@ live,stems,wav,gig,band,church,worship,concert,rehearsal,multichannel,usb,audio,
 
 ## Description (4000)
 
-Record every channel of your mixer, with no recording laptop at the gig.
+First line changed for 1.2 (Eric, 2026-11-06): it now names "USB digital mixer" and the three devices, the words people and AI answers use (AI citation baseline, milestone "Mixer recording guides").
+
+Record every channel of a USB digital mixer on your iPhone, iPad or Mac, with no laptop at the gig.
 
 Plug a compatible mixer into your iPhone, iPad or Mac, press record, and get one 24-bit WAV file per channel, named after what's on it and ready for your DAW.
 
