@@ -862,7 +862,7 @@ describe("the Allen & Heath CQ guide's facts", () => {
     expect(ways).toMatch(/48 or 96 kHz/);
     expect(ways).toMatch(/USB 2\.0/);
     expect(ways).toMatch(/Core Audio compliant/);
-    expect(ways).toMatch(/ASIO driver/);
+    expect(ways).toMatch(/Windows driver \(called ASIO\)/);
     expect(ways).toMatch(/Bit depth over USB:\*\* not stated by Allen & Heath/);
   });
 
@@ -889,7 +889,7 @@ describe("the Allen & Heath CQ guide's facts", () => {
     const ways = section(mdx, "Ways to record a CQ", "CQ recording settings");
     expect(ways).toMatch(/CQ-18T and CQ-20B:\*\* 24 tracks at 48 kHz, or 16 tracks at 96 kHz/);
     expect(ways).toMatch(/mono 24-bit WAV/);
-    expect(ways).toMatch(/SDHC, up to 32 GB, UHS-I, class 10/);
+    expect(ways).toMatch(/SDHC card of 32 GB or less, marked UHS-I and Class 10/);
     expect(ways).toMatch(/\*\*HOME\*\*, then \*\*RECORD\*\*, then \*\*Multitrack\*\*/);
     expect(ways).toMatch(/USB stick records only stereo/);
     expect(ways).toMatch(/can't run at the same time/);
@@ -914,7 +914,7 @@ describe("the Allen & Heath CQ guide's facts", () => {
     expect(taps).toMatch(/users say there's no post-fader option, and we couldn't confirm one/i);
     expect(taps).toMatch(/factory setting:\*\* not stated by Allen & Heath/);
     expect(taps).toMatch(/Auto Gain/);
-    expect(taps).toMatch(/pre-fader[^.]*before the fader/i);
+    expect(taps).toMatch(/before the fader[^\n]*pre-fader/i);
     const faq = guide.faqs.find((f) => /pre or post fader/.test(f.q))!;
     expect(faq.a).toMatch(/Users say there's no post-fader option, and we couldn't confirm one/);
   });
@@ -924,9 +924,29 @@ describe("the Allen & Heath CQ guide's facts", () => {
     expect(apple).toMatch(/iPad:\*\* Allen & Heath staff on its forum say it works/);
     expect(apple).toMatch(/iPhone:\*\* Allen & Heath doesn't name it, and we haven't tested one yet/);
     expect(apple).toMatch(/designed only to power a USB drive/);
-    expect(mdx).toMatch(/records a CQ without Mixer Link/);
-    expect(mdx).toMatch(/We haven't tested it with a CQ yet/);
+    // Fact check on #1114: no untested result ("so it records a CQ").
+    expect(mdx).toMatch(
+      /records every USB Channel from any class-compliant mixer\. We haven't tested it with a CQ yet\. There is no Mixer Link for the CQ/,
+    );
+    expect(mdx).not.toMatch(/so it records a CQ/);
     expect(mdx).not.toMatch(/unsupported/i);
+  });
+
+  // Fact check on #1114: a direct cable takes the iPad's only port, so a long show needs the camera adapter.
+  it("gives a cable for a short show and a powered adapter for a long one, without contradicting itself", () => {
+    const apple = section(mdx, "CQ on Mac, iPad and iPhone", "Sources");
+    expect(apple).toMatch(/Short show:\*\*[^\n]*USB-C to USB-B cable \(our advice\)/);
+    expect(apple).toMatch(/Long show:\*\*[^\n]*camera adapter with a power input[^\n]*USB-A to USB-B cable/);
+  });
+
+  // Fact check on #1114: the Source Point covers channel processing, never FX units such as reverb.
+  it("says the Source Point covers the channel's processing, not effects, and leads its tap section with what to do", () => {
+    const quick = mdx.slice(mdx.indexOf("**Quick start**"), mdx.indexOf("\n## "));
+    expect(quick).toMatch(/how much of the channel's processing \(gate, EQ, compressor\) ends up in the recording/);
+    expect(quick).not.toMatch(/effects/);
+    const taps = section(mdx, "CQ tap points", "CQ on Mac, iPad and iPhone");
+    expect(taps.split("\n").find((l) => l.trim() && !l.startsWith("##"))).toMatch(/^\*\*Check Source Point before you record\.\*\*/);
+    expect(taps).toMatch(/\*\*Faders don't change the recording\.\*\* Every Source Point is before the fader, users report\./);
   });
 
   it("explains its terms for beginners the first time they come up", () => {
