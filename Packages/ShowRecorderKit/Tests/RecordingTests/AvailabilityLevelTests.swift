@@ -52,7 +52,7 @@ struct AvailabilityLevelTests {
         .init(name: "Drive only", expected: .debugAndTestFlight, level: DriveOnlyAvailability.level, isAvailable: { DriveOnlyAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
         .init(name: "Hold to stop", expected: .everyone, level: HoldToStopAvailability.level, isAvailable: { HoldToStopAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
         .init(name: "Hold to stop on iPad", expected: .debugAndTestFlight, level: HoldToStopOnIPadAvailability.level, isAvailable: { HoldToStopOnIPadAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
-        .init(name: "Marker button", expected: .debugAndTestFlight, level: MarkerButtonAvailability.level, isAvailable: { MarkerButtonAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
+        .init(name: "Marker button", expected: .everyone, level: MarkerButtonAvailability.level, isAvailable: { MarkerButtonAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
         .init(name: "No-signal warning", expected: .debugAndTestFlight, level: NoSignalWarningAvailability.level, isAvailable: { NoSignalWarningAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
         .init(name: "Record to", expected: .debugAndTestFlight, level: RecordToAvailability.level, isAvailable: { RecordToAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
         .init(name: "Asynchronous Stop", expected: .debugOnly, level: AsyncStopAvailability.level, isAvailable: { AsyncStopAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
