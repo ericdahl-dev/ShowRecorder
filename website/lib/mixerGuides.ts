@@ -66,7 +66,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
   {
     name: "Behringer XR18 and Midas MR18",
     note: "Also the X18. Midas's manual confirms the MR18's USB specs; its iPad support comes only from retailers.",
-    usb: "18 in and 18 out, or 2 x 2, at 44.1 or 48 kHz (48 by default).",
+    usb: "18 in and 18 out, or 2 x 2, at 44.1 or 48 kHz (48 by default). Each USB send has its own source and tap point.",
     onboard: "None for multitrack.",
     mac: "Works with no driver (maker).",
     ipad: "Yes, iOS 7 or later (Behringer, for the XR18).",
@@ -329,6 +329,10 @@ export const XR18_GUIDE_FAQS: readonly Faq[] = [
   {
     q: "How do I choose what goes to each USB channel on an XR18?",
     a: "Open Routing (the up and down arrow icon at the top of the Main View) and use the Inputs/USB grid: tap a box to move the orange dots, or pick the USB sends from the menu under the folder icon. Each USB send has its own source.",
+  },
+  {
+    q: "Can I choose pre or post fader for each USB channel on an XR18?",
+    a: "Yes. On the USB Sends page of Routing, each USB Send has its own Signal Source and Signal Tap: Analog, Input, Pre EQ, Post EQ, Pre Fader and Post Fader, most with a +M version that follows the channel mute. We saw this on a real XR18; Behringer's V1.0 manual doesn't describe it.",
   },
   {
     q: "Can the XR12 or XR16 multitrack record?",

@@ -223,10 +223,12 @@ describe("the XR18 and MR18 guide's facts", () => {
 
   // The audited research: the manual shows only pre-low-cut and post-fader channel feeds; the "Input ... Post Fader"
   // list is the aux and main bus taps. A tap choice per USB send is user-reported only.
-  it("gives the channel feeds the manual shows, and calls more taps per USB send unconfirmed", () => {
+  // Eric's XR18 (Routing > USB Sends, 2026-11-06): each USB Send has its own Signal Source and Signal Tap.
+  it("gives each USB send's own tap, with the list seen on a real XR18, and what the manual shows", () => {
+    expect(mdx).toMatch(/Analog, Analog \+M, Input, Input \+M, Pre EQ, Pre EQ \+M, Post EQ, Post EQ \+M, Pre Fader, Pre Fader \+M, Post Fader/);
+    expect(mdx).toMatch(/\*\*Signal Tap\*\*/);
+    expect(mdx).toMatch(/follows the channel mute/);
     expect(mdx).toMatch(/\*\*pre low cut\*\*/);
-    expect(mdx).toMatch(/\*\*post fader\*\*/);
-    expect(mdx).toMatch(/not confirmed/i);
     expect(mdx).not.toMatch(/input channel taps/i);
   });
 
