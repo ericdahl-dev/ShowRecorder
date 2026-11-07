@@ -1107,6 +1107,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     ],
     campaign: "site-guide-xr12-xr16-mr12",
     tapPick: "none for multitrack: these mixers record only a stereo mix to a USB stick, and neither maker says where that mix is taken",
+    pick: "Sends no channels over USB: no USB audio interface. Records a stereo mix (2 tracks) by itself to a USB stick.",
     noMultitrack: true,
   },
 ];
