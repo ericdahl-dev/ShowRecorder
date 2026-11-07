@@ -83,6 +83,8 @@ Checked 2026-11-06. Sources are numbered in section 9. Audited 2026-11-06 agains
 | Tap point of INPUT n on USB | unknown |
 | Onboard 2-track WAV 48k/96k 24-bit, MP3; seamless 2 GB files | maker |
 
+- Guide check (2026-11-07, #1075): the C0 reference manual and the C0 block diagram still show no USB or direct-out tap setting for CH1-16. The manual names the Mac only in the Driver Mode table and MIDI port names. The DM3 firmware update guide (B1) says to check the version in SETUP > ABOUT. The V3.00 notes are still unchecked (the firmware page returned 403).
+
 ## 9. Sources
 1. https://usa.yamaha.com/products/proaudio/mixers/dm3/specs.html
 2. DM3 Series Reference Manual (C0, 01/2025): https://usa.yamaha.com/files/download/other_assets/6/1626436/DM3_RM_En_C0.pdf (USB TO HOST p.~31; RECORDER p.64-71; SETUP USB section "Driver Mode" p.92; WORD CLOCK p.104; PATCH p.111; OUTPUT CH PATCH p.230; INSERT p.198-199; default patches p.356; USB TO HOST data length in the spec appendix). HTML version: https://manual.yamaha.com/pa/mixers/dm3/rm/en-US/

@@ -129,7 +129,7 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive, the SQ, the XR12/XR16/MR12 the Yamaha TF and the Yamaha DM3 have none; a Mixer Link guide that lost its product page must fail here, not skip.
+    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive, the SQ, the XR12/XR16/MR12, the Yamaha TF and the Yamaha DM3 have none; a Mixer Link guide that lost its product page must fail here, not skip.
     expect(guide.productPage === undefined).toBe(
       ["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii", "ah-sq", "xr12-xr16-mr12", "yamaha-tf", "yamaha-dm3"].includes(guide.slug),
     );
@@ -1511,6 +1511,9 @@ describe("the Yamaha TF guide's facts", () => {
     expect(tf).toMatch(/AUX mixes \(the monitor mixes\)/);
     const taps = section(mdx, "TF tap points", "TF on Mac, iPad and iPhone");
     expect(taps.indexOf("**What to pick:**")).toBeLessThan(taps.indexOf("A *tap point*"));
+  });
+});
+
 // Facts: docs/research/mixer-recording/yamaha-dm3.md (#1075), from the DM3 Series Reference Manual (C0, 01/2025), the
 // owner's manual (B1) and the block diagram (C0). Yamaha says its driver is needed and names no iPhone or iPad, and it
 // documents no tap point for the INPUT signals on USB.
