@@ -53,8 +53,10 @@ export const APP_ROWS: readonly AppRow[] = [
     extraSource: RESEARCH_URL,
     price: `Free records every channel. Pro is a one-time in-app purchase, ${PRO_PRICE_TEXT} in the US at its launch price.`,
     perChannel: "Yes. One mono WAV file per channel, on the Free tier too.",
-    inputs: "Every channel a class-compliant USB mixer sends. All 18 XR18 channels tested on an iPhone and a Mac.",
-    platforms: "iPhone and iPad. Mac in a public TestFlight beta.",
+    inputs:
+      "Every channel a class-compliant USB mixer sends. All 18 XR18 channels recorded on an iPhone (owner test, 2026-11-06) and verified on a Mac; a full-length show through a hub is still being tested.",
+    platforms:
+      "iPhone and iPad. Its listing also shows a Mac with Apple silicon (an iPad app, not verified for macOS) and Apple Vision, plus a native Mac app in a public TestFlight beta.",
     names:
       "With Pro, from an XR18 or MR18 and an X32 or M32 (Mixer Link); Free numbers the files. The X32 has been tested only against an emulator so far.",
     editing: "No. It records; you edit in a DAW afterward.",
@@ -67,7 +69,7 @@ export const APP_ROWS: readonly AppRow[] = [
     price: "Free. No in-app purchases listed.",
     perChannel: "Not stated. It saves .wav or .caf files.",
     inputs: "All channels the device exposes, \"eg 16 or 32 channels from digital sound mixers\".",
-    platforms: "iPhone, iPad, Mac with Apple silicon (an iPad app) and Apple Vision.",
+    platforms: "iPhone, iPad, Mac with Apple silicon (an iPad app, not verified for macOS) and Apple Vision.",
     names: NOT_STATED,
     editing: "Not stated. It plays all channels back to the device.",
   },
@@ -78,7 +80,7 @@ export const APP_ROWS: readonly AppRow[] = [
     source: "https://apps.apple.com/us/app/id1207839273",
     price: "Paid, with in-app purchases.",
     perChannel: "Not stated. It is a DAW with unlimited audio tracks.",
-    inputs: "\"24 assignable physical inputs and outputs\".",
+    inputs: "24 assignable physical inputs and outputs; how many record at once is not stated.",
     platforms: "iPhone, iPad and Apple Vision.",
     names: NOT_STATED,
     editing: "Yes. A full DAW: audio and MIDI editors, mixer, effects, export to Cubase.",
@@ -115,7 +117,7 @@ export const APP_ROWS: readonly AppRow[] = [
     maker: "Harmonicdog",
     source: "https://apps.apple.com/us/app/id329322101",
     price: "Free, with in-app purchases. Recording is free; the unlock adds MIDI editing, time stretch and automation.",
-    perChannel: "Yes, one track per input. It also exports stems.",
+    perChannel: "Not stated. Its listing says up to 32 inputs on 32 tracks, and it exports stems.",
     inputs: "Up to 32 inputs at once, all 32 tracks free.",
     platforms: "iPhone, iPad and Apple Vision.",
     names: NOT_STATED,
@@ -127,7 +129,7 @@ export const APP_ROWS: readonly AppRow[] = [
     maker: "WaveMachine Labs",
     source: "https://apps.apple.com/us/app/id524122834",
     price: "Paid, with in-app purchases.",
-    perChannel: "Yes, one track per input. It also exports AAF sessions.",
+    perChannel: "Not stated. Its listing says up to 24 tracks recorded at once, and it exports AAF sessions.",
     inputs: "Up to 24 tracks of simultaneous recording from a USB audio interface.",
     platforms: "iPad and Apple Vision.",
     names: NOT_STATED,
@@ -166,11 +168,11 @@ export const bestAppTrail = guideTrail("Best app for iPhone and iPad", BEST_APP_
 export const BEST_APP_FAQS: readonly Faq[] = [
   {
     q: "What is the best app to multitrack record a digital mixer on an iPhone?",
-    a: `It depends on the job. For a file per channel at no cost, ShowRecorder (the app this site makes) or MultiTrack DAW. For editing and mixing on the device, Cubasis 3, or Auria on an iPad. For free and simple, Manytrack Recorder or GarageBand. Each app's facts come from its own App Store page, checked ${CHECKED}.`,
+    a: `It depends on the job. For a file per channel at no cost, ShowRecorder (the app this site makes). For editing and mixing on the device, Cubasis 3, or Auria on an iPad. For free and simple, Manytrack Recorder, MultiTrack DAW or GarageBand. Each app's facts come from its App Store page or the maker's site, checked ${CHECKED}.`,
   },
   {
     q: "Which iPhone apps save a separate file for each mixer channel?",
-    a: "ShowRecorder saves one mono WAV per channel. MultiTrackRecorder says it makes a separate file for each channel, up to 16, with a paid monthly or yearly plan. AUM's manual says each recording-enabled channel is a separate file. MultiTrack DAW records up to 32 inputs at once, one track each, and exports stems. Manytrack Recorder's listing doesn't say how it saves channels.",
+    a: "ShowRecorder saves one mono WAV per channel. MultiTrackRecorder says it makes a separate file for each channel, up to 16, with a paid monthly or yearly plan. AUM's manual says each recording-enabled channel is a separate file. MultiTrack DAW, Cubasis 3 and Auria record several inputs at once and export their tracks, but their listings don't say each input becomes its own file. Manytrack Recorder's listing doesn't say how it saves channels.",
   },
   {
     q: "Is there a free app to record every channel of a mixer on an iPhone or iPad?",

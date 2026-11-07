@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { APP_ROWS, CHECKED, NOT_STATED } from "@/lib/bestApp";
+import { APP_ROWS, BEST_APP_FAQS, CHECKED, NOT_STATED, RESEARCH_URL, TESTED_HARDWARE_URL } from "@/lib/bestApp";
 import { llmsTxt } from "@/lib/llms";
 import { PRO_PRICE_TEXT } from "@/lib/price";
 import { PAGES } from "@/lib/metadata";
@@ -69,6 +69,45 @@ describe("the best-app facts", () => {
     expect(sr.inputs).toMatch(/18 XR18 channels/);
     expect(sr.editing).toMatch(/^No/);
   });
+
+  // Fact check, loop 1 on #1099.
+  const row = (id: string) => APP_ROWS.find((r) => r.id === id)!;
+
+  it("doesn't read Cubasis's 24 physical inputs as 24 recorded at once", () => {
+    expect(row("cubasis").inputs).toBe("24 assignable physical inputs and outputs; how many record at once is not stated.");
+  });
+
+  it("treats the three DAWs alike: a file per channel is not stated", () => {
+    for (const id of ["cubasis", "multitrackdaw", "auria"]) expect(row(id).perChannel, id).toMatch(/^Not stated/);
+    expect(row("multitrackdaw").perChannel).toMatch(/32 inputs on 32 tracks[^.]*stems/);
+    expect(row("auria").perChannel).toMatch(/24 tracks recorded at once[^.]*AAF/);
+  });
+
+  it("separates ShowRecorder's owner test on an iPhone from the verified Mac test, citing both sources", () => {
+    const sr = row("showrecorder");
+    expect(sr.inputs).toMatch(/iPhone \(owner test, 2026-11-06\)/);
+    expect(sr.inputs).toMatch(/verified on a Mac/);
+    expect(sr.inputs).toMatch(/full-length show through a hub is still being tested/);
+    expect([sr.source, sr.extraSource]).toEqual([TESTED_HARDWARE_URL, RESEARCH_URL]);
+  });
+
+  it("says when a Mac listing is an iPad app not verified for macOS, for Manytrack and ShowRecorder alike", () => {
+    expect(row("manytrack").platforms).toMatch(/not verified for macOS/);
+    const sr = row("showrecorder").platforms;
+    expect(sr).toMatch(/not verified for macOS/);
+    expect(sr).toMatch(/Apple Vision/);
+    expect(sr).toMatch(/native Mac app in a public TestFlight beta/);
+  });
+
+  it("names App Store page or maker's site as the source in the first answer", () => {
+    expect(BEST_APP_FAQS[0].a).toMatch(/its App Store page or the maker's site/);
+  });
+
+  it("claims a file per channel only where the maker says so", () => {
+    const faq = BEST_APP_FAQS[1].a;
+    expect(faq).not.toMatch(/one track each/);
+    expect(BEST_APP_FAQS[0].a).not.toMatch(/at no cost, ShowRecorder[^.]*MultiTrack DAW/);
+  });
 });
 
 describe("the best-app page", () => {
@@ -104,6 +143,16 @@ describe("the best-app page", () => {
   it("shows the table and lists every source", () => {
     expect(page).toContain("<BestAppTable />");
     expect(page).toContain("<BestAppSources />");
+  });
+
+  // Fact check, loop 1 on #1099.
+  it("claims a file per channel in the prose only where the maker says so", () => {
+    const files = section("Every channel as a separate file");
+    expect(files).not.toMatch(/one track each/);
+    expect(files).not.toMatch(/Cubasis 3\*\*[^.]*enough for an XR18/);
+    expect(files).toMatch(/\*\*Auria\*\*[^.]*24 tracks recorded at once/);
+    expect(files).toMatch(/owner test/);
+    expect(page).not.toMatch(/at no cost:\*\* ShowRecorder's Free tier or MultiTrack DAW/);
   });
 
   it("says ShowRecorder's X32 support is tested only against an emulator", () => {
