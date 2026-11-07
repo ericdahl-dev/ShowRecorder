@@ -133,7 +133,7 @@ Also frequent: "how to record live band practice", "how to record a gig", "how t
 
 ## Biggest open items (worth a real-device test before publishing)
 
-- iPhone (not iPad) over USB for any mixer other than the XR18. No maker names the iPhone. XR18: all 18 channels recorded (O-2); a full show through a powered hub is #327.
+- iPhone (not iPad) over USB for any mixer other than the XR18. Only Zoom names the iPhone (L-12/L-20 product pages, Lightning camera adapter; see [`zoom-livetrak-l12-l20.md`](zoom-livetrak-l12-l20.md)); no other maker does, and nobody has tested one. XR18: all 18 channels recorded (O-2); a full show through a powered hub is #327.
 - iOS with X32/M32 cards, WING, SQ, TF, Ui24R and DL32S.
 - PreSonus III "Inputs" tap point; DM3 tap point; new Qu direct-out point names; CQ source-point names (forum only).
 - Ui24R onboard file format (secondary only); PreSonus 16R USB count (maker sources conflict); WING USB and WING-LIVE at 44.1 kHz (console clock 44.1 is maker-confirmed).
