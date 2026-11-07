@@ -129,9 +129,9 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive, the SQ, the XR12/XR16/MR12 and the Yamaha TF have none; a Mixer Link guide that lost its product page must fail here, not skip.
+    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ, the StudioLive, the SQ, the XR12/XR16/MR12, the Yamaha TF and the Yamaha MG XU/MGX have none; a Mixer Link guide that lost its product page must fail here, not skip.
     expect(guide.productPage === undefined).toBe(
-      ["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii", "ah-sq", "xr12-xr16-mr12", "yamaha-tf"].includes(guide.slug),
+      ["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii", "ah-sq", "xr12-xr16-mr12", "yamaha-tf", "yamaha-mg-xu-mgx"].includes(guide.slug),
     );
     if (guide.productPage === undefined) return;
     expect(mdx).toContain(`](${guide.productPage})`);
@@ -527,7 +527,7 @@ const proseSentences = (mdx: string) =>
     .flatMap((l) => l.split(/(?<=[.:;?])\s+(?=[A-Z"(])/))
     .filter((s) => s.trim());
 
-describe.each(["mackie-dl32r", "mackie-dl32s", "m32"])("the %s guide, for beginners", (slug) => {
+describe.each(["mackie-dl32r", "mackie-dl32s", "m32", "yamaha-mg-xu-mgx"])("the %s guide, for beginners", (slug) => {
   const mdx = body(slug);
   const lines = mdx
     .slice(0, mdx.indexOf("## Sources"))
@@ -1327,13 +1327,13 @@ describe("the XR12, XR16 and MR12 guide's facts", () => {
 
   // Eric (#1113): the honest title. These mixers can't multitrack, so the title and H1 say "How to record"; every
   // other guide keeps "multitrack".
-  it("says 'How to record' in its title and H1, not 'multitrack record', while every other guide keeps multitrack", () => {
+  it("says 'How to record' in its title and H1, not 'multitrack record', while every multitrack guide keeps it", () => {
     const headline = "How to record a Behringer XR12, XR16 or Midas MR12";
     expect(PAGES.guideXR12.title).toBe(`${headline} - ShowRecorder`);
     expect(mdx).toMatch(new RegExp(`^# ${headline}$`, "m"));
     expect(PAGES.guideXR12.title).not.toMatch(/multitrack/i);
     expect(llmsTxt()).toContain(`[${headline}](`);
-    for (const g of MIXER_GUIDES.filter((x) => x.slug !== guide.slug)) {
+    for (const g of MIXER_GUIDES.filter((x) => !x.noMultitrack)) {
       const page = (PAGES as Record<string, { title: string }>)[g.pageKey];
       expect(page.title).toBe(guideTitle(g.short));
       expect(page.title).toMatch(/USB multitrack recording/);
@@ -1511,5 +1511,159 @@ describe("the Yamaha TF guide's facts", () => {
     expect(tf).toMatch(/AUX mixes \(the monitor mixes\)/);
     const taps = section(mdx, "TF tap points", "TF on Mac, iPad and iPhone");
     expect(taps.indexOf("**What to pick:**")).toBeLessThan(taps.indexOf("A *tap point*"));
+  });
+});
+
+// Facts: docs/research/mixer-recording/yamaha-mg-xu.md (#1076), checked against Yamaha's MG10XU owner's manual (B0)
+// and technical specifications (B0), and the MGX user guide (D0) and technical specifications (C0). The MG XU sends
+// only its stereo mix over USB; the MGX sends each channel. So the title says "How to record", not "multitrack".
+describe("the Yamaha MG XU and MGX guide's facts", () => {
+  const mdx = body("yamaha-mg-xu-mgx");
+  const guide = MIXER_GUIDES.find((g) => g.slug === "yamaha-mg-xu-mgx")!;
+  const ways = () => section(mdx, "Ways to record an MG XU or MGX", "MG XU or MGX recording settings");
+  const settings = () => section(mdx, "MG XU or MGX recording settings", "MG XU or MGX USB routing");
+  const routing = () => section(mdx, "MG XU or MGX USB routing", "MG XU or MGX playback for virtual soundcheck");
+  const play = () => section(mdx, "MG XU or MGX playback for virtual soundcheck", "MG XU or MGX tap points");
+  const taps = () => section(mdx, "MG XU or MGX tap points", "MG XU or MGX on Mac, iPad and iPhone");
+  const apple = () => section(mdx, "MG XU or MGX on Mac, iPad and iPhone", "Sources");
+
+  it("says 'How to record' in its title and H1, because the MG XU can't multitrack", () => {
+    const headline = "How to record a Yamaha MG XU or MGX";
+    expect(guide.noMultitrack).toBe(true);
+    expect(PAGES.guideYamahaMG.title).toBe(`${headline} - ShowRecorder`);
+    expect(mdx).toMatch(new RegExp(`^# ${headline}$`, "m"));
+    expect(llmsTxt()).toContain(`[${headline}](`);
+  });
+
+  it("is in MIXER_GUIDES with its own campaign, and both hub rows (MG XU and MGX) link it", () => {
+    expect(guide.campaign).toBe("site-guide-yamaha-mg-xu-mgx");
+    expect(guide.hubRows).toBe(2);
+    expect(MIXER_ROWS.find((r) => /MG10XU/.test(r.name))!.guide).toBe(guide.path);
+    expect(MIXER_ROWS.find((r) => /MGX16/.test(r.name))!.guide).toBe(guide.path);
+  });
+
+  it("builds its 'Pick your mixer' line only from its hub rows: MG XU stereo, MGX 18 channels and 16 microSD tracks", () => {
+    expect(guide.pick).toMatch(/MG XU: a stereo mix \(2 channels\) over USB, not multitrack/);
+    expect(guide.pick).toMatch(/MGX: up to 18 channels over USB/);
+    expect(guide.pick).toMatch(/16 tracks to a microSD card/);
+    const mgx = MIXER_ROWS.find((r) => /MGX16/.test(r.name))!;
+    expect(mgx.usb).toMatch(/18 in and 16 out/);
+    expect(mgx.onboard).toMatch(/16 tracks/);
+  });
+
+  it("opens by saying plainly the MG XU is stereo only and the MGX sends each channel", () => {
+    const top = mdx.slice(0, mdx.indexOf("**Quick start**"));
+    expect(top).toMatch(/\*\*Short answer\.\*\* An MG XU can't multitrack\./);
+    expect(top).toMatch(/stereo mix/);
+    expect(top).toMatch(/can't remix/i);
+    expect(top).toMatch(/MGX/);
+    expect(guide.faqs[0].a).toMatch(/^No\./);
+  });
+
+  it("gives the MG XU's USB: 2 in and 2 out, USB Audio Class 2.0, 24-bit, up to 192 kHz, and the MG10XU's rates", () => {
+    const w = ways();
+    expect(w).toMatch(/2 IN \/ 2 OUT/);
+    expect(w).toMatch(/USB Audio Class 2\.0 compliant/);
+    expect(w).toMatch(/44\.1, 48, 88\.2, 96, 176\.4 or 192 kHz/);
+    expect(w).toMatch(/16 or 24-bit/);
+    expect(w).toMatch(/USB type B/);
+  });
+
+  it("says the MG XU sends the stereo bus, untouched by the STEREO LEVEL knob, and records nothing by itself", () => {
+    const r = routing();
+    expect(r).toMatch(/"The sound of the stereo bus is output to the computer\. \(The \[STEREO LEVEL\] knob does not affect the sound\.\)"/);
+    expect(ways()).toMatch(/MG XU[^\n]*records nothing by itself/);
+  });
+
+  it("gives the MG10XU's USB return switches, with the loop warning, and the attenuator", () => {
+    const s = settings();
+    expect(s).toMatch(/\*\*LINE \/ USB\*\*/);
+    expect(s).toMatch(/\*\*TO MON\*\*/);
+    expect(s).toMatch(/a loop may be produced, possibly resulting in feedback/);
+    expect(s).toMatch(/\*\*PROGRAM\*\* knob five times/);
+    expect(s).toMatch(/-24 dB to 0 dB/);
+    expect(s).toMatch(/no sample rate setting[^\n]*\(our reading\)/);
+  });
+
+  it("gives the MGX's USB MAIN counts: 22 or 18 with Yamaha's driver, 18 in and 16 out (14 and 12) class compliant", () => {
+    const w = ways();
+    expect(w).toMatch(/\*\*USB MAIN\*\*/);
+    expect(w).toMatch(/22 in and 22 out/);
+    expect(w).toMatch(/18 in and 16 out/);
+    expect(w).toMatch(/14 in and 12 out/);
+    expect(w).toMatch(/32-bit/);
+    expect(w).toMatch(/TOOLS for MGX\/URX/);
+    expect(w).toMatch(/\*\*USB SUB\*\*[^\n]*2 in and 2 out/);
+  });
+
+  it("gives the MGX's sample rate path, Follow USB, and the 12-track limit at 88.2 or 96 kHz", () => {
+    const s = settings();
+    expect(s).toMatch(/\*\*SETUP > Sampling Frequency\*\*/);
+    expect(s).toMatch(/\*\*Follow USB\*\*/);
+    expect(s).toMatch(/88\.2 or 96 kHz[^\n]*12/);
+  });
+
+  it("has the MGX's 2-channel trap: SETUP > Peripheral > USB Main > Generic Driver Audio Channel Suppression", () => {
+    expect(settings()).toMatch(/^### Only 2 channels from an MGX\?/m);
+    expect(settings()).toMatch(/\*\*SETUP > Peripheral > USB Main > Generic Driver Audio Channel Suppression\*\*/);
+    expect(settings()).toMatch(/\*\*None\*\*/);
+  });
+
+  it("gives the MGX's microSD recorder: 16 tracks at 44.1 or 48 kHz, 8 at 88.2 or 96, 24-bit WAV, exFAT, 2-track playback", () => {
+    const text = ways() + settings();
+    expect(text).toMatch(/16 tracks at 44\.1 or 48 kHz/);
+    expect(text).toMatch(/8 at 88\.2 or 96 kHz/);
+    expect(text).toMatch(/24-bit WAV/);
+    expect(text).toMatch(/exFAT/);
+    expect(text).toMatch(/\*\*Track Count\*\*/);
+    expect(play()).toMatch(/plays back only 2 tracks/);
+  });
+
+  it("gives the MGX's fixed per-channel USB map and the pairs set in the USB menu", () => {
+    const r = routing();
+    expect(r).toMatch(/USB DAW 1-16[^\n]*CH 1-16 Rec Out/);
+    expect(r).toMatch(/USB MAIN A, B and C/);
+    expect(r).toMatch(/\*\*SETUP > Output Patch > USB\*\*/);
+    expect(r).toMatch(/CH 17-18[^\n]*USB MAIN A/);
+  });
+
+  it("plays back over USB with the INPUT screen's All USB DAW button", () => {
+    expect(play()).toMatch(/\*\*All USB DAW\*\*/);
+    expect(play()).toMatch(/stereo/);
+  });
+
+  it("names the MGX's Rec Point without inventing its choices, and the MG XU's fixed tap", () => {
+    const t = taps();
+    expect(t).toMatch(/\*\*Rec Point\*\*/);
+    expect(t).toMatch(/doesn't list the choices/);
+    expect(t).toMatch(/STEREO LEVEL/);
+    expect(t).not.toMatch(/Rec Point[^\n]*(Pre EQ|Post Fader|Pre Fader)/);
+  });
+
+  it("gives iPhone and iPad as Yamaha says: MGX named with no settings; MG XU iPad with a camera adapter; USB-C MG XU not tested", () => {
+    const a = apple();
+    expect(a).toMatch(/"This product is automatically recognized by the iPad, iPhone or Android device once connected\."/);
+    expect(a).toMatch(/Lightning to USB 3 Camera Adapter/);
+    expect(a).toMatch(/Camera Connection Kit/);
+    expect(a).toMatch(/USB-C iPhone or iPad[^\n]*not tested yet/);
+    expect(a).toMatch(/USB-C Digital AV Multiport Adapter/);
+  });
+
+  it("says ShowRecorder should record them but hasn't been tested, without the word supported, and Mixer Link is XR18 and X32 only", () => {
+    expect(mdx).toMatch(/ShowRecorder \(our app\) records every USB Channel/);
+    expect(mdx).toMatch(/We haven't tested it with an MG XU or MGX yet\./);
+    expect(mdx).toMatch(/Mixer Link[^\n]*only on the XR18\/MR18 and X32\/M32/);
+    expect(mdx).not.toMatch(/\bsupported\b|unsupported/i);
+    expect(mdx).not.toMatch(/ShowRecorder has recorded[^.]*(MG|MGX)/);
+  });
+
+  it("cites Yamaha's documents with their editions", () => {
+    const sources = mdx.slice(mdx.indexOf("## Sources"));
+    expect(sources).toContain("MG10XU_owners_manual_En_B0.pdf)");
+    expect(sources).toContain("MG10XU_technical_specifications_En_B0.pdf)");
+    expect(sources).toContain("MGX16V_16_12V_12_user_guide_En_D0.pdf)");
+    expect(sources).toContain("mgx16v_16_12v_12_technical_specifications_en_c0.pdf)");
+    expect(sources).toMatch(/edition B0[^\n]*03\/2024/);
+    expect(sources).toMatch(/edition D0[^\n]*06\/2026/);
   });
 });
