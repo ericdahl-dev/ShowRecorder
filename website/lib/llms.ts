@@ -2,6 +2,7 @@ import { RELEASES, newestRelease } from "@/lib/changelog";
 import { DOCS, docHref } from "@/lib/docs";
 import { featureGroups, inBetaFeatures } from "@/lib/features";
 import { PAGES } from "@/lib/metadata";
+import { HUB_FAQS, MIXER_GUIDES, MIXER_ROWS } from "@/lib/mixerGuides";
 import { inBeta, planned, worksNow } from "@/lib/mixers";
 import { APP_STORE_URL, PRO_PRICE_TEXT, appStoreLink, REPO_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL, TESTFLIGHT_URL, TRADEMARK_LINE } from "@/lib/site";
 
@@ -47,6 +48,41 @@ export function facts(): string[] {
   ];
 }
 
+// The guides: the hub, each mixer guide (from MIXER_GUIDES, so a new guide is listed without editing this file) and
+// the no-laptop guide.
+function guidesSection(): string[] {
+  return [
+    "## Guides",
+    "",
+    link("How to multitrack record a digital mixer (every mixer, one table)", PAGES.guidesHub.path, PAGES.guidesHub.description),
+    ...MIXER_GUIDES.map((g) => link(`How to multitrack record a ${g.mixer}`, g.path, g.description)),
+    link("Record a gig without a laptop", PAGES.guideNoLaptop.path, PAGES.guideNoLaptop.description),
+    "",
+  ];
+}
+
+// The hub's table as Markdown, and the questions of the hub and of each mixer guide, for llms-full.txt.
+function mixerGuidesFull(): string[] {
+  const cell = (s: string) => s.replace(/\|/g, "/");
+  return [
+    "## Recording guides, mixer by mixer",
+    "",
+    `Every way to multitrack record a digital mixer, from the makers' own documents: ${abs(PAGES.guidesHub.path)}`,
+    "",
+    "| Model | Over USB | With no computer | Mac | iPad | iPhone |",
+    "| --- | --- | --- | --- | --- | --- |",
+    ...MIXER_ROWS.map((r) => `| ${r.name} | ${[r.usb, r.onboard, r.mac, r.ipad, r.iphone].map(cell).join(" | ")} |`),
+    "",
+    ...HUB_FAQS.flatMap((f) => [`### ${f.q}`, "", f.a, ""]),
+    ...MIXER_GUIDES.flatMap((g) => [
+      `### How to multitrack record a ${g.mixer} (${abs(g.path)})`,
+      "",
+      ...g.faqs.map((f) => `- ${f.q} ${f.a}`),
+      "",
+    ]),
+  ];
+}
+
 export function llmsTxt(): string {
   return [
     `# ${SITE_NAME}`,
@@ -60,11 +96,10 @@ export function llmsTxt(): string {
     link("Features", PAGES.features.path, PAGES.features.description),
     ...MIXER_PAGES.map((m) => link(m.title, m.page.path, m.page.description)),
     link("What's new", PAGES.changelog.path, PAGES.changelog.description),
-    link("Guides: how to multitrack record a digital mixer", PAGES.guidesHub.path, PAGES.guidesHub.description),
-    link("Guide: record a gig without a laptop", PAGES.guideNoLaptop.path, PAGES.guideNoLaptop.description),
     link("Support", PAGES.support.path, PAGES.support.description),
     link("Privacy policy", PAGES.privacy.path, PAGES.privacy.description),
     "",
+    ...guidesSection(),
     "## Docs",
     "",
     link("Docs index", "/docs"),
@@ -111,6 +146,7 @@ export function llmsFullTxt(): string {
     "",
     ...DOCS.map((d) => `- [${d.title}](${abs(docHref(d.slug))}): ${d.description}`),
     "",
+    ...mixerGuidesFull(),
     "## Version history",
     "",
     ...RELEASES.flatMap((r) => [

@@ -2,10 +2,13 @@
 // repeats them (howToJsonLd in lib/structuredData.ts), so the two never disagree. Plain text: the page adds the links.
 export type GuideStep = { name: string; text: string };
 
+// What ShowRecorder runs on, in the words this guide and the mixer recording guides' "get the app" box share.
+export const DEVICE_REQUIREMENT = "a USB-C iPhone (iPhone 15 or later) on iOS 26, or a USB-C iPad on iPadOS 26";
+
 export const GUIDE_STEPS: readonly GuideStep[] = [
   {
     name: "Install ShowRecorder",
-    text: "Get ShowRecorder free from the App Store on a USB-C iPhone (iPhone 15 or later) on iOS 26, or a USB-C iPad on iPadOS 26.",
+    text: `Get ShowRecorder free from the App Store on ${DEVICE_REQUIREMENT}.`,
   },
   {
     name: "Set what the mixer sends over USB",

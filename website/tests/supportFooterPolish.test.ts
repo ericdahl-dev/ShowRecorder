@@ -9,11 +9,12 @@ const support = read("app", "support", "page.mdx");
 const css = read("app", "globals.css");
 
 describe("/support", () => {
-  it("offers Troubleshooting first, then chat, then email", () => {
+  // Review batch 1 on #1081: the email, with the address as its label, comes before the chat.
+  it("offers Troubleshooting first, then email, then chat", () => {
     const at = (s: string) => support.indexOf(s);
     expect(at("(/docs/troubleshooting)")).toBeGreaterThan(-1);
-    expect(at("(/docs/troubleshooting)")).toBeLessThan(at("<ChatButton />"));
-    expect(at("<ChatButton />")).toBeLessThan(at("mailto:"));
+    expect(at("(/docs/troubleshooting)")).toBeLessThan(at("mailto:"));
+    expect(at("mailto:")).toBeLessThan(at("<ChatButton />"));
   });
 
   it("keeps the email address, the GitHub link and one chat button", () => {

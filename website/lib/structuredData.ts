@@ -65,15 +65,53 @@ export function mixerApplicationJsonLd(page: PageInfo) {
   return applicationJsonLd(`${SITE_URL}${page.path}`, page.description);
 }
 
-// Home > the page, for a page that sits one level under the home page.
-export function breadcrumbJsonLd(name: string, path: string) {
+// A step in a breadcrumb trail, below the home page.
+export type Crumb = { name: string; path: string };
+
+// Home > each step of the trail, the last one being the page itself.
+export function breadcrumbListJsonLd(trail: readonly Crumb[]) {
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: SITE_NAME, item: SITE_URL },
-      { "@type": "ListItem", position: 2, name, item: `${SITE_URL}${path}` },
-    ],
+    itemListElement: [{ name: SITE_NAME, path: "" }, ...trail].map((c, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: c.name,
+      item: `${SITE_URL}${c.path}`,
+    })),
+  };
+}
+
+// Home > the page, for a page that sits one level under the home page.
+export function breadcrumbJsonLd(name: string, path: string) {
+  return breadcrumbListJsonLd([{ name, path }]);
+}
+
+// A written guide as schema.org TechArticle: who wrote it, when, and the sources it cites.
+export function techArticleJsonLd({
+  page,
+  headline,
+  datePublished,
+  dateModified,
+  citations,
+}: {
+  page: PageInfo;
+  headline: string;
+  datePublished: string;
+  dateModified: string;
+  citations: readonly string[];
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    headline,
+    description: page.description,
+    url: SITE_URL + page.path,
+    datePublished,
+    dateModified,
+    author: { "@type": "Person", name: "Eric Dahl", url: "https://ericdahl.dev" },
+    publisher: { "@type": "Organization", name: SITE_NAME, url: SITE_URL },
+    citation: [...citations],
   };
 }
 

@@ -31,7 +31,7 @@ describe("the mixer recording guides hub", () => {
       expect(row.name.trim()).not.toBe("");
       expect(row.usb.trim()).not.toBe("");
       expect(row.onboard.trim()).not.toBe("");
-      expect(row.apple.trim()).not.toBe("");
+      for (const k of ["mac", "ipad", "iphone"] as const) expect(row[k].trim(), `${row.name} ${k}`).not.toBe("");
     }
   });
 
@@ -43,11 +43,13 @@ describe("the mixer recording guides hub", () => {
     }
   });
 
-  // Makers rarely name the iPhone (Zoom does); elsewhere it stays "not tested yet" until someone records with one.
-  it("calls the iPhone confirmed only where the maker names it", () => {
-    const yes = MIXER_ROWS.filter((r) => /iPhone[^.]*: yes/i.test(r.apple)).map((r) => r.name);
+  // Makers rarely name the iPhone (Zoom does); elsewhere it stays "not tested yet" until someone records with one. The
+  // XR18 is the exception we tested ourselves: an iPhone Take of all 18 channels (owner fact O-2, 2026-11-06).
+  it("calls the iPhone confirmed only where the maker names it, or where ShowRecorder recorded with one", () => {
+    const yes = MIXER_ROWS.filter((r) => /^yes/i.test(r.iphone)).map((r) => r.name);
     expect(yes).toEqual([expect.stringMatching(/Zoom/)]);
-    expect(MIXER_ROWS.find((r) => /X32/.test(r.name))!.apple).toMatch(/not documented|unknown|not tested/i);
+    expect(MIXER_ROWS.find((r) => /X32/.test(r.name))!.iphone).toMatch(/not documented|unknown|not tested/i);
+    expect(MIXER_ROWS.find((r) => /XR18/.test(r.name))!.iphone).toMatch(/ShowRecorder \(the app this site makes\) has recorded all 18 XR18 channels on an iPhone/);
   });
 
   it("is linked both ways with the ShowRecorder mixer pages, and from the footer", () => {

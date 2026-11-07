@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { MIXER_GUIDES, guideTitle } from "@/lib/mixerGuides";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 
 // Per-page titles and descriptions, kept in one place so tests can check every route has them
@@ -89,7 +90,15 @@ export const PAGES = {
     description:
       "Help with ShowRecorder: getting started, where your recordings are, channel names from the mixer, and how to report a problem.",
   },
+  // One entry per mixer recording guide, built from MIXER_GUIDES (lib/mixerGuides.ts), so a new guide can't be missed.
+  ...guidePages(),
 } satisfies Record<string, PageInfo>;
+
+function guidePages(): Record<string, PageInfo> {
+  return Object.fromEntries(
+    MIXER_GUIDES.map((g) => [g.pageKey, { path: g.path, title: guideTitle(g.short), description: g.description }]),
+  );
+}
 
 export function pageMetadata(page: PageInfo): Metadata {
   const image = page.image ?? OG_IMAGE;

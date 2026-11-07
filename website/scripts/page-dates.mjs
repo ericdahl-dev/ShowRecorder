@@ -8,6 +8,7 @@ import { execFileSync } from "node:child_process";
 import { readdirSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { capDay, localDay } from "./pageDatesLib.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const APP = path.join(ROOT, "app");
@@ -22,7 +23,12 @@ const EXTRA = {
   "/mixers/xr18": ["lib/mixerFaqs.ts"],
   "/mixers/x32": ["lib/mixerFaqs.ts"],
   "/docs": ["lib/docs.ts"],
+  "/guides/record": ["lib/mixerGuides.ts"],
 };
+
+// The mixer recording guides keep their questions and lists in lib/mixerGuides.ts too.
+const extraFor = (route) => EXTRA[route] ?? (route.startsWith("/guides/record/") ? ["lib/mixerGuides.ts"] : []);
+const TODAY = localDay(new Date());
 
 const git = (...args) => execFileSync("git", args, { cwd: ROOT, encoding: "utf8" }).trim();
 
@@ -49,8 +55,8 @@ function routeOf(dir) {
 }
 
 function lastEdit(files) {
-  if (git("status", "--porcelain", "--", ...files)) return new Date().toISOString().slice(0, 10);
-  return git("log", "-1", "--format=%cs", "--", ...files);
+  if (git("status", "--porcelain", "--", ...files)) return TODAY;
+  return capDay(git("log", "-1", "--format=%cs", "--", ...files), TODAY);
 }
 
 if (!usable()) {
@@ -63,7 +69,7 @@ for (const { dir, files } of pages(APP)) {
   const route = routeOf(dir);
   // The home page's own files only: app/ also holds the layout, which every page shares.
   const own = route === "/" ? ["page.tsx", "home.css"] : files;
-  const sources = own.map((f) => path.relative(ROOT, path.join(dir, f))).concat(EXTRA[route] ?? []);
+  const sources = own.map((f) => path.relative(ROOT, path.join(dir, f))).concat(extraFor(route));
   dates[route] = lastEdit(sources);
 }
 

@@ -173,13 +173,13 @@ describe("support chat (Chatwoot, click to load)", () => {
     expect(css.replace(/@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*?\n\}/g, "")).not.toMatch(/animation: chat-bubble/);
   });
 
-  it("is still on the support page, between Troubleshooting and the email line (#website-review 19), using the shared loader", () => {
+  it("is still on the support page, after Troubleshooting and the email line (review batch 1 on #1081: email first), using the shared loader", () => {
     const support = read("app", "support", "page.mdx");
     expect(support).toMatch(/import \{ ChatButton \} from "@\/components\/ChatButton"/);
     const email = support.indexOf("mailto:");
     const button = support.indexOf("<ChatButton />");
-    expect(button).toBeLessThan(email);
-    expect(button).toBeGreaterThan(support.indexOf("(/docs/troubleshooting)"));
+    expect(email).toBeLessThan(button);
+    expect(email).toBeGreaterThan(support.indexOf("(/docs/troubleshooting)"));
     expect(email).toBeLessThan(support.indexOf("## Getting started"));
     const source = read("components", "ChatButton.tsx");
     expect(source).toMatch(/useChat\("support"\)/);

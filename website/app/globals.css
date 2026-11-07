@@ -2001,7 +2001,7 @@ ol.cards {
 /* ---------- Mixer recording guides hub (#1061): the compare table's look, four columns ---------- */
 
 .guides-table {
-  min-width: 860px;
+  min-width: 1040px;
 }
 
 .guides-table thead th:first-child {
@@ -2014,6 +2014,67 @@ ol.cards {
   color: var(--muted);
   font-size: 0.85rem;
   font-weight: 400;
+}
+
+/* Shared by the hub and the guides (components/GuideParts.tsx): breadcrumb, last-checked day, the app, "ask us". */
+.breadcrumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.breadcrumbs li + li::before {
+  content: "/";
+  margin-right: 8px;
+  opacity: 0.6;
+}
+
+.last-checked {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.guide-get-app {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin: 16px 0;
+}
+
+.guide-get-app-note {
+  margin: 0;
+  max-width: 34em;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.ask-us {
+  margin: 16px 0 0;
+  font-weight: 600;
+}
+
+.guides-pick ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 0;
+  list-style: none;
+}
+
+.glossary dt {
+  margin-top: 12px;
+  font-weight: 600;
+}
+
+.glossary dd {
+  margin: 2px 0 0;
 }
 
 /* The home hero (#719): a compatibility line under the lede, the Show-Safe line and two plain links under the button. */
