@@ -1,5 +1,5 @@
 import { DOCS, docHref } from "@/lib/docs";
-import { GUIDES_HUB, MIXER_GUIDES } from "@/lib/mixerGuides";
+import { GUIDES_HUB, MIXER_GUIDES, TAP_POINT_GUIDE } from "@/lib/mixerGuides";
 
 // Site-wide constants. Pages and components read these instead of hard-coding URLs.
 
@@ -101,6 +101,7 @@ export const ROUTES: readonly string[] = [
   "/compare",
   "/guides/record-gig-without-laptop",
   GUIDES_HUB,
+  TAP_POINT_GUIDE,
   // The mixer recording guides, from MIXER_GUIDES (lib/mixerGuides.ts).
   ...MIXER_GUIDES.map((g) => g.path),
   "/changelog",

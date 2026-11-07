@@ -78,6 +78,12 @@ export const PAGES = {
     description:
       "Every way to multitrack record a digital mixer, mixer by mixer: USB channels, recording with no computer, and Mac, iPad and iPhone status.",
   },
+  guideTapPoints: {
+    path: "/guides/record/pre-or-post-fader",
+    title: "Pre or post fader: which tap point to record - ShowRecorder",
+    description:
+      "Which tap point to multitrack record from a digital mixer: raw input, pre-EQ, post-EQ or post-fader, with pros, cons and the gain and HPF caveats.",
+  },
   privacy: {
     path: "/privacy",
     title: `Privacy policy - ${SITE_NAME}`,

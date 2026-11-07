@@ -13,6 +13,8 @@ import type { AppStoreCampaign } from "@/lib/site";
 import type { Crumb } from "@/lib/structuredData";
 
 export const GUIDES_HUB = "/guides/record";
+// The shared guide every mixer guide links to (#1062).
+export const TAP_POINT_GUIDE = "/guides/record/pre-or-post-fader";
 
 // Where the facts come from and how sure each one is: the research README in the app's public repository.
 export const RESEARCH_URL = "https://github.com/ericdahl-dev/ShowRecorder/blob/main/docs/research/mixer-recording/README.md";
@@ -271,3 +273,22 @@ export function guideTrail(name: string, path: string): Crumb[] {
 }
 
 export const guideBySlug = (slug: string) => MIXER_GUIDES.find((g) => g.slug === slug);
+// The questions on the tap-point guide. The page shows these exact strings and its FAQPage JSON-LD repeats them.
+export const TAP_POINT_FAQS: readonly Faq[] = [
+  {
+    q: "Should I record pre-fader or post-fader?",
+    a: "For channel tracks you will mix later, record pre-fader: from the raw input, or after gain and trim but before EQ. A post-fader tap follows every fader move, and a fader that is down or a muted channel records a silent track. Use post-fader for mixes and buses.",
+  },
+  {
+    q: "Does changing the gain during the show change my recording?",
+    a: "Yes. Even the earliest tap is after the analog preamp, so a gain change changes the track level, and a clip at the preamp is in the file for good. Trim, EQ and fader moves don't reach the raw input tap.",
+  },
+  {
+    q: "Which tap is best for virtual soundcheck?",
+    a: "The raw input, before the digital trim. The playback comes back in at the same point, so the channel's trim, EQ and dynamics work on it as they did on the live input.",
+  },
+  {
+    q: "Should I record pre-EQ or post-EQ?",
+    a: "Pre-EQ, if you want to mix the tracks later: EQ and compression after the tap are baked in and can't be undone. Post-EQ gives tracks that sound like front of house, which suits a quick release or a streaming feed.",
+  },
+];
