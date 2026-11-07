@@ -18,6 +18,7 @@ export const PAGE_DATES: Record<string, string> = {
   "/docs/usb-drive": "2026-10-16",
   "/docs/what-gets-recorded": "2026-11-02",
   "/features": "2026-11-05",
+  "/guides/best-app-record-digital-mixer-iphone": "2026-11-07",
   "/guides/record": "2026-11-07",
   "/guides/record-gig-without-laptop": "2026-11-07",
   "/guides/record/pre-or-post-fader": "2026-11-07",

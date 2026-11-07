@@ -1,4 +1,5 @@
 import { DOCS, docHref } from "@/lib/docs";
+import { BEST_APP_GUIDE } from "@/lib/bestApp";
 import { GUIDES_HUB, MIXER_GUIDES, TAP_POINT_GUIDE } from "@/lib/mixerGuides";
 
 // Site-wide constants. Pages and components read these instead of hard-coding URLs.
@@ -47,6 +48,7 @@ export const APP_STORE_CAMPAIGNS = [
   "site-guide-qu",
   "site-guide-zoom-l12",
   "site-guide-taps",
+  "site-guide-best-app",
 ] as const;
 export type AppStoreCampaign = (typeof APP_STORE_CAMPAIGNS)[number];
 
@@ -104,6 +106,7 @@ export const ROUTES: readonly string[] = [
   "/guides/record-gig-without-laptop",
   GUIDES_HUB,
   TAP_POINT_GUIDE,
+  BEST_APP_GUIDE,
   // The mixer recording guides, from MIXER_GUIDES (lib/mixerGuides.ts).
   ...MIXER_GUIDES.map((g) => g.path),
   "/changelog",

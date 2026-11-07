@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BEST_APP_GUIDE } from "@/lib/bestApp";
 import { MIXER_GUIDES, guideTitle } from "@/lib/mixerGuides";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 
@@ -83,6 +84,12 @@ const STATIC_PAGES = {
     title: "Pre or post fader: which tap point to record - ShowRecorder",
     description:
       "Which tap point to multitrack record from a digital mixer: raw input, pre-EQ, post-EQ or post-fader, with pros, cons and the gain and HPF caveats.",
+  },
+  guideBestApp: {
+    path: BEST_APP_GUIDE,
+    title: "Best app to multitrack record a digital mixer on iPhone and iPad - ShowRecorder",
+    description:
+      "Nine iPhone and iPad apps for recording a digital mixer, compared from each maker's own page: files per channel, inputs, price model, editing.",
   },
   privacy: {
     path: "/privacy",
