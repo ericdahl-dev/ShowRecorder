@@ -13,7 +13,7 @@ struct MixerLinkTelemetryTests {
         let link = MixerLinkController(renewEvery: .milliseconds(10), makeDriver: { _, _ in driver })
         let store = UserDefaults(suiteName: "MixerLinkTelemetryTests-\(UUID().uuidString)")!
         store.set("10.0.0.20", forKey: "mixerAddress")
-        let session = MixerSession(link: link, store: store)
+        let session = MixerSession(link: link, store: store, network: { nil })
         session.sendEvent = sent
         return session
     }

@@ -65,7 +65,7 @@ struct MixerGainAvailabilityTests {
                                            holdsIdentify: self == .xr18Connecting)
             let link = MixerLinkController(makeDriver: { _, _ in driver })
             let store = UserDefaults(suiteName: "MixerGainAvailabilityTests-\(UUID().uuidString)")!
-            let session = MixerSession(link: link, store: store)
+            let session = MixerSession(link: link, store: store, network: { nil })
             switch self {
             case .nothingReady:
                 break
@@ -84,14 +84,17 @@ struct MixerGainAvailabilityTests {
                 }
             case .xr18Linked, .xr18LinkedRecording, .xr18LinkedNoGain:
                 await session.ready(interfaceName: "XR18", usbChannelCount: 18)
-                await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+                session.address = "10.0.0.20"
+                await session.connect()
             case .x32ReadyXR18Linked:
                 await session.ready(interfaceName: "XR18", usbChannelCount: 18)
-                await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+                session.address = "10.0.0.20"
+                await session.connect()
                 await session.ready(interfaceName: "X-USB", usbChannelCount: 32)
             case .x32Linked:
                 await session.ready(interfaceName: "X-USB", usbChannelCount: 32)
-                await link.connect(to: "10.0.0.30", usbChannelCount: 32)
+                session.address = "10.0.0.30"
+                await session.connect()
             }
             return (session, driver.release)
         }
