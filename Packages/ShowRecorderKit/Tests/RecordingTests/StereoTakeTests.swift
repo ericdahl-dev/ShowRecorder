@@ -160,21 +160,53 @@ struct StereoTakeTests {
         let audio = FakeAudioDevice(inputChannelCount: 2)
         try recorder.getReady(audio)
         try recorder.startTake()
-        for start in stride(from: 0, to: 48_000, by: 480) { audio.deliver(Self.block(from: start)) }
+        try await deliverBlocks(100, to: audio, recorder, sample: counting())
         plug.connected = true
         await recorder.checkDestinations()
-        audio.deliver(Self.block(from: 48_000))
+        try await deliverBlocks(1, from: 48_000, to: audio, recorder, sample: counting())
         try await recorder.stopTake()
+        await recorder.waitForRepair()
 
-        let deviceStem = try StemFile.inspect(device.appending(path: "\(show)/Take 01/Stereo.wav"))
+        let deviceURL = device.appending(path: "\(show)/Take 01/Stereo.wav")
         let driveURL = drive.appending(path: "\(show)/Take 01/Stereo.wav")
         let driveStem = try StemFile.inspect(driveURL)
         #expect(driveStem.channelCount == 2)
-        #expect(deviceStem.frameCount == 48_480)
-        #expect(driveStem.frameCount == deviceStem.frameCount)
-        // Whatever the Drive missed before it joined is silence on both channels, or was filled by Repair from the Device.
-        let tail = try StemWriter.readSamples(url: driveURL, frames: 48_000..<48_480)
-        #expect(tail == Self.interleaved([Self.block(from: 48_000)]))
+        #expect(try StemFile.inspect(deviceURL).frameCount == 48_480)
+        #expect(driveStem.frameCount == 48_480)
+        // What the Drive missed before it joined was filled by Repair from the Device: the two Copies are the same.
+        let whole = (0..<48_480).flatMap { [counting()($0, 0), counting()($0, 1)] }
+        #expect(try StemWriter.readSamples(url: driveURL, frames: 0..<48_480) == whole)
+        #expect(try StemWriter.readSamples(url: deviceURL, frames: 0..<48_480) == whole)
+    }
+
+    @Test("Drive only: a Drive that fails mid-Take is stood in for by the Device in one stereo file, and Repair makes the Drive's whole")
+    func driveOnlyStandIn() async throws {
+        let drive = root.appending(path: "Drive")
+        try FileManager.default.createDirectory(at: drive, withIntermediateDirectories: true)
+        let device = root.appending(path: "Device")
+        let recorder = Recorder(
+            deviceFolder: device, driveFolder: { DriveAccess(folder: drive) }, now: { RecordingTakeTests.showDay },
+            makeStem: { url, info, resuming in
+                let real = try StemWriter.open(url: url, info: info, resumingAt: resuming)
+                // The Drive's file fails after 480 frames (960 interleaved samples).
+                return url.path.hasPrefix(drive.path) && resuming == nil ? FailingStem(real, healthyFrames: 960) : real
+            }, destinationCheckInterval: nil, writerStopTimeout: .milliseconds(300), stereoPairAvailable: { true })
+        recorder.recordTo = .drive
+        let audio = FakeAudioDevice(inputChannelCount: 2)
+        try recorder.getReady(audio)
+        try recorder.startTake()
+        try await deliverBlocks(10, to: audio, recorder, sample: counting())
+        try await waitUntil { recorder.copies[.drive] == .interrupted }
+        await recorder.checkDestinations()
+        try await deliverBlocks(5, from: 10 * 480, to: audio, recorder, sample: counting())
+        try await recorder.stopTake()
+        await recorder.waitForRepair()
+
+        let driveURL = drive.appending(path: "\(show)/Take 01/Stereo.wav")
+        #expect(try StemFile.inspect(driveURL).channelCount == 2)
+        let whole = (0..<7_200).flatMap { [counting()($0, 0), counting()($0, 1)] }
+        #expect(try StemWriter.readSamples(url: driveURL, frames: 0..<7_200) == whole, "the Drive has the whole Take, both channels")
+        #expect(recorder.copies[.drive] == .repaired)
     }
 
     @Test("A stereo file cut off by a crash is finished at its whole frames, still stereo")
