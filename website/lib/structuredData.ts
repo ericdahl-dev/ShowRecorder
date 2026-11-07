@@ -1,5 +1,6 @@
 import { newestRelease } from "@/lib/changelog";
 import { PAGES, type PageInfo } from "@/lib/metadata";
+import { SHOTS } from "@/lib/screenshots";
 import { APP_STORE_URL, PRO_PRICE, REPO_URL, SITE_NAME, SITE_URL, appStoreLink } from "@/lib/site";
 
 // schema.org data, as JSON-LD. Search engines read it to show ShowRecorder as an app (name, platform,
@@ -25,6 +26,18 @@ const OFFERS = [
 
 const appStoreVersion = newestRelease("App Store")?.version;
 
+// The app's screenshots, from the images the home page shows (lib/screenshots.ts), each with the alt text the page
+// gives it as its caption. The Dark image, the site's default theme. Only screens every App Store customer has: no
+// Debug or TestFlight-only feature (the *Availability rules in the app). Left out: the light iPhone set and the iPad
+// Sunlight shot (the same screens again) and the Pro screen (a price list, not a feature of the app).
+const SCREENSHOT_KEYS = ["heroIpad", "heroPhone", "mixerLink", "markers", "show", "sunlight"] as const;
+
+const SCREENSHOTS = SCREENSHOT_KEYS.map((key) => {
+  const shot = SHOTS[key].dark;
+  const url = `${SITE_URL}${shot.src}`;
+  return { "@type": "ImageObject", url, contentUrl: url, width: shot.width, height: shot.height, caption: shot.alt };
+});
+
 function applicationJsonLd(url: string, description: string) {
   return {
     "@context": "https://schema.org",
@@ -37,6 +50,7 @@ function applicationJsonLd(url: string, description: string) {
     // The version the App Store installs, from the changelog.
     ...(appStoreVersion ? { softwareVersion: appStoreVersion } : {}),
     image: `${SITE_URL}/og-image.png`,
+    screenshot: SCREENSHOTS,
     offers: OFFERS,
     publisher: { "@type": "Person", name: "Eric Dahl", url: "https://ericdahl.dev" },
     // With 1.0 on the App Store, its listing is where to download the app and one of its own profiles (#704).
