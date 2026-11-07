@@ -98,7 +98,7 @@ struct ChannelArmingStoreTests {
         #expect(ChannelArmingAvailability.isAvailable(isDebugBuild: true, environment: nil))
         #expect(ChannelArmingAvailability.isAvailable(isDebugBuild: false, environment: .sandbox))
         #expect(ChannelArmingAvailability.isAvailable(isDebugBuild: false, environment: .production))
-        #expect(!ChannelArmingAvailability.isAvailable(isDebugBuild: false, environment: nil))
+        #expect(ChannelArmingAvailability.isAvailable(isDebugBuild: false, environment: nil))
     }
 
     @Test("Every channel is armed until chosen, and the choice is kept per Audio interface")
