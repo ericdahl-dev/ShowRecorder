@@ -658,11 +658,17 @@ public final class Recorder {
     }
 
     /// Checks that the Drive Copy of Show `show` is whole (see `CopyCheck`). Reads every Stem, off the main thread.
+    /// The Drive is resolved on that thread too (#1021), and the check is counted like a Show detail edit, so a move to the
+    /// Drive waits for it.
     public func checkDriveCopy(of show: String) async -> CopyCheck.Result {
-        guard let access = driveFolder() else { return .failed(["The Drive isn't available."]) }
-        defer { access.end() }
-        let device = deviceFolder, drive = access.folder
-        return await runOffPool { CopyCheck.verify(show: show, device: device, drive: drive) }
+        editsInProgress += 1
+        defer { endEdit() }
+        let resolve = driveFolder, device = deviceFolder
+        return await runOffPool {
+            guard let access = resolve() else { return .failed(["The Drive isn't available."]) }
+            defer { access.end() }
+            return CopyCheck.verify(show: show, device: device, drive: access.folder)
+        }
     }
 
     /// Deletes the Device copy of Show `show`, keeping the Drive copy, but only after `checkDriveCopy` passes.
@@ -685,9 +691,9 @@ public final class Recorder {
     /// is deleted as it is, unless it was recorded for the Drive: then the Drive it was recorded to must be connected.
     public func deleteDeviceCopy(of show: String, take: Int) async -> ShowDeleter.Outcome {
         func refuse(_ reasons: [String]) -> ShowDeleter.Outcome { .init(deleted: [], failed: reasons.map { .init(copy: .device, reason: $0) }) }
-        switch deviceCopyDelete(of: show, take: take) {
+        switch await deviceCopyDelete(of: show, take: take) {
         case .refused(let reason): return refuse([reason])
-        case .onlyCopy: return deleteTake(take, ofShow: show, from: [.device])
+        case .onlyCopy: return await deleteTakeOffMain(take, ofShow: show, from: [.device])
         case .checked: break
         }
         switch await releaseFromDevice(show: show, take: take) {
@@ -706,7 +712,7 @@ public final class Recorder {
     /// What `deleteDeviceCopy(of:take:)` would do, for the Check the Drive copy button: passed where it deletes, failed
     /// with why where it refuses. Deletes nothing.
     public func checkDeviceCopyDelete(of show: String, take: Int) async -> CopyCheck.Result {
-        switch deviceCopyDelete(of: show, take: take) {
+        switch await deviceCopyDelete(of: show, take: take) {
         case .refused(let reason): return .failed([reason])
         case .onlyCopy: return .passed
         case .checked: break
@@ -718,16 +724,24 @@ public final class Recorder {
         }
     }
 
-    private enum DeviceCopyDelete { case refused(String), onlyCopy, checked }
+    private enum DeviceCopyDelete: Sendable { case refused(String), onlyCopy, checked }
 
-    /// Whether Take `take`'s Device copy is refused, is the only copy, or needs the Drive check first (#925).
-    private func deviceCopyDelete(of show: String, take: Int) -> DeviceCopyDelete {
+    /// Whether Take `take`'s Device copy is refused, is the only copy, or needs the Drive check first (#925). The refusals
+    /// are checked here; the files and the Drive are read on a thread of their own (#1021), counted like a Show detail edit.
+    private func deviceCopyDelete(of show: String, take: Int) async -> DeviceCopyDelete {
         if isRecording || isStarting { return .refused("A Take is running.") }
         if show == currentShow?.name { return .refused("This Show is open. End it first.") }
+        editsInProgress += 1
+        defer { endEdit() }
+        let resolve = driveFolder, device = deviceFolder
+        return await runOffPool { Self.deviceCopyDelete(of: show, take: take, device: device, driveFolder: resolve) }
+    }
+
+    private nonisolated static func deviceCopyDelete(of show: String, take: Int, device: URL, driveFolder: () -> DriveAccess?) -> DeviceCopyDelete {
         let name = TakeMetadata.name(take: take)
-        let folder = deviceFolder.appending(path: show).appending(path: name)
+        let folder = device.appending(path: show).appending(path: name)
         guard FileManager.default.fileExists(atPath: folder.appending(path: TakeMetadata.fileName).path) else { return .onlyCopy }
-        guard let deviceTake = Self.readTake(at: folder) else {
+        guard let deviceTake = try? TakeMetadata.read(fromTakeFolder: folder) else {
             return .refused("This Take's details can't be read on the Device, so it can't be checked against the Drive.")
         }
         let forDrive = deviceTake.driveOnly == true || deviceTake.standIns?.isEmpty == false
@@ -742,13 +756,7 @@ public final class Recorder {
 
     /// Deletes Take `take` of Show `show` from the chosen Copies, for good, with the same refusals as `deleteShow`.
     public func deleteTake(_ take: Int, ofShow show: String, from copies: Set<DestinationKind>) -> ShowDeleter.Outcome {
-        let kinds = copies.sorted { $0.index < $1.index }
-        guard !isRecording, !isStarting else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "A Take is running.") }) }
-        guard !isFinishing else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: RecorderError.finishing.errorDescription ?? "") }) }
-        // A move to the Drive works on these files too (#630).
-        guard !isMoving else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "Takes are moving to the Drive.") }) }
-        // Names are being put on a Take's files (#652): a delete would pull the folder from under it.
-        guard editsInProgress == 0 else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "The Take's files are being renamed.") }) }
+        if let refused = deleteRefusal(copies) { return refused }
         let access = copies.contains(.drive) ? driveFolder() : nil
         defer { access?.end() }
         return TakeDeleter.delete(take: take, ofShow: show, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
@@ -757,16 +765,41 @@ public final class Recorder {
     /// Deletes USB Channel `channel`'s file from Take `take` of Show `show` in the chosen Copies, for good, with
     /// the same refusals as `deleteShow`.
     public func deleteChannel(_ channel: Int, inTake take: Int, ofShow show: String, from copies: Set<DestinationKind>) -> ShowDeleter.Outcome {
-        let kinds = copies.sorted { $0.index < $1.index }
-        guard !isRecording, !isStarting else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "A Take is running.") }) }
-        guard !isFinishing else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: RecorderError.finishing.errorDescription ?? "") }) }
-        // A move to the Drive works on these files too (#630).
-        guard !isMoving else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "Takes are moving to the Drive.") }) }
-        // Names are being put on a Take's files (#652): a delete would pull the folder from under it.
-        guard editsInProgress == 0 else { return .init(deleted: [], failed: kinds.map { .init(copy: $0, reason: "The Take's files are being renamed.") }) }
+        if let refused = deleteRefusal(copies) { return refused }
         let access = copies.contains(.drive) ? driveFolder() : nil
         defer { access?.end() }
         return StemDeleter.delete(channel: channel, inTake: take, ofShow: show, from: copies, device: deviceFolder, drive: access?.folder, openShow: currentShow?.name)
+    }
+
+    /// `deleteTake` with the file work off the main thread, for Show detail (#1021), as `deleteShowOffMain`.
+    public func deleteTakeOffMain(_ take: Int, ofShow show: String, from copies: Set<DestinationKind>) async -> ShowDeleter.Outcome {
+        await deleteOffMain(copies) { device, drive, openShow in
+            TakeDeleter.delete(take: take, ofShow: show, from: copies, device: device, drive: drive, openShow: openShow)
+        }
+    }
+
+    /// `deleteChannel` with the file work off the main thread, for Show detail (#1021), as `deleteShowOffMain`.
+    public func deleteChannelOffMain(_ channel: Int, inTake take: Int, ofShow show: String, from copies: Set<DestinationKind>) async -> ShowDeleter.Outcome {
+        await deleteOffMain(copies) { device, drive, openShow in
+            StemDeleter.delete(channel: channel, inTake: take, ofShow: show, from: copies, device: device, drive: drive, openShow: openShow)
+        }
+    }
+
+    /// Checks the delete refusals here, then runs `delete` with the Device's folder, the Drive's (nil when it isn't there or
+    /// isn't chosen) and the open Show on a thread of its own, counted like a Show detail edit so a move waits for it.
+    private func deleteOffMain(
+        _ copies: Set<DestinationKind>,
+        _ delete: @escaping @Sendable (_ device: URL, _ drive: URL?, _ openShow: String?) -> ShowDeleter.Outcome
+    ) async -> ShowDeleter.Outcome {
+        if let refused = deleteRefusal(copies) { return refused }
+        editsInProgress += 1
+        defer { endEdit() }
+        let resolve = driveFolder, device = deviceFolder, openShow = currentShow?.name
+        return await runOffPool {
+            let access = copies.contains(.drive) ? resolve() : nil
+            defer { access?.end() }
+            return delete(device, access?.folder, openShow)
+        }
     }
 
     /// Starts a Take in the open Show, creating a Show first if none is open.
@@ -1719,13 +1752,16 @@ public final class Recorder {
         // A Repair still filling the Drive's Take would change what the check compares.
         await repair.wait()
         if let refusal = releaseRefusal(show: show, take: take) { return .no([refusal]) }
-        guard let access = driveFolder() else { return .no(["The Drive isn't connected."]) }
-        defer { access.end() }
         let name = TakeMetadata.name(take: take)
         let deviceTake = deviceFolder.appending(path: show).appending(path: name)
-        let driveTake = access.folder.appending(path: show).appending(path: name)
-        let shouldStop = moveStop.latch()
-        return await runOffPool { DeviceTakeRelease.check(deviceTake: deviceTake, driveTake: driveTake, shouldStop: shouldStop) }
+        let shouldStop = moveStop.latch(), resolve = driveFolder
+        // The Drive is resolved on that thread too (#1021).
+        return await runOffPool {
+            guard let access = resolve() else { return .no(["The Drive isn't connected."]) }
+            defer { access.end() }
+            let driveTake = access.folder.appending(path: show).appending(path: name)
+            return DeviceTakeRelease.check(deviceTake: deviceTake, driveTake: driveTake, shouldStop: shouldStop)
+        }
     }
 
     /// Drive only (#656): deletes a kept Take from the Device, at the operator's choice, once the Drive holds everything the
@@ -1740,10 +1776,12 @@ public final class Recorder {
         } while isMoving
         // On the main actor, what is checked here holds until the delete below sets `isMoving`.
         if let refusal = releaseRefusal(show: show, take: take) { return .kept([refusal]) }
-        guard let access = driveFolder() else { return .kept(["The Drive isn't connected."]) }
+        // Set before the Drive is resolved off the main thread (#1021), so no move starts meanwhile.
         isMoving = true
         // The order is load-bearing: the access ends first, then `endMoving` lets the edits that waited go on.
         defer { endMoving() }
+        let resolve = driveFolder
+        guard let access = await runOffPool({ resolve() }) else { return .kept(["The Drive isn't connected."]) }
         defer { access.end() }
         // A Show detail edit already running finishes first, as for a move.
         while editsInProgress > 0 {

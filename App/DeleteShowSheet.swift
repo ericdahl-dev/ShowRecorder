@@ -51,12 +51,12 @@ struct DeleteShowSheet: View {
                 }
                 Section {
                     if show.deviceCopy != nil {
-                        Toggle("Device copy", isOn: $fromDevice).onChange(of: fromDevice) { check = nil }
+                        Toggle("Device copy", isOn: $fromDevice).onChange(of: fromDevice) { check = nil }.disabled(deleting)
                     } else {
                         LabeledContent("Device copy", value: "Not there").secondaryText()
                     }
                     if show.driveCopy != nil {
-                        Toggle("Drive copy", isOn: $fromDrive).onChange(of: fromDrive) { check = nil }
+                        Toggle("Drive copy", isOn: $fromDrive).onChange(of: fromDrive) { check = nil }.disabled(deleting)
                     } else {
                         LabeledContent("Drive copy", value: "Not there").secondaryText()
                     }
@@ -67,7 +67,7 @@ struct DeleteShowSheet: View {
                 }
                 if needsCheck {
                     Section {
-                        Button(checking ? "Checking…" : "Check the Drive copy") { runCheck() }.disabled(checking)
+                        Button(checking ? "Checking…" : "Check the Drive copy") { runCheck() }.disabled(checking || deleting)
                         if checking { ProgressView() }
                         switch check {
                         case .passed: Label("The Drive copy matches. The Device copy can be deleted.", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
@@ -140,29 +140,23 @@ struct DeleteShowSheet: View {
         }
     }
 
+    /// Every delete reaches the Drive off the main thread, where a slow Drive can't block the screen (#1021). The button
+    /// reads "Deleting…" and can't be pressed again until it is done.
     private func delete() {
-        if let take, deletesTakeDeviceCopy {
-            Task { finish(await model.recorder.deleteDeviceCopy(of: show.name, take: take)) }
-            return
+        guard !deleting else { return }
+        let recorder = model.recorder, name = show.name, copies = chosen
+        let take = take, channel = channel, deviceOnly = deletesTakeDeviceCopy, checked = needsCheck
+        deleting = true
+        Task {
+            let outcome: ShowDeleter.Outcome
+            if let take, deviceOnly { outcome = await recorder.deleteDeviceCopy(of: name, take: take) }
+            else if checked { outcome = await recorder.deleteDeviceCopy(of: name) }
+            else if let take, let channel { outcome = await recorder.deleteChannelOffMain(channel, inTake: take, ofShow: name, from: copies) }
+            else if let take { outcome = await recorder.deleteTakeOffMain(take, ofShow: name, from: copies) }
+            else { outcome = await recorder.deleteShowOffMain(named: name, from: copies) }
+            finish(outcome)
+            deleting = false
         }
-        if needsCheck {
-            Task { finish(await model.recorder.deleteDeviceCopy(of: show.name)) }
-            return
-        }
-        let outcome: ShowDeleter.Outcome
-        if let take, let channel { outcome = model.recorder.deleteChannel(channel, inTake: take, ofShow: show.name, from: chosen) }
-        else if let take { outcome = model.recorder.deleteTake(take, ofShow: show.name, from: chosen) }
-        else {
-            // A whole Show: the Drive is reached off the main thread, where a slow Drive can't block the screen (#1021).
-            let copies = chosen
-            deleting = true
-            Task {
-                finish(await model.recorder.deleteShowOffMain(named: show.name, from: copies))
-                deleting = false
-            }
-            return
-        }
-        finish(outcome)
     }
 
     private func finish(_ outcome: ShowDeleter.Outcome) {
