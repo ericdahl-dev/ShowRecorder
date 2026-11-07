@@ -58,7 +58,7 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
     const quick = top.slice(top.indexOf("**Quick start**"));
     expect(top.indexOf("**Quick start**")).toBeGreaterThan(top.indexOf("**Short answer.**"));
     expect(quick).toMatch(/^1\. /m);
-    const ids = new Set(TEMPLATE(guide.short).map(slugify));
+    const ids = new Set([...mdx.matchAll(/^#{2,3} (.+)$/gm)].map((m) => slugify(m[1])));
     const anchors = [...quick.matchAll(/\]\(#([^)]+)\)/g)].map((m) => m[1]);
     expect(anchors.length).toBeGreaterThanOrEqual(3);
     for (const a of anchors) expect(ids.has(a), a).toBe(true);
@@ -203,5 +203,72 @@ describe("the X32 guide's facts", () => {
     expect(mdx).toMatch(/\*\*Setup > Config\*\*/);
     expect(mdx).toMatch(/32 GB/);
     expect(mdx).toMatch(/200 min/);
+  });
+});
+
+describe("the XR18 and MR18 guide's facts", () => {
+  const mdx = body("xr18");
+
+  it("says the XR18 can't record by itself, and the XR12 and XR16 send no USB audio", () => {
+    expect(mdx).toMatch(/can't record by itself/i);
+    expect(mdx).toMatch(/XR12/);
+  });
+
+  it("gives the per-slot Routing grid path and the sample rate setting", () => {
+    expect(mdx).toMatch(/Inputs\/USB/);
+    expect(mdx).toMatch(/orange dots/);
+    expect(mdx).toMatch(/Audio\/MIDI/);
+    expect(mdx).toMatch(/[Mm]ute the main LR/);
+  });
+
+  // The audited research: the manual shows only pre-low-cut and post-fader channel feeds; the "Input ... Post Fader"
+  // list is the aux and main bus taps. A tap choice per USB send is user-reported only.
+  // Eric's XR18 (Routing > USB Sends, 2026-11-06): each USB Send has its own Signal Source and Signal Tap.
+  it("gives each USB send's own tap, with the list seen on a real XR18, and what the manual shows", () => {
+    expect(mdx).toMatch(/Analog, Analog \+M, Input, Input \+M, Pre EQ, Pre EQ \+M, Post EQ, Post EQ \+M, Pre Fader, Pre Fader \+M, Post Fader/);
+    expect(mdx).toMatch(/\*\*Signal Tap\*\*/);
+    expect(mdx).toMatch(/goes silent when the channel is muted/);
+    expect(mdx).toMatch(/\*\*pre low cut\*\*/);
+    expect(mdx).not.toMatch(/input channel taps/i);
+  });
+
+  // Review batch 1: plain picks first, hedged readings, and no claim the manual doesn't back.
+  it("leads its tap points with a plain pick, defines +M at first use, and hedges what it reads", () => {
+    const taps = mdx.slice(mdx.indexOf("## XR18 tap points"), mdx.indexOf("## XR18 on Mac"));
+    expect(taps.split("\n").find((l) => l.startsWith("- "))).toMatch(/For a service or gig recording you'll remix: \*\*Input\*\*\. Avoid \+M and Post Fader\./);
+    expect(mdx.indexOf("goes silent when the channel is muted")).toBeLessThan(mdx.indexOf("Analog +M"));
+    expect(mdx).toMatch(/in the order the app shows them/);
+    expect(mdx).not.toMatch(/earliest first/);
+    expect(mdx).toMatch(/probably came with later firmware/);
+    expect(mdx).toMatch(/clock is internal \(our reading\)/);
+    expect(mdx).not.toMatch(/how you put a bus or the main mix on a USB channel/);
+  });
+
+  it("says the XR18 routing rarely needs changing but must be checked, and explains P16", () => {
+    const routing = mdx.slice(mdx.indexOf("## XR18 USB routing"), mdx.indexOf("## XR18 playback"));
+    expect(routing).toMatch(/Recording every channel\?/);
+    expect(routing).toMatch(/P16 \(Behringer's personal monitor system\)/);
+  });
+
+  it("cites Midas's own MR18 manual, which lists the same systems as the XR18", () => {
+    expect(mdx).toMatch(/confirms 18 x 18 USB, type B, and 44\.1 or 48 kHz/);
+    expect(mdx).toContain("(https://cdn-media.empowertribe.com/f4e89140f9994eed93e4f2a4e086c578/M_MI_0605-AAF_MR18-MR12_EN.pdf)");
+    expect(mdx).not.toMatch(/manualslib/);
+    expect(mdx).not.toMatch(/retailer/i);
+  });
+
+  it("warns that a 2 x 2 setting sends only 2 channels, and that 48 kHz is the default", () => {
+    expect(mdx).toMatch(/2 x 2 sends only 2 channels/);
+    expect(mdx).toMatch(/48 kHz by default/);
+  });
+
+  it("says iPad is maker-confirmed for both, the iPhone isn't named, and ShowRecorder has recorded all 18 on one", () => {
+    const apple = mdx.slice(mdx.indexOf("## XR18 on Mac, iPad and iPhone"), mdx.indexOf("## Sources"));
+    expect(apple).toMatch(/iOS 7 or higher \(iPad\)/);
+    expect(apple).toMatch(/doesn't name the iPhone/);
+    // Owner fact O-2: an iPhone Take of all 18 XR18 channels; only a full show through a powered hub (#327) is untested.
+    expect(apple).toMatch(/ShowRecorder \(the app this site makes\) has recorded all 18 XR18 channels on an iPhone/);
+    expect(apple).toMatch(/full-length show on an iPhone through a powered hub is not tested yet/);
+    expect(apple).toMatch(/Midas lists the same/);
   });
 });
