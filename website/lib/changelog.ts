@@ -14,6 +14,15 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.2.5",
+    date: "2026-11-07",
+    channel: "TestFlight beta",
+    summary: "Arming a channel from its menu takes the first tap.",
+    changes: [
+      "The \"Arm channel\" and \"Don't arm channel\" menu on a channel's meter no longer drops taps while the meters move.",
+    ],
+  },
+  {
     version: "1.2.4",
     date: "2026-11-07",
     channel: "TestFlight beta",
