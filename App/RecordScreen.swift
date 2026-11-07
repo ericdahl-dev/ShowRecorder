@@ -1160,6 +1160,8 @@ final class RecordScreenModel {
         recorder.reportFailure = { AppTelemetry.shared.report($0) }
         // Show created and deleted (ADR 0007, #1026): the recorder decides when, the app only sends.
         recorder.sendEvent = { AppTelemetry.shared.send($0) }
+        // Mixer Link connected (ADR 0007, #1026): the session decides when, once per connection.
+        mixer.sendEvent = { AppTelemetry.shared.send($0) }
         sequencer.sampleRateChoice = {
             #if os(macOS)
             SampleRateSetting.load(platformDefault: nil)

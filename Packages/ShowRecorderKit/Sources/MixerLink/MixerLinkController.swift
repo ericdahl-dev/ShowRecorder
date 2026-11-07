@@ -43,6 +43,9 @@ public final class MixerLinkController {
     @ObservationIgnored private var driver: (any MixerDriver)?
     @ObservationIgnored private let timeout: Duration
     @ObservationIgnored private let renewEvery: Duration
+    /// Told once each time `connect` brings the Link up: a new connection, never a renewal bringing a dropped Link
+    /// back (ADR 0007, #1026).
+    @ObservationIgnored public var onConnected: (MixerIdentity) -> Void = { _ in }
     @ObservationIgnored private let retryDelay: Duration
     @ObservationIgnored private let makeDriver: @Sendable (MixerEndpoint, Duration) -> any MixerDriver
 
@@ -118,6 +121,7 @@ public final class MixerLinkController {
             wantedUSBChannelCount = sources.count
             status = .up(identity, path: .wifi)
             startLiveUpdates(driver)
+            onConnected(identity)
         } catch {
             guard connect == connects else { return }
             fail(error)
