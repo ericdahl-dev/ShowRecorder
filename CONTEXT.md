@@ -27,7 +27,7 @@ A named point at a sample position within one Take, placed by the operator, a Sn
 _Avoid_: Cue, locator, flag
 
 **Stem**:
-The audio file for one USB Channel within a Take, named after that channel's Source.
+The audio file for one USB Channel within a Take, named after that channel's Source. A stereo pair is one Stem with two channels: an Audio interface with exactly 2 USB Channels, both armed, records one stereo Stem named "Stereo" (#1088).
 _Avoid_: Track file, channel file
 
 **Template**:

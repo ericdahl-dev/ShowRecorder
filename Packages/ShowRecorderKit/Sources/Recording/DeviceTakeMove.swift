@@ -223,7 +223,7 @@ enum DeviceTakeMove {
             for channel in metadata.usbChannels {
                 let info = StemWriter.Info(
                     sampleRate: metadata.sampleRate, description: channel.name, originator: "ShowRecorder",
-                    timeReference: metadata.timeReference, originationDate: metadata.startedAt)
+                    timeReference: metadata.timeReference, originationDate: metadata.startedAt, channels: channel.channelCount)
                 try StemWriter(url: driveTake.appending(path: channel.stemFile), info: info).finalize()
             }
         } catch {

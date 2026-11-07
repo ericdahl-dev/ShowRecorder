@@ -105,6 +105,8 @@ public final class Recorder {
         return true
     }
     @ObservationIgnored private let channelArmingRule: () -> Bool
+    /// Whether `StereoPairAvailability` lets a 2-input interface record one stereo file (#1088), asked at each record press.
+    @ObservationIgnored private let stereoPairRule: () -> Bool
     /// What the current or last Take was allowed, frozen at its record press. Nil: everything (no allowance given).
     @ObservationIgnored private var lastAllowance: TakeAllowance?
     @ObservationIgnored private var namingTask: Task<Void, Never>?
@@ -237,10 +239,12 @@ public final class Recorder {
         driveStartDeadline: Duration = Recorder.defaultDriveStartDeadline,
         writeAbandoned: @escaping @Sendable (TakeMetadata, URL) -> Void = { try? $0.write(to: $1) },
         asyncStopAvailable: @escaping () -> Bool = { AsyncStopAvailability.isAvailableInThisBuild },
-        channelArmingAvailable: @escaping () -> Bool = { ChannelArmingAvailability.isAvailableInThisBuild }
+        channelArmingAvailable: @escaping () -> Bool = { ChannelArmingAvailability.isAvailableInThisBuild },
+        stereoPairAvailable: @escaping () -> Bool = { StereoPairAvailability.isAvailableInThisBuild }
     ) {
         asyncStopRule = asyncStopAvailable
         channelArmingRule = channelArmingAvailable
+        stereoPairRule = stereoPairAvailable
         self.destinationCheckInterval = destinationCheckInterval
         self.driveStallLimit = driveStallLimit
         self.driveStartDeadline = driveStartDeadline
@@ -1092,9 +1096,14 @@ public final class Recorder {
         }
         let recorded = allowance?.recordedChannels ?? Set(channels.map(\.usbChannel))
         lastAllowance = allowance
+        // A 2-input interface with both channels armed records one stereo file named "Stereo" (#1088): Take.json lists it once,
+        // as USB Channel 1 with 2 channels. With one channel armed, or where the rule is off, each channel is its own mono Stem.
+        let stereo = StereoTake.isStereo(channelCount: channels.count, recorded: recorded, available: stereoPairRule())
+        var listed = channels.filter { recorded.contains($0.usbChannel) }
+        if stereo { listed = [StereoTake.listing(left: channels[0])] }
         var metadata = TakeMetadata(
             show: show.name, take: show.takeCount, startedAt: date, sampleRate: sampleRate,
-            timeReference: timeReference, usbChannels: channels.filter { recorded.contains($0.usbChannel) })
+            timeReference: timeReference, usbChannels: listed)
         metadata.preRollFrames = preRollFrames > 0 ? preRollFrames : nil
         metadata.driveNote = driveNote
         let driveOnly = recordTo.isDriveOnly && (allowance?.driveCopy ?? true)
@@ -1102,7 +1111,11 @@ public final class Recorder {
         // Every Copy's Take.json says the Take is Drive only, the Drive's from the job that made it (#630).
         if driveOnly { metadata.driveOnly = true }
 
-        let specs = zip(channels, resolved).map { StemSpec(file: $0.stemFile, description: $1.name, isRecorded: recorded.contains($0.usbChannel)) }
+        let specs = zip(channels, resolved).enumerated().map { index, pair in
+            stereo
+                ? StemSpec(file: StereoTake.fileName, description: StereoTake.name, isRecorded: true, stereoSide: index == 0 ? StemSpec.StereoSide.left : .right)
+                : StemSpec(file: pair.0.stemFile, description: pair.1.name, isRecorded: recorded.contains(pair.0.usbChannel))
+        }
         let info = StemWriter.Info(sampleRate: sampleRate, description: "", originator: "ShowRecorder", timeReference: timeReference, originationDate: date)
         return TakePlan(
             show: show, takeFolders: takeFolders, metadata: metadata, specs: specs, info: info, preRollFrames: preRollFrames, pressPosition: pressPosition,

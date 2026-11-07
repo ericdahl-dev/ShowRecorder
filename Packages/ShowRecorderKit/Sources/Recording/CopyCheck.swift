@@ -158,9 +158,10 @@ public enum CopyCheck {
             return .failed(["\(deviceTake.lastPathComponent) can't be read."])
         }
         let name = TakeMetadata.name(take: take.take)
-        let size = UInt64(StemWriter.bytesPerSample)
         var problems: [String] = []
         for channel in take.usbChannels {
+            // Bytes in a frame: a stereo pair's file (#1088) has two samples in each.
+            let size = UInt64(StemWriter.bytesPerSample * channel.channelCount)
             guard let match = driveMetadata.usbChannels.first(where: { $0.usbChannel == channel.usbChannel }) else {
                 problems.append("\(name), channel \(channel.usbChannel) of the stand-in is missing on the Drive.")
                 continue

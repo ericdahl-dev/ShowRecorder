@@ -31,6 +31,12 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
         /// levels were recorded; -80 for a silent channel.
         public var peakDbfs: Double?
         public var averageDbfs: Double?
+        /// 2 when this entry is a stereo pair recorded as one interleaved file (#1088): `usbChannel` and the next one, left
+        /// and right, in `stemFile`. Nil for a mono Stem, and in Takes made before stereo files existed.
+        public var channels: Int?
+
+        /// The USB Channels this entry's file holds: one, or two for a stereo pair.
+        public var channelCount: Int { channels ?? 1 }
 
         public init(
             usbChannel: Int, stemFile: String, name: String, hasMixerName: Bool, nameArrivedLate: Bool? = nil, color: Color,
@@ -57,6 +63,9 @@ public struct TakeMetadata: Codable, Equatable, Sendable {
     /// Samples since local midnight at the start of the Take, as in every Stem's bext.
     public var timeReference: UInt64
     public var usbChannels: [USBChannel]
+
+    /// The USB Channels the Take recorded: a stereo pair in one file counts as its two (#1088).
+    public var recordedChannelCount: Int { usbChannels.reduce(0) { $0 + $1.channelCount } }
     /// Markers placed during the Take, in the order they were placed.
     public var markers: [Marker] = []
 

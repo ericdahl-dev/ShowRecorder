@@ -129,7 +129,7 @@ final class TakeRepair {
         let copies = DestinationKind.allCases.compactMap { kind in folders[kind].map { Copy(kind: kind, folder: $0) } }
         // Repair must not fill a Destination past the space reserve: a Copy stopped for being nearly
         // full stays as it is, with its Gaps. A Copy Stop gave up on isn't read here, on the main thread (#652).
-        let reserve = SpaceReserve(channelCount: metadata.usbChannels.count, sampleRate: metadata.sampleRate)
+        let reserve = SpaceReserve(channelCount: metadata.recordedChannelCount, sampleRate: metadata.sampleRate)
         let healthy = copies.filter { !abandoned.contains($0.kind) }
         let skip = Set(healthy.filter { copy in
             reserve.wouldBreach(free: freeSpace(copy.folder), adding: Self.bytesToExtend(copy, in: healthy, metadata: metadata))
@@ -255,7 +255,7 @@ final class TakeRepair {
         let length = length(copies: copies, metadata: metadata)
         return metadata.usbChannels.reduce(into: Int64(0)) { total, channel in
             let frames = framesOnDisk(copy.folder.appending(path: channel.stemFile))
-            total += Int64(max(length - frames, 0) * StemWriter.bytesPerSample)
+            total += Int64(max(length - frames, 0) * StemWriter.bytesPerSample * channel.channelCount)
         }
     }
 

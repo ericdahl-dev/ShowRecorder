@@ -101,7 +101,7 @@ enum CutOffTake {
         // Resuming truncates at this writer's header size plus the frames: a different header would lose audio.
         guard stem.dataStart == UInt64(StemWriter.dataStart) else { return stem.frameCount }
         let onDisk = stem.framesOnDisk
-        let dataBytes = onDisk * UInt64(StemWriter.bytesPerSample)
+        let dataBytes = onDisk * UInt64(stem.bytesPerFrame)
         let finished = stem.declaredBytes == dataBytes && stem.bytesOnDisk == dataBytes + dataBytes % 2
         guard !finished else { return onDisk }
         guard let writer = try? StemWriter.open(url: url, info: info, resumingAt: onDisk), (try? writer.finalize()) != nil else {
