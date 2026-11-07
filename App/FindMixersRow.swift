@@ -2,7 +2,8 @@ import MixerLink
 import SwiftUI
 
 /// Find mixers (#289): asks every address on this device's network for /xinfo and lists the mixers that answer.
-/// Tapping one fills in its address and connects. Only when the operator taps it; Settings is locked during a Take.
+/// Tapping one fills in its address and connects; with more than one of the Ready kind, it also picks it as the one
+/// plugged in by USB (#1018). Only when the operator taps it; Settings is locked during a Take.
 struct FindMixersRow: View {
     @Bindable var model: RecordScreenModel
     let disabled: Bool
@@ -23,10 +24,14 @@ struct FindMixersRow: View {
             Text("No Mixer answered. Check you're on the Mixer's network and Local Network access is on. If it just asked about Local Network, tap Find Mixers again.")
                 .font(.footnote).secondaryText()
         } else if let found {
+            // Two Mixers of the Ready kind: auto-gain moves preamps only on the one plugged in by USB (#1018).
+            if model.mixer.asksForUSBMixer(among: found) {
+                Text("More than one Mixer of this kind answered. Tap the one plugged in by USB.")
+                    .font(.footnote).secondaryText()
+            }
             ForEach(found, id: \.host) { mixer in
                 Button {
-                    model.mixerAddress = mixer.host
-                    model.connectMixer()
+                    model.chooseMixer(mixer, among: found)
                 } label: {
                     LabeledContent("\(mixer.identity.networkName) (\(mixer.identity.model))", value: mixer.host)
                 }

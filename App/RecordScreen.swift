@@ -1137,6 +1137,12 @@ final class RecordScreenModel {
         Task { await mixer.connect() }
     }
 
+    /// A Mixer tapped in Find Mixers, which listed `found`: picked as the one plugged in by USB when Find Mixers asked
+    /// for it (#1018).
+    func chooseMixer(_ choice: FoundMixer, among found: [FoundMixer]) {
+        Task { await mixer.choose(choice, among: found) }
+    }
+
     /// What to do about audio interruptions, and the banner they leave. The `TakeSequencer` keeps it.
     var interruptions: InterruptionPolicy { sequencer.interruptions }
 

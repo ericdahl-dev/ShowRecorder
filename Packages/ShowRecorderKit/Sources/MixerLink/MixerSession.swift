@@ -204,6 +204,23 @@ public final class MixerSession {
         await connect()
     }
 
+    /// Whether Find Mixers asks which Mixer is plugged in by USB (#1018): more than one of the Ready family answered.
+    public func asksForUSBMixer(among found: [FoundMixer]) -> Bool {
+        guard let family else { return false }
+        return found.filter { MixerFamily.reading(model: $0.identity.model) == family }.count > 1
+    }
+
+    /// The operator tapped `mixer` in Find Mixers, which listed `found` (#289, #1018): when Find Mixers asked for the
+    /// one plugged in by USB, the tap picks it; otherwise it only links it, and the check after the Link decides.
+    public func choose(_ mixer: FoundMixer, among found: [FoundMixer]) async {
+        if asksForUSBMixer(among: found) {
+            await connect(toUSBMixer: mixer)
+        } else {
+            address = mixer.host
+            await connect()
+        }
+    }
+
     /// Links to a Template's Mixer (#33): at its saved address first, then, if the Mixer there isn't the one named,
     /// wherever a Mixer with that network name answers on this network. Only while Mixer Link is offered (#365); the
     /// Template keeps its Mixer either way.
