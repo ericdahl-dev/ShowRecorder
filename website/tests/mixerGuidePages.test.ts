@@ -1335,7 +1335,8 @@ describe("the XR12, XR16 and MR12 guide's facts", () => {
     expect(mdx).toMatch(new RegExp(`^# ${headline}$`, "m"));
     expect(PAGES.guideXR12.title).not.toMatch(/multitrack/i);
     expect(llmsTxt()).toContain(`[${headline}](`);
-    for (const g of MIXER_GUIDES.filter((x) => x.slug !== guide.slug)) {
+    // The Avantis (#1071) also has no USB audio and uses the same honest title; its facts check it.
+    for (const g of MIXER_GUIDES.filter((x) => x.slug !== guide.slug && !x.noMultitrack)) {
       const page = (PAGES as Record<string, { title: string }>)[g.pageKey];
       expect(page.title).toBe(guideTitle(g.short));
       expect(page.title).toMatch(/USB multitrack recording/);
@@ -1422,6 +1423,16 @@ describe("the Allen & Heath Avantis guide's facts", () => {
   const guide = MIXER_GUIDES.find((g) => g.slug === "ah-avantis")!;
   const quick = mdx.slice(mdx.indexOf("**Quick start**"), mdx.indexOf("\n## "));
 
+  // The honest-title pattern from #1113: no USB audio, so the title and H1 say "How to record".
+  it("says 'How to record' in its title and H1, not 'multitrack record'", () => {
+    const headline = "How to record an Allen & Heath Avantis";
+    expect(guide.noMultitrack).toBe(true);
+    expect(PAGES.guideAhAvantis.title).toBe(`${headline} - ShowRecorder`);
+    expect(PAGES.guideAhAvantis.title).not.toMatch(/multitrack/i);
+    expect(mdx).toMatch(new RegExp(`^# ${headline}$`, "m"));
+    expect(llmsTxt()).toContain(`[${headline}](`);
+  });
+
   it("is in MIXER_GUIDES with its own campaign, and the hub's Avantis row links it", () => {
     expect(guide.campaign).toBe("site-guide-ah-avantis");
     expect(MIXER_ROWS.find((r) => /Avantis/.test(r.name))!.guide).toBe(guide.path);
@@ -1471,6 +1482,8 @@ describe("the Allen & Heath Avantis guide's facts", () => {
 
   it("routes with Record Send, Direct Outs or Tie Lines, and says Record Send overrides the port's output patch", () => {
     const routing = section(mdx, "Avantis USB routing", "Avantis playback for virtual soundcheck");
+    // Coordinator on #1128: the section leads with what to do, not with a denial.
+    expect(routing.split("\n").find((l) => l.trim() && !l.startsWith("##"))).toMatch(/^\*\*Send the channels to your option card/);
     expect(routing).toMatch(/\*\*I\/O\*\*, then \*\*Virtual SoundCheck\*\*/);
     expect(routing).toMatch(/\*\*Record Send\*\*/);
     expect(routing).toMatch(/temporarily override the normal output patch/);
@@ -1515,9 +1528,12 @@ describe("the Allen & Heath Avantis guide's facts", () => {
     const apple = section(mdx, "Avantis on Mac, iPad and iPhone", "Sources");
     expect(apple).toMatch(/\*\*iPhone and iPad:\*\*[^\n]*no multitrack over USB/);
     expect(apple).toMatch(/not tested yet/);
-    expect(mdx).toMatch(/records every USB Channel from any class-compliant mixer\. The Avantis sends no audio over USB/);
+    // The plain ShowRecorder line of #1113, with no Mixer Link line (it doesn't apply).
+    expect(mdx).toMatch(
+      /ShowRecorder \(our app\) records each channel from mixers that send their channels over USB\. The Avantis sends none, so it can't record its channels with a USB cable\./,
+    );
     expect(mdx).toMatch(/We haven't tested ShowRecorder with an Avantis/);
-    expect(mdx).toMatch(/There is no Mixer Link for the Avantis/);
+    expect(mdx).not.toMatch(/Mixer Link/);
     expect(mdx + guide.faqs.map((f) => f.a).join(" ")).not.toMatch(/\b(un)?supported\b/i);
   });
 
@@ -1529,7 +1545,10 @@ describe("the Allen & Heath Avantis guide's facts", () => {
     expect(mdx).toMatch(/A Tie Line sends a socket/);
   });
 
-  it("files the forum link under one user's report", () => {
+  it("files the forum link under one user's report, and cites it inline where the request comes up", () => {
+    const asked = mdx.split("\n").find((l) => l.startsWith("- **Users have asked for it:**"))!;
+    expect(asked).toContain("](https://forums.allen-heath.com/t/usb-multitrack/11250)");
+    expect(asked).toMatch(/users' reports/);
     const sources = mdx.slice(mdx.indexOf("## Sources"));
     const users = sources.slice(sources.indexOf("Users on Allen & Heath's forum"));
     expect(users).toContain("https://forums.allen-heath.com/t/usb-multitrack/11250");

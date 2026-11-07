@@ -322,8 +322,9 @@ export type MixerGuide = {
   campaign: AppStoreCampaign;
   // The setting the tap-point guide's short answer names for this mixer.
   tapPick: string;
-  // True for a mixer with no USB audio, which can't multitrack (the XR12, XR16 and MR12): its title and H1 say
-  // "How to record", and it has no "every USB Channel" or Mixer Link line.
+  // True for a mixer with no USB audio, which can't multitrack over USB (the XR12, XR16 and MR12, and the Avantis,
+  // which multitracks only through an option card): its title and H1 say "How to record", and it has no
+  // "every USB Channel" or Mixer Link line.
   noMultitrack?: true;
 };
 
@@ -1146,7 +1147,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     short: "Avantis",
     mixer: "Allen & Heath Avantis",
     description:
-      "Multitrack record an Allen & Heath Avantis or Avantis Solo with no USB audio: option cards, Record Send, Direct Outs, virtual soundcheck, tap points.",
+      "Record an Allen & Heath Avantis or Avantis Solo. No USB audio, so multitrack goes through an option card: Record Send, Direct Outs, virtual soundcheck.",
     published: "2026-11-07",
     faqs: AH_AVANTIS_GUIDE_FAQS,
     faqsName: "AH_AVANTIS_GUIDE_FAQS",
@@ -1164,5 +1165,6 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pick: "No USB audio interface: multitrack needs an option card (Dante, Waves, MADI or gigaACE). Records only stereo by itself. Mac, iPhone or iPad: no multitrack over USB.",
     campaign: "site-guide-ah-avantis",
     tapPick: "Record Send in I/O > Virtual SoundCheck for raw, pre-trim tracks, or Direct Outs with the Global Direct Output Source on the Routing screen for processed ones",
+    noMultitrack: true,
   },
 ];

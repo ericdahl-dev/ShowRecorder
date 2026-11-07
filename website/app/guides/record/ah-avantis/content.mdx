@@ -3,7 +3,7 @@ import { guideTrail } from "@/lib/mixerGuides";
 
 <Breadcrumbs trail={guideTrail("Avantis", "/guides/record/ah-avantis")} />
 
-# How to multitrack record an Allen & Heath Avantis
+# How to record an Allen & Heath Avantis
 
 <LastChecked path="/guides/record/ah-avantis" />
 
@@ -71,11 +71,11 @@ If you plugged the Avantis into a computer and found no multitrack, that is how 
 - **What the USB sockets do:** there is one USB 2.0 socket on the back and one USB 3.0 socket on the front. Both take a USB drive. Allen & Heath says each one is there to "store and recall show files, update the firmware or to perform USB playback and recording."
 - **Recording over USB is stereo only.** Allen & Heath lists "USB stereo recording and playback".
 - **The fix:** fit an option card. See [Ways to record](#ways-to-record-an-avantis).
-- **Users have asked for it:** users on Allen & Heath's forum asked for USB multitrack in 2021. The release notes up to V2.02 (October 2026) don't add it (our reading).
+- **Users have asked for it:** users on Allen & Heath's forum asked for USB multitrack in 2021 ([USB Multitrack](https://forums.allen-heath.com/t/usb-multitrack/11250), users' reports). The release notes up to V2.02 (October 2026) don't add it (our reading).
 
 ## Avantis USB routing
 
-**There is no USB routing for multitrack.** You send channels to an I/O Port (the option card) instead. There are three ways. Each one is patched on the **I/O** screen, a grid with sources on one side and destinations on the other.
+**Send the channels to your option card's I/O Port,** on the **I/O** screen. USB carries no channels on the Avantis, so this is where the routing happens. There are three ways. Each one is patched on the **I/O** screen, a grid with sources on one side and destinations on the other.
 
 **1. Record Send (the quickest way, raw tracks):**
 
@@ -169,7 +169,7 @@ The tap point is the place in each channel where the recording is taken. Which o
 - **Windows:** the same as the Mac: an option card and the card maker's software.
 - **The stereo file:** record it on the mixer, copy it to a USB drive, then open it on any computer.
 
-ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer. The Avantis sends no audio over USB, so a USB cable gives ShowRecorder nothing to record (our reading). We haven't tested ShowRecorder with an Avantis or with an option card. There is no Mixer Link for the Avantis: Mixer Link, which reads channel names and colors, works only on the XR18/MR18 and X32/M32. If you try an Avantis with it, we'd like to hear how it goes.
+ShowRecorder (our app) records each channel from mixers that send their channels over USB. The Avantis sends none, so it can't record its channels with a USB cable. We haven't tested ShowRecorder with an Avantis or with an option card.
 
 <GetTheApp campaign="site-guide-ah-avantis" />
 
