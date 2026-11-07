@@ -519,7 +519,7 @@ export const WING_GUIDE_FAQS: readonly Faq[] = [
 export const M32_GUIDE_FAQS: readonly Faq[] = [
   {
     q: "Can an M32 multitrack record without a computer?",
-    a: "Only with the DN32-LIVE card, fitted to the M32 LIVE and M32R LIVE. It records 8, 16 or 32 channels to two SD or SDHC cards (FAT32, up to 32 GB each), as one multichannel 32-bit WAV at the console's 44.1 or 48 kHz: up to 200 minutes at 32 channels and 44.1 kHz on two 32 GB cards. The top-panel USB stick port records stereo only, and the DN32-USB card can't record by itself.",
+    a: "Only with the DN32-LIVE card, fitted to the M32 LIVE and M32R LIVE. It records 8, 16 or 32 channels to two SD or SDHC cards (FAT32, up to 32 GB each), as uncompressed multichannel 32-bit WAV at the console's 44.1 or 48 kHz: up to 200 minutes at 32 channels and 44.1 kHz on two 32 GB cards. The top-panel USB stick port records stereo only, and the DN32-USB card can't record by itself.",
   },
   {
     q: "Is recording an M32 the same as recording an X32?",
@@ -535,7 +535,7 @@ export const M32_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "How do I send the main mix or buses to USB on an M32?",
-    a: "Card out works in blocks of 8. Put the main mix or a bus in an Out 1-16 or P16 slot, with its tap point, then pick that block (for example Out 9-16) on the card out tab. User Out routing on firmware 4.x probably works as on the X32, per user reports; no Midas document describes it.",
+    a: "Card out works in blocks of 8. Put the main mix or a bus in an Out 1-16 or P16 slot, with its tap point, then pick that block (for example Out 9-16) on the card out tab. User Out routing on firmware 4.x probably works as on the X32, per user reports (our reading); no Midas document describes it.",
   },
 ];
 

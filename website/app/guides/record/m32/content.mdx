@@ -7,12 +7,12 @@ import { guideTrail } from "@/lib/mixerGuides";
 
 <LastChecked path="/guides/record/m32" />
 
-**Short answer.** Fit a DN32-USB or DN32-LIVE card, set the USB channel count on **Setup > Card**, put Local 1-8 to 25-32 on **ROUTING > card out**, and record the card's USB in any DAW. An M32 LIVE or M32R LIVE has the DN32-LIVE card, which can also record up to 32 channels to SD cards with no computer. Routing works as on the X32; the cards are what differ.
+**Short answer.** Fit a DN32-USB or DN32-LIVE card, on a DN32-LIVE set the USB channel count on **Setup > Card** (the DN32-USB is 32 x 32), put Local 1-8 to 25-32 on **ROUTING > card out**, and record the card's USB in any DAW. An M32 LIVE or M32R LIVE has the DN32-LIVE card, which can also record up to 32 channels to SD cards with no computer. Routing works as on the X32; the cards are what differ.
 
 **Quick start**
 
 1. **Check the card.** A card with two SD slots is a DN32-LIVE. No card in the slot means no USB multitrack. ([Ways to record](#ways-to-record-an-m32))
-2. **Set the channel count on Setup > Card** to 32 each way. ([Recording settings](#m32-recording-settings))
+2. **Check the channel count.** On a DN32-LIVE, set **Setup > Card** to 32 each way (the DN32-USB is 32 x 32). ([Recording settings](#m32-recording-settings))
 3. **Send the inputs to the card.** On **ROUTING > card out**, turn rotary controls 1 to 4 to Local 1-8, 9-16, 17-24 and 25-32. ([USB routing](#m32-usb-routing))
 4. **Plug the card's USB port into the computer** and open your recording app. An iPhone or iPad is not tested yet. ([Mac, iPad and iPhone](#m32-on-mac-ipad-and-iphone))
 5. **Record a 30 s test and play it back** before the show.
@@ -38,7 +38,7 @@ Plug the card's USB port into the computer and record in any DAW.
 
 ### With no computer
 
-- **DN32-LIVE card to SD cards** (M32 LIVE guide). It records 8, 16 or 32 channels to two SD or SDHC cards (FAT32, 1 to 32 GB each). SDXC cards above 32 GB are not supported. Each session is one multichannel WAV file at the console's 44.1 or 48 kHz, 32-bit PCM.
+- **DN32-LIVE card to SD cards** (M32 LIVE guide). It records 8, 16 or 32 channels to two SD or SDHC cards (FAT32, 1 to 32 GB each). SDXC cards above 32 GB are not supported. Files are uncompressed multichannel WAV (8, 16 or 32 channels) at the console's 44.1 or 48 kHz, 32-bit PCM (M32 LIVE guide); on the X-LIVE each session is one file (X-LIVE guide, our reading).
   - A 32-channel session at 44.1 kHz runs up to 200 min (3 hours 20 minutes) on two 32 GB cards.
   - Use class 10 cards for 32 channels. Class 6 is enough for 8 or 16.
   - An optional CR123A battery protects the files in a blackout.
@@ -52,17 +52,17 @@ A Mac works like any computer above. Midas and Klark Teknik don't document iPhon
 
 ## M32 recording settings
 
-- **Sample rate and clock:** on the **Setup** screen, as on the X32 (**Setup > Config**). On the X32 a rate change needs a console reboot (X32 manual); Midas doesn't say so for the M32, so plan for one (our reading).
+- **Sample rate and clock:** on **Setup > Config** (M32 LIVE guide: "config: This screen offers adjustments for sample rates and synchronisation"). On the X32 a rate change needs a console reboot (X32 manual); Midas doesn't say so for the M32, so plan for one (our reading). {/* spelling: ok (Midas's own word, quoted) */}
 - **USB channel count:** **Setup > Card**. The DN32-LIVE offers 32, 16, 8 or 2 channels each way (M32 LIVE guide). The choices 32/32, 16/16, 32/8, 8/32, 8/8 and 2/2 are named in Behringer's X32 documents, and we expect the M32 list to match because the firmware is shared, but no Midas document lists it (our reading).
 - **DN32-LIVE options:** the SD channel count and recording controls are on the same **Setup > Card** page (M32 LIVE guide).
-- **Bit depth:** fixed. DN32-USB audio is 24-bit, DN32-LIVE SD files are 32-bit PCM, and the USB stick recorder is 16-bit.
+- **Bit depth:** DN32-USB audio is 24-bit, DN32-LIVE SD files are 32-bit PCM, and the USB stick recorder is 16-bit. Midas documents no bit-depth setting; on the X32 it is fixed (X32 manual), and we expect the same on the M32 (our reading).
 - **File format:** the DN32-LIVE writes multichannel WAV only. Over USB, your recording app sets the format.
 
 {/* Screenshot: Setup > Card with the USB card at 32 channels. <Screenshot src="/images/guides/m32-setup-card.png" alt="M32 Setup > Card page with the USB card set to 32 channels each way" /> */}
 
 ### Only 8 or 2 channels? Check Setup > Card
 
-A card set to 8 or 2 channels sends only 8 or 2 to the computer. Set **Setup > Card** to 32 for a full multitrack, then check the recorder again.
+A DN32-LIVE set to 8 or 2 channels sends only 8 or 2 to the computer. On a DN32-LIVE, set **Setup > Card** to 32 each way (the DN32-USB is 32 x 32) for a full multitrack, then check the recorder again.
 
 ## M32 USB routing
 
@@ -81,7 +81,7 @@ Midas doesn't state a factory default for card out. Check **ROUTING > card out**
 
 1. **Open card out.** Press **ROUTING** and go to the **card out** tab.
 2. **Pick four blocks.** "Adjust the first rotary control to select an 8-channel signal path that will be sent to the first eight channels", then "repeat the process with controls 2-4", for card outputs 1-8, 9-16, 17-24 and 25-32 (M32 manual).
-3. **Confirm if asked.** On the X32 you press each encoder to confirm; check whether your M32 asks for it (our advice).
+3. **Assign.** "Tap the first control to assign the selected output path, completing the process" (M32 manual), and do the same for controls 2-4.
 
 {/* Screenshot: ROUTING > card out with Local 1-8 to 25-32. <Screenshot src="/images/guides/m32-card-out.png" alt="M32 ROUTING card out tab with Local 1-8, 9-16, 17-24 and 25-32 on the four rotary controls" /> */}
 
@@ -127,7 +127,7 @@ Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-po
 
 - **For a multitrack you will mix later:** Local or AES50 blocks on card out, as in the quick start.
 - **Local and AES50 blocks on card out** are the raw input: after the preamp, before the channel. You can't pick a tap for them.
-- **Out 1-16 and P16 slots** each have their own tap point: Input, Pre-EQ, Pre-Fader and Post-Fader (M32 manual). The manual says this "determines where in the audio signal path the source is 'tapped'". Later firmware may name them differently, so check what your console offers.
+- **Out 1-16 and P16 slots** each have their own tap point: Input, Pre-EQ, Pre-Fader and Post-Fader (M32 manual). The manual says this "determines where in the audio signal path the source is 'tapped'". On the X32, forum users report newer names such as Input/LC and +M variants (our reading for the M32), so check what your console offers.
 - **Mic gain and phantom power** sit at the preamp, local or on a DL16 or DL32 stage box over AES50, so they reach every feed, even the raw blocks. The channel's trim, low cut, EQ, dynamics and fader don't reach a raw block.
 - **Shared stage box** (a DL16 or DL32 on two consoles): whichever console controls the stage box preamp gain changes your recorded level. We found no gain compensation feature for the M32.
 
@@ -137,7 +137,7 @@ Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-po
 - **iPhone and iPad:** not documented, and not tested yet. No Midas or Klark Teknik document lists iOS or iPadOS for audio from either card. The DN32-USB is class compliant, which suggests it may work, but that is not a confirmation. We will say it works once someone makes a real recording from a DN32 card into an iPhone.
 - **Power:** for a long show, keep the iPhone or iPad on a powered USB-C hub (our advice).
 
-ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer. On the X32 and M32 it also reads channel names and colors over Mixer Link, which works only on the XR18/MR18 and X32/M32. Its X32 and M32 support has run only against an X32 emulator so far, and Mixer Link with an M32 is not tested yet. If you try it, the [X32 and M32 page](/mixers/x32) has the setup, and we'd like to hear how it goes.
+ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer. On the X32 and M32 it is built to also read channel names and colors over Mixer Link, which works only on the XR18/MR18 and X32/M32. Its X32 and M32 support has run only against an X32 emulator so far, and Mixer Link with an M32 is not tested yet. If you try it, the [X32 and M32 page](/mixers/x32) has the setup, and we'd like to hear how it goes.
 
 <GetTheApp campaign="site-guide-m32" />
 

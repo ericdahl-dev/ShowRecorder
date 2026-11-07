@@ -438,6 +438,22 @@ describe("the Midas M32 guide's facts", () => {
     expect(all()).not.toMatch(/unsupported/i);
   });
 
+  // Fact check, loop 1 on #1108: X-LIVE and X32 facts are labeled; only what Midas states is stated.
+  it("states only what Midas states, and labels what comes from the X32 or X-LIVE", () => {
+    expect(mdx).not.toMatch(/Each session is one multichannel WAV/);
+    expect(mdx).toMatch(/Files are uncompressed multichannel WAV \(8, 16 or 32 channels\) at the console's 44\.1 or 48 kHz, 32-bit PCM \(M32 LIVE guide\)/);
+    expect(guide.faqs[0].a).toMatch(/as uncompressed multichannel 32-bit WAV/);
+    expect(mdx).not.toMatch(/\*\*Bit depth:\*\* fixed/);
+    expect(mdx).toMatch(/on the X32 it is fixed \(X32 manual\), and we expect the same on the M32 \(our reading\)/);
+    expect(mdx).toMatch(/"Tap the first control to assign the selected output path, completing the process" \(M32 manual\)/);
+    expect(mdx).not.toMatch(/Confirm if asked/);
+    expect(mdx).toMatch(/config: This screen offers adjustments for sample rates and synchronisation/); // spelling: ok (Midas's own word, quoted)
+    expect(mdx).toMatch(/Input\/LC and \+M variants \(our reading for the M32\)/);
+    expect(mdx).toMatch(/On a DN32-LIVE, set \*\*Setup > Card\*\* to 32 each way \(the DN32-USB is 32 x 32\)/);
+    expect(mdx).toMatch(/it is built to also read channel names and colors over Mixer Link/);
+    expect(guide.faqs.find((f) => /main mix/.test(f.q))!.a).toMatch(/per user reports \(our reading\)/);
+  });
+
   it("marks the Midas documents read on third-party hosts, and the forum posts as not Midas", () => {
     const sources = mdx.slice(mdx.indexOf("## Sources"));
     expect(sources).toMatch(/hosted by/);
