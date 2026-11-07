@@ -205,3 +205,40 @@ describe("the X32 guide's facts", () => {
     expect(mdx).toMatch(/200 min/);
   });
 });
+
+describe("the XR18 and MR18 guide's facts", () => {
+  const mdx = body("xr18");
+
+  it("says the XR18 can't record by itself, and the XR12 and XR16 send no USB audio", () => {
+    expect(mdx).toMatch(/can't record by itself/i);
+    expect(mdx).toMatch(/XR12/);
+  });
+
+  it("gives the per-slot Routing grid path and the sample rate setting", () => {
+    expect(mdx).toMatch(/Inputs\/USB/);
+    expect(mdx).toMatch(/orange dots/);
+    expect(mdx).toMatch(/Audio\/MIDI/);
+    expect(mdx).toMatch(/[Mm]ute the main LR/);
+  });
+
+  // The audited research: the manual shows only pre-low-cut and post-fader channel feeds; the "Input ... Post Fader"
+  // list is the aux and main bus taps. A tap choice per USB send is user-reported only.
+  it("gives the channel feeds the manual shows, and calls more taps per USB send unconfirmed", () => {
+    expect(mdx).toMatch(/\*\*pre low cut\*\*/);
+    expect(mdx).toMatch(/\*\*post fader\*\*/);
+    expect(mdx).toMatch(/not confirmed/i);
+    expect(mdx).not.toMatch(/input channel taps/i);
+  });
+
+  it("warns that a 2 x 2 setting sends only 2 channels, and that 48 kHz is the default", () => {
+    expect(mdx).toMatch(/2 x 2 sends only 2 channels/);
+    expect(mdx).toMatch(/48 kHz by default/);
+  });
+
+  it("says iPad is maker-confirmed, the iPhone isn't named, and MR18 facts come from retailers", () => {
+    const apple = mdx.slice(mdx.indexOf("## Mac, iPad and iPhone"), mdx.indexOf("## Sources"));
+    expect(apple).toMatch(/iOS 7 or higher \(iPad\)/);
+    expect(apple).toMatch(/doesn't name the iPhone/);
+    expect(mdx).toMatch(/retailer/i);
+  });
+});
