@@ -123,6 +123,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     mac: "Works.",
     ipad: "Yes, says Allen & Heath staff, with Stream Mode set to Multitrack.",
     iphone: "Not tested yet.",
+    guide: "/guides/record/ah-cq",
   },
   {
     name: "Allen & Heath Avantis and Avantis Solo",
@@ -622,6 +623,38 @@ export const UI24R_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the Allen & Heath CQ guide (#1070). Facts: docs/research/mixer-recording/ah-cq.md.
+export const AH_CQ_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I record an Allen & Heath CQ to an iPhone or iPad?",
+    a: "An iPad, yes, says Allen & Heath staff: the CQ's USB-B audio interface is class compliant. Set Stream Mode to Multitrack first, or the iPad sees only 2 channels. Allen & Heath doesn't name the iPhone, and we haven't tested either yet.",
+  },
+  {
+    q: "Why does my CQ show only 2 channels?",
+    a: "Stream Mode is set to Stereo. Go to CONFIG > Digital Audio > USB/SD and set Stream Mode to Multitrack. Stereo sends only one stereo pair, for phones and tablets that can't take more.",
+  },
+  {
+    q: "How many channels does a CQ send over USB?",
+    a: "The CQ-12T sends 16 channels to the computer and takes 16 back. The CQ-18T sends 24 and takes 22. The CQ-20B sends 24 and takes 24. All three run at 48 or 96 kHz.",
+  },
+  {
+    q: "Can the CQ multitrack record without a computer?",
+    a: "Yes, to an SD card (SDHC, up to 32 GB, UHS-I, class 10). The CQ-12T records 16 tracks. The CQ-18T and CQ-20B record 24 at 48 kHz, or 16 at 96 kHz. Each track is a mono 24-bit WAV file. A USB stick in the USB-A port records only stereo.",
+  },
+  {
+    q: "Which USB channel is each input on the CQ?",
+    a: "Mono inputs are fixed: input 1 goes to USB 1, input 7 to USB 7, and so on. The last few USB channels are stereo pairs you choose in CONFIG > Digital Audio > USB/SD > Channel Assignment. The last pair is the main mix (Main LR) out of the box.",
+  },
+  {
+    q: "Are CQ recordings pre or post fader?",
+    a: "Pre-fader, users report. One setting, Source Point, chooses how much channel processing goes to USB and SD: none, some or all. Users say there's no post-fader option, and we couldn't confirm one. To record a mix after the faders, put Main LR or an output mix in one of the stereo pairs.",
+  },
+  {
+    q: "How do I play a CQ recording back for a virtual soundcheck?",
+    a: "Go to CONFIG > INPUTS, select the channels, and set Input Source to USB/SD. The channels then play from the computer over USB, or from the SD card while the CQ is playing a multitrack.",
+  },
+];
+
 // The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
 export const X32_METHOD_A: readonly { name: string; text: string }[] = [
   { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
@@ -866,5 +899,37 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     ],
     campaign: "site-guide-ui24r",
     tapPick: "the fixed tap (straight after the mic preamp, before processing and the fader); there is nothing to set",
+  },
+  {
+    slug: "ah-cq",
+    path: "/guides/record/ah-cq",
+    pageKey: "guideAhCq",
+    short: "CQ",
+    mixer: "Allen & Heath CQ",
+    description:
+      "Multitrack record an Allen & Heath CQ-12T, CQ-18T or CQ-20B to a computer, iPad or SD card: Stream Mode, the fixed USB map, playback, the Source Point.",
+    published: "2026-11-07",
+    faqs: AH_CQ_GUIDE_FAQS,
+    faqsName: "AH_CQ_GUIDE_FAQS",
+    sources: [
+      "https://support.allen-heath.com/hc/en-gb/articles/48456934886545-CQ-CONFIG-screens",
+      "https://support.allen-heath.com/hc/en-gb/articles/48457057592721-CQ-HOME-screens",
+      "https://support.allen-heath.com/hc/en-gb/articles/48456861200017-CQ-How-to",
+      "https://support.allen-heath.com/hc/en-gb/articles/31464715078929-CQ-USB-B-Routing",
+      "https://support.allen-heath.com/hc/en-gb/articles/19338440353425-CQ-Multitrack-streaming-using-CQ",
+      "https://support.allen-heath.com/hc/en-gb/articles/19853352600337-CQ-Multitrack-Recording-and-Playback-from-SD-Card",
+      "https://support.allen-heath.com/hc/en-gb/articles/48456773235473-CQ-Connections",
+      "https://www.allen-heath.com/hardware/cq/cq-12t/",
+      "https://www.allen-heath.com/hardware/cq/cq-18t/",
+      "https://www.allen-heath.com/hardware/cq/cq-20b/",
+      "https://forums.allen-heath.com/t/usb-interface/16038",
+      "https://forums.allen-heath.com/t/13551",
+      "https://forums.allen-heath.com/t/14728",
+      "https://forums.allen-heath.com/t/post-fader-as-global-source-point-for-usb/25766",
+      "https://forums.allen-heath.com/t/recording-to-ipad-garageband/15620",
+    ],
+    pick: "16 channels over USB (24 on the CQ-18T and CQ-20B) to a computer. Records as many by itself to an SD card. iPad: yes, says Allen & Heath staff. iPhone: not tested yet.",
+    campaign: "site-guide-ah-cq",
+    tapPick: "the Source Point in CONFIG > Digital Audio > USB/SD, one setting for every channel (pick how much processing you want; users report no post-fader option)",
   },
 ];

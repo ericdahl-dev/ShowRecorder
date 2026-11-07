@@ -20,7 +20,7 @@ const body = (slug: string) => read("app", "guides", "record", slug, "content.md
 const shell = (slug: string) => read("app", "guides", "record", slug, "page.tsx");
 
 // "an X32", "an XR18", but "a Qu": the article before a guide's short name, by how the name is said.
-const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a", WING: "a", DL32S: "a", Ui24R: "a" };
+const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a", WING: "a", DL32S: "a", Ui24R: "a", CQ: "a" };
 const waysHeading = (short: string) => `Ways to record ${A_SHORT[short] ?? "an"} ${short}`;
 
 // The sections every mixer guide has, in this order. They name the mixer (review batch 1), so a heading quoted out of
@@ -129,8 +129,8 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S and the Ui24R have none; a Mixer Link guide that lost its product page must fail here, not skip.
-    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r"].includes(guide.slug));
+    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R and the CQ have none; a Mixer Link guide that lost its product page must fail here, not skip.
+    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq"].includes(guide.slug));
     if (guide.productPage === undefined) return;
     expect(mdx).toContain(`](${guide.productPage})`);
     expect(read("app", "mixers", guide.productPage.split("/").pop()!, "content.mdx")).toContain(`](${guide.path})`);
@@ -972,5 +972,130 @@ describe("the Soundcraft Ui24R guide's facts", () => {
   it("notes in its research that the v1.0 manual and v2.0 addendum were read in full on 2026-11-07 and matched", () => {
     const notes = read("..", "docs", "research", "mixer-recording", "soundcraft-ui24r.md");
     expect(notes).toMatch(/v1\.0[^\n]*v2\.0 (User Guide )?[Aa]ddendum[^\n]*read in full on 2026-11-07[^\n]*adn\.harmanpro\.com[^\n]*match/);
+  });
+});
+
+// Facts: docs/research/mixer-recording/ah-cq.md (#1070). Maker facts come from Allen & Heath's help center and its
+// staff on the forum; everything else on the forum is one user's report and is labeled as such.
+describe("the Allen & Heath CQ guide's facts", () => {
+  const mdx = body("ah-cq");
+  const guide = MIXER_GUIDES.find((g) => g.slug === "ah-cq")!;
+
+  it("is in MIXER_GUIDES with its own campaign, and the hub's CQ row links it", () => {
+    expect(guide.campaign).toBe("site-guide-ah-cq");
+    expect(MIXER_ROWS.find((r) => /CQ-12T/.test(r.name))!.guide).toBe(guide.path);
+  });
+
+  it("gives each model's USB channel count at 48 or 96 kHz over a class-compliant USB 2.0 port, with no Mac driver", () => {
+    const ways = section(mdx, "Ways to record a CQ", "CQ recording settings");
+    expect(ways).toMatch(/CQ-12T:\*\* 16 channels to the computer, 16 back/);
+    expect(ways).toMatch(/CQ-18T:\*\* 24 channels to the computer, 22 back/);
+    expect(ways).toMatch(/CQ-20B:\*\* 24 channels to the computer, 24 back/);
+    expect(ways).toMatch(/48 or 96 kHz/);
+    expect(ways).toMatch(/USB 2\.0/);
+    expect(ways).toMatch(/Core Audio compliant/);
+    expect(ways).toMatch(/Windows driver \(called ASIO\)/);
+    expect(ways).toMatch(/Bit depth over USB:\*\* not stated by Allen & Heath/);
+  });
+
+  it("puts Stream Mode = Multitrack first, with its menu path, as the fix for seeing only 2 channels", () => {
+    const quick = mdx.slice(mdx.indexOf("**Quick start**"), mdx.indexOf("\n## "));
+    expect(quick).toMatch(/^1\. \*\*Set Stream Mode to Multitrack\.\*\*/m);
+    const settings = section(mdx, "CQ recording settings", "CQ USB routing");
+    expect(settings).toMatch(/^### Only 2 channels\? Set Stream Mode to Multitrack$/m);
+    expect(settings).toMatch(/\*\*CONFIG\*\*, then \*\*Digital Audio\*\*, then \*\*USB\/SD\*\*/);
+    expect(settings).toMatch(/One setting covers USB-B, the USB stick and the SD card|This one setting covers USB-B, the USB stick and the SD card/);
+  });
+
+  it("gives the fixed 1:1 input map, the stereo pairs you choose per model, and Main LR on the last pair", () => {
+    const routing = section(mdx, "CQ USB routing", "CQ playback for virtual soundcheck");
+    expect(routing).toMatch(/CQ input 7 is being sent to USB channel 7/);
+    expect(routing).toMatch(/CQ-12T:\*\* USB 1-10 are inputs 1-10\. USB 11-16 are 3 stereo pairs/);
+    expect(routing).toMatch(/CQ-18T and CQ-20B:\*\* USB 1-16 are inputs 1-16\. USB 17-24 are 4 stereo pairs/);
+    expect(routing).toMatch(/Channel Assignment/);
+    expect(routing).toMatch(/The last stereo pair is set to Main LR by default/);
+    expect(routing).toMatch(/Other pairs' defaults:\*\* not stated/);
+  });
+
+  it("records every channel to an SD card, 16 at 96 kHz on the 18T and 20B, and only stereo to a USB stick", () => {
+    const ways = section(mdx, "Ways to record a CQ", "CQ recording settings");
+    expect(ways).toMatch(/CQ-18T and CQ-20B:\*\* 24 tracks at 48 kHz, or 16 tracks at 96 kHz/);
+    expect(ways).toMatch(/mono 24-bit WAV/);
+    expect(ways).toMatch(/SDHC card of 32 GB or less, marked UHS-I and Class 10/);
+    expect(ways).toMatch(/\*\*HOME\*\*, then \*\*RECORD\*\*, then \*\*Multitrack\*\*/);
+    expect(ways).toMatch(/USB stick records only stereo/);
+    expect(ways).toMatch(/can't run at the same time/);
+  });
+
+  it("plays back through Input Source = USB/SD, and sets the digital Trim, not the preamp Gain, for USB channels", () => {
+    const play = section(mdx, "CQ playback for virtual soundcheck", "CQ tap points");
+    expect(play).toMatch(/\*\*CONFIG\*\*, then \*\*INPUTS\*\*/);
+    expect(play).toMatch(/\*\*Input Source\*\* to \*\*USB\/SD\*\*/);
+    expect(play).toMatch(/Multi Select/);
+    expect(play).toMatch(/\*\*Trim\*\*/);
+  });
+
+  it("gives one global Source Point, labels the forum's option names and post-fader claim as users' reports, and explains pre-fader", () => {
+    const taps = section(mdx, "CQ tap points", "CQ on Mac, iPad and iPhone");
+    expect(taps).toMatch(/\*\*Source Point\*\*, on \*\*CONFIG\*\*/);
+    expect(taps).toMatch(/no input channel processing, some processing, or all processing/);
+    // The option names come from one user's list, never as Allen & Heath's.
+    const names = taps.split("\n").filter((l) => /Post AMM|Post Preamp/.test(l));
+    expect(names.length).toBeGreaterThan(0);
+    for (const l of names) expect(l).toMatch(/user/);
+    expect(taps).toMatch(/users say there's no post-fader option, and we couldn't confirm one/i);
+    expect(taps).toMatch(/factory setting:\*\* not stated by Allen & Heath/);
+    expect(taps).toMatch(/Auto Gain/);
+    expect(taps).toMatch(/before the fader[^\n]*pre-fader/i);
+    const faq = guide.faqs.find((f) => /pre or post fader/.test(f.q))!;
+    expect(faq.a).toMatch(/Users say there's no post-fader option, and we couldn't confirm one/);
+  });
+
+  it("says the iPad works per Allen & Heath staff, the iPhone is not tested yet, and the CQ records without Mixer Link", () => {
+    const apple = section(mdx, "CQ on Mac, iPad and iPhone", "Sources");
+    expect(apple).toMatch(/iPad:\*\* Allen & Heath staff on its forum say it works/);
+    expect(apple).toMatch(/iPhone:\*\* Allen & Heath doesn't name it, and we haven't tested one yet/);
+    expect(apple).toMatch(/designed only to power a USB drive/);
+    // Fact check on #1114: no untested result ("so it records a CQ").
+    expect(mdx).toMatch(
+      /records every USB Channel from any class-compliant mixer\. We haven't tested it with a CQ yet\. There is no Mixer Link for the CQ/,
+    );
+    expect(mdx).not.toMatch(/so it records a CQ/);
+    expect(mdx).not.toMatch(/unsupported/i);
+  });
+
+  // Fact check on #1114: a direct cable takes the iPad's only port, so a long show needs the camera adapter.
+  it("gives a cable for a short show and a powered adapter for a long one, without contradicting itself", () => {
+    const apple = section(mdx, "CQ on Mac, iPad and iPhone", "Sources");
+    expect(apple).toMatch(/Short show:\*\*[^\n]*USB-C to USB-B cable \(our advice\)/);
+    expect(apple).toMatch(/Long show:\*\*[^\n]*camera adapter with a power input[^\n]*USB-A to USB-B cable/);
+  });
+
+  // Fact check on #1114: the Source Point covers channel processing, never FX units such as reverb.
+  it("says the Source Point covers the channel's processing, not effects, and leads its tap section with what to do", () => {
+    const quick = mdx.slice(mdx.indexOf("**Quick start**"), mdx.indexOf("\n## "));
+    expect(quick).toMatch(/how much of the channel's processing \(gate, EQ, compressor\) ends up in the recording/);
+    expect(quick).not.toMatch(/effects/);
+    const taps = section(mdx, "CQ tap points", "CQ on Mac, iPad and iPhone");
+    expect(taps.split("\n").find((l) => l.trim() && !l.startsWith("##"))).toMatch(/^\*\*Check Source Point before you record\.\*\*/);
+    expect(taps).toMatch(/\*\*Faders don't change the recording\.\*\* Every Source Point is before the fader, users report\./);
+  });
+
+  it("explains its terms for beginners the first time they come up", () => {
+    expect(mdx).toMatch(/Class compliant means it works without a driver/);
+    expect(mdx).toMatch(/A virtual soundcheck plays a recorded show back/);
+    expect(mdx).toMatch(/The tap point is the place in each channel where the recording is taken/);
+    expect(mdx).toMatch(/\(USB returns\)/);
+    expect(mdx).toMatch(/AMM is the automatic mic mixer/);
+  });
+
+  it("files every forum link under Allen & Heath staff or under one user's report", () => {
+    const sources = mdx.slice(mdx.indexOf("## Sources"));
+    const staff = sources.slice(sources.indexOf("Allen & Heath staff on its forum:"), sources.indexOf("Users on Allen & Heath's forum"));
+    const users = sources.slice(sources.indexOf("Users on Allen & Heath's forum (one user's report each"));
+    const forum = [...sources.matchAll(/\]\((https:\/\/forums\.allen-heath\.com[^)]+)\)/g)].map((m) => m[1]);
+    expect(forum.length).toBeGreaterThan(1);
+    for (const url of forum) expect(staff.includes(url) || users.includes(url), url).toBe(true);
+    expect(staff).toContain("usb-interface/16038");
   });
 });
