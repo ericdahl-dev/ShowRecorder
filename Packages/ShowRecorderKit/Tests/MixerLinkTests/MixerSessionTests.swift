@@ -149,6 +149,40 @@ struct MixerSessionTests {
         #expect(session.gainControl == nil)
     }
 
+    @Test("Find Mixers asks for the USB one only when more than one Mixer of the Ready family answers (#1018)")
+    func findMixersAsksForUSBMixer() async {
+        let (session, _) = session()
+        let x32 = FoundMixer(host: "10.0.0.30", identity: MixerIdentity(networkName: "MAIN", model: "X32", firmware: "4.06"))
+        #expect(!session.asksForUSBMixer(among: Self.twoXR18s), "nothing Ready")
+
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
+
+        #expect(session.asksForUSBMixer(among: Self.twoXR18s))
+        #expect(!session.asksForUSBMixer(among: [Self.twoXR18s[0], x32]), "one X Air and an X32")
+        await session.ready(interfaceName: "X-USB", usbChannelCount: 32)
+        #expect(!session.asksForUSBMixer(among: Self.twoXR18s), "two X Airs, but an X32 Ready")
+    }
+
+    @Test("Tapping a Mixer in Find Mixers picks it as the USB one when Find Mixers asked, and only links it otherwise (#1018)")
+    func findMixersTapPicksWhenAsked() async {
+        var mon = FakeMixerDriver.State()
+        mon.identity = Self.twoXR18s[1].identity
+        let drivers = ["10.0.0.20": FakeMixerDriver(gainControl: StubGainControl()), "10.0.0.21": FakeMixerDriver(mon, gainControl: StubGainControl())]
+        let link = MixerLinkController(makeDriver: { endpoint, _ in drivers[endpoint.host]! })
+        let store = UserDefaults(suiteName: "MixerSessionTests-\(UUID().uuidString)")!
+        let session = MixerSession(link: link, store: store, network: { ScanRange(address: "10.0.0.2", netmask: "255.255.255.0") },
+                                   scan: { _ in Self.twoXR18s })
+        await session.ready(interfaceName: "XR18", usbChannelCount: 18)
+
+        await session.choose(Self.twoXR18s[1], among: [Self.twoXR18s[1]])
+        #expect(link.identity?.networkName == "MON")
+        #expect(session.gainControl == nil, "Find Mixers listed one, so the tap only linked it; the check still finds two")
+
+        await session.choose(Self.twoXR18s[1], among: Self.twoXR18s)
+        #expect(session.address == "10.0.0.21")
+        #expect(session.gainControl != nil, "picked as the USB one")
+    }
+
     @Test("With another input Ready, there's no status, no Sources and no gain control, though the Link is still up")
     func otherInputHidesTheLink() async {
         let (session, link) = session()
