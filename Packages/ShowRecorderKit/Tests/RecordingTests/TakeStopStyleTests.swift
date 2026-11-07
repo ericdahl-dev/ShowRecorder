@@ -18,4 +18,9 @@ struct TakeStopStyleTests {
         #expect(TakeStopStyle.resolve(isIOS: false, holdToStopAvailable: true) == .confirm)
         #expect(TakeStopStyle.resolve(isIOS: false, holdToStopAvailable: false) == .confirm)
     }
+
+    @Test("The iPad keeps tap and confirm where only the iPhone rule is on (#753)")
+    func padWithoutPadRule() {
+        #expect(TakeStopStyle.resolve(device: .iPad, holdOnIPhone: true, holdOnIPad: false) == .confirm)
+    }
 }
