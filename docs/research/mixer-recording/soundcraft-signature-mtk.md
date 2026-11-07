@@ -72,6 +72,17 @@ Checked 2026-11-06. Sources are numbered in section 9. Both models are marked "D
 
 Note: spec quotes for the 22 MTK USB socket, sample rates and gain range come from source 4, which does not cover the 12 MTK.
 
+Editions: the Recording Guide PDF (source 2) shows no date or edition; its file was made in March 2016. The help-center page (source 1) says "Updated at February 10th, 2026" and has the same text. The User Manual (source 4) is Rev 1.1, "E&OE September 2014", part no. 5056808.
+
+The Recording Guide PDF and the User Manual PDF were read in full on 2026-11-07 (`pdftotext -layout`), as downloaded from soundcraft.com, which redirects to adn.harmanpro.com. They match the notes above. Added from that read, for the guide (#1073):
+- 22 MTK bit depth: "Bit Depth: 16-bit, 24-bit" (source 4, specs).
+- Mute: "a pre-fade mute and so does not affect the USB send on the Signature 22MTK console" (source 4, 5.1.1).
+- Limiters: on the 22 MTK, "channels 1 and 2 incorporate switchable input limiters" (source 4, 4.1). Place relative to the USB tap still not stated.
+- The Signature 16 and 22 (no MTK) "have 2-track USB input and output functionality", with a USB SEND switch for the main mix or Aux 1-2 (source 4, 7.1).
+- Windows control panel: "Reliable" with 1024 samples is clean; "Low Latency" with 128; "Reliable" with 64 "would result in distorted audio" (source 2).
+- Before playback, turn off record "to avoid recording over your recorded show" (source 2, REAPER).
+- Mac stereo playback: Audio MIDI Setup, Configure Speakers, outputs 11/12 (21/22 on the 22 MTK) (source 2).
+
 ## Gaps
 
 - iPhone: not named by Soundcraft. Say "not tested yet".

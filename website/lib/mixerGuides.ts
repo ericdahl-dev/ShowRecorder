@@ -150,6 +150,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     mac: "Uses Core Audio; current macOS not listed by Soundcraft.",
     ipad: "Yes, with a camera adapter (maker).",
     iphone: "Not tested yet.",
+    guide: "/guides/record/signature-mtk",
   },
   {
     name: "Yamaha TF1, TF3, TF5 and TF-Rack",
@@ -655,6 +656,38 @@ export const AH_CQ_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the Soundcraft Signature MTK guide (#1073). Facts: docs/research/mixer-recording/soundcraft-signature-mtk.md.
+export const SIGNATURE_MTK_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I record a Soundcraft Signature MTK to an iPhone or iPad?",
+    a: "An iPad, yes, says Soundcraft: the USB port works with \"an iPad (using a Camera Connectivity Kit)\". Soundcraft doesn't name the iPhone. We haven't tested either one with a Signature MTK yet.",
+  },
+  {
+    q: "How many channels does a Signature MTK send over USB?",
+    a: "The Signature 12 MTK sends 14 channels to the computer and takes 12 back. The 22 MTK sends 24 and takes 22. Both run at 44.1 or 48 kHz, up to 24-bit, over USB 2.0.",
+  },
+  {
+    q: "Why does my Signature mixer show only 2 channels over USB?",
+    a: "Check that its name ends in MTK. The Signature 16 and 22 without MTK have only 2-track USB: the main mix or Aux 1-2. Only the 12 MTK and 22 MTK send every input.",
+  },
+  {
+    q: "Can the Signature MTK record without a computer?",
+    a: "No. It has no card slot or USB drive recorder. The USB-A socket on the 22 MTK is for power only, \"Not for data\". You need a computer or an iPad on its USB-B port.",
+  },
+  {
+    q: "Which USB channel is each input on the Signature MTK?",
+    a: "The map is fixed. Input channel 1 is USB 1, input 2 is USB 2, and so on. On a stereo channel, left is the odd number and right the even one. The Master L/R mix is on the last two USB channels: 13-14 on the 12 MTK, 23-24 on the 22 MTK.",
+  },
+  {
+    q: "Are Signature MTK recordings pre or post fader?",
+    a: "Pre-fader. Soundcraft: input channels \"ALWAYS send their post-gain, pre-EQ signal\" to USB. The gain knob changes the recording; the EQ, the fader and the mute don't. Only the Master L/R pair is post-fader.",
+  },
+  {
+    q: "How do I play a Signature MTK recording back for a virtual soundcheck?",
+    a: "Send each track out of the computer on the USB channel with the same number as its input. Then press the USB RTN button on each channel. The USB audio then replaces that channel's input, just after the gain knob. Turn off record on your tracks before you press play.",
+  },
+];
+
 // The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
 export const X32_METHOD_A: readonly { name: string; text: string }[] = [
   { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
@@ -931,5 +964,27 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     pick: "16 channels over USB (24 on the CQ-18T and CQ-20B) to a computer. Records as many by itself to an SD card. iPad: yes, says Allen & Heath staff. iPhone: not tested yet.",
     campaign: "site-guide-ah-cq",
     tapPick: "the Source Point in CONFIG > Digital Audio > USB/SD, one setting for every channel (pick how much processing you want; users report no post-fader option)",
+  },
+  {
+    slug: "signature-mtk",
+    path: "/guides/record/signature-mtk",
+    pageKey: "guideSignatureMtk",
+    short: "Signature MTK",
+    mixer: "Soundcraft Signature MTK",
+    description:
+      "Multitrack record a Soundcraft Signature 12 MTK or 22 MTK to a computer or iPad: 44.1 or 48 kHz, the fixed USB map, USB RTN playback, the tap point.",
+    published: "2026-11-07",
+    faqs: SIGNATURE_MTK_GUIDE_FAQS,
+    faqsName: "SIGNATURE_MTK_GUIDE_FAQS",
+    sources: [
+      "https://www.soundcraft.com/en-US/product_documents/soundcraft_signaturemtk_recordingguide-pdf-9360dc07-d05a-411b-8759-b15f6664b458",
+      "https://harman.helpjuice.com/en_US/soundcraft-signature-mtk-recording-guide",
+      "https://www.soundcraft.com/en-US/product_documents/soundcraft_signature_16-22_user_guide-pdf-90501050-7f3c-46c3-8d93-50a286334ded",
+      "https://www.soundcraft.com/en-US/products/signature-12-mtk",
+      "https://www.soundcraft.com/en-US/products/signature-22-mtk",
+    ],
+    pick: "14 channels over USB (24 on the 22 MTK) to a computer. No recording without a computer. iPad: yes, with a camera adapter, says Soundcraft. iPhone: not tested yet.",
+    campaign: "site-guide-signature-mtk",
+    tapPick: "the fixed tap (after the gain knob, before the EQ and the fader); there is nothing to set",
   },
 ];
