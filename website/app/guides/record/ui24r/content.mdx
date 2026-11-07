@@ -1,0 +1,149 @@
+import { AskUs, Breadcrumbs, GetTheApp, LastChecked } from "@/components/GuideParts";
+import { guideTrail } from "@/lib/mixerGuides";
+
+<Breadcrumbs trail={guideTrail("Ui24R", "/guides/record/ui24r")} />
+
+# How to multitrack record a Soundcraft Ui24R
+
+<LastChecked path="/guides/record/ui24r" />
+
+**Short answer.** Plug the Ui24R's USB-B **DAW Connection** socket into a computer and record at 48 kHz. It sends 32 channels in a fixed order: USB 1-2 are the Master L/R, USB 3-10 are AUX 1-8, and USB 11-32 are inputs 1-22. There is nothing to patch. A Mac needs no driver; Windows needs Soundcraft's driver. With no computer, the Ui24R records up to 22 tracks to a USB drive in its front **MEDIA - REC** socket. Soundcraft doesn't say whether an iPhone or iPad works, and we haven't tested one yet.
+
+**Quick start**
+
+1. **Connect the DAW Connection socket** to the computer. On a Mac, no driver is needed. On Windows, install the Soundcraft Multi-Channel USB Audio Driver, V3.20 or later. ([Ways to record](#ways-to-record-a-ui24r))
+2. **Set your recording app to 48 kHz.** ([Recording settings](#ui24r-recording-settings))
+3. **Arm USB 11-32 for inputs 1-22.** The USB map is fixed, so there is nothing to patch on the mixer. ([USB routing](#ui24r-usb-routing))
+4. **Set each preamp's gain before the show:** it is in the recording, while the channel EQ, dynamics and fader are not. ([Tap points](#ui24r-tap-points))
+5. **Record a 30 s test and play it back** before the show.
+6. **Input 1 not on track 1?** It arrives on USB 11. ([Only the master on tracks 1 and 2?](#only-the-master-on-tracks-1-and-2-inputs-start-at-usb-11))
+
+Every other mixer is in the [mixer recording guides](/guides/record), and the words used here are in its [glossary](/guides/record#glossary). Facts come from Soundcraft's Ui24R manual and Harman's Soundcraft support articles unless a line says otherwise. The [sources](#sources) are at the end.
+
+## Ways to record a Ui24R
+
+### To a computer over USB
+
+Plug the USB-B socket marked **DAW Connection** into the computer and record in any DAW.
+
+- **Channels:** 32 to the computer and 32 back. The manual calls it "a 32 x 32 USB Audio Interface with CORE Audio and ASIO drivers".
+- **Sample rate:** 48 kHz. Harman's DAW article says Pro Tools "Sample Rate NEEDS to be 48kHz", and Ableton "should automatically set to 48kHz".
+- **Bit depth:** not stated by Soundcraft for USB.
+- **Mac:** no driver. Harman: "Yes, the Ui24R is Core Audio compliant. If you are using a Mac, the Mac will recognize the Ui24R as an Audio Interface automatically."
+- **Windows:** install the Soundcraft Multi-Channel USB Audio Driver, V3.20 or later.
+- **One mixer per computer:** only one Ui24R can be connected to a computer at a time. In cascade mode, the channels of the second mixer don't reach the DAW.
+
+### With no computer: to a USB drive
+
+The Ui24R records by itself to a USB drive in the front **MEDIA - REC** socket. The manual: it can "multitrack record up to 22 separate tracks which can then be imported into any DAW software". It also makes 2-track stereo recordings.
+
+- **Tracks:** up to 22, one per input. They are "recorded directly from the mic preamps" (see [Tap points](#ui24r-tap-points)).
+- **The drive:** Harman asks for a drive "formatted in FAT32 only", "32GB or less in size", with a read/write speed of "25mb/s or higher". The manual adds: "Multi-track USB Playback will require a minimum of USB 3.0 with a transfer rate of 25mb/s." An SD or microSD card in a USB adapter also works: FAT32, 32 GB or less, UHS-3 or V30.
+- **Speed check:** a speed buffer indicator in the player goes green, yellow, then orange, and shows an error if the drive is too slow (Ui24R manual).
+- **File format:** not stated by Soundcraft in any document we read. A 2017 review in Sound On Sound says "the multitrack format is either uncompressed WAV or the more space-efficient FLAC", chosen on the settings page. The Ui Session Maker converts imported files to "FLAC 24bit" for the multitrack player. So: WAV or FLAC, set in the settings, per a 2017 review.
+- **Sample rate on the drive:** not stated by Soundcraft.
+
+### To an iPhone, iPad or Mac with an app
+
+A Mac works like any computer above, with no driver. Soundcraft doesn't say whether an iPhone or iPad works over USB, and we haven't tested one yet. See [Mac, iPad and iPhone](#ui24r-on-mac-ipad-and-iphone) below.
+
+## Ui24R recording settings
+
+- **USB sample rate:** 48 kHz. Set your recording app to 48 kHz.
+- **USB bit depth:** not stated by Soundcraft.
+- **USB channel count:** 32, fixed. There is no setting for fewer.
+- **Multitrack to the drive:** the **PLAYER > MULTITRACK** page has the sessions and the record button. Which tracks record is on the **Multitrack Config** page (Ui24R manual).
+- **Multitrack format and bit depth:** the 2017 review says "The USB bit depth and file format can be chosen within the settings page." Soundcraft's documents don't name that setting or list its options.
+- **2-track bit depth:** **SETTINGS > 2 TRK RECORD MODE**, with 32-bit, 24-bit or 16-bit. The manual's line for it says "sample rate", but the options are bit depths.
+- **Clock:** Soundcraft's documents mention no word clock or external sync.
+
+{/* Screenshot: the PLAYER > MULTITRACK page with a session and the record button. <Screenshot src="/images/guides/ui24r-player-multitrack.png" alt="Soundcraft Ui24R PLAYER, MULTITRACK page with a new session and the record button" /> */}
+
+### Only the master on tracks 1 and 2? Inputs start at USB 11
+
+The first 10 USB channels are the mixes, not the inputs. Harman: "First 10 channels are your Masters (L, R, Aux Buses 1-8), so the input channels start at patch point 11."
+
+- **Input 1** arrives on USB 11, and input 22 on USB 32. Arm those tracks in your app.
+- **USB 1-2** carry the Master L/R, and **USB 3-10** carry AUX 1-8.
+- **On Windows,** install the Soundcraft Multi-Channel USB Audio Driver, V3.20 or later, before you record.
+- **In cascade mode,** only the mixer plugged into the computer reaches the DAW.
+
+## Ui24R USB routing
+
+**Recording every channel? There is nothing to set.** Harman: "No USB send patching is required on the Ui24R's end, it automatically is set."
+
+- **USB 1-2:** the Master L/R.
+- **USB 3-10:** AUX 1-8. Harman: "Patching is not switchable on the Ui, so the sends to the DAW from the mixes is 3-10 (corresponding to Mix 1-8)."
+- **USB 11-32:** inputs 1-22.
+- **No per-slot routing:** you can't choose a source for a USB channel or change the order on the mixer.
+- **The main mix:** USB 1-2. A post on Soundcraft's forum says it is after the processing (forum, not Soundcraft).
+- **A processed or post-fader channel:** use an AUX as a group. Set the AUX to POST and POST PROC, send the channel to it at 0 dB, and record that AUX's USB channel (3-10). Harman describes this in its article on recording from groups.
+- **The onboard recorder** takes each track from its physical input, whatever the channel is patched to. Harman: "the record 'send' is the physical input jack and preamp on the mixer." After re-patching, the track labels on the Multitrack Config page can show the patched label rather than the input really recorded.
+
+## Ui24R playback for virtual soundcheck
+
+**From a computer over USB:**
+
+1. Go to **SETTINGS > PATCHING > CHANNELS**.
+2. Pick **USB DAW 1-16** or **17-32** at the top.
+3. Press **Patch 1:1**, or patch each channel by hand.
+
+Any of the 32 USB returns can go to any channel, and from firmware V2 also straight to a hardware output (Ui24R v2.0 addendum). Your app decides which USB return each track plays on. If it plays each track back on the number it came in on, input 1 returns on USB 11: patch USB 11-32 to channels 1-22, or move the tracks to outputs 1-22 in your app and use Patch 1:1 (our advice).
+
+{/* Screenshot: SETTINGS > PATCHING > CHANNELS with USB DAW 17-32 picked. <Screenshot src="/images/guides/ui24r-patching-usb-daw.png" alt="Soundcraft Ui24R SETTINGS, PATCHING, CHANNELS page with the USB DAW 17-32 tab and Patch 1:1" /> */}
+
+**From the USB drive:**
+
+- Turn on the **Soundcheck** patch set, in **SETTINGS > PATCHING > OVERVIEW** or on the **PLAYER > MULTITRACK** page (Ui24R manual).
+- Channels 21-24 can take a USB return or a local input, but not the onboard multitrack player (Ui24R v2.0 addendum).
+- The manual asks for a USB 3.0 drive at 25 MB/s or faster for multitrack playback.
+
+## Ui24R tap points
+
+Which tap to record, and why, is in [Pre or post fader](/guides/record/pre-or-post-fader). On the Ui24R:
+
+- **Which to pick:** there is nothing to pick. The tap is fixed and can't be set per channel.
+- **The onboard recorder:** Harman's Ui24R article: "The tracks are recorded directly from the mic preamps."
+- **USB 11-32:** Harman, in an article that covers the Ui series and the Si consoles: "Recording from channels will only be pre-fader, pre-processing." No Harman article says in so many words that USB 11-32 use the same point as the onboard recorder, but both point that way (our reading).
+- **Gain is in the recording:** the analog preamp gain changes the recorded level. The channel EQ, dynamics and fader don't (our reading of "pre-processing").
+- **HPF:** Soundcraft doesn't say where the high-pass filter sits relative to the tap. "Pre-processing" suggests it is not in the recording (our reading).
+- **A forum line:** a post on Soundcraft's forum lists it as "Post gain ... pre mute, pre gate, pre comp, pre EQ, pre fader" (forum, not Soundcraft).
+- **Not per channel:** you can't change the tap. For a post-fader or processed track, record an AUX set to POST and POST PROC (see [USB routing](#ui24r-usb-routing)).
+
+## Ui24R on Mac, iPad and iPhone
+
+- **Mac:** no driver. Harman: "the Mac will recognize the Ui24R as an Audio Interface automatically." Harman also lists the Ui series on macOS Sequoia as "plug and play ... no additional driver needed". The 2017 v1.0 manual says a Soundcraft driver is required for multichannel USB; Harman's newer FAQ limits that to Windows.
+- **iPhone and iPad:** Soundcraft doesn't say whether either works over USB, and both are not tested yet with a Ui24R.
+- **Cable:** the Ui24R's DAW Connection socket is USB-B. From a USB-C iPhone or iPad, we'd try a USB-C to USB-B cable (our advice, not Soundcraft's).
+- **Power:** Soundcraft doesn't say whether the Ui24R charges a phone or tablet. For a long show, use a powered USB-C hub or a camera adapter that passes power through (our advice).
+- **Windows:** install the Soundcraft Multi-Channel USB Audio Driver, V3.20 or later.
+
+ShowRecorder (the app this site makes) records every USB Channel from any class-compliant mixer. We haven't tested it with a Ui24R yet. There is no Mixer Link for the Ui24R: Mixer Link, which reads channel names and colors, works only on the XR18/MR18 and X32/M32. If you record a Ui24R with it, we'd like to hear how it goes.
+
+<GetTheApp campaign="site-guide-ui24r" />
+
+<AskUs />
+
+## Sources
+
+Soundcraft manuals:
+
+- [Ui24R User Manual v1.0](https://www.soundcraft.com/en-US/product_documents/ui24r_manual_v1-0_web-pdf): the 32 x 32 USB interface, the USB drive recorder, the 2-track setting, the Soundcheck patch, the speed indicator.
+- [Ui24R v2.0 User Guide Addendum](https://www.soundcraft.com/en-US/product_documents/ui24r_v2-0_user_guide_addendum-pdf): USB returns to hardware outputs, channels 21-24.
+
+Harman support articles:
+
+- [Ui24R Core Audio Compliance](https://harman.helpjuice.com/sc-ui-series/ui24r-core-audio-compliance): the Mac with no driver, the Windows driver.
+- [Ui24R Multitrack Recording with a DAW](https://harman.helpjuice.com/en_US/sc-ui-series/ui24r-multitrack-recording-with-a-daw): 48 kHz, the fixed USB map, USB returns.
+- [Ui series compatibility with macOS Sequoia](https://harman.helpjuice.com/en_US/sc-ui-series/ui-series-compatibility-with-macos-sequoia).
+- [Ui24R cascade mode does not allow more DAW channels](https://harman.helpjuice.com/en_US/sc-ui-series/ui24r-cascade-mode-does-not-allow-more-daw-channels).
+- [Ui24R USB direct recording requirements](https://harman.helpjuice.com/en_US/sc-ui-series/ui24r-usb-direct-recording-requirements): FAT32, 32 GB or less, 25 MB/s.
+- [SD and Micro SD for recording on the Ui24R](https://harman.helpjuice.com/en_US/sc-ui-series/sd-and-micro-sd-for-recording-on-the-ui24r).
+- [Creating a playable multitrack session from imported audio files](https://harman.helpjuice.com/en_US/sc-ui-series/creating-playable-multitrack-session-from-imported-audio-files-on-ui24r-with-usb-stick): the Ui Session Maker.
+- [Recording from groups to achieve post-fader processing and effect](https://harman.helpjuice.com/en_US/sc-ui-series/recording-from-groups-to-achieve-post-fader-processing-and-effect): pre-fader, pre-processing channels, USB 3-10, the AUX workaround.
+- [Ui24R record track labels](https://harman.helpjuice.com/en_US/sc-ui-series/ui24r-record-track-labels): the onboard tap and the track labels.
+
+Not from Soundcraft:
+
+- [Sound On Sound review of the Ui24R](https://www.soundonsound.com/reviews/soundcraft-ui24r) (Mike Crofts, August 2017, linked from Soundcraft's site): WAV or FLAC on the drive.
+- [Soundcraft forum post](https://proforums.harman.com/soundcraft/discussion/comment/198507) (a forum post, not a Soundcraft document): the tap point.

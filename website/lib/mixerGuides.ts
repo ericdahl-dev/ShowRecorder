@@ -139,6 +139,7 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     mac: "Works with no driver (maker).",
     ipad: "Not stated by the maker; not tested yet.",
     iphone: "Not stated by the maker; not tested yet.",
+    guide: "/guides/record/ui24r",
   },
   {
     name: "Soundcraft Signature 12 MTK and 22 MTK",
@@ -576,6 +577,38 @@ export const MACKIE_DL32S_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the Soundcraft Ui24R guide (#1072). Facts: docs/research/mixer-recording/soundcraft-ui24r.md.
+export const UI24R_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I record a Soundcraft Ui24R to an iPhone or iPad?",
+    a: "Soundcraft doesn't say, and we haven't tested one yet. Harman says a Mac sees the Ui24R as an audio interface with no driver, but no Soundcraft or Harman document names the iPhone or iPad.",
+  },
+  {
+    q: "Can the Ui24R multitrack record without a computer?",
+    a: "Yes, up to 22 tracks to a USB drive in the front MEDIA - REC socket. Harman asks for a FAT32 drive of 32 GB or less that reads and writes at 25 MB/s or faster. The file format is not stated by Soundcraft; a 2017 review says WAV or FLAC, set in the settings page.",
+  },
+  {
+    q: "Does the Ui24R need a driver on a Mac?",
+    a: "No. Harman: \"Yes, the Ui24R is Core Audio compliant. If you are using a Mac, the Mac will recognize the Ui24R as an Audio Interface automatically.\" Windows needs the Soundcraft Multi-Channel USB Audio Driver, V3.20 or later.",
+  },
+  {
+    q: "Which USB channel is each input on the Ui24R?",
+    a: "The map is fixed: USB 1-2 are the Master L/R, USB 3-10 are AUX 1-8, and USB 11-32 are inputs 1-22. So input 1 arrives on USB 11. No USB send patching is needed or possible.",
+  },
+  {
+    q: "Are Ui24R recordings pre or post fader?",
+    a: "Pre-fader. Harman: \"Recording from channels will only be pre-fader, pre-processing.\" The preamp gain is in the recording; the channel EQ, dynamics and fader are not. For a post-fader or processed track, use an AUX set to POST and POST PROC as a group, and record its USB channel (3-10).",
+  },
+  {
+    q: "What sample rate does the Ui24R record at?",
+    a: "48 kHz over USB to a computer. Harman says Pro Tools \"Sample Rate NEEDS to be 48kHz\". The sample rate of the onboard USB drive recorder and the USB bit depth are not stated by Soundcraft.",
+  },
+  {
+    q: "How do I play a Ui24R recording back for a virtual soundcheck?",
+    a: "From a computer, go to SETTINGS > PATCHING > CHANNELS, pick USB DAW 1-16 or 17-32 at the top, and use Patch 1:1 or patch each channel. From the USB drive, turn on the Soundcheck patch in SETTINGS > PATCHING > OVERVIEW or on the PLAYER > MULTITRACK page.",
+  },
+];
+
 // The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
 export const X32_METHOD_A: readonly { name: string; text: string }[] = [
   { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
@@ -781,5 +814,34 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     ],
     campaign: "site-guide-mackie-dl32s",
     tapPick: "Mic Pre, the default on the I/O Patch USB tab (after the analog gain, before the Digital Trim and high pass filter)",
+  },
+  {
+    slug: "ui24r",
+    path: "/guides/record/ui24r",
+    pageKey: "guideUi24r",
+    short: "Ui24R",
+    mixer: "Soundcraft Ui24R",
+    description:
+      "Multitrack record a Soundcraft Ui24R to a computer or USB drive: the fixed USB map, 48 kHz, playback, the tap point. iPhone and iPad not tested yet.",
+    published: "2026-11-07",
+    faqs: UI24R_GUIDE_FAQS,
+    faqsName: "UI24R_GUIDE_FAQS",
+    sources: [
+      "https://www.soundcraft.com/en-US/product_documents/ui24r_manual_v1-0_web-pdf",
+      "https://www.soundcraft.com/en-US/product_documents/ui24r_v2-0_user_guide_addendum-pdf",
+      "https://harman.helpjuice.com/sc-ui-series/ui24r-core-audio-compliance",
+      "https://harman.helpjuice.com/en_US/sc-ui-series/ui24r-multitrack-recording-with-a-daw",
+      "https://harman.helpjuice.com/en_US/sc-ui-series/ui-series-compatibility-with-macos-sequoia",
+      "https://harman.helpjuice.com/en_US/sc-ui-series/ui24r-cascade-mode-does-not-allow-more-daw-channels",
+      "https://harman.helpjuice.com/en_US/sc-ui-series/ui24r-usb-direct-recording-requirements",
+      "https://harman.helpjuice.com/en_US/sc-ui-series/sd-and-micro-sd-for-recording-on-the-ui24r",
+      "https://harman.helpjuice.com/en_US/sc-ui-series/creating-playable-multitrack-session-from-imported-audio-files-on-ui24r-with-usb-stick",
+      "https://harman.helpjuice.com/en_US/sc-ui-series/recording-from-groups-to-achieve-post-fader-processing-and-effect",
+      "https://harman.helpjuice.com/en_US/sc-ui-series/ui24r-record-track-labels",
+      "https://www.soundonsound.com/reviews/soundcraft-ui24r",
+      "https://proforums.harman.com/soundcraft/discussion/comment/198507",
+    ],
+    campaign: "site-guide-ui24r",
+    tapPick: "the fixed tap (straight after the mic preamp, before processing and the fader); there is nothing to set",
   },
 ];

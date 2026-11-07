@@ -20,7 +20,7 @@ const body = (slug: string) => read("app", "guides", "record", slug, "content.md
 const shell = (slug: string) => read("app", "guides", "record", slug, "page.tsx");
 
 // "an X32", "an XR18", but "a Qu": the article before a guide's short name, by how the name is said.
-const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a", WING: "a", DL32S: "a" };
+const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a", WING: "a", DL32S: "a", Ui24R: "a" };
 const waysHeading = (short: string) => `Ways to record ${A_SHORT[short] ?? "an"} ${short}`;
 
 // The sections every mixer guide has, in this order. They name the mixer (review batch 1), so a heading quoted out of
@@ -122,8 +122,8 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    // Only the Qu, the Zoom, the DL32R, the WING and the Mackie DL32S have none; a Mixer Link guide that lost its product page must fail here, not skip.
-    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s"].includes(guide.slug));
+    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S and the Ui24R have none; a Mixer Link guide that lost its product page must fail here, not skip.
+    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r"].includes(guide.slug));
     if (guide.productPage === undefined) return;
     expect(mdx).toContain(`](${guide.productPage})`);
     expect(read("app", "mixers", guide.productPage.split("/").pop()!, "content.mdx")).toContain(`](${guide.path})`);
@@ -137,7 +137,7 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("cites its sources: the maker's documents, with forum posts marked as such", () => {
     const sources = mdx.slice(mdx.indexOf("## Sources"));
     expect(sources).toMatch(
-      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com|zoomcorp\.com|mackie\.com)\//,
+      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com|zoomcorp\.com|mackie\.com|www\.soundcraft\.com|harman\.helpjuice\.com)\//,
     );
   });
 
@@ -771,5 +771,70 @@ describe("the Mackie DL32S guide's facts", () => {
   it("keeps the SE models apart: their patch menu is not in the Master Fader guide", () => {
     expect(mdx).toMatch(/DL32SE/);
     expect(mdx).toMatch(/SE models[^.]*not in/);
+  });
+});
+
+// Facts: docs/research/mixer-recording/soundcraft-ui24r.md (#1072). Soundcraft states no file format for the onboard
+// multitrack and names no iPhone or iPad.
+describe("the Soundcraft Ui24R guide's facts", () => {
+  const mdx = body("ui24r");
+  const guide = MIXER_GUIDES.find((g) => g.slug === "ui24r")!;
+
+  it("is in MIXER_GUIDES with its own campaign, and the hub's Ui24R row links it", () => {
+    expect(guide.campaign).toBe("site-guide-ui24r");
+    expect(MIXER_ROWS.find((r) => /Ui24R/.test(r.name))!.guide).toBe(guide.path);
+  });
+
+  it("gives 32 x 32 USB at 48 kHz, the Mac with no driver and Windows with Soundcraft's driver", () => {
+    expect(mdx).toMatch(/32 x 32 USB Audio Interface/);
+    expect(mdx).toMatch(/48 kHz/);
+    expect(mdx).toMatch(/Core Audio compliant/);
+    expect(mdx).toMatch(/V3\.20 or later/);
+    expect(mdx).toMatch(/bit depth[^.]*not stated/i);
+  });
+
+  it("gives the fixed USB map: 1-2 master, 3-10 AUX 1-8, 11-32 inputs 1-22, not patchable", () => {
+    const routing = section(mdx, "Ui24R USB routing", "Ui24R playback for virtual soundcheck");
+    expect(routing).toMatch(/USB 1-2[^\n]*Master L\/R/);
+    expect(routing).toMatch(/USB 3-10[^\n]*AUX 1-8/);
+    expect(routing).toMatch(/USB 11-32[^\n]*inputs 1-22/);
+    expect(routing).toMatch(/No USB send patching is required/);
+    expect(routing).toMatch(/POST PROC/);
+  });
+
+  it("records up to 22 tracks to a FAT32 USB drive of 32 GB or less, and says Soundcraft doesn't state the file format", () => {
+    expect(mdx).toMatch(/22 tracks/);
+    expect(mdx).toMatch(/MEDIA - REC/);
+    expect(mdx).toMatch(/FAT32/);
+    expect(mdx).toMatch(/32 GB or less/);
+    expect(mdx).toMatch(/file format[^.]*not stated by Soundcraft/i);
+    expect(mdx).toMatch(/WAV or FLAC[^.]*2017 review/);
+    expect(mdx).toMatch(/\*\*SETTINGS > 2 TRK RECORD MODE\*\*/);
+  });
+
+  it("plays back from the USB returns and from the drive's Soundcheck patch", () => {
+    const play = section(mdx, "Ui24R playback for virtual soundcheck", "Ui24R tap points");
+    expect(play).toMatch(/SETTINGS > PATCHING > CHANNELS/);
+    expect(play).toMatch(/Patch 1:1/);
+    expect(play).toMatch(/Soundcheck/);
+    expect(play).toMatch(/SETTINGS > PATCHING > OVERVIEW/);
+  });
+
+  it("gives the tap as straight after the preamp, pre-fader and pre-processing, with readings and the forum labeled", () => {
+    const taps = section(mdx, "Ui24R tap points", "Ui24R on Mac, iPad and iPhone");
+    expect(taps).toMatch(/directly from the mic preamps/);
+    expect(taps).toMatch(/pre-fader, pre-processing/);
+    expect(taps).toMatch(/\(our reading\)/);
+    expect(taps).toMatch(/forum/i);
+    expect(taps).not.toMatch(/pre-HPF|before the HPF/);
+  });
+
+  it("says Soundcraft doesn't name the iPhone or iPad, not tested yet, and no Mixer Link", () => {
+    const apple = section(mdx, "Ui24R on Mac, iPad and iPhone", "Sources");
+    expect(apple).toMatch(/not tested yet/);
+    expect(apple).toMatch(/Soundcraft doesn't say/);
+    expect(mdx).toMatch(/no Mixer Link/);
+    expect(mdx).not.toMatch(/unsupported/i);
+    expect(mdx).not.toMatch(/ShowRecorder has recorded[^.]*Ui24R/);
   });
 });
