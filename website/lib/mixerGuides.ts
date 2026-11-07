@@ -299,7 +299,7 @@ export const X32_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "How do I send the main mix or buses to USB on an X32?",
-    a: "Card out works in blocks of 8. Put the main mix or a bus in an Out 1-16 or P16 slot, with its tap point, then pick that block (for example Out 9-16) on the card out tab. On firmware 4.0 or later you can also point single User Out slots at those staged slots.",
+    a: "Card out works in blocks of 8. Put the main mix or a bus in an Out 1-16 or P16 slot, with its tap point, then pick that block (for example Out 9-16) on the card out tab. On firmware 4.0 or later you can also point single User Out slots at those staged slots (per user reports; no Behringer manual describes it).",
   },
   {
     q: "Does the X32 USB card need a driver?",
@@ -307,12 +307,19 @@ export const X32_GUIDE_FAQS: readonly Faq[] = [
   },
   {
     q: "Can I record an X32 to an iPhone or iPad?",
-    a: "Behringer doesn't document iPhone or iPad audio from the X-USB or X-LIVE card, and we know of no real recording from one into an iPhone yet. The cards work on a Mac with no driver, which suggests they may work. ShowRecorder's X32 support has run only against an emulator so far.",
+    a: "Behringer doesn't document iPhone or iPad audio from the X-USB or X-LIVE card, and we know of no real recording from one into an iPhone yet. The cards work on a Mac with no driver, which suggests they may work. ShowRecorder (the app this site makes) has run its X32 support only against an X32 emulator so far.",
   },
   {
     q: "Are the card's Local inputs pre or post fader?",
     a: "Before everything in the channel. The Local and AES50 blocks on card out are the raw inputs, after the preamp and converter, so the channel's EQ, dynamics and fader don't change them. Preamp gain does.",
   },
+];
+
+// The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
+export const X32_METHOD_A: readonly { name: string; text: string }[] = [
+  { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
+  { name: "Pick four blocks", text: "Turn encoders 1 to 4 to pick the block of 8 for card outputs 1-8, 9-16, 17-24 and 25-32." },
+  { name: "Confirm", text: "Press each encoder to confirm." },
 ];
 
 // The per-mixer guides, in the order the sitemap and llms.txt list them. The template test
@@ -325,7 +332,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     short: "X32",
     mixer: "Behringer X32",
     description:
-      "Multitrack record an X32 with an X-USB or X-LIVE card: to a computer, to SD cards or an iPhone. Settings, card out blocks, user routing and tap points.",
+      "Multitrack record an X32 with an X-USB or X-LIVE card, to a computer or to SD cards (iPhone not tested yet): settings, card out blocks and tap points.",
     published: "2026-11-06",
     productPage: "/mixers/x32",
     faqs: X32_GUIDE_FAQS,
@@ -342,6 +349,7 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
       "https://behringer.world/viewtopic.php?p=8704",
       "https://behringer.world/viewtopic.php?p=9167",
       "https://behringer.world/viewtopic.php?p=10364",
+      "https://survivethegig.com/x32-firmware-version-4-00/",
     ],
     campaign: "site-guide-x32",
     tapPick: "a Local block (the raw inputs) on card out",

@@ -130,11 +130,12 @@ export function faqPageJsonLd(faqs: readonly { q: string; a: string }[]) {
 }
 
 // A guide's steps as schema.org HowTo (the no-laptop guide, lib/guide.ts).
-export function howToJsonLd(page: PageInfo, steps: readonly { name: string; text: string }[]) {
+// `name` names a HowTo that is one part of the page (the X32 guide's Method A); the page title is the default.
+export function howToJsonLd(page: PageInfo, steps: readonly { name: string; text: string }[], name?: string) {
   return {
     "@context": "https://schema.org",
     "@type": "HowTo",
-    name: page.title.replace(/ - ShowRecorder$/, ""),
+    name: name ?? page.title.replace(/ - ShowRecorder$/, ""),
     description: page.description,
     url: SITE_URL + page.path,
     step: steps.map((s, i) => ({ "@type": "HowToStep", position: i + 1, name: s.name, text: s.text })),
