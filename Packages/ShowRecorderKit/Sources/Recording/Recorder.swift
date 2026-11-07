@@ -607,6 +607,11 @@ public final class Recorder {
         return outcome
     }
 
+    /// `deleteShow`, for the Show list (#1021).
+    public func deleteShowOffMain(named name: String, from copies: Set<DestinationKind>) async -> ShowDeleter.Outcome {
+        deleteShow(named: name, from: copies)
+    }
+
     /// Everything recorded in the open Show, from its files, with `take` left out (#625): the Drive Copy is read under
     /// Drive access, found by the Show's name, so a Drive only Show counts its Drive Takes even after a relaunch. Nil
     /// when no Show is open or its Device folder can't be read.
