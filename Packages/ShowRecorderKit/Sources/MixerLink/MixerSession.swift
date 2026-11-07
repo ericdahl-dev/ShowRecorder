@@ -17,6 +17,20 @@ public enum MixerLinkState: Equatable, Sendable {
     case otherMixer(MixerIdentity)
 }
 
+/// Whether the linked Mixer is taken as the one plugged in by USB (#1018). Nothing a Mixer answers over the network
+/// (`/xinfo`: its address, network name, model and firmware) ties it to the USB audio, and the USB audio names only the
+/// Mixer family ("X18/XR18", "X-USB"). So after each new Link the session asks the network which Mixers of that family
+/// answer: with only the linked one, it is the USB one, as before; with more, the operator picks it in Find Mixers.
+/// Only where the check is on (`USBMixerCheckAvailability`, Debug + TestFlight); elsewhere nothing is asked.
+public enum USBMixerCheck: Equatable, Sendable {
+    /// Asking the network, or not asked yet for this Link: nothing moves the Mixer's gain until it's known.
+    case checking
+    /// No other Mixer of the linked one's family answered, or there is no network to ask.
+    case onlyOne
+    /// Mixers of the linked one's family that answer on this network, the linked one included, by address.
+    case several([FoundMixer])
+}
+
 /// The Mixer Link as the app uses it (#556): whether it is offered for the Ready input, and when it connects, decided
 /// here instead of across the app. The Link itself is `MixerLinkController`.
 @MainActor
@@ -26,22 +40,31 @@ public final class MixerSession {
     @ObservationIgnored private let store: UserDefaults
     @ObservationIgnored private let network: () -> ScanRange?
     @ObservationIgnored private let scan: @Sendable ([String]) async -> [FoundMixer]
+    @ObservationIgnored private let checksUSBMixer: () -> Bool
 
     /// - Parameters:
     ///   - store: where the Mixer's address is remembered.
     ///   - network: the device's network, to look for a Template's Mixer by name; nil when there's none to scan.
     ///   - scan: asks those addresses who they are (Find Mixers).
+    ///   - checksUSBMixer: whether the linked Mixer is checked as the one plugged in by USB (#1018), read live: the app
+    ///     passes `USBMixerCheckAvailability` (Debug + TestFlight), which lives in Recording, above this module. Off,
+    ///     the Link is as it was before #1018: no scan, the gain control offered at once, and Find Mixers asks nothing.
     public init(
         link: MixerLinkController = MixerLinkController(), store: UserDefaults = .standard,
         network: @escaping () -> ScanRange? = { ScanRange.currentNetwork() },
-        scan: @escaping @Sendable ([String]) async -> [FoundMixer] = { await MixerScanner.scan(hosts: $0) }
+        scan: @escaping @Sendable ([String]) async -> [FoundMixer] = { await MixerScanner.scan(hosts: $0) },
+        checksUSBMixer: @escaping () -> Bool = { false }
     ) {
         self.link = link
         self.store = store
         self.network = network
         self.scan = scan
+        self.checksUSBMixer = checksUSBMixer
         address = store.string(forKey: Self.addressKey) ?? ""
         link.onConnected = { [weak self] identity in
+            // A new Link is checked again before anything moves its gain (#1018).
+            self?.connections += 1
+            self?.usbMixerCheck = .checking
             self?.sendEvent(.mixerLinkConnected(mixerFamily: String(describing: MixerFamily.reading(model: identity.model))))
         }
     }
@@ -70,10 +93,70 @@ public final class MixerSession {
     /// One Source per USB Channel while the Link is up, offered and to the Ready Mixer's family (#589).
     public var sources: [Source] { linkedMixerIsReady ? link.sources : [] }
 
-    /// The linked Mixer's gain control, while Mixer Link is offered and the linked Mixer is the Ready family, read
-    /// fresh each time (#508). Never a stale Link's: with another input Ready, or another Mixer family (#589), nothing
-    /// moves a Mixer's gain.
-    public var gainControl: (any GainControl)? { linkedMixerIsReady ? link.gainControl : nil }
+    /// The linked Mixer's gain control, while Mixer Link is offered, the linked Mixer is the Ready family and it is
+    /// taken as the one plugged in by USB, read fresh each time (#508). Never a stale Link's: with another input Ready,
+    /// or another Mixer family (#589), nothing moves a Mixer's gain; nor with another Mixer of the family on the
+    /// network until the operator picks the USB one (#1018).
+    public var gainControl: (any GainControl)? { linkedMixerIsReady && linkedMixerIsUSBMixer ? link.gainControl : nil }
+
+    /// Whether the linked Mixer is the one plugged in by USB, as far as the session can tell (#1018).
+    public private(set) var usbMixerCheck: USBMixerCheck = .checking
+
+    /// Why the linked Mixer isn't yet taken as the one plugged in by USB, while Mixer Link is offered and the linked
+    /// Mixer is the Ready family (#1018): still asking the network, or several of its family answer and none is picked.
+    /// Nil once it is taken as the USB one, and whenever `identity` is nil.
+    public var usbMixerUnsure: USBMixerCheck? {
+        linkedMixerIsReady && !linkedMixerIsUSBMixer ? usbMixerCheck : nil
+    }
+
+    /// The Mixer the operator picked in Find Mixers as the one plugged in by USB (#1018); kept until the app quits.
+    @ObservationIgnored private var pickedUSBMixer: FoundMixer?
+
+    /// Counts new Links, so a check still asking the network is dropped once a newer Link is up.
+    @ObservationIgnored private var connections = 0
+
+    /// The linked Mixer is the one picked in Find Mixers, or the only one of its family on the network.
+    private var linkedMixerIsUSBMixer: Bool {
+        // The check off (the App Store build): the linked Mixer is the USB one, as before #1018.
+        guard checksUSBMixer() else { return true }
+        if let pickedUSBMixer, let identity = link.identity, link.host == pickedUSBMixer.host,
+           identity.networkName == pickedUSBMixer.identity.networkName, identity.model == pickedUSBMixer.identity.model {
+            return true
+        }
+        return usbMixerCheck == .onlyOne
+    }
+
+    /// Asks the network which Mixers of the linked one's family answer, after the Link came up (#1018). Read only:
+    /// each address is asked `/xinfo`, as Find Mixers does.
+    private func checkUSBMixer() async {
+        guard let identity = link.identity, let host = link.host else { return }
+        // The check off: no scan. Taken as the only one, so a check switched on later (StoreKit answering after the
+        // Link came up, in TestFlight) doesn't leave the Link waiting on a scan that never ran.
+        guard checksUSBMixer() else {
+            usbMixerCheck = .onlyOne
+            return
+        }
+        let connection = connections
+        let family = MixerFamily.reading(model: identity.model)
+        // With no network to ask, nothing else can answer: the linked Mixer is taken as the only one, as before.
+        var found: [FoundMixer] = []
+        if let range = network() { found = await scan(range.hosts) }
+        // A newer Link has its own check.
+        guard connection == connections else { return }
+        var sameFamily = found.filter { MixerFamily.reading(model: $0.identity.model) == family }
+        if !sameFamily.contains(where: { $0.host == host }) {
+            // The linked Mixer counts even when its reply to the scan was lost.
+            sameFamily.append(FoundMixer(host: host, identity: identity))
+        }
+        sameFamily.sort { (ScanRange.parse($0.host) ?? 0) < (ScanRange.parse($1.host) ?? 0) }
+        usbMixerCheck = sameFamily.count > 1 ? .several(sameFamily) : .onlyOne
+    }
+
+    /// Connects to `address` and checks the new Link (#1018).
+    private func linkAndCheck(to address: String) async {
+        await link.connect(to: address, usbChannelCount: usbChannelCount)
+        await checkUSBMixer()
+    }
 
     /// The linked Mixer's identity, while Mixer Link is offered and the linked Mixer is the Ready family (#556, #589).
     public var identity: MixerIdentity? { linkedMixerIsReady ? link.identity : nil }
@@ -118,14 +201,39 @@ public final class MixerSession {
         // A remembered Mixer links when an X Air or X32 is Ready (#365), at launch or later; never over a Link that's
         // already up, connecting or down.
         if isOffered, !address.isEmpty, link.status == .idle {
-            await link.connect(to: address, usbChannelCount: usbChannelCount)
+            await linkAndCheck(to: address)
         }
     }
 
     /// Connects to the Mixer at `address`, whatever the Link is doing: the operator asked (Settings, Find Mixers).
     /// An empty address still tries, and the Link says it's invalid, as Settings always has (#556).
     public func connect() async {
-        await link.connect(to: address, usbChannelCount: usbChannelCount)
+        await linkAndCheck(to: address)
+    }
+
+    /// Connects to `mixer`, picked in Find Mixers as the one plugged in by USB (#1018): its gain may move even with
+    /// other Mixers of its family on the network.
+    public func connect(toUSBMixer mixer: FoundMixer) async {
+        pickedUSBMixer = mixer
+        address = mixer.host
+        await connect()
+    }
+
+    /// Whether Find Mixers asks which Mixer is plugged in by USB (#1018): more than one of the Ready family answered.
+    public func asksForUSBMixer(among found: [FoundMixer]) -> Bool {
+        guard checksUSBMixer(), let family else { return false }
+        return found.filter { MixerFamily.reading(model: $0.identity.model) == family }.count > 1
+    }
+
+    /// The operator tapped `mixer` in Find Mixers, which listed `found` (#289, #1018): when Find Mixers asked for the
+    /// one plugged in by USB, the tap picks it; otherwise it only links it, and the check after the Link decides.
+    public func choose(_ mixer: FoundMixer, among found: [FoundMixer]) async {
+        if asksForUSBMixer(among: found) {
+            await connect(toUSBMixer: mixer)
+        } else {
+            address = mixer.host
+            await connect()
+        }
     }
 
     /// Links to a Template's Mixer (#33): at its saved address first, then, if the Mixer there isn't the one named,
@@ -133,6 +241,12 @@ public final class MixerSession {
     /// Template keeps its Mixer either way.
     public func follow(mixerAt templateAddress: String, named networkName: String?) async {
         guard isOffered else { return }
+        await linkToTemplateMixer(at: templateAddress, named: networkName)
+        // Whichever Mixer that ended on is checked once (#1018).
+        await checkUSBMixer()
+    }
+
+    private func linkToTemplateMixer(at templateAddress: String, named networkName: String?) async {
         if !templateAddress.isEmpty {
             address = templateAddress
             await link.connect(to: address, usbChannelCount: usbChannelCount)
@@ -147,7 +261,7 @@ public final class MixerSession {
     /// Tries a Link that is down again (during a Take, say). A Link that's up, connecting or idle is left alone.
     public func retry() async {
         guard case .down = link.status, !address.isEmpty else { return }
-        await link.connect(to: address, usbChannelCount: usbChannelCount)
+        await linkAndCheck(to: address)
     }
 
     /// What the Ready input sends, from the last `ready`.

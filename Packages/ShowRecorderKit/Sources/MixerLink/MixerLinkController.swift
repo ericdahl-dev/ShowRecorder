@@ -40,6 +40,11 @@ public final class MixerLinkController {
         if case .up(let identity, _) = status { identity } else { nil }
     }
 
+    /// The address the Link is up to, without a port ("10.0.0.20"), while it is up: which of two Mixers of one kind
+    /// is linked (#1018).
+    public var host: String? { identity != nil ? connectedHost : nil }
+    @ObservationIgnored private var connectedHost: String?
+
     @ObservationIgnored private var driver: (any MixerDriver)?
     @ObservationIgnored private let timeout: Duration
     @ObservationIgnored private let renewEvery: Duration
@@ -82,6 +87,7 @@ public final class MixerLinkController {
             return
         }
         status = .connecting(host: endpoint.host)
+        connectedHost = endpoint.host
         sources = []
         let driver = makeDriver(endpoint, timeout)
         do throws(MixerLinkProblem) {

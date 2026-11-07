@@ -33,7 +33,7 @@ struct MixerGainAvailabilityTests {
     /// The Mixer session and recorder states the record screen meets.
     enum Scenario: String, CaseIterable {
         case nothingReady, evo4Ready, xr18ReadyNoLink, xr18Connecting, xr18Linked, xr18LinkedRecording, xr18LinkedNoGain,
-             x32ReadyXR18Linked, x32Linked
+             x32ReadyXR18Linked, x32Linked, xr18LinkedTwoXR18s, xr18LinkedTwoXR18sCheckOff
 
         var isRecording: Bool { self == .xr18LinkedRecording }
 
@@ -55,6 +55,9 @@ struct MixerGainAvailabilityTests {
             case .xr18LinkedNoGain: .cantSetGain
             case .x32ReadyXR18Linked: .otherMixerLinked("FOH (XR18)")
             case .x32Linked: build.setsX32Gain ? nil : .cantSetGain
+            case .xr18LinkedTwoXR18s: .pickUSBMixer(2)
+            // USBMixerCheckAvailability off, as in the App Store build: as before #1018.
+            case .xr18LinkedTwoXR18sCheckOff: nil
             }
         }
 
@@ -65,7 +68,14 @@ struct MixerGainAvailabilityTests {
                                            holdsIdentify: self == .xr18Connecting)
             let link = MixerLinkController(makeDriver: { _, _ in driver })
             let store = UserDefaults(suiteName: "MixerGainAvailabilityTests-\(UUID().uuidString)")!
-            let session = MixerSession(link: link, store: store)
+            // Another XR18 answers on the network only in the two-XR18 rows (#1018); elsewhere there's no network to ask.
+            // The USB Mixer check is on only in `xr18LinkedTwoXR18s`; off elsewhere, as in the App Store build.
+            let twoXR18s = self == .xr18LinkedTwoXR18s || self == .xr18LinkedTwoXR18sCheckOff
+            let checking = self == .xr18LinkedTwoXR18s
+            let session = MixerSession(
+                link: link, store: store, network: { twoXR18s ? ScanRange(address: "10.0.0.2", netmask: "255.255.255.0") : nil },
+                scan: { _ in [FoundMixer(host: "10.0.0.21", identity: MixerIdentity(networkName: "MON", model: "XR18", firmware: "1.22"))] },
+                checksUSBMixer: { checking })
             switch self {
             case .nothingReady:
                 break
@@ -82,16 +92,19 @@ struct MixerGainAvailabilityTests {
                     driver.release()
                     throw error
                 }
-            case .xr18Linked, .xr18LinkedRecording, .xr18LinkedNoGain:
+            case .xr18Linked, .xr18LinkedRecording, .xr18LinkedNoGain, .xr18LinkedTwoXR18s, .xr18LinkedTwoXR18sCheckOff:
                 await session.ready(interfaceName: "XR18", usbChannelCount: 18)
-                await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+                session.address = "10.0.0.20"
+                await session.connect()
             case .x32ReadyXR18Linked:
                 await session.ready(interfaceName: "XR18", usbChannelCount: 18)
-                await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+                session.address = "10.0.0.20"
+                await session.connect()
                 await session.ready(interfaceName: "X-USB", usbChannelCount: 32)
             case .x32Linked:
                 await session.ready(interfaceName: "X-USB", usbChannelCount: 32)
-                await link.connect(to: "10.0.0.30", usbChannelCount: 32)
+                session.address = "10.0.0.30"
+                await session.connect()
             }
             return (session, driver.release)
         }
