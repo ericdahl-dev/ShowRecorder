@@ -65,6 +65,8 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     mac: "Users report it works with no driver; Behringer doesn't say.",
     ipad: "Reports differ; not tested yet.",
     iphone: "Not tested yet.",
+
+    guide: "/guides/record/wing",
   },
   {
     name: "Behringer XR18 and Midas MR18",
@@ -479,6 +481,38 @@ export const DL32R_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the Behringer WING guide (#1066). Facts: docs/research/mixer-recording/wing.md.
+export const WING_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I record a Behringer WING to an iPhone or iPad?",
+    a: "Not tested yet. Behringer names no iPhone or iPad for USB audio. For the iPad, forum reports differ: one user says their iPads work with a WING Rack, another says three iPads on iOS 18 did not. Nobody has reported an iPhone. Test yours before a show.",
+  },
+  {
+    q: "Does the WING need a driver on a Mac?",
+    a: "Users report it works on a Mac with no driver; Behringer doesn't say. Behringer offers an ASIO driver for Windows only.",
+  },
+  {
+    q: "Can the WING multitrack record without a computer?",
+    a: "Yes. Every WING model comes with the WING-LIVE card: up to 64 channels at 48 kHz, 32-bit, onto two SD cards (32 each). Each card writes one multichannel WAV per session, which Behringer's LiveSessions app splits into tracks. The front USB port also records 2 or 4 tracks to a USB stick.",
+  },
+  {
+    q: "How do I route channels to USB on a WING?",
+    a: "On ROUTING > OUTPUTS, pick the USB output group and choose a source for each slot, 1 to 48. Any source can go in any slot: raw inputs, buses, the mains, or a User Signal copy of a channel. Behringer doesn't say what the slots carry out of the box, so check and patch every slot yourself.",
+  },
+  {
+    q: "Why does my computer see only 2 or 8 channels from the WING?",
+    a: "Check SETUP > AUDIO > USB AUDIO: it sets 2 x 2, 8 x 8, 16 x 16, 32 x 32 or 48 x 48 channels. If the WING shows up as a disk instead (a red OS or DATA tag on its screen), eject that disk on the computer to get USB audio back.",
+  },
+  {
+    q: "Are WING recordings pre or post fader?",
+    a: "You choose. A raw input (Local In, AES50) on a USB slot is taken after the preamp gain, with no channel processing. For a channel, make a User Signal: it copies the channel at its TAP point (INPUT, FILTER, TAP 3 to 5, PRE FDR, POST FDR or POST PROC) or post-fader.",
+  },
+  {
+    q: "How do I do a virtual soundcheck on a WING?",
+    a: "Each channel has a MAIN and an ALT input. Patch the live source to MAIN and the playback (USB Audio from a computer, WLIVE PLAY from the SD cards) to ALT on ROUTING > CHANNELS, then switch all channels at once with SETUP > AUDIO > INPUT SELECT.",
+  },
+];
+
 // The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
 export const X32_METHOD_A: readonly { name: string; text: string }[] = [
   { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
@@ -616,5 +650,26 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     ],
     campaign: "site-guide-mackie-dl32r",
     tapPick: "Mic Pre (the default on each USB slot, before trim, HPF and EQ)",
+  },
+  {
+    slug: "wing",
+    path: "/guides/record/wing",
+    pageKey: "guideWing",
+    short: "WING",
+    mixer: "Behringer WING, WING Compact or WING Rack",
+    description:
+      "Multitrack record a Behringer WING over USB or to its WING-LIVE SD cards: settings, per-slot routing, tap points, playback. iPhone not tested yet.",
+    published: "2026-11-07",
+    faqs: WING_GUIDE_FAQS,
+    faqsName: "WING_GUIDE_FAQS",
+    sources: [
+      "https://cdn-media.empowertribe.com/25951c6f808c0a79abc407c07d5639d1/User-Manual_WING-series_2025-10-20.pdf",
+      "https://cdn-media.empowertribe.com/c5ff61e785861bc4f4fe7bec6839f7ed/BE_0603-AFC_WING_QSG_Multi-Language.pdf",
+      "https://cdn-media.empowertribe.com/2106004e217b8eb2639d93672823eef5/WING_Remote-Protocols-3.1-03.pdf",
+      "https://www.behringer.com/en/products/0603-AEN",
+      "https://behringer.world/viewtopic.php?p=13151",
+    ],
+    campaign: "site-guide-wing",
+    tapPick: "the raw inputs (Local In, AES50) on the USB slots, or a User Signal at the channel's INPUT tap",
   },
 ];
