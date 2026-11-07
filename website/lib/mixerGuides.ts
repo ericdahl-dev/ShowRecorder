@@ -316,10 +316,6 @@ export const X32_GUIDE_FAQS: readonly Faq[] = [
     a: "Not on a Mac: Behringer says the X-USB and X-LIVE are CoreAudio compatible with no driver. On Windows, install Behringer's ASIO driver.",
   },
   {
-    q: "Can I record an X32 to an iPhone or iPad?",
-    a: "Behringer doesn't document iPhone or iPad audio from the X-USB or X-LIVE card, and we know of no real recording from one into an iPhone yet. The cards work on a Mac with no driver, which suggests they may work. ShowRecorder (the app this site makes) has run its X32 support only against an X32 emulator so far.",
-  },
-  {
     q: "Are the card's Local inputs pre or post fader?",
     a: "Before everything in the channel. The Local and AES50 blocks on card out are the raw inputs, after the preamp and converter, so the channel's EQ, dynamics and fader don't change them. Preamp gain does.",
   },
@@ -332,8 +328,8 @@ export const XR18_GUIDE_FAQS: readonly Faq[] = [
     a: "Not by itself. The XR18 has no USB port for a stick or drive, only the type-B audio port. Plug it into something that records over USB, such as a computer or an iPad, and it sends up to 18 channels, once the USB interface is set to 18 x 18.",
   },
   {
-    q: "Does the XR18 work with an iPad or iPhone?",
-    a: "Behringer lists iOS 7 or higher (iPad) for the XR18, and Midas lists the same for the MR18. Neither names the iPhone, but ShowRecorder (the app this site makes) has recorded all 18 XR18 channels on an iPhone. On a Mac it works with no driver.",
+    q: "Does the XR18 need a driver on a Mac?",
+    a: "No. Behringer says it is CoreAudio compatible on a Mac, and Midas says the same of the MR18. On Windows, install the maker's ASIO driver.",
   },
   {
     q: "How do I choose what goes to each USB channel on an XR18?",
