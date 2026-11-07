@@ -261,12 +261,13 @@ describe("manual citations on the mixer pages (#993)", () => {
   const steps = (page: string) => page.split("## The maker's manuals")[0];
   const count = (page: string, s: string) => steps(page).split(s).length - 1;
 
-  it("every X32 step cites the Quick Start Guide that Behringer's X32 page links", () => {
-    expect(count(x32Page, `(${X32_QSG})`)).toBe(3);
+  // Review batch 1 (D): the routing steps live in the recording guides; each page keeps one citation and links there.
+  it("the X32 page cites the Quick Start Guide that Behringer's X32 page links", () => {
+    expect(count(x32Page, `(${X32_QSG})`)).toBe(1);
   });
 
-  it("every XR18 step cites the X AIR manual that Behringer's XR18 page links", () => {
-    expect(count(xr18Page, `(${X_AIR_MANUAL}#page=23)`)).toBe(3);
+  it("the XR18 page cites the X AIR manual that Behringer's XR18 page links", () => {
+    expect(count(xr18Page, `(${X_AIR_MANUAL}#page=23)`)).toBe(1);
   });
 
   for (const [name, page] of [["x32", x32Page], ["xr18", xr18Page]] as const) {

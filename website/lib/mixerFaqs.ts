@@ -8,15 +8,11 @@ export type Faq = { q: string; a: string };
 export const XR18_FAQS: readonly Faq[] = [
   {
     q: "Can I record an XR18 or MR18 to an iPhone without a laptop?",
-    a: "Yes. Over USB the mixer sends all 18 channels to whatever it is plugged into. ShowRecorder records them on a USB-C iPhone (iPhone 15 or later) or a USB-C iPad, one WAV file per channel.",
+    a: "Yes. Over USB the mixer sends all 18 channels to whatever it is plugged into. ShowRecorder records them on a USB-C iPhone (iPhone 15 or later) or a USB-C iPad, one WAV file per channel, and has recorded all 18 XR18 channels on an iPhone. Behringer lists the iPad, iOS 7 or higher, for the XR18, and Midas lists the same for the MR18.",
   },
   {
     q: "How many channels does it record?",
-    a: "All 18 USB Channels: the 16 inputs and the aux line in, recorded in step with each other. Free records all 18, with generic names on the files; Pro and the 14-day Trial add the names and colors from the mixer.",
-  },
-  {
-    q: "Does it work with the XR12 and XR16?",
-    a: "No. The XR12 and XR16 send no multichannel USB audio, so they can't be multitracked this way.",
+    a: "All 18 USB Channels, recorded in step with each other. Free records all 18, with generic names on the files; Pro and the 14-day Trial add the names and colors from the mixer.",
   },
   {
     q: "How do the files get the channel names from the mixer?",
@@ -35,7 +31,7 @@ export const XR18_FAQS: readonly Faq[] = [
 export const X32_FAQS: readonly Faq[] = [
   {
     q: "Can I record an X32 or M32 to an iPad without a laptop?",
-    a: "Yes. ShowRecorder records all 32 USB Channels from the mixer's USB card on a USB-C iPhone (iPhone 15 or later) or a USB-C iPad, one WAV file per channel. It has run against an X32 emulator, not yet against a real mixer, so try it at a rehearsal first.",
+    a: "ShowRecorder is built for it: it records all 32 USB Channels from the mixer's USB card on a USB-C iPhone (iPhone 15 or later) or a USB-C iPad, one WAV file per channel. But Behringer doesn't document iPhone or iPad audio from the card, and ShowRecorder has run only against an X32 emulator so far, not a real mixer, so try it at a rehearsal first.",
   },
   {
     q: "Is it in the App Store?",
