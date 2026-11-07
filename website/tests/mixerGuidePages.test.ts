@@ -20,7 +20,7 @@ const body = (slug: string) => read("app", "guides", "record", slug, "content.md
 const shell = (slug: string) => read("app", "guides", "record", slug, "page.tsx");
 
 // "an X32", "an XR18", but "a Qu": the article before a guide's short name, by how the name is said.
-const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a", WING: "a", DL32S: "a", Ui24R: "a", CQ: "a" };
+const A_SHORT: Record<string, string> = { Qu: "a", DL32R: "a", WING: "a", DL32S: "a", Ui24R: "a", CQ: "a", StudioLive: "a" };
 const waysHeading = (short: string) => `Ways to record ${A_SHORT[short] ?? "an"} ${short}`;
 
 // The sections every mixer guide has, in this order. They name the mixer (review batch 1), so a heading quoted out of
@@ -129,8 +129,8 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("links the shared tap-point guide, the hub, and the ShowRecorder page for this mixer (if any), which links back", () => {
     expect(mdx).toContain(`](${TAP_POINT_GUIDE})`);
     expect(mdx).toContain("](/guides/record)");
-    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R and the CQ have none; a Mixer Link guide that lost its product page must fail here, not skip.
-    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq"].includes(guide.slug));
+    // Only the Qu, the Zoom, the DL32R, the WING, the Mackie DL32S, the Ui24R, the CQ and the StudioLive have none; a Mixer Link guide that lost its product page must fail here, not skip.
+    expect(guide.productPage === undefined).toBe(["qu", "zoom-l12", "mackie-dl32r", "wing", "mackie-dl32s", "ui24r", "ah-cq", "presonus-studiolive-iii"].includes(guide.slug));
     if (guide.productPage === undefined) return;
     expect(mdx).toContain(`](${guide.productPage})`);
     expect(read("app", "mixers", guide.productPage.split("/").pop()!, "content.mdx")).toContain(`](${guide.path})`);
@@ -144,7 +144,7 @@ describe.each(MIXER_GUIDES)("the $slug recording guide (template)", (guide) => {
   it("cites its sources: the maker's documents, with forum posts marked as such", () => {
     const sources = mdx.slice(mdx.indexOf("## Sources"));
     expect(sources).toMatch(
-      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com|zoomcorp\.com|mackie\.com|help\.mackie\.com|www\.soundcraft\.com|harman\.helpjuice\.com)\//,
+      /\]\(https:\/\/(cdn-media\.empowertribe\.com|www\.behringer\.com|support\.allen-heath\.com|www\.allen-heath\.com|zoomcorp\.com|mackie\.com|help\.mackie\.com|www\.soundcraft\.com|harman\.helpjuice\.com|www\.fmicassets\.com|support\.presonus\.com)\//,
     );
   });
 
@@ -1097,5 +1097,106 @@ describe("the Allen & Heath CQ guide's facts", () => {
     expect(forum.length).toBeGreaterThan(1);
     for (const url of forum) expect(staff.includes(url) || users.includes(url), url).toBe(true);
     expect(staff).toContain("usb-interface/16038");
+  });
+});
+
+// Facts: docs/research/mixer-recording/presonus-studiolive-iii.md (#1077): PreSonus's current console manual (July
+// 2026, on fmicassets.com) and its support articles. PreSonus names iPhones only in a general statement for all its
+// USB devices, and the tap point of the "Inputs" on USB and SD is not documented.
+describe("the PreSonus StudioLive Series III guide's facts", () => {
+  const mdx = body("presonus-studiolive-iii");
+  const guide = MIXER_GUIDES.find((g) => g.slug === "presonus-studiolive-iii")!;
+
+  it("is in MIXER_GUIDES with its own campaign, and the hub's StudioLive row links it", () => {
+    expect(guide.campaign).toBe("site-guide-presonus-studiolive-iii");
+    expect(MIXER_ROWS.find((r) => /StudioLive/.test(r.name))!.guide).toBe(guide.path);
+  });
+
+  it("gives 64 x 64 USB as slots (32 mixing channels, 64 on the 64S), the 16R's 18 or 24, 44.1 or 48 kHz and USB 2.0 Type-B", () => {
+    const ways = section(mdx, "Ways to record a StudioLive", "StudioLive recording settings");
+    expect(ways).toMatch(/up to 64 to the computer and 64 back/);
+    expect(ways).toMatch(/only the 64S mixes 64/);
+    expect(ways).toMatch(/16R[^\n]*18[^\n]*24/);
+    expect(ways).toMatch(/48 kHz or 44\.1 kHz/);
+    expect(ways).toMatch(/"USB 2\.0, Type-B"/);
+    expect(ways).toMatch(/doesn't state the USB bit depth/);
+  });
+
+  it("records 34 tracks to an SDHC card of up to 32 GB on the consoles, stereo only on the racks, with the arming steps", () => {
+    expect(mdx).toMatch(/channels 1-32 plus a stereo pair/);
+    expect(mdx).toMatch(/up to 32 GB, formatted FAT32/);
+    expect(mdx).toMatch(/SDXC cards \(64 GB and up\) are not supported/);
+    expect(mdx).toMatch(/racks[^\n]*stereo only/);
+    for (const step of ["**Edit**", "**Speed Test**", "**New Session**", "**Arm All Tracks**", "**Save and Close**"]) expect(mdx).toContain(step);
+    expect(mdx).toMatch(/doesn't name the audio file format/);
+  });
+
+  it("explains Native (64 x 64) and Compatibility (34 x 34) mode, the iPad crash, and the main mix on USB 33-34", () => {
+    const settings = section(mdx, "StudioLive recording settings", "StudioLive USB routing");
+    expect(settings).toMatch(/\*\*Home > System > Sample Rate\*\*|\*\*Home\*\*, touch \*\*System\*\*, then \*\*Sample Rate\*\*/);
+    expect(settings).toMatch(/\*\*Native USB Mode\*\* \(64 x 64\)/);
+    expect(settings).toMatch(/\*\*Compatibility Mode\*\* \(34 x 34\)/);
+    expect(settings).toMatch(/crash on launch/);
+    expect(settings).toMatch(/Compatibility Mode and try again \(our advice/);
+    expect(settings).toMatch(/main mix moves to USB 33-34/);
+  });
+
+  it("routes USB per slot in Home > Audio Routing > Digital Patching > USB Sends, with the default map and the two sources that differ", () => {
+    const routing = section(mdx, "StudioLive USB routing", "StudioLive playback for virtual soundcheck");
+    expect(routing).toMatch(/\*\*USB 1-32:\*\* channels 1-32/);
+    expect(routing).toMatch(/\*\*USB 39-40:\*\* the main mix/);
+    expect(routing).toMatch(/\*\*Audio Routing\*\*[\s\S]*\*\*Digital Patching\*\*, then \*\*USB Sends\*\*/);
+    expect(routing).toMatch(/\*\*Available Source\*\*/);
+    expect(routing).toMatch(/July 2026 manual shows these empty[^\n]*FlexMixes on 41-56/);
+    expect(routing).toMatch(/SD tracks 1-32 are always channels 1-32/);
+    expect(routing).toMatch(/64S, any input or mix can go to any of the 34 SD tracks/);
+  });
+
+  it("plays back over USB with the Input Source buttons and from SD with Soundcheck and Recall", () => {
+    const play = section(mdx, "StudioLive playback for virtual soundcheck", "StudioLive tap points");
+    expect(play).toMatch(/press and hold the \*\*USB\*\* button/);
+    expect(play).toMatch(/\*\*Select\*\*/);
+    expect(play).toMatch(/\*\*Analog\*\*/);
+    expect(play).toMatch(/\*\*Soundcheck\*\*[\s\S]*\*\*Recall\*\*/);
+    expect(play).toMatch(/\*\*Digital Return\*\*/);
+    expect(play).toMatch(/Export to SD Card/);
+  });
+
+  it("says PreSonus doesn't document the default tap, gives the FlexMix points with pros and cons, and labels our reading", () => {
+    const taps = section(mdx, "StudioLive tap points", "StudioLive on Mac, iPad and iPhone");
+    expect(taps).toMatch(/PreSonus doesn't say/);
+    expect(taps).toMatch(/\*\*Pre 1\*\*[^\n]*after the polarity switch, high-pass filter and gate/);
+    expect(taps).toMatch(/\*\*Pre 2:\*\* after all the channel processing, before the fader/);
+    expect(taps).toMatch(/\*\*Post:\*\* after the processing and the fader/);
+    expect((taps.match(/Pro: /g) ?? []).length).toBeGreaterThanOrEqual(3);
+    expect(taps).toMatch(/\(our reading\)/);
+    expect(taps).toMatch(/\(our advice\)/);
+    expect(taps).not.toMatch(/pre-EQ|raw input|post-preamp/i);
+  });
+
+  it("says PreSonus names iPads and iPhones in a general statement, not tested by us, records without Mixer Link, never unsupported", () => {
+    const apple = section(mdx, "StudioLive on Mac, iPad and iPhone", "Sources");
+    expect(apple).toMatch(/general statement/);
+    expect(apple).toMatch(/haven't tested a StudioLive with an iPhone or iPad yet/);
+    expect(apple).toMatch(/Camera Adapter/);
+    expect(apple).toMatch(/doesn't charge/);
+    expect(mdx).toMatch(/records a StudioLive without Mixer Link/);
+    expect(mdx).toMatch(/no Mixer Link/);
+    expect(mdx).not.toMatch(/unsupported|not supported by ShowRecorder/i);
+    expect(mdx).not.toMatch(/ShowRecorder has recorded[^.]*StudioLive/);
+    expect(guide.faqs.find((f) => /iPhone|iPad/.test(f.q))!.a).toMatch(/haven't tested/);
+  });
+
+  it("covers the Series III consoles and racks and leaves out the SE models in one line", () => {
+    for (const m of ["64S", "32S", "32SX", "32SC", "32R", "24R", "16R"]) expect(mdx).toContain(m);
+    expect(mdx).toMatch(/doesn't cover the SE models/);
+  });
+
+  it("cites PreSonus's own July 2026 console manual, and the research file no longer leans on the dealer copy", () => {
+    expect(guide.sources).toContain("https://www.fmicassets.com/Damroot/Original/10153/OM_StudioLive-Series-III-Console-Mixers_EN.pdf");
+    expect(mdx).not.toMatch(/ccisolutions/);
+    const research = readFileSync(path.join(ROOT, "..", "docs", "research", "mixer-recording", "presonus-studiolive-iii.md"), "utf8");
+    expect(research).toContain("fmicassets.com/Damroot/Original/10153/OM_StudioLive-Series-III-Console-Mixers_EN.pdf");
+    expect(research).toMatch(/Differences from the old manual/);
   });
 });
