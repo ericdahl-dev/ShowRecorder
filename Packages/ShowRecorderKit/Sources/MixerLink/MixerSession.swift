@@ -1,6 +1,7 @@
 import AutoGain
 import Foundation
 import Observation
+import Telemetry
 
 /// The Mixer Link as the record screen and the Soundcheck read it (#556), from `MixerSession.state`.
 public enum MixerLinkState: Equatable, Sendable {
@@ -40,7 +41,14 @@ public final class MixerSession {
         self.network = network
         self.scan = scan
         address = store.string(forKey: Self.addressKey) ?? ""
+        link.onConnected = { [weak self] identity in
+            self?.sendEvent(.mixerLinkConnected(mixerFamily: String(describing: MixerFamily.reading(model: identity.model))))
+        }
     }
+
+    /// Told of mixer_link_connected once per connection, with the Mixer family only (ADR 0007, #1026). Main actor
+    /// only; the app sends it on.
+    @ObservationIgnored public var sendEvent: (TelemetryEvent) -> Void = { _ in }
 
     /// The Mixer family of the Ready input; nil when it isn't a Mixer ShowRecorder links to, or nothing is Ready.
     public private(set) var family: MixerFamily?
