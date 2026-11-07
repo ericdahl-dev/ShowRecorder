@@ -1,12 +1,12 @@
-/// Where the iPhone stops a Take with a 1 s hold instead of a tap and a confirmation (#753): Debug builds and
-/// TestFlight builds, until Eric has tried it on a device and it moves up a level (its own one-line PR). The App Store
-/// build keeps tap and confirm. The Mac keeps click and confirm whatever this says.
+/// Where the iPhone stops a Take with a 1 s hold instead of a tap and a confirmation (#753): everyone, since Eric checked
+/// it on an iPhone (2026-11-07, TestFlight 1.2.5: a 1 s hold stops, a tap shows "Hold to stop", an early release keeps
+/// recording). The iPad has its own rule, `HoldToStopOnIPadAvailability`, until someone tries it on an iPad. The Mac
+/// keeps click and confirm whatever this says.
 ///
-/// It reads the same StoreKit environment as `DemoSignalAvailability`, which `resolveEnvironment()` fills in, so a
-/// Release build keeps it off until TestFlight is confirmed.
+/// It reads the same StoreKit environment as `DemoSignalAvailability`, which `resolveEnvironment()` fills in.
 public enum HoldToStopAvailability {
-    /// Where it is offered; moving it up a level is this one line.
-    public static let level: AvailabilityLevel = .debugAndTestFlight
+    /// Where it is offered on the iPhone.
+    public static let level: AvailabilityLevel = .everyone
 
     /// `environment` is nil until the answer has arrived.
     public static func isAvailable(isDebugBuild: Bool, environment: DistributionEnvironment?) -> Bool {
