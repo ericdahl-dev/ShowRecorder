@@ -103,6 +103,12 @@ describe("the best-app facts", () => {
     expect(BEST_APP_FAQS[0].a).toMatch(/its App Store page or the maker's site/);
   });
 
+  it("doesn't claim in FAQ 2 that Cubasis records several inputs at once", () => {
+    const faq = BEST_APP_FAQS[1].a;
+    expect(faq).not.toMatch(/Cubasis 3[^.]*record several inputs at once/);
+    expect(faq).toMatch(/Cubasis 3 lists 24 assignable inputs/);
+  });
+
   it("claims a file per channel only where the maker says so", () => {
     const faq = BEST_APP_FAQS[1].a;
     expect(faq).not.toMatch(/one track each/);

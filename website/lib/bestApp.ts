@@ -172,7 +172,7 @@ export const BEST_APP_FAQS: readonly Faq[] = [
   },
   {
     q: "Which iPhone apps save a separate file for each mixer channel?",
-    a: "ShowRecorder saves one mono WAV per channel. MultiTrackRecorder says it makes a separate file for each channel, up to 16, with a paid monthly or yearly plan. AUM's manual says each recording-enabled channel is a separate file. MultiTrack DAW, Cubasis 3 and Auria record several inputs at once and export their tracks, but their listings don't say each input becomes its own file. Manytrack Recorder's listing doesn't say how it saves channels.",
+    a: "ShowRecorder saves one mono WAV per channel. MultiTrackRecorder says it makes a separate file for each channel, up to 16, with a paid monthly or yearly plan. AUM's manual says each recording-enabled channel is a separate file. MultiTrack DAW and Auria record several inputs at once, and Cubasis 3 lists 24 assignable inputs, but none of the three listings says each input becomes its own file. Manytrack Recorder's listing doesn't say how it saves channels.",
   },
   {
     q: "Is there a free app to record every channel of a mixer on an iPhone or iPad?",
