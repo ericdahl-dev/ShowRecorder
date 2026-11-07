@@ -1,0 +1,185 @@
+import { AskUs, Breadcrumbs, GetTheApp, LastChecked } from "@/components/GuideParts";
+import { guideTrail } from "@/lib/mixerGuides";
+
+<Breadcrumbs trail={guideTrail("DM3", "/guides/record/yamaha-dm3")} />
+
+# How to multitrack record a Yamaha DM3
+
+<LastChecked path="/guides/record/yamaha-dm3" />
+
+**Short answer.** Install the Yamaha Steinberg USB Driver, then plug the DM3's **USB TO HOST** socket into a computer. You get 18 tracks: inputs 1-16 plus the main stereo mix, at 48 or 96 kHz. Yamaha says its driver is needed to work with a computer, and offers it for the Mac and Windows. iPhone and iPad: not tested yet. This covers the DM3 and the DM3 Standard. They record the same way over USB; only the DM3 has Dante.
+
+**Quick start**
+
+1. **Install the Yamaha Steinberg USB Driver** on your Mac or Windows computer, from Yamaha's DM3 downloads page. ([Ways to record](#ways-to-record-a-dm3))
+2. **Set the Driver Mode to Mode1** on the **SETUP** screen, so one app gets all 18 tracks. The console asks to restart. ([Recording settings](#dm3-recording-settings))
+3. **Set your recording app to the DM3's rate:** 48 kHz or 96 kHz, whichever the DM3 runs at. ([Recording settings](#dm3-recording-settings))
+4. **Arm tracks 1-18 in your app.** Out of the box, track 1 is input 1, up to track 16, and tracks 17-18 are the main mix. ([USB routing](#dm3-usb-routing))
+5. **Record a 30 s test and play it back** before the show. Yamaha's diagram shows the tracks taken before the EQ and fader, but its text doesn't say, so listen to check (our reading). ([Tap points](#dm3-tap-points))
+6. **Only some tracks show up?** Check the Driver Mode first. ([Only 12 or 2 tracks?](#only-12-or-2-tracks-check-the-driver-mode))
+
+Every other mixer is in the [mixer recording guides](/guides/record). Words like *tap point* and *class compliant* are explained in the [glossary](/guides/record#glossary). Facts come from Yamaha's DM3 manuals, unless a line says otherwise. The [sources](#sources) are at the end.
+
+## Ways to record a DM3
+
+### To a computer over USB
+
+This is the way to get every channel on its own track.
+
+- **What you need:** a USB cable with a square USB-B plug for the DM3's **USB TO HOST** socket. Yamaha says to use a cable shorter than 3 m.
+- **Tracks:** up to 18 to the computer. The computer can also send 18 back, for playback.
+- **Sample rate:** 48 kHz or 96 kHz, the rate the DM3 runs at.
+- **Bit depth:** 32-bit on the console side. Yamaha calls it a "96 kHz/32-bit audio interface".
+- **The driver:** Yamaha says you need one. A *driver* is a small program that lets a computer talk to a device. Yamaha says: "It is necessary to install Yamaha Steinberg USB Driver in order to communicate with a computer."
+- **Mac:** Yamaha's DM3 downloads page has the driver for the Mac: V3.1.7 for macOS 11 to 26 (Intel and Apple silicon), and V2.1.4 for macOS 10.13 to 10.15.
+- **Windows:** V2.1.9 for Windows 11 and 10.
+- **Which app:** any recording app that lists the DM3 as an input should work (our reading).
+- **Unplugging:** wait at least 6 seconds before you plug the cable back in (Yamaha).
+
+### With no computer: 2 tracks only
+
+The DM3 can record by itself, but only in stereo (2 tracks). It can't make a multitrack recording on its own.
+
+- **The drive:** a USB drive in the **USB** socket on the right of the top panel. Yamaha says to use one "that can write at the speed of a HDD or SSD", and to test it with a recording first.
+- **Format the drive** as FAT32 or exFAT. You can format it on the DM3, from the **SAVE/LOAD** screen menu.
+- **The file:** WAV at 48 kHz or 96 kHz, 24-bit, or MP3 at 48 kHz (128, 256 or 320 kbps). WAV at 96 kHz needs the DM3 running at 96 kHz.
+- **What it records:** the main stereo mix out of the box, or a MIX bus (one of the monitor mixes). Pick it on the **RECORDER** screen.
+- **Long shows:** a file can be at most 2 GB. Yamaha says to "split the data when it exceeds 2 GB".
+- **One at a time:** the DM3 can't record and play back at once.
+
+### To an iPhone, iPad or Mac with an app
+
+A Mac works like any computer above, with Yamaha's driver. Yamaha doesn't say whether an iPhone or iPad works on the USB TO HOST socket, and Yamaha offers no driver for them (our reading): not tested yet. See [Mac, iPad and iPhone](#dm3-on-mac-ipad-and-iphone) below.
+
+## DM3 recording settings
+
+- **Sample rate:** the DM3 runs at 48 kHz or 96 kHz. Set your recording app and computer to the same rate. If they don't match, the DM3 shows **USB Sample Rate Mismatch**.
+  1. Touch the **SETUP** icon on the toolbar, then the **Word Clock** icon (the console's sample rate setting).
+  2. Pick **48 kHz** or **96 kHz** as the leader clock (the rate the whole console runs at).
+- **Bit depth:** 32-bit, per Yamaha. There's nothing to set. What your app shows depends on the driver (our reading).
+- **Number of tracks:** 18 in **Mode1**. Arm only the tracks you need in your app.
+- **A Tio1608-D on the DM3** (Yamaha's stage box, DM3 only) can't run at 96 kHz. The DM3 offers to switch to 48 kHz.
+
+{/* Screenshot: the SETUP screen with the USB section and Driver Mode. <Screenshot src="/images/guides/yamaha-dm3-setup-driver-mode.png" alt="Yamaha DM3 SETUP screen with the USB section's Driver Mode set to Mode1" /> */}
+
+### Only 12 or 2 tracks? Check the Driver Mode
+
+The DM3's USB has two modes. In one of them, your app sees only 12 tracks.
+
+1. Touch the **SETUP** icon on the toolbar.
+2. In the **USB** section, find **Driver Mode**.
+3. Pick **Mode1**. The console asks to restart.
+
+What the two modes give, per Yamaha's manual:
+
+- **Mode1:** all 18 tracks to one app. Use this one.
+- **Mode2:** splits USB into four smaller devices. The biggest has 12 tracks, so a multitrack app gets 12 at most.
+
+Yamaha doesn't say which mode a new DM3 starts in. Check it before the show.
+
+Other reasons for a missing track:
+
+- **A USB port was patched away:** check **SETUP > Patch > OUTPUT** (see [USB routing](#dm3-usb-routing)).
+- **An insert uses USB:** each one takes a USB channel (see [USB routing](#dm3-usb-routing)).
+- **Nothing at all?** Check the driver is installed, and that the computer's rate matches the DM3's.
+
+## DM3 USB routing
+
+A *patch* is the console's setting for which sound goes to which output.
+
+**Recording inputs 1-16 and the main mix? There is nothing to patch.** Yamaha's table of default patches:
+
+- **USB 1-16:** INPUT 1-16, the 16 input jacks in order.
+- **USB 17-18:** STEREO L/R, the main mix.
+
+You can change any USB port, one at a time. That lets you swap the main mix for another mix, or put the tracks in a different order.
+
+1. Touch the **SETUP** icon on the toolbar, then the **Patch** icon.
+2. Touch **OUTPUT**.
+3. Pick the USB port you want to change (the destination).
+4. Pick the channel to send to it (the source).
+
+From a mix's side, the same patch is on the **OUTPUT** screen: touch the **OUTPUT CH PATCH** button.
+
+**Inserts use USB too.** A channel's **INSERT** screen can send to and return from USB, for a plug-in on the computer. Each insert takes a USB channel away from recording.
+
+What you can send:
+
+- **The mixes:** a MIX bus 1-6 (the monitor mixes), MATRIX 1-2 (extra output mixes) or STEREO (the main mix). The manual names these for output ports in general (our reading: the same list applies to USB).
+- **INPUT 1-16:** each input jack's own sound. Where it's taken is under [Tap points](#dm3-tap-points).
+- **The total is 18.** The DM3 has 16 mic inputs, so 18 covers every input plus one stereo pair.
+- **The stereo input (ST IN) and the FX returns** have no USB port of their own in the default patch. Yamaha doesn't say whether they can be patched to USB.
+
+**Dante (DM3 only).** The DM3 has Dante (a network audio system that carries channels over a network cable), with 16 in and 16 out. The DM3 Standard has no Dante: Yamaha says it "can only be used as a standalone product".
+
+Dante has its own outputs, separate from USB. Out of the box they carry the mixes, not the inputs. Recording over Dante needs a computer set up for Dante (our reading). This guide covers USB.
+
+## DM3 playback for virtual soundcheck
+
+*Virtual soundcheck* means playing last night's tracks back through the mixer, so you can set the mix with no band on stage.
+
+1. In your app, play each track back to the same USB channel it came in on: track 1 to USB 1, and so on (our advice).
+2. Touch the **SETUP** icon on the toolbar, then the **Patch** icon.
+3. Touch **INPUT**, open the menu (swipe left on the right edge), and touch **All USB**. Channels 1-16 now take their sound from the computer.
+4. When you're done, touch **All INPUT** in the same menu to go back to the mic inputs before the show (our advice).
+
+To switch a single channel, open its **INPUT** screen and pick **USB** with the **INPUT PATCH** buttons.
+
+- **Only channels 1-16** switch to USB with **All USB**.
+- While a channel plays from USB, its gain slider becomes a digital gain, and the +48V (phantom power) button is hidden.
+
+{/* Screenshot: the PATCH screen's INPUT menu with All USB. <Screenshot src="/images/guides/yamaha-dm3-patch-all-usb.png" alt="Yamaha DM3 PATCH screen, INPUT side, with the menu open and the All USB button" /> */}
+
+## DM3 tap points
+
+**What to pick:** leave USB 1-16 on INPUT 1-16. Yamaha's block diagram shows these as the input jacks' sound, after the analog gain but before the channel's digital gain, low-cut, EQ, compressor and fader (our reading of the diagram, page 2). So the recording should be clean, with no EQ and no fader moves. Record a 30 s test and listen to check (our advice).
+
+A *tap point* is the place in a channel where the recording is taken. Why it matters is in [Pre or post fader](/guides/record/pre-or-post-fader).
+
+The DM3 has no setting to move this point. Yamaha's text never says where it is, and one manual page calls these outputs the channels' "direct output". So test before the show. The DM3 does have points for other things, which help explain the channel:
+
+- **The order in a channel:** analog gain, digital gain, the high-pass filter (the low-cut), EQ, two dynamics processors (such as a gate and a compressor), a delay, then the fader and the **ON** key (from Yamaha's block diagram).
+- **Insert point:** Pre EQ, Pre Fader or Post ON. You set it on a channel's **INSERT** screen.
+- **Pre-fader sends** to the MIX buses: Pre EQ or Pre Fader, on the **BUS SETUP** screen.
+- **Meter points** include Pre DG (before the digital gain), Pre HPF, Pre Fader and Post ON.
+
+Options and their trade-offs:
+
+- **INPUT 1-16 (the default):** one track per input, before the channel's processing (our reading of the diagram). Ready for virtual soundcheck.
+- **A MIX bus for one channel (our reading):** if you want a channel's EQ in its track, send only that channel to a spare MIX bus at Pre Fader and patch that MIX to a USB port. It uses up a monitor mix.
+- **STEREO or a MIX on USB 17-18:** the main mix or a monitor mix, after the faders. Good for a quick listen or a stream, not for a remix.
+
+Good to know:
+
+- **The analog gain is always in the recording.** It comes first in the channel. Set it well before the show.
+- **Firmware:** this guide follows Yamaha's January 2025 manual. Firmware V3.10 is the newest on Yamaha's downloads page. We haven't checked whether V3 added a USB tap point setting. Check **SETUP > About** for your version.
+
+## DM3 on Mac, iPad and iPhone
+
+- **Mac:** install the Yamaha Steinberg USB Driver (V3.1.7 for macOS 11 to 26). Yamaha says a driver is needed and doesn't say whether the DM3 works on a Mac without it. In Mode1, a Mac sees 18 in and 18 out.
+- **iPhone and iPad:** Yamaha doesn't say whether either works for USB audio, and Yamaha offers no driver for them (our reading). Both are not tested yet with a DM3. An iPhone or iPad works only with a mixer that is class compliant (it works without a driver). Whether the DM3 is, Yamaha doesn't say.
+- **The iPad app:** Yamaha's DM3 StageMix is "for wirelessly controlling" the DM3 from an iPad. It's a remote control, not a way to record (our reading).
+- **The USB socket on top:** it's for a USB drive, to record 2 tracks or play files back. It isn't a multitrack connection.
+- **Cable:** the USB TO HOST socket is USB-B. From a USB-C computer, iPhone or iPad, we'd try a USB-C to USB-B cable (our advice, not Yamaha's).
+- **Windows:** install the Yamaha Steinberg USB Driver (V2.1.9).
+
+ShowRecorder (the app this site makes) records every USB Channel from any class compliant mixer. If the DM3's USB is class compliant, ShowRecorder should work on a Mac, iPhone and iPad, but we haven't tested it with a DM3, and Yamaha says a driver is needed. The DM3 records without Mixer Link: Mixer Link, which reads channel names and colors from the mixer, works only on the XR18/MR18 and X32/M32. If you record a DM3 with it, we'd like to hear how it goes.
+
+<GetTheApp campaign="site-guide-yamaha-dm3" />
+
+<AskUs />
+
+## Sources
+
+Yamaha manuals:
+
+- [DM3 Series Reference Manual (C0, 01/2025)](https://usa.yamaha.com/files/download/other_assets/6/1626436/DM3_RM_En_C0.pdf): USB TO HOST and the driver, Driver Mode (Mode1 and Mode2), the word clock, the PATCH screen and All USB, OUTPUT CH PATCH, the INSERT screen, the default patches, Dante on the DM3 only, the 2-track recorder and its drives, the USB Sample Rate Mismatch message, the specifications.
+- [DM3 Series Reference Manual, online](https://manual.yamaha.com/pa/mixers/dm3/rm/en-US/): the same manual as web pages.
+- [DM3 Owner's Manual (B1)](https://usa.yamaha.com/files/download/other_assets/1/1525801/dm3_en_om_b1.pdf): the driver for the USB TO HOST socket, DM3 StageMix.
+- [DM3 block diagram (C0)](https://usa.yamaha.com/files/download/other_assets/7/1619577/DM3_BD_En_C0.pdf): the order in a channel, the insert, send and meter points.
+- [DM3 firmware update guide (B1)](https://usa.yamaha.com/files/download/other_assets/0/1677860/DM3_frm_UG_En_B1.pdf): checking the firmware version.
+
+Yamaha pages:
+
+- [DM3 specifications](https://usa.yamaha.com/products/proaudio/mixers/dm3/specs.html): 18 recording and 18 playback tracks over USB 2.0, 48 or 96 kHz, 2-track recording.
+- [DM3 downloads](https://usa.yamaha.com/products/proaudio/mixers/dm3/downloads.html): the Yamaha Steinberg USB Driver for Mac and Windows, the current firmware.

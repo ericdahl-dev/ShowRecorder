@@ -167,8 +167,9 @@ export const MIXER_ROWS: readonly MixerRow[] = [
     usb: "Up to 18 in and 18 out, 48 or 96 kHz.",
     onboard: "Stereo WAV or MP3 to USB storage.",
     mac: "Yamaha says its driver is required.",
-    ipad: "Not supported by Yamaha, and not tested.",
-    iphone: "Not supported by Yamaha, and not tested.",
+    ipad: "Not stated by Yamaha; not tested yet.",
+    iphone: "Not stated by Yamaha; not tested yet.",
+    guide: "/guides/record/yamaha-dm3",
   },
   {
     name: "Yamaha MG10XU, MG12XU, MG16XU and MG20XU",
@@ -812,6 +813,38 @@ export const YAMAHA_TF_GUIDE_FAQS: readonly Faq[] = [
   },
 ];
 
+// The questions on the Yamaha DM3 guide (#1075). Facts: docs/research/mixer-recording/yamaha-dm3.md.
+export const YAMAHA_DM3_GUIDE_FAQS: readonly Faq[] = [
+  {
+    q: "Can I record a Yamaha DM3 to an iPhone or iPad?",
+    a: "Yamaha doesn't say, and we haven't tested it yet. Yamaha says its Yamaha Steinberg USB Driver is needed to work with a computer, and it offers that driver only for the Mac and Windows. An iPhone or iPad works only with a mixer that is class compliant (works without a driver). The DM3 StageMix iPad app controls the mixer over Wi-Fi; it doesn't record.",
+  },
+  {
+    q: "How many tracks can a Yamaha DM3 record?",
+    a: "18 over USB to a computer: inputs 1-16 plus the main stereo mix, out of the box. Each USB port can be repatched, for example to a MIX bus (one of the monitor mixes). On its own, with no computer, the DM3 records only 2 tracks to a USB drive.",
+  },
+  {
+    q: "Does the Yamaha DM3 need a driver on a Mac?",
+    a: "Yamaha says so: \"It is necessary to install Yamaha Steinberg USB Driver in order to communicate with a computer.\" The DM3 downloads page has it for the Mac (V3.1.7 for macOS 11 to 26) and for Windows (V2.1.9).",
+  },
+  {
+    q: "Why does my DM3 show only 12 tracks?",
+    a: "The USB Driver Mode is set to Mode2, which splits USB into four smaller devices instead of one, the biggest with 12 channels. On the SETUP screen, set Driver Mode in the USB section to Mode1 for 18 in and 18 out. The console asks to restart.",
+  },
+  {
+    q: "What sample rate does the Yamaha DM3 record at?",
+    a: "48 kHz or 96 kHz: the leader clock, set in SETUP > Word Clock. Set your computer or app to the same rate. If they don't match, the DM3 shows \"USB Sample Rate Mismatch\". Yamaha gives the USB bit depth as 32-bit.",
+  },
+  {
+    q: "Are Yamaha DM3 recordings pre or post fader?",
+    a: "Pre fader, by our reading of Yamaha's block diagram: USB 1-16 carry the input jacks' sound before the channel's EQ and fader. There is no setting for it, and Yamaha's text doesn't say, so record a 30 s test with some EQ on a channel and listen back. The main mix on USB 17-18 is after the faders.",
+  },
+  {
+    q: "How do I play a DM3 recording back for a virtual soundcheck?",
+    a: "Play the tracks from your app to USB 1-16. On the DM3, go to SETUP > Patch, touch INPUT, open the menu and touch All USB. Channels 1-16 then play from the computer. Touch All INPUT to go back.",
+  },
+];
+
 // The X32 guide's Method A, card out blocks of 8: the page lists these steps and its HowTo data repeats them.
 export const X32_METHOD_A: readonly { name: string; text: string }[] = [
   { name: "Open card out", text: "Press ROUTING and go to the card out tab." },
@@ -1216,5 +1249,30 @@ export const MIXER_GUIDES: readonly MixerGuide[] = [
     campaign: "site-guide-yamaha-tf",
     pick: "34 channels over USB to a computer. Records only stereo by itself, to a USB hard disk or SSD. iPhone and iPad: not tested yet.",
     tapPick: "Pre DG on each channel's direct out (CH VIEW), before the digital gain, HPF and EQ; Yamaha states no factory setting, so check each channel",
+  },
+  {
+    slug: "yamaha-dm3",
+    path: "/guides/record/yamaha-dm3",
+    pageKey: "guideYamahaDm3",
+    short: "DM3",
+    mixer: "Yamaha DM3",
+    description:
+      "Multitrack record a Yamaha DM3 or DM3 Standard over USB: 18 tracks at 48 or 96 kHz, the driver, Mode1, the USB patch. iPhone and iPad not tested yet.",
+    published: "2026-11-07",
+    faqs: YAMAHA_DM3_GUIDE_FAQS,
+    faqsName: "YAMAHA_DM3_GUIDE_FAQS",
+    sources: [
+      "https://usa.yamaha.com/files/download/other_assets/6/1626436/DM3_RM_En_C0.pdf",
+      "https://manual.yamaha.com/pa/mixers/dm3/rm/en-US/",
+      "https://usa.yamaha.com/files/download/other_assets/1/1525801/dm3_en_om_b1.pdf",
+      "https://usa.yamaha.com/files/download/other_assets/7/1619577/DM3_BD_En_C0.pdf",
+      "https://usa.yamaha.com/files/download/other_assets/0/1677860/DM3_frm_UG_En_B1.pdf",
+      "https://usa.yamaha.com/products/proaudio/mixers/dm3/specs.html",
+      "https://usa.yamaha.com/products/proaudio/mixers/dm3/downloads.html",
+    ],
+    campaign: "site-guide-yamaha-dm3",
+    pick: "Up to 18 channels over USB to a computer, at 48 or 96 kHz, with the Yamaha driver. Records only stereo by itself, to USB storage. iPhone and iPad: not tested yet.",
+    tapPick:
+      "INPUT 1-16 on USB 1-16 (the default patch): the input jacks before the channel's EQ and fader, by our reading of the block diagram; no setting, so record a short test",
   },
 ];

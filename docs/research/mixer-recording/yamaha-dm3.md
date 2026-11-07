@@ -80,8 +80,12 @@ Checked 2026-11-06. Sources are numbered in section 9. Audited 2026-11-06 agains
 | Default USB patch 1-16 = INPUT 1-16, 17-18 = STEREO | maker |
 | Per-port output patching for USB | maker |
 | Virtual soundcheck on CH1-16 only | maker |
-| Tap point of INPUT n on USB | unknown |
+| Tap point of INPUT n on USB | our reading of the block diagram: the input port path, before CH digital gain/HPF/EQ/fader (see note below) |
 | Onboard 2-track WAV 48k/96k 24-bit, MP3; seamless 2 GB files | maker |
+
+- Guide check (2026-11-07, #1075): the C0 reference manual and the C0 block diagram still show no USB or direct-out tap setting for CH1-16. The manual names the Mac only in the Driver Mode table and MIDI port names. The DM3 firmware update guide (B1) says to check the version in SETUP > ABOUT. The V3.00 notes are still unchecked (the firmware page returned 403).
+
+- Correction (2026-11-07, fact check of #1129): section 6's "What tap feeds USB when a port is patched to INPUT n: unknown" and the block-diagram line above it are wrong. The block diagram (C0, p.2) does show the source: INPUT 1-16 leave the input port path after analog gain, AD and input port trim, and reach the OUTPUT PATCH and USB OUT 1-18. The CH 1-16 strip (digital gain, HPF, EQ, dynamics, fader) has no line to the output patch. The manual's default-patch table (p.356) uses "INPUT 1-16" for these jacks and "CH 1-16" for the channels. Caveat: RM p.32 calls them "direct output signals of INPUT channels". There is still no setting to move the point. Our reading of the diagram, not stated in Yamaha's text.
 
 ## 9. Sources
 1. https://usa.yamaha.com/products/proaudio/mixers/dm3/specs.html

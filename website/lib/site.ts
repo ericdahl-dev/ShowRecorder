@@ -58,6 +58,7 @@ export const APP_STORE_CAMPAIGNS = [
   "site-guide-signature-mtk",
   "site-guide-xr12-xr16-mr12",
   "site-guide-yamaha-tf",
+  "site-guide-yamaha-dm3",
   "site-guide-taps",
   "site-guide-best-app",
 ] as const;
