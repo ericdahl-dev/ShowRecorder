@@ -56,7 +56,7 @@ struct AvailabilityLevelTests {
         .init(name: "No-signal warning", expected: .debugAndTestFlight, level: NoSignalWarningAvailability.level, isAvailable: { NoSignalWarningAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
         .init(name: "USB Mixer check", expected: .debugAndTestFlight, level: USBMixerCheckAvailability.level, isAvailable: { USBMixerCheckAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
         .init(name: "Record to", expected: .debugAndTestFlight, level: RecordToAvailability.level, isAvailable: { RecordToAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
-        .init(name: "Asynchronous Stop", expected: .debugOnly, level: AsyncStopAvailability.level, isAvailable: { AsyncStopAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
+        .init(name: "Asynchronous Stop", expected: .debugAndTestFlight, level: AsyncStopAvailability.level, isAvailable: { AsyncStopAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
         .init(name: "Mixer packs", expected: .debugOnly, level: PackAvailability.level, isAvailable: { isDebug, _ in PackAvailability.isAvailable(isDebugBuild: isDebug) }),
         .init(name: "Drive speed test", expected: .debugOnly, level: DriveSpeedTestAvailability.level, isAvailable: { isDebug, _ in DriveSpeedTestAvailability.isAvailable(isDebugBuild: isDebug) })
     ]
