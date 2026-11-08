@@ -58,6 +58,15 @@ struct TelemetryTests {
         #expect(sink.events.map(\.name) == ["app_opened"])
     }
 
+    @Test("The plan (Free, Trial or Pro) reaches every sink, so events and failures can say which features the user had")
+    func tierReachesSinks() {
+        let (telemetry, sink) = makeTelemetry(makeDefaults())
+        telemetry.start()
+        telemetry.setTier(.trial)
+        telemetry.setTier(.pro)
+        #expect(sink.tiers == [.trial, .pro])
+    }
+
     @Test("With the switch off, start() starts nothing, sends nothing and makes no install ID")
     func silentWhenOff() {
         let defaults = makeDefaults()
@@ -190,8 +199,10 @@ final class RecordingSink: TelemetrySink {
     var stops = 0
     var events: [TelemetryEvent] = []
     var failures: [TelemetryFailure] = []
+    var tiers: [TelemetryTier?] = []
 
     func start(installID: UUID) { started.append(installID) }
+    func setTier(_ tier: TelemetryTier?) { tiers.append(tier) }
     func stop() { stops += 1 }
     func capture(_ event: TelemetryEvent) { events.append(event) }
     func capture(_ failure: TelemetryFailure) { failures.append(failure) }

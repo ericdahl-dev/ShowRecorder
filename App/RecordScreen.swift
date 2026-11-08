@@ -1464,6 +1464,7 @@ final class RecordScreenModel {
     /// input may run at changed (#316). A Take that's running keeps its rate; the change applies at the next get-ready.
     private func tierChanged() {
         sequencer.tierChanged()
+        AppTelemetry.setTier(pro.planLicense().tier)
     }
 
     /// At launch with no Show open: the default Template readies the next Show (its channel names now, its name when
@@ -1636,6 +1637,7 @@ final class RecordScreenModel {
         guard loop == nil else { return }
         loop = Task { await run() }
         pro.onTierChange = { [weak self] in self?.tierChanged() }
+        AppTelemetry.setTier(pro.planLicense().tier)
         applyDefaultTemplate()
         Task { await offerDemoSignalIfAvailable() }
         Task { await offerDriveOnlyMovesIfAvailable() }

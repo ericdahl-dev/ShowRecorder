@@ -13,6 +13,8 @@ protocol ErrorReportingClient: AnyObject {
     func close()
     func addBreadcrumb(category: String, message: String)
     func captureMessage(_ message: String, tags: [String: String])
+    /// A tag on everything sent after, crashes included; nil removes it.
+    func setTag(_ key: String, value: String?)
 }
 
 /// What `PostHogSink` asks of the PostHog SDK. The real calls are `PostHogSDKClient` in SDKAdapters.swift.
@@ -35,6 +37,7 @@ public final class SentrySink: TelemetrySink {
 
     private let environment: String
     private let client: any ErrorReportingClient
+    private var tier: TelemetryTier?
 
     /// `environment` is `TelemetryEnvironment.name(...)`: debug, testflight or appstore.
     public convenience init(environment: String) {
@@ -60,6 +63,8 @@ public final class SentrySink: TelemetrySink {
     public func start(installID: UUID) {
         client.start(environment: environment)
         client.setUser(id: installID.uuidString)
+        // A restart (the switch turned back on) may begin with a fresh scope.
+        if let tier { client.setTag("tier", value: tier.rawValue) }
     }
 
     public func stop() {
@@ -69,6 +74,12 @@ public final class SentrySink: TelemetrySink {
     /// Usage events become breadcrumbs, so a crash shows what the app was doing just before.
     public func capture(_ event: TelemetryEvent) {
         client.addBreadcrumb(category: "usage", message: event.name)
+    }
+
+    /// The plan as a tag on every crash and failure after this (ADR 0007).
+    public func setTier(_ tier: TelemetryTier?) {
+        self.tier = tier
+        client.setTag("tier", value: tier?.rawValue)
     }
 
     public func capture(_ failure: TelemetryFailure) {
@@ -94,6 +105,7 @@ public final class PostHogSink: TelemetrySink {
     private let filter: PostHogEventFilter
     private var installID: String?
     private var isSetUp = false
+    private var tier: TelemetryTier?
 
     public convenience init() {
         self.init(client: PostHogSDKClient())
@@ -154,11 +166,18 @@ public final class PostHogSink: TelemetrySink {
         default: break
         }
         guard let installID else { return }
-        client.capture(event.name, distinctId: installID, properties: Self.properties(for: event))
+        var properties = Self.properties(for: event)
+        if let tier { properties["tier"] = tier.rawValue }
+        client.capture(event.name, distinctId: installID, properties: properties)
     }
 
     /// Handled failures go to GlitchTip only.
     public func capture(_ failure: TelemetryFailure) {}
+
+    /// Every event after this says the plan (ADR 0007).
+    public func setTier(_ tier: TelemetryTier?) {
+        self.tier = tier
+    }
 }
 
 /// An event on its way out of the PostHog SDK: what `beforeSend` may change.

@@ -93,6 +93,16 @@ struct SentrySinkTests {
         #expect(client.calls == ["start debug", "user \(id.uuidString)"])
     }
 
+    @Test("A plan learned before Sentry starts, or before the switch is turned back on, is tagged again at start")
+    func tierTagAtStart() {
+        let client = FakeErrorReporting()
+        let sink = SentrySink(environment: "debug", client: client)
+        sink.setTier(.pro)
+        let id = UUID()
+        sink.start(installID: id)
+        #expect(client.calls == ["tag tier pro", "start debug", "user \(id.uuidString)", "tag tier pro"])
+    }
+
     @Test("stop() closes Sentry")
     func stop() {
         let client = FakeErrorReporting()
@@ -105,6 +115,15 @@ struct SentrySinkTests {
         let client = FakeErrorReporting()
         SentrySink(environment: "debug", client: client).capture(.takeStarted(channelCount: 18, destinations: .both, mixerFamily: nil))
         #expect(client.calls == ["breadcrumb usage take_started"])
+    }
+
+    @Test("The plan is a tag on everything Sentry sends after, crashes included; unknown removes it")
+    func tierTag() {
+        let client = FakeErrorReporting()
+        let sink = SentrySink(environment: "debug", client: client)
+        sink.setTier(.free)
+        sink.setTier(nil)
+        #expect(client.calls == ["tag tier free", "untag tier"])
     }
 
     @Test("A handled failure is sent with its area, error type, domain and code as tags")
@@ -144,6 +163,21 @@ struct PostHogSinkTests {
         sink.start(installID: second)
         sink.capture(.showCreated)
         #expect(client.calls == ["setup", "optOut", "optIn", "capture show_created \(second.uuidString)"])
+    }
+
+    @Test("Once the plan is known, every event says it: free, trial or pro")
+    func tierOnEvents() {
+        let client = FakeAnalytics()
+        let sink = PostHogSink(client: client)
+        sink.start(installID: UUID())
+        sink.capture(.appOpened)
+        #expect(client.lastProperties?["tier"] == nil)
+        sink.setTier(.trial)
+        sink.capture(.appOpened)
+        #expect(client.lastProperties?["tier"] as? String == "trial")
+        sink.setTier(.pro)
+        sink.capture(.appOpened)
+        #expect(client.lastProperties?["tier"] as? String == "pro")
     }
 
     @Test("Nothing is sent before start()")
@@ -252,6 +286,7 @@ final class FakeErrorReporting: ErrorReportingClient {
     func setUser(id: String) { calls.append("user \(id)") }
     func close() { calls.append("close") }
     func addBreadcrumb(category: String, message: String) { calls.append("breadcrumb \(category) \(message)") }
+    func setTag(_ key: String, value: String?) { calls.append(value.map { "tag \(key) \($0)" } ?? "untag \(key)") }
     func captureMessage(_ message: String, tags: [String: String]) {
         calls.append("message \(message)")
         self.tags = tags
