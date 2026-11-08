@@ -30,12 +30,26 @@ public enum DemoSignalAvailability {
 
     private static let resolved = Resolved()
 
-    private final class Resolved: @unchecked Sendable {
+    /// What StoreKit has answered so far in this launch. Internal so tests can feed it answers: StoreKit can't run there.
+    final class Resolved: @unchecked Sendable {
         private let lock = NSLock()
         private var value: DistributionEnvironment?
-        var environment: DistributionEnvironment? {
-            get { lock.withLock { value } }
-            set { lock.withLock { value = newValue } }
+
+        init() {}
+
+        /// The environment kept so far; nil before the first answer.
+        var environment: DistributionEnvironment? { lock.withLock { value } }
+
+        /// Takes a fresh answer from StoreKit and returns the environment kept. A failed or unverified answer
+        /// (`.unknown`) never replaces a verified `.sandbox` or `.production` found earlier in this launch, so a check
+        /// that fails offline doesn't hide the TestFlight features mid-run (#994). A verified answer replaces an earlier
+        /// `.unknown`, so a launch that starts offline picks it up once StoreKit answers. Two verified answers that
+        /// differ shouldn't happen; the newer one is kept, since StoreKit keeps its own transaction up to date.
+        func remember(_ fresh: DistributionEnvironment) -> DistributionEnvironment {
+            lock.withLock {
+                if fresh != .unknown || value == nil { value = fresh }
+                return value ?? fresh
+            }
         }
     }
 
@@ -45,13 +59,12 @@ public enum DemoSignalAvailability {
     /// The answer for the running app, from what `resolveEnvironment()` has found so far.
     public static var isAvailableInThisBuild: Bool { level.isOnInThisBuild }
 
-    /// Asks StoreKit which environment this build came from and remembers it. An unverified or
-    /// failed answer is not trusted: it leaves the Demo signal off in a Release build.
+    /// Asks StoreKit which environment this build came from, remembers it, and returns the environment kept (the
+    /// same as `environment` afterwards). An unverified or failed answer is not trusted: it leaves the Demo signal off
+    /// in a Release build, unless a verified answer arrived earlier in this launch, which it then keeps.
     @discardableResult
     public static func resolveEnvironment() async -> DistributionEnvironment {
-        let environment = await currentEnvironment()
-        resolved.environment = environment
-        return environment
+        resolved.remember(await currentEnvironment())
     }
 
     private static func currentEnvironment() async -> DistributionEnvironment {
