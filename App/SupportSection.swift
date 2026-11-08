@@ -39,7 +39,7 @@ struct SupportSection: View {
                 Toggle("Attach the last Show report (\(report.deletingLastPathComponent().lastPathComponent))", isOn: $attachReport)
             }
         } footer: {
-            Text("Opens an email to \(SupportMail.address) with the app version, this \(ThisHardware.word), the audio input, the Drive folder (set or not, never which) and the Mixer Link filled in under a heading you can delete. You see all of it before you send, and nothing is sent unless you do.")
+            Text("Opens an email to \(SupportMail.address) with the app version, your plan, this \(ThisHardware.word), the audio input, the Drive folder (set or not, never which) and the Mixer Link filled in under a heading you can delete. You see all of it before you send, and nothing is sent unless you do.")
         }
         .task {
             // The App Store answer arrives async; the email's Distribution line reads it.
@@ -71,7 +71,7 @@ struct SupportSection: View {
         return SupportDiagnostics(
             version: info?["CFBundleShortVersionString"] as? String, build: info?["CFBundleVersion"] as? String,
             distribution: .init(isDebugBuild: isDebug, environment: DemoSignalAvailability.environment),
-            device: Self.hardwareModel, system: Self.systemVersion,
+            plan: model.pro.planLicense().tier, device: Self.hardwareModel, system: Self.systemVersion,
             inputRoute: ready ? Self.inputRoute(name: model.compactInputSummary) : nil,
             channelCount: ready ? model.recorder.usbChannelCount : nil, sampleRate: ready ? model.recorder.sampleRate : nil,
             driveFolderSet: driveSet, lastInterruption: model.interruptions.lastReason, mixerLink: mixerLink)
