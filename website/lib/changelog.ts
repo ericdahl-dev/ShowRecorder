@@ -14,6 +14,18 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.2.7",
+    date: "2026-11-08",
+    channel: "TestFlight beta",
+    summary: "Stop waits for a slow Drive to finish, and Settings has a Help row.",
+    changes: [
+      "With a slow Drive, Stop waits while the Drive is still writing and says \"Saving to the Drive… Don't unplug.\" until every Stem is finished.",
+      "Settings has a Help row that opens the docs.",
+      "Going offline no longer hides the beta features until the next launch.",
+      "The support email says which plan you're on: Free, Trial or Pro.",
+    ],
+  },
+  {
     version: "1.2.6",
     date: "2026-11-07",
     channel: "TestFlight beta",
