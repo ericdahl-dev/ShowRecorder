@@ -96,6 +96,7 @@ public final class PostHogSink: TelemetrySink {
     private let filter: PostHogEventFilter
     private var installID: String?
     private var isSetUp = false
+    private var tier: TelemetryTier?
 
     public convenience init() {
         self.init(client: PostHogSDKClient())
@@ -156,13 +157,18 @@ public final class PostHogSink: TelemetrySink {
         default: break
         }
         guard let installID else { return }
-        client.capture(event.name, distinctId: installID, properties: Self.properties(for: event))
+        var properties = Self.properties(for: event)
+        if let tier { properties["tier"] = tier.rawValue }
+        client.capture(event.name, distinctId: installID, properties: properties)
     }
 
     /// Handled failures go to GlitchTip only.
     public func capture(_ failure: TelemetryFailure) {}
 
-    public func setTier(_ tier: TelemetryTier?) {}
+    /// Every event after this says the plan (ADR 0007).
+    public func setTier(_ tier: TelemetryTier?) {
+        self.tier = tier
+    }
 }
 
 /// An event on its way out of the PostHog SDK: what `beforeSend` may change.
