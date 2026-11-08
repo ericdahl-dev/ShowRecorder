@@ -216,6 +216,13 @@ export const inBetaFeatures: { title: string; body: string; tier?: 'pro' }[] = [
     title: 'Hold to stop on iPhone and iPad',
     body: 'Stop a Take by pressing and holding the square for about a second, like on the watch, instead of a tap and a question. A stray tap can\'t end the show.',
   },
+  // source: Packages/ShowRecorderKit/Sources/Recording/ChannelArming.swift (ChannelArmingAvailability: everyone since #1138, in 1.2,
+  // not yet on the App Store), App/RecordScreen.swift (offersChannelArming: Pro and the Trial), Recording/Entitlement.swift (Free records all)
+  {
+    title: 'Choose which channels record',
+    tier: 'pro',
+    body: 'Touch and hold a channel\'s meter to leave that USB Channel out. It gets no file, and the others keep their numbers. Free records every channel.',
+  },
   // source: Packages/ShowRecorderKit/Sources/Recording/ClipProtection.swift (ClipProtectionSetting.isOffered: Debug and TestFlight, #699)
   {
     title: 'Clip protection',
