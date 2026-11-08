@@ -4,9 +4,9 @@ import Testing
 
 @Suite("Settings' Help row (#990)")
 struct HelpLinkTests {
-    @Test("Help opens the website's general help, /docs")
+    @Test("Help opens the website's general help, /docs, tagged so PostHog shows the visit came from the app")
     func opensDocs() {
-        #expect(HelpLink.docs.absoluteString == "https://showrecorder.app/docs")
+        #expect(HelpLink.docs.absoluteString == "https://showrecorder.app/docs?utm_source=app&utm_campaign=settings-help")
     }
 
     @Test("Help is the general help, never a mixer's page or a maker's manual")
