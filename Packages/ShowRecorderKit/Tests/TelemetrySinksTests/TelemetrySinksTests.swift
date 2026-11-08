@@ -107,6 +107,15 @@ struct SentrySinkTests {
         #expect(client.calls == ["breadcrumb usage take_started"])
     }
 
+    @Test("The plan is a tag on everything Sentry sends after, crashes included; unknown removes it")
+    func tierTag() {
+        let client = FakeErrorReporting()
+        let sink = SentrySink(environment: "debug", client: client)
+        sink.setTier(.free)
+        sink.setTier(nil)
+        #expect(client.calls == ["tag tier free", "untag tier"])
+    }
+
     @Test("A handled failure is sent with its area, error type, domain and code as tags")
     func failure() {
         let client = FakeErrorReporting()
@@ -267,6 +276,7 @@ final class FakeErrorReporting: ErrorReportingClient {
     func setUser(id: String) { calls.append("user \(id)") }
     func close() { calls.append("close") }
     func addBreadcrumb(category: String, message: String) { calls.append("breadcrumb \(category) \(message)") }
+    func setTag(_ key: String, value: String?) { calls.append(value.map { "tag \(key) \($0)" } ?? "untag \(key)") }
     func captureMessage(_ message: String, tags: [String: String]) {
         calls.append("message \(message)")
         self.tags = tags
