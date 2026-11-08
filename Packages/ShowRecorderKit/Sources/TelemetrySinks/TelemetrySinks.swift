@@ -13,6 +13,8 @@ protocol ErrorReportingClient: AnyObject {
     func close()
     func addBreadcrumb(category: String, message: String)
     func captureMessage(_ message: String, tags: [String: String])
+    /// A tag on everything sent after, crashes included; nil removes it.
+    func setTag(_ key: String, value: String?)
 }
 
 /// What `PostHogSink` asks of the PostHog SDK. The real calls are `PostHogSDKClient` in SDKAdapters.swift.
@@ -71,7 +73,10 @@ public final class SentrySink: TelemetrySink {
         client.addBreadcrumb(category: "usage", message: event.name)
     }
 
-    public func setTier(_ tier: TelemetryTier?) {}
+    /// The plan as a tag on every crash and failure after this (ADR 0007).
+    public func setTier(_ tier: TelemetryTier?) {
+        client.setTag("tier", value: tier?.rawValue)
+    }
 
     public func capture(_ failure: TelemetryFailure) {
         client.captureMessage(failure.summary, tags: [

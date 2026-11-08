@@ -30,6 +30,12 @@ final class SentrySDKClient: ErrorReportingClient {
             for (key, value) in tags { scope.setTag(value: value, key: key) }
         }
     }
+
+    func setTag(_ key: String, value: String?) {
+        SentrySDK.configureScope { scope in
+            if let value { scope.setTag(value: value, key: key) } else { scope.removeTag(key: key) }
+        }
+    }
 }
 
 @MainActor
