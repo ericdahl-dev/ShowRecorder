@@ -30,12 +30,22 @@ public enum DemoSignalAvailability {
 
     private static let resolved = Resolved()
 
-    private final class Resolved: @unchecked Sendable {
+    /// What StoreKit has answered so far in this launch. Internal so tests can feed it answers: StoreKit can't run there.
+    final class Resolved: @unchecked Sendable {
         private let lock = NSLock()
         private var value: DistributionEnvironment?
-        var environment: DistributionEnvironment? {
-            get { lock.withLock { value } }
-            set { lock.withLock { value = newValue } }
+
+        init() {}
+
+        /// The environment kept so far; nil before the first answer.
+        var environment: DistributionEnvironment? { lock.withLock { value } }
+
+        /// Takes a fresh answer from StoreKit and returns the environment kept.
+        func remember(_ fresh: DistributionEnvironment) -> DistributionEnvironment {
+            lock.withLock {
+                value = fresh
+                return fresh
+            }
         }
     }
 
@@ -49,9 +59,7 @@ public enum DemoSignalAvailability {
     /// failed answer is not trusted: it leaves the Demo signal off in a Release build.
     @discardableResult
     public static func resolveEnvironment() async -> DistributionEnvironment {
-        let environment = await currentEnvironment()
-        resolved.environment = environment
-        return environment
+        resolved.remember(await currentEnvironment())
     }
 
     private static func currentEnvironment() async -> DistributionEnvironment {
