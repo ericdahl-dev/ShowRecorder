@@ -190,6 +190,13 @@ struct SettingsView: View {
 
                 TelemetrySection()
 
+                // Next to Support (#990): the website's help, in the browser.
+                Section {
+                    Link("Help", destination: HelpLink.docs)
+                } footer: {
+                    Text("Opens the ShowRecorder help on the website: getting started, the USB cable, the Drive and troubleshooting.")
+                }
+
                 SupportSection(model: model)
 
                 // Which build is installed (#697): small and last, and not on the record screen.
