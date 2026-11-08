@@ -71,6 +71,8 @@ public final class SentrySink: TelemetrySink {
         client.addBreadcrumb(category: "usage", message: event.name)
     }
 
+    public func setTier(_ tier: TelemetryTier?) {}
+
     public func capture(_ failure: TelemetryFailure) {
         client.captureMessage(failure.summary, tags: [
             "area": failure.area.rawValue,
@@ -159,6 +161,8 @@ public final class PostHogSink: TelemetrySink {
 
     /// Handled failures go to GlitchTip only.
     public func capture(_ failure: TelemetryFailure) {}
+
+    public func setTier(_ tier: TelemetryTier?) {}
 }
 
 /// An event on its way out of the PostHog SDK: what `beforeSend` may change.

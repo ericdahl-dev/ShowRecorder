@@ -47,6 +47,11 @@ public final class Telemetry {
         for sink in sinks { sink.capture(event) }
     }
 
+    /// The plan as owned, whenever it is learned or changes: the sinks put it on what they send next (ADR 0007).
+    public func setTier(_ tier: TelemetryTier?) {
+        for sink in sinks { sink.setTier(tier) }
+    }
+
     /// A failure the app caught on purpose. An SDK reports only what escapes, so each branch that matters calls this.
     public func report(_ failure: TelemetryFailure) {
         guard running else { return }
@@ -61,6 +66,13 @@ public protocol TelemetrySink: AnyObject {
     func stop()
     func capture(_ event: TelemetryEvent)
     func capture(_ failure: TelemetryFailure)
+    /// The plan as owned; nil until the App Store has answered.
+    func setTier(_ tier: TelemetryTier?)
+}
+
+/// Free, Trial or Pro, as sent: only the plan, never a purchase, price or date (ADR 0007).
+public enum TelemetryTier: String, Sendable, Equatable {
+    case free, trial, pro
 }
 
 /// Settings › "Share crash reports and usage": on by default (ADR 0007).
