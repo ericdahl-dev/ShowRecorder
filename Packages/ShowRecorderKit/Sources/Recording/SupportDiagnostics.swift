@@ -23,8 +23,9 @@ public struct SupportDiagnostics: Equatable, Sendable {
     public var version: String?
     public var build: String?
     public var distribution: Distribution
-    /// Free, Trial or Pro: which features the user had (Free has no auto-gain, clip protection or Drive copy).
-    public var plan: Tier
+    /// Free, Trial or Pro: which features the user had (Free has no auto-gain, clip protection or Drive copy). Nil
+    /// until the App Store has answered.
+    public var plan: Tier?
     /// The hardware model, such as "iPhone16,1" or "Mac15,3".
     public var device: String
     /// The OS and its version, such as "iOS 26.0.1".
@@ -41,7 +42,7 @@ public struct SupportDiagnostics: Equatable, Sendable {
     public var mixerLink: String?
 
     public init(
-        version: String?, build: String?, distribution: Distribution, plan: Tier, device: String, system: String,
+        version: String?, build: String?, distribution: Distribution, plan: Tier?, device: String, system: String,
         inputRoute: String?, channelCount: Int?, sampleRate: Int?, driveFolderSet: Bool,
         lastInterruption: InterruptionPolicy.Reason?, mixerLink: String?
     ) {
@@ -82,7 +83,7 @@ public struct SupportDiagnostics: Equatable, Sendable {
         \(rule)
         App: \(version ?? "?") (build \(build ?? "?"))
         Distribution: \(distribution.rawValue)
-        Plan: \(plan.title)
+        Plan: \(plan?.title ?? "Unknown")
         Device: \(device)
         System: \(system)
         Audio input: \(inputRoute ?? "None")
