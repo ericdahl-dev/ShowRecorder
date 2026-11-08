@@ -146,6 +146,21 @@ struct PostHogSinkTests {
         #expect(client.calls == ["setup", "optOut", "optIn", "capture show_created \(second.uuidString)"])
     }
 
+    @Test("Once the plan is known, every event says it: free, trial or pro")
+    func tierOnEvents() {
+        let client = FakeAnalytics()
+        let sink = PostHogSink(client: client)
+        sink.start(installID: UUID())
+        sink.capture(.appOpened)
+        #expect(client.lastProperties?["tier"] == nil)
+        sink.setTier(.trial)
+        sink.capture(.appOpened)
+        #expect(client.lastProperties?["tier"] as? String == "trial")
+        sink.setTier(.pro)
+        sink.capture(.appOpened)
+        #expect(client.lastProperties?["tier"] as? String == "pro")
+    }
+
     @Test("Nothing is sent before start()")
     func beforeStart() {
         let client = FakeAnalytics()
