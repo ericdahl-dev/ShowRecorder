@@ -4,7 +4,7 @@ import Testing
 @Suite("Support email diagnostics (#722)")
 struct SupportDiagnosticsTests {
     private let full = SupportDiagnostics(
-        version: "1.1.6", build: "34.1", distribution: .testFlight, device: "iPhone16,1", system: "iOS 26.0.1",
+        version: "1.1.6", build: "34.1", distribution: .testFlight, plan: .pro, device: "iPhone16,1", system: "iOS 26.0.1",
         inputRoute: "USB Audio \"X32\"", channelCount: 32, sampleRate: 48_000, driveFolderSet: true,
         lastInterruption: .routeDisconnected, mixerLink: "X32 · X32, firmware 4.06")
 
@@ -31,6 +31,7 @@ struct SupportDiagnosticsTests {
             ----------------------------------------
             App: 1.1.6 (build 34.1)
             Distribution: TestFlight
+            Plan: Pro
             Device: iPhone16,1
             System: iOS 26.0.1
             Audio input: USB Audio "X32"
@@ -118,7 +119,7 @@ struct SupportDiagnosticsTests {
     func bodyShape() {
         let lines = full.body.split(separator: "\n").map(String.init).filter { !$0.hasPrefix("-") }
         let keys = lines.compactMap { $0.split(separator: ":", maxSplits: 1).first.map(String.init) }
-        #expect(keys == ["Diagnostics (you can delete these)", "App", "Distribution", "Device", "System", "Audio input",
+        #expect(keys == ["Diagnostics (you can delete these)", "App", "Distribution", "Plan", "Device", "System", "Audio input",
                          "Channels", "Drive folder set", "Last interruption", "Mixer Link"])
     }
 }
