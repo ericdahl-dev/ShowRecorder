@@ -1,0 +1,38 @@
+import { pageMetadata } from "@/lib/metadata";
+
+export const metadata = pageMetadata({
+  path: "/docs/arming-channels",
+  title: "Choosing which channels record - ShowRecorder",
+  description: "Leave out the USB Channels you don't need: a channel that is not armed gets no file, the others keep their numbers, and you save space. Pro, in the beta.",
+});
+
+# Choosing which channels record
+
+Every USB Channel is armed, and records, until you turn some off. With [Pro](/docs/pricing) or the 14-day Trial, you can leave out the channels you don't need, such as inputs with nothing plugged in. A USB Channel that is not armed gets no file (no Stem), on your iPhone or iPad and on the Drive. The others keep their numbers, so "07 Keys.wav" is still 07 when channel 5 is left out.
+
+This is in the public beta for now, not yet in the App Store version. See [In the beta](/features#beta).
+
+## Arm or leave out a channel
+
+1. Plug in the mixer and wait until the recorder is Ready, with no Take running.
+2. Touch and hold a channel's meter on the record screen.
+3. Tap **Don't arm channel 5** to leave it out, or **Arm channel 5** to bring it back.
+
+A channel that is not armed is dimmed, and its meter still moves, so you can see if anything is coming in on it. The header shows how many are armed, for example **XR18 · 13 of 18 armed**.
+
+If you leave out every USB Channel, Record is off and the header says **No USB Channel is armed. Arm one to record.**
+
+You can't change it during a Take. The choice is read when you press Record, so a change counts from the next Take.
+
+## Where the choice is saved
+
+- **For each Audio interface**, by its name. An XR18 remembers its own choice, and another interface starts with every channel armed.
+- **In Templates.** Starting a Show from a [Template](/docs/templates) brings back the channels it had armed. If no Audio interface is Ready yet, the choice waits and is used when one is.
+
+## Free and an ended Trial
+
+Free and an ended Trial record every USB Channel, and the menu on the meter doesn't offer arming. A choice you made with Pro or the Trial is kept, and it is used again when you buy Pro.
+
+## What you save
+
+Each USB Channel at 48 kHz and 24-bit is about 0.5 GB per hour. An XR18 uses about 9.3 GB per hour with all 18 armed, and about 6.7 GB per hour with 13 of 18 armed. A Drive also has less to write.
