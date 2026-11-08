@@ -93,6 +93,16 @@ struct SentrySinkTests {
         #expect(client.calls == ["start debug", "user \(id.uuidString)"])
     }
 
+    @Test("A plan learned before Sentry starts, or before the switch is turned back on, is tagged again at start")
+    func tierTagAtStart() {
+        let client = FakeErrorReporting()
+        let sink = SentrySink(environment: "debug", client: client)
+        sink.setTier(.pro)
+        let id = UUID()
+        sink.start(installID: id)
+        #expect(client.calls == ["tag tier pro", "start debug", "user \(id.uuidString)", "tag tier pro"])
+    }
+
     @Test("stop() closes Sentry")
     func stop() {
         let client = FakeErrorReporting()
