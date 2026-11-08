@@ -51,7 +51,9 @@ struct SupportDiagnosticsTests {
         details.driveFolderSet = false
         details.lastInterruption = nil
         details.mixerLink = nil
+        details.plan = nil
         let body = details.body
+        #expect(body.contains("\nPlan: Unknown\n"))
         #expect(body.contains("\nAudio input: None\n"))
         #expect(body.contains("\nChannels: Not ready\n"))
         #expect(body.contains("\nDrive folder set: no\n"))
