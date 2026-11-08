@@ -37,6 +37,7 @@ public final class SentrySink: TelemetrySink {
 
     private let environment: String
     private let client: any ErrorReportingClient
+    private var tier: TelemetryTier?
 
     /// `environment` is `TelemetryEnvironment.name(...)`: debug, testflight or appstore.
     public convenience init(environment: String) {
@@ -62,6 +63,8 @@ public final class SentrySink: TelemetrySink {
     public func start(installID: UUID) {
         client.start(environment: environment)
         client.setUser(id: installID.uuidString)
+        // A restart (the switch turned back on) may begin with a fresh scope.
+        if let tier { client.setTag("tier", value: tier.rawValue) }
     }
 
     public func stop() {
@@ -75,6 +78,7 @@ public final class SentrySink: TelemetrySink {
 
     /// The plan as a tag on every crash and failure after this (ADR 0007).
     public func setTier(_ tier: TelemetryTier?) {
+        self.tier = tier
         client.setTag("tier", value: tier?.rawValue)
     }
 
