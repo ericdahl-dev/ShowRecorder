@@ -149,6 +149,16 @@ class UsageTests(unittest.TestCase):
         last, _, _ = wn.windows(D(2026, 11, 7))
         self.assertEqual(wn.usage_numbers(rows, last), {"take_started": 3, "take_stopped": 1, "devices": 2})
 
+    def test_leaves_out_internal_installs(self):
+        eric = next(iter(wn.INTERNAL_INSTALLS))
+        rows = [  # day, event, device
+            (D(2026, 11, 6), "take_started", eric),
+            (D(2026, 11, 6), "take_stopped", eric),
+            (D(2026, 11, 6), "take_started", "tester"),
+        ]
+        last, _, _ = wn.windows(D(2026, 11, 7))
+        self.assertEqual(wn.usage_numbers(rows, last), {"take_started": 1, "take_stopped": 0, "devices": 1})
+
 
 def store(**numbers):
     base = {"downloads": 0, "downloads_ios": 0, "downloads_mac": 0, "trials": 0, "pro": 0, "pro_codes": 0, "packs": 0,
