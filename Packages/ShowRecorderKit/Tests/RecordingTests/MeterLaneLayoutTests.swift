@@ -23,4 +23,11 @@ struct MeterLaneLayoutTests {
             #expect(layout.laneWidth == (width - 17 * 4) / 18, "\(width)")
         }
     }
+
+    @Test("One or two channels are never a screen-wide slab: a lane is at most 64 pt")
+    func fewChannelsAreCapped() {
+        for count in [1, 2] {
+            #expect(MeterLaneLayout(channelCount: count, availableWidth: 370).laneWidth == 64, "\(count)")
+        }
+    }
 }
