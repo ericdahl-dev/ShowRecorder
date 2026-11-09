@@ -131,9 +131,19 @@ def app_store_numbers(reports, window, app_id, sku, usd_rates):
     }
 
 
+# App installs that aren't real users, by PostHog distinct_id (the app's install ID). A reinstall gets a new ID:
+# add it here. Eric's iPhone 17 Pro (TestFlight, 2026-11-03 on) and a Santa Clara Mac on a non-TestFlight build
+# that opened the app twice on 2026-11-05, most likely App Review.
+INTERNAL_INSTALLS = frozenset({
+    "3C50999B-5E8F-45B1-8390-31258B906369",  # Eric, iPhone
+    "3E54B8D0-D782-42F8-8DBF-5DC06E4F7DB3",  # App Review Mac
+})
+
+
 def usage_numbers(rows, window):
-    """Take events and the devices that sent them, from (day, event, device) rows."""
-    events = [(event, device) for day, event, device in rows if in_window(day, window)]
+    """Take events and the devices that sent them, from (day, event, device) rows, without internal installs."""
+    events = [(event, device) for day, event, device in rows
+              if in_window(day, window) and device not in INTERNAL_INSTALLS]
     counts = collections.Counter(event for event, _ in events)
     return {"take_started": counts["take_started"], "take_stopped": counts["take_stopped"],
             "devices": len({device for _, device in events})}
