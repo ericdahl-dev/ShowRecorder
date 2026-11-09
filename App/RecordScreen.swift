@@ -825,11 +825,12 @@ final class RecordScreenModel {
     }
     /// The Ready interface's mixer family: X Air or X32, or nil for anything else (#365).
     var readyFamily: MixerFamily? { readyDevice.flatMap { MixerFamily(audioInterfaceName: $0.name) } }
-    /// The Ready family for packs and the license only (#705): `readyFamily`, except that the Demo signal counts as an
-    /// X Air in review and TestFlight builds (`DemoMixerFamilyAvailability`), so App Review can reach the X Air pack.
+    /// The Ready family for packs and the license only (#705): `readyFamily`, except that in review and TestFlight builds
+    /// (`DemoMixerFamilyAvailability`) the 18-channel Demo signal counts as an X Air and the 32-channel one as an X32, so
+    /// App Review can reach those packs.
     var licenseFamily: MixerFamily? {
         readyDevice.flatMap {
-            MixerFamily.ready(interfaceName: $0.name, isDemo: $0.id == "demo", demoCounts: DemoMixerFamilyAvailability.isAvailableInThisBuild)
+            MixerFamily.ready(interfaceName: $0.name, demoChannelCount: DemoAudioDevice.channelCount(forID: $0.id), demoCounts: DemoMixerFamilyAvailability.isAvailableInThisBuild)
         }
     }
 
@@ -1959,10 +1960,12 @@ final class RecordScreenModel {
         }
         #endif
         if DemoSignalAvailability.isAvailableInThisBuild {
-            choices.append(DeviceChoice(
-                info: InputDeviceInfo(id: "demo", name: "Demo signal", inputChannelCount: DemoAudioDevice.channelCount, sampleRate: 48_000),
-                name: "Demo signal (\(DemoAudioDevice.channelCount) channels)",
-                make: { _, _ in DemoAudioDevice() }))
+            for (id, channelCount) in DemoAudioDevice.signals {
+                choices.append(DeviceChoice(
+                    info: InputDeviceInfo(id: id, name: "Demo signal", inputChannelCount: channelCount, sampleRate: 48_000),
+                    name: "Demo signal (\(channelCount) channels)",
+                    make: { _, _ in DemoAudioDevice(channelCount: channelCount) }))
+            }
         }
         #if DEBUG
         // `-demoStems <folder>` (Debug): a folder of stems as USB Channels, for screenshots (#374).

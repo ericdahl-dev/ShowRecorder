@@ -19,7 +19,7 @@ struct MixerFamilyTests {
     }
 
     @Test("Anything else has no family: Mixer Link isn't offered",
-          arguments: ["iPhone Microphone", "MacBook Pro Microphone", "Demo signal (18 channels)", "Audient EVO4",
+          arguments: ["iPhone Microphone", "MacBook Pro Microphone", "Demo signal (18 channels)", "Demo signal (32 channels)", "Audient EVO4",
                       "DJM-A9", "Scarlett 18i20 USB", ""])
     func none(name: String) {
         #expect(MixerFamily(audioInterfaceName: name) == nil)
