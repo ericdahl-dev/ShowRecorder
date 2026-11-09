@@ -120,6 +120,8 @@ The campaigns (40 characters or fewer; the list is `APP_STORE_CAMPAIGNS`):
 | `site-guide-taps` | Pre or post fader guide, "With ShowRecorder" |
 | `site-guide-best-app` | Best app for iPhone and iPad guide, after "Which app for which job" |
 
+**Paid Facebook ads.** An ad that links to a page on the site uses `utm_source=facebook&utm_medium=paid&utm_campaign=fbad-<ad>` (in use: `fbad-xr18`, `fbad-church`, `fbad-x32`). On that visit, every App Store link on the page carries the ad's campaign as its `ct` instead of the placement's, so App Analytics counts downloads per ad (`website/lib/adCampaign.ts`). The campaign must be `fbad-` plus up to 34 lowercase letters, digits or hyphens; anything else keeps the placement's `ct`. It reads only that page's address and stores nothing, so the next page's links are the placement ones again.
+
 An App Store link in a post uses the same format with its own `ct`, short and lowercase (for example `fb-xr18-group`).
 
 **Website links in posts.** A showrecorder.app link in a post, reply or email gets UTM tags, so PostHog shows which one sent the visit: `utm_source=facebook&utm_medium=social&utm_campaign=<group-or-post>`. `utm_source` is the place (facebook, reddit, email, forum), `utm_medium` the kind (social, email, forum) and `utm_campaign` the group or post, short and lowercase.
