@@ -14,6 +14,15 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.2.8",
+    date: "2026-11-09",
+    channel: "TestFlight beta",
+    summary: "A 32-channel Demo signal for testers.",
+    changes: [
+      "TestFlight builds offer a 32-channel Demo signal next to the 18-channel one, so testers can try a 32-channel Take without an X32.",
+    ],
+  },
+  {
     version: "1.2.7",
     date: "2026-11-08",
     channel: "TestFlight beta",
