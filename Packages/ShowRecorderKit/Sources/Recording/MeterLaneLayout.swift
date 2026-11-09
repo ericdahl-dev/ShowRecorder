@@ -8,7 +8,8 @@ public struct MeterLaneLayout: Equatable, Sendable {
     public let spacing: Double
 
     public init(channelCount: Int, availableWidth: Double) {
-        laneWidth = 64
-        spacing = 4
+        spacing = 2
+        let count = Double(max(channelCount, 1))
+        laneWidth = max((availableWidth - spacing * (count - 1)) / count, 0)
     }
 }
