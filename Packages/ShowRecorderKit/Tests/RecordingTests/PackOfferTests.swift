@@ -15,8 +15,14 @@ struct PackOfferTests {
 
     @Test("The Demo signal, where it counts as an X Air, is offered the X Air pack first (#705)")
     func demoGetsXAirPack() {
-        let family = MixerFamily.ready(interfaceName: "Demo signal", isDemo: true, demoCounts: true)
+        let family = MixerFamily.ready(interfaceName: "Demo signal", demoChannelCount: 18, demoCounts: true)
         #expect(PackOffer.items(ownsPro: false, readyFamily: family, ownedPacks: [], boughtPacks: [], packsOffered: true) == [.pack(.xAir), .pro])
+    }
+
+    @Test("The 32-channel Demo signal, where it counts as an X32, is offered the X32 pack first (Eric, 2026-11-09)")
+    func demo32GetsX32Pack() {
+        let family = MixerFamily.ready(interfaceName: "Demo signal", demoChannelCount: 32, demoCounts: true)
+        #expect(PackOffer.items(ownsPro: false, readyFamily: family, ownedPacks: [], boughtPacks: [], packsOffered: true) == [.pack(.x32), .pro])
     }
 
     @Test("A generic input (no mixer family) is offered Pro only: there is no pack for it (#705)")
