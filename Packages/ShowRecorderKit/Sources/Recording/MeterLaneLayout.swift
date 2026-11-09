@@ -7,9 +7,27 @@ public struct MeterLaneLayout: Equatable, Sendable {
     /// The gap between two lanes, in points.
     public let spacing: Double
 
+    /// The gap the meters have always had, kept while the lanes stay wide enough (18 channels on any iPhone).
+    public static let roomySpacing = 4.0
+    /// The gap when that would leave the lanes too narrow (32 channels on an iPhone).
+    public static let tightSpacing = 2.0
+    /// The narrowest lane that still gets the roomy gap.
+    public static let narrowestRoomyLane = 12.0
+
     public init(channelCount: Int, availableWidth: Double) {
-        spacing = 2
+        let roomy = Self.share(availableWidth, among: channelCount, gap: Self.roomySpacing)
+        if roomy >= Self.narrowestRoomyLane {
+            spacing = Self.roomySpacing
+            laneWidth = roomy
+        } else {
+            spacing = Self.tightSpacing
+            laneWidth = Self.share(availableWidth, among: channelCount, gap: Self.tightSpacing)
+        }
+    }
+
+    /// Each lane's equal share of the width once the gaps between them are taken out.
+    private static func share(_ width: Double, among channelCount: Int, gap: Double) -> Double {
         let count = Double(max(channelCount, 1))
-        laneWidth = max((availableWidth - spacing * (count - 1)) / count, 0)
+        return max((width - gap * (count - 1)) / count, 0)
     }
 }
