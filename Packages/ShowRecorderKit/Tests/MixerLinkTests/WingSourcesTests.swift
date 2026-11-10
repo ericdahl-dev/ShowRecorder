@@ -116,7 +116,10 @@ struct WingWithoutOSCTests {
 
         await link.connect(to: "127.0.0.1:\(wing.port)", usbChannelCount: 48)
 
-        #expect(clock.now - start < .seconds(10), "one OSC timeout, not one per USB Channel")
+        // One OSC timeout, not one per USB Channel: only the first OSC query was sent. The clock is only a hang guard,
+        // loose enough for a busy CI runner (13.5 s seen there for a 0.3 s timeout).
+        #expect(wing.queries.filter { $0 != "WING?" } == ["/io/out/USB/1/grp"])
+        #expect(clock.now - start < .seconds(60), "no hang")
         #expect(link.identity == MixerIdentity(networkName: "FOH-WING", model: "ngc-full", firmware: "3.1.1"))
         #expect(link.sources.map(\.name) == (1...48).map { Source.fallback(usbChannel: $0).name })
         #expect(link.sources.allSatisfy { !$0.hasMixerName })
