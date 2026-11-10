@@ -219,7 +219,7 @@ const faqs: { q: string; a: string; node?: ReactNode }[] = [
   },
   {
     q: "Is there a Mac version?",
-    a: "Yes, in the public TestFlight beta now. The App Store version (1.1.18) is for iPhone and iPad; the Mac is in the TestFlight beta until it comes to the Mac App Store.",
+    a: "Yes, in the public TestFlight beta now. The App Store version (1.1.21) is for iPhone and iPad; the Mac is in the TestFlight beta until it comes to the Mac App Store.",
   },
   {
     q: "What if the Drive is unplugged during a Take?",

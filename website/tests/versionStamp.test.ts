@@ -55,4 +55,14 @@ describe("nginx serves text as UTF-8", () => {
     expect(conf).toMatch(/^\s*charset utf-8;/m);
     expect(conf).toMatch(/^\s*charset_types text\/plain text\/xml;/m);
   });
+
+});
+
+describe("llms.txt facts", () => {
+  // ChatGPT (2026-11-10) called X32 recording a beta, mixing it up with X32 auto-gain. Say which is which.
+  it("says X32 and M32 recording is in the App Store version and only their auto-gain is in the beta", () => {
+    const line = facts().find((l) => l.startsWith("- Works now:"));
+    expect(line).toMatch(/X32 and M32 recording is in the App Store version, not a beta/);
+    expect(line).toMatch(/only auto-gain on them is in the beta/);
+  });
 });

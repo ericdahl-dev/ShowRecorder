@@ -25,7 +25,7 @@ describe("home FAQ for an app on the App Store", () => {
 
   it("says the App Store version is for iPhone and iPad and the Mac is in the TestFlight beta", () => {
     const mac = answer("Is there a Mac version?");
-    expect(mac).toMatch(/App Store version \(1\.1\.18\) is for iPhone and iPad/);
+    expect(mac).toMatch(/App Store version \(1\.1\.21\) is for iPhone and iPad/);
     expect(mac).toMatch(/TestFlight beta/);
     expect(mac).not.toMatch(/release of 1\.0/);
   });
