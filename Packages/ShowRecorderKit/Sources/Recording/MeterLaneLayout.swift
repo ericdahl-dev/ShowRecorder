@@ -28,6 +28,14 @@ public struct MeterLaneLayout: Equatable, Sendable {
         }
     }
 
+    /// How wide one digit of a lane's number is, per point of font size (monospaced digits, a little over SF's own).
+    public static let digitWidthPerPoint = 0.62
+
+    /// The size for every lane's USB Channel number.
+    public func labelPointSize(fullSize: Double) -> Double {
+        fullSize
+    }
+
     /// Each lane's equal share of the width once the gaps between them are taken out.
     private static func share(_ width: Double, among channelCount: Int, gap: Double) -> Double {
         let count = Double(max(channelCount, 1))

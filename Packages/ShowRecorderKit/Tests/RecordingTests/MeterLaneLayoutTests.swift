@@ -30,4 +30,15 @@ struct MeterLaneLayoutTests {
             #expect(MeterLaneLayout(channelCount: count, availableWidth: 370).laneWidth == 64, "\(count)")
         }
     }
+
+    /// caption2's size on an iPhone at the default text size.
+    let caption2 = 11.0
+
+    @Test("32 USB Channels on an iPhone 17 Pro: every number gets one size, the one that fits \"32\" in a lane")
+    func thirtyTwoChannelNumbersShareOneSize() {
+        let layout = MeterLaneLayout(channelCount: 32, availableWidth: 370)
+        let size = layout.labelPointSize(fullSize: caption2)
+        #expect(size < caption2, "two digits don't fit a 32-channel lane at full size")
+        #expect(2 * MeterLaneLayout.digitWidthPerPoint * size <= layout.laneWidth, "\"32\" fits its lane")
+    }
 }
