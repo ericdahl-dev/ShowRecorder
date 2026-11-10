@@ -17,6 +17,8 @@ final class FakeWing: Sendable {
         var queries: [String] = []
         /// When false, the OSC port takes queries but never answers, as wingemul does.
         var answersOSC = true
+        /// How long each OSC reply waits before it is sent, as a slow network would make it.
+        var replyDelay: TimeInterval = 0
     }
 
     /// The state, in a class so the listeners' handlers can share it (a `Mutex` can't be captured).
@@ -42,7 +44,7 @@ final class FakeWing: Sendable {
                 return text == "WING?" ? Data(state.identity.utf8) : nil
             }
         }
-        let (osc, oscPort) = try await Self.listen { data in
+        let (osc, oscPort) = try await Self.listen(delay: { box.state.withLock { $0.replyDelay } }) { data in
             guard let message = try? OSCMessage(decoding: Array(data)) else { return nil }
             let reply: OSCMessage? = box.state.withLock { state in
                 state.queries.append(message.address)
@@ -66,8 +68,28 @@ final class FakeWing: Sendable {
 
     func update(_ change: @Sendable (inout State) -> Void) { box.state.withLock { change(&$0) } }
 
+    /// Renames Source `path` ("LCL/1") at the desk. The WING pushes nothing here: the driver finds it by re-reading.
+    func rename(source path: String, to name: String) {
+        update { $0.replies["/io/in/\(path)/name"] = [.string(name)] }
+    }
+
+    /// Recolors Source `path` ("LCL/1") at the desk.
+    func recolor(source path: String, to color: Int) {
+        update { $0.replies["/io/in/\(path)/col"] = FakeWing.intReply(color) }
+    }
+
+    /// Re-patches USB output `usb` to `group` and `input` at the desk.
+    func repatch(usb: Int, to group: String, _ input: Int) {
+        update {
+            $0.replies["/io/out/USB/\(usb)/grp"] = [.string(group)]
+            $0.replies["/io/out/USB/\(usb)/in"] = FakeWing.intReply(input)
+        }
+    }
+
     /// A loopback UDP listener that answers each datagram with `answer`'s reply, if any.
-    private static func listen(answer: @escaping @Sendable (Data) -> Data?) async throws -> (NWListener, UInt16) {
+    private static func listen(
+        delay: @escaping @Sendable () -> TimeInterval = { 0 }, answer: @escaping @Sendable (Data) -> Data?
+    ) async throws -> (NWListener, UInt16) {
         let parameters = NWParameters.udp
         parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
         let listener = try NWListener(using: parameters)
@@ -84,7 +106,11 @@ final class FakeWing: Sendable {
             @Sendable func serve() {
                 connection.receiveMessage { data, _, _, error in
                     guard error == nil, let data else { return }
-                    if let reply = answer(data) { connection.send(content: reply, completion: .contentProcessed { _ in }) }
+                    if let reply = answer(data) {
+                        let wait = delay()
+                        let send: @Sendable () -> Void = { connection.send(content: reply, completion: .contentProcessed { _ in }) }
+                        if wait > 0 { DispatchQueue.global().asyncAfter(deadline: .now() + wait, execute: send) } else { send() }
+                    }
                     serve()
                 }
             }
