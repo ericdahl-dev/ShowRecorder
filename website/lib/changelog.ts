@@ -14,6 +14,15 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.2.10",
+    date: "2026-11-09",
+    channel: "TestFlight beta",
+    summary: "With 32 channels, all meters line up.",
+    changes: [
+      "Every channel number on the record screen is the same size, so with 32 channels all meters end on one line.",
+    ],
+  },
+  {
     version: "1.2.9",
     date: "2026-11-09",
     channel: "TestFlight beta",
