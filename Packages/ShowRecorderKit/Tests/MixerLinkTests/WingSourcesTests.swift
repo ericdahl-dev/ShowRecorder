@@ -97,3 +97,31 @@ struct WingSourcesTests {
         #expect(MixerColor(wingIndex: index) == MixerColor(hue: hue, inverted: false))
     }
 }
+
+/// A WING that answers the knock on 2222 but never answers OSC on 2223, as Maillot's wingemul does (Eric, 2026-11-10):
+/// the Link must come up within a bounded wait with every USB Channel on its generic name, and stay up, so Takes record
+/// with "USB 01" … "USB 48" Stems. No hang, no crash.
+@MainActor
+@Suite("WING that answers no OSC")
+struct WingWithoutOSCTests {
+    @Test("The Link comes up within a bounded wait, names every USB Channel generically, and stays up")
+    func linkUpWithGenericNames() async throws {
+        let wing = try await FakeWing(.init(answersOSC: false))
+        let oscPort = wing.oscPort
+        let link = MixerLinkController(timeout: .milliseconds(300), renewEvery: .milliseconds(100)) { endpoint, timeout in
+            WingDriver(endpoint: endpoint, oscPort: oscPort, timeout: timeout)
+        }
+        let clock = ContinuousClock()
+        let start = clock.now
+
+        await link.connect(to: "127.0.0.1:\(wing.port)", usbChannelCount: 48)
+
+        #expect(clock.now - start < .seconds(10), "one OSC timeout, not one per USB Channel")
+        #expect(link.identity == MixerIdentity(networkName: "FOH-WING", model: "ngc-full", firmware: "3.1.1"))
+        #expect(link.sources.map(\.name) == (1...48).map { Source.fallback(usbChannel: $0).name })
+        #expect(link.sources.allSatisfy { !$0.hasMixerName })
+        try await Task.sleep(for: .milliseconds(500))   // a few renewals: the knock still answers
+        #expect(link.identity != nil, "still up")
+        #expect(link.sources.count == 48)
+    }
+}
