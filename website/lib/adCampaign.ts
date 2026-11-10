@@ -1,25 +1,47 @@
 import { APP_STORE_URL } from "@/lib/site";
 
-// The ct for a visit from a paid Facebook ad: the ad's utm_campaign when the page address has utm_source=facebook,
-// utm_medium=paid and a campaign of the form fbad-<name> (lowercase letters, digits and hyphens, 39 characters at
-// most, inside the 40 a ct can hold), else null. Nothing else from the address ever reaches a link.
-export function adCampaign(search: string): string | null {
-  const query = new URLSearchParams(search);
-  const campaign = query.get("utm_campaign");
-  if (query.get("utm_source") !== "facebook" || query.get("utm_medium") !== "paid" || campaign === null) return null;
-  return /^fbad-[a-z0-9-]{1,34}$/.test(campaign) ? campaign : null;
+// Where the visit's campaign is kept in sessionStorage (it lasts until the tab closes).
+export const CAMPAIGN_KEY = "showrecorder-ct";
+
+type CampaignStorage = { getItem(key: string): string | null; setItem(key: string, value: string): void };
+
+// The ct for this visit, first touch wins: the campaign already remembered for the visit if there is one, else this
+// address's utm_campaign, which is then remembered. A campaign is 1 to 40 lowercase letters, digits or hyphens (40 is
+// all a ct can hold); anything else is ignored, in the address and in storage. Any utm_source counts. Storage that is
+// missing or throws (private mode, blocked site data) only loses the memory: this page still uses its own campaign.
+// It refers to nothing outside itself, because adCampaignScript() copies it into the page as source.
+export function rememberedCampaign(search: string, storage: CampaignStorage | null): string | null {
+  const key = "showrecorder-ct";
+  const valid = (value: string | null): value is string => value !== null && /^[a-z0-9-]{1,40}$/.test(value);
+  try {
+    const kept = storage ? storage.getItem(key) : null;
+    if (valid(kept)) return kept;
+  } catch {}
+  const campaign = new URLSearchParams(search).get("utm_campaign");
+  if (!valid(campaign)) return null;
+  try {
+    if (storage) storage.setItem(key, campaign);
+  } catch {}
+  return campaign;
 }
 
-// Run once after the page loads (app/layout.tsx). The pages are built ahead of time, so their App Store links carry
-// the placement's ct; for a visit from a paid Facebook ad this swaps in the ad's campaign on every tagged App Store
-// link on the page, so App Store Connect counts downloads per ad. It reads only this page's address and stores
-// nothing (no cookies, no storage), so the next page's links are the plain placement ones again. adCampaign above is
-// copied in as source, so the page and the tests run the same check.
-export function adCampaignScript(): string {
+// The ct a tagged address asks for, without any memory.
+export function postCampaign(search: string): string | null {
+  return rememberedCampaign(search, null);
+}
+
+// Run once after each page loads (app/layout.tsx). The pages are built ahead of time, so their App Store links carry
+// the placement's ct; while the visit has a campaign (rememberedCampaign above), this swaps it in on every tagged App
+// Store link on the page, so App Store Connect counts downloads per post or ad. Without JavaScript, or with no
+// campaign, the links keep the placement's ct. It sets no cookies; the campaign is the only thing it keeps, in
+// sessionStorage. rememberedCampaign is copied in as source, so the page and the tests run the same code.
+export function postCampaignScript(): string {
   return `(function () {
   try {
-    var adCampaign = ${adCampaign.toString()};
-    var ct = adCampaign(window.location.search);
+    var rememberedCampaign = ${rememberedCampaign.toString()};
+    var storage = null;
+    try { storage = window.sessionStorage; } catch (e) {}
+    var ct = rememberedCampaign(window.location.search, storage);
     if (!ct) return;
     var listing = ${JSON.stringify(`${APP_STORE_URL}?`)};
     var links = document.querySelectorAll("a[href]");
