@@ -7,16 +7,43 @@ import Synchronization
 /// firmware 3.0.5 and above). The WING is found with the plain-text knock `WING?` on UDP port 2222, which Maillot's
 /// wingemul answers too; its parameters are read over OSC on UDP port 2223, which wingemul does not answer. Not yet
 /// tried on a real WING. Offered only where `WingAvailability` allows.
+///
+/// Live updates come from re-reading every `rereadInterval`, never from an OSC subscription (`/*S`, `/*s`): a WING
+/// keeps one subscriber, the last to ask, so subscribing would cut off any other OSC app on the desk (Eric, 2026-11-10).
 public final class WingDriver: MixerDriver {
     let endpoint: MixerEndpoint
     let client: OSCUDPClient
     let timeout: Duration
+    let rereadEvery: Duration
+
+    /// How often the Sources are read again while the Link is up, at most; the Link's renewal (every 5 s) asks.
+    public static let rereadInterval: Duration = .seconds(5)
+    /// Queries one USB Channel's read takes at most: its output's group and input, then the Source's name and color.
+    public static let queriesPerUSBChannel = 4
+    /// Queries one read of all 48 USB Channels takes at most: 192, about 20 KB each way.
+    public static var queriesPerRead: Int { usbChannelCount * queriesPerUSBChannel }
+
+    /// What the Link was last told, and whether a re-read is running.
+    private struct Live {
+        var sources: [Source] = []
+        var lastRead: ContinuousClock.Instant?
+        var rereading = false
+        var listeners: [UUID: AsyncStream<SourceChange>.Continuation] = [:]
+    }
+
+    private let live = Mutex(Live())
 
     /// `endpoint` is where the WING answers the knock (port 2222); `oscPort` is its OSC port on the same host.
-    public init(endpoint: MixerEndpoint, oscPort: UInt16 = 2223, timeout: Duration = .seconds(1.5)) {
+    public init(endpoint: MixerEndpoint, oscPort: UInt16 = 2223, timeout: Duration = .seconds(1.5),
+                rereadEvery: Duration = WingDriver.rereadInterval) {
         self.endpoint = endpoint
         client = OSCUDPClient(endpoint: MixerEndpoint(host: endpoint.host, port: oscPort))
         self.timeout = timeout
+        self.rereadEvery = rereadEvery
+    }
+
+    deinit {
+        live.withLock { $0.listeners.values.forEach { $0.finish() } }
     }
 
     /// The knock's reply: "WING,<ip>,<name>,<model>,<serial>,<firmware>". The IP in it is ignored (wingemul sends 0.0.0.0).
@@ -41,13 +68,20 @@ public final class WingDriver: MixerDriver {
     /// costs one timeout.
     public func sources(usbChannelCount: Int) async throws(MixerLinkProblem) -> [Source] {
         guard usbChannelCount > 0 else { return [] }
+        let sources = (try? await read(usbChannelCount: usbChannelCount))
+            ?? (1...usbChannelCount).map { Source.fallback(usbChannel: $0) }
+        live.withLock {
+            $0.sources = sources
+            $0.lastRead = .now
+        }
+        return sources
+    }
+
+    /// Every USB Channel's Source, or a throw at the first query the WING doesn't answer.
+    private func read(usbChannelCount: Int) async throws(MixerLinkProblem) -> [Source] {
         var sources: [Source] = []
-        do {
-            for usbChannel in 1...usbChannelCount {
-                sources.append(try await source(usbChannel: usbChannel))
-            }
-        } catch {
-            return (1...usbChannelCount).map { Source.fallback(usbChannel: $0) }
+        for usbChannel in 1...usbChannelCount {
+            sources.append(try await source(usbChannel: usbChannel))
         }
         return sources
     }
@@ -83,13 +117,52 @@ public final class WingDriver: MixerDriver {
         throw .other("\(address) didn't return a number")
     }
 
-    /// Checks that the WING still answers.
+    /// Checks that the WING still answers, then starts a re-read when the last read is `rereadEvery` old and none is
+    /// running. The re-read runs on its own, so a slow WING never holds up the renewal.
     public func renewLiveUpdates() async throws(MixerLinkProblem) {
         _ = try await identify()
+        let count: Int? = live.withLock { live in
+            guard !live.rereading, !live.sources.isEmpty,
+                  live.lastRead.map({ ContinuousClock.now - $0 >= rereadEvery }) ?? true else { return nil }
+            live.rereading = true
+            return live.sources.count
+        }
+        guard let count else { return }
+        Task { await reread(usbChannelCount: count) }
+    }
+
+    /// Reads the Sources again and sends what moved: a rename, a recolor or a re-patch. A read the WING doesn't
+    /// finish sends nothing, so a WING that goes quiet doesn't rename everything to "USB 01".
+    private func reread(usbChannelCount: Int) async {
+        let after = try? await read(usbChannelCount: usbChannelCount)
+        let (changes, listeners) = live.withLock { live -> ([SourceChange], [AsyncStream<SourceChange>.Continuation]) in
+            live.rereading = false
+            live.lastRead = .now
+            guard let after, after.count == live.sources.count else { return ([], []) }
+            let changes = Self.changes(from: live.sources, to: after)
+            live.sources = after
+            return (changes, Array(live.listeners.values))
+        }
+        for change in changes { listeners.forEach { $0.yield(change) } }
+    }
+
+    /// What moved between two reads, as the X32 driver reports a re-read.
+    static func changes(from before: [Source], to after: [Source]) -> [SourceChange] {
+        zip(before, after).enumerated().compactMap { index, pair in
+            let (old, new) = pair
+            guard old.name != new.name || old.color != new.color || old.routedFrom != new.routedFrom else { return nil }
+            return SourceChange(usbChannel: index + 1, name: old.name == new.name ? nil : (new.hasMixerName ? new.name : ""),
+                                color: old.color == new.color ? nil : new.color,
+                                routedFrom: old.routedFrom == new.routedFrom ? nil : .some(new.routedFrom))
+        }
     }
 
     public func sourceChanges() -> AsyncStream<SourceChange> {
-        AsyncStream { $0.finish() }
+        let (stream, continuation) = AsyncStream<SourceChange>.makeStream()
+        let id = UUID()
+        live.withLock { $0.listeners[id] = continuation }
+        continuation.onTermination = { [weak self] _ in self?.live.withLock { _ = $0.listeners.removeValue(forKey: id) } }
+        return stream
     }
 }
 
