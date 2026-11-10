@@ -27,23 +27,23 @@ struct WingFamilyTests {
         #expect(Self.withWing == [.xAir, .x32, .wing])
     }
 
-    @Test("A WING is asked who it is with /? on its OSC port, 2223")
+    @Test("A WING is asked who it is with the plain-text knock WING? on port 2222, which wingemul answers too")
     func probe() {
-        #expect(MixerFamily.wing.probe.port == 2223)
-        #expect(MixerFamily.wing.probe.request == OSCMessage("/?").encoded())
+        #expect(MixerFamily.wing.probe.port == 2222)
+        #expect(MixerFamily.wing.probe.request == Array("WING?".utf8))
     }
 
-    @Test("The /? reply gives the WING's network name, model and firmware")
+    @Test("The OSC /? reply (port 2223) carries the same text and reads the same way")
     func oscReply() {
         let reply = OSCMessage("/?", [.string("WING,192.168.1.71,PGM,ngc-full,NO_SERIAL,1.07.2-40-g1b1b292b:develop")]).encoded()
         #expect(MixerFamily.wing.probe.identity(reply)
             == MixerIdentity(networkName: "PGM", model: "ngc-full", firmware: "1.07.2-40-g1b1b292b:develop"))
     }
 
-    @Test("The plain-text discovery reply on port 2222 reads the same way")
+    @Test("The knock's reply gives the WING's network name, model and firmware, whatever IP it claims (wingemul: 0.0.0.0)")
     func discoveryReply() {
-        let reply = Array("WING,192.168.1.129,WinEmul,ngc-full,0,3.1".utf8)
-        #expect(MixerFamily.wing.probe.identity(reply) == MixerIdentity(networkName: "WinEmul", model: "ngc-full", firmware: "3.1"))
+        let reply = Array("WING,0.0.0.0,wingemul,ngc-full,0,3.1.1".utf8)
+        #expect(MixerFamily.wing.probe.identity(reply) == MixerIdentity(networkName: "wingemul", model: "ngc-full", firmware: "3.1.1"))
     }
 
     @Test("Anything else is not a WING", arguments: [
@@ -63,19 +63,41 @@ struct WingFamilyTests {
 
     @Test("The WING driver knows a WING sends 48 USB Channels")
     func makesDriver() {
-        let driver = MixerFamily.wing.makeDriver(endpoint: MixerEndpoint(host: "10.0.0.30", port: 2223), timeout: .seconds(1))
+        let driver = MixerFamily.wing.makeDriver(endpoint: MixerEndpoint(host: "10.0.0.30", port: 2222), timeout: .seconds(1))
         #expect(driver.capabilities(for: MixerIdentity(networkName: "", model: "ngc-full", firmware: "")).usbChannelCount == 48)
     }
 }
 
 @Suite("WING driver")
 struct WingDriverTests {
-    @Test("Identifies the WING from its /? reply")
+    @Test("Identifies the WING from its reply to the knock, with no OSC needed (wingemul answers no OSC)")
     func identifies() async throws {
-        let wing = try await FakeWing()
-        let driver = WingDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: wing.port), timeout: Loopback.replyTimeout)
+        let wing = try await FakeWing(.init(answersOSC: false))
+        let driver = WingDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: wing.port), oscPort: wing.oscPort,
+                                timeout: Loopback.replyTimeout)
 
-        #expect(try await driver.identify() == MixerIdentity(networkName: "FOH-WING", model: "ngc-full", firmware: "3.1.0"))
+        #expect(try await driver.identify() == MixerIdentity(networkName: "FOH-WING", model: "ngc-full", firmware: "3.1.1"))
+        #expect(wing.queries == ["WING?"])
+    }
+
+    @Test("A host that doesn't answer the knock is no WING: no reply, within the timeout")
+    func silentHost() async throws {
+        let wing = try await FakeWing(.init(identity: "not a wing"))
+        let driver = WingDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: wing.oscPort), oscPort: wing.oscPort,
+                                timeout: .milliseconds(300))
+
+        await #expect(throws: MixerLinkProblem.noReply(host: "127.0.0.1")) { try await driver.identify() }
+    }
+
+    @Test("Until USB routing is read, every USB Channel keeps its USB Channel name")
+    func fallbackNames() async throws {
+        let wing = try await FakeWing()
+        let driver = WingDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: wing.port), oscPort: wing.oscPort,
+                                timeout: Loopback.replyTimeout)
+
+        let sources = try await driver.sources(usbChannelCount: 48)
+
+        #expect(sources.map(\.name) == (1...48).map { Source.fallback(usbChannel: $0).name })
     }
 
     @Test("Detection finds a WING on its port and keeps that connection")
@@ -87,6 +109,6 @@ struct WingDriverTests {
         let identity = try await detecting.identify()
 
         #expect(MixerFamily.reading(model: identity.model) == .wing)
-        #expect(wing.queries == ["/?"])
+        #expect(wing.queries == ["WING?"])
     }
 }
