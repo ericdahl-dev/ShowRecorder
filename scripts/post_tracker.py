@@ -97,11 +97,24 @@ def ensure_dashboard():
     if not dash:
         dash = _api(f"{base}/dashboards/", {"name": DASHBOARD,
             "description": "showrecorder.app visits from each Facebook post and ad (utm_source=facebook). Post log: docs/marketing/posts.csv."}, headers)
-    tiles = [("Facebook posts: people and taps", VISITS_SQL), ("Facebook posts: new people per day", DAILY_SQL)]
-    have = {t["insight"]["name"]: t["insight"]["id"] for t in dash.get("tiles", []) if t.get("insight")}
-    for name, sql in tiles:
-        body = {"name": name, "query": {"kind": "DataTableNode", "source": {"kind": "HogQLQuery", "query": sql}},
-                "dashboards": [dash["id"]]}
+    table = lambda sql: {"kind": "DataTableNode", "source": {"kind": "HogQLQuery", "query": sql}}
+    # Stacked bars, like the tracker page: people a day who arrived through a Facebook link, by post.
+    # A person who comes back through a link on a later day counts again on that day.
+    bars = {"kind": "InsightVizNode", "source": {
+        "kind": "TrendsQuery", "interval": "day", "dateRange": {"date_from": "-14d"},
+        "series": [{"kind": "EventsNode", "event": "$pageview", "name": "$pageview", "math": "dau"}],
+        "properties": [{"type": "event", "key": "$host", "operator": "exact", "value": ["showrecorder.app"]},
+                       {"type": "event", "key": "utm_source", "operator": "exact", "value": ["facebook"]}],
+        "breakdownFilter": {"breakdown": "utm_campaign", "breakdown_type": "event"},
+        "trendsFilter": {"display": "ActionsBar"}}}
+    tiles = [("Facebook posts: people and taps", table(VISITS_SQL)),
+             ("Facebook posts: people per day by post", bars),
+             ("Facebook posts: new people per day", table(DAILY_SQL))]
+    # The dashboard search leaves tiles out, so read the dashboard itself to find the insights already on it.
+    tiles_now = _api(f"{base}/dashboards/{dash['id']}/", headers=headers).get("tiles", [])
+    have = {t["insight"]["name"]: t["insight"]["id"] for t in tiles_now if t.get("insight") and not t["insight"].get("deleted")}
+    for name, query in tiles:
+        body = {"name": name, "query": query, "dashboards": [dash["id"]]}
         if name in have:
             _api(f"{base}/insights/{have[name]}/", body, headers, method="PATCH")
         else:
