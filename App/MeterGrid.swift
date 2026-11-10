@@ -44,22 +44,28 @@ struct MeterGrid: View {
     var compact = false
     @Environment(\.appearanceMode) private var mode
 
-    /// The widest a meter (and its label) gets. Wide enough that 18 channels fill an iPad, narrow enough
-    /// that one or two channels aren't a screen-wide slab. The strip is centered when it's narrower
+    /// The widest a meter (and its label) gets: `MeterLaneLayout.widestLane`. The strip is centered when it's narrower
     /// than the screen.
-    static let maxBarWidth: CGFloat = 64
+    static let maxBarWidth = CGFloat(MeterLaneLayout.widestLane)
 
     var body: some View {
         // Reading the levels here makes this view, and only this one, redraw as they move.
         let meters = model.levels
-        HStack(alignment: .bottom, spacing: 4) {
+        // Every lane gets a width that makes the whole row fit the screen (#1174): left to their own size, 32 lanes
+        // were wider than an iPhone and pushed the whole record screen sideways. Only the width changes, never the height.
+        GeometryReader { geometry in
+            lanes(meters, layout: MeterLaneLayout(channelCount: meters.count, availableWidth: geometry.size.width))
+        }
+    }
+
+    private func lanes(_ meters: [ChannelMeter], layout: MeterLaneLayout) -> some View {
+        HStack(alignment: .bottom, spacing: layout.spacing) {
             ForEach(meters.indices, id: \.self) { index in
                 VStack(spacing: 4) {
                     VStack(spacing: 2) {
                         // Shape as well as color: a triangle with an exclamation mark. The row is always there so
                         // a clip doesn't move the meters.
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.caption2)
+                        LaneMark(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(mode == .system ? Color.red : Color(Palette.meter(.red, mode: mode)))
                             .opacity(clipped.contains(index) ? 1 : 0)
                         MeterBar(meter: meters[index])
@@ -93,6 +99,7 @@ struct MeterGrid: View {
                         .onTapGesture { if clipped.contains(index) { clearClip(index) } else { nameChannel(index + 1) } }
                         .accessibilityHidden(true)
                 }
+                .frame(width: layout.laneWidth)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -115,6 +122,19 @@ struct MeterGrid: View {
     /// Maps dBFS to 0...1 on a -60...0 scale.
     static func fraction(forDbfs dbfs: Double) -> Double {
         min(max((dbfs + 60) / 60, 0), 1)
+    }
+}
+
+/// The clip mark over a lane's meter, at its usual size when the lane has room for it and smaller in a narrow lane
+/// (32 channels on an iPhone, #1174), so it stays inside its own lane.
+private struct LaneMark: View {
+    let systemName: String
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            Image(systemName: systemName).font(.caption2)
+            Image(systemName: systemName).font(.system(size: 7))
+        }
     }
 }
 
