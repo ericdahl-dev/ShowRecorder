@@ -99,6 +99,7 @@ extension MixerFamily {
         switch self {
         case .xAir: "X Air"
         case .x32: "X32"
+        case .wing: "WING"
         }
     }
 
@@ -107,6 +108,7 @@ extension MixerFamily {
         switch self {
         case .xAir: ["XR18", "MR18"]
         case .x32: ["X32", "M32"]
+        case .wing: ["WING"]  // no WING pack is sold (#417)
         }
     }
 }
