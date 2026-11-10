@@ -51,6 +51,15 @@ struct MeterGrid: View {
     /// than the screen.
     static let maxBarWidth = CGFloat(MeterLaneLayout.widestLane)
 
+    /// caption2's size at the default text size, which the channel numbers start from.
+    #if os(macOS)
+    static let defaultNumberSize: CGFloat = 10
+    #else
+    static let defaultNumberSize: CGFloat = 11
+    #endif
+    /// The channel numbers' full size, following the operator's text size like caption2 does.
+    @ScaledMetric(relativeTo: .caption2) private var fullNumberSize: CGFloat = MeterGrid.defaultNumberSize
+
     var body: some View {
         // Only the count here, never the levels: a new reading redraws each lane's `LaneMeter` and nothing else, so a lane
         // and its menu aren't rebuilt 30 times a second under an open menu, where a tap on "Arm channel" got lost (#1135).
@@ -60,13 +69,18 @@ struct MeterGrid: View {
         // were wider than an iPhone and pushed the whole record screen sideways. Only the width changes, never the height.
         GeometryReader { geometry in
             let layout = MeterLaneLayout(channelCount: count, availableWidth: geometry.size.width)
+            // One size for every number in the row, the one that fits the widest ("32") in a lane: shrunk one by one,
+            // 1-9 stayed full size and 10-32 didn't, so their label rows differed in height and the bars ended on
+            // different lines.
+            let numberSize = CGFloat(layout.labelPointSize(fullSize: Double(fullNumberSize)))
             HStack(alignment: .bottom, spacing: layout.spacing) {
                 ForEach(0..<count, id: \.self) { index in
                     MeterLane(
                         steady: MeterLane.Steady(
                             model: model, index: index, isClipped: clipped.contains(index),
                             armItem: ChannelArmMenuItem(channel: index + 1, notArmed: notArmed), offersArming: armChannel != nil,
-                            source: source(at: index), compact: compact, showsName: !compact || count <= 8, reservesNameRow: reservesNameRow),
+                            source: source(at: index), compact: compact, showsName: !compact || count <= 8, reservesNameRow: reservesNameRow,
+                            numberSize: numberSize),
                         clearClip: clearClip, armChannel: armChannel, nameChannel: nameChannel)
                         // Compared by its steady data alone (the closures aren't comparable), so a redraw of the screen above
                         // that changes nothing for this lane leaves its menu alone too.
@@ -115,11 +129,13 @@ private struct MeterLane: View, Equatable {
         let compact: Bool
         let showsName: Bool
         let reservesNameRow: Bool
+        let numberSize: CGFloat
 
         nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
             lhs.model === rhs.model && lhs.index == rhs.index && lhs.isClipped == rhs.isClipped && lhs.armItem == rhs.armItem
                 && lhs.offersArming == rhs.offersArming && lhs.source == rhs.source && lhs.compact == rhs.compact
                 && lhs.showsName == rhs.showsName && lhs.reservesNameRow == rhs.reservesNameRow
+                && lhs.numberSize == rhs.numberSize
         }
     }
 
@@ -136,7 +152,8 @@ private struct MeterLane: View, Equatable {
     var body: some View {
         VStack(spacing: 4) {
             LaneMeter(model: steady.model, index: index, isClipped: steady.isClipped, armItem: armItem, source: steady.source, clearClip: clearClip, armChannel: armChannel)
-            SourceLabel(number: index + 1, source: steady.source, compact: steady.compact, showsName: steady.showsName, reservesNameRow: steady.reservesNameRow)
+            SourceLabel(number: index + 1, source: steady.source, compact: steady.compact, showsName: steady.showsName, reservesNameRow: steady.reservesNameRow,
+                        numberSize: steady.numberSize)
                 .opacity(MeterGrid.dimming(armItem))
                 .contentShape(Rectangle())
                 .onTapGesture { nameChannel(index + 1) }
@@ -321,17 +338,15 @@ struct SourceLabel: View {
     var showsName = true
     /// Keep the name row's space even with no name, so every lane is the same height.
     var reservesNameRow = false
+    /// The number's size, the same for every lane in the row (`MeterLaneLayout.labelPointSize`), so every label is the
+    /// same height. Nil: caption2, shrunk to fit on its own.
+    var numberSize: CGFloat?
 
     private var nameHeight: CGFloat { compact ? 16 : 28 }
 
     var body: some View {
         VStack(spacing: 2) {
-            Text("\(number)")
-                .font(.caption2)
-                .monospacedDigit()
-                // One line always: a wrapped "10" would make that lane's meter shorter than the others.
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
+            numberText
                 .secondaryText()
             if let source {
                 if showsName {
@@ -356,6 +371,25 @@ struct SourceLabel: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(source.map { "USB Channel \(number), \($0.name)" } ?? "USB Channel \(number)")
+    }
+
+    /// One line always: a wrapped "10" would make that lane's meter shorter than the others. With a row size, no shrinking
+    /// of its own and one fixed height, so every lane's meter ends on the same line.
+    @ViewBuilder
+    private var numberText: some View {
+        if let numberSize {
+            Text("\(number)")
+                .font(.system(size: numberSize))
+                .monospacedDigit()
+                .lineLimit(1)
+                .frame(height: numberSize * 1.2)
+        } else {
+            Text("\(number)")
+                .font(.caption2)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+        }
     }
 
     /// Whole words only: one line if it fits, else a word per line, else those lines shrunk or cut short.

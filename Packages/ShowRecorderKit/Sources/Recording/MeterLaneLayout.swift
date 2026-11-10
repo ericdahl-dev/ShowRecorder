@@ -6,6 +6,8 @@ public struct MeterLaneLayout: Equatable, Sendable {
     public let laneWidth: Double
     /// The gap between two lanes, in points.
     public let spacing: Double
+    /// How many lanes there are; the last one has the widest number.
+    public let channelCount: Int
 
     /// The gap the meters have always had, kept while the lanes stay wide enough (18 channels on any iPhone).
     public static let roomySpacing = 4.0
@@ -18,6 +20,7 @@ public struct MeterLaneLayout: Equatable, Sendable {
     public static let narrowestRoomyLane = 12.0
 
     public init(channelCount: Int, availableWidth: Double) {
+        self.channelCount = channelCount
         let roomy = Self.share(availableWidth, among: channelCount, gap: Self.roomySpacing)
         if roomy >= Self.narrowestRoomyLane {
             spacing = Self.roomySpacing
@@ -28,12 +31,17 @@ public struct MeterLaneLayout: Equatable, Sendable {
         }
     }
 
-    /// How wide one digit of a lane's number is, per point of font size (monospaced digits, a little over SF's own).
-    public static let digitWidthPerPoint = 0.62
+    /// How wide one digit of a lane's number is, per point of font size: a little over SF's monospaced digits, so a number
+    /// never runs into an ellipsis, and still under what lets "18" keep its full size in 18 lanes on the smallest iPhone.
+    public static let digitWidthPerPoint = 0.68
 
-    /// The size for every lane's USB Channel number.
+    /// The size for every lane's USB Channel number: the full size when the widest number ("18", "32") fits a lane,
+    /// else the size at which it does. One size for the whole row, so every label is the same height and every meter
+    /// ends on the same line; shrunk one by one, 1-9 stayed full size and 10-32 didn't.
     public func labelPointSize(fullSize: Double) -> Double {
-        fullSize
+        let widestNumber = Double(String(max(channelCount, 1)).count) * Self.digitWidthPerPoint
+        // Rounded down to a hundredth of a point, so the number is never a hair wider than its lane.
+        return min(fullSize, (laneWidth / widestNumber * 100).rounded(.down) / 100)
     }
 
     /// Each lane's equal share of the width once the gaps between them are taken out.
