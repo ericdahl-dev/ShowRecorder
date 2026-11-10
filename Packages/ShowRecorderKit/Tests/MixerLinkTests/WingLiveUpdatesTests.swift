@@ -25,9 +25,15 @@ struct WingLiveUpdatesTests {
         return state
     }
 
+    /// How long the driver waits for each reply here. Longer than `Loopback.replyTimeout`: a renewal sends the `WING?`
+    /// knock, and on a starved CI runner (run 42907998379, other tests 20 s or more) the fake's answer took over 10 s,
+    /// so `renewLiveUpdates()` threw `.noReply` before the re-read began. The fake always answers, so this costs nothing
+    /// on an idle machine; it only bounds how long a loaded one may take.
+    static let replyTimeout: Duration = .seconds(30)
+
     static func driver(_ wing: FakeWing, rereadEvery: Duration = .zero) -> WingDriver {
         WingDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: wing.port), oscPort: wing.oscPort,
-                   timeout: Loopback.replyTimeout, rereadEvery: rereadEvery)
+                   timeout: replyTimeout, rereadEvery: rereadEvery)
     }
 
     /// Collects every change the driver sends.
@@ -112,7 +118,7 @@ struct WingLiveUpdatesTests {
         _ = try await driver.sources(usbChannelCount: 2)
         func reads() -> Int { wing.queries.filter { $0 == "/io/out/USB/1/grp" }.count }
 
-        // Held replies keep the re-read in flight (up to the 10 s reply timeout), however slow the machine is.
+        // Held replies keep the re-read in flight (up to the 30 s reply timeout), however slow the machine is.
         wing.holdReplies()
         try await driver.renewLiveUpdates()
         #expect(await eventually(30) { reads() == 2 }, "the re-read started and waits on its first reply")
