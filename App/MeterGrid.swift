@@ -47,30 +47,35 @@ struct MeterGrid: View {
     /// Source's name only when there are few enough channels to have room for it.
     var compact = false
 
-    /// The widest a meter (and its label) gets. Wide enough that 18 channels fill an iPad, narrow enough
-    /// that one or two channels aren't a screen-wide slab. The strip is centered when it's narrower
+    /// The widest a meter (and its label) gets: `MeterLaneLayout.widestLane`. The strip is centered when it's narrower
     /// than the screen.
-    static let maxBarWidth: CGFloat = 64
+    static let maxBarWidth = CGFloat(MeterLaneLayout.widestLane)
 
     var body: some View {
         // Only the count here, never the levels: a new reading redraws each lane's `LaneMeter` and nothing else, so a lane
         // and its menu aren't rebuilt 30 times a second under an open menu, where a tap on "Arm channel" got lost (#1135).
         let count = model.channelCount
         let reservesNameRow = anyNamed(count: count)
-        HStack(alignment: .bottom, spacing: 4) {
-            ForEach(0..<count, id: \.self) { index in
-                MeterLane(
-                    steady: MeterLane.Steady(
-                        model: model, index: index, isClipped: clipped.contains(index),
-                        armItem: ChannelArmMenuItem(channel: index + 1, notArmed: notArmed), offersArming: armChannel != nil,
-                        source: source(at: index), compact: compact, showsName: !compact || count <= 8, reservesNameRow: reservesNameRow),
-                    clearClip: clearClip, armChannel: armChannel, nameChannel: nameChannel)
-                    // Compared by its steady data alone (the closures aren't comparable), so a redraw of the screen above
-                    // that changes nothing for this lane leaves its menu alone too.
-                    .equatable()
+        // Every lane gets a width that makes the whole row fit the screen (#1174): left to their own size, 32 lanes
+        // were wider than an iPhone and pushed the whole record screen sideways. Only the width changes, never the height.
+        GeometryReader { geometry in
+            let layout = MeterLaneLayout(channelCount: count, availableWidth: geometry.size.width)
+            HStack(alignment: .bottom, spacing: layout.spacing) {
+                ForEach(0..<count, id: \.self) { index in
+                    MeterLane(
+                        steady: MeterLane.Steady(
+                            model: model, index: index, isClipped: clipped.contains(index),
+                            armItem: ChannelArmMenuItem(channel: index + 1, notArmed: notArmed), offersArming: armChannel != nil,
+                            source: source(at: index), compact: compact, showsName: !compact || count <= 8, reservesNameRow: reservesNameRow),
+                        clearClip: clearClip, armChannel: armChannel, nameChannel: nameChannel)
+                        // Compared by its steady data alone (the closures aren't comparable), so a redraw of the screen above
+                        // that changes nothing for this lane leaves its menu alone too.
+                        .equatable()
+                        .frame(width: layout.laneWidth)
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     /// A not-armed lane's meter and label are dimmed; the meter still moves (#991).
@@ -176,10 +181,9 @@ private struct LaneMeter: View {
             // Shape as well as color: a triangle with an exclamation mark. The row is always there so
             // a clip doesn't move the meters.
             if !armItem.isArmed, !isClipped {
-                Image(systemName: "circle.slash").font(.caption2).foregroundStyle(.secondary)
+                LaneMark(systemName: "circle.slash").foregroundStyle(.secondary)
             } else {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.caption2)
+                LaneMark(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(mode == .system ? Color.red : Color(Palette.meter(.red, mode: mode)))
                     .opacity(isClipped ? 1 : 0)
             }
@@ -198,6 +202,19 @@ private struct LaneMeter: View {
         .accessibilityHint(isClipped ? "Double tap to clear the clip mark" : "")
         .accessibilityAction(named: armItem.accessibilityName) {
             armChannel?(armItem.channel, armItem.armsOnTap)
+        }
+    }
+}
+
+/// The mark over a lane's meter (clipped, or not armed), at its usual size when the lane has room for it and smaller
+/// in a narrow lane (32 channels on an iPhone, #1174), so it stays inside its own lane.
+private struct LaneMark: View {
+    let systemName: String
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            Image(systemName: systemName).font(.caption2)
+            Image(systemName: systemName).font(.system(size: 7))
         }
     }
 }
