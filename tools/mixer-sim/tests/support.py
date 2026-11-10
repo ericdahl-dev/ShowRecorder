@@ -87,3 +87,13 @@ class Client:
             message = osc.decode(data)
             if message:
                 found.append(message)
+
+
+def control(sim, line, timeout=WAIT):
+    """Sends one command to the simulator's control port and returns its one-line answer, or None."""
+    client = Client()
+    try:
+        data, _ = client.ask(sim.ports["control"], line.encode(), timeout)
+        return None if data is None else data.decode()
+    finally:
+        client.close()

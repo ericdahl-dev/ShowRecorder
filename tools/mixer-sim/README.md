@@ -19,12 +19,60 @@ Families:
 python3 tools/mixer-sim/mixer_sim.py --family wing --scene tools/mixer-sim/scenes/wing-band.json
 ```
 
-It prints where it listens, for example `mixer-sim: wing on 0.0.0.0: knock 2222, osc 2223`, and runs until Ctrl-C.
+It prints where it listens, for example `mixer-sim: wing on 0.0.0.0: knock 2222, osc 2223`, then logs every message
+it receives and sends to standard error, and runs until Ctrl-C or `quit`.
 
 - `--bind ADDRESS`: listen on one address only (default: all of them). Use the host's LAN address, or 127.0.0.1 for
   tests on the same machine.
 - `--port ROLE=N`: listen for a role (`knock`, `osc`) on another port; `0` takes any free port. The app always asks
   the real ports, so this is for tests and for a second simulator on the same host.
+- `--log FILE`: write the log to a file instead; `--quiet`: no log.
+- `--control-port N`: also take commands on UDP `127.0.0.1:N` (see below).
+- Fault modes: `--discovery-only`, `--delay-ms MS`, `--drop-after S` (see below).
+- `--script FILE`: run commands at set times (see below).
+- `--subscription-seconds S`: how long a subscription lasts unless renewed (default 10, as on the mixers).
+
+## Change the scene live
+
+Type a command and Enter in the terminal the simulator runs in; it answers `ok`, a value or `error: ...`. Or send
+one command per UDP datagram to the control port, which answers the same way, for example from another terminal:
+
+```sh
+echo 'name LCL/11 Lead Vox 2' | nc -u -w1 127.0.0.1 9999   # started with --control-port 9999
+```
+
+| Command | What it does |
+|---|---|
+| `name LCL/1 Kick In` | Renames a Source (WING: `LCL/1`, `A/3`, ...) or an input channel (`ch/1`) |
+| `color LCL/1 5` | Changes a color (WING: 1-12) |
+| `patch usb 3 LCL/9` | Repatches a USB output (WING: 1-48; a Source or a mix such as `MAIN/1`, or `OFF/1`) |
+| `discovery-only on` / `off` | Answers discovery (the WING knock) and nothing else, as wingemul does over OSC |
+| `delay 300` | Sends every reply and push 300 ms late (`delay 0` to stop) |
+| `drop` / `resume` | Stops answering anything, as a mixer that drops off the network, and comes back |
+| `drop-after 30` | Drops 30 seconds from now |
+| `status`, `help` | Where it listens and which faults are on; the commands |
+
+A client subscribed for live updates gets each change pushed, as the mixer would. WING: `/*S` (or `/*s`) on the OSC
+port subscribes the sender for 10 seconds; only the last client to ask is subscribed (WING Remote Protocols, pp. 14
+and 28). A change pushes the parameter's new value: text as `,s`, an integer as `,i` after `/*S` and `,sfi` after
+`/*s`. An OSC set from a client (`/io/in/LCL/1/name ,s "Kick In"`) changes the scene the same way.
+
+A script is a JSON list of commands with the seconds after start each one runs; `scripts/wing-take.json` renames,
+recolors and repatches during the first minute, then drops off for 15 seconds:
+
+```json
+[{"at": 20, "command": "name LCL/11 Lead Vox 2"}, {"at": 60, "command": "drop"}, {"at": 75, "command": "resume"}]
+```
+
+The log has one line per message, `<-` received and `->` sent, with the peer, the port's role and the OSC address
+and arguments (or the text), plus a line per command:
+
+```
+14:02:11.120 <- 192.168.1.23:52011 knock 'WING?'
+14:02:11.120 -> 192.168.1.23:52011 knock 'WING,192.168.1.40,FOH-WING,ngc-full,S1234,3.1.1'
+14:02:11.300 <- 192.168.1.23:60433 osc /io/out/USB/1/grp
+14:02:11.300 -> 192.168.1.23:60433 osc /io/out/USB/1/grp 'LCL'
+```
 
 Where to run it:
 

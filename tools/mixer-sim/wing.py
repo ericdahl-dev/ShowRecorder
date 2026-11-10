@@ -10,6 +10,8 @@ What it answers, with the document's page numbers:
 A text or enum parameter answers ",s"; an integer answers ",sfi": its text, its raw 0..1 value and the integer
 (pp. 18-19). An address it doesn't know gets no answer.
 """
+import time
+
 import osc
 
 USB_OUTPUTS = 48
@@ -30,8 +32,11 @@ def parse_source(text):
 
 class Wing:
     PORTS = {"knock": 2222, "osc": 2223}
+    HELP = "name LCL/1|ch/1 TEXT, color LCL/1|ch/1 1-12, patch usb 1-48 LCL/1|MAIN/1|OFF/1"
 
-    def __init__(self, scene):
+    def __init__(self, scene, subscription_seconds=10):
+        self.subscription_seconds = subscription_seconds
+        self.subscriber = None
         self.network_name = scene.get("network_name", "WING")
         self.model = scene.get("model", "ngc-full")
         self.serial = scene.get("serial", "0")
@@ -57,6 +62,11 @@ class Wing:
     def source(self, group, number):
         return self.sources.get((group, number), {"name": "", "color": 1})
 
+    @staticmethod
+    def is_discovery(role, data):
+        """The knock on 2222 is discovery; everything on the OSC port is control."""
+        return role == "knock"
+
     def handle(self, role, data, peer, local_ip):
         """What to send for one datagram received on `role`'s port: a list of (role, bytes, address)."""
         if role == "knock":
@@ -67,8 +77,87 @@ class Wing:
         address, args = message
         if address == "/?":
             return [("osc", osc.encode("/?", [self.identity(local_ip)]), peer)]
+        if address in ("/*S", "/*s"):
+            # One subscriber per WING, always the last to ask; it lapses unless renewed within 10 s (pp. 14, 28).
+            self.subscriber = (peer, address == "/*S", time.monotonic() + self.subscription_seconds)
+            return []
+        if args:
+            # A set: the WING takes it and tells its subscriber; it sends nothing back to the setter.
+            try:
+                return self.assign(address, args[-1] if isinstance(args[-1], int) else args[0])
+            except ValueError:
+                return []
         reply = self.value(address)
         return [] if reply is None else [("osc", osc.encode(address, reply), peer)]
+
+    def command(self, words):
+        """A control command (README, "Change the scene live"): returns (answer, sends)."""
+        verb, args = words[0].lower(), words[1:]
+        if verb == "name" and len(args) >= 1:
+            return "ok", self.assign(self.address(args[0], "name"), " ".join(args[1:]))
+        if verb == "color" and len(args) == 2:
+            return "ok", self.assign(self.address(args[0], "col"), number(args[1]))
+        if verb == "patch" and len(args) == 3 and args[0].lower() == "usb":
+            usb = number(args[1])
+            group, _, source = args[2].partition("/")
+            sends = self.assign("/io/out/USB/%d/grp" % usb, group.upper())
+            return "ok", sends + self.assign("/io/out/USB/%d/in" % usb, number(source or "1"))
+        raise ValueError("unknown command: %s" % " ".join(words))
+
+    def address(self, target, field):
+        """The address of `field` ("name", "col") of the Source ("LCL/1") or input channel ("ch/1") a command names."""
+        group, _, n = target.partition("/")
+        if group.lower() == "ch":
+            return "/ch/%s/%s" % (n, field)
+        return "/io/in/%s/%s/%s" % (group.upper(), n, field)
+
+    def assign(self, address, value):
+        """Sets one parameter, as a control command or a client's OSC set does, and returns the push to the subscriber.
+        Raises ValueError for an address the WING doesn't have or a value it doesn't take."""
+        parts = address.strip("/").split("/")
+        if len(parts) == 5 and parts[:3] == ["io", "out", "USB"] and parts[3].isdigit() and int(parts[3]) in self.usb:
+            usb = int(parts[3])
+            group, source = self.usb[usb]
+            if parts[4] == "grp" and str(value).upper() in OUTPUT_GROUPS:
+                self.usb[usb] = (str(value).upper(), source)
+            elif parts[4] == "in" and in_range(value, 1, GROUP_SIZE):
+                self.usb[usb] = (group, value)
+            else:
+                raise ValueError("%s doesn't take %r" % (address, value))
+        elif len(parts) == 5 and parts[:2] == ["io", "in"] and parts[2] in SOURCE_GROUPS and parts[3].isdigit() \
+                and 1 <= int(parts[3]) <= GROUP_SIZE:
+            self.set_field(self.sources.setdefault((parts[2], int(parts[3])), {"name": "", "color": 1}),
+                           parts[4], value, address)
+        elif len(parts) == 3 and parts[0] == "ch" and parts[1].isdigit() and int(parts[1]) in self.channels:
+            self.set_field(self.channels[int(parts[1])], parts[2], value, address)
+        else:
+            raise ValueError("no such parameter: %s" % address)
+        return self.push(address)
+
+    @staticmethod
+    def set_field(entry, field, value, address):
+        if field == "name" and isinstance(value, str):
+            entry["name"] = value[:16]   # names are 16 characters at most (p. 35)
+        elif field == "col" and in_range(value, *COLORS):
+            entry["color"] = value
+        else:
+            raise ValueError("%s doesn't take %r" % (address, value))
+
+    def push(self, address):
+        """The subscriber's copy of `address` after a change: ",s" text, and an integer as ",i" for `/*S` or ",sfi"
+        for `/*s`. None once the subscription has lapsed."""
+        if self.subscriber is None:
+            return []
+        peer, single, expires = self.subscriber
+        if time.monotonic() > expires:
+            self.subscriber = None
+            return []
+        value = self.value(address)
+        if value is None:
+            return []
+        if len(value) == 3 and single:
+            value = [value[2]]
+        return [("osc", osc.encode(address, value), peer)]
 
     def value(self, address):
         """The reply arguments for a query of `address`, or None when the WING has no such parameter."""
@@ -107,6 +196,17 @@ class Wing:
             if field == "in/conn/in":
                 return integer(channel["input"][1], 1, GROUP_SIZE)
         return None
+
+
+def number(text):
+    try:
+        return int(text)
+    except ValueError:
+        raise ValueError("not a number: %s" % text)
+
+
+def in_range(value, low, high):
+    return isinstance(value, int) and low <= value <= high
 
 
 def integer(value, low, high):
