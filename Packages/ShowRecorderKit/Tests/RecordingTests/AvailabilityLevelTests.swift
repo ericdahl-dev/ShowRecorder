@@ -58,7 +58,8 @@ struct AvailabilityLevelTests {
         .init(name: "Record to", expected: .debugAndTestFlight, level: RecordToAvailability.level, isAvailable: { RecordToAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
         .init(name: "Asynchronous Stop", expected: .debugAndTestFlight, level: AsyncStopAvailability.level, isAvailable: { AsyncStopAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
         .init(name: "Mixer packs", expected: .debugOnly, level: PackAvailability.level, isAvailable: { isDebug, _ in PackAvailability.isAvailable(isDebugBuild: isDebug) }),
-        .init(name: "Drive speed test", expected: .debugOnly, level: DriveSpeedTestAvailability.level, isAvailable: { isDebug, _ in DriveSpeedTestAvailability.isAvailable(isDebugBuild: isDebug) })
+        .init(name: "Drive speed test", expected: .debugOnly, level: DriveSpeedTestAvailability.level, isAvailable: { isDebug, _ in DriveSpeedTestAvailability.isAvailable(isDebugBuild: isDebug) }),
+        .init(name: "WING Mixer Link", expected: .debugOnly, level: WingAvailability.level, isAvailable: { WingAvailability.isAvailable(isDebugBuild: $0, environment: $1) })
     ]
 
     @Test("Each feature's level today")
