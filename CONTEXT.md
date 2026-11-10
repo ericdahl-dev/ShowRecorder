@@ -189,7 +189,7 @@ The Kit value that holds what the Record screen remembers between seconds (alert
 _Avoid_: Screen model, view model
 
 **Mixer family**:
-Mixers one driver reads, such as the X Air (XR18, MR18) or the X32 (X32, M32). The family is recognized from the Audio interface's name (for Mixer packs) and from the Mixer's own model (for the Mixer Link), and each family knows the port it is asked on and makes its driver. In Debug and sandbox builds (TestFlight, App Review) the 18-channel Demo signal counts as an X Air and the 32-channel one as an X32 for Mixer packs and the license, so App Review can reach those packs.
+Mixers one driver reads, such as the X Air (XR18, MR18), the X32 (X32, M32) or the WING (WING, WING Compact, WING Rack; Debug builds only for now, #417). The family is recognized from the Audio interface's name (for Mixer packs) and from the Mixer's own model (for the Mixer Link), and each family knows the port it is asked on and makes its driver. In Debug and sandbox builds (TestFlight, App Review) the 18-channel Demo signal counts as an X Air and the 32-channel one as an X32 for Mixer packs and the license, so App Review can reach those packs.
 
 **Mixer gain**:
 The one object that moves preamp gain on the linked Mixer: auto-gain between Takes and clip protection during them. Both go through one queue: auto-gain's moves and Undo one at a time on the whole Mixer, clip protection's turn-downs one at a time per preamp lane, so the two never overlap on the Mixer.
