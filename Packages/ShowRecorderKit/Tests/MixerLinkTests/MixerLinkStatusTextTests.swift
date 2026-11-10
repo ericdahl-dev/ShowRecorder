@@ -20,7 +20,7 @@ struct MixerLinkStatusTextTests {
     @Test("Connected says what kind of Mixer the Link is on, from the model the Mixer gave",
           arguments: [("XR18", "Connected to an X Air · FOH (XR18) · Wi-Fi"),
                       ("X32", "Connected to an X32 · FOH (X32) · Wi-Fi"),
-                      ("ngc-full", "Connected to a WING · FOH (ngc-full) · Wi-Fi")])
+                      ("ngc-full", "Connected to a WING · FOH (WING) · Wi-Fi")])
     func up(model: String, text: String) {
         let identity = MixerIdentity(networkName: "FOH", model: model, firmware: "1.0")
         #expect(MixerLinkStatus.up(identity, path: .wifi).settingsText() == text)
@@ -30,6 +30,19 @@ struct MixerLinkStatusTextTests {
     func upWithoutName() {
         let identity = MixerIdentity(networkName: "", model: "XR18", firmware: "1.0")
         #expect(MixerLinkStatus.up(identity, path: .wifi).settingsText() == "Connected to an X Air · XR18 · Wi-Fi")
+    }
+
+    @Test("A WING shows its plain model name, not the code it reports; any other WING code reads as WING",
+          arguments: [("ngc-full", "WING"), ("wing-rack", "WING Rack"), ("wing-compact", "WING Compact"), ("wing-bk", "WING")])
+    func wingModel(code: String, name: String) {
+        let identity = MixerIdentity(networkName: "FOH", model: code, firmware: "3.0")
+        #expect(MixerLinkStatus.up(identity, path: .wifi).settingsText() == "Connected to a WING · FOH (\(name)) · Wi-Fi")
+    }
+
+    @Test("A WING with no network name shows its plain model name alone")
+    func wingWithoutName() {
+        let identity = MixerIdentity(networkName: "", model: "wing-rack", firmware: "3.0")
+        #expect(MixerLinkStatus.up(identity, path: .wifi).settingsText() == "Connected to a WING · WING Rack · Wi-Fi")
     }
 
     @Test("Connecting and down read as before")
