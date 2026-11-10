@@ -19,26 +19,32 @@ final class FakeWing: Sendable {
         var answersOSC = true
     }
 
+    /// The state, in a class so the listeners' handlers can share it (a `Mutex` can't be captured).
+    private final class Box: Sendable {
+        let state: Mutex<State>
+        init(_ state: State) { self.state = Mutex(state) }
+    }
+
     private let listeners: [NWListener]
-    private let state: Mutex<State>
+    private let box: Box
     /// The discovery port (2222 on a real WING).
     let port: UInt16
     /// The OSC port (2223 on a real WING).
     let oscPort: UInt16
 
     init(_ initial: State = State()) async throws {
-        let state = Mutex(initial)
-        self.state = state
+        let box = Box(initial)
+        self.box = box
         let (knock, port) = try await Self.listen { data in
             let text = String(decoding: data, as: UTF8.self)
-            return state.withLock { state in
+            return box.state.withLock { state in
                 state.queries.append(text)
                 return text == "WING?" ? Data(state.identity.utf8) : nil
             }
         }
         let (osc, oscPort) = try await Self.listen { data in
             guard let message = try? OSCMessage(decoding: Array(data)) else { return nil }
-            let reply: OSCMessage? = state.withLock { state in
+            let reply: OSCMessage? = box.state.withLock { state in
                 state.queries.append(message.address)
                 guard state.answersOSC else { return nil }
                 if message.address == "/?" { return OSCMessage("/?", [.string(state.identity)]) }
@@ -53,9 +59,9 @@ final class FakeWing: Sendable {
 
     deinit { listeners.forEach { $0.cancel() } }
 
-    var queries: [String] { state.withLock { $0.queries } }
+    var queries: [String] { box.state.withLock { $0.queries } }
 
-    func update(_ change: @Sendable (inout State) -> Void) { state.withLock { change(&$0) } }
+    func update(_ change: @Sendable (inout State) -> Void) { box.state.withLock { change(&$0) } }
 
     /// A loopback UDP listener that answers each datagram with `answer`'s reply, if any.
     private static func listen(answer: @escaping @Sendable (Data) -> Data?) async throws -> (NWListener, UInt16) {
