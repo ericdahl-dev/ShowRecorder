@@ -48,17 +48,30 @@ struct MeterGrid: View {
     /// than the screen.
     static let maxBarWidth = CGFloat(MeterLaneLayout.widestLane)
 
+    /// caption2's size at the default text size, which the channel numbers start from.
+    #if os(macOS)
+    static let defaultNumberSize: CGFloat = 10
+    #else
+    static let defaultNumberSize: CGFloat = 11
+    #endif
+    /// The channel numbers' full size, following the operator's text size like caption2 does.
+    @ScaledMetric(relativeTo: .caption2) private var fullNumberSize: CGFloat = MeterGrid.defaultNumberSize
+
     var body: some View {
         // Reading the levels here makes this view, and only this one, redraw as they move.
         let meters = model.levels
         // Every lane gets a width that makes the whole row fit the screen (#1174): left to their own size, 32 lanes
         // were wider than an iPhone and pushed the whole record screen sideways. Only the width changes, never the height.
         GeometryReader { geometry in
-            lanes(meters, layout: MeterLaneLayout(channelCount: meters.count, availableWidth: geometry.size.width))
+            let layout = MeterLaneLayout(channelCount: meters.count, availableWidth: geometry.size.width)
+            // One size for every number in the row, the one that fits the widest ("32") in a lane: shrunk one by one,
+            // 1-9 stayed full size and 10-32 didn't, so their label rows differed in height and the bars ended on
+            // different lines.
+            lanes(meters, layout: layout, numberSize: CGFloat(layout.labelPointSize(fullSize: Double(fullNumberSize))))
         }
     }
 
-    private func lanes(_ meters: [ChannelMeter], layout: MeterLaneLayout) -> some View {
+    private func lanes(_ meters: [ChannelMeter], layout: MeterLaneLayout, numberSize: CGFloat) -> some View {
         HStack(alignment: .bottom, spacing: layout.spacing) {
             ForEach(meters.indices, id: \.self) { index in
                 VStack(spacing: 4) {
@@ -84,7 +97,8 @@ struct MeterGrid: View {
                         number: index + 1,
                         source: source(at: index),
                         compact: compact, showsName: !compact || meters.count <= 8,
-                        reservesNameRow: anyNamed(count: meters.count))
+                        reservesNameRow: anyNamed(count: meters.count),
+                        numberSize: numberSize)
                         .contentShape(Rectangle())
                         .onTapGesture { nameChannel(index + 1) }
                         .accessibilityAddTraits(.isButton)
@@ -240,17 +254,15 @@ struct SourceLabel: View {
     var showsName = true
     /// Keep the name row's space even with no name, so every lane is the same height.
     var reservesNameRow = false
+    /// The number's size, the same for every lane in the row (`MeterLaneLayout.labelPointSize`), so every label is the
+    /// same height. Nil: caption2, shrunk to fit on its own.
+    var numberSize: CGFloat?
 
     private var nameHeight: CGFloat { compact ? 16 : 28 }
 
     var body: some View {
         VStack(spacing: 2) {
-            Text("\(number)")
-                .font(.caption2)
-                .monospacedDigit()
-                // One line always: a wrapped "10" would make that lane's meter shorter than the others.
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
+            numberText
                 .secondaryText()
             if let source {
                 if showsName {
@@ -275,6 +287,25 @@ struct SourceLabel: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(source.map { "USB Channel \(number), \($0.name)" } ?? "USB Channel \(number)")
+    }
+
+    /// One line always: a wrapped "10" would make that lane's meter shorter than the others. With a row size, no shrinking
+    /// of its own and one fixed height, so every lane's meter ends on the same line.
+    @ViewBuilder
+    private var numberText: some View {
+        if let numberSize {
+            Text("\(number)")
+                .font(.system(size: numberSize))
+                .monospacedDigit()
+                .lineLimit(1)
+                .frame(height: numberSize * 1.2)
+        } else {
+            Text("\(number)")
+                .font(.caption2)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+        }
     }
 
     /// Whole words only: one line if it fits, else a word per line, else those lines shrunk or cut short.
