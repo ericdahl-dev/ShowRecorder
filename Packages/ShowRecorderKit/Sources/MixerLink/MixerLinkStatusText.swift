@@ -11,9 +11,28 @@ extension MixerLinkStatus {
         case .connecting(let host):
             "Connecting to \(host)…"
         case .up(let identity, let path):
-            "Connected to \(MixerFamily.reading(model: identity.model).linkKind) · \(identity.nameAndModel) · \(path.name)"
+            Self.connectedText(identity, path: path)
         case .down(let problem):
             problem.message
+        }
+    }
+
+    /// "Connected to a WING · FOH (WING Rack) · Wi-Fi". A WING's model shows by its plain name; the code it reports
+    /// stays in `identity.model`.
+    private static func connectedText(_ identity: MixerIdentity, path: MixerLinkPath) -> String {
+        let family = MixerFamily.reading(model: identity.model)
+        var shown = identity
+        if family == .wing { shown.model = wingModelName(identity.model) }
+        return "Connected to \(family.linkKind) · \(shown.nameAndModel) · \(path.name)"
+    }
+
+    /// A WING's plain model name from the code it reports: "wing-rack" is "WING Rack"; "ngc-full" and any other code
+    /// read as "WING".
+    private static func wingModelName(_ code: String) -> String {
+        switch code.lowercased() {
+        case "wing-rack": "WING Rack"
+        case "wing-compact": "WING Compact"
+        default: "WING"
         }
     }
 
