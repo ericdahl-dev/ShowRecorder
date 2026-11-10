@@ -14,6 +14,15 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.1.21",
+    date: "2026-11-10",
+    channel: "App Store",
+    summary: "With 32 channels, the record screen fits and all meters line up.",
+    changes: [
+      "32 USB Channels fit on the record screen instead of running off both sides, and every channel number is the same size, so all meters end on one line.",
+    ],
+  },
+  {
     version: "1.2.10",
     date: "2026-11-09",
     channel: "TestFlight beta",
@@ -81,6 +90,15 @@ export const RELEASES: readonly Release[] = [
     summary: "A 2-input interface records one stereo file.",
     changes: [
       "With an interface that has exactly two USB Channels and both armed, each Take is one stereo file instead of two mono files. Arm only one and you get a mono file as before.",
+    ],
+  },
+  {
+    version: "1.1.19",
+    date: "2026-11-06",
+    channel: "App Store",
+    summary: "The landscape record screen fits with Display Zoom and larger text.",
+    changes: [
+      "The record screen fits in landscape with Display Zoom and larger text.",
     ],
   },
   {

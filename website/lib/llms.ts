@@ -42,7 +42,7 @@ export function facts(): string[] {
     `- Price: free to download. Free records every USB Channel on the iPhone or iPad, with generic names on the files and up to 3 Markers per Take. Pro is a one-time purchase, at a launch price of ${PRO_PRICE_TEXT}, shared with Family Sharing, with a 14-day Trial. Pro adds names and colors from the mixer on the files, typed names, a second Copy on a USB drive, unlimited Markers, the Show report, the Reaper project, 96 kHz, Templates and auto-gain on an XR18 or MR18. No subscription.`,
     "- Needs: a USB-C iPhone (iPhone 15 or later) on iOS 26, or a USB-C iPad on iPadOS 26, a USB cable to the mixer, and a class-compliant USB mixer or audio interface. Wi-Fi is optional, for channel names and colors. No account.",
     "- Files: one mono 24-bit Broadcast WAV file (a Stem) per USB Channel, at the mixer's sample rate, 48 kHz for the XR18 and MR18. Pro adds a second copy on a USB drive, a Show report and a Reaper project.",
-    `- Works now: ${worksNow.map((m) => m.name).join("; ")}. The X32 and M32 have been tested only against an emulator so far.`,
+    `- Works now: ${worksNow.map((m) => m.name).join("; ")}. X32 and M32 recording is in the App Store version, not a beta; only auto-gain on them is in the beta. The X32 and M32 have been tested only against an emulator so far.`,
     ...(inBeta.length ? [`- Also in the public beta (TestFlight, not the App Store version): ${inBeta.map((m) => m.name).join("; ")}.`] : []),
     "- In the public beta (TestFlight, not the App Store version): the Mac version, in testing on macOS 26.",
     `- Planned, not available: ${planned.filter((m) => /DJM/.test(m.name)).map((m) => m.name).join("; ")}.`,
