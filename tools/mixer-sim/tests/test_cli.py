@@ -18,7 +18,7 @@ class Running:
 
     def __init__(self, *args):
         self.process = subprocess.Popen([sys.executable, "-B", SCRIPT, *args], stdin=subprocess.PIPE,
-                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                                        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
         self.ports = {}
         line = self.line(timeout=5)
         for role, port in re.findall(r"(\w+) (\d+)", line.split(":", 2)[-1]):
@@ -37,7 +37,7 @@ class Running:
         except subprocess.TimeoutExpired:
             self.process.kill()
             self.process.wait(timeout=5)
-        for stream in (self.process.stdin, self.process.stdout, self.process.stderr):
+        for stream in (self.process.stdin, self.process.stdout):
             stream.close()
 
 
@@ -51,6 +51,36 @@ class CommandLineTests(unittest.TestCase):
             self.assertNotEqual(sim.ports["knock"], 2222)
             data, _ = client.ask(sim.ports["knock"], b"WING?")
             self.assertTrue(data.startswith(b"WING,127.0.0.1,FOH-WING,"))
+        finally:
+            client.close()
+            sim.stop()
+
+
+    def test_commands_typed_on_stdin_change_the_scene_and_are_answered(self):
+        sim = Running("--family", "wing", "--scene", os.path.join(support.SCENES, "wing-band.json"),
+                      "--bind", "127.0.0.1", "--port", "knock=0", "--port", "osc=0")
+        client = Client()
+        try:
+            sim.process.stdin.write("name LCL/1 Kick In\n")
+            sim.process.stdin.flush()
+            self.assertEqual(sim.line(timeout=5).strip(), "ok")
+            self.assertEqual(client.query(sim.ports["osc"], "/io/in/LCL/1/name")[1], ["Kick In"])
+        finally:
+            client.close()
+            sim.stop()
+
+    def test_fault_flags_and_a_script_file_are_taken(self):
+        script = os.path.join(support.SIM_DIR, "scripts", "wing-take.json")
+        sim = Running("--family", "wing", "--scene", os.path.join(support.SCENES, "wing-band.json"),
+                      "--bind", "127.0.0.1", "--port", "knock=0", "--port", "osc=0", "--control-port", "0",
+                      "--discovery-only", "--delay-ms", "10", "--script", script)
+        client = Client()
+        try:
+            self.assertIn("control", sim.ports)
+            self.assertIsNotNone(client.ask(sim.ports["knock"], b"WING?")[0])
+            self.assertIsNone(client.query(sim.ports["osc"], "/io/in/LCL/1/name", timeout=0.3))
+            client.ask(sim.ports["control"], b"discovery-only off")
+            self.assertEqual(client.query(sim.ports["osc"], "/io/in/LCL/1/name")[1], ["Kick"])
         finally:
             client.close()
             sim.stop()
