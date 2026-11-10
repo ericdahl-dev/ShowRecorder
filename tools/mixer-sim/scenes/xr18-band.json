@@ -1,0 +1,29 @@
+{
+  "family": "xair",
+  "about": "A band on an XR18 (firmware 1.26): 12 channels named and colored, USB 1-16 on channels 1-16, USB 17-18 on the aux return (playback), drum overheads stereo-linked, preamp gains set.",
+  "network_name": "FOH-XR18",
+  "model": "XR18",
+  "firmware": "1.26",
+  "channels": [
+    {"channel": 1, "name": "Kick", "color": 1},
+    {"channel": 2, "name": "Snare", "color": 1},
+    {"channel": 3, "name": "Hat", "color": 9},
+    {"channel": 4, "name": "Tom", "color": 9},
+    {"channel": 5, "name": "OH L", "color": 3},
+    {"channel": 6, "name": "OH R", "color": 3},
+    {"channel": 7, "name": "Bass DI", "color": 2},
+    {"channel": 8, "name": "Gtr", "color": 3},
+    {"channel": 9, "name": "Keys L", "color": 6},
+    {"channel": 10, "name": "Keys R", "color": 6},
+    {"channel": 11, "name": "Lead Vox", "color": 4},
+    {"channel": 12, "name": "BV", "color": 4}
+  ],
+  "aux_return": {"name": "Playback", "color": 5},
+  "headamps": [
+    {"headamp": 1, "gain_db": 32},
+    {"headamp": 2, "gain_db": 28},
+    {"headamp": 11, "gain_db": 38.5}
+  ],
+  "links": ["5-6"],
+  "link_preamps": true
+}

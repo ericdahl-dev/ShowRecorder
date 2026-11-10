@@ -55,6 +55,15 @@ class CommandLineTests(unittest.TestCase):
             client.close()
             sim.stop()
 
+    def test_the_family_comes_from_the_scene_when_not_given(self):
+        sim = Running("--scene", os.path.join(support.SCENES, "xr18-band.json"), "--bind", "127.0.0.1", "--port", "osc=0")
+        client = Client()
+        try:
+            self.assertEqual(client.query(sim.ports["osc"], "/xinfo")[1][2], "XR18")
+        finally:
+            client.close()
+            sim.stop()
+
 
     def test_commands_typed_on_stdin_change_the_scene_and_are_answered(self):
         sim = Running("--family", "wing", "--scene", os.path.join(support.SCENES, "wing-band.json"),
