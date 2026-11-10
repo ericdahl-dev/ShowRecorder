@@ -113,6 +113,7 @@ if [ $everything = 1 ]; then
   python3 scripts/test_asc_stats.py
   python3 scripts/test_weekly_numbers.py
   python3 scripts/test_post_tracker.py
+  python3 scripts/test_asc_campaigns.py
   python3 scripts/test_coverage.py
 fi
 
