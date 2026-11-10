@@ -25,7 +25,7 @@ WHERE properties.$host = 'showrecorder.app' AND properties.utm_source = 'faceboo
 AND timestamp > now() - INTERVAL 60 DAY GROUP BY person_id, c"""
 VISITS_SQL = f"""SELECT l.c AS campaign, count(DISTINCT l.person_id) AS people,
  countIf(e.event = '$pageview') AS pageviews, countIf(e.event = 'join_beta_clicked') AS join_beta,
- countIf(e.event = 'app_store_clicked') AS app_store, toString(toTimeZone(max(e.timestamp), '{TZ}')) AS last_activity
+ countIf(e.event = 'app_store_clicked' OR (e.event = 'mixer_page_cta_clicked' AND e.properties.destination = 'app_store')) AS app_store, toString(toTimeZone(max(e.timestamp), '{TZ}')) AS last_activity
 FROM ({LANDINGS}) l LEFT JOIN events e ON e.person_id = l.person_id AND e.timestamp >= l.t
  AND e.timestamp < l.t + INTERVAL 1 DAY AND e.properties.$host = 'showrecorder.app'
 GROUP BY campaign ORDER BY people DESC"""
