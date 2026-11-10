@@ -61,6 +61,9 @@ final class FakeWing: Sendable {
 
     var queries: [String] { box.state.withLock { $0.queries } }
 
+    /// How the WING answers a query of an integer parameter: ",sfi", its text, its raw 0…1 value and the integer.
+    static func intReply(_ value: Int) -> [OSCArgument] { [.string(String(value)), .float(0), .int(Int32(value))] }
+
     func update(_ change: @Sendable (inout State) -> Void) { box.state.withLock { change(&$0) } }
 
     /// A loopback UDP listener that answers each datagram with `answer`'s reply, if any.
