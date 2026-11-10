@@ -107,18 +107,23 @@ struct WingLiveUpdatesTests {
 
     @Test("A re-read isn't started while the last one is still running")
     func skipsWhileInFlight() async throws {
-        var state = Self.twoChannelWing()
-        state.replyDelay = 0.1   // each read of 2 USB Channels takes about 0.8 s
-        let wing = try await FakeWing(state)
+        let wing = try await FakeWing(Self.twoChannelWing())
         let driver = Self.driver(wing)
         _ = try await driver.sources(usbChannelCount: 2)
         func reads() -> Int { wing.queries.filter { $0 == "/io/out/USB/1/grp" }.count }
 
-        for _ in 1...3 { try await driver.renewLiveUpdates() }
-
-        #expect(await eventually(30) { wing.queries.filter { $0 == "/io/in/A/5/col" }.count == 2 }, "the one re-read finished")
+        // Held replies keep the re-read in flight (up to the 10 s reply timeout), however slow the machine is.
+        wing.holdReplies()
+        try await driver.renewLiveUpdates()
+        #expect(await eventually(30) { reads() == 2 }, "the re-read started and waits on its first reply")
+        try await driver.renewLiveUpdates()
+        try await driver.renewLiveUpdates()
         try await Task.sleep(for: .milliseconds(300))
-        #expect(reads() == 2, "the first read, then one re-read; the other two renewals found it running")
+        #expect(reads() == 2, "the other two renewals found the re-read running and started none")
+
+        wing.releaseReplies()
+        #expect(await eventually(30) { wing.queries.filter { $0 == "/io/in/A/5/col" }.count == 2 }, "the one re-read finished")
+        #expect(reads() == 2)
     }
 
     @Test("No re-read before the interval has passed since the last read")

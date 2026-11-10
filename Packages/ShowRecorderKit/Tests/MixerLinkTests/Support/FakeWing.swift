@@ -17,14 +17,24 @@ final class FakeWing: Sendable {
         var queries: [String] = []
         /// When false, the OSC port takes queries but never answers, as wingemul does.
         var answersOSC = true
-        /// How long each OSC reply waits before it is sent, as a slow network would make it.
-        var replyDelay: TimeInterval = 0
     }
 
     /// The state, in a class so the listeners' handlers can share it (a `Mutex` can't be captured).
     private final class Box: Sendable {
         let state: Mutex<State>
+        /// The OSC replies held back, or nil while replies go out at once. One lock, so none is lost on release.
+        let held = Mutex<[@Sendable () -> Void]?>(nil)
         init(_ state: State) { self.state = Mutex(state) }
+
+        /// Sends now, or keeps the send for `releaseReplies()` while replies are held.
+        func deliver(_ send: @escaping @Sendable () -> Void) {
+            let sendNow = held.withLock { held -> Bool in
+                guard held != nil else { return true }
+                held?.append(send)
+                return false
+            }
+            if sendNow { send() }
+        }
     }
 
     private let listeners: [NWListener]
@@ -44,7 +54,7 @@ final class FakeWing: Sendable {
                 return text == "WING?" ? Data(state.identity.utf8) : nil
             }
         }
-        let (osc, oscPort) = try await Self.listen(delay: { box.state.withLock { $0.replyDelay } }) { data in
+        let (osc, oscPort) = try await Self.listen(deliver: { box.deliver($0) }) { data in
             guard let message = try? OSCMessage(decoding: Array(data)) else { return nil }
             let reply: OSCMessage? = box.state.withLock { state in
                 state.queries.append(message.address)
@@ -68,6 +78,15 @@ final class FakeWing: Sendable {
 
     func update(_ change: @Sendable (inout State) -> Void) { box.state.withLock { change(&$0) } }
 
+    /// Holds back every OSC reply from now until `releaseReplies()`.
+    func holdReplies() { box.held.withLock { $0 = $0 ?? [] } }
+
+    /// Sends the held replies and answers at once again.
+    func releaseReplies() {
+        let sends = box.held.withLock { held in defer { held = nil }; return held ?? [] }
+        sends.forEach { $0() }
+    }
+
     /// Renames Source `path` ("LCL/1") at the desk. The WING pushes nothing here: the driver finds it by re-reading.
     func rename(source path: String, to name: String) {
         update { $0.replies["/io/in/\(path)/name"] = [.string(name)] }
@@ -88,7 +107,7 @@ final class FakeWing: Sendable {
 
     /// A loopback UDP listener that answers each datagram with `answer`'s reply, if any.
     private static func listen(
-        delay: @escaping @Sendable () -> TimeInterval = { 0 }, answer: @escaping @Sendable (Data) -> Data?
+        deliver: @escaping @Sendable (@escaping @Sendable () -> Void) -> Void = { $0() }, answer: @escaping @Sendable (Data) -> Data?
     ) async throws -> (NWListener, UInt16) {
         let parameters = NWParameters.udp
         parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
@@ -107,9 +126,7 @@ final class FakeWing: Sendable {
                 connection.receiveMessage { data, _, _, error in
                     guard error == nil, let data else { return }
                     if let reply = answer(data) {
-                        let wait = delay()
-                        let send: @Sendable () -> Void = { connection.send(content: reply, completion: .contentProcessed { _ in }) }
-                        if wait > 0 { DispatchQueue.global().asyncAfter(deadline: .now() + wait, execute: send) } else { send() }
+                        deliver { connection.send(content: reply, completion: .contentProcessed { _ in }) }
                     }
                     serve()
                 }
