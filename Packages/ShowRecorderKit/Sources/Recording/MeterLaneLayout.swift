@@ -11,6 +11,9 @@ public struct MeterLaneLayout: Equatable, Sendable {
     public static let roomySpacing = 4.0
     /// The gap when that would leave the lanes too narrow (32 channels on an iPhone).
     public static let tightSpacing = 2.0
+    /// The widest a lane gets: wide enough that 18 channels fill an iPad, narrow enough that one or two channels aren't
+    /// a screen-wide slab. A narrower row is centered.
+    public static let widestLane = 64.0
     /// The narrowest lane that still gets the roomy gap.
     public static let narrowestRoomyLane = 12.0
 
@@ -18,7 +21,7 @@ public struct MeterLaneLayout: Equatable, Sendable {
         let roomy = Self.share(availableWidth, among: channelCount, gap: Self.roomySpacing)
         if roomy >= Self.narrowestRoomyLane {
             spacing = Self.roomySpacing
-            laneWidth = roomy
+            laneWidth = min(roomy, Self.widestLane)
         } else {
             spacing = Self.tightSpacing
             laneWidth = Self.share(availableWidth, among: channelCount, gap: Self.tightSpacing)
