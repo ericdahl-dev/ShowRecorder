@@ -20,9 +20,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import osc  # noqa: E402
 import wing  # noqa: E402
+import x32  # noqa: E402
 import xair  # noqa: E402
 
-FAMILIES = {"wing": wing.Wing, "xair": xair.XAir}
+FAMILIES = {"wing": wing.Wing, "x32": x32.X32, "xair": xair.XAir}
 
 
 def load_scene(path):
