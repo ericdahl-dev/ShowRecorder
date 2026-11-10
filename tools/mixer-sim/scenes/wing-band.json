@@ -1,0 +1,46 @@
+{
+  "family": "wing",
+  "about": "A five-piece band on a full-size WING: 12 local inputs named and colored, USB 1-12 carry them, USB 13-14 the AES50 A playback pair, USB 47 the main mix, the rest off.",
+  "network_name": "FOH-WING",
+  "model": "ngc-full",
+  "serial": "S1234",
+  "firmware": "3.1.1",
+  "sources": [
+    {"source": "LCL/1", "name": "Kick", "color": 9},
+    {"source": "LCL/2", "name": "Snare", "color": 9},
+    {"source": "LCL/3", "name": "Hat", "color": 10},
+    {"source": "LCL/4", "name": "Tom 1", "color": 10},
+    {"source": "LCL/5", "name": "Tom 2", "color": 10},
+    {"source": "LCL/6", "name": "OH L", "color": 8},
+    {"source": "LCL/7", "name": "OH R", "color": 8},
+    {"source": "LCL/8", "name": "Bass DI", "color": 5},
+    {"source": "LCL/9", "name": "Gtr", "color": 7},
+    {"source": "LCL/10", "name": "Keys", "color": 4},
+    {"source": "LCL/11", "name": "Lead Vox", "color": 2},
+    {"source": "LCL/12", "name": "BV", "color": 2},
+    {"source": "A/1", "name": "Playback L", "color": 12},
+    {"source": "A/2", "name": "Playback R", "color": 12}
+  ],
+  "channels": [
+    {"channel": 1, "name": "Kick", "color": 9, "input": "LCL/1"},
+    {"channel": 2, "name": "Snare", "color": 9, "input": "LCL/2"},
+    {"channel": 11, "name": "Lead Vox", "color": 2, "input": "LCL/11"}
+  ],
+  "usb_outputs": [
+    {"usb": 1, "source": "LCL/1"},
+    {"usb": 2, "source": "LCL/2"},
+    {"usb": 3, "source": "LCL/3"},
+    {"usb": 4, "source": "LCL/4"},
+    {"usb": 5, "source": "LCL/5"},
+    {"usb": 6, "source": "LCL/6"},
+    {"usb": 7, "source": "LCL/7"},
+    {"usb": 8, "source": "LCL/8"},
+    {"usb": 9, "source": "LCL/9"},
+    {"usb": 10, "source": "LCL/10"},
+    {"usb": 11, "source": "LCL/11"},
+    {"usb": 12, "source": "LCL/12"},
+    {"usb": 13, "source": "A/1"},
+    {"usb": 14, "source": "A/2"},
+    {"usb": 47, "source": "MAIN/1"}
+  ]
+}

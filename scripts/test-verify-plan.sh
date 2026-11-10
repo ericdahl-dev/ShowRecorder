@@ -13,7 +13,7 @@ expect() {
   fi
 }
 
-ALL="spelling vocab package app site"
+ALL="spelling vocab package app site mixer-sim"
 expect "website/app/page.tsx" "spelling site"
 expect "docs/app-store/listing.md" "spelling"
 expect "README.md
@@ -34,6 +34,9 @@ expect ".github/workflows/ci.yml" "$ALL"
 expect "something/new.txt" "$ALL"
 # The site's changelog test reads the release notes, so they pick the site check (#466 turned main red).
 expect "docs/release-notes/v1.1.2.md" "spelling site"
+# The Mixer Link test bench (tools/mixer-sim) has its own Python tests and needs no build.
+expect "tools/mixer-sim/mixer_sim.py
+tools/mixer-sim/scenes/wing-band.json" "spelling mixer-sim"
 # Nothing changed: run everything, as a plain "is main green?" check.
 expect "" "$ALL"
 
@@ -56,8 +59,8 @@ expect_quick "ShowRecorder.xcodeproj/project.pbxproj" "spelling" yes
 expect_quick "Packages/ShowRecorderKit/Sources/Kit/Take.swift" "spelling vocab package" yes
 expect_quick "website/app/page.tsx" "spelling site" no
 expect_quick "docs/notes.md" "spelling" no
-expect_quick "scripts/verify.sh" "spelling vocab package site" yes
-expect_quick "" "spelling vocab package site" yes
+expect_quick "scripts/verify.sh" "spelling vocab package site mixer-sim" yes
+expect_quick "" "spelling vocab package site mixer-sim" yes
 # With a device to build for, quick says that build is skipped too: CI doesn't run it.
 out=$(DEVICE_ID=abc VERIFY_QUICK=1 VERIFY_ALL=0 VERIFY_FILES="App/RecordView.swift" VERIFY_PLAN_ONLY=1 ./scripts/verify.sh)
 printf '%s\n' "$out" | grep -q "signed device build for abc is skipped" ||
