@@ -120,7 +120,11 @@ The campaigns (40 characters or fewer; the list is `APP_STORE_CAMPAIGNS`):
 | `site-guide-taps` | Pre or post fader guide, "With ShowRecorder" |
 | `site-guide-best-app` | Best app for iPhone and iPad guide, after "Which app for which job" |
 
-**Paid Facebook ads.** An ad that links to a page on the site uses `utm_source=facebook&utm_medium=paid&utm_campaign=fbad-<ad>` (in use: `fbad-xr18`, `fbad-church`, `fbad-x32`). On that visit, every App Store link on the page carries the ad's campaign as its `ct` instead of the placement's, so App Analytics counts downloads per ad (`website/lib/adCampaign.ts`). The campaign must be `fbad-` plus up to 34 lowercase letters, digits or hyphens; anything else keeps the placement's `ct`. It reads only that page's address and stores nothing, so the next page's links are the placement ones again.
+**Posts and ads: the `utm_campaign` becomes the `ct`.** A post, reply, email or ad that links to the site carries `utm_source` and `utm_campaign` (see "Website links in posts" below; paid Facebook ads use `utm_source=facebook&utm_medium=paid&utm_campaign=fbad-<ad>`, in use: `fbad-xr18`, `fbad-church`, `fbad-x32`). When a visitor lands with a `utm_campaign` of 1 to 40 lowercase letters, digits or hyphens (for example `xr18-group-beta-1-2`), the site remembers it for the visit, and every App Store link on every page they open carries it as its `ct` instead of the placement's. App Analytics then counts downloads per post or ad, under the same name PostHog shows for the visit. Details (`website/lib/adCampaign.ts`):
+
+- Any `utm_source` counts. A campaign with capitals, underscores, spaces or other characters, or longer than 40, is ignored, and the links keep the placement's `ct`.
+- First touch wins: the campaign the visit landed with is kept in `sessionStorage` until the tab closes, and a later tagged page in the same tab does not replace it. The site sets no cookies; the privacy page says what it keeps.
+- With no campaign, or with JavaScript off, every link keeps the placement's `ct` from the table above. `pt` never changes.
 
 An App Store link in a post uses the same format with its own `ct`, short and lowercase (for example `fb-xr18-group`).
 

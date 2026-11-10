@@ -2,68 +2,133 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Fragment, createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { AppStoreBadge } from "@/components/AppStoreBadge";
 import { GetBand } from "@/components/GetBand";
 import { MixerHero } from "@/components/MixerHero";
-import { adCampaign, adCampaignScript } from "@/lib/adCampaign";
+import { CAMPAIGN_KEY, postCampaign, postCampaignScript, rememberedCampaign } from "@/lib/adCampaign";
 import { APP_STORE_URL, appStoreLink } from "@/lib/site";
 
-// A visitor from a paid Facebook ad lands with ?utm_source=facebook&utm_medium=paid&utm_campaign=fbad-<ad>. The App
-// Store links on that page then carry the ad as their ct, so App Store Connect counts downloads per ad. Only a
-// campaign that fits the fbad- pattern is used; anything else keeps the page's own ct.
-const ad = (campaign: string, extra = "") => `?utm_source=facebook&utm_medium=paid&utm_campaign=${campaign}${extra}`;
+// A visitor from a tagged post or ad lands with ?utm_source=<place>&utm_campaign=<post>. The post's campaign becomes
+// the ct of the site's App Store links for the rest of the visit, so App Store Connect counts downloads per post.
+const tagged = (campaign: string, extra = "") => `?utm_source=facebook&utm_campaign=${campaign}${extra}`;
 
-describe("adCampaign", () => {
-  it.each(["fbad-xr18", "fbad-church", "fbad-x32"])("uses the paid Facebook campaign %s", (campaign) => {
-    expect(adCampaign(ad(campaign))).toBe(campaign);
+describe("postCampaign", () => {
+  it.each(["fbad-xr18", "xr18-group-beta-1-2", "x32-group-beta-1-2", "reddit-x32", "a", "2026"])("uses the campaign %s", (campaign) => {
+    expect(postCampaign(tagged(campaign))).toBe(campaign);
   });
 
-  // fbad- plus at most 34 characters: 39 in all, inside the 40 a ct can hold.
-  it("allows the longest campaign, fbad- plus 34 characters", () => {
-    const longest = `fbad-${"a".repeat(34)}`;
-    expect(adCampaign(ad(longest))).toBe(longest);
+  it.each(["reddit", "email", "forum"])("uses a campaign from %s too", (source) => {
+    expect(postCampaign(`?utm_source=${source}&utm_campaign=spring-post`)).toBe("spring-post");
+  });
+
+  it("allows the longest campaign, 40 characters, all a ct can hold", () => {
+    const longest = "a".repeat(40);
+    expect(postCampaign(tagged(longest))).toBe(longest);
   });
 
   it.each([
     ["no query", ""],
-    ["no campaign", "?utm_source=facebook&utm_medium=paid"],
-    ["an organic Facebook post", "?utm_source=facebook&utm_campaign=fbad-xr18"],
-    ["another medium", "?utm_source=facebook&utm_medium=social&utm_campaign=fbad-xr18"],
-    ["another source", "?utm_source=reddit&utm_medium=paid&utm_campaign=fbad-xr18"],
-    ["a campaign without the fbad- prefix", ad("xr18-group")],
-    ["just the prefix", ad("fbad-")],
-    ["capital letters", ad("fbad-XR18")],
-    ["an underscore", ad("fbad-xr_18")],
-    ["a space", ad("fbad-xr%2018")],
-    ["markup", ad("fbad-%3Cscript%3E")],
-    ["an ampersand", ad("fbad-x%26ct%3Devil")],
-    ["a line break", ad("fbad-xr18%0A")],
-    ["a campaign one character too long", ad(`fbad-${"a".repeat(35)}`)],
-    ["a campaign far too long", ad(`fbad-${"a".repeat(200)}`)],
-    ["Fbad- with a capital", ad("Fbad-xr18")],
-  ])("keeps the page's own ct for %s", (_, search) => {
-    expect(adCampaign(search)).toBeNull();
+    ["no campaign", "?utm_source=facebook"],
+    ["an empty campaign", tagged("")],
+    ["capital letters", tagged("XR18-group")],
+    ["an underscore", tagged("xr_18")],
+    ["a space", tagged("xr%2018")],
+    ["a dot", tagged("xr18.group")],
+    ["markup", tagged("%3Cscript%3E")],
+    ["an ampersand", tagged("x%26ct%3Devil")],
+    ["a line break", tagged("xr18%0A")],
+    ["a campaign one character too long", tagged("a".repeat(41))],
+    ["a campaign far too long", tagged("a".repeat(200))],
+  ])("ignores %s", (_, search) => {
+    expect(postCampaign(search)).toBeNull();
   });
 
   it("uses the first utm_campaign when the address repeats it", () => {
-    expect(adCampaign(ad("fbad-xr18", "&utm_campaign=fbad-x32"))).toBe("fbad-xr18");
+    expect(postCampaign(tagged("xr18-group", "&utm_campaign=x32-group"))).toBe("xr18-group");
   });
 });
 
-describe("adCampaignScript", () => {
+// The visit's memory: sessionStorage, which lasts until the tab closes. A fake stands in for it here.
+function fakeStorage(start: Record<string, string> = {}) {
+  const items = new Map(Object.entries(start));
+  return {
+    items,
+    getItem: (key: string) => items.get(key) ?? null,
+    setItem: (key: string, value: string) => void items.set(key, value),
+  };
+}
+
+const brokenStorage = {
+  getItem: (): string | null => {
+    throw new Error("SecurityError");
+  },
+  setItem: () => {
+    throw new Error("QuotaExceededError");
+  },
+};
+
+describe("rememberedCampaign (first touch wins)", () => {
+  it("remembers the campaign of the page the visit landed on", () => {
+    const storage = fakeStorage();
+    expect(rememberedCampaign(tagged("xr18-group"), storage)).toBe("xr18-group");
+    expect(storage.items.get(CAMPAIGN_KEY)).toBe("xr18-group");
+    expect(rememberedCampaign("", storage)).toBe("xr18-group");
+  });
+
+  it("keeps the first campaign when a later page has another", () => {
+    const storage = fakeStorage();
+    rememberedCampaign(tagged("xr18-group"), storage);
+    expect(rememberedCampaign(tagged("x32-group"), storage)).toBe("xr18-group");
+  });
+
+  it("remembers nothing for a bad campaign, so a later good one still counts", () => {
+    const storage = fakeStorage();
+    expect(rememberedCampaign(tagged("%3Cb%3E"), storage)).toBeNull();
+    expect(storage.items.size).toBe(0);
+    expect(rememberedCampaign(tagged("x32-group"), storage)).toBe("x32-group");
+  });
+
+  it("is null for a visit with no campaign", () => {
+    expect(rememberedCampaign("", fakeStorage())).toBeNull();
+  });
+
+  it("ignores a stored value that is not a campaign", () => {
+    const storage = fakeStorage({ [CAMPAIGN_KEY]: "<b>bad</b>" });
+    expect(rememberedCampaign("", storage)).toBeNull();
+    expect(rememberedCampaign(tagged("x32-group"), storage)).toBe("x32-group");
+  });
+
+  it("still uses this page's campaign when storage is blocked", () => {
+    expect(rememberedCampaign(tagged("xr18-group"), brokenStorage)).toBe("xr18-group");
+    expect(rememberedCampaign("", brokenStorage)).toBeNull();
+  });
+
+  it("still uses this page's campaign when there is no storage at all", () => {
+    expect(rememberedCampaign(tagged("xr18-group"), null)).toBe("xr18-group");
+  });
+});
+
+describe("postCampaignScript", () => {
   it("runs on every page after it loads", () => {
     const layout = readFileSync(path.join(__dirname, "..", "app", "layout.tsx"), "utf8");
-    expect(layout).toMatch(/<Script id="ad-campaign" strategy="afterInteractive">\s*\{adCampaignScript\(\)\}\s*<\/Script>/);
+    expect(layout).toMatch(/<Script id="post-campaign" strategy="afterInteractive">\s*\{postCampaignScript\(\)\}\s*<\/Script>/);
   });
 
-  // The privacy page says the site stores nothing in the browser; this keeps that true.
-  it("stores nothing in the browser", () => {
-    expect(adCampaignScript()).not.toMatch(/cookie|localStorage|sessionStorage|indexedDB/i);
+  // The privacy page says the site sets no cookies and keeps only this campaign, for the visit.
+  it("sets no cookies and keeps nothing past the visit", () => {
+    expect(postCampaignScript()).not.toMatch(/cookie|localStorage|indexedDB/i);
+  });
+
+  it("is on the privacy page", () => {
+    const privacy = readFileSync(path.join(__dirname, "..", "app", "privacy", "page.mdx"), "utf8");
+    expect(privacy).not.toMatch(/stores nothing in your browser or on your device, unless you open the chat \(see below\)\./);
+    expect(privacy).toMatch(/keeps that name in your browser until you close the tab/);
   });
 });
 
-// The mixer pages are the ad landing pages. Their HTML is built ahead of time with the page's own ct; after the page
-// loads, adCampaignScript() (in app/layout.tsx) retags the App Store links from the address of this visit. Here it
-// runs against the links in the rendered hero and closing band, with only the page address as input.
+// The pages are built ahead of time with each placement's own ct. After a page loads, postCampaignScript() (in
+// app/layout.tsx) retags its App Store links with the visit's campaign. Here it runs against the links in rendered
+// pages, with the page address and a fake sessionStorage as its only inputs.
 type FakeLink = { href: string; getAttribute(name: string): string | null; setAttribute(name: string, value: string): void };
 
 function linksIn(html: string): FakeLink[] {
@@ -79,42 +144,60 @@ function linksIn(html: string): FakeLink[] {
   });
 }
 
-function visit(html: string, search: string): string[] {
+// Opens a page in a tab: runs the script with the page's links, its address and the tab's storage, and returns the
+// App Store links as they then are.
+function openPage(html: string, search: string, storage: object | "blocked"): string[] {
   const links = linksIn(html);
   const window = { location: { search } };
+  Object.defineProperty(window, "sessionStorage", {
+    get() {
+      if (storage === "blocked") throw new Error("SecurityError");
+      return storage;
+    },
+  });
   const document = { querySelectorAll: () => links };
-  new Function("window", "document", adCampaignScript())(window, document);
+  new Function("window", "document", postCampaignScript())(window, document);
   return links.map((l) => l.href).filter((href) => href.startsWith(APP_STORE_URL!));
 }
 
-const mixerPages = [
-  ["/mixers/xr18", "site-xr18", "site-xr18-footer"],
-  ["/mixers/x32", "site-x32", "site-x32-footer"],
-] as const;
+const store = (ct: string) => `https://apps.apple.com/app/id6820213310?pt=117729664&ct=${ct}&mt=8`;
 
-describe.each(mixerPages)("the App Store links on %s", (_, hero, footer) => {
-  const html = renderToStaticMarkup(
-    createElement(
-      Fragment,
-      null,
-      createElement(MixerHero, { campaign: hero, eyebrow: "", title: "", lede: "" }),
-      createElement(GetBand, { title: "", campaign: footer }),
-    ),
-  );
-  const pageDefault = [appStoreLink(hero), appStoreLink(footer)];
+const mixerPage = renderToStaticMarkup(
+  createElement(
+    Fragment,
+    null,
+    createElement(MixerHero, { campaign: "site-xr18", eyebrow: "", title: "", lede: "" }),
+    createElement(GetBand, { title: "", campaign: "site-xr18-footer" }),
+  ),
+);
+const homePage = renderToStaticMarkup(createElement(AppStoreBadge, { id: "app-store-link", campaign: "site-home" }));
 
-  it("carry the ad's campaign for a visit from a paid Facebook ad", () => {
-    expect(visit(html, ad("fbad-church"))).toEqual([
-      "https://apps.apple.com/app/id6820213310?pt=117729664&ct=fbad-church&mt=8",
-      "https://apps.apple.com/app/id6820213310?pt=117729664&ct=fbad-church&mt=8",
+describe("App Store links during a visit", () => {
+  it("carry the post's campaign instead of the placement's on the landing page", () => {
+    expect(openPage(mixerPage, tagged("xr18-group-beta-1-2"), fakeStorage())).toEqual([
+      store("xr18-group-beta-1-2"),
+      store("xr18-group-beta-1-2"),
     ]);
   });
 
-  it.each([
-    ["a bad campaign", ad("fbad-%3Cb%3E")],
-    ["an organic post", "?utm_source=facebook&utm_campaign=fbad-xr18"],
-    ["no query", ""],
-  ])("keep the page's own campaign for %s", (_, search) => {
-    expect(visit(html, search)).toEqual(pageDefault);
+  it("carry the first post's campaign on every later page of the visit", () => {
+    const tab = fakeStorage();
+    openPage(mixerPage, tagged("fbad-xr18"), tab);
+    expect(openPage(homePage, "", tab)).toEqual([store("fbad-xr18")]);
+    expect(openPage(homePage, tagged("x32-group"), tab)).toEqual([store("fbad-xr18")]);
+  });
+
+  it("keep the placement's campaign on a visit with no campaign", () => {
+    expect(openPage(mixerPage, "", fakeStorage())).toEqual([appStoreLink("site-xr18"), appStoreLink("site-xr18-footer")]);
+    expect(openPage(homePage, "?utm_source=facebook", fakeStorage())).toEqual([appStoreLink("site-home")]);
+  });
+
+  it("keep the placement's campaign for a bad campaign", () => {
+    expect(openPage(homePage, tagged("%3Cb%3E"), fakeStorage())).toEqual([appStoreLink("site-home")]);
+  });
+
+  it("still carry the landing page's campaign when storage is blocked", () => {
+    expect(openPage(homePage, tagged("xr18-group"), "blocked")).toEqual([store("xr18-group")]);
+    expect(openPage(homePage, "", "blocked")).toEqual([appStoreLink("site-home")]);
   });
 });

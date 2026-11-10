@@ -3,7 +3,7 @@ import Script from "next/script";
 import { ChatBubble } from "@/components/ChatBubble";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
-import { adCampaignScript } from "@/lib/adCampaign";
+import { postCampaignScript } from "@/lib/adCampaign";
 import { OG_IMAGE, PAGES } from "@/lib/metadata";
 import { APP_STORE_ID, SITE_NAME, SITE_URL } from "@/lib/site";
 import { THEME_SCRIPT } from "@/lib/theme";
@@ -68,9 +68,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Script id="posthog-init" strategy="afterInteractive">
           {posthogInitScript()}
         </Script>
-        {/* A visit from a paid Facebook ad: App Store links carry the ad's campaign. Reads the address only; see lib/adCampaign.ts. */}
-        <Script id="ad-campaign" strategy="afterInteractive">
-          {adCampaignScript()}
+        {/* A visit from a tagged post or ad: App Store links carry its campaign for the whole visit; see lib/adCampaign.ts. */}
+        <Script id="post-campaign" strategy="afterInteractive">
+          {postCampaignScript()}
         </Script>
         {/* Errors in this browser go to GlitchTip; see lib/errors.ts and the privacy page. */}
         <Script id="error-reports" strategy="afterInteractive">
