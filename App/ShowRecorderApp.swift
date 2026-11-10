@@ -1,3 +1,5 @@
+import MixerLink
+import Recording
 import SwiftUI
 
 /// Under AppTests (#679) the app is only the tests' host: a bare window and nothing else, so no model, audio,
@@ -13,6 +15,8 @@ enum ShowRecorderMain {
             return
         }
         #endif
+        // The WING family (#417) is offered only where its rule allows; elsewhere nothing asks for a WING.
+        MixerFamily.offersWing = WingAvailability.isAvailableInThisBuild
         ShowRecorderApp.main()
     }
 }

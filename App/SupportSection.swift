@@ -53,6 +53,7 @@ struct SupportSection: View {
         let family: String? = switch model.readyFamily {
         case .xAir: "X Air"
         case .x32: "X32"
+        case .wing: "WING"
         case nil: nil
         }
         var mixerLink: String?
