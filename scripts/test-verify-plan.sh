@@ -80,5 +80,22 @@ else
   done
 fi
 
+# CI runs the Mixer Link test bench's Python tests (tools/mixer-sim) with its own pattern, and the required "Test and
+# build" check waits for that job.
+sim_pattern=$(grep "mixersim=true; fi" .github/workflows/ci.yml | sed -n "s/.*grep -qE '\([^']*\)'.*/\1/p")
+if [ "$(grep -c "mixersim=true; fi" .github/workflows/ci.yml)" != 1 ] || [ -z "$sim_pattern" ]; then
+  echo "FAIL: expected exactly one mixer-sim pattern line in .github/workflows/ci.yml"
+  fail=1
+else
+  for f in tools/mixer-sim/mixer_sim.py tools/mixer-sim/tests/test_wing.py .github/workflows/ci.yml; do
+    printf '%s\n' "$f" | grep -qE "$sim_pattern" || { echo "FAIL: CI doesn't run the mixer-sim job for $f"; fail=1; }
+  done
+  for f in App/RecordView.swift website/app/page.tsx tools/other/x.py; do
+    printf '%s\n' "$f" | grep -qE "$sim_pattern" && { echo "FAIL: CI runs the mixer-sim job for $f"; fail=1; }
+  done
+fi
+grep -q "needs: \[changes, app, site, mixer-sim\]" .github/workflows/ci.yml ||
+  { echo "FAIL: the required Test and build check doesn't wait for the mixer-sim job"; fail=1; }
+
 [ $fail -eq 0 ] && echo "verify.sh plan: all cases pass"
 exit $fail
