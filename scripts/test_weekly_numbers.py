@@ -322,5 +322,12 @@ class DailyTests(unittest.TestCase):
         self.assertTrue(text.startswith("# ShowRecorder weekly numbers, 2026-11-09\n"))
 
 
+class AppStoreClickTests(unittest.TestCase):
+    def test_counts_the_mixer_page_button_as_the_site_sends_it(self):
+        # mixer_page_cta_clicked carries destination 'app_store', not a URL (38 people missed, 2026-11-11)
+        self.assertIn("event = 'app_store_clicked'", wn.APP_STORE_CLICK)
+        self.assertIn("properties.destination) = 'app_store'", wn.APP_STORE_CLICK)
+
+
 if __name__ == "__main__":
     unittest.main()
