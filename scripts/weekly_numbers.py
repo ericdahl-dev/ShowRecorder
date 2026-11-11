@@ -295,6 +295,10 @@ POSTHOG = "https://us.posthog.com"
 POSTHOG_PROJECT = "Owned Sites"
 SITE = "showrecorder.app"
 TIME_ZONE = "America/New_York"
+# A tap on an App Store button: the badge, or a mixer page's button, which sends destination 'app_store'
+# (not a URL); the same count as post_tracker.py.
+APP_STORE_CLICK = ("(event = 'app_store_clicked' OR (event = 'mixer_page_cta_clicked' "
+                   "AND toString(properties.destination) = 'app_store'))")
 INFISICAL = "https://infisical.ericdahl.dev/api"
 INFISICAL_PROJECT = "23bfbf90-439d-4edf-a7d6-9bab28b43971"  # showrecorder
 ASC_SECRETS = ("ASC_KEY_ID", "ASC_ISSUER_ID", "ASC_KEY_P8", "ASC_VENDOR_NUMBER")
@@ -353,9 +357,7 @@ def fetch_posthog(start, end):
     pages = rows(f"SELECT DISTINCT toString({day}), properties.$pathname, toString(person_id) FROM events "
                  f"WHERE event = '$pageview' AND {site} AND "
                  f"(properties.$pathname LIKE '/guides/%' OR properties.$pathname LIKE '/mixers/%')")
-    clicks = rows(f"SELECT toString({day}), toString(uuid) FROM events WHERE {site} AND "
-                  f"(event = 'app_store_clicked' OR (event = 'mixer_page_cta_clicked' "
-                  f"AND toString(properties.destination) LIKE '%apps.apple.com%'))")
+    clicks = rows(f"SELECT toString({day}), toString(uuid) FROM events WHERE {site} AND {APP_STORE_CLICK}")
     takes = rows(f"SELECT toString({day}), event, distinct_id FROM events "
                  f"WHERE event IN ('take_started', 'take_stopped') AND properties.app = 'showrecorder' AND {span}")
     return visitors, pages, clicks, takes
