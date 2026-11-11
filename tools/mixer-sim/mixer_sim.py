@@ -20,8 +20,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import osc  # noqa: E402
 import wing  # noqa: E402
+import xair  # noqa: E402
 
-FAMILIES = {"wing": wing.Wing}
+FAMILIES = {"wing": wing.Wing, "xair": xair.XAir}
 
 
 def load_scene(path):
@@ -253,7 +254,7 @@ class Simulator:
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--family", required=True, choices=sorted(FAMILIES))
+    parser.add_argument("--family", choices=sorted(FAMILIES), help="the mixer family (default: the scene's \"family\")")
     parser.add_argument("--scene", required=True, help="a scene JSON file (see scenes/)")
     parser.add_argument("--bind", default="0.0.0.0", help="address to listen on (default all)")
     parser.add_argument("--port", action="append", default=[], metavar="ROLE=N",
@@ -269,6 +270,10 @@ def main(argv=None):
     parser.add_argument("--log", default=None, metavar="FILE", help="log every message here (default: standard error)")
     parser.add_argument("--quiet", action="store_true", help="log nothing")
     args = parser.parse_args(argv)
+    scene = load_scene(args.scene)
+    family = args.family or scene.get("family")
+    if family not in FAMILIES:
+        parser.error("say --family (%s): the scene names none" % ", ".join(sorted(FAMILIES)))
     ports = "real"
     if args.port:
         ports = {}
@@ -276,11 +281,11 @@ def main(argv=None):
             role, _, number = item.partition("=")
             ports[role] = int(number)
     log = None if args.quiet else (open(args.log, "a", encoding="utf-8") if args.log else sys.stderr)
-    sim = Simulator(args.family, load_scene(args.scene), bind=args.bind, ports=ports, control_port=args.control_port,
+    sim = Simulator(family, scene, bind=args.bind, ports=ports, control_port=args.control_port,
                     subscription_seconds=args.subscription_seconds, discovery_only=args.discovery_only,
                     delay_ms=args.delay_ms, drop_after=args.drop_after,
                     script=load_scene(args.script) if args.script else (), log=log).start()
-    print("mixer-sim: %s on %s: %s" % (args.family, args.bind,
+    print("mixer-sim: %s on %s: %s" % (family, args.bind,
                                        ", ".join("%s %d" % item for item in sim.ports.items())), flush=True)
     try:
         # Commands typed here change the scene live; with no terminal (stdin closed) it just keeps serving.
