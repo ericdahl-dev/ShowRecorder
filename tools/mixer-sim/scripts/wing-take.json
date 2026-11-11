@@ -1,0 +1,8 @@
+[
+  {"at": 20, "command": "name LCL/11 Lead Vox 2"},
+  {"at": 30, "command": "color LCL/11 11"},
+  {"at": 40, "command": "patch usb 13 LCL/12"},
+  {"at": 50, "command": "patch usb 13 A/1"},
+  {"at": 60, "command": "drop"},
+  {"at": 75, "command": "resume"}
+]

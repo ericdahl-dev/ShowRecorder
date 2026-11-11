@@ -6,6 +6,7 @@
 #   package  swift test                  Packages/
 #   app      macOS (with AppTests), iOS  App/, AppTests/, Packages/, project.yml, ShowRecorder.xcodeproj/
 #   site     website lint, tests, build  website/, docs/release-notes/
+#   mixer-sim  Python unittest            tools/mixer-sim/ (the Mixer Link test bench; no build)
 # The package tests, the two app builds and the website run side by side, each into its own log; when all have
 # finished each one's result and time is printed, with the log of any that failed (scripts/verify-steps.sh).
 # Docs, design notes and other Markdown need none. A change to verify.sh, CI or any path not listed
@@ -57,8 +58,8 @@ changed_files() {
   git ls-files --others --exclude-standard
 }
 
-vocab=0 package=0 app=0 site=0 everything=0
-all() { vocab=1 package=1 app=1 site=1 everything=1; }
+vocab=0 package=0 app=0 site=0 mixersim=0 everything=0
+all() { vocab=1 package=1 app=1 site=1 mixersim=1 everything=1; }
 
 files=$(changed_files | sed '/^$/d' | sort -u)
 if [ "${VERIFY_ALL:-0}" = 1 ] || [ -z "$files" ]; then
@@ -76,6 +77,7 @@ else
       project.yml | ShowRecorder.xcodeproj/* | AppTests/*) app=1 ;;
       CONTEXT.md | scripts/vocab-*) vocab=1 ;;
       website/*) site=1 ;;
+      tools/mixer-sim/*) mixersim=1 ;;
       # The site's changelog test reads the release notes.
       docs/release-notes/*) site=1 ;;
       docs/* | design/* | *.md) ;;
@@ -96,6 +98,7 @@ plan="spelling"
 [ $package = 1 ] && plan="$plan package"
 [ $app = 1 ] && plan="$plan app"
 [ $site = 1 ] && plan="$plan site"
+[ $mixersim = 1 ] && plan="$plan mixer-sim"
 echo "== Plan: $plan"
 if [ $skipped_app = 1 ]; then
   echo "== Quick: CI runs the macOS and iOS app builds"
@@ -115,6 +118,11 @@ if [ $everything = 1 ]; then
   python3 scripts/test_post_tracker.py
   python3 scripts/test_asc_campaigns.py
   python3 scripts/test_coverage.py
+fi
+
+if [ $mixersim = 1 ]; then
+  echo "== Mixer Link test bench (tools/mixer-sim)"
+  python3 -B -m unittest discover -s tools/mixer-sim/tests
 fi
 
 echo "== American spelling (CI's check)"
