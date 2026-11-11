@@ -59,10 +59,13 @@ VPN in the way, and the host's firewall open for the family's ports (on Linux wi
 3. The Stems' names and colors on the record screen come from the scene. Change the scene live (below) and watch them
    follow.
 
-**Mixer Link shows only for a matching audio interface.** The app offers Mixer Link only while the Ready audio
-interface's name says it is a mixer of a known family (an XR18, an X32 card, a WING). The built-in microphone and the
-Demo signal get no Mixer Link section in Settings. So the simulator is reached from a device with a matching USB audio
-interface plugged in. The WING family is offered only in Debug builds for now (`WingAvailability`).
+**Mixer Link shows only for a matching audio interface, or the Demo signal in a Debug build.** The app offers Mixer
+Link only while the Ready audio interface's name says it is a mixer of a known family (an XR18, an X32 card, a WING).
+The built-in microphone gets no Mixer Link section in Settings. In a Debug build (`DemoMixerLinkAvailability`) the
+Demo signal does: the 18-channel one links as an X Air and the 32-channel one as an X32, so a Debug build on a phone
+with nothing plugged in can reach `xr18-band.json` or `x32-band.json`. TestFlight and App Store builds need a matching
+USB interface. The WING has no Demo signal, so it always needs a WING (or another interface the app reads as one)
+plugged in. The WING family is offered in Debug and TestFlight builds (`WingAvailability`).
 
 ## Change the scene live
 
