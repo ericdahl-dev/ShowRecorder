@@ -833,10 +833,19 @@ final class RecordScreenModel {
             MixerFamily.ready(interfaceName: $0.name, demoChannelCount: DemoAudioDevice.channelCount(forID: $0.id), demoCounts: DemoMixerFamilyAvailability.isAvailableInThisBuild)
         }
     }
+    /// The Ready family for Mixer Link: `readyFamily`, except that in Debug builds (`DemoMixerLinkAvailability`, #417)
+    /// the 18-channel Demo signal links as an X Air and the 32-channel one as an X32, so the Mixer Link test bench
+    /// (tools/mixer-sim) can be tried with no mixer plugged in.
+    var mixerLinkFamily: MixerFamily? {
+        readyDevice.flatMap {
+            MixerFamily.ready(interfaceName: $0.name, demoChannelCount: DemoAudioDevice.channelCount(forID: $0.id), demoCounts: DemoMixerLinkAvailability.isAvailableInThisBuild)
+        }
+    }
 
     /// Mixer Link is offered only while an X Air or X32 is the Ready input (#365). Any other input (a built-in mic,
     /// the Demo signal, an EVO 4, a DJM) has no Mixer Link: Settings hides it, the strip has no Mixer chip and the
-    /// Soundcheck skips it. A remembered Mixer stays saved and links again when an X Air or X32 is Ready.
+    /// Soundcheck skips it. A remembered Mixer stays saved and links again when an X Air or X32 is Ready. Debug builds
+    /// are the exception: there the Demo signal links as an X Air or X32 (`mixerLinkFamily`, #417).
     var offersMixerLink: Bool { mixer.isOffered }
 
     /// The Mixer's Sources while Mixer Link is offered; none otherwise, so another input's Stems never get the
@@ -1205,8 +1214,8 @@ final class RecordScreenModel {
             // The Mixer session hears of each Ready input from the model, at launch and after, even with the screen
             // locked (#556): it re-reads the Sources for a new USB Channel count and links a remembered Mixer when an
             // X Air or X32 is Ready (#365).
-            let name = device == nil ? nil : readyDevice?.name, count = device == nil ? 0 : recorder.usbChannelCount
-            Task { await mixer.ready(interfaceName: name, usbChannelCount: count) }
+            let family = device == nil ? nil : mixerLinkFamily, count = device == nil ? 0 : recorder.usbChannelCount
+            Task { await mixer.ready(family: family, usbChannelCount: count) }
         }
         #if os(iOS)
         watchLink = WatchLink(status: { [unowned self] in watchStatus }, actions: watchActions)

@@ -47,6 +47,7 @@ struct AvailabilityLevelTests {
         .init(name: "Choose armed channels", expected: .everyone, level: ChannelArmingAvailability.level, isAvailable: { ChannelArmingAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
         .init(name: "Clip protection", expected: .debugAndTestFlight, level: ClipProtectionSetting.level, isAvailable: { ClipProtectionSetting.isOffered(isDebugBuild: $0, environment: $1) }),
         .init(name: "Demo mixer family", expected: .debugAndTestFlight, level: DemoMixerFamilyAvailability.level, isAvailable: { DemoMixerFamilyAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
+        .init(name: "Demo signal Mixer Link", expected: .debugOnly, level: DemoMixerLinkAvailability.level, isAvailable: { DemoMixerLinkAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
         .init(name: "Demo signal", expected: .debugAndTestFlight, level: DemoSignalAvailability.level, isAvailable: { DemoSignalAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
         .init(name: "Delete from iPhone", expected: .debugOnly, level: DeviceTakeDeleteAvailability.level, isAvailable: { DeviceTakeDeleteAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),
         .init(name: "Drive only", expected: .debugAndTestFlight, level: DriveOnlyAvailability.level, isAvailable: { DriveOnlyAvailability.isAvailable(isDebugBuild: $0, environment: $1) }),

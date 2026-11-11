@@ -190,7 +190,14 @@ public final class MixerSession {
     /// when nothing is Ready, or the Ready input has no Mixer family (the App's rule: `recorder.isReady &&
     /// readyFamily != nil`, #556).
     public func ready(interfaceName: String?, usbChannelCount: Int) async {
-        family = interfaceName.flatMap { MixerFamily(audioInterfaceName: $0) }
+        await ready(family: interfaceName.flatMap { MixerFamily(audioInterfaceName: $0) }, usbChannelCount: usbChannelCount)
+    }
+
+    /// The Ready input changed, with its Mixer family already decided by the App: in Debug builds the Demo signal
+    /// counts as an X Air or an X32 (`DemoMixerLinkAvailability`, #417), so the Mixer Link test bench can be tried with
+    /// no mixer plugged in. Nil when nothing is Ready or the input has no Mixer family.
+    public func ready(family: MixerFamily?, usbChannelCount: Int) async {
+        self.family = family
         let countChanged = usbChannelCount != self.usbChannelCount
         self.usbChannelCount = usbChannelCount
         // A new USB Channel count re-reads the Sources, as the App always has (#556): over the Link that's up, or once
