@@ -160,7 +160,8 @@ python3 -B -m unittest discover -s tools/mixer-sim/tests
 
 They start the simulator on 127.0.0.1 and free ports (never the real ones, so they run beside wingemul or a real
 mixer) and talk to it over real UDP. Every wait has a timeout of a second or less. `scripts/verify.sh` runs them when
-`tools/mixer-sim/` changes.
+`tools/mixer-sim/` changes, and so does CI (the "Mixer Link test bench" job, which the required "Test and build" check
+waits for).
 
 ## What it does not prove
 

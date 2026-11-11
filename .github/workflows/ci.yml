@@ -17,14 +17,15 @@ concurrency:
 jobs:
   # Which parts changed: the app (anything outside website/, docs/, design/ and Markdown files, as verify.sh
   # sorts them; CONTEXT.md counts as app, for its vocabulary check) and the site (website/, and
-  # docs/release-notes/, which the site's changelog test reads).
-  # A change to this workflow runs both.
+  # docs/release-notes/, which the site's changelog test reads), and the Mixer Link test bench (tools/mixer-sim).
+  # A change to this workflow runs all three.
   changes:
     name: Changes
     runs-on: ubuntu-latest
     outputs:
       app: ${{ steps.diff.outputs.app }}
       site: ${{ steps.diff.outputs.site }}
+      mixersim: ${{ steps.diff.outputs.mixersim }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,18 +38,21 @@ jobs:
           if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             echo "No usable base; running everything."
             site=true; [ -f website/package.json ] || site=false
-            echo "app=true" >> "$GITHUB_OUTPUT"; echo "site=$site" >> "$GITHUB_OUTPUT"; exit 0
+            echo "app=true" >> "$GITHUB_OUTPUT"; echo "site=$site" >> "$GITHUB_OUTPUT"
+            echo "mixersim=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
           files=$(git diff --name-only "$BASE"...HEAD)
           printf '%s\n' "$files"
-          app=false; site=false
+          app=false; site=false; mixersim=false
           if printf '%s\n' "$files" | grep -qvE '^website/|^docs/|^design/|\.md$|^$'; then app=true; fi
           if printf '%s\n' "$files" | grep -qxE 'CONTEXT\.md'; then app=true; fi
           if printf '%s\n' "$files" | grep -qE '^website/|^docs/release-notes/|^\.github/workflows/ci\.yml$'; then site=true; fi
+          if printf '%s\n' "$files" | grep -qE '^tools/mixer-sim/|^\.github/workflows/ci\.yml$'; then mixersim=true; fi
           # Nothing to build until the site is on this branch.
           if [ ! -f website/package.json ]; then site=false; fi
           echo "app=$app" >> "$GITHUB_OUTPUT"; echo "site=$site" >> "$GITHUB_OUTPUT"
-          echo "app=$app site=$site"
+          echo "mixersim=$mixersim" >> "$GITHUB_OUTPUT"
+          echo "app=$app site=$site mixersim=$mixersim"
 
   app:
     name: App (${{ matrix.check }})
@@ -243,6 +247,19 @@ jobs:
       - name: nginx redirects
         run: bash tests/nginx-redirects.sh
 
+  # The Mixer Link test bench (tools/mixer-sim, #417): its Python tests talk to the simulated mixers over localhost
+  # UDP, every wait bounded. Standard library only, so nothing to install.
+  mixer-sim:
+    name: Mixer Link test bench
+    needs: changes
+    if: needs.changes.outputs.mixersim == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tests
+        run: python3 -B -m unittest discover -s tools/mixer-sim/tests -v
+
   # The required check. It passes when every job that ran passed; skipped jobs are fine.
   # `!cancelled()`, not `always()` (#983): a run that concurrency cancels ends this job as `cancelled` at once. With
   # `always()` it still ran, saw its canceled needs and failed a few seconds later, and that failure could land after
@@ -250,7 +267,7 @@ jobs:
   # only run on a commit and the check stays canceled, so the merge stays blocked.
   gate:
     name: Test and build
-    needs: [changes, app, site]
+    needs: [changes, app, site, mixer-sim]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
@@ -259,9 +276,10 @@ jobs:
           CHANGES: ${{ needs.changes.result }}
           APP: ${{ needs.app.result }}
           SITE: ${{ needs.site.result }}
+          MIXERSIM: ${{ needs.mixer-sim.result }}
         run: |
-          echo "changes=$CHANGES app=$APP site=$SITE"
+          echo "changes=$CHANGES app=$APP site=$SITE mixer-sim=$MIXERSIM"
           [ "$CHANGES" = success ] || exit 1
-          for r in "$APP" "$SITE"; do
+          for r in "$APP" "$SITE" "$MIXERSIM"; do
             case "$r" in success|skipped) ;; *) exit 1 ;; esac
           done
