@@ -340,6 +340,24 @@ struct MixerSessionTests {
         #expect(session.sources.count == 18)
     }
 
+    @Test("A family the App gives (the Demo signal as an X Air, Debug only) offers Mixer Link and links the remembered Mixer, whatever the input's name")
+    func familyFromTheApp() async {
+        let driver = FakeMixerDriver()
+        let (session, link) = session(driver, remembering: "10.0.0.20")
+
+        await session.ready(family: .xAir, usbChannelCount: 18)
+
+        #expect(session.family == .xAir)
+        #expect(session.isOffered)
+        #expect(link.status == .up(driver.state.withLock { $0.identity }, path: .wifi))
+        #expect(session.sources.count == 18)
+
+        await session.ready(family: nil, usbChannelCount: 0)
+
+        #expect(!session.isOffered)
+        #expect(session.sources.isEmpty)
+    }
+
     @Test("Getting ready again doesn't reconnect a Link that is down")
     func getReadyAgainLeavesLink() async {
         let made = Counter()
