@@ -80,6 +80,9 @@ struct WingSourcesTests {
 
         #expect(sources.map(\.name) == (1...48).map { Source.fallback(usbChannel: $0).name })
         #expect(clock.now - start < .seconds(5))
+        // The fake logs a query when its receive loop gets to it, which on a loaded runner can be after the driver
+        // has already given up; wait for the log (bounded), then check nothing more was sent.
+        #expect(await eventually(5) { !wing.queries.isEmpty })
         #expect(wing.queries.count == 1, "it stops at the first unanswered query")
     }
 

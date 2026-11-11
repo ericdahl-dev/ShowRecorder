@@ -7,7 +7,8 @@ Run it under Doppler, which has the PostHog key and the Infisical machine identi
 vendor number come from Infisical (project showrecorder, prod) unless they are already set:
   doppler run -p ericdahl-dev -c prd -- python3 scripts/weekly_numbers.py [out.md]
 Environment: POSTHOG_PERSONAL_API_KEY; ASC_KEY_ID, ASC_ISSUER_ID, ASC_VENDOR_NUMBER and ASC_KEY_P8 (or ASC_KEY_PATH),
-or INFISICAL_GER3_CLIENT_ID / _SECRET to fetch them. TODAY=YYYY-MM-DD reruns an earlier week. Days are New York
+or INFISICAL_GER3_CLIENT_ID / _SECRET to fetch them. TODAY=YYYY-MM-DD reruns an earlier week. DAYS=1 makes
+the daily email: yesterday beside the day before. Days are New York
 days on the site and Apple's report days in the App Store. Never prints a secret.
 
 Site: PostHog project "Owned Sites", $host = showrecorder.app. App Store: the daily sales reports (asc_stats.py).
@@ -26,18 +27,33 @@ class Window:
     end: datetime.date  # inclusive
 
     @property
+    def days(self):
+        return (self.end - self.start).days + 1
+
+    @property
     def label(self):
         start, end = self.start, self.end
+        if start == end:
+            return start.strftime("%b %-d")
         tail = end.strftime("%-d") if end.month == start.month else end.strftime("%b %-d")
         return f"{start.strftime('%b %-d')}-{tail}"
 
 
-def windows(today):
-    """The last 7 full days, the 7 before them, and launch to yesterday."""
+def windows(today, days=7):
+    """The last `days` full days (7 for the weekly email, 1 for the daily), the same span before them, and launch
+    to yesterday."""
     end = today - datetime.timedelta(days=1)
-    last = Window(end - datetime.timedelta(days=6), end)
-    prior = Window(last.start - datetime.timedelta(days=7), last.start - datetime.timedelta(days=1))
+    last = Window(end - datetime.timedelta(days=days - 1), end)
+    prior = Window(last.start - datetime.timedelta(days=days), last.start - datetime.timedelta(days=1))
     return last, prior, Window(LAUNCH, end)
+
+
+def span_names(window):
+    """What the table and notes call the last and the prior window: by the day for the daily email, else by the
+    week."""
+    if window.days == 1:
+        return "Yesterday", "Day before"
+    return f"Last {window.days} days", f"Prior {window.days} days"
 
 
 def change_flag(current, prior):
@@ -61,6 +77,8 @@ def source_of(utm_source, referring_domain):
     ref = (referring_domain or "").strip().lower()
     if "chatgpt" in named.lower() or "chatgpt.com" in ref:
         return "ChatGPT"
+    if named.lower() == "facebook":  # tagged links say facebook; count them with Facebook referrers
+        return "Facebook"
     if named:
         return named
     if ref == "facebook.com" or ref.endswith(".facebook.com"):
@@ -112,6 +130,10 @@ def to_usd(proceeds, usd_rates):
 def app_store_numbers(reports, window, app_id, sku, usd_rates):
     """The window's App Store numbers from {ISO day: daily sales report}."""
     days = {day: text for day, text in reports.items() if in_window(datetime.date.fromisoformat(day), window)}
+    if not days:  # Apple hasn't published the window yet: "-", not 0, and no "to 0" flags
+        return {key: None for key in ("downloads", "downloads_ios", "downloads_mac", "trials", "pro", "pro_codes",
+                                      "packs", "proceeds_usd", "revenue_per_download", "download_to_pro")} | {
+            "unconverted": {}, "report_days": []}
     summary = asc_stats.summarize(days, app_id, sku)
     dollars, unconverted = to_usd(summary.proceeds, usd_rates)
     downloads = summary.units["downloads"]
@@ -202,7 +224,8 @@ def table(windows, sites, stores, usages):
     """One Markdown table: a row per number, a column per window (last 7 days, prior 7, since launch), then the
     last week's 2x flag."""
     last, prior, launch = windows
-    lines = ["| | " + " | ".join([f"Last 7 days ({last.label})", f"Prior 7 days ({prior.label})",
+    last_name, prior_name = span_names(last)
+    lines = ["| | " + " | ".join([f"{last_name} ({last.label})", f"{prior_name} ({prior.label})",
                                   f"Since launch ({launch.label})"]) + " | Flag |",
              "|---|---:|---:|---:|---|"]
     for label, values, kind in rows(sites, stores, usages):
@@ -220,30 +243,33 @@ PRICE_STEP_FLOOR = 0.055  # at $9.99 (about $8.49 net), the download-to-Pro that
 def notes(windows, sites, stores, usages):
     """Short flags under the table: 2x changes, the Nov 20 price-step check, and what the data leaves out."""
     last = windows[0]
+    last_name, prior_name = span_names(last)
     out = []
     flags = [f"{label} {change_flag(values[0], values[1])}" for label, values, kind in rows(sites, stores, usages)
              if kind != "section" and change_flag(values[0], values[1])]
-    out.append("2x or more against the prior 7 days: " + ("; ".join(flags) if flags else "none") + ".")
+    out.append(f"2x or more against the {prior_name.lower()}: " + ("; ".join(flags) if flags else "none") + ".")
 
     def check(name, store):
         rate = store["download_to_pro"]
+        if store["downloads"] is None:
+            return f"{name} - (no report yet)"
         if rate is None:
             return f"{name} - (no downloads)"
         return f"{name} {rate:.1%} ({'holds' if rate >= PRICE_STEP_FLOOR - 1e-9 else 'below'})"
 
     out.append(f"Nov 20 price step check: at $9.99, download-to-Pro must stay at or above {PRICE_STEP_FLOOR:.1%} "
-               f"to match revenue per download at $4.99. Now: {check('last 7 days', stores[0])}, "
+               f"to match revenue per download at $4.99. Now: {check(last_name.lower(), stores[0])}, "
                f"{check('since launch', stores[2])}.")
     out.append("App usage events (take_started, take_stopped) come only from TestFlight builds until 1.2 ships "
                "to the App Store.")
     prior = windows[1]
     if prior.start < LAUNCH:
         early = (min(LAUNCH, prior.end + datetime.timedelta(days=1)) - prior.start).days
-        out.append(f"Prior 7 days include {early} days before launch ({LAUNCH.strftime('%b %-d')}), so their App "
+        out.append(f"{prior_name} include {early} days before launch ({LAUNCH.strftime('%b %-d')}), so their App "
                    "Store numbers cover fewer days.")
     days = stores[0]["report_days"]
     if not days:
-        out.append("No App Store reports for the last 7 days yet.")
+        out.append(f"No App Store reports for {last_name.lower()} yet.")
     elif days[-1] < last.end.isoformat():
         through = datetime.date.fromisoformat(days[-1])
         out.append(f"App Store reports run through {through.strftime('%b %-d')}; Apple publishes a day's report the "
@@ -255,9 +281,10 @@ def notes(windows, sites, stores, usages):
     return out
 
 
-def report(today, sites, stores, usages):
-    windows_ = windows(today)
-    body = [f"# ShowRecorder weekly numbers, {today.isoformat()}", "", table(windows_, sites, stores, usages), "Notes:", ""]
+def report(today, sites, stores, usages, days=7):
+    windows_ = windows(today, days)
+    kind = "daily" if days == 1 else "weekly"
+    body = [f"# ShowRecorder {kind} numbers, {today.isoformat()}", "", table(windows_, sites, stores, usages), "Notes:", ""]
     body += [f"- {note}" for note in notes(windows_, sites, stores, usages)]
     return "\n".join(body) + "\n"
 
@@ -346,7 +373,8 @@ def fetch_sales_reports(start, end):
 
 def main():
     today = datetime.date.fromisoformat(os.environ["TODAY"]) if os.environ.get("TODAY") else datetime.date.today()
-    last, prior, launch = windows(today)
+    days = int(os.environ.get("DAYS", "7"))
+    last, prior, launch = windows(today, days)
     start = min(prior.start, launch.start)
     visitors, pages, clicks, takes = fetch_posthog(start, last.end)
     load_asc_secrets()
@@ -362,7 +390,7 @@ def main():
                       "app_store_clicks": sum(1 for day, _ in clicks if in_window(day, window))})
         stores.append(app_store_numbers(reports, window, app_id, sku, rates))
         usages.append(usage_numbers(takes, window))
-    text = report(today, sites, stores, usages)
+    text = report(today, sites, stores, usages, days)
     if len(sys.argv) > 1:
         with open(sys.argv[1], "w") as out:
             out.write(text)

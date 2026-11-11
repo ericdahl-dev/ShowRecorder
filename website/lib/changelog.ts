@@ -14,6 +14,16 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.2.11",
+    date: "2026-11-10",
+    channel: "TestFlight beta",
+    summary: "Mixer Link for the Behringer WING, for testers with a WING.",
+    changes: [
+      "Mixer Link finds a Behringer WING and names each of its 48 USB Channels after the Source patched to it, with its color.",
+      "A rename or re-patch on the WING shows up within a few seconds.",
+    ],
+  },
+  {
     version: "1.1.21",
     date: "2026-11-10",
     channel: "App Store",

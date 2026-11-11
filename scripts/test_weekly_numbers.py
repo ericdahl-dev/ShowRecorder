@@ -49,6 +49,10 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(wn.source_of("reddit", "$direct"), "reddit")
         self.assertEqual(wn.source_of("Facebook", "$direct"), "Facebook")
 
+    def test_tagged_facebook_links_and_facebook_referrers_are_one_source(self):
+        self.assertEqual(wn.source_of("facebook", "$direct"), "Facebook")
+        self.assertEqual(wn.source_of(None, "lm.facebook.com"), "Facebook")
+
     def test_referrers_fold_into_named_sources(self):
         for ref in ("facebook.com", "l.facebook.com", "lm.facebook.com", "en-gb.facebook.com", "m.facebook.com"):
             self.assertEqual(wn.source_of(None, ref), "Facebook")
@@ -131,7 +135,7 @@ class AppStoreTests(unittest.TestCase):
         self.assertEqual(week["unconverted"], {"COP": 17785.71})
 
     def test_no_rates_without_downloads(self):
-        week = self.numbers({}, self.last)
+        week = self.numbers({"2026-11-06": report(TRIAL)}, self.last)  # a published day with no downloads
         self.assertEqual(week["downloads"], 0)
         self.assertIsNone(week["revenue_per_download"])
         self.assertIsNone(week["download_to_pro"])
@@ -268,6 +272,54 @@ class NotesTests(unittest.TestCase):
     def test_lists_proceeds_with_no_exchange_rate(self):
         stores = [store(unconverted={"COP": 17785.71}), store(), store(unconverted={"COP": 17785.71})]
         self.assertIn("COP 17,785.71", self.notes(stores))
+
+
+class DailyTests(unittest.TestCase):
+    """DAYS=1: the daily email, yesterday beside the day before and the total since launch."""
+    def setUp(self):
+        self.windows = wn.windows(D(2026, 11, 11), days=1)
+
+    def test_yesterday_the_day_before_and_since_launch(self):
+        day, before, launch = self.windows
+        self.assertEqual((day.start, day.end), (D(2026, 11, 10), D(2026, 11, 10)))
+        self.assertEqual((before.start, before.end), (D(2026, 11, 9), D(2026, 11, 9)))
+        self.assertEqual((launch.start, launch.end), (D(2026, 10, 28), D(2026, 11, 10)))
+        self.assertEqual(day.label, "Nov 10")
+
+    def test_header_names_the_days(self):
+        text = wn.table(self.windows, [site()] * 3, [store()] * 3, [USAGE] * 3)
+        self.assertEqual(text.splitlines()[0],
+                         "| | Yesterday (Nov 10) | Day before (Nov 9) | Since launch (Oct 28-Nov 10) | Flag |")
+
+    def test_notes_compare_with_the_day_before(self):
+        stores = [store(downloads=10, download_to_pro=0.1), store(downloads=4), store()]
+        text = "\n".join(wn.notes(self.windows, [site()] * 3, stores, [USAGE] * 3))
+        self.assertIn("2x or more against the day before:", text)
+        self.assertIn("Now: yesterday 10.0% (holds)", text)
+        self.assertNotIn("7 days", text)
+
+    def test_app_store_shows_a_dash_not_zero_before_apple_publishes_the_day(self):
+        window = self.windows[0]
+        numbers = wn.app_store_numbers({}, window, app_id="app", sku="showrecorder", usd_rates={"USD": 1})
+        self.assertIsNone(numbers["downloads_ios"])
+        self.assertIsNone(numbers["proceeds_usd"])
+        self.assertEqual(numbers["report_days"], [])
+        stores = [numbers, store(downloads_ios=7, pro=1), store()]
+        text = wn.table(self.windows, [site()] * 3, stores, [USAGE] * 3)
+        line = next(l for l in text.splitlines() if l.startswith("| Downloads, iPhone and iPad |"))
+        self.assertEqual([c.strip() for c in line.strip("|").split("|")], ["Downloads, iPhone and iPad", "-", "7", "0", ""])
+        notes = "\n".join(wn.notes(self.windows, [site()] * 3, stores, [USAGE] * 3))
+        self.assertIn("yesterday - (no report yet)", notes)
+        self.assertNotIn("Downloads, iPhone and iPad to 0", notes)
+
+    def test_title_says_daily(self):
+        text = wn.report(D(2026, 11, 11), [site()] * 3, [store()] * 3, [USAGE] * 3, days=1)
+        self.assertTrue(text.startswith("# ShowRecorder daily numbers, 2026-11-11\n"))
+        self.assertIn("Yesterday (Nov 10)", text)
+
+    def test_weekly_title_unchanged(self):
+        text = wn.report(D(2026, 11, 9), [site()] * 3, [store()] * 3, [USAGE] * 3)
+        self.assertTrue(text.startswith("# ShowRecorder weekly numbers, 2026-11-09\n"))
 
 
 if __name__ == "__main__":

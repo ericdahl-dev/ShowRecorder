@@ -263,17 +263,19 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var mixerStatus: some View {
-        switch model.mixer.status ?? .idle {
+        let status = model.mixer.status ?? .idle
+        let text = status.settingsText()
+        switch status {
         case .idle:
-            Label("Not connected to a Mixer. Stems use USB Channel names.", systemImage: "link")
+            Label(text, systemImage: "link")
                 .secondaryText()
-        case .connecting(let host):
-            Label("Connecting to \(host)…", systemImage: "antenna.radiowaves.left.and.right")
+        case .connecting:
+            Label(text, systemImage: "antenna.radiowaves.left.and.right")
                 .secondaryText()
-        case .up(let identity, let path):
-            Label("Mixer Link up · \(identity.networkName) (\(identity.model)) · \(path.name)", systemImage: "checkmark.circle.fill")
-        case .down(let problem):
-            Label(problem.message, systemImage: "exclamationmark.triangle.fill")
+        case .up:
+            Label(text, systemImage: "checkmark.circle.fill")
+        case .down:
+            Label(text, systemImage: "exclamationmark.triangle.fill")
                 .warningText()
         }
     }
