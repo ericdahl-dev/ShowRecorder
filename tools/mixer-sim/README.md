@@ -12,11 +12,13 @@ Pure Python 3 standard library: no pip, nothing to install. Runs on Linux and ma
 |---|---|---|---|
 | Behringer WING, WING Compact, WING Rack | `wing` | UDP 2222 (knock), UDP 2223 (OSC) | `WING?`, `/?`, USB routing, Source and channel names and colors, `/*S` pushes |
 | Behringer X-Air (XR18, MR18) | `xair` | UDP 10024 | `/xinfo`, channel and aux return names and colors, USB routing, mix state, preamp gain, Mix Hold settings, `/xremote` pushes |
+| Behringer X32, Midas M32 (with a USB card) | `x32` | UDP 10023 | `/xinfo`, channel names, colors and sources, card and input routing, headamps and their gain, Mix Hold settings, `/xremote` pushes |
 
 ## Run it
 
 ```sh
 python3 tools/mixer-sim/mixer_sim.py --scene tools/mixer-sim/scenes/xr18-band.json
+python3 tools/mixer-sim/mixer_sim.py --scene tools/mixer-sim/scenes/x32-band.json
 python3 tools/mixer-sim/mixer_sim.py --scene tools/mixer-sim/scenes/wing-band.json
 ```
 
@@ -50,7 +52,7 @@ network names: the scene's is `FOH-XR18`.
 
 The phone, iPad or Mac running the app must reach the simulator's host on the LAN: same Wi-Fi or wired network, no
 VPN in the way, and the host's firewall open for the family's ports (on Linux with ufw, for example
-`sudo ufw allow 10024/udp`; remove the rule when done).
+`sudo ufw allow 10023:10024/udp`; remove the rule when done).
 
 1. Start the simulator on the host and note the host's LAN address (`ip -4 addr` on Linux, `ipconfig getifaddr en0`
    on a Mac).
@@ -73,14 +75,15 @@ one command per UDP datagram to the control port, which answers the same way, fo
 echo 'name ch/11 Lead Vox 2' | nc -u -w1 127.0.0.1 9999   # started with --control-port 9999
 ```
 
-| Command | X-Air | WING |
-|---|---|---|
-| Rename | `name ch/1 Kick In`, `name aux Playback` | `name LCL/1 Kick In` (a Source), `name ch/1 Kick` |
-| Recolor | `color ch/1 3` (0-15) | `color LCL/1 5` (1-12) |
-| Repatch a USB output | `patch usb 17 26` (source 0-37: 0-15 channels, 16-17 aux, 26-31 buses, ...) | `patch usb 3 LCL/9`, `patch usb 47 MAIN/1`, `patch usb 5 OFF/1` |
-| Move a channel's input | `input ch/2 5` (0-17) | |
-| Preamp gain | `gain 11 40.5` (headamp 1-18, dB) | |
-| Any parameter | `set /ch/03/gate/on 1`, `get /ch/03/gate/on` | |
+| Command | X-Air | X32 | WING |
+|---|---|---|---|
+| Rename | `name ch/1 Kick In`, `name aux Playback` | `name ch/1 Kick In` | `name LCL/1 Kick In` (a Source), `name ch/1 Kick` |
+| Recolor | `color ch/1 3` (0-15) | `color ch/1 3` (0-15) | `color LCL/1 5` (1-12) |
+| Repatch USB | `patch usb 17 26` (source 0-37: 0-15 channels, 16-17 aux, 26-31 buses, ...) | `patch card 9-16 8` (the card block's bank), `patch in 1-8 1` (an input block's bank) | `patch usb 3 LCL/9`, `patch usb 47 MAIN/1`, `patch usb 5 OFF/1` |
+| Move a channel's input | `input ch/2 5` (0-17) | `source ch/2 20` (0 off, 1-32 In01-32, ...) | |
+| A channel's headamp | | `headamp ch/2 40` (0-127, -1 none) | |
+| Preamp gain | `gain 11 40.5` (headamp 1-18, dB) | `gain 10 40.5` (headamp 0-127, dB) | |
+| Any parameter | `set /ch/03/gate/on 1`, `get /ch/03/gate/on` | the same | |
 
 Every family also takes:
 
@@ -95,14 +98,15 @@ Every family also takes:
 A client subscribed for live updates gets each change pushed, as the mixer would, and so does a change another client
 sets over OSC:
 
-- **X-Air:** `/xremote` subscribes the sender for 10 seconds; any number of clients. A set from a client is echoed back
-  to it with no arguments, as the XR18 does (firmware 1.26), and pushed to the others.
+- **X-Air, X32:** `/xremote` subscribes the sender for 10 seconds; any number of clients. A set from a client is
+  pushed to the others. The X-Air also echoes it back to the setter with no arguments, as the XR18 does (firmware
+  1.26); the X32 doesn't.
 - **WING:** `/*S` (or `/*s`) on the OSC port subscribes the sender for 10 seconds; only the last client to ask is
   subscribed (WING Remote Protocols, pp. 14 and 28). Text is pushed as `,s`, an integer as `,i` after `/*S` and `,sfi`
   after `/*s`.
 
-A script is a JSON list of commands with the seconds after start each one runs. `scripts/xr18-take.json` and
-`scripts/wing-take.json` rename, recolor and repatch during the first minute, then drop off for 15 seconds:
+A script is a JSON list of commands with the seconds after start each one runs. `scripts/xr18-take.json`,
+`scripts/x32-take.json` and `scripts/wing-take.json` rename, recolor and repatch during the first minute, then drop off for 15 seconds:
 
 ```json
 [{"at": 20, "command": "name ch/11 Lead Vox 2"}, {"at": 60, "command": "drop"}, {"at": 75, "command": "resume"}]
@@ -136,6 +140,18 @@ same files as fixtures later (from the repository: `tools/mixer-sim/scenes/<name
 | `links`, `link_preamps` | `["5-6"]` stereo-links channels 5 and 6 (`/config/chlink/5-6`); `true` links their preamps too (`/config/linkcfg/preamp`). |
 | `osc` | `{"/ch/01/gate/on": [1]}`: any address, as is, for a setting the format has no key for. The gate, compressor and sends Mix Hold reads default to off and silent. |
 | `remove` | `["/routing/usb/*"]`: leaves those addresses unanswered, as older firmware that doesn't know them. |
+
+### X32 (`scenes/x32-band.json`)
+
+| Key | Meaning |
+|---|---|
+| `family` | `"x32"` |
+| `network_name`, `model`, `firmware` | What `/xinfo` answers, after the host's own address. `model` `X32`, `M32`, `M32R`, ... (any `X32...` or `M32...`). |
+| `channels` | `[{"channel": 17, "name": "Vox Mon", "color": 4, "source": 11, "headamp": 10, "on": 1, "fader": 0.75}]`, channels 1-32: `/ch/17/config/name`, `/color` (0-15), `/source` (1-32 In01-32), `/mix/on`, `/mix/fader`, and `/-ha/16/index`, its headamp (0-127). Anything left out: no name, color 0, channel n on In n and headamp n-1. |
+| `card_blocks`, `input_blocks` | `[0, 1, 2, 3]`: `/config/routing/CARD/1-8` .. `25-32` and `/config/routing/IN/...`, the bank each block of 8 carries (0-3 AN1-32, 4-9 AES50 A, 10-15 AES50 B, 16-19 the card, 32-35 user inputs on the card; see `X32Routing`). The default is that. |
+| `headamps` | `[{"headamp": 10, "gain_db": 38.5}]`: `/headamp/010/gain`, -12 to +60 dB. Default 0 dB. |
+| `links`, `link_preamps` | `["9-10"]`: `/config/chlink/9-10`; `true` links the headamps too (`/config/linkcfg/hadly`). |
+| `osc`, `remove` | As for the X-Air. |
 
 ### WING (`scenes/wing-band.json`)
 

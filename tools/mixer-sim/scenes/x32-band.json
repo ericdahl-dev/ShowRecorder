@@ -1,0 +1,35 @@
+{
+  "family": "x32",
+  "about": "A band on an X32 with an X-USB card (firmware 4.06): 16 channels named and colored on local inputs 1-16, the card on AN1-32, keys on channels 9-10 stereo-linked with their headamps, a vocal mic on headamp 11 shared by channels 11 and 17 (a second vocal mix).",
+  "network_name": "FOH-X32",
+  "model": "X32",
+  "firmware": "4.06",
+  "channels": [
+    {"channel": 1, "name": "Kick", "color": 1},
+    {"channel": 2, "name": "Snare", "color": 1},
+    {"channel": 3, "name": "Hat", "color": 9},
+    {"channel": 4, "name": "Tom 1", "color": 9},
+    {"channel": 5, "name": "Tom 2", "color": 9},
+    {"channel": 6, "name": "OH L", "color": 3},
+    {"channel": 7, "name": "OH R", "color": 3},
+    {"channel": 8, "name": "Bass DI", "color": 2},
+    {"channel": 9, "name": "Keys L", "color": 6},
+    {"channel": 10, "name": "Keys R", "color": 6},
+    {"channel": 11, "name": "Lead Vox", "color": 4},
+    {"channel": 12, "name": "BV 1", "color": 4},
+    {"channel": 13, "name": "BV 2", "color": 4},
+    {"channel": 14, "name": "Gtr", "color": 3},
+    {"channel": 15, "name": "Acoustic", "color": 3},
+    {"channel": 16, "name": "Talkback", "color": 7},
+    {"channel": 17, "name": "Vox Mon", "color": 4, "source": 11, "headamp": 10}
+  ],
+  "card_blocks": [0, 1, 2, 3],
+  "input_blocks": [0, 1, 2, 3],
+  "headamps": [
+    {"headamp": 0, "gain_db": 30},
+    {"headamp": 1, "gain_db": 26},
+    {"headamp": 10, "gain_db": 38.5}
+  ],
+  "links": ["9-10"],
+  "link_preamps": true
+}

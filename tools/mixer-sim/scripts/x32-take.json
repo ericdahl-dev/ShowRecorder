@@ -1,0 +1,11 @@
+[
+  {"at": 20, "command": "name ch/11 Lead Vox 2"},
+  {"at": 30, "command": "color ch/11 1"},
+  {"at": 40, "command": "source ch/14 20"},
+  {"at": 45, "command": "source ch/14 14"},
+  {"at": 50, "command": "patch card 9-16 8"},
+  {"at": 55, "command": "patch card 9-16 1"},
+  {"at": 58, "command": "gain 10 35"},
+  {"at": 60, "command": "drop"},
+  {"at": 75, "command": "resume"}
+]
