@@ -3,7 +3,7 @@ import OSC
 
 /// The scene files of the Mixer Link test bench (`tools/mixer-sim/scenes/<name>.json`, described in its README),
 /// loaded into the fake mixers, so the drivers are tested against the same scenes the simulator answers from.
-/// A key a scene leaves out takes the simulator's default (`tools/mixer-sim/xair.py`), not the fake's.
+/// A key a scene leaves out takes the simulator's default (`xair.py`, `x32.py`, `wing.py` there), not the fake's.
 enum SimScene {
     /// An X-Air scene (`"family": "xair"`) as the fake X-Air's state.
     static func xAir(_ name: String) throws -> FakeXAirMixer.State { try xAir(json: Data(contentsOf: url(name))) }
@@ -70,6 +70,44 @@ enum SimScene {
         return state
     }
 
+    /// A WING scene (`"family": "wing"`) as the fake WING's state. The fake answers 0.0.0.0 as its address, where the
+    /// simulator answers the host's own.
+    static func wing(_ name: String) throws -> FakeWing.State { try wing(json: Data(contentsOf: url(name))) }
+
+    static func wing(json: Data) throws -> FakeWing.State {
+        // `channels` is let through unread: the driver names USB Channels from Sources and never asks for a channel.
+        try refuseUnreadKeys(json, read: [
+            "": ["family", "about", "network_name", "model", "serial", "firmware", "sources", "usb_outputs", "channels"],
+            "sources": ["source", "name", "color"], "usb_outputs": ["usb", "source"], "channels": ["channel", "name", "color", "input"],
+        ])
+        let scene = try JSONDecoder().decode(WingScene.self, from: json)
+        var state = FakeWing.State()
+        state.identity = ["WING", "0.0.0.0", scene.network_name ?? "WING", scene.model ?? "ngc-full", scene.serial ?? "0", scene.firmware ?? "3.1.1"]
+            .joined(separator: ",")
+        // "LCL/1" as its group and number.
+        func parts(_ source: String) -> (group: String, number: Int) {
+            let parts = source.split(separator: "/")
+            return (parts.first.map { $0.uppercased() } ?? "", parts.last.flatMap { Int($0) } ?? 0)
+        }
+        // A USB output the scene leaves out is off.
+        var outputs = Dictionary(uniqueKeysWithValues: (1...48).map { ($0, (group: "OFF", number: 1)) })
+        for entry in scene.usb_outputs ?? [] { outputs[entry.usb] = parts(entry.source) }
+        for (usb, source) in outputs {
+            state.replies["/io/out/USB/\(usb)/grp"] = [.string(source.group)]
+            state.replies["/io/out/USB/\(usb)/in"] = FakeWing.intReply(source.number)
+            // A Source the scene leaves out has an empty name and color 1; a mix (MAIN, BUS, …) is no Source.
+            guard sourceGroups.contains(source.group) else { continue }
+            state.replies["/io/in/\(source.group)/\(source.number)/name"] = [.string("")]
+            state.replies["/io/in/\(source.group)/\(source.number)/col"] = FakeWing.intReply(1)
+        }
+        for entry in scene.sources ?? [] {
+            let source = parts(entry.source)
+            state.replies["/io/in/\(source.group)/\(source.number)/name"] = [.string(entry.name ?? "")]
+            state.replies["/io/in/\(source.group)/\(source.number)/col"] = FakeWing.intReply(entry.color ?? 1)
+        }
+        return state
+    }
+
     /// Throws `UnreadKey` for a key of the scene that isn't in `read`: the top level's under "", and those of each
     /// entry of a list (or of an object) under its key.
     private static func refuseUnreadKeys(_ json: Data, read: [String: Set<String>]) throws {
@@ -115,6 +153,29 @@ enum SimScene {
             var color: Int32?
             var source: Int32?
             var headamp: Int32?
+        }
+    }
+
+    /// The WING's groups that carry a named, colored Source (`SOURCE_GROUPS` in `tools/mixer-sim/wing.py`).
+    private static let sourceGroups: Set<String> = ["LCL", "AUX", "A", "B", "C", "SC", "USB", "CRD", "MOD", "PLAY", "AES", "USR", "OSC"]
+
+    private struct WingScene: Decodable {
+        var network_name: String?
+        var model: String?
+        var serial: String?
+        var firmware: String?
+        var sources: [Source]?
+        var usb_outputs: [USBOutput]?
+
+        struct Source: Decodable {
+            var source: String
+            var name: String?
+            var color: Int?
+        }
+
+        struct USBOutput: Decodable {
+            var usb: Int
+            var source: String
         }
     }
 
