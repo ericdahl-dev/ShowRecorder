@@ -127,8 +127,11 @@ and arguments (or the text), plus a line per command:
 
 ## Scenes
 
-A scene is a JSON file in `tools/mixer-sim/scenes/`. They are plain data, so the package's Swift tests can load the
-same files as fixtures later (from the repository: `tools/mixer-sim/scenes/<name>.json`).
+A scene is a JSON file in `tools/mixer-sim/scenes/`. They are plain data, and the package's Swift tests load the
+same files as fixtures: `SimScene` (`Packages/ShowRecorderKit/Tests/MixerLinkTests/Support/SimScene.swift`) turns a
+scene into the Swift fake mixer's state, so the drivers are tested against the band the simulator answers with.
+So far it reads X-Air scenes. It refuses a key it doesn't read yet: when a scene gains a key, teach `SimScene` the key
+too, as the simulator reads it.
 
 ### X-Air (`scenes/xr18-band.json`)
 
