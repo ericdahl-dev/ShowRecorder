@@ -71,7 +71,7 @@ export const featureGroups: {
       // source: App/SettingsView.swift (Mixer Link section), Packages/ShowRecorderKit/Sources/MixerLink/MixerLink.swift, MixerFamily.swift (X Air and X32, no availability rule in release/1.1)
       {
         title: 'Mixer Link',
-        body: 'Over the mixer\'s network, ShowRecorder reads your channel names and colors from an XR18, MR18, X32 or M32. Recording never depends on it, and no internet is needed.',
+        body: 'Over the mixer\'s network, ShowRecorder reads your channel names and colors from an XR18, MR18, X32 or M32. On Free, the names show on the meters; the files take them with Pro. Recording never depends on it, and no internet is needed.',
         tier: 'free',
       },
       // source: App/FindMixersRow.swift ("Find Mixers")
