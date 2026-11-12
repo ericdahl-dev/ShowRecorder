@@ -40,6 +40,36 @@ enum SimScene {
         return state
     }
 
+    /// An X32 scene (`"family": "x32"`) as the fake X32's state.
+    static func x32(_ name: String) throws -> FakeXAirMixer.State { try x32(json: Data(contentsOf: url(name))) }
+
+    static func x32(json: Data) throws -> FakeXAirMixer.State {
+        try refuseUnreadKeys(json, read: [
+            "": ["family", "about", "network_name", "model", "firmware", "channels", "card_blocks", "input_blocks", "headamps", "links", "link_preamps"],
+            "channels": ["channel", "name", "color", "source", "headamp"], "headamps": ["headamp", "gain_db"],
+        ])
+        let scene = try JSONDecoder().decode(X32Scene.self, from: json)
+        var state = FakeXAirMixer.State.x32(model: scene.model ?? "X32")
+        state.networkName = scene.network_name ?? "X32"
+        state.firmware = scene.firmware ?? "4.06"
+        for entry in scene.channels ?? [] {
+            if let name = entry.name { state.channels[entry.channel - 1].name = name }
+            if let color = entry.color { state.channels[entry.channel - 1].color = color }
+            if let source = entry.source { state.channels[entry.channel - 1].inputSource = source }
+            if let headamp = entry.headamp { state.headampOfChannel[entry.channel - 1] = headamp }
+        }
+        // `/headamp/000..127/gain` as the X32's 0...1 over -12 to +60 dB. Default 0 dB.
+        func gain(_ db: Double) -> Float { Float((db + 12) / 72) }
+        state.headampGains = Array(repeating: gain(0), count: 128)
+        for entry in scene.headamps ?? [] { state.headampGains[entry.headamp] = gain(entry.gain_db) }
+        // The bank each block of 8 carries (`/config/routing/CARD/1-8` … and `IN/…`); a block left out keeps AN1-32.
+        for (block, bank) in (scene.card_blocks ?? []).enumerated() { state.cardBlocks?[block] = bank }
+        for (block, bank) in (scene.input_blocks ?? []).enumerated() { state.inputBlocks?[block] = bank }
+        for pair in scene.links ?? [] { state.set["/config/chlink/\(pair)"] = .int(1) }
+        if scene.link_preamps == true { state.set["/config/linkcfg/hadly"] = .int(1) }
+        return state
+    }
+
     /// Throws `UnreadKey` for a key of the scene that isn't in `read`: the top level's under "", and those of each
     /// entry of a list (or of an object) under its key.
     private static func refuseUnreadKeys(_ json: Data, read: [String: Set<String>]) throws {
@@ -63,6 +93,31 @@ enum SimScene {
         return root.appendingPathComponent("tools/mixer-sim/scenes/\(name).json")
     }
 
+    private struct Headamp: Decodable {
+        var headamp: Int
+        var gain_db: Double
+    }
+
+    private struct X32Scene: Decodable {
+        var network_name: String?
+        var model: String?
+        var firmware: String?
+        var channels: [Channel]?
+        var card_blocks: [Int32]?
+        var input_blocks: [Int32]?
+        var headamps: [Headamp]?
+        var links: [String]?
+        var link_preamps: Bool?
+
+        struct Channel: Decodable {
+            var channel: Int
+            var name: String?
+            var color: Int32?
+            var source: Int32?
+            var headamp: Int32?
+        }
+    }
+
     private struct XAirScene: Decodable {
         var network_name: String?
         var model: String?
@@ -72,11 +127,6 @@ enum SimScene {
         var headamps: [Headamp]?
         var links: [String]?
         var link_preamps: Bool?
-
-        struct Headamp: Decodable {
-            var headamp: Int
-            var gain_db: Double
-        }
 
         struct Strip: Decodable {
             /// 1-16; the aux return has none.
