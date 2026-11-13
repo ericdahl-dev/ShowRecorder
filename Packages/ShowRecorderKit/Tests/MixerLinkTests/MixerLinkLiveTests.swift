@@ -78,4 +78,45 @@ struct MixerLinkLiveTests {
         #expect(link.sources[safe: 3]?.color == MixerColor(hue: .green, inverted: true))
         #expect(link.sources.count == 18)
     }
+
+    @Test("A connect the Mixer doesn't answer keeps trying, and links once the Mixer answers (#1209)")
+    func connectKeepsTrying() async {
+        var state = FakeMixerDriver.State()
+        state.names[1] = "Kick"
+        state.problem = .noReply(host: "10.0.0.20")
+        let driver = FakeMixerDriver(state)
+        var connected = 0
+        let link = MixerLinkController(renewEvery: .milliseconds(10), makeDriver: { _, _ in driver })
+        link.onConnected = { _ in connected += 1 }
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+        #expect(link.status == .down(.noReply(host: "10.0.0.20")))
+
+        driver.state.withLock { $0.problem = nil }  // the Mixer is back on the network
+
+        #expect(await eventually { link.identity != nil && link.sources.count == 18 })
+        #expect(link.sources[safe: 0]?.name == "Kick")
+        #expect(connected == 1, "a new connection, told once")
+        driver.push(SourceChange(usbChannel: 2, name: "Snare"))  // and live updates work
+        #expect(await eventually { link.sources[safe: 1]?.name == "Snare" })
+    }
+
+    @Test("A newer connect stops the retries of one the Mixer didn't answer (#1209)")
+    func newerConnectStopsRetries() async {
+        var silent = FakeMixerDriver.State()
+        silent.problem = .noReply(host: "10.0.0.20")
+        let old = FakeMixerDriver(silent)
+        let new = FakeMixerDriver()
+        let link = MixerLinkController(renewEvery: .milliseconds(10), makeDriver: { endpoint, _ in
+            endpoint.host == "10.0.0.20" ? old : new
+        })
+        await link.connect(to: "10.0.0.20", usbChannelCount: 18)
+        await link.connect(to: "10.0.0.21", usbChannelCount: 18)
+        #expect(link.host == "10.0.0.21")
+
+        old.state.withLock { $0.problem = nil }  // the first Mixer answers after all
+
+        // Long enough for many retries at 10 ms.
+        try? await Task.sleep(for: .milliseconds(200))
+        #expect(link.host == "10.0.0.21")
+    }
 }
