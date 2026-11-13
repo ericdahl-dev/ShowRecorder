@@ -32,8 +32,10 @@ struct ShowListView: View {
                                     if let folder = show.shareFolder { ShareLink("Share…", item: folder) }
                                     Button("Delete…", role: .destructive) { deleting = show }
                                 }
-                                .swipeActions {
-                                    Button("Delete…", role: .destructive) { deleting = show }
+                                // Not `role: .destructive` and no full swipe: this only opens the delete sheet, and a destructive
+                                // swipe makes the List drop the row while `shows` still has it, which crashes UIKit (#1021).
+                                .swipeActions(allowsFullSwipe: false) {
+                                    Button("Delete…") { deleting = show }.tint(.red)
                                 }
                                 .swipeActions(edge: .leading) {
                                     if let folder = show.shareFolder { ShareLink(item: folder) { Label("Share", systemImage: "square.and.arrow.up") }.tint(.blue) }
