@@ -69,6 +69,13 @@ with nothing plugged in can reach `xr18-band.json` or `x32-band.json`. TestFligh
 USB interface. The WING has no Demo signal, so it always needs a WING (or another interface the app reads as one)
 plugged in. The WING family is offered in Debug and TestFlight builds (`WingAvailability`).
 
+**Two mixers of one family, for the "which one is on USB" check (#1018), need a second machine.** After a Link comes
+up, the app scans its network for other mixers of the linked one's family, and holds back gain until the operator
+picks the USB one in Find Mixers. The scan skips the device's own address, and the iPhone Simulator or a Mac app uses
+the Mac's own address, so a second simulator on the same Mac (on `127.0.0.1` or the Mac's LAN address) is never
+found: gain is let through as for a single mixer. Find Mixers doesn't list a simulator on `127.0.0.1` either. To
+stage two of a family, run the second simulator (or plug in a real mixer) on another machine on the same network.
+
 ## Change the scene live
 
 Type a command and Enter in the terminal the simulator runs in; it answers `ok`, a value or `error: ...`. Or send
