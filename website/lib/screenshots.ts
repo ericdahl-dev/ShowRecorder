@@ -62,6 +62,9 @@ const MARKERS_DARK_ALT =
 const MIXER_LINK_DARK_ALT =
   'Settings showing the Drive with 118 GB free, the recording time left on the Device and the Drive, and the Mixer Link up to "Skeyelab XR18" over Wi-Fi, with a Find Mixers button.';
 
+const X32_FILES_ALT =
+  "A recording of 32 USB Channels from an X32, its files listed and named from the mixer: Kick, Snare, Hat, Tom 1, Tom 2, OH L, OH R, Bass DI, Keys L and Keys R.";
+
 export const SHOTS = {
   heroIpad: {
     dark: ipad(
@@ -96,5 +99,10 @@ export const SHOTS = {
   pro: {
     dark: phoneDark("06-pro", PRO_ALT),
     light: phone("06-pro", PRO_ALT),
+  },
+  // The X32 page (#417): made in the iPhone Simulator against tools/mixer-sim's x32-band scene, as no X32 shot exists yet.
+  x32Files: {
+    dark: phoneDark("x32-files", X32_FILES_ALT),
+    light: phone("x32-files", X32_FILES_ALT),
   },
 } satisfies Record<string, { dark: Shot; light: Shot }>;
