@@ -131,7 +131,40 @@ public final class MixerLinkController {
         } catch {
             guard connect == connects else { return }
             fail(error)
+            keepTrying(driver, usbChannelCount: usbChannelCount, connect: connect)
         }
+    }
+
+    /// After a connect the Mixer didn't answer, tries again every `renewEvery` until it does, then links as `connect`
+    /// would have (#1209): a Mixer switched on or joining the network after Connect links without another press. A
+    /// newer `connect` stops it.
+    private func keepTrying(_ driver: any MixerDriver, usbChannelCount: Int, connect: Int) {
+        liveTasks = [
+            Task { [weak self, renewEvery] in
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: renewEvery)
+                    guard let self, connect == self.connects, !Task.isCancelled else { return }
+                    do throws(MixerLinkProblem) {
+                        let identity = try await driver.identify()
+                        let capabilities = driver.capabilities(for: identity)
+                        let count = usbChannelCount > 0 ? usbChannelCount : capabilities.usbChannelCount ?? 0
+                        let sources = try await Self.sources(from: driver, capabilities: capabilities, usbChannelCount: count)
+                        guard connect == self.connects, !Task.isCancelled else { return }
+                        self.sources = sources
+                        self.driver = driver
+                        self.capabilities = capabilities
+                        self.wantedUSBChannelCount = sources.count
+                        self.status = .up(identity, path: .wifi)
+                        self.startLiveUpdates(driver)
+                        self.onConnected(identity)
+                        return
+                    } catch {
+                        guard connect == self.connects, !Task.isCancelled else { return }
+                        if self.status != .down(error) { self.status = .down(error) }
+                    }
+                }
+            },
+        ]
     }
 
     /// Re-reads the Sources for a new USB Channel count, such as after a different device is
