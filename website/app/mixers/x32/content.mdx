@@ -1,3 +1,5 @@
+import { Screenshot } from "@/components/Screenshot";
+import { SHOTS } from "@/lib/screenshots";
 import { PRO_PRICE_TEXT, appStoreLink } from "@/lib/site";
 
 The X32 and M32 work in ShowRecorder on the <a href={appStoreLink("site-x32")}>App Store</a>, from version 1.1.18.
@@ -15,6 +17,13 @@ Most X32 and M32 shows are recorded to a laptop running a DAW, or to SD cards. S
 - **Named after what's really patched.** If you re-patch the card's outputs (a bus or another channel on USB 1), with Pro each file is named after what is actually routed to that USB Channel, not after its number.
 - **A second copy as you record** with Pro, on a USB drive through a hub, so one failure doesn't lose the show.
 - **Markers you drop during the set, and the seconds before you press record**, and with Pro a report of the show and a Reaper project, as on every mixer.
+
+<div className="figures single">
+  <figure className="shot">
+    <Screenshot shot={SHOTS.x32Files} sizes="240px" />
+    <figcaption>32 files, each named from the mixer. Made against an X32 emulator.</figcaption>
+  </figure>
+</div>
 
 ## What you need
 

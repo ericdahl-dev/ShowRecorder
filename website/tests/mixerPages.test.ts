@@ -130,8 +130,11 @@ describe("mixer page screenshots", () => {
     expect(xr18Page.match(/<figure className="shot">[\s\S]*?<figcaption>[^<]+<\/figcaption>[\s\S]*?<\/figure>/g)).toHaveLength(2);
   });
 
-  it("the X32 page shows no screenshot: none were made with an X32", () => {
-    expect(x32Page).not.toMatch(/Screenshot|<figure/);
+  it("the X32 page shows one screenshot, the files named from the mixer, and its caption says it was made against an emulator", () => {
+    expect(x32Page).toMatch(/<Screenshot shot=\{SHOTS\.x32Files\}/);
+    const figures = x32Page.match(/<figure className="shot">[\s\S]*?<figcaption>([^<]+)<\/figcaption>[\s\S]*?<\/figure>/g);
+    expect(figures).toHaveLength(1);
+    expect(figures?.[0]).toMatch(/emulator/);
   });
 });
 

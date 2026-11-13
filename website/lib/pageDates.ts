@@ -1,7 +1,7 @@
 // Written by scripts/page-dates.mjs (run before each build with full git history): each route's last-edit date,
 // for the sitemap's lastmod. Commit it with the page change.
 export const PAGE_DATES: Record<string, string> = {
-  "/": "2026-11-08",
+  "/": "2026-11-12",
   "/changelog": "2026-11-10",
   "/compare": "2026-11-05",
   "/docs": "2026-11-08",
@@ -18,7 +18,7 @@ export const PAGE_DATES: Record<string, string> = {
   "/docs/usb-cable-and-setup": "2026-10-29",
   "/docs/usb-drive": "2026-10-16",
   "/docs/what-gets-recorded": "2026-11-02",
-  "/features": "2026-11-08",
+  "/features": "2026-11-12",
   "/guides/best-app-record-digital-mixer-iphone": "2026-11-07",
   "/guides/record": "2026-11-07",
   "/guides/record-gig-without-laptop": "2026-11-07",
@@ -42,7 +42,7 @@ export const PAGE_DATES: Record<string, string> = {
   "/guides/record/yamaha-mgx": "2026-11-07",
   "/guides/record/yamaha-tf": "2026-11-07",
   "/guides/record/zoom-l12": "2026-11-07",
-  "/mixers/x32": "2026-11-07",
+  "/mixers/x32": "2026-11-13",
   "/mixers/xr18": "2026-11-07",
   "/privacy": "2026-11-10",
   "/support": "2026-11-07",

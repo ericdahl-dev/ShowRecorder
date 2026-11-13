@@ -805,6 +805,19 @@ html:not([data-js]) .theme-toggle {
   }
 }
 
+/* One screenshot in a page's text column (the X32 page): centered, phone width. */
+.figures.single {
+  margin-top: 32px;
+  margin-bottom: 32px;
+}
+
+@media (min-width: 768px) {
+  .figures.single {
+    grid-template-columns: minmax(0, 240px);
+    justify-content: center;
+  }
+}
+
 .shot {
   width: 100%;
   margin-inline: auto;
