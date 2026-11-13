@@ -141,6 +141,15 @@ The mixer pack and the upgrade to Pro are drafted in [`mixer-packs.md`](mixer-pa
 5. Ready to mix (a Show with its report and Reaper project)
 6. Sunlight for bright stages
 
+### iPhone 06-pro for 1.2 (taken 2026-11-13, #1057)
+
+The 1.1 listing's 06-pro still says "Every USB Channel, not just 2" and "Buy Pro, $19.99": Free records every channel
+since #703, and the price has changed. Its replacement is in [`docs/images/app-store-iphone/`](../images/app-store-iphone/),
+1320 × 2868 (6.9"): `iphone-06-pro-light.png` and `iphone-06-pro-dark.png`, the Pro sheet (Settings › Pro › See what
+Pro adds) on a fresh install with nothing plugged in, so it reads "ShowRecorder Pro", not a pack offer. It shows
+"Buy Pro, $4.99" and "Launch price" from the App Store sandbox: take it again if Pro's price changes before 1.2 is
+submitted (the price check is 2026-11-20).
+
 ### Apple Watch set (1.1, #100)
 
 1.1 includes a watch app, so the version page needs Apple Watch screenshots: one size is enough; App Store Connect shows the sizes it takes. Take them from the watchOS Simulator with the `-watchDemo` launch flag, which shows a sample Recording (the 42 and 49 mm shots in [`docs/images/`](../images/) were taken that way). Captions:
