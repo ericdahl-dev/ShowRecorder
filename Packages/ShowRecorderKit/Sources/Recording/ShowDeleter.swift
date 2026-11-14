@@ -52,11 +52,6 @@ public enum ShowDeleter {
         return Outcome(deleted: deleted, failed: failed)
     }
 
-    /// Whether `typed` is exactly the Show's name, which is what confirms a delete.
-    public static func confirms(typed: String, for show: String) -> Bool {
-        !show.isEmpty && typed == show
-    }
-
     /// One path component that isn't hidden, so it can't climb out of the Shows folder or name a folder inside a Show.
     static func isPlainName(_ name: String) -> Bool {
         !name.isEmpty && !name.hasPrefix(".") && !name.contains("/") && !name.contains("\\") && !name.contains("\0")

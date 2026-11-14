@@ -125,14 +125,6 @@ struct ShowDeleterTests {
         #expect(exists(device, "Holiday photos/a.jpg"))
     }
 
-    @Test("Typing the Show's name confirms; anything else, including a different case or extra space, does not")
-    func confirmation() {
-        #expect(ShowDeleter.confirms(typed: "2026-10-06 Show", for: "2026-10-06 Show"))
-        #expect(!ShowDeleter.confirms(typed: "2026-10-06 show", for: "2026-10-06 Show"))
-        #expect(!ShowDeleter.confirms(typed: "2026-10-06 Show ", for: "2026-10-06 Show"))
-        #expect(!ShowDeleter.confirms(typed: "", for: ""))
-    }
-
     @Test("A link named like a Show is never followed: what it points at is untouched")
     func symlinkNotFollowed() async throws {
         let recorder = recorder()
