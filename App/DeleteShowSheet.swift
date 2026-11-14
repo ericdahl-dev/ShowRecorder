@@ -3,7 +3,7 @@ import Recording
 import SwiftUI
 import Telemetry
 
-/// Deletes a Show, or one Take of it, for good from the Copies you choose. You type the Show's name to confirm.
+/// Deletes a Show, or one Take of it, for good from the Copies you choose, after a "Delete for good?" confirmation.
 struct DeleteShowSheet: View {
     let model: RecordScreenModel
     let show: ShowSummary
@@ -15,11 +15,10 @@ struct DeleteShowSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var fromDevice = true
     @State private var fromDrive = true
-    @State private var typed = ""
     @State private var message: String?
     @State private var check: CopyCheck.Result?
     @State private var checking = false
-    @State private var confirmingPlain = false
+    @State private var confirming = false
     /// A delete is running off the main thread (#1021).
     @State private var deleting = false
 
@@ -34,7 +33,6 @@ struct DeleteShowSheet: View {
     private var needsCheck: Bool { channel == nil && chosen == [.device] && show.driveCopy != nil }
     /// Deleting one Take's Device copy goes through the Drive check whenever it runs (#925).
     private var deletesTakeDeviceCopy: Bool { take != nil && channel == nil && chosen == [.device] }
-    private var confirmation: DeleteConfirmation { DeleteConfirmation.needed(take: take, channel: channel, takeCount: show.takeCount) }
     private var checkPassed: Bool { check == .passed }
     private var chosen: Set<DestinationKind> {
         var kinds: Set<DestinationKind> = []
@@ -82,25 +80,14 @@ struct DeleteShowSheet: View {
                             : "The Device copy is only deleted when the Drive holds all the audio the Device holds of this Take.")
                     }
                 }
-                if confirmation == .typedName {
-                    Section {
-                        TextField("Type the Show's name", text: $typed)
-                            .autocorrectionDisabled()
-                            #if os(iOS)
-                            .textInputAutocapitalization(.never)
-                            #endif
-                    } header: {
-                        Text("Type \(show.name) to confirm")
-                    }
-                }
                 Section {
                     Button(deleting ? "Deleting…" : channel != nil ? "Delete channel \(channel ?? 0)'s file" : take.map { "Delete Take \(String(format: "%02d", $0))" } ?? "Delete \(show.name)", role: .destructive) {
-                        if confirmation == .plain { confirmingPlain = true } else { delete() }
+                        confirming = true
                     }
                         .buttonStyle(.borderedProminent)
                         .tint(.red)
-                        .disabled(deleting || blocked != nil || chosen.isEmpty || (needsCheck && !checkPassed) || (confirmation == .typedName && !ShowDeleter.confirms(typed: typed, for: show.name)))
-                        .confirmationDialog("Delete for good?", isPresented: $confirmingPlain, titleVisibility: .visible) {
+                        .disabled(deleting || blocked != nil || chosen.isEmpty || (needsCheck && !checkPassed))
+                        .confirmationDialog("Delete for good?", isPresented: $confirming, titleVisibility: .visible) {
                             Button("Delete", role: .destructive) { delete() }
                         } message: {
                             Text(footer)
