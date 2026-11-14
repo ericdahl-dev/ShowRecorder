@@ -109,7 +109,9 @@ struct WingSourcesTests {
 struct WingWithoutOSCTests {
     @Test("The Link comes up within a bounded wait, names every USB Channel generically, and stays up")
     func linkUpWithGenericNames() async throws {
-        let wing = try await FakeWing(.init(answersOSC: false))
+        // The first knocks go unanswered, as on a starved CI runner (#1223): Connect's tries all miss, and the Link
+        // comes up when it keeps trying (#1209).
+        let wing = try await FakeWing(.init(answersOSC: false, unansweredKnocks: 3))
         let oscPort = wing.oscPort
         let link = MixerLinkController(timeout: .milliseconds(300), renewEvery: .milliseconds(100)) { endpoint, timeout in
             WingDriver(endpoint: endpoint, oscPort: oscPort, timeout: timeout)
@@ -118,6 +120,8 @@ struct WingWithoutOSCTests {
         let start = clock.now
 
         await link.connect(to: "127.0.0.1:\(wing.port)", usbChannelCount: 48)
+        // Up now, or once it keeps trying: wait for it rather than check at once (#1223).
+        #expect(await eventually(30) { link.identity != nil && link.sources.count == 48 }, "the Link came up")
 
         // One OSC timeout, not one per USB Channel: only the first OSC query was sent. The clock is only a hang guard,
         // loose enough for a busy CI runner (13.5 s seen there for a 0.3 s timeout).
