@@ -619,6 +619,19 @@ public final class Recorder {
         return outcome
     }
 
+    /// Deletes several Shows from the Shows list's Select mode (#1217), one after another, each from every Copy the list
+    /// found it in. Each Show's outcome is given in order; the open Show is refused as in a single delete.
+    public func deleteShowsOffMain(_ shows: [ShowSummary]) async -> [(name: String, outcome: ShowDeleter.Outcome)] {
+        var outcomes: [(name: String, outcome: ShowDeleter.Outcome)] = []
+        for show in shows {
+            var copies: Set<DestinationKind> = []
+            if show.deviceCopy != nil { copies.insert(.device) }
+            if show.driveCopy != nil { copies.insert(.drive) }
+            outcomes.append((show.name, await deleteShowOffMain(named: show.name, from: copies)))
+        }
+        return outcomes
+    }
+
     /// Why a delete from `copies` is refused right now, as the outcome to give; nil when it may go ahead.
     private func deleteRefusal(_ copies: Set<DestinationKind>) -> ShowDeleter.Outcome? {
         let kinds = copies.sorted { $0.index < $1.index }
