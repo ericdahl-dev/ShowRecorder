@@ -17,6 +17,10 @@ final class FakeWing: Sendable {
         var queries: [String] = []
         /// When false, the OSC port takes queries but never answers, as wingemul does.
         var answersOSC = true
+        /// Knocks still to go unanswered, as on a starved CI runner where the answer comes after the wait (#1223).
+        var unansweredKnocks = 0
+        /// OSC replies still to drop: each query is logged but gets no answer (#1223).
+        var droppedOSCReplies = 0
     }
 
     /// The state, in a class so the listeners' handlers can share it (a `Mutex` can't be captured).
@@ -51,7 +55,9 @@ final class FakeWing: Sendable {
             let text = String(decoding: data, as: UTF8.self)
             return box.state.withLock { state in
                 state.queries.append(text)
-                return text == "WING?" ? Data(state.identity.utf8) : nil
+                guard text == "WING?" else { return nil }
+                if state.unansweredKnocks > 0 { state.unansweredKnocks -= 1; return nil }
+                return Data(state.identity.utf8)
             }
         }
         let (osc, oscPort) = try await Self.listen(deliver: { box.deliver($0) }) { data in
@@ -59,6 +65,7 @@ final class FakeWing: Sendable {
             let reply: OSCMessage? = box.state.withLock { state in
                 state.queries.append(message.address)
                 guard state.answersOSC else { return nil }
+                if state.droppedOSCReplies > 0 { state.droppedOSCReplies -= 1; return nil }
                 if message.address == "/?" { return OSCMessage("/?", [.string(state.identity)]) }
                 return state.replies[message.address].map { OSCMessage(message.address, $0) }
             }

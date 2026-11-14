@@ -31,9 +31,20 @@ struct WingLiveUpdatesTests {
     /// on an idle machine; it only bounds how long a loaded one may take.
     static let replyTimeout: Duration = .seconds(30)
 
-    static func driver(_ wing: FakeWing, rereadEvery: Duration = .zero) -> WingDriver {
+    static func driver(_ wing: FakeWing, rereadEvery: Duration = .zero, timeout: Duration = replyTimeout) -> WingDriver {
         WingDriver(endpoint: MixerEndpoint(host: "127.0.0.1", port: wing.port), oscPort: wing.oscPort,
-                   timeout: replyTimeout, rereadEvery: rereadEvery)
+                   timeout: timeout, rereadEvery: rereadEvery)
+    }
+
+    /// Renews until `condition` holds, as the Link does every 5 s, or gives up after `seconds`. A renewal that throws,
+    /// or whose reread loses a reply, is simply tried again (#1223).
+    static func renewUntil(_ driver: WingDriver, _ seconds: Double = 60, _ condition: () -> Bool) async -> Bool {
+        let deadline = ContinuousClock.now + .seconds(seconds)
+        while ContinuousClock.now < deadline {
+            try? await driver.renewLiveUpdates()
+            if await eventually(1, condition) { return true }
+        }
+        return condition()
     }
 
     /// Collects every change the driver sends.
@@ -60,9 +71,7 @@ struct WingLiveUpdatesTests {
         let changes = Self.collect(driver)
 
         wing.rename(source: "LCL/1", to: "Kick In")
-        try await driver.renewLiveUpdates()
-
-        #expect(await eventually(30) { changes.all == [SourceChange(usbChannel: 1, name: "Kick In")] })
+        #expect(await Self.renewUntil(driver) { changes.all == [SourceChange(usbChannel: 1, name: "Kick In")] })
         changes.task?.cancel()
     }
 
@@ -74,9 +83,29 @@ struct WingLiveUpdatesTests {
         let changes = Self.collect(driver)
 
         wing.repatch(usb: 2, to: "B", 3)
-        try await driver.renewLiveUpdates()
 
-        #expect(await eventually(30) {
+        // Renew until it shows, as the Link does every 5 s: one renewal whose reread lost a reply sends nothing (#1223).
+        #expect(await Self.renewUntil(driver, 90) {
+            changes.all == [SourceChange(usbChannel: 2, name: "Bass DI", color: MixerColor(hue: .green, inverted: false), routedFrom: "B:3")]
+        })
+        changes.task?.cancel()
+    }
+
+    @Test("A reread that loses a reply sends nothing, and the next renewal sends the change (#1223)")
+    func rereadLosesReply() async throws {
+        let wing = try await FakeWing(Self.twoChannelWing())
+        // A short wait so the lost reply costs 1 s; renewUntil rides out a knock that misses it on a busy runner.
+        let driver = Self.driver(wing, timeout: .seconds(1))
+        _ = try await driver.sources(usbChannelCount: 2)
+        let changes = Self.collect(driver)
+
+        wing.repatch(usb: 2, to: "B", 3)
+        wing.update { $0.droppedOSCReplies = 1 }
+        try? await driver.renewLiveUpdates()
+        try await Task.sleep(for: .seconds(2))
+        #expect(changes.all.isEmpty, "a read the WING didn't finish sends nothing, not USB 02")
+
+        #expect(await Self.renewUntil(driver) {
             changes.all == [SourceChange(usbChannel: 2, name: "Bass DI", color: MixerColor(hue: .green, inverted: false), routedFrom: "B:3")]
         })
         changes.task?.cancel()
@@ -90,9 +119,7 @@ struct WingLiveUpdatesTests {
         let changes = Self.collect(driver)
 
         wing.recolor(source: "A/5", to: 4)
-        try await driver.renewLiveUpdates()
-
-        #expect(await eventually(30) { changes.all == [SourceChange(usbChannel: 2, color: MixerColor(hue: .cyan, inverted: false))] })
+        #expect(await Self.renewUntil(driver) { changes.all == [SourceChange(usbChannel: 2, color: MixerColor(hue: .cyan, inverted: false))] })
         changes.task?.cancel()
     }
 
