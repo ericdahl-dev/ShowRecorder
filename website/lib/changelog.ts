@@ -14,6 +14,19 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.2.13",
+    date: "2026-11-14",
+    channel: "TestFlight beta",
+    summary: "Easier Show deletes, and cleaning up several Shows at once.",
+    changes: [
+      "Deleting a Show asks once, \"Delete for good?\", with no Show name to type.",
+      "The open Show can be ended and deleted in one step.",
+      "A Show whose files were removed in the Files app can be deleted.",
+      "In TestFlight builds: select several Shows in the Shows list, or every Show with nothing left in it, and delete them at once. Settings › Storage › Free Up Space… opens it too.",
+      "Swiping to delete a Show no longer crashes the app.",
+    ],
+  },
+  {
     version: "1.2.11",
     date: "2026-11-10",
     channel: "TestFlight beta",
