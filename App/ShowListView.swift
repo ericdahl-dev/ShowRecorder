@@ -6,6 +6,8 @@ import Telemetry
 /// The past Shows, newest first, read from the files (Device and Drive). Reached from the record screen.
 struct ShowListView: View {
     let model: RecordScreenModel
+    /// Opens in Select mode, as from Settings' "Free Up Space…" (#1217).
+    var startsSelecting = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.requestReview) private var requestReview
     @State private var shows: [ShowSummary]?
@@ -84,6 +86,7 @@ struct ShowListView: View {
         }
         .task {
             await reload()
+            if startsSelecting, offersSelect, let shows, !shows.isEmpty { selecting = true }
             // The App Store rating prompt, when one is due after a clean Take: here, with no Take running.
             model.askForRatingIfDue { requestReview() }
             // `-deleteShowSheet` opens the delete sheet on the second Show, for screenshots.
