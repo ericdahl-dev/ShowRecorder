@@ -20,6 +20,8 @@ struct SettingsView: View {
     @State private var showingSoundcheck = false
     @State private var showingTrial = false
     @State private var showingPaywall = false
+    /// The Shows list in Select mode, to free space (#1217).
+    @State private var showingCleanup = false
 
     /// Whether a setting can't be changed right now: some can't while a Take runs (`SettingsLock`).
     private func locked(_ item: SettingsItem) -> Bool {
@@ -144,6 +146,10 @@ struct SettingsView: View {
                         .disabled(locked(.drive))
                         .opacity(showsDrive ? 1 : 0.5)
                     timeLeft
+                    // Where a tester looked first for clean-up (#1217): opens the Shows list in Select mode.
+                    if ShowCleanupAvailability.isAvailableInThisBuild {
+                        Button("Free Up Space…") { showingCleanup = true }
+                    }
                     // Shown while it runs or has a result even if the Drive drops out, so Cancel and the result stay reachable.
                     if DriveSpeedTestAvailability.isAvailableInThisBuild,
                        model.drive.status.isAvailable || model.speedTest.isRunning || model.speedTest.result != nil {
@@ -210,6 +216,7 @@ struct SettingsView: View {
                 }
             }
             .formStyle(.grouped)
+            .sheet(isPresented: $showingCleanup) { ShowListView(model: model, startsSelecting: true).modifier(AppearanceRoot(mode: model.appearance)) }
             .sheet(isPresented: $showingChannelNames) { ChannelNamesView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
             .sheet(isPresented: $showingSoundcheck) { SoundcheckView(model: model).modifier(AppearanceRoot(mode: model.appearance)) }
             .sheet(isPresented: $showingTrial) { TrialSheet(store: model.pro).modifier(AppearanceRoot(mode: model.appearance)) }
