@@ -34,7 +34,7 @@ struct DeleteShowSheet: View {
     private var needsCheck: Bool { channel == nil && chosen == [.device] && show.driveCopy != nil }
     /// Deleting one Take's Device copy goes through the Drive check whenever it runs (#925).
     private var deletesTakeDeviceCopy: Bool { take != nil && channel == nil && chosen == [.device] }
-    private var confirmation: DeleteConfirmation { DeleteConfirmation.needed(take: take, channel: channel) }
+    private var confirmation: DeleteConfirmation { DeleteConfirmation.needed(take: take, channel: channel, takeCount: show.takeCount) }
     private var checkPassed: Bool { check == .passed }
     private var chosen: Set<DestinationKind> {
         var kinds: Set<DestinationKind> = []
@@ -53,12 +53,12 @@ struct DeleteShowSheet: View {
                     if show.deviceCopy != nil {
                         Toggle("Device copy", isOn: $fromDevice).onChange(of: fromDevice) { check = nil }.disabled(deleting)
                     } else {
-                        LabeledContent("Device copy", value: "Not there").secondaryText()
+                        LabeledContent("Device copy", value: "None, nothing to delete").secondaryText()
                     }
                     if show.driveCopy != nil {
                         Toggle("Drive copy", isOn: $fromDrive).onChange(of: fromDrive) { check = nil }.disabled(deleting)
                     } else {
-                        LabeledContent("Drive copy", value: "Not there").secondaryText()
+                        LabeledContent("Drive copy", value: "None, nothing to delete").secondaryText()
                     }
                 } header: {
                     Text("Delete from")

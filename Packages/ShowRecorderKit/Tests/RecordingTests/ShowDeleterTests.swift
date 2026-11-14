@@ -46,6 +46,23 @@ struct ShowDeleterTests {
         FileManager.default.fileExists(atPath: parent.appending(path: show).path)
     }
 
+    @Test("A Show whose files were removed in Files (no Show.json, an empty Take folder) lists with no Takes and deletes from the Device")
+    func filesRemovedInFiles() throws {
+        let show = device.appending(path: "2026-11-12 Show")
+        try FileManager.default.createDirectory(at: show.appending(path: "Take 01"), withIntermediateDirectories: true)
+
+        let listed = ShowList.read(device: device, drive: nil)
+        #expect(listed.map(\.name) == ["2026-11-12 Show"])
+        #expect(listed.first?.takeCount == 0)
+        #expect(listed.first?.deviceCopy != nil, "the Device copy is offered in the delete sheet")
+        #expect(listed.first?.driveCopy == nil)
+
+        let outcome = ShowDeleter.delete(show: "2026-11-12 Show", from: [.device], device: device, drive: nil, openShow: nil)
+        #expect(outcome.deleted == [.device])
+        #expect(outcome.failed.isEmpty)
+        #expect(!exists(device, "2026-11-12 Show"))
+    }
+
     @Test("Deleting from both Copies removes that Show's folder from the Device and the Drive, and no other Show")
     func bothCopies() async throws {
         try await twoShows(recorder())
