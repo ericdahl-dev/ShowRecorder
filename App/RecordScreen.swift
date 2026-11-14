@@ -1380,12 +1380,13 @@ final class RecordScreenModel {
         return chip + power.status.chips + trial
     }
 
-    /// Ends the open Show. Returns what to tell the operator, or nil when it ended.
-    func endShow() -> String? {
+    /// Ends the open Show. Returns what to tell the operator, or nil when it ended. `offeringPro` is false when the
+    /// Show is ended only to be deleted (#1216): no paywall after a delete.
+    func endShow(offeringPro: Bool = true) -> String? {
         let ending = recorder.currentShow
         do {
             try sequencer.endShow()
-            if let ending, let moment = Self.firstShowOffer(&proOffers, show: ending.name, takeCount: ending.takeCount, pro: pro) {
+            if offeringPro, let ending, let moment = Self.firstShowOffer(&proOffers, show: ending.name, takeCount: ending.takeCount, pro: pro) {
                 offerPro(moment)
             }
             return nil

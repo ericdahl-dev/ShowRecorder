@@ -22,13 +22,13 @@ struct DeleteShowSheet: View {
     /// A delete is running off the main thread (#1021).
     @State private var deleting = false
 
-    private var isOpenShow: Bool { model.recorder.currentShow?.name == show.name }
-    private var blocked: String? {
-        if model.recorder.isRecording { return "A Take is running. Stop it first." }
-        if model.recorder.isFinishing { return RecorderError.finishing.errorDescription }
-        if isOpenShow { return "This Show is open. End it first (tap the Show name on the record screen)." }
-        return nil
+    private var gate: DeleteGate {
+        DeleteGate.decide(isRecording: model.recorder.isRecording, isFinishing: model.recorder.isFinishing,
+                          isOpenShow: model.recorder.currentShow?.name == show.name, wholeShow: take == nil)
     }
+    private var blocked: String? { if case .blocked(let why) = gate { why } else { nil } }
+    /// The open Show is ended, then deleted, in one step (#1216).
+    private var endsShowFirst: Bool { gate == .endShowFirst }
     /// Deleting only the Device copy of a Show, or of one Take (#925), that has a Drive copy is allowed after the Drive copy is checked.
     private var needsCheck: Bool { channel == nil && chosen == [.device] && show.driveCopy != nil }
     /// Deleting one Take's Device copy goes through the Drive check whenever it runs (#925).
@@ -46,6 +46,8 @@ struct DeleteShowSheet: View {
             Form {
                 if let blocked {
                     Section { Label(blocked, systemImage: "lock.fill").secondaryText() }
+                } else if endsShowFirst {
+                    Section { Label("This Show is open. Deleting it ends it first.", systemImage: "info.circle").secondaryText() }
                 }
                 Section {
                     if show.deviceCopy != nil {
@@ -81,7 +83,7 @@ struct DeleteShowSheet: View {
                     }
                 }
                 Section {
-                    Button(deleting ? "Deleting…" : channel != nil ? "Delete channel \(channel ?? 0)'s file" : take.map { "Delete Take \(String(format: "%02d", $0))" } ?? "Delete \(show.name)", role: .destructive) {
+                    Button(deleting ? "Deleting…" : endsShowFirst ? "End and Delete \(show.name)" : channel != nil ? "Delete channel \(channel ?? 0)'s file" : take.map { "Delete Take \(String(format: "%02d", $0))" } ?? "Delete \(show.name)", role: .destructive) {
                         confirming = true
                     }
                         .buttonStyle(.borderedProminent)
@@ -131,6 +133,10 @@ struct DeleteShowSheet: View {
     /// reads "Deleting…" and can't be pressed again until it is done.
     private func delete() {
         guard !deleting else { return }
+        if endsShowFirst, let why = model.endShow(offeringPro: false) {
+            message = "Nothing was deleted. \(why)"
+            return
+        }
         let recorder = model.recorder, name = show.name, copies = chosen
         let take = take, channel = channel, deviceOnly = deletesTakeDeviceCopy, checked = needsCheck
         deleting = true
