@@ -1,6 +1,6 @@
 import { trackAttrs } from "@/lib/analytics";
 import { AppIcon } from "@/components/AppIcon";
-import { CONTACT_EMAIL, ISSUES_URL, REPO_URL, SITE_NAME, TRADEMARK_LINE } from "@/lib/site";
+import { CONTACT_EMAIL, FACEBOOK_URL, ISSUES_URL, REPO_URL, SITE_NAME, TRADEMARK_LINE } from "@/lib/site";
 
 export function Footer() {
   return (
@@ -50,6 +50,9 @@ export function Footer() {
             </li>
             <li>
               <a href={REPO_URL}>Source on GitHub</a>
+            </li>
+            <li>
+              <a href={FACEBOOK_URL}>Facebook</a>
             </li>
           </ul>
         </nav>
