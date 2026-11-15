@@ -199,8 +199,9 @@ struct SettingsView: View {
                 // Next to Support (#990): the website's help, in the browser.
                 Section {
                     Link("Help", destination: HelpLink.docs)
+                    Link("ShowRecorder on Facebook", destination: HelpLink.facebook)
                 } footer: {
-                    Text("Opens the ShowRecorder help on the website: getting started, the USB cable, the Drive and troubleshooting.")
+                    Text("Help opens the ShowRecorder help on the website: getting started, the USB cable, the Drive and troubleshooting. Follow ShowRecorder on Facebook for new versions and tips.")
                 }
 
                 SupportSection(model: model)

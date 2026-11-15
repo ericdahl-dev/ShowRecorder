@@ -6,4 +6,7 @@ import Foundation
 /// which docs visits came from the app.
 public enum HelpLink {
     public static let docs = URL(string: "https://showrecorder.app/docs?utm_source=app&utm_campaign=settings-help")!
+    /// The ShowRecorder Facebook Page, next to Help in Settings so people can follow it (Eric, 2026-11-15). It has
+    /// no username yet, so the address is the Page's id.
+    public static let facebook = URL(string: "https://www.facebook.com/profile.php?id=61596288844683")!
 }
