@@ -15,3 +15,10 @@ struct HelpLinkTests {
         #expect(HelpLink.docs.path() == "/docs")
     }
 }
+
+struct FacebookLinkTests {
+    @Test("Settings links the ShowRecorder Facebook Page, so people can follow it (Eric, 2026-11-15)")
+    func opensThePage() {
+        #expect(HelpLink.facebook.absoluteString == "https://www.facebook.com/profile.php?id=61596288844683")
+    }
+}
