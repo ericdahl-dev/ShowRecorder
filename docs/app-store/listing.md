@@ -1,12 +1,12 @@
 # App Store listing (1.2 changes marked "1.2"; 1.1 draft for Eric's review, #411; 1.0 was #64)
 
-Paste into App Store Connect > ShowRecorder > the 1.1 version (and App Information for the name and subtitle). The number after each heading is Apple's character limit; every field here is within it (recounted 2026-10-29, with auto-gain for X Air and no X32 or M32: name 12, subtitle 30, promotional text 165, keywords 100, description 3778, What's New 475; the review notes are 3216 of 4000). The 1.2 description, with the X32 and M32, is 3962 (counted 2026-11-15; it was 3917 before).
+Paste into App Store Connect > ShowRecorder > the 1.1 version (and App Information for the name and subtitle). The number after each heading is Apple's character limit; every field here is within it (recounted 2026-10-29, with auto-gain for X Air and no X32 or M32: name 12, subtitle 30, promotional text 165, keywords 100, description 3778, What's New 475; the review notes are 3216 of 4000). The 1.2 description, with the X32 and M32, is 3877 (counted 2026-11-15; it was 3917 before).
 
 Brand names (Behringer, Midas, X Air, XR18, MR18, X32, M32) appear only as compatibility text in the description and What's New. They are not in the name, subtitle or keywords (Guideline 2.3.7).
 
 ## Decided (Eric, 2026-10-13)
 
-- **X32 and M32 only after a real one.** 1.1 names the X32 and M32 only once a tester has confirmed a real X32 or M32 (the gate on #411). Otherwise drop the X32 lines, and when auto-gain is restored make it X Air only: in its held block, its What's New line and the review notes ("X Air or X32" becomes "X Air"). Keep the review notes' Network line either way: the build still asks port 10023 and Find Mixers still looks for X32 mixers. Applied 2026-10-29: the gate is still closed, so 1.1 names no X32 or M32 outside that Network line. **Superseded for 1.2 (Eric, 2026-11-15):** the description names the X32 and M32 beside the X Air for the Mixer Link, as the site's X32 page has since 1.1.18, with its caveat that they have been tested only against an emulator. Auto-gain stays X Air only.
+- **X32 and M32 only after a real one.** 1.1 names the X32 and M32 only once a tester has confirmed a real X32 or M32 (the gate on #411). Otherwise drop the X32 lines, and when auto-gain is restored make it X Air only: in its held block, its What's New line and the review notes ("X Air or X32" becomes "X Air"). Keep the review notes' Network line either way: the build still asks port 10023 and Find Mixers still looks for X32 mixers. Applied 2026-10-29: the gate is still closed, so 1.1 names no X32 or M32 outside that Network line. **Dropped (Eric, 2026-11-15):** this rule no longer applies. From 1.2 the description names the X32 and M32 beside the X Air for the Mixer Link, as the site's X32 page has since 1.1.18, and the listing carries no emulator caveat (the site's X32 page keeps its own). Auto-gain stays X Air only.
 - **No "reaper" keyword** (Cockos' trademark, 2.3.7): "soundcheck" replaces it.
 - **1.1 goes to the Mac App Store too** (#374): the Mac is in the promotional text, the description and the review notes.
 
@@ -41,7 +41,7 @@ multi,track,stems,usb,wav,gig,band,church,worship,concert,sound,board,daw,record
 
 ## Description (4000)
 
-Lines 2 and 3 changed for 1.2 (Eric, 2026-11-07, ASO audit): Free and no subscription above the fold, then compatibility. Lines 1 and 3, Named from the mixer and What you need changed for 1.2 (Eric, 2026-11-15): lead with any class-compliant USB mixer or interface, and name the X32 and M32 beside the X Air wherever the Mixer Link is described, with the emulator caveat in What you need. Auto-gain stays X Air only (`X32AutoGainAvailability`). To stay under 4000, a few other lines were shortened with no claim changed (the drive copy, crash, stage, auto-gain, watch and Free, Trial and Pro paragraphs). Line 1 was "a USB digital mixer" (Eric, 2026-11-06, for the words people and AI answers use: AI citation baseline, milestone "Mixer recording guides"); it keeps "USB mixer" and the three devices.
+Lines 2 and 3 changed for 1.2 (Eric, 2026-11-07, ASO audit): Free and no subscription above the fold, then compatibility. Lines 1 and 3, Named from the mixer and What you need changed for 1.2 (Eric, 2026-11-15): lead with any class-compliant USB mixer or interface, and name the X32 and M32 beside the X Air wherever the Mixer Link is described, with no emulator caveat (Eric, 2026-11-15). Auto-gain stays X Air only (`X32AutoGainAvailability`). To stay under 4000, a few other lines were shortened with no claim changed (the drive copy, crash, stage, auto-gain, watch and Free, Trial and Pro paragraphs). Line 1 was "a USB digital mixer" (Eric, 2026-11-06, for the words people and AI answers use: AI citation baseline, milestone "Mixer recording guides"); it keeps "USB mixer" and the three devices.
 
 Record every channel of any class-compliant USB mixer or audio interface on your iPhone, iPad or Mac, with no laptop at the gig.
 
@@ -89,7 +89,7 @@ The 14-day Trial of everything in Pro is free. When it ends, every channel still
 
 WHAT YOU NEED
 - Any class-compliant USB mixer or audio interface: every USB channel records.
-- For names and colors (the Mixer Link): an XR18 or MR18 (18 channels), or an X32 with an X-USB card or M32 with a DN32-USB card (32 channels, through a router on its Ethernet port). The X32 and M32 are tested only against an emulator: try yours at a rehearsal first.
+- For names and colors (the Mixer Link): an XR18 or MR18 (18 channels), or an X32 with an X-USB card or M32 with a DN32-USB card (32 channels, through a router on its Ethernet port).
 - A USB-C iPhone, an iPad, or a Mac with macOS 26.
 - A powered USB-C hub keeps an iPhone or iPad charging with the mixer and a drive plugged in.
 - About 9.3 GB per hour for 18 channels at 48 kHz. The app shows the recording time left.
