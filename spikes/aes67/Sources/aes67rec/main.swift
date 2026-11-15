@@ -54,11 +54,17 @@ let bound = withUnsafePointer(to: &bindAddr) {
     $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
 }
 guard bound == 0 else { die("bind: \(String(cString: strerror(errno)))") }
-var mreq = ip_mreq(imr_multiaddr: in_addr(s_addr: inet_addr(sdp.group)), imr_interface: in_addr(s_addr: inet_addr(iface)))
-guard setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, socklen_t(MemoryLayout<ip_mreq>.size)) == 0 else {
-    die("IP_ADD_MEMBERSHIP: \(String(cString: strerror(errno)))")
+// A unicast c= address (e.g. 127.0.0.1 for the ffmpeg cross-check) is only bound, not joined.
+let first = UInt32(bigEndian: inet_addr(sdp.group)) >> 28
+if first == 0xE {
+    var mreq = ip_mreq(imr_multiaddr: in_addr(s_addr: inet_addr(sdp.group)), imr_interface: in_addr(s_addr: inet_addr(iface)))
+    guard setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, socklen_t(MemoryLayout<ip_mreq>.size)) == 0 else {
+        die("IP_ADD_MEMBERSHIP: \(String(cString: strerror(errno)))")
+    }
+    print("joined \(sdp.group) on \(iface), SO_RCVBUF \(got) bytes")
+} else {
+    print("unicast \(sdp.group):\(sdp.port), SO_RCVBUF \(got) bytes")
 }
-print("joined \(sdp.group) on \(iface), SO_RCVBUF \(got) bytes")
 
 // MARK: recording state
 let bytesPerFrame = sdp.channels * sdp.bytesPerSample
