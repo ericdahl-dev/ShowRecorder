@@ -1,5 +1,6 @@
 import AudioIO
 import Foundation
+import Recording
 
 /// A synthetic multichannel signal for the simulator and UI work. Not real-time: blocks are
 /// generated on a background task, roughly every 10 ms.
@@ -46,8 +47,7 @@ final class DemoAudioDevice: AudioIODevice, @unchecked Sendable {
                 blocks += 1
                 if overflows, blocks % 1_500 == 0 { fake.deliver(Array(repeating: Array(repeating: 0, count: 250_000), count: count)) }
                 let channels = (0..<count).map { channel -> [Float] in
-                    // The last channel stays silent, so the meters show an unused USB Channel.
-                    let level = Float(0.02 + 0.3 * (1 + sin(phase + Double(channel) * 0.6))) * (channel == count - 1 ? 0 : 1)
+                    let level = DemoSignalLevel.peak(channel: channel, of: count, phase: phase)
                     return (0..<480).map { _ in Float.random(in: -level...level) }
                 }
                 var delivered = channels
