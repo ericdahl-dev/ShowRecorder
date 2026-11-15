@@ -13,6 +13,8 @@ export const CONTACT_EMAIL = "showrecorder@ericdahl.dev";
 // The app's source code (FSL-1.1-MIT: public to read, MIT two years after each release).
 export const REPO_URL = "https://github.com/ericdahl-dev/ShowRecorder";
 export const ISSUES_URL = `${REPO_URL}/issues`;
+// The ShowRecorder Facebook Page. It has no username yet (Facebook won't allow one on this Page so far), so the address is its id.
+export const FACEBOOK_URL = "https://www.facebook.com/profile.php?id=61596288844683";
 
 // Pro's price. It is set in lib/price.ts (lib/docs.ts needs it, and this file imports lib/docs.ts) and read from here.
 export { PRO_PRICE, PRO_PRICE_TEXT } from "@/lib/price";
