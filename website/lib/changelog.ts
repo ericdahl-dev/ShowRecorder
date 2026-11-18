@@ -14,6 +14,17 @@ export type Release = {
 
 export const RELEASES: readonly Release[] = [
   {
+    version: "1.2.14",
+    date: "2026-11-17",
+    channel: "TestFlight beta",
+    summary: "The build planned for the App Store as 1.2.",
+    changes: [
+      "Crash reports and usage are sent from every build. Settings › Share crash reports and usage turns them off; the privacy policy lists what is sent.",
+      "Selecting several Shows to delete, and Settings › Storage › Free Up Space…, are in every build.",
+      "Settings links to ShowRecorder on Facebook, next to Help.",
+    ],
+  },
+  {
     version: "1.2.13",
     date: "2026-11-14",
     channel: "TestFlight beta",
