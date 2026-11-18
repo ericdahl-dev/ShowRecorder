@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+"""Tests for numbers_report.py: the numbers it collects and the page it renders. No network, no keys.
+Run: python3 scripts/test_numbers_report.py"""
+import datetime, os, sys, unittest
+
+sys.dont_write_bytecode = True  # scripts/__pycache__ is tracked; running the tests mustn't change it
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import numbers_report as nr
+import weekly_numbers as wn
+from test_asc_stats import report
+
+D = datetime.date
+
+
+class SiteTests(unittest.TestCase):
+    ROWS = [
+        (D(2026, 11, 10), "a", "facebook", "fbad-x32", ""),
+        (D(2026, 11, 10), "b", "", "", "m.facebook.com"),
+        (D(2026, 11, 10), "c", "", "", "chatgpt.com"),
+        (D(2026, 11, 11), "a", "", "", ""),
+        (D(2026, 11, 11), "d", "facebook", "x32-group-app", ""),
+    ]
+
+    def test_counts_visitors_and_facebook_visitors_per_day(self):
+        days = nr.site_days(self.ROWS, [D(2026, 11, 9), D(2026, 11, 10), D(2026, 11, 11)])
+        self.assertEqual(days, [{"day": "2026-11-09", "visitors": 0, "facebook": 0},
+                                {"day": "2026-11-10", "visitors": 3, "facebook": 2},
+                                {"day": "2026-11-11", "visitors": 2, "facebook": 1}])
+
+    def test_counts_each_visitor_once_by_their_first_source_and_campaign(self):
+        sources = nr.site_sources(self.ROWS, wn.Window(D(2026, 11, 10), D(2026, 11, 11)))
+        self.assertEqual(sources, [{"source": "ChatGPT", "campaign": "", "visitors": 1},
+                                   {"source": "Facebook", "campaign": "", "visitors": 1},
+                                   {"source": "Facebook", "campaign": "fbad-x32", "visitors": 1},
+                                   {"source": "Facebook", "campaign": "x32-group-app", "visitors": 1}])
+
+
+class UsageTests(unittest.TestCase):
+    def test_counts_people_and_times_without_internal_installs(self):
+        eric = next(iter(wn.INTERNAL_INSTALLS))
+        rows = [("take_started", "x"), ("take_started", "x"), ("take_started", "y"), ("app_opened", "x"),
+                ("take_started", eric)]
+        self.assertEqual(nr.usage_table(rows), [{"event": "take_started", "people": 2, "times": 3},
+                                                {"event": "app_opened", "people": 1, "times": 1}])
+
+
+class StoreTests(unittest.TestCase):
+    def test_gives_each_published_day_and_the_total(self):
+        pro = {"Product Type Identifier": "IA1", "SKU": "pro", "Parent Identifier": "showrecorder",
+               "Developer Proceeds": "3.50", "Apple Identifier": "proid"}
+        reports = {"2026-11-14": report({"Product Type Identifier": "1", "Units": "4"}, pro),
+                   "2026-11-15": report({"Product Type Identifier": "1F", "Units": "2"})}
+        days = [D(2026, 11, 13), D(2026, 11, 14), D(2026, 11, 15)]
+        daily, total = nr.store_days(reports, days, "app", "showrecorder", {"USD": 1})
+        _, last_day = nr.store_days(reports, days, "app", "showrecorder", {"USD": 1}, total_days=1)
+        self.assertEqual(last_day["report_days"], ["2026-11-15"])
+        self.assertEqual([(r["day"], r["downloads"], r["pro"], r["proceeds_usd"]) for r in daily],
+                         [("2026-11-14", 4, 1, 3.5), ("2026-11-15", 2, 0, 0.0)])
+        self.assertEqual((total["downloads"], total["pro"], total["report_days"]), (6, 1, ["2026-11-14", "2026-11-15"]))
+
+    def test_no_published_day_means_no_total(self):
+        self.assertEqual(nr.store_days({}, [D(2026, 11, 15)], "app", "showrecorder", {"USD": 1}), ([], None))
+
+
+class FeedbackTests(unittest.TestCase):
+    def test_counts_erics_feedback_and_lists_the_rest_without_names(self):
+        response = {
+            "data": [
+                {"attributes": {"createdDate": "2026-11-14T17:24:00Z", "comment": " Delete is hard ", "appPlatform": "IOS"},
+                 "relationships": {"tester": {"data": {"id": "t1"}}, "build": {"data": {"id": "b1"}}}},
+                {"attributes": {"createdDate": "2026-11-13T10:00:00Z", "comment": "mine"},
+                 "relationships": {"tester": {"data": {"id": "t2"}}}},
+            ],
+            "included": [
+                {"type": "betaTesters", "id": "t1", "attributes": {"email": "tester@example.com", "firstName": "Pat"}},
+                {"type": "betaTesters", "id": "t2", "attributes": {"email": "Eric@Example.com"}},
+                {"type": "builds", "id": "b1", "attributes": {"version": "61.1"}},
+            ],
+        }
+        own, others = nr.split_feedback(response, {"eric@example.com"})
+        self.assertEqual(own, 1)
+        self.assertEqual(others, [{"date": "2026-11-14T17:24", "platform": "IOS", "build": "61.1",
+                                   "comment": "Delete is hard"}])
+
+
+def numbers():
+    days = [D(2026, 11, 4) + datetime.timedelta(days=i) for i in range(15)]
+    store_days = [D(2026, 10, 21) + datetime.timedelta(days=i) for i in range(28)]
+    store = [{"day": d.isoformat(), "downloads": 5 if d < D(2026, 11, 10) else 12, "downloads_ios": 0,
+              "downloads_mac": 0, "trials": 1, "pro": 1 if d.day % 2 else 0, "pro_codes": 0, "packs": 0,
+              "proceeds_usd": 3.5 if d.day % 2 else 0.0, "unconverted": {}} for d in store_days]
+    return {
+        "collected_at": "2026-11-18T15:27+00:00", "today": "2026-11-18",
+        "site": {"daily": [{"day": d.isoformat(), "visitors": 10 if d < D(2026, 11, 10) else 100,
+                            "facebook": 0 if d < D(2026, 11, 10) else 80} for d in days],
+                 "sources": [{"source": "Facebook", "campaign": "fbad-x32", "visitors": 300},
+                             {"source": "ChatGPT", "campaign": "", "visitors": 40},
+                             {"source": "Direct", "campaign": "", "visitors": 20}],
+                 "app_store_clicks": 90},
+        "usage": [{"event": "take_started", "people": 22, "times": 54}],
+        "store": {"daily": store, "first": "2026-11-04", "last": "2026-11-17", "redownloads": 116, "updates": 308,
+                  "countries": {"US": 78, "GB": 8},
+                  "total": {"downloads": 141, "downloads_ios": 138, "downloads_mac": 3, "trials": 27, "pro": 11,
+                            "pro_codes": 2, "packs": 0, "proceeds_usd": 48.1, "unconverted": {"XYZ": 5.0}}},
+        "testflight": {
+            "store_versions": [{"platform": "MAC_OS", "version": "1.1.21", "state": "PREPARE_FOR_SUBMISSION"},
+                               {"platform": "IOS", "version": "1.1.21", "state": "READY_FOR_SALE"}],
+            "beta_review": [{"version": "1.2.14", "build": "65.1", "platform": "IOS", "review": "WAITING_FOR_REVIEW",
+                             "processing": "VALID"}],
+            "testers": {"installed": 49, "accepted": 4, "revoked": 1}, "reviews": [],
+            "feedback": {"total": 2, "mine": 1, "others": [{"date": "2026-11-14T17:24", "platform": "IOS",
+                                                             "build": "61.1", "comment": "<b>No</b> Drive copy"}]},
+            "crashes": 0, "diagnostics": [{"version": "1.1.21", "signatures": [
+                {"type": "DISK_WRITES", "weight": 94.0, "signature": "StemWriter"}]}]},
+    }
+
+
+ADS = {"read_at": "2026-11-17T17:46+00:00", "range": "Nov 3 – 16, 2026", "start": "2026-11-10", "budget": 60,
+       "ads": [{"name": "Ad A, XR18 still", "tag": "fbad-xr18", "spent": 27.57, "impressions": 3748, "reach": 3241,
+                "clicks": 236},
+               {"name": "Ad B, X32 still", "tag": "fbad-x32", "spent": 26.32, "impressions": 3482, "reach": 3224,
+                "clicks": 351}],
+       "notices": ["Both ads end Nov 18."]}
+
+
+class RenderTests(unittest.TestCase):
+    def test_renders_the_summary_and_every_section(self):
+        page = nr.render(numbers(), ADS, {"read_at": "2026-11-18T15:27+00:00", "app": [], "web": []},
+                         {"price_check": {"label": "Nov 20 check", "needs": 0.055},
+                          "sections": [{"title": "Dante", "src": "#1234", "points": ["Planned price: $19.99."]}],
+                          "needs_you": [{"tag": "Mac", "level": "warn", "text": "Record a Mac Take."}],
+                          "feedback_notes": {"2026-11-14T17:24": "Fixed in 1.2.13."}})
+        for text in ("<title>ShowRecorder Numbers</title>", ">141<", "138 iPhone/iPad, 3 Mac", "from 27 trials",
+                     "$48.10", "$53.89", ">7.8%<", "Nov 20 check needs ≥ 5.5%", "Ad B, X32 still is the better ad",
+                     "10.1%", "Dante", "Record a Mac Take.", "Fixed in 1.2.13.", "1.2.14 (65.1)",
+                     "Waiting for review", "Mac 1.1.21 is “Prepare for submission”", "XYZ 5.00",
+                     "averaged <strong>100</strong> visitors a day, against 10 the week before", "<th>14 days</th>"):
+            self.assertIn(text, page)
+
+    def test_compares_downloads_in_the_week_from_the_ads_start_with_the_week_before(self):
+        page = nr.render(numbers(), ADS)
+        self.assertIn("Downloads were <strong>84</strong> in the 7 days from Nov 10, against 35", page)
+        self.assertIn("about <strong>$1.10 per extra download</strong>", page)
+
+    def test_escapes_tester_text(self):
+        page = nr.render(numbers())
+        self.assertIn("&lt;b&gt;No&lt;/b&gt; Drive copy", page)
+        self.assertNotIn("<b>No</b>", page)
+
+    def test_leaves_out_the_ads_and_glitchtip_when_not_read(self):
+        page = nr.render(numbers())
+        self.assertNotIn("<h2>Facebook ads</h2>", page)
+        self.assertIn("GlitchTip not read", page)
+        self.assertIn("Site visitors, the last 7 complete days", page)
+
+
+if __name__ == "__main__":
+    unittest.main()
