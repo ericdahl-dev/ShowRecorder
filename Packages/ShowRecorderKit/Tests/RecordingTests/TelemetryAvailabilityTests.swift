@@ -1,8 +1,8 @@
 @testable import Recording
 import Testing
 
-/// Crash reports and usage (ADR 0007, #1026) are offered in Debug and TestFlight builds first, so Eric can check on a
-/// device that a test crash and the events arrive and that the switch stops them. Opening it up is this one rule.
+/// Crash reports and usage (ADR 0007, #1026) are offered in every build (Eric, 2026-11-17), after his TestFlight 1.2.13
+/// check that events arrive and that Settings › Share crash reports and usage stops them.
 @Suite("Telemetry availability")
 struct TelemetryAvailabilityTests {
     @Test("Debug builds send whatever the environment, even before it is known")
@@ -17,14 +17,14 @@ struct TelemetryAvailabilityTests {
         #expect(TelemetryAvailability.isAvailable(isDebugBuild: false, environment: .sandbox))
     }
 
-    @Test("The App Store (production) build does not, until the privacy label says it does")
+    @Test("The App Store (production) build sends")
     func appStoreBuild() {
-        #expect(!TelemetryAvailability.isAvailable(isDebugBuild: false, environment: .production))
+        #expect(TelemetryAvailability.isAvailable(isDebugBuild: false, environment: .production))
     }
 
-    @Test("A Release build whose environment is unknown or not yet answered does not")
+    @Test("A Release build sends before StoreKit has said where it came from")
     func unknownEnvironment() {
-        #expect(!TelemetryAvailability.isAvailable(isDebugBuild: false, environment: nil))
-        #expect(!TelemetryAvailability.isAvailable(isDebugBuild: false, environment: .unknown))
+        #expect(TelemetryAvailability.isAvailable(isDebugBuild: false, environment: nil))
+        #expect(TelemetryAvailability.isAvailable(isDebugBuild: false, environment: .unknown))
     }
 }

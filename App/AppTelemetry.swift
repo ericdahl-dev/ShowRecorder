@@ -3,7 +3,7 @@ import Telemetry
 import TelemetrySinks
 
 /// The app's one `Telemetry` (ADR 0007, #1026): crashes and handled failures to GlitchTip, usage to PostHog, only
-/// while Settings › Share crash reports and usage is on and `TelemetryAvailability` offers it (Debug + TestFlight).
+/// while Settings › Share crash reports and usage is on and `TelemetryAvailability` offers it (every build).
 /// Never called from the real-time audio path (ADR 0002).
 @MainActor
 enum AppTelemetry {
