@@ -103,9 +103,10 @@ describe("website error reports", () => {
 describe("the privacy page after ADR 0007", () => {
   const privacy = read("app", "privacy", "page.mdx");
 
-  it("says the App Store version collects nothing and test versions send crash reports and usage", () => {
-    expect(privacy).toMatch(/The App Store version of ShowRecorder collects nothing\./);
-    expect(privacy).toMatch(/Test versions \(TestFlight\) send crash reports and usage/);
+  it("says App Store versions before 1.2 send nothing, and 1.2 on and test versions send crash reports and usage", () => {
+    expect(privacy).toMatch(/App Store versions before 1\.2 send nothing\./);
+    expect(privacy).toMatch(/From version 1\.2, and in test versions \(TestFlight\), ShowRecorder sends crash reports and usage/);
+    expect(privacy).not.toMatch(/collects nothing/);
     expect(privacy).toMatch(/Share crash reports and usage/);
     expect(privacy).toMatch(/GlitchTip, run on the developer's own server/);
     expect(privacy).toMatch(/random ID/);
