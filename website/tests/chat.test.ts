@@ -224,6 +224,6 @@ describe("support chat (Chatwoot, click to load)", () => {
     expect(privacy).toMatch(/stores nothing in your browser or on your device, unless you open the chat \(see below\) or follow a tagged link/);
     expect(privacy).toMatch(/and on the chat buttons, and notes which page they were on/);
     expect(privacy).not.toMatch(/The support page has an optional chat/);
-    expect(privacy).toMatch(/The App Store version of ShowRecorder collects nothing\./);
+    expect(privacy).toMatch(/App Store versions before 1\.2 send nothing\./);
   });
 });

@@ -44,6 +44,6 @@ export const PAGE_DATES: Record<string, string> = {
   "/guides/record/zoom-l12": "2026-11-07",
   "/mixers/x32": "2026-11-13",
   "/mixers/xr18": "2026-11-07",
-  "/privacy": "2026-11-10",
+  "/privacy": "2026-11-17",
   "/support": "2026-11-15",
 };
