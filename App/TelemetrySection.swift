@@ -3,7 +3,7 @@ import SwiftUI
 import Telemetry
 
 /// Settings › Share crash reports and usage (ADR 0007, #1026). Shown only where the build sends them
-/// (`TelemetryAvailability`, Debug + TestFlight). Off stops both and deletes this install's random ID.
+/// (`TelemetryAvailability`, every build). Off stops both and deletes this install's random ID.
 struct TelemetrySection: View {
     @State private var sharing = TelemetryConsent.isOn()
 
