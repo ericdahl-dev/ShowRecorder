@@ -91,7 +91,13 @@ public final class MixerGain {
 
     /// Why auto-gain can't run right now, said on its sheet while the Gain button stays; nil when it can.
     /// An X32's gain is set only where `X32AutoGainAvailability` allows it.
-    public var autoGainUnavailable: AutoGainAvailability.Unavailable? {
+    public var autoGainUnavailable: AutoGainAvailability.Unavailable? { whyNot(allowed: allowsAutoGain()) }
+
+    /// Why Undo of an earlier run can't be used right now; nil when it can. As `autoGainUnavailable`, but never
+    /// `.needsPro`: Undo stays open to everyone, so a run made in a Trial can still be put back on Free (#1017).
+    public var undoUnavailable: AutoGainAvailability.Unavailable? { whyNot(allowed: true) }
+
+    private func whyNot(allowed: Bool) -> AutoGainAvailability.Unavailable? {
         let isConnecting = if case .connecting = mixer?.status { true } else { false }
         let canSetGain = mixer?.gainControl != nil && setsThisFamilysGain
         // Not yet known as the Mixer plugged in by USB (#1018).
@@ -100,7 +106,7 @@ public final class MixerGain {
         return AutoGainAvailability.whyNot(hasMixerLink: mixer?.identity != nil, isConnecting: isConnecting,
                                            canSetGain: canSetGain, isRecording: isRecording(),
                                            otherMixer: mixer?.otherMixerLinked?.nameAndModel, checkingOtherMixers: checking,
-                                           mixersOfThisKind: mixersOfThisKind, allowed: allowsAutoGain())
+                                           mixersOfThisKind: mixersOfThisKind, allowed: allowed)
     }
 
     /// False on an X32 where `X32AutoGainAvailability` doesn't allow it; true for any other family.

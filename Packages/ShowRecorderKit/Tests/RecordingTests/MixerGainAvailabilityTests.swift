@@ -143,6 +143,23 @@ struct MixerGainAvailabilityTests {
         #expect(mixerGain.autoGainUnavailable == scenario.whyNot(in: build))
     }
 
+    @Test("Mixer gain: on Free auto-gain says it's Pro, but Undo of an earlier run is locked only by what locks it on Pro (#1017)",
+          arguments: table)
+    func undoIsNotPro(build: Build, scenario: Scenario) async throws {
+        let (mixer, release) = try await scenario.session()
+        defer { release() }
+        let mixerGain = MixerGain()
+        mixerGain.mixer = mixer
+        mixerGain.isDebugBuild = build.isDebugBuild
+        mixerGain.environment = { build.environment }
+        mixerGain.isRecording = { scenario.isRecording }
+        mixerGain.allowsAutoGain = { false }
+
+        let pro: AutoGainAvailability.Unavailable = scenario.isRecording ? .takeRunning : .needsPro
+        #expect(mixerGain.autoGainUnavailable == pro)
+        #expect(mixerGain.undoUnavailable == scenario.whyNot(in: build))
+    }
+
     @Test("Mixer gain: a run on a linked X32 starts only where X32 auto-gain is allowed, not just behind the sheet's buttons",
           arguments: Build.allCases)
     func x32RunGuarded(build: Build) async throws {

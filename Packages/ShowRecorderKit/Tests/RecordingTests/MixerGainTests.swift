@@ -27,6 +27,20 @@ struct MixerGainAutoGainTests {
         #expect(mixerGain.results[1] == nil && !mixerGain.canUndo(1))
     }
 
+    @Test("A run made in a Trial can still be undone once the plan is Free (#1017)")
+    func undoAfterTheTrialEnds() async {
+        let control = FakeGainControl(gainDb: [1: 0], channelOfUSB: [1: 1])
+        let mixerGain = makeMixerGain(control, source: [1: -40])
+        await mixerGain.run([1])
+        #expect(control.gainDb[1] == 22)
+
+        mixerGain.allowsAutoGain = { false }
+        #expect(mixerGain.canUndo(1) && mixerGain.canUndoAll)
+        await mixerGain.undoAll()
+        #expect(control.gainDb[1] == 0)
+        #expect(!mixerGain.canUndo(1))
+    }
+
     @Test("A Take that starts mid-run stops it at once and locks auto-gain; no run or Undo until the Take ends")
     func takeStartStopsAndLocks() async {
         let control = FakeGainControl(gainDb: [1: 0, 2: 0], channelOfUSB: [1: 1, 2: 2])
