@@ -130,6 +130,35 @@ class SupportTests(unittest.TestCase):
                           {"inbox": "ShowRecorder Website", "threads": 1, "answered": 0}])
 
 
+class EngineeringTests(unittest.TestCase):
+    def test_keeps_the_newest_run_of_each_workflow_per_branch(self):
+        runs = {"main": [{"workflowName": "CI", "conclusion": "failure", "status": "completed",
+                          "createdAt": "2026-11-20T10:00:00Z", "displayTitle": "Newer", "url": "u2"},
+                         {"workflowName": "CI", "conclusion": "success", "status": "completed",
+                          "createdAt": "2026-11-19T10:00:00Z", "displayTitle": "Older", "url": "u1"}]}
+        eng = nr.engineering_summary(runs, [], [], [], 0)
+        self.assertEqual(eng["ci"], [{"branch": "main", "workflow": "CI", "result": "failure",
+                                      "at": "2026-11-20T10:00:00Z", "title": "Newer", "url": "u2"}])
+
+    def test_a_run_in_progress_shows_its_status(self):
+        runs = {"release/1.2": [{"workflowName": "CI", "conclusion": "", "status": "in_progress",
+                                 "createdAt": "2026-11-20T10:00:00Z", "displayTitle": "Fix", "url": "u"}]}
+        self.assertEqual(nr.engineering_summary(runs, [], [], [], 0)["ci"][0]["result"], "in_progress")
+
+    def test_lists_uploads_prs_and_bugs(self):
+        uploads = [{"headBranch": "v1.2.14", "conclusion": "success", "status": "completed",
+                    "createdAt": "2026-11-18T00:42:02Z"}]
+        prs = [{"number": 9, "title": "Draft thing", "createdAt": "2026-11-10T00:00:00Z", "isDraft": True}]
+        bugs = [{"number": 5, "title": "Crash", "createdAt": "2026-11-01T00:00:00Z", "labels": [{"name": "P1"}]}]
+        eng = nr.engineering_summary({}, uploads, prs, bugs, 74)
+        self.assertEqual(eng["uploads"], [{"tag": "v1.2.14", "result": "success", "at": "2026-11-18T00:42:02Z"}])
+        self.assertEqual(eng["prs"], [{"number": 9, "title": "Draft thing", "opened": "2026-11-10T00:00:00Z",
+                                       "draft": True}])
+        self.assertEqual(eng["bugs"], [{"number": 5, "title": "Crash", "opened": "2026-11-01T00:00:00Z",
+                                        "labels": ["P1"]}])
+        self.assertEqual(eng["open_issues"], 74)
+
+
 def numbers():
     days = [D(2026, 11, 4) + datetime.timedelta(days=i) for i in range(15)]
     store_days = [D(2026, 10, 21) + datetime.timedelta(days=i) for i in range(28)]
@@ -207,6 +236,27 @@ class RenderTests(unittest.TestCase):
         self.assertIn("2 days", page)
         self.assertIn("3 new threads in ShowRecorder, 2 answered", page)
         self.assertIn("Reply to support thread #26", page)
+
+    def test_shows_ci_uploads_prs_and_bugs_and_flags_a_failing_branch(self):
+        n = numbers()
+        n["engineering"] = {
+            "ci": [{"branch": "main", "workflow": "CI", "result": "failure", "at": "2026-11-18T14:00:00Z",
+                    "title": "<b>Break</b>", "url": "https://github.com/x/y/actions/runs/1"},
+                   {"branch": "release/1.2", "workflow": "CI", "result": "success", "at": "2026-11-17T14:00:00Z",
+                    "title": "Fix", "url": "https://github.com/x/y/actions/runs/2"}],
+            "uploads": [{"tag": "v1.2.14", "result": "success", "at": "2026-11-18T00:42:02Z"}],
+            "prs": [{"number": 9, "title": "Draft thing", "opened": "2026-11-10T00:00:00Z", "draft": True}],
+            "bugs": [{"number": 5, "title": "Crash", "opened": "2026-11-01T00:00:00Z", "labels": ["P1"]}],
+            "open_issues": 74}
+        page = nr.render(n)
+        self.assertIn("<h2>Engineering</h2>", page)
+        self.assertIn("&lt;b&gt;Break&lt;/b&gt;", page)
+        self.assertIn("v1.2.14", page)
+        self.assertIn("#9 Draft thing (draft, open 8 days)", page)
+        self.assertIn("#5 Crash (P1, open 17 days)", page)
+        self.assertIn("74 open issues, 1 labeled bug.", page)
+        self.assertIn("CI is failing on main", page)
+        self.assertIn("Engineering not read", nr.render(numbers()))
 
     def test_says_when_nothing_waits_and_when_support_wasnt_read(self):
         n = numbers()
