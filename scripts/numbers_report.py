@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """The ShowRecorder numbers report: two weeks of the site, Facebook ads, App Store sales, TestFlight, tester usage,
-errors and support on one HTML page.
+errors, support and engineering on one HTML page.
 
   doppler run -p ericdahl-dev -c prd -- python3 scripts/numbers_report.py collect   # writes numbers.json
   python3 scripts/numbers_report.py render                                          # writes showrecorder-numbers.html
 
 Both work in one folder outside the repo, NUMBERS_DIR (default ~/.cache/showrecorder-numbers), because the data
-holds testers' feedback. `collect` reads PostHog, App Store Connect and Chatwoot (read only) with the same queries and helpers as
+holds testers' feedback. `collect` reads PostHog, App Store Connect, Chatwoot and GitHub (`gh`; all read only) with the same queries and helpers as
 weekly_numbers.py, so the page, the weekly table and the daily email agree. The rest is written by hand into the
 folder before `render`, since no script can reach it:
   ads.json        Facebook Ads Manager: {"read_at", "range", "start", "budget", "ads": [{"name", "tag", "spent",
@@ -134,6 +134,26 @@ def support_summary(conversations, messages, inboxes, start):
             counts["threads"] += 1
             counts["answered"] += any(m["message_type"] == OUT for m in said)
     return {"waiting": waiting, "new": sorted(new.values(), key=lambda r: r["inbox"])}
+
+
+def engineering_summary(runs_by_branch, release_runs, prs, bugs, open_issues):
+    """GitHub's state from `gh` JSON: the newest run of each workflow per branch (`ci`), the newest Release runs
+    (TestFlight uploads, one per tag), open PRs, open bugs and the open issue count."""
+    ci = []
+    for branch, runs in runs_by_branch.items():
+        newest = {}
+        for r in sorted(runs, key=lambda r: r["createdAt"], reverse=True):
+            newest.setdefault(r["workflowName"], r)
+        ci += [{"branch": branch, "workflow": w, "result": r["conclusion"] or r["status"], "at": r["createdAt"],
+                "title": r["displayTitle"], "url": r["url"]} for w, r in sorted(newest.items())]
+    return {"ci": ci,
+            "uploads": [{"tag": r["headBranch"], "result": r["conclusion"] or r["status"], "at": r["createdAt"]}
+                        for r in release_runs],
+            "prs": [{"number": p["number"], "title": p["title"], "opened": p["createdAt"], "draft": p["isDraft"]}
+                    for p in prs],
+            "bugs": [{"number": b["number"], "title": b["title"], "opened": b["createdAt"],
+                      "labels": [l["name"] for l in b.get("labels", []) if l["name"] != "bug"]} for b in bugs],
+            "open_issues": open_issues}
 
 
 # ---- Render: the page from numbers.json and the hand-written files. No network.
@@ -396,6 +416,38 @@ def render(n, ads=None, glitchtip=None, notes=None):
             points([f'{r["threads"]} new threads in {esc(r["inbox"])}, {r["answered"]} answered (sales emails '
                     "are resolved without one)." for r in support["new"]]))
 
+    # Engineering.
+    eng = n.get("engineering")
+    collected = datetime.datetime.fromisoformat(n["collected_at"])
+
+    def age(iso):
+        return (collected - datetime.datetime.fromisoformat(iso.replace("Z", "+00:00"))).days
+
+    def result_chip(result):
+        # GitHub spells a stopped run's conclusion the British way; the page says "Canceled".
+        level = "warn" if result.startswith("cancel") else {"success": "good", "failure": "bad"}.get(result, "info")
+        return chip(level, "Canceled" if result.startswith("cancel") else result.replace("_", " ").capitalize())
+
+    failing = []
+    if eng is None:
+        eng_html = section("Engineering", "GitHub · Engineering not read")
+    else:
+        failing = [r for r in eng["ci"] if r["result"] == "failure"]
+        eng_html = section(
+            "Engineering", f"GitHub Actions, pull requests and issues · {read_at(n['collected_at'])}",
+            table(["Branch", "Workflow", "Newest run", "When", "Commit"],
+                  [[esc(r["branch"]), esc(r["workflow"]), result_chip(r["result"]), esc(read_at(r["at"].replace("Z", "+00:00"))),
+                    f'<a href="{esc(r["url"])}">{esc(r["title"])}</a>'] for r in eng["ci"]]),
+            table(["Tag", "TestFlight upload", "When"],
+                  [[f'<span class="num">{esc(u["tag"])}</span>', result_chip(u["result"]),
+                    esc(read_at(u["at"].replace("Z", "+00:00")))] for u in eng["uploads"]]),
+            points([f'{len(eng["prs"])} open pull requests' + (":" if eng["prs"] else ".")]
+                   + [f'#{p["number"]} {esc(p["title"])} ({"draft, " if p["draft"] else ""}open {age(p["opened"])} days)'
+                      for p in eng["prs"]]
+                   + [f'{eng["open_issues"]} open issues, {len(eng["bugs"])} labeled bug.']
+                   + [f'#{b["number"]} {esc(b["title"])} ({", ".join(esc(l) for l in b["labels"]) + ", " if b["labels"] else ""}'
+                      f'open {age(b["opened"])} days)' for b in eng["bugs"]]))
+
     extra_sections = "".join(section(s["title"], s.get("src", ""), points([esc(p) for p in s.get("points", [])]))
                              for s in notes.get("sections", []))
 
@@ -405,6 +457,7 @@ def render(n, ads=None, glitchtip=None, notes=None):
              for r in tf["beta_review"] if r["review"] in ("WAITING_FOR_REVIEW", "IN_REVIEW", "REJECTED")]
     todo += [("warn", "Support", f'Reply to support thread #{w["id"]} ({w["subject"] or "no subject"}), waiting since '
                                  f'{read_at(w["since"])}.') for w in (support or {}).get("waiting", [])]
+    todo += [("bad", "CI", f'CI is failing on {r["branch"]} ({r["workflow"]}: {r["title"]}).') for r in failing]
     needs = ('<section><div class="head"><h2>Needs you</h2></div><div class="todo">'
              + "".join(f"<div>{chip(level, tag)}<span>{esc(text)}</span></div>" for level, tag, text in todo)
              + "</div></section>") if todo else ""
@@ -418,8 +471,9 @@ def render(n, ads=None, glitchtip=None, notes=None):
     return (PAGE_HEAD + f'<main><header><div class="eyebrow">ShowRecorder · updated {esc(updated)}</div>'
             "<h1>ShowRecorder numbers</h1><p class=\"lede\">The last two weeks of website traffic, Facebook ads, App "
             "Store sales, TestFlight, tester usage and errors. Each section says when its numbers were read.</p>"
-            f"</header>{strip}{website}{ads_html}{app_store}{testflight}{usage}{errors}{support_html}{extra_sections}"
-            f"{needs}<footer>Built by scripts/numbers_report.py from PostHog (Owned Sites), App Store Connect, Chatwoot, "
+            f"</header>{strip}{website}{ads_html}{app_store}{testflight}{usage}{errors}{support_html}{eng_html}"
+            f"{extra_sections}{needs}<footer>Built by scripts/numbers_report.py from PostHog (Owned Sites), App Store "
+            "Connect, Chatwoot, GitHub, "
             "and hand-read "
             "Facebook Ads Manager and GlitchTip numbers.</footer></main>"
             f"<script>var D = {json.dumps(chart)};\n{CHART_JS}</script>\n")
@@ -565,6 +619,31 @@ def fetch_support(start):
     return support_summary(conversations, messages, inboxes, start)
 
 
+REPO = "ericdahl-dev/ShowRecorder"
+
+
+def fetch_engineering():
+    """engineering_summary from the `gh` CLI (signed in), read only: main and the newest release/* branch."""
+    import subprocess
+
+    def gh(*args):
+        return json.loads(subprocess.run(["gh", *args], check=True, capture_output=True, text=True).stdout or "null")
+
+    refs = gh("api", f"repos/{REPO}/git/matching-refs/heads/release/") or []
+    releases = sorted((r["ref"].removeprefix("refs/heads/") for r in refs),
+                      key=lambda b: [int(p) if p.isdigit() else 0 for p in b.split("/")[-1].split(".")])
+    branches = ["main"] + releases[-1:]
+    fields = "workflowName,conclusion,status,createdAt,displayTitle,url"
+    runs = {b: gh("run", "list", "--repo", REPO, "--branch", b, "--limit", "20", "--json", fields) for b in branches}
+    uploads = gh("run", "list", "--repo", REPO, "--workflow", "release.yml", "--limit", "3", "--json",
+                 "headBranch,conclusion,status,createdAt")
+    prs = gh("pr", "list", "--repo", REPO, "--state", "open", "--json", "number,title,createdAt,isDraft")
+    bugs = gh("issue", "list", "--repo", REPO, "--state", "open", "--label", "bug", "--limit", "50", "--json",
+              "number,title,createdAt,labels")
+    issues = gh("issue", "list", "--repo", REPO, "--state", "open", "--limit", "1000", "--json", "number")
+    return engineering_summary(runs, uploads, prs, bugs, len(issues))
+
+
 def collect(today):
     import asc_stats, ci_profile
 
@@ -589,6 +668,11 @@ def collect(today):
     except Exception as e:
         print(f"Chatwoot not read: {type(e).__name__}", file=sys.stderr)
         out["support"] = None
+    try:
+        out["engineering"] = fetch_engineering()
+    except Exception as e:
+        print(f"GitHub not read: {type(e).__name__}", file=sys.stderr)
+        out["engineering"] = None
 
     wn.load_asc_secrets()
     mine = {e.strip().lower() for e in os.environ.get("MINE", "").split(",") if e.strip()}
