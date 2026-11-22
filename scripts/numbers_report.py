@@ -12,6 +12,9 @@ folder before `render`, since no script can reach it:
   ads.json        Facebook Ads Manager: {"read_at", "range", "start", "budget", "ads": [{"name", "tag", "spent",
                   "impressions", "reach", "clicks", "ends"}], "notices": [...]}
   glitchtip.json  {"read_at", "app": [{"title", "count"}], "web": [{"title", "count", "note"}]}
+  apple_ads.json  Apple Ads (dashboard now, its API later): {"read_at", "range", "start", "credit", "campaigns":
+                  [{"name", "status", "daily_budget", "spent", "impressions", "taps", "installs"}],
+                  "keywords": [{"text", "spent", "taps", "installs"}]}
   notes.json      {"needs_you": [{"tag", "level", "text"}], "feedback_notes": {"<feedback date>": "..."},
                   "sections": [{"title", "src", "points": [...]}], "price_check": {"label", "needs"}}
 A missing file leaves its part out. MINE (comma-separated) is Eric's TestFlight addresses: his own feedback is
@@ -223,7 +226,7 @@ def downloads_between(store_daily, start, days):
     return sum(picked) if len(picked) == days else None
 
 
-def render(n, ads=None, glitchtip=None, notes=None):
+def render(n, ads=None, glitchtip=None, notes=None, apple_ads=None):
     notes = notes or {}
     site, store, tf = n["site"], n["store"], n["testflight"]
     total = store["total"] or {}
@@ -400,6 +403,38 @@ def render(n, ads=None, glitchtip=None, notes=None):
     errors = section("Errors", "GlitchTip " + (read_at(glitchtip["read_at"]) if glitchtip else "not read")
                      + f" · App Store Connect {read_at(n['collected_at'])}", table(["Where", "Result", "Detail"], err_rows))
 
+    # Apple Ads.
+    apple_html = ""
+    if apple_ads:
+        camps = apple_ads["campaigns"]
+
+        def row(name, r, status="", budget=""):
+            return [name, status, budget, money(r["spent"]), f'{r["impressions"]:,}', r["taps"],
+                    pct(r["taps"], r["impressions"]), r["installs"],
+                    money(r["spent"] / r["installs"]) if r["installs"] else "–"]
+
+        rows = [row(esc(c["name"]), c, esc(c["status"]), money(c["daily_budget"]) + "/day") for c in camps]
+        spent = sum(c["spent"] for c in camps)
+        if len(camps) > 1:
+            rows.append(row("<strong>Total</strong>", {k: sum(c[k] for c in camps)
+                                                       for k in ("spent", "impressions", "taps", "installs")}))
+        apple_points = []
+        if apple_ads.get("credit"):
+            apple_points.append(f'{money(max(apple_ads["credit"] - spent, 0))} of the {money(apple_ads["credit"])} '
+                                "credit left.")
+        apple_points.append("Apple Ads days are UTC. Its installs are installs after a tap on an ad; they're part of "
+                            "the App Store downloads above, not extra.")
+        keywords = apple_ads.get("keywords") or []
+        apple_html = section(
+            "Apple Ads", f'Apple Ads · {apple_ads["range"]} · {read_at(apple_ads["read_at"])}',
+            table(["Campaign", "Status", "Budget", "Spent", "Impressions", "Taps", "Tap rate", "Installs", "Per install"],
+                  rows, right=(2, 3, 4, 5, 6, 7, 8)),
+            points(apple_points),
+            table(["Keyword", "Spent", "Taps", "Installs"],
+                  [[esc(k["text"]), money(k["spent"]), k["taps"], k["installs"]]
+                   for k in sorted(keywords, key=lambda k: (-k["taps"], k["text"]))[:12]], right=(1, 2, 3))
+            if keywords else "")
+
     # Support.
     support = n.get("support")
     if support is None:
@@ -471,10 +506,10 @@ def render(n, ads=None, glitchtip=None, notes=None):
     return (PAGE_HEAD + f'<main><header><div class="eyebrow">ShowRecorder · updated {esc(updated)}</div>'
             "<h1>ShowRecorder numbers</h1><p class=\"lede\">The last two weeks of website traffic, Facebook ads, App "
             "Store sales, TestFlight, tester usage and errors. Each section says when its numbers were read.</p>"
-            f"</header>{strip}{website}{ads_html}{app_store}{testflight}{usage}{errors}{support_html}{eng_html}"
+            f"</header>{strip}{website}{ads_html}{apple_html}{app_store}{testflight}{usage}{errors}{support_html}{eng_html}"
             f"{extra_sections}{needs}<footer>Built by scripts/numbers_report.py from PostHog (Owned Sites), App Store "
             "Connect, Chatwoot, GitHub, "
-            "and hand-read "
+            "and hand-read Apple Ads, "
             "Facebook Ads Manager and GlitchTip numbers.</footer></main>"
             f"<script>var D = {json.dumps(chart)};\n{CHART_JS}</script>\n")
 
@@ -752,7 +787,8 @@ def main():
               f"{numbers['store']['first']}..{numbers['store']['last']}, "
               f"review {[(r['platform'], r['review']) for r in numbers['testflight']['beta_review']]}")
     elif command == "render":
-        page = render(load("numbers.json"), load("ads.json"), load("glitchtip.json"), load("notes.json"))
+        page = render(load("numbers.json"), load("ads.json"), load("glitchtip.json"), load("notes.json"),
+                      load("apple_ads.json"))
         path = os.path.join(DIR, "showrecorder-numbers.html")
         with open(path, "w") as f:
             f.write(page)

@@ -258,6 +258,23 @@ class RenderTests(unittest.TestCase):
         self.assertIn("CI is failing on main", page)
         self.assertIn("Engineering not read", nr.render(numbers()))
 
+    def test_shows_apple_ads_with_credit_left_and_keywords(self):
+        apple = {"read_at": "2026-11-22T16:06+00:00", "range": "Nov 22 – 23, 2026 (UTC)", "start": "2026-11-22",
+                 "credit": 100, "campaigns": [{"name": "SR Search US", "status": "Running", "daily_budget": 10,
+                                               "spent": 12.5, "impressions": 400, "taps": 20, "installs": 5}],
+                 "keywords": [{"text": "multitrack recorder", "spent": 6.0, "taps": 9, "installs": 3},
+                              {"text": "<x>", "spent": 0.0, "taps": 0, "installs": 0}]}
+        page = nr.render(numbers(), apple_ads=apple)
+        self.assertIn("<h2>Apple Ads</h2>", page)
+        self.assertIn("$12.50", page)
+        self.assertIn("$87.50 of the $100.00 credit left", page)
+        self.assertIn("5.0%", page)  # taps per impression
+        self.assertIn("$2.50", page)  # per install
+        self.assertIn("multitrack recorder", page)
+        self.assertIn("&lt;x&gt;", page)
+        self.assertIn("UTC", page)
+        self.assertNotIn("<h2>Apple Ads</h2>", nr.render(numbers()))
+
     def test_says_when_nothing_waits_and_when_support_wasnt_read(self):
         n = numbers()
         n["support"] = {"waiting": [], "new": []}
