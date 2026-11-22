@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""The ShowRecorder numbers report: two weeks of the site, Facebook ads, App Store sales, TestFlight, tester usage
-and errors on one HTML page.
+"""The ShowRecorder numbers report: two weeks of the site, Facebook ads, App Store sales, TestFlight, tester usage,
+errors and support on one HTML page.
 
   doppler run -p ericdahl-dev -c prd -- python3 scripts/numbers_report.py collect   # writes numbers.json
   python3 scripts/numbers_report.py render                                          # writes showrecorder-numbers.html
 
 Both work in one folder outside the repo, NUMBERS_DIR (default ~/.cache/showrecorder-numbers), because the data
-holds testers' feedback. `collect` reads PostHog and App Store Connect with the same queries and helpers as
+holds testers' feedback. `collect` reads PostHog, App Store Connect and Chatwoot (read only) with the same queries and helpers as
 weekly_numbers.py, so the page, the weekly table and the daily email agree. The rest is written by hand into the
 folder before `render`, since no script can reach it:
   ads.json        Facebook Ads Manager: {"read_at", "range", "start", "budget", "ads": [{"name", "tag", "spent",
@@ -101,6 +101,39 @@ def split_feedback(response, mine):
                        "build": included.get(("builds", build["id"]), {}).get("version") if build else None,
                        "comment": (a.get("comment") or "").strip()})
     return own, others
+
+
+SUPPORT_INBOX = "ShowRecorder"  # Chatwoot inboxes whose names start with this are the app's
+IN, OUT = 0, 1  # Chatwoot message types; 2 is an activity row
+
+
+def support_summary(conversations, messages, inboxes, start):
+    """The app's support threads from Chatwoot's conversations, each one's messages ({id: [message]}) and the inbox
+    names ({id: name}). `waiting`: threads not resolved whose last public message is the customer's, waiting since
+    their first message after our last public reply. `new`: threads opened since `start` (aware datetime) per inbox,
+    and how many got a public reply. No names, addresses or message text: only the subject is kept."""
+    def public(cid):
+        return [m for m in messages.get(cid, []) if m["message_type"] in (IN, OUT) and not m.get("private")]
+
+    def iso(t):
+        return datetime.datetime.fromtimestamp(t, datetime.timezone.utc).isoformat(timespec="minutes")
+
+    ours = [c for c in conversations if (inboxes.get(c["inbox_id"]) or "").startswith(SUPPORT_INBOX)]
+    waiting, new = [], collections.OrderedDict()
+    for c in sorted(ours, key=lambda c: c["id"]):
+        said = public(c["id"])
+        inbox = inboxes[c["inbox_id"]]
+        if c["status"] != "resolved" and said and said[-1]["message_type"] == IN:
+            replies = [i for i, m in enumerate(said) if m["message_type"] == OUT]
+            first = said[replies[-1] + 1] if replies else said[0]
+            waiting.append({"id": c["id"], "inbox": inbox,
+                            "subject": (c.get("additional_attributes") or {}).get("mail_subject"),
+                            "status": c["status"], "since": iso(first["created_at"])})
+        if c["created_at"] >= start.timestamp():
+            counts = new.setdefault(inbox, {"inbox": inbox, "threads": 0, "answered": 0})
+            counts["threads"] += 1
+            counts["answered"] += any(m["message_type"] == OUT for m in said)
+    return {"waiting": waiting, "new": sorted(new.values(), key=lambda r: r["inbox"])}
 
 
 # ---- Render: the page from numbers.json and the hand-written files. No network.
@@ -347,6 +380,22 @@ def render(n, ads=None, glitchtip=None, notes=None):
     errors = section("Errors", "GlitchTip " + (read_at(glitchtip["read_at"]) if glitchtip else "not read")
                      + f" · App Store Connect {read_at(n['collected_at'])}", table(["Where", "Result", "Detail"], err_rows))
 
+    # Support.
+    support = n.get("support")
+    if support is None:
+        support_html = section("Support", "Chatwoot not read")
+    else:
+        now = datetime.datetime.fromisoformat(n["collected_at"])
+        waits = [[f'#{w["id"]}', esc(w["inbox"]), esc(w["subject"] or "(no subject)"), esc(read_at(w["since"])),
+                  f'{round((now - datetime.datetime.fromisoformat(w["since"])).total_seconds() / 86400)} days',
+                  esc(w["status"])] for w in support["waiting"]]
+        support_html = section(
+            "Support", f"Chatwoot, ShowRecorder inboxes · {read_at(n['collected_at'])}",
+            table(["Thread", "Inbox", "Subject", "Waiting since", "Waited", "Status"], waits, right=(4,)) if waits
+            else "<p>Nothing is waiting on a reply.</p>",
+            points([f'{r["threads"]} new threads in {esc(r["inbox"])}, {r["answered"]} answered (sales emails '
+                    "are resolved without one)." for r in support["new"]]))
+
     extra_sections = "".join(section(s["title"], s.get("src", ""), points([esc(p) for p in s.get("points", [])]))
                              for s in notes.get("sections", []))
 
@@ -354,6 +403,8 @@ def render(n, ads=None, glitchtip=None, notes=None):
     todo += [("warn", "TestFlight", f'{r["version"]} ({r["build"]}) on {"Mac" if r["platform"] == "MAC_OS" else "iOS"} '
                                     f'is {REVIEW_CHIPS[r["review"]][1].lower()}.')
              for r in tf["beta_review"] if r["review"] in ("WAITING_FOR_REVIEW", "IN_REVIEW", "REJECTED")]
+    todo += [("warn", "Support", f'Reply to support thread #{w["id"]} ({w["subject"] or "no subject"}), waiting since '
+                                 f'{read_at(w["since"])}.') for w in (support or {}).get("waiting", [])]
     needs = ('<section><div class="head"><h2>Needs you</h2></div><div class="todo">'
              + "".join(f"<div>{chip(level, tag)}<span>{esc(text)}</span></div>" for level, tag, text in todo)
              + "</div></section>") if todo else ""
@@ -367,8 +418,9 @@ def render(n, ads=None, glitchtip=None, notes=None):
     return (PAGE_HEAD + f'<main><header><div class="eyebrow">ShowRecorder · updated {esc(updated)}</div>'
             "<h1>ShowRecorder numbers</h1><p class=\"lede\">The last two weeks of website traffic, Facebook ads, App "
             "Store sales, TestFlight, tester usage and errors. Each section says when its numbers were read.</p>"
-            f"</header>{strip}{website}{ads_html}{app_store}{testflight}{usage}{errors}{extra_sections}{needs}"
-            "<footer>Built by scripts/numbers_report.py from PostHog (Owned Sites), App Store Connect, and hand-read "
+            f"</header>{strip}{website}{ads_html}{app_store}{testflight}{usage}{errors}{support_html}{extra_sections}"
+            f"{needs}<footer>Built by scripts/numbers_report.py from PostHog (Owned Sites), App Store Connect, Chatwoot, "
+            "and hand-read "
             "Facebook Ads Manager and GlitchTip numbers.</footer></main>"
             f"<script>var D = {json.dumps(chart)};\n{CHART_JS}</script>\n")
 
@@ -483,6 +535,36 @@ def fetch_site(start, end):
     return visitors, clicks, usage
 
 
+CHATWOOT = "https://chatwoot.ericdahl.dev"
+
+
+def fetch_support(start):
+    """support_summary from Chatwoot's API, read only (GET). The token is CHATWOOT_API_ACCESS_TOKEN, from Infisical
+    when it isn't set. Reads pages, newest activity first, until a page's threads all went quiet before `start`;
+    a thread still open is never that old for long, since `waiting` covers only threads not resolved."""
+    import urllib.request
+    wn.load_secrets(["CHATWOOT_API_ACCESS_TOKEN"])
+    headers = {"api_access_token": os.environ["CHATWOOT_API_ACCESS_TOKEN"]}
+
+    def get(path):
+        with urllib.request.urlopen(urllib.request.Request(CHATWOOT + path, headers=headers), timeout=60) as r:
+            return json.load(r)
+
+    base = f'/api/v1/accounts/{get("/api/v1/profile")["account_id"]}'
+    inboxes = {i["id"]: i["name"] for i in get(base + "/inboxes")["payload"]}
+    conversations, page = [], 1
+    while True:
+        batch = get(f"{base}/conversations?status=all&sort_by=last_activity_at_desc&page={page}")["data"]["payload"]
+        conversations += batch
+        if not batch or all(c["last_activity_at"] < start.timestamp() for c in batch) or page >= 20:
+            break
+        page += 1
+    wanted = [c for c in conversations if (inboxes.get(c["inbox_id"]) or "").startswith(SUPPORT_INBOX)
+              and (c["status"] != "resolved" or c["created_at"] >= start.timestamp())]
+    messages = {c["id"]: get(f'{base}/conversations/{c["id"]}/messages')["payload"] for c in wanted}
+    return support_summary(conversations, messages, inboxes, start)
+
+
 def collect(today):
     import asc_stats, ci_profile
 
@@ -501,6 +583,12 @@ def collect(today):
            "site": {"daily": site_days(visitors, site_days_), "sources": site_sources(visitors, window),
                     "app_store_clicks": sum(1 for d, _ in clicks if wn.in_window(d, window))},
            "usage": usage_table(usage)}
+    try:  # a Chatwoot outage leaves the section "not read" rather than losing the rest
+        from zoneinfo import ZoneInfo
+        out["support"] = fetch_support(datetime.datetime.combine(site_start, datetime.time(), ZoneInfo(TIME_ZONE)))
+    except Exception as e:
+        print(f"Chatwoot not read: {type(e).__name__}", file=sys.stderr)
+        out["support"] = None
 
     wn.load_asc_secrets()
     mine = {e.strip().lower() for e in os.environ.get("MINE", "").split(",") if e.strip()}

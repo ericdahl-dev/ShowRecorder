@@ -314,10 +314,18 @@ def http_json(url, body=None, headers=None):
 
 
 def load_asc_secrets():
-    """Fills the App Store Connect variables from Infisical (project showrecorder, prod) when they aren't set, with
-    the machine identity from Doppler (INFISICAL_GER3_CLIENT_ID / _SECRET). Values never leave the environment."""
+    """Fills the App Store Connect variables from Infisical when they aren't set (see load_secrets)."""
     missing = [name for name in ASC_SECRETS if not os.environ.get(name)]
     if not missing or (os.environ.get("ASC_KEY_PATH") and missing == ["ASC_KEY_P8"]):
+        return
+    load_secrets(missing)
+
+
+def load_secrets(names):
+    """Fills each named variable that isn't set from Infisical (project showrecorder, prod), with the machine
+    identity from Doppler (INFISICAL_GER3_CLIENT_ID / _SECRET). Values never leave the environment."""
+    missing = [name for name in names if not os.environ.get(name)]
+    if not missing:
         return
     login = http_json(f"{INFISICAL}/v1/auth/universal-auth/login", {
         "clientId": os.environ["INFISICAL_GER3_CLIENT_ID"], "clientSecret": os.environ["INFISICAL_GER3_CLIENT_SECRET"]})
