@@ -32,6 +32,7 @@ struct AutoGainSheet: View {
                 canUndoAll: isDemo || autoGain.canUndoAll,
                 compensation: { isDemo ? AutoGainList.demoCompensation[$0] : autoGain.compensationSummary($0) },
                 unavailable: isDemo ? nil : model.mixerGain.autoGainUnavailable,
+                undoUnavailable: isDemo ? nil : model.mixerGain.undoUnavailable,
                 notice: isDemo ? nil : autoGain.notice)
                 .task { await autoGain.prepare() }
                 .navigationTitle("Auto-gain")
@@ -79,13 +80,16 @@ struct AutoGainList: View {
     @ScaledMetric(relativeTo: .body) private var textScale: CGFloat = 1
     /// A channel row's content width, measured; every row has the same.
     @State private var rowWidth: CGFloat = 0
-    /// Why it can't run right now, said at the top; everything is locked meanwhile.
+    /// Why it can't run right now, said at the top; the Auto-gain buttons are locked meanwhile.
     var unavailable: AutoGainAvailability.Unavailable? = nil
+    /// Why Undo can't be used right now. Never Pro: a run made in a Trial can still be put back on Free (#1017).
+    var undoUnavailable: AutoGainAvailability.Unavailable? = nil
     /// Why Undo went away (it was made on another Mixer, #508), said at the top.
     var notice: String? = nil
 
     var body: some View {
         let locked = self.locked || unavailable != nil
+        let undoLocked = self.locked || undoUnavailable != nil
         return List {
             if let unavailable {
                 Section {
@@ -111,7 +115,7 @@ struct AutoGainList: View {
                 } else {
                     Button("Auto-gain all channels", action: runAll).disabled(locked)
                 }
-                Button("Undo all", role: .destructive, action: undoAll).disabled(locked || !canUndoAll)
+                Button("Undo all", role: .destructive, action: undoAll).disabled(undoLocked || !canUndoAll)
                 #if os(macOS)
                 // A Mac list cuts a footer to one line, so the explanation is a row there.
                 Text(Self.explanation).font(.callout).foregroundStyle(.secondary)
@@ -189,7 +193,7 @@ struct AutoGainList: View {
     @ViewBuilder
     private func channelButtons(_ usb: Int, showsUndo: Bool) -> some View {
         if showsUndo {
-            Button("Undo") { undoOne(usb) }.disabled(locked || unavailable != nil).buttonStyle(.borderless)
+            Button("Undo") { undoOne(usb) }.disabled(locked || undoUnavailable != nil).buttonStyle(.borderless)
         }
         Button("Auto-gain") { runOne(usb) }.disabled(locked || unavailable != nil).buttonStyle(.borderless)
     }
@@ -274,5 +278,5 @@ extension AutoGainList {
     AutoGainList(
         channels: AutoGainList.demoChannels, results: [:], running: [], phases: [:], progress: nil, locked: false,
         runAll: {}, runOne: { _ in }, undoOne: { _ in }, undoAll: {}, canUndo: { _ in false }, canUndoAll: false,
-        compensation: { _ in nil }, unavailable: .takeRunning)
+        compensation: { _ in nil }, unavailable: .takeRunning, undoUnavailable: .takeRunning)
 }
