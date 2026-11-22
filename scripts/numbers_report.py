@@ -424,8 +424,9 @@ def render(n, ads=None, glitchtip=None, notes=None):
         return (collected - datetime.datetime.fromisoformat(iso.replace("Z", "+00:00"))).days
 
     def result_chip(result):
-        return chip({"success": "good", "failure": "bad", "cancelled": "warn"}.get(result, "info"),
-                    result.replace("_", " ").capitalize())
+        # GitHub spells a stopped run's conclusion the British way; the page says "Canceled".
+        level = "warn" if result.startswith("cancel") else {"success": "good", "failure": "bad"}.get(result, "info")
+        return chip(level, "Canceled" if result.startswith("cancel") else result.replace("_", " ").capitalize())
 
     failing = []
     if eng is None:
