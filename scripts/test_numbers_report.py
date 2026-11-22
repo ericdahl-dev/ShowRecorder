@@ -84,6 +84,52 @@ class FeedbackTests(unittest.TestCase):
                                    "comment": "Delete is hard"}])
 
 
+def ts(text):
+    """Unix time of an ISO UTC time, as Chatwoot sends it."""
+    return int(datetime.datetime.fromisoformat(text + "+00:00").timestamp())
+
+
+def message(kind, at, private=False):
+    return {"message_type": kind, "created_at": ts(at), "private": private}
+
+
+class SupportTests(unittest.TestCase):
+    INBOXES = {1: "ShowRecorder", 2: "ShowRecorder Website", 3: "Other Site Support"}
+    START = datetime.datetime(2026, 11, 8, tzinfo=datetime.timezone.utc)
+
+    def conv(self, cid, inbox, status, created, subject=None):
+        return {"id": cid, "inbox_id": inbox, "status": status, "created_at": ts(created),
+                "additional_attributes": {"mail_subject": subject} if subject else {}}
+
+    def test_a_thread_waits_from_the_first_customer_message_after_our_last_public_reply(self):
+        convs = [self.conv(7, 1, "open", "2026-11-10T09:00", "USB error")]
+        msgs = {7: [message(0, "2026-11-10T09:00"), message(1, "2026-11-11T10:00"),
+                    message(0, "2026-11-12T08:00"), message(1, "2026-11-12T09:00", private=True),
+                    message(2, "2026-11-12T09:01"), message(0, "2026-11-13T07:00")]}
+        support = nr.support_summary(convs, msgs, self.INBOXES, self.START)
+        self.assertEqual(support["waiting"], [{"id": 7, "inbox": "ShowRecorder", "subject": "USB error",
+                                               "status": "open", "since": "2026-11-12T08:00+00:00"}])
+
+    def test_answered_resolved_and_other_inboxes_dont_wait(self):
+        convs = [self.conv(1, 1, "open", "2026-11-10T09:00"), self.conv(2, 1, "resolved", "2026-11-10T09:00"),
+                 self.conv(3, 3, "open", "2026-11-10T09:00"), self.conv(4, 2, "snoozed", "2026-11-10T09:00")]
+        msgs = {1: [message(0, "2026-11-10T09:00"), message(1, "2026-11-10T10:00")],
+                2: [message(0, "2026-11-10T09:00")], 3: [message(0, "2026-11-10T09:00")],
+                4: [message(0, "2026-11-10T09:00"), message(1, "2026-11-10T10:00")]}
+        self.assertEqual(nr.support_summary(convs, msgs, self.INBOXES, self.START)["waiting"], [])
+
+    def test_counts_new_threads_per_inbox_in_the_window_and_how_many_we_answered(self):
+        convs = [self.conv(1, 1, "resolved", "2026-11-10T09:00"), self.conv(2, 1, "resolved", "2026-11-12T09:00"),
+                 self.conv(3, 2, "open", "2026-11-14T09:00"), self.conv(4, 1, "resolved", "2026-11-01T09:00"),
+                 self.conv(5, 3, "open", "2026-11-14T09:00")]
+        msgs = {1: [message(0, "2026-11-10T09:00"), message(1, "2026-11-10T10:00")],
+                2: [message(0, "2026-11-12T09:00")], 3: [message(0, "2026-11-14T09:00")],
+                4: [message(0, "2026-11-01T09:00")], 5: [message(0, "2026-11-14T09:00")]}
+        self.assertEqual(nr.support_summary(convs, msgs, self.INBOXES, self.START)["new"],
+                         [{"inbox": "ShowRecorder", "threads": 2, "answered": 1},
+                          {"inbox": "ShowRecorder Website", "threads": 1, "answered": 0}])
+
+
 def numbers():
     days = [D(2026, 11, 4) + datetime.timedelta(days=i) for i in range(15)]
     store_days = [D(2026, 10, 21) + datetime.timedelta(days=i) for i in range(28)]
@@ -147,6 +193,26 @@ class RenderTests(unittest.TestCase):
         page = nr.render(numbers())
         self.assertIn("&lt;b&gt;No&lt;/b&gt; Drive copy", page)
         self.assertNotIn("<b>No</b>", page)
+
+    def test_lists_threads_waiting_on_a_reply_and_puts_them_in_needs_you(self):
+        n = numbers()
+        n["support"] = {"waiting": [{"id": 26, "inbox": "ShowRecorder", "subject": "<i>USB</i> error", "status": "open",
+                                     "since": "2026-11-16T16:37+00:00"}],
+                        "new": [{"inbox": "ShowRecorder", "threads": 3, "answered": 2}]}
+        page = nr.render(n)
+        self.assertIn("<h2>Support</h2>", page)
+        self.assertIn("#26", page)
+        self.assertIn("&lt;i&gt;USB&lt;/i&gt; error", page)
+        self.assertIn("Nov 16, 11:37 ET", page)
+        self.assertIn("2 days", page)
+        self.assertIn("3 new threads in ShowRecorder, 2 answered", page)
+        self.assertIn("Reply to support thread #26", page)
+
+    def test_says_when_nothing_waits_and_when_support_wasnt_read(self):
+        n = numbers()
+        n["support"] = {"waiting": [], "new": []}
+        self.assertIn("Nothing is waiting on a reply.", nr.render(n))
+        self.assertIn("Chatwoot not read", nr.render(numbers()))
 
     def test_leaves_out_the_ads_and_glitchtip_when_not_read(self):
         page = nr.render(numbers())
