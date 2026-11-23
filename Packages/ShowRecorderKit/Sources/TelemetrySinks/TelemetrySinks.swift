@@ -101,18 +101,21 @@ public final class PostHogSink: TelemetrySink {
     nonisolated static let projectToken = "phc_uzsUUTbN2k3EJVDvtTGBtrRgPmdWrRxzxbLZcsw7Vvm4"
     nonisolated static let host = "https://us.i.posthog.com"
 
+    private let environment: String
     private let client: any AnalyticsClient
     private let filter: PostHogEventFilter
     private var installID: String?
     private var isSetUp = false
     private var tier: TelemetryTier?
 
-    public convenience init() {
-        self.init(client: PostHogSDKClient())
+    /// `environment` is `TelemetryEnvironment.name(...)`, the name `SentrySink` gets: on every event as `environment`.
+    public convenience init(environment: String) {
+        self.init(environment: environment, client: PostHogSDKClient())
     }
 
     /// `defaults` holds the app's settings, where the rage-click filter reads the transport side.
-    init(client: any AnalyticsClient, defaults: UserDefaults = .standard) {
+    init(environment: String = "debug", client: any AnalyticsClient, defaults: UserDefaults = .standard) {
+        self.environment = environment
         self.client = client
         filter = PostHogEventFilter(defaults: defaults)
     }
@@ -168,6 +171,7 @@ public final class PostHogSink: TelemetrySink {
         guard let installID else { return }
         var properties = Self.properties(for: event)
         if let tier { properties["tier"] = tier.rawValue }
+        properties["environment"] = environment
         client.capture(event.name, distinctId: installID, properties: properties)
     }
 
