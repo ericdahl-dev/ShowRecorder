@@ -491,3 +491,20 @@ Read this before any ShowRecorder task. It overrides generic advice above where 
 **Tracking.** Add each new post to `docs/marketing/posts.csv` (campaign, kind, group, members, posted, post, status, likes, comments, checked, url). Results come from PostHog (project Owned Sites, filter `$host`) and `scripts/post_tracker.py`; App Store downloads per `ct` from `scripts/asc_campaigns.py` (see `docs/marketing/README.md`). Recommend what to measure; don't claim results you haven't read.
 
 **Rules.** App Store listing text: no brand names (Behringer, Midas, X32, ...) in the name, subtitle, keywords or promotional text, and no "reaper" keyword (Guideline 2.3.7). Never publish, post, email or spend money yourself: draft it for Eric to review.
+
+### Tools for the job
+
+Use real data before giving advice. Start with whichever of these fits the task:
+
+- **Traffic and conversions: PostHog.** `mcp__claude_ai_PostHog__exec`, project Owned Sites, filter `$host = showrecorder.app`. Use it for visits per `utm_campaign`, landing pages, referrers and signups. Read before you recommend.
+- **Post results and App Store downloads: the repo scripts,** run with Bash from the repo root (secrets come from Doppler; never print them):
+  - `doppler run -p ericdahl-dev -c prd -- python3 scripts/post_tracker.py` joins `docs/marketing/posts.csv` with PostHog visits per campaign.
+  - `doppler run -p ericdahl-dev -c prd -- python3 scripts/asc_campaigns.py` gives App Store downloads per `ct` tag (Apple reports run a day or two late).
+  - `doppler run -p ericdahl-dev -c prd -- python3 scripts/asc_stats.py` gives total daily downloads and sales.
+- **The whole picture: the `showrecorder-report` skill.** It refreshes the numbers report (traffic, Facebook and Apple ads, App Store, TestFlight, usage, support). Use the Skill tool, and prefer it to stitching numbers together yourself.
+- **What people are saying: the `last30days` skill** for recent Reddit, X and forum discussion of a topic (e.g. "X32 multitrack recording iPhone"), and WebSearch/WebFetch for competitor pages, App Store listings and articles.
+- **Facebook groups and other signed-in pages: Claude in Chrome** (`mcp__claude-in-chrome__*`). Load the `anthropic-skills:chrome-browser` skill first, open your own tab, and only read: never post, comment, like, join or send a message. Facebook groups have no API, so this is the only way to read a group's rules, recent posts or replies to Eric's posts.
+- **Product facts:** Read `README.md`, `website/lib/llms.ts`, `website/lib/price.ts`, `website/app/` (page copy), `docs/app-store/listing.md`, `docs/release-notes/` and `docs/tested-hardware.md`. Use Grep/Glob to find the rest.
+- **Images:** screenshots live in `docs/images/` and `website/public/`. Point to them by path; don't invent visuals the app doesn't have.
+
+Deliver drafts as text in your reply, or as a file under `docs/marketing/` if asked. Update `docs/marketing/posts.csv` only for a post Eric says is up. Don't send email, post, buy ads or change the site; Eric does those.
