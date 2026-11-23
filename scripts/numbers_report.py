@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The ShowRecorder numbers report: two weeks of the site, Facebook ads, App Store sales, TestFlight, tester usage,
+"""The ShowRecorder numbers report: two weeks of the site, Facebook ads, App Store sales, TestFlight, app usage,
 errors, support and engineering on one HTML page.
 
   doppler run -p ericdahl-dev -c prd -- python3 scripts/numbers_report.py collect   # writes numbers.json
@@ -371,9 +371,9 @@ def render(n, ads=None, glitchtip=None, notes=None, apple_ads=None):
 
     # Usage.
     usage = section("App usage", f'PostHog, {long_day(site["daily"][0]["day"])} – {long_day(site["daily"][-1]["day"])} '
-                                 "· TestFlight and Debug builds with sharing on · your own devices left out",
-                    "<p>Usage comes only from TestFlight and Debug builds where the tester left sharing on, so these "
-                    "are testers, not App Store users.</p>",
+                                 "· every build with sharing on · your own devices left out",
+                    "<p>Usage comes from every build where sharing is on. App Store installs send it since 1.2.14 "
+                    "(2026-11-23); before that these were testers only.</p>",
                     table(["Event", "People", "Times"],
                           [[esc(USAGE_NAMES.get(u["event"], u["event"])), u["people"], u["times"]] for u in n["usage"]],
                           right=(1, 2)))
@@ -505,7 +505,7 @@ def render(n, ads=None, glitchtip=None, notes=None, apple_ads=None):
     updated = read_at(n["collected_at"])
     return (PAGE_HEAD + f'<main><header><div class="eyebrow">ShowRecorder · updated {esc(updated)}</div>'
             "<h1>ShowRecorder numbers</h1><p class=\"lede\">The last two weeks of website traffic, Facebook ads, App "
-            "Store sales, TestFlight, tester usage and errors. Each section says when its numbers were read.</p>"
+            "Store sales, TestFlight, app usage and errors. Each section says when its numbers were read.</p>"
             f"</header>{strip}{website}{ads_html}{apple_html}{app_store}{testflight}{usage}{errors}{support_html}{eng_html}"
             f"{extra_sections}{needs}<footer>Built by scripts/numbers_report.py from PostHog (Owned Sites), App Store "
             "Connect, Chatwoot, GitHub, "
