@@ -17,6 +17,6 @@ What needs a mixer: channel names from the Mixer Link, and Auto-gain (only shown
 
 Apple Watch (new in 1.1): the watch app is a remote for the iPhone app, over WatchConnectivity; it records nothing itself. With ShowRecorder open on the iPhone and the Demo signal chosen, open ShowRecorder on the paired watch: it shows the iPhone's state, and Record starts a Take on the iPhone. During a Take it shows the time recorded, Marker drops a Marker, and Stop takes a one-second press and hold. If ShowRecorder isn't open on the iPhone with an input started, the watch asks you to open ShowRecorder on the iPhone (iOS doesn't let an app start the microphone from the background).
 
-Network: the optional Mixer Link talks to the mixer on the local network (OSC over UDP port 10024 for X Air mixers, 10023 for the X32 and M32) to read channel names; Find Mixers asks the local network for X Air and X32 mixers. Nothing is sent to the internet and no data is collected.
+Network: the optional Mixer Link talks to the mixer on the local network (OSC over UDP port 10024 for X Air mixers, 10023 for the X32 and M32) to read channel names; Find Mixers asks the local network for X Air and X32 mixers. From 1.2 the app also sends crash reports and usage to the developer (GlitchTip and PostHog), as the App Privacy answers say; Settings > Share crash reports and usage turns this off. Nothing else is sent to the internet.
 
 Microphone permission is used to record the USB audio input (and the built-in microphone if the user chooses it).

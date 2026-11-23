@@ -1,6 +1,6 @@
 # App Store listing (1.2 changes marked "1.2"; 1.1 draft for Eric's review, #411; 1.0 was #64)
 
-Paste into App Store Connect > ShowRecorder > the 1.1 version (and App Information for the name and subtitle). The number after each heading is Apple's character limit; every field here is within it (recounted 2026-10-29, with auto-gain for X Air and no X32 or M32: name 12, subtitle 30, promotional text 165, keywords 100, description 3778, What's New 475; the review notes are 3216 of 4000). The 1.2 description, with the X32 and M32, is 3877 (counted 2026-11-15; it was 3917 before).
+Paste into App Store Connect > ShowRecorder > the 1.1 version (and App Information for the name and subtitle). The number after each heading is Apple's character limit; every field here is within it (recounted 2026-10-29, with auto-gain for X Air and no X32 or M32: name 12, subtitle 30, promotional text 165, keywords 100, description 3778, What's New 475; the review notes are 3216 of 4000). The 1.2 description, with the X32 and M32, is 3943 (2026-11-23, after the Privacy paragraph changed for crash reports and usage; 3877 on 2026-11-15).
 
 Brand names (Behringer, Midas, X Air, XR18, MR18, X32, M32) appear only as compatibility text in the description and What's New. They are not in the name, subtitle or keywords (Guideline 2.3.7).
 
@@ -95,9 +95,21 @@ WHAT YOU NEED
 - About 9.3 GB per hour for 18 channels at 48 kHz. The app shows the recording time left.
 
 PRIVACY
-ShowRecorder collects no data. Your recordings stay on your device and your drive, and the app talks only to your mixer on your local network.
+Your recordings and names stay on your device and your drive. The app sends the developer crash reports and usage, with no tracking; turn it off in Settings. It talks to your mixer only on your local network.
 
 ShowRecorder is not affiliated with or endorsed by Behringer, Midas or Music Tribe. Behringer, Midas, X Air, XR18, MR18, X32 and M32 are trademarks of their owners and are named only to describe compatibility.
+
+## What's New (1.2) (4000)
+
+Approved by Eric 2026-11-23 and submitted with 1.2.14. Only features available to everyone (TestFlight-only ones such as the WING, the slow-Drive wait and clip protection are left out). 719 characters.
+
+- Choose which channels record (Pro or the Trial): long-press a channel's meter to leave it out. A Template keeps the choice.
+- An interface with two inputs, both armed, records one stereo file.
+- Delete several Shows at once, or every empty Show, from Shows › Select or Settings › Storage › Free Up Space…
+- Auto-gain on an X Air (Pro) moves each preamp in the mixer's own 0.5 dB steps, so the mix stays exactly where it was, and leaves channels fed from USB alone.
+- The app now sends the developer crash reports and usage, never your recordings or names. Turn it off in Settings › Share crash reports and usage.
+- Settings has Help and ShowRecorder on Facebook.
+- Fixed: swiping to delete a Show could crash the app.
 
 ## What's New (1.1) (4000)
 
