@@ -29,3 +29,7 @@ The report comes from the app's ONGOING analytics report request, which already 
 report instance per day). `--create-request` makes one only if it is ever missing. Apple publishes each day
 a day or two late, and leaves out rows below its privacy threshold, so a campaign with a handful of downloads
 may not show up at all; the daily sales reports (`scripts/asc_stats.py`) have the full download count.
+
+# Marketing agents
+
+`agent-context.md` is the ShowRecorder context every marketing agent in `.claude/agents/` reads first: product, audience, voice, link tags, tracking and tools. Change it there, not in each agent.
