@@ -80,7 +80,8 @@ else
       tools/mixer-sim/*) mixersim=1 ;;
       # The site's changelog test reads the release notes.
       docs/release-notes/*) site=1 ;;
-      docs/* | design/* | *.md) ;;
+      # Claude agent files and .gitignore build nothing.
+      docs/* | design/* | .claude/* | .gitignore | *.md) ;;
       *) all ;;
     esac
   done
