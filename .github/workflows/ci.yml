@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Which parts changed: the app (anything outside website/, docs/, design/ and Markdown files, as verify.sh
+  # Which parts changed: the app (anything outside website/, docs/, design/, .claude/, .gitignore and Markdown files, as verify.sh
   # sorts them; CONTEXT.md counts as app, for its vocabulary check) and the site (website/, and
   # docs/release-notes/, which the site's changelog test reads), and the Mixer Link test bench (tools/mixer-sim).
   # A change to this workflow runs all three.
@@ -44,7 +44,7 @@ jobs:
           files=$(git diff --name-only "$BASE"...HEAD)
           printf '%s\n' "$files"
           app=false; site=false; mixersim=false
-          if printf '%s\n' "$files" | grep -qvE '^website/|^docs/|^design/|\.md$|^$'; then app=true; fi
+          if printf '%s\n' "$files" | grep -qvE '^website/|^docs/|^design/|^\.claude/|^\.gitignore$|\.md$|^$'; then app=true; fi
           if printf '%s\n' "$files" | grep -qxE 'CONTEXT\.md'; then app=true; fi
           if printf '%s\n' "$files" | grep -qE '^website/|^docs/release-notes/|^\.github/workflows/ci\.yml$'; then site=true; fi
           if printf '%s\n' "$files" | grep -qE '^tools/mixer-sim/|^\.github/workflows/ci\.yml$'; then mixersim=true; fi
