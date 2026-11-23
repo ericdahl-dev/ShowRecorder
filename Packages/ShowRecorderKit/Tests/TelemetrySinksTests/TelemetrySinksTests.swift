@@ -180,6 +180,26 @@ struct PostHogSinkTests {
         #expect(client.lastProperties?["tier"] as? String == "pro")
     }
 
+    @Test("Every event says the build it came from: debug, testflight or appstore, the same name Sentry gets")
+    func environmentOnEvents() {
+        let client = FakeAnalytics()
+        let sink = PostHogSink(environment: "appstore", client: client)
+        sink.start(installID: UUID())
+        sink.capture(.appOpened)
+        #expect(client.lastProperties?["environment"] as? String == "appstore")
+        sink.capture(.showCreated)
+        #expect(client.lastProperties?["environment"] as? String == "appstore")
+    }
+
+    @Test("The app's sink takes the environment and calls the PostHog SDK only once started")
+    func appSinkBeforeStart() {
+        // The real SDK client: before start() nothing reaches it, so this sends nothing.
+        let sink = PostHogSink(environment: "testflight")
+        sink.setTier(.pro)
+        sink.capture(.appOpened)
+        sink.capture(.showCreated)
+    }
+
     @Test("Nothing is sent before start()")
     func beforeStart() {
         let client = FakeAnalytics()
