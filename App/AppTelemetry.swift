@@ -39,7 +39,7 @@ enum AppTelemetry {
         #endif
         let name = TelemetryEnvironment.name(isDebugBuild: isDebugBuild, isTestFlight: environment == .sandbox)
         shared = Telemetry(
-            sinks: [SentrySink(environment: name), PostHogSink()],
+            sinks: [SentrySink(environment: name), PostHogSink(environment: name)],
             isAvailable: { TelemetryAvailability.isAvailableInThisBuild }
         )
         shared.start()
