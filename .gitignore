@@ -13,7 +13,8 @@ Packages/*/Package.resolved
 .DS_Store
 
 # Claude Code agent worktrees and local settings
-.claude/
+.claude/*
+!.claude/agents/
 
 # Signing certificates and keys never go in the repo.
 *.p12
