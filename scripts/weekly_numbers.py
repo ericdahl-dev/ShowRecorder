@@ -12,7 +12,7 @@ the daily email: yesterday beside the day before. Days are New York
 days on the site and Apple's report days in the App Store. Never prints a secret.
 
 Site: PostHog project "Owned Sites", $host = showrecorder.app. App Store: the daily sales reports (asc_stats.py).
-App usage: take_started / take_stopped, sent only by TestFlight builds until 1.2 ships."""
+App usage: take_started / take_stopped, from every build with sharing on (App Store since 1.2.14, 2026-11-23)."""
 import collections, dataclasses, datetime, os, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -213,7 +213,7 @@ def rows(sites, stores, usages):
     row("Revenue per download", [s["revenue_per_download"] for s in stores], "usd")
     row("Download-to-Pro", [s["download_to_pro"] for s in stores], "percent")
 
-    section("App usage (TestFlight only until 1.2 ships)")
+    section("App usage (App Store and TestFlight)")
     row("take_started", [u["take_started"] for u in usages])
     row("take_stopped", [u["take_stopped"] for u in usages])
     row("Devices recording", [u["devices"] for u in usages])
@@ -260,8 +260,8 @@ def notes(windows, sites, stores, usages):
     out.append(f"Nov 20 price step check: at $9.99, download-to-Pro must stay at or above {PRICE_STEP_FLOOR:.1%} "
                f"to match revenue per download at $4.99. Now: {check(last_name.lower(), stores[0])}, "
                f"{check('since launch', stores[2])}.")
-    out.append("App usage events (take_started, take_stopped) come only from TestFlight builds until 1.2 ships "
-               "to the App Store.")
+    out.append("App usage events (take_started, take_stopped) come from App Store and TestFlight builds with "
+               "sharing on; App Store installs send them since 1.2.14 (2026-11-23).")
     prior = windows[1]
     if prior.start < LAUNCH:
         early = (min(LAUNCH, prior.end + datetime.timedelta(days=1)) - prior.start).days
