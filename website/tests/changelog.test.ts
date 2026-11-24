@@ -26,8 +26,8 @@ describe("changelog", () => {
     for (const v of tagged) expect(listed, `docs/release-notes/v${v}.md has no changelog entry`).toContain(v);
   });
 
-  it("leads with 1.1 on the App Store, and the page links to it (#382)", () => {
-    expect(RELEASES.find((r) => r.channel === "App Store")).toMatchObject({ version: "1.1.21" });
+  it("leads with 1.2 on the App Store, and the page links to it (#382)", () => {
+    expect(RELEASES.find((r) => r.channel === "App Store")).toMatchObject({ version: "1.2.14" });
     expect(renderToStaticMarkup(ChangelogPage())).toContain(`<a href="${APP_STORE_URL}?pt=117729664&amp;ct=site-changelog&amp;mt=8">`);
   });
 
