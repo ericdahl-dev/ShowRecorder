@@ -547,6 +547,10 @@ export const WING_GUIDE_FAQS: readonly Faq[] = [
     a: "Check SETUP > AUDIO > USB AUDIO: it sets 2 x 2, 8 x 8, 16 x 16, 32 x 32 or 48 x 48 channels. If the WING shows up as a disk instead (a red OS or DATA tag on its screen), eject that disk on the computer to get USB audio back.",
   },
   {
+    q: "Can I record a WING over USB while it records to the SD cards?",
+    a: "Behringer doesn't say outright. Its manual describes USB AUDIO only as the number of channels a computer sees, and the USB and WLIVE REC groups on ROUTING > OUTPUTS as separate outputs with their own sources, so patching the USB slots leaves the SD recording's slots as they were (our reading). Make the change before the show, not during an SD recording, and check that the WING-LIVE meters still move.",
+  },
+  {
     q: "Are WING recordings pre or post fader?",
     a: "You choose. A raw input (Local In, AES50) on a USB slot is taken after the preamp gain, with no channel processing. For a channel, make a User Signal: it copies the channel at its TAP point (INPUT, FILTER, TAP 3 to 5, PRE FDR, POST FDR or POST PROC) or post-fader.",
   },

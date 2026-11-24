@@ -167,3 +167,4 @@ Source labels: [B-x] = Behringer document (maker). [S-x] = secondary.
 - Gain compensation on a shared stage box: none found. Say a gain change at the headamp changes the recording.
 - WING-LIVE maximum card size and recording time: not in the manual. Leave out.
 - "+1 AUTO" on the OUTPUTS screen: only documented for CHANNELS. Leave out of output steps.
+- USB and WING-LIVE recording at the same time: not stated. The manual gives USB AUDIO only as the computer's channel count and USB / WLIVE REC as separate output groups with per-slot sources, so patching USB shouldn't change the SD slots (our reading). Say "Behringer doesn't say outright", and advise changing it before the show. Asked for by a tester on a WING Rack whose engineer records to SD (TestFlight feedback, 2026-11-22).
