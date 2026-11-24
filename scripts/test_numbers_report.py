@@ -41,8 +41,17 @@ class UsageTests(unittest.TestCase):
         eric = next(iter(wn.INTERNAL_INSTALLS))
         rows = [("take_started", "x"), ("take_started", "x"), ("take_started", "y"), ("app_opened", "x"),
                 ("take_started", eric)]
-        self.assertEqual(nr.usage_table(rows), [{"event": "take_started", "people": 2, "times": 3},
-                                                {"event": "app_opened", "people": 1, "times": 1}])
+        unknown = wn.UNKNOWN_SOURCE
+        self.assertEqual(nr.usage_table(rows), [{"event": "take_started", "source": unknown, "people": 2, "times": 3},
+                                                {"event": "app_opened", "source": unknown, "people": 1, "times": 1}])
+
+    def test_splits_each_event_by_source(self):
+        rows = [("take_started", "a", "testflight"), ("take_started", "b", "appstore"),
+                ("take_started", "c", "appstore"), ("app_opened", "a", "testflight")]
+        self.assertEqual(nr.usage_table(rows), [
+            {"event": "take_started", "source": "App Store", "people": 2, "times": 2},
+            {"event": "take_started", "source": "TestFlight", "people": 1, "times": 1},
+            {"event": "app_opened", "source": "TestFlight", "people": 1, "times": 1}])
 
 
 class StoreTests(unittest.TestCase):
