@@ -61,15 +61,21 @@ def site_sources(rows, window):
 
 
 def usage_table(rows):
-    """[{event, people, times}], most people first, from (event, device) rows, without Eric's and App Review's
-    installs."""
+    """[{event, source, people, times}], most people first, from (event, device[, environment]) rows, without Eric's
+    and App Review's installs. `source` is App Store, TestFlight or unknown (before 1.2.15)."""
     people, times = collections.defaultdict(set), collections.Counter()
-    for event, device in rows:
+    for row in rows:
+        event, device = row[0], row[1]
         if device not in wn.INTERNAL_INSTALLS:
-            people[event].add(device)
-            times[event] += 1
-    return [{"event": e, "people": len(people[e]), "times": times[e]}
-            for e in sorted(times, key=lambda e: (-len(people[e]), -times[e], e))]
+            key = (event, wn.source_name(row[2] if len(row) > 2 else ""))
+            people[key].add(device)
+            times[key] += 1
+    order = [*wn.SOURCES.values(), wn.UNKNOWN_SOURCE]
+    event_people = collections.defaultdict(set)
+    for (event, _), devices in people.items():
+        event_people[event] |= devices
+    keys = sorted(times, key=lambda k: (-len(event_people[k[0]]), k[0], order.index(k[1])))
+    return [{"event": e, "source": src, "people": len(people[(e, src)]), "times": times[(e, src)]} for e, src in keys]
 
 
 def store_days(reports, days, app_id, sku, rates, total_days=DAYS):
@@ -371,12 +377,14 @@ def render(n, ads=None, glitchtip=None, notes=None, apple_ads=None):
 
     # Usage.
     usage = section("App usage", f'PostHog, {long_day(site["daily"][0]["day"])} – {long_day(site["daily"][-1]["day"])} '
-                                 "· every build with sharing on · your own devices left out",
-                    "<p>Usage comes from every build where sharing is on. App Store installs send it since 1.2.14 "
-                    "(2026-11-23); before that these were testers only.</p>",
-                    table(["Event", "People", "Times"],
-                          [[esc(USAGE_NAMES.get(u["event"], u["event"])), u["people"], u["times"]] for u in n["usage"]],
-                          right=(1, 2)))
+                                 "· App Store and TestFlight builds with sharing on · your own devices left out",
+                    "<p>App Store installs send usage since 1.2.14 (2026-11-23). From 1.2.15 each event says whether "
+                    "the install came from the App Store or TestFlight; earlier events show as unknown. Debug, local "
+                    "and Simulator builds are left out.</p>",
+                    table(["Event", "From", "People", "Times"],
+                          [[esc(USAGE_NAMES.get(u["event"], u["event"])), esc(u.get("source", "")), u["people"],
+                            u["times"]] for u in n["usage"]],
+                          right=(2, 3)))
 
     # Errors.
     err_rows = []
@@ -619,8 +627,8 @@ def fetch_site(start, end):
                     f"argMin(properties.utm_campaign, timestamp), argMin(properties.$referring_domain, timestamp) "
                     f"FROM events WHERE event = '$pageview' AND {site} GROUP BY d, person_id")
     clicks = rows(f"SELECT toString({day}), toString(uuid) FROM events WHERE {site} AND {wn.APP_STORE_CLICK}")
-    usage = [tuple(r) for r in wn.posthog(f"SELECT event, distinct_id FROM events WHERE properties.app = 'showrecorder' "
-                                          f"AND {span} LIMIT 50000")]
+    usage = [tuple(r) for r in wn.posthog(f"SELECT event, distinct_id, {wn.ENVIRONMENT} FROM events "
+                                          f"WHERE {wn.APP_EVENTS} AND {span} LIMIT 50000")]
     return visitors, clicks, usage
 
 

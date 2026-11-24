@@ -151,7 +151,8 @@ class UsageTests(unittest.TestCase):
             (D(2026, 10, 29), "take_started", "phone3"),
         ]
         last, _, _ = wn.windows(D(2026, 11, 7))
-        self.assertEqual(wn.usage_numbers(rows, last), {"take_started": 3, "take_stopped": 1, "devices": 2})
+        self.assertEqual(wn.usage_numbers(rows, last), {"take_started": 3, "take_stopped": 1, "devices": 2,
+                                                        "by_source": {"unknown (before 1.2.15)": 2}})
 
     def test_leaves_out_internal_installs(self):
         eric = next(iter(wn.INTERNAL_INSTALLS))
@@ -161,7 +162,25 @@ class UsageTests(unittest.TestCase):
             (D(2026, 11, 6), "take_started", "tester"),
         ]
         last, _, _ = wn.windows(D(2026, 11, 7))
-        self.assertEqual(wn.usage_numbers(rows, last), {"take_started": 1, "take_stopped": 0, "devices": 1})
+        self.assertEqual(wn.usage_numbers(rows, last), {"take_started": 1, "take_stopped": 0, "devices": 1,
+                                                        "by_source": {"unknown (before 1.2.15)": 1}})
+
+    def test_counts_devices_by_source(self):
+        rows = [  # day, event, device, environment
+            (D(2026, 11, 6), "take_started", "a", "appstore"),
+            (D(2026, 11, 6), "take_started", "b", "testflight"),
+            (D(2026, 11, 6), "take_stopped", "b", "testflight"),
+            (D(2026, 11, 6), "take_started", "c", ""),
+        ]
+        last, _, _ = wn.windows(D(2026, 11, 7))
+        self.assertEqual(wn.usage_numbers(rows, last)["by_source"],
+                         {"App Store": 1, "TestFlight": 1, "unknown (before 1.2.15)": 1})
+
+    def test_query_leaves_out_debug_local_and_simulator_builds(self):
+        self.assertIn("!= 'debug'", wn.APP_EVENTS)
+        self.assertIn("!= '0.1.0'", wn.APP_EVENTS)
+        self.assertIn("properties.$os IN ('iOS', 'iPadOS') AND properties.$device_model IN ('arm64', 'x86_64')",
+                      wn.APP_EVENTS)
 
 
 def store(**numbers):

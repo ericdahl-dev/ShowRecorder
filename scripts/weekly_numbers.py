@@ -162,13 +162,34 @@ INTERNAL_INSTALLS = frozenset({
 })
 
 
+# The app's usage events that come from real installs: not Debug builds (`environment` = debug, sent since 1.2.15),
+# not local builds that carry no marketing version (0.1.0) and not the iOS Simulator, whose device model is the CPU
+# (arm64, x86_64). A real Mac also reports arm64, so only iOS and iPadOS are checked for it.
+APP_EVENTS = ("properties.app = 'showrecorder' AND coalesce(properties.environment, '') != 'debug' "
+              "AND coalesce(properties.$app_version, '') != '0.1.0' "
+              "AND NOT (properties.$os IN ('iOS', 'iPadOS') AND properties.$device_model IN ('arm64', 'x86_64'))")
+# Where an install came from, by `environment`. Events from before 1.2.15 have none.
+SOURCES = {"appstore": "App Store", "testflight": "TestFlight"}
+UNKNOWN_SOURCE = "unknown (before 1.2.15)"
+ENVIRONMENT = "coalesce(properties.environment, '')"
+
+
+def source_name(environment):
+    return SOURCES.get(environment or "", UNKNOWN_SOURCE)
+
+
 def usage_numbers(rows, window):
-    """Take events and the devices that sent them, from (day, event, device) rows, without internal installs."""
-    events = [(event, device) for day, event, device in rows
-              if in_window(day, window) and device not in INTERNAL_INSTALLS]
-    counts = collections.Counter(event for event, _ in events)
+    """Take events and the devices that sent them, from (day, event, device[, environment]) rows, without internal
+    installs. `by_source` is the devices recording for each source (App Store, TestFlight, unknown)."""
+    events = [(row[1], row[2], source_name(row[3] if len(row) > 3 else "")) for row in rows
+              if in_window(row[0], window) and row[2] not in INTERNAL_INSTALLS]
+    counts = collections.Counter(event for event, _, _ in events)
+    by_source = collections.defaultdict(set)
+    for _, device, source in events:
+        by_source[source].add(device)
     return {"take_started": counts["take_started"], "take_stopped": counts["take_stopped"],
-            "devices": len({device for _, device in events})}
+            "devices": len({device for _, device, _ in events}),
+            "by_source": {source: len(devices) for source, devices in by_source.items()}}
 
 
 TOP_PAGES = 5
@@ -217,6 +238,10 @@ def rows(sites, stores, usages):
     row("take_started", [u["take_started"] for u in usages])
     row("take_stopped", [u["take_stopped"] for u in usages])
     row("Devices recording", [u["devices"] for u in usages])
+    seen = set().union(*(u.get("by_source", {}) for u in usages))
+    for source in [*SOURCES.values(), UNKNOWN_SOURCE]:
+        if source in seen:
+            row(f"from {source}", [u.get("by_source", {}).get(source, 0) for u in usages])
     return out
 
 
@@ -261,7 +286,8 @@ def notes(windows, sites, stores, usages):
                f"to match revenue per download at $4.99. Now: {check(last_name.lower(), stores[0])}, "
                f"{check('since launch', stores[2])}.")
     out.append("App usage events (take_started, take_stopped) come from App Store and TestFlight builds with "
-               "sharing on; App Store installs send them since 1.2.14 (2026-11-23).")
+               "sharing on; App Store installs send them since 1.2.14 (2026-11-23). Debug, local and Simulator builds "
+               "are left out. Events from before 1.2.15 don't say where the install came from.")
     prior = windows[1]
     if prior.start < LAUNCH:
         early = (min(LAUNCH, prior.end + datetime.timedelta(days=1)) - prior.start).days
@@ -366,8 +392,8 @@ def fetch_posthog(start, end):
                  f"WHERE event = '$pageview' AND {site} AND "
                  f"(properties.$pathname LIKE '/guides/%' OR properties.$pathname LIKE '/mixers/%')")
     clicks = rows(f"SELECT toString({day}), toString(uuid) FROM events WHERE {site} AND {APP_STORE_CLICK}")
-    takes = rows(f"SELECT toString({day}), event, distinct_id FROM events "
-                 f"WHERE event IN ('take_started', 'take_stopped') AND properties.app = 'showrecorder' AND {span}")
+    takes = rows(f"SELECT toString({day}), event, distinct_id, {ENVIRONMENT} FROM events "
+                 f"WHERE event IN ('take_started', 'take_stopped') AND {APP_EVENTS} AND {span}")
     return visitors, pages, clicks, takes
 
 
